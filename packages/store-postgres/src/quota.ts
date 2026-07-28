@@ -26,7 +26,19 @@
  *   raw: a hot limiter is EXPECTED to serialize admissions. A call
  *   still waiting past `QUOTA_LOCK_TIMEOUT_MS` throws (postgres
  *   cancels the statement under `SET LOCAL lock_timeout`), and the
- *   engine's `onLimiterError` policy decides what that means.
+ *   engine's `onLimiterError` policy decides what that means. The lock
+ *   serializes `reserve` AND `reconcile`, so its arrival rate is
+ *   admission attempts PLUS grants, not attempts alone.
+ * - The lock bound is one STAGE; the whole admission path (bootstrap,
+ *   pool checkout, transaction) is bounded by `admissionDeadlineMs`
+ *   (default `QUOTA_ADMISSION_DEADLINE_MS`, RV506). Expiry throws a
+ *   typed `QuotaDeadlineError` into the same `onLimiterError` surface
+ *   and destroys the held connection instead of returning it dirty.
+ * - Boot records the sha256 fingerprint of the canonical rule set in
+ *   `rulvar_quota_meta` under the boot lock; a host with a drifted
+ *   rule set is refused typed with both hashes instead of silently
+ *   splitting the budget across mismatched bucket keys. Rotation is
+ *   the explicit `acceptRulesUpdate` opt-in (RV506).
  * - The durable admission QUEUE stays the host's: a denial carries the
  *   honest window remainder, and what to do while waiting (park the
  *   run, spill to another provider, surface backpressure) is host
@@ -34,7 +46,7 @@
  *
  * Docs: https://docs.rulvar.com/guide/model-routing
  */
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import pg from 'pg';
 
 import {
@@ -63,6 +75,52 @@ import { DEFAULT_POOL_MAX, IDENTIFIER, LOCK_SEED } from './store.js';
  */
 export const QUOTA_LOCK_TIMEOUT_MS = 2_000;
 
+/**
+ * The default bound on one WHOLE admission path (RV506): lazy
+ * bootstrap, pool checkout, and the admission transaction together.
+ * `QUOTA_LOCK_TIMEOUT_MS` bounds only the lock-wait stage inside the
+ * transaction; before RV506 a call could spend that bound once at
+ * checkout and again at the lock and still not be refused. Overridable
+ * per limiter through `admissionDeadlineMs`.
+ */
+export const QUOTA_ADMISSION_DEADLINE_MS = 5_000;
+
+/**
+ * Thrown when one quota admission (reserve or reconcile) misses the
+ * full-path deadline. It surfaces exactly where the lock timeout
+ * surfaces, as a limiter error consumed by the engine's
+ * `onLimiterError` policy: `'deny'` (the default) turns it into a
+ * retryable transport-class denial, so nothing dispatches unpoliced.
+ * The connection the refused call held is destroyed, never returned
+ * dirty to the pool; a transaction cut mid-flight is rolled back by
+ * the server. Like any client-side timeout, expiry exactly at the
+ * commit boundary can leave a committed reservation behind; it ages
+ * out with its window unreconciled, the same bounded residue a
+ * crashed process leaves.
+ */
+export class QuotaDeadlineError extends Error {
+  /** The deadline that expired, in milliseconds. */
+  readonly deadlineMs: number;
+  /** The schema whose admission missed it. */
+  readonly schema: string;
+  /** Where the path stood: acquiring a connection, or mid-transaction. */
+  readonly phase: 'acquire' | 'transaction';
+
+  constructor(deadlineMs: number, schema: string, phase: 'acquire' | 'transaction') {
+    super(
+      `PostgresQuotaLimiter admission over schema "${schema}" missed its ${String(deadlineMs)}ms deadline ` +
+        (phase === 'acquire'
+          ? 'while waiting for bootstrap or a pooled connection'
+          : 'inside the admission transaction') +
+        '; the in-flight admission was abandoned and its connection destroyed',
+    );
+    this.name = 'QuotaDeadlineError';
+    this.deadlineMs = deadlineMs;
+    this.schema = schema;
+    this.phase = phase;
+  }
+}
+
 // Bound at module load, before any dev-mode bare-Date.now patch can
 // install (the PostgresStore convention): the limiter's clock is
 // engine infrastructure on the live-only dispatch path.
@@ -83,6 +141,19 @@ function ruleKey(rule: QuotaRule): string {
   });
 }
 
+/**
+ * The canonical fingerprint of one rule SET (RV506): sha256 hex over
+ * the sorted canonical rule keys. Order-insensitive on purpose,
+ * matching bucket semantics (equal rules land on the same bucket
+ * regardless of array position), so reordering a config never reads as
+ * a rules change. Exported so a deployment can precompute the value it
+ * expects a schema to have recorded.
+ */
+export function quotaRulesFingerprint(rules: readonly QuotaRule[]): string {
+  const keys = rules.map(ruleKey).sort();
+  return createHash('sha256').update(JSON.stringify(keys)).digest('hex');
+}
+
 export interface PostgresQuotaLimiterOptions {
   /**
    * A postgres connection string shared by every coordinating process
@@ -96,10 +167,33 @@ export interface PostgresQuotaLimiterOptions {
    * identifier.
    */
   schema?: string;
-  /** The shared rule set; must be identical across hosts. */
+  /**
+   * The shared rule set; must be identical across hosts. Enforced: the
+   * schema records `quotaRulesFingerprint(rules)` on first boot, and an
+   * instance whose fingerprint differs is refused with a typed
+   * `ConfigError` naming both hashes.
+   */
   rules: readonly QuotaRule[];
   /** Pool size ceiling; default 10. Admissions are short transactions. */
   max?: number;
+  /**
+   * Bound on one whole admission path (bootstrap, pool checkout, and
+   * the admission transaction together); default
+   * `QUOTA_ADMISSION_DEADLINE_MS` (5000). Must be an integer strictly
+   * greater than `QUOTA_LOCK_TIMEOUT_MS`, which bounds only the
+   * lock-wait stage inside it. Expiry throws `QuotaDeadlineError` into
+   * the engine's `onLimiterError` policy and destroys the connection
+   * the refused call held.
+   */
+  admissionDeadlineMs?: number;
+  /**
+   * Rules rotation opt-in: rewrite the schema's recorded rules
+   * fingerprint with this instance's own at boot instead of refusing on
+   * a mismatch. Procedure: enable on the NEW deployment, roll every
+   * host to the new rule set, then remove the flag so drift is refused
+   * again. Default false.
+   */
+  acceptRulesUpdate?: boolean;
   /** Injectable clock for window tests. */
   now?: () => number;
 }
@@ -117,16 +211,26 @@ export interface PostgresQuotaLimiterOptions {
  * and the admission decision are the core's own exported functions, so
  * this limiter, `memoryQuotaLimiter`, and `SqliteQuotaLimiter` agree
  * on every verdict. The `rules` MUST be identical across coordinating
- * processes (buckets key on rule content). Runtime contention queues
- * on the advisory lock (a hot limiter is EXPECTED to serialize); a
- * call still waiting past `QUOTA_LOCK_TIMEOUT_MS` throws, and the
- * engine's `onLimiterError` policy decides what that means. Call
- * `close()` when done.
+ * processes (buckets key on rule content), and since RV506 that is
+ * enforced: boot records `quotaRulesFingerprint(rules)` in the
+ * schema's `rulvar_quota_meta` row and refuses a drifted instance with
+ * a typed `ConfigError` naming both hashes (`acceptRulesUpdate: true`
+ * rotates the record). Runtime contention queues on the advisory lock
+ * (a hot limiter is EXPECTED to serialize; note the lock serializes
+ * `reserve` AND `reconcile`, so it sees admission attempts plus
+ * grants); a call still waiting past `QUOTA_LOCK_TIMEOUT_MS` throws,
+ * and the whole admission path (bootstrap, checkout, transaction) is
+ * bounded by `admissionDeadlineMs`, whose expiry throws a typed
+ * `QuotaDeadlineError` and destroys the held connection. Both throws
+ * land in the engine's `onLimiterError` policy, which decides what
+ * they mean. Call `close()` when done.
  */
 export class PostgresQuotaLimiter implements QuotaLimiter {
   private readonly pool: pg.Pool;
   private readonly schema: string;
   private readonly rules: readonly QuotaRule[];
+  private readonly admissionDeadlineMs: number;
+  private readonly acceptRulesUpdate: boolean;
   private readonly now: () => number;
   private boot: Promise<void> | undefined;
 
@@ -146,12 +250,28 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
         `PostgresQuotaLimiterOptions.max must be a positive integer; got ${String(options.max)}`,
       );
     }
+    if (
+      options.admissionDeadlineMs !== undefined &&
+      (!Number.isInteger(options.admissionDeadlineMs) ||
+        options.admissionDeadlineMs <= QUOTA_LOCK_TIMEOUT_MS)
+    ) {
+      throw new ConfigError(
+        'PostgresQuotaLimiterOptions.admissionDeadlineMs must be an integer greater than ' +
+          `QUOTA_LOCK_TIMEOUT_MS (${String(QUOTA_LOCK_TIMEOUT_MS)}), the lock-wait stage it bounds; ` +
+          `got ${String(options.admissionDeadlineMs)}`,
+      );
+    }
     this.schema = schema;
     this.rules = options.rules;
+    this.admissionDeadlineMs = options.admissionDeadlineMs ?? QUOTA_ADMISSION_DEADLINE_MS;
+    this.acceptRulesUpdate = options.acceptRulesUpdate ?? false;
     this.now = options.now ?? wallClock;
     this.pool = new pg.Pool({
       connectionString: options.url,
       max: options.max ?? DEFAULT_POOL_MAX,
+      // The checkout stage can never outlive the full-path deadline;
+      // this also bounds the bootstrap client's connect.
+      connectionTimeoutMillis: this.admissionDeadlineMs,
     });
     // An idle pool client that loses its server emits 'error' on the
     // pool; without a listener that is a process crash. The next
@@ -180,6 +300,7 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
   }
 
   private async runBootstrap(): Promise<void> {
+    const fingerprint = quotaRulesFingerprint(this.rules);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -204,7 +325,39 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
           estimate_tokens BIGINT NOT NULL,
           rule_keys TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS ${this.table('quota_meta')} (
+          key TEXT PRIMARY KEY,
+          value TEXT
+        );
       `);
+      // The fingerprint check rides the SAME boot lock and transaction:
+      // two hosts booting a fresh schema with different rules serialize
+      // here, one records its set, the other is refused. A pre-RV506
+      // instance knows nothing of the meta table and skips the check;
+      // only instances that participate are bound by it.
+      const recorded = (
+        (
+          await client.query(
+            `SELECT value FROM ${this.table('quota_meta')} WHERE key = 'rules_fingerprint'`,
+          )
+        ).rows as Array<{ value: string }>
+      )[0]?.value;
+      if (recorded === undefined || this.acceptRulesUpdate) {
+        await client.query(
+          `INSERT INTO ${this.table('quota_meta')} (key, value) VALUES ('rules_fingerprint', $1)
+           ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+          [fingerprint],
+        );
+      } else if (recorded !== fingerprint) {
+        throw new ConfigError(
+          `PostgresQuotaLimiter rules mismatch over schema "${this.schema}": the schema records ` +
+            `rules fingerprint ${recorded}, this instance computes ${fingerprint}. Every ` +
+            'coordinating process must configure the identical rule set (buckets key on rule ' +
+            'content, so a drifted host would silently split the budget). To rotate the rules, ' +
+            'boot the new deployment with acceptRulesUpdate: true, then remove the flag.',
+          { data: { schema: this.schema, recorded, computed: fingerprint } },
+        );
+      }
       await client.query('COMMIT');
     } catch (thrown) {
       await client.query('ROLLBACK').catch(() => undefined);
@@ -219,27 +372,89 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
    * take the schema-wide quota advisory lock, run `fn`, COMMIT. Every
    * counter mutation goes through here, which is what makes the
    * verdict read and the consume one unit across processes and hosts.
+   *
+   * The WHOLE path (lazy bootstrap, pool checkout, transaction) races
+   * `admissionDeadlineMs` (RV506): `lock_timeout` bounds one stage, and
+   * before the deadline a call could spend that bound at checkout and
+   * again at the lock without ever being refused. On expiry the caller
+   * gets a typed `QuotaDeadlineError`, and a connection the refused
+   * call holds is destroyed through `release(err)`, never returned
+   * mid-transaction to the pool; destroying it also cancels the
+   * abandoned wait server-side. The deadline runs on the REAL clock
+   * (an injected test `now` freezes window math, not infrastructure
+   * timeouts).
    */
   private async withQuotaLock<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
-    await this.booted();
-    const client = await this.pool.connect();
+    let client: pg.PoolClient | undefined;
+    let expired = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refusal = (): QuotaDeadlineError =>
+      new QuotaDeadlineError(
+        this.admissionDeadlineMs,
+        this.schema,
+        client === undefined ? 'acquire' : 'transaction',
+      );
+
+    const work = (async (): Promise<T> => {
+      await this.booted();
+      if (expired) {
+        throw refusal();
+      }
+      const checkout = await this.pool.connect();
+      if (expired) {
+        // The caller was already refused; the connection is still
+        // clean (no transaction began), so it goes back to the pool.
+        checkout.release();
+        throw refusal();
+      }
+      client = checkout;
+      try {
+        await client.query('BEGIN');
+        // SET does not take bind parameters; the interpolated value is
+        // a module constant, never input.
+        await client.query(`SET LOCAL lock_timeout = '${String(QUOTA_LOCK_TIMEOUT_MS)}ms'`);
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, $2))', [
+          `${this.schema}:rulvar-quota`,
+          LOCK_SEED,
+        ]);
+        const result = await fn(client);
+        await client.query('COMMIT');
+        return result;
+      } catch (thrown) {
+        if (!expired) {
+          await client.query('ROLLBACK').catch(() => undefined);
+        }
+        throw thrown;
+      } finally {
+        // On expiry the deadline handler already destroyed the
+        // connection; releasing it here again would double-release.
+        if (!expired) {
+          client.release();
+        }
+        client = undefined;
+      }
+    })();
+
+    const gate = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const reason = refusal();
+        expired = true;
+        // Destroy a held connection instead of returning it dirty:
+        // release(err) removes it from the pool and ends it, which
+        // also rejects whatever query the abandoned work was awaiting.
+        client?.release(reason);
+        client = undefined;
+        reject(reason);
+      }, this.admissionDeadlineMs);
+    });
+
     try {
-      await client.query('BEGIN');
-      // SET does not take bind parameters; the interpolated value is a
-      // module constant, never input.
-      await client.query(`SET LOCAL lock_timeout = '${String(QUOTA_LOCK_TIMEOUT_MS)}ms'`);
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, $2))', [
-        `${this.schema}:rulvar-quota`,
-        LOCK_SEED,
-      ]);
-      const result = await fn(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (thrown) {
-      await client.query('ROLLBACK').catch(() => undefined);
-      throw thrown;
+      // Promise.race subscribes to both, so the loser's eventual
+      // settlement (the abandoned work rejecting after a destroyed
+      // connection) is always observed, never an unhandled rejection.
+      return await Promise.race([work, gate]);
     } finally {
-      client.release();
+      clearTimeout(timer);
     }
   }
 
