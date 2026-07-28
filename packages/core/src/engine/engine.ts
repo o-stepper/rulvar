@@ -74,7 +74,7 @@ import {
   type Workflow,
 } from './ctx.js';
 import { costReportFromJournal } from './cost-report.js';
-import { snapshotJournalPricing } from './pricing-snapshot.js';
+import { journalPricingSnapshot, snapshotJournalPricing } from './pricing-snapshot.js';
 import { EVENT_SEGMENT_STRIDE, EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
 import {
@@ -1540,12 +1540,26 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // breakdown byte for byte because it folds the same entries
       // (v1.6.0 follow-up review).
       const ledger = replayer.ledger();
+      // Historical segments fold under the pin of THEIR settle (RV505):
+      // a resume across a price-table rotation reports history at the
+      // rates its own debits used; the segment being settled now (no
+      // pin covers it yet) prices at the live table, exactly like its
+      // debits. Single-table runs are untouched: pins equal the table.
+      const pinned = journalPricingSnapshot(replayer.snapshot());
+      const mirrorPriceUsd = (
+        servedBy: ModelRef,
+        usage: Usage,
+        seq?: number,
+      ): number | undefined =>
+        pinned !== undefined && seq !== undefined && seq < pinned.pinnedThroughSeq
+          ? (pinned.priceUsd(servedBy, usage, seq) ?? priceUsd(servedBy, usage))
+          : priceUsd(servedBy, usage);
       const outcome: RunOutcome<R> = {
         status,
         dropped: internals.dropped,
         pending,
         usage: ledger.usage,
-        cost: costReportFromJournal(replayer.snapshot(), priceUsd),
+        cost: costReportFromJournal(replayer.snapshot(), mirrorPriceUsd),
       };
       if (value !== undefined && (status === 'ok' || status === 'exhausted')) {
         // Exhaustion is never null when a value exists: the DEF-7

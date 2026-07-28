@@ -247,6 +247,25 @@ const MUTATIONS = [
     replace: '    boundaryReady ??= Promise.resolve();',
     test: 'packages/executor/src/ledger.test.ts',
   },
+  {
+    id: 'cost-fold-per-call-basis',
+    doctrine:
+      'a fully attributed entry prices per provider call: a nonlinear tier fires per request, never on the aggregate (RV504)',
+    file: 'packages/core/src/l0/entries.ts',
+    find: '  if (!callsCoverSlices(slices, records)) {',
+    replace: '  if (true || !callsCoverSlices(slices, records)) {',
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
+    id: 'pricing-pin-segment-composition',
+    doctrine:
+      'a seq-aware fold prices each row under the pin of its OWN segment, so a table rotation never re-prices settled history (RV505)',
+    file: 'packages/core/src/engine/pricing-snapshot.ts',
+    find: '    if (seq === undefined) {\n      return lastByModel.get(servedBy);\n    }',
+    replace:
+      '    if (seq === undefined || seq >= 0) {\n      return lastByModel.get(servedBy);\n    }',
+    test: 'packages/core/src/engine/pricing-snapshot.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

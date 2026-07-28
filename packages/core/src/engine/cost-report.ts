@@ -25,7 +25,7 @@
  * Unpriced models surface in `unpriced`, never as a silent zero.
  */
 import { buildAbandonFold } from '../journal/disposition.js';
-import { priceEntryUsage, type JournalEntry } from '../l0/entries.js';
+import { priceEntryBilling, type JournalEntry } from '../l0/entries.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import type { CostAttribution } from './ctx.js';
 import type { CostReport } from './run-handle.js';
@@ -100,7 +100,7 @@ export function buildCostReport(
  */
 export function costReportFromJournal(
   entries: readonly JournalEntry[],
-  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined,
+  priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
 ): CostReport {
   const abandonFold = buildAbandonFold(entries);
   const byModel: Record<string, number> = {};
@@ -149,7 +149,7 @@ export function costReportFromJournal(
       // the abandoned ledger (and so into grossUsd), never into the net
       // total or its breakdowns.
       if (entry.status !== 'running' && entry.usage !== undefined) {
-        const abandonedPriced = priceEntryUsage(entry, priceUsd);
+        const abandonedPriced = priceEntryBilling(entry, priceUsd);
         abandonedUsd += abandonedPriced.usd;
         for (const slice of abandonedPriced.unpriced) {
           abandonedUnpriced.push({ model: slice.servedBy, usage: slice.usage });
@@ -164,15 +164,16 @@ export function costReportFromJournal(
       continue;
     }
     // One agent call can span several serving models (loop, extract,
-    // finalize, and summarize route independently): every slice is
-    // priced at its own model's rate. An entry with no split prices its
-    // whole usage at servedBy, exactly as before.
-    const priced = priceEntryUsage(entry, priceUsd);
+    // finalize, and summarize route independently). A fully attributed
+    // entry prices per provider call (RV504: a nonlinear tier fires per
+    // request, never on the aggregate); anything else prices per slice
+    // at its own model's rate, exactly as before.
+    const priced = priceEntryBilling(entry, priceUsd);
     for (const slice of priced.unpriced) {
       unpriced.push({ model: slice.servedBy, usage: slice.usage });
     }
-    for (const slice of priced.priced) {
-      byModel[slice.servedBy] = (byModel[slice.servedBy] ?? 0) + slice.usd;
+    for (const unit of priced.units) {
+      byModel[unit.servedBy] = (byModel[unit.servedBy] ?? 0) + unit.usd;
     }
     totalUsd += priced.usd;
     // One contributing entry with approximate usage makes the whole total
@@ -190,8 +191,8 @@ export function costReportFromJournal(
     // the whole-entry fallback slice) folds under the entry's primary
     // role, the same documented fallback as the other facts.
     const primaryRole = facts?.role ?? 'loop';
-    for (const slice of priced.priced) {
-      byRole[slice.role ?? primaryRole] += slice.usd;
+    for (const unit of priced.units) {
+      byRole[unit.role ?? primaryRole] += unit.usd;
     }
     if (facts?.budgetAccount !== undefined && isOrchestratorAccount(facts.budgetAccount)) {
       orchestratorSpentUsd += priced.usd;

@@ -260,9 +260,12 @@ export default {
     // FakeAdapter surfaces no provider ids, so every dispatched call
     // reconciles as missing-provider-id instead of silently matching.
     expect(lines).toContain('[missing-provider-id]');
-    // The text form mirrors the export's declared pricing basis.
+    // The text form mirrors the export's declared pricing basis: this
+    // run's provider calls fully cover its usage, so the rows are
+    // additive (RV504/RV511).
     expect(lines).toContain(
-      'pricing basis: per-call (row usd is non-additive; allocatedUsd sums to gross)',
+      'pricing basis: per-call (rows are additive: every provider call priced per request; ' +
+        'allocatedUsd agrees and sums to gross)',
     );
     // No price table is configured in this fixture, so no pin exists
     // (RV407 gates on the configured table) and the export says the
@@ -286,7 +289,9 @@ export default {
     };
     expect(parsed.totalUsd).toBe(0);
     expect(parsed.pricingBasis).toBe('per-call');
-    expect(parsed.rowUsdNonAdditive).toBe(true);
+    // The run's provider calls fully cover its usage: additive rows
+    // (RV504).
+    expect(parsed.rowUsdNonAdditive).toBe(false);
     expect(parsed.rows.length).toBeGreaterThan(0);
     expect(parsed.rows.every((row) => row.outcome === 'ok')).toBe(true);
     // The additive column is always present and sums to the gross total.

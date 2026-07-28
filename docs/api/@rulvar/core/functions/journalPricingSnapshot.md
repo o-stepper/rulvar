@@ -12,14 +12,15 @@ function journalPricingSnapshot(entries):
   | undefined;
 ```
 
-Defined in: [packages/core/src/engine/pricing-snapshot.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L141)
+Defined in: [packages/core/src/engine/pricing-snapshot.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L154)
 
-The read side: the LAST run-settle decision carrying a pricing pin
-wins (each settling segment re-pins the union it applied, so the last
-one covers every model of the journal it settled). Journals settled
-before the pin shipped, or without any priced model, return
-undefined: the caller keeps its current-table fold and its export
-says so.
+The read side. Every settling segment pins the union it applied, and
+each pin's settle seq bounds the rows it settled FIRST, so the pins
+compose without any journal change (RV505): a seq-aware caller gets
+the rates of the row's own segment, and a seq-less caller keeps the
+historical last-pin behavior. Journals settled before the pin
+shipped, or without any priced model, return undefined: the caller
+keeps its current-table fold and its export says so.
 
 ## Parameters
 

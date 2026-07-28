@@ -10,7 +10,7 @@
 function priceEntryUsage(entry, priceUsd): PricedUsage;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L202)
+Defined in: [packages/core/src/l0/entries.ts:205](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L205)
 
 The single pricing fold over one terminal entry, shared by the kernel
 ledger and the CostReport fold so a run's total and its per-model
@@ -18,14 +18,17 @@ breakdown can never disagree. Each slice is priced at ITS OWN model's
 rate. A price function returning NaN or a negative amount (a broken
 user-supplied rate) is treated exactly like a missing row: the slice
 folds as unpriced instead of poisoning or crediting the totals
-(v1.20.0 review follow-up).
+(v1.20.0 review follow-up). The optional third argument hands the
+price function the entry's seq, so a segment-aware snapshot can
+price the row under the rates of ITS segment (RV505); two-argument
+price functions simply ignore it.
 
 ## Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `entry` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md) |
-| `priceUsd` | (`servedBy`, `usage`) => `number` \| `undefined` |
+| `priceUsd` | (`servedBy`, `usage`, `seq?`) => `number` \| `undefined` |
 
 ## Returns
 

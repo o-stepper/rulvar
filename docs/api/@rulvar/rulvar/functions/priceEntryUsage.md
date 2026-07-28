@@ -18,14 +18,17 @@ breakdown can never disagree. Each slice is priced at ITS OWN model's
 rate. A price function returning NaN or a negative amount (a broken
 user-supplied rate) is treated exactly like a missing row: the slice
 folds as unpriced instead of poisoning or crediting the totals
-(v1.20.0 review follow-up).
+(v1.20.0 review follow-up). The optional third argument hands the
+price function the entry's seq, so a segment-aware snapshot can
+price the row under the rates of ITS segment (RV505); two-argument
+price functions simply ignore it.
 
 ## Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `entry` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) |
-| `priceUsd` | (`servedBy`, `usage`) => `number` \| `undefined` |
+| `priceUsd` | (`servedBy`, `usage`, `seq?`) => `number` \| `undefined` |
 
 ## Returns
 

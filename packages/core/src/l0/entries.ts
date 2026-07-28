@@ -197,15 +197,18 @@ export interface PricedUsage {
  * rate. A price function returning NaN or a negative amount (a broken
  * user-supplied rate) is treated exactly like a missing row: the slice
  * folds as unpriced instead of poisoning or crediting the totals
- * (v1.20.0 review follow-up).
+ * (v1.20.0 review follow-up). The optional third argument hands the
+ * price function the entry's seq, so a segment-aware snapshot can
+ * price the row under the rates of ITS segment (RV505); two-argument
+ * price functions simply ignore it.
  */
 export function priceEntryUsage(
   entry: JournalEntry,
-  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined,
+  priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
 ): PricedUsage {
   const result: PricedUsage = { usd: 0, priced: [], unpriced: [] };
   for (const slice of entryUsageSlices(entry)) {
-    const usd = priceUsd(slice.servedBy, slice.usage);
+    const usd = priceUsd(slice.servedBy, slice.usage, entry.seq);
     if (usd === undefined || !Number.isFinite(usd) || usd < 0) {
       result.unpriced.push(slice);
       continue;
@@ -214,6 +217,163 @@ export function priceEntryUsage(
     result.priced.push({ ...slice, usd });
   }
   return result;
+}
+
+/** One priced unit of {@link priceEntryBilling} (RV504). */
+export interface EntryBillingUnit {
+  /**
+   * 'call' prices one provider dispatch (the per-request basis);
+   * 'slice' is the historical per-model aggregate of an entry whose
+   * records do not fully cover its usage.
+   */
+  source: 'call' | 'slice';
+  servedBy: ModelRef;
+  usage: Usage;
+  role?: InvocationRole;
+  /** The dispatch record behind a 'call' unit. */
+  record?: ProviderCallRecord;
+  usd: number;
+}
+
+/** What {@link priceEntryBilling} folds one terminal entry into. */
+export interface EntryBillingFold {
+  /** Priced units in fold order; `usd` is their sum in exactly this order. */
+  units: EntryBillingUnit[];
+  usd: number;
+  /** Usage on models the price function refused; never a silent zero. */
+  unpriced: UsageSlice[];
+  /**
+   * True when the entry's providerCalls exactly cover every usage
+   * slice, counter for counter: the fold priced per call, so a
+   * nonlinear tier fired per REQUEST, the pricing contract's own
+   * semantics. False folds the aggregate slices, the historical basis.
+   */
+  fullyAttributed: boolean;
+}
+
+const BILLING_FIELDS = [
+  'inputTokens',
+  'outputTokens',
+  'cacheReadTokens',
+  'cacheWriteTokens',
+] as const;
+
+/** Exact per-model coverage: records sum to every slice, counter for counter. */
+function callsCoverSlices(
+  slices: readonly UsageSlice[],
+  records: readonly ProviderCallRecord[],
+): boolean {
+  if (slices.length === 0 || records.length === 0) {
+    return false;
+  }
+  const sums = new Map<ModelRef, { fields: Record<string, number>; reasoning: number }>();
+  for (const record of records) {
+    let sum = sums.get(record.servedBy);
+    if (sum === undefined) {
+      sum = {
+        fields: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        reasoning: 0,
+      };
+      sums.set(record.servedBy, sum);
+    }
+    for (const field of BILLING_FIELDS) {
+      sum.fields[field] = (sum.fields[field] ?? 0) + record.usage[field];
+    }
+    sum.reasoning += record.usage.reasoningTokens ?? 0;
+  }
+  for (const slice of slices) {
+    const sum = sums.get(slice.servedBy);
+    if (sum === undefined) {
+      return false;
+    }
+    for (const field of BILLING_FIELDS) {
+      if (sum.fields[field] !== slice.usage[field]) {
+        return false;
+      }
+    }
+    if (sum.reasoning !== (slice.usage.reasoningTokens ?? 0)) {
+      return false;
+    }
+  }
+  for (const model of sums.keys()) {
+    if (!slices.some((slice) => slice.servedBy === model)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The billing fold over one terminal entry (RV504), shared by the
+ * CostReport and invoice folds so the total, every breakdown, and the
+ * per-row prices can never disagree. When the entry's per-dispatch
+ * `providerCalls` exactly cover its usage, each call is priced
+ * individually, so a nonlinear long-context tier fires per REQUEST,
+ * which is the pricing contract's stated semantics; an aggregate that
+ * crossed a threshold no single request crossed no longer re-prices
+ * the whole entry (the ninth-experiment 52% overreport). An entry with
+ * no records, or records that do not cover its usage, folds exactly as
+ * before: the per-model aggregate slices of {@link priceEntryUsage}.
+ */
+export function priceEntryBilling(
+  entry: JournalEntry,
+  priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
+): EntryBillingFold {
+  const slices = entryUsageSlices(entry);
+  const records = entry.providerCalls ?? [];
+  if (!callsCoverSlices(slices, records)) {
+    const aggregate = priceEntryUsage(entry, priceUsd);
+    return {
+      units: aggregate.priced.map((slice) => ({
+        source: 'slice',
+        servedBy: slice.servedBy,
+        usage: slice.usage,
+        ...(slice.role === undefined ? {} : { role: slice.role }),
+        usd: slice.usd,
+      })),
+      usd: aggregate.usd,
+      unpriced: aggregate.unpriced,
+      fullyAttributed: false,
+    };
+  }
+  const units: EntryBillingUnit[] = [];
+  const unpricedByModel = new Map<ModelRef, Usage>();
+  let usd = 0;
+  for (const record of records) {
+    const price = priceUsd(record.servedBy, record.usage, entry.seq);
+    if (price === undefined || !Number.isFinite(price) || price < 0) {
+      const sum = unpricedByModel.get(record.servedBy) ?? {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      };
+      for (const field of BILLING_FIELDS) {
+        sum[field] += record.usage[field];
+      }
+      const reasoning = (sum.reasoningTokens ?? 0) + (record.usage.reasoningTokens ?? 0);
+      if (reasoning > 0) {
+        sum.reasoningTokens = reasoning;
+      }
+      unpricedByModel.set(record.servedBy, sum);
+      continue;
+    }
+    usd += price;
+    units.push({
+      source: 'call',
+      servedBy: record.servedBy,
+      usage: record.usage,
+      role: record.role,
+      record,
+      usd: price,
+    });
+  }
+  return {
+    units,
+    usd,
+    unpriced: [...unpricedByModel].map(([servedBy, usage]) => ({ servedBy, usage })),
+    fullyAttributed: true,
+  };
 }
 
 /**

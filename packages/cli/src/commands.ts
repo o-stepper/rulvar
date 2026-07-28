@@ -717,10 +717,12 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
  * figure: abandoned subtrees included, exactly what a provider invoice
  * bills). --json prints the machine-readable InvoiceExport; the text
  * form prints one line per row and mirrors the export's declared
- * pricing basis (per-call row usd is non-additive; `allocatedUsd` is
- * the additive column that sums to gross). Pricing folds at read time
- * from the assembled price table, the same numbers rulvar inspect
- * reports.
+ * pricing basis honestly (RV511): fully attributed runs price per
+ * request and the rows sum to gross; an aggregate-priced remainder or
+ * legacy entry makes the export say `row usd is non-additive`, and
+ * `allocatedUsd` is the additive column that sums to gross in every
+ * case. Pricing folds at read time from the assembled price table, the
+ * same numbers rulvar inspect reports.
  */
 export async function invoiceCommand(argv: string[], context: CommandContext): Promise<number> {
   const parsed = parseCommand(GRAMMAR.invoice, argv);
@@ -769,7 +771,12 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
       `${invoice.usageUnknownRows === undefined ? '' : `; usage unknown: ${invoice.usageUnknownRows}`})`,
   );
   context.io.out(
-    `pricing basis: ${invoice.pricingBasis} (row usd is non-additive; allocatedUsd sums to gross)`,
+    `pricing basis: ${invoice.pricingBasis} ` +
+      (invoice.rowUsdNonAdditive
+        ? '(row usd is non-additive: an aggregate-priced remainder or legacy entry is in the ' +
+          'fold; allocatedUsd sums to gross)'
+        : '(rows are additive: every provider call priced per request; allocatedUsd agrees and ' +
+          'sums to gross)'),
   );
   context.io.out(
     invoice.pricing?.source === 'snapshot'
