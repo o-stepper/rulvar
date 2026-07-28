@@ -78,13 +78,17 @@ export type RunMeta = {
    * the args are not JCS-serializable (`argsProvided` still records
    * presence). The raw args are never journaled, but the digest is
    * sensitive-derived metadata, not an opaque token: it is deterministic
-   * and unsalted, so it reveals when two runs (in this store or another)
-   * were started with identical args, and low-entropy args (a boolean,
-   * an approval flag, a role, a short id) are recoverable by hashing
-   * candidate values. Protect meta, `inspect` output, and run listings
-   * with the same access control as the journal and transcripts; the
-   * digest confers no confidentiality on the args it binds. Stores must
-   * round-trip the field (the conformance kit checks).
+   * and unsalted BY DEFAULT, so it reveals when two runs (in this store
+   * or another) were started with identical args, and low-entropy args
+   * (a boolean, an approval flag, a role, a short id) are recoverable by
+   * hashing candidate values. `createEngine security.argsHashSalt`
+   * switches the digest to HMAC-SHA256 under a deployment salt (RV-217),
+   * which removes both leaks at the cost of binding every resuming
+   * engine to the same salt. Protect meta, `inspect` output, and run
+   * listings with the same access control as the journal and
+   * transcripts; the digest confers no confidentiality on the args it
+   * binds. Stores must round-trip the field (the conformance kit
+   * checks).
    */
   argsHash?: string;
   /**

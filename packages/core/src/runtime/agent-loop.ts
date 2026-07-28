@@ -708,6 +708,14 @@ async function streamTurn(
           break;
         case 'error':
           wireError = event.error;
+          // A failed generation is still a billable provider call
+          // (RV401): when the adapter already holds the response id at
+          // the moment the stream dies, the reconciliation record keeps
+          // it, so the failed attempt joins the provider statement like
+          // any ok row.
+          if (event.providerMetadata !== undefined) {
+            providerMetadata = event.providerMetadata;
+          }
           break;
       }
       // A finish or error event is terminal by contract: consumption
@@ -2563,7 +2571,7 @@ export async function runAgent<S extends SchemaSpec>(
           // excluded above), so a provider could bill it whether it
           // finished, failed, or was severed.
           const namespace = outcome.providerMetadata?.[target.adapter.id] as
-            { responseId?: unknown } | undefined;
+            { responseId?: unknown; response?: { id?: unknown } } | undefined;
           const record: ProviderCallRecord = {
             ordinal: providerCalls.length + 1,
             role: site.role,
@@ -2579,6 +2587,11 @@ export async function runAgent<S extends SchemaSpec>(
           };
           if (typeof namespace?.responseId === 'string') {
             record.responseId = namespace.responseId;
+          } else if (typeof namespace?.response?.id === 'string') {
+            // The AI SDK convention nests the id under `response` (the
+            // shape third-party bridges emit); the flat first-class form
+            // wins when both are present (RV401).
+            record.responseId = namespace.response.id;
           }
           if (outcome.usageApprox) {
             record.usageApprox = true;

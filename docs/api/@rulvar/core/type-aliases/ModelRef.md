@@ -10,6 +10,6 @@
 type ModelRef = `${string}:${string}`;
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L179)
+Defined in: [packages/core/src/l0/messages.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L191)
 
 Strictly 'adapterId:model', no query parameters.

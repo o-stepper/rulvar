@@ -234,7 +234,7 @@ Resolve from the host through the live handle:
 await handle.resolveExternal('deploy-approval', { approved: true });
 ```
 
-Other channels (the CLI, the server shell's HTTP endpoint) feed the same mechanism. When a `schema` is set, an invalid resolution is rejected with a typed error and the entry stays suspended. `awaitExternal` has no deadline in v1; deadlines exist only on approval suspensions and escalations.
+Other channels (the CLI, the server shell's HTTP endpoint) feed the same mechanism. When a `schema` is set, an invalid resolution is rejected with a typed error and the entry stays suspended. `awaitExternal` has no deadline in v1, and neither does an open tool approval: both wait until resolved. Journaled deadlines exist only on escalations; see [the deadline table](/guide/durability#deadlines-survive-resume).
 
 ### Phases, logs, and briefs
 

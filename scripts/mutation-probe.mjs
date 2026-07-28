@@ -150,6 +150,24 @@ const MUTATIONS = [
     replace: '      if (false) {',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'bridge-flat-response-id',
+    doctrine: 'a bridged finish ships the flat responseId the reconciliation record reads (RV401)',
+    file: 'packages/bridge-ai-sdk/src/bridge.ts',
+    find: "      if (typeof this.response.id === 'string') {\n        // The flat form the core reconciliation record reads (RV401),",
+    replace:
+      '      if (false) {\n        // The flat form the core reconciliation record reads (RV401),',
+    test: 'packages/bridge-ai-sdk/src/bridge-provenance.test.ts',
+  },
+  {
+    id: 'synthesis-reserve-lifecycle-on-rejection',
+    doctrine:
+      'the reserve lifecycle journals even when the synthesis validator terminally rejects (RV402)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (configuredReserveUsd > 0) {',
+    replace: '      if (configuredReserveUsd > 0 && validationTermination === undefined) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -150,7 +150,13 @@ export function scriptedAdapter(
         }
       }
       if (turn.error !== undefined) {
-        yield { type: 'error', error: turn.error };
+        yield {
+          type: 'error',
+          error: turn.error,
+          ...(turn.providerMetadata === undefined
+            ? {}
+            : { providerMetadata: turn.providerMetadata }),
+        };
         return;
       }
       const finish: FinishInfo =

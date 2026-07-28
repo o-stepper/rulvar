@@ -1887,9 +1887,11 @@ export function createCtx(
       // Non-inprocess dispatch (RV-216): route the call through the
       // registered ToolExecutorProvider. The tool span is minted under the
       // agent span exactly like an inprocess call, and the idempotency key
-      // is a pure function of (runId, tool, args) so a rerun of the same
-      // logical call reuses it. A provider throw surfaces to the loop as
-      // the call's error tool result.
+      // is a pure function of the LOGICAL invocation (runId, agent-entry
+      // seq, per-agent ordinal, tool, args; see deriveExecIdempotencyKey)
+      // so a crash-and-resume redispatch of the same call reuses it while
+      // two separate calls sharing arguments never collide. A provider
+      // throw surfaces to the loop as the call's error tool result.
       if (internals.executors !== undefined) {
         const executors = internals.executors;
         // The containing agent's dispatch-entry seq scopes the idempotency

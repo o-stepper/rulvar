@@ -545,6 +545,15 @@ type ChatEvent = {
 } | {
   type: "error";
   error: WireError;
+  /**
+  * Provenance the adapter already holds when the stream dies (RV401,
+  * the eighth comparison experiment): a failed generation is still a
+  * billable provider call, and its response id is what joins the
+  * reconciliation record to the provider's own statement. Same
+  * namespaced shape as the finish event's; absent when the failure
+  * predates any provider response.
+  */
+  providerMetadata?: Record<string, unknown>;
 };
 /** Strictly 'adapterId:model', no query parameters. */
 type ModelRef = `${string}:${string}`;
@@ -962,13 +971,17 @@ type RunMeta = {
   * the args are not JCS-serializable (`argsProvided` still records
   * presence). The raw args are never journaled, but the digest is
   * sensitive-derived metadata, not an opaque token: it is deterministic
-  * and unsalted, so it reveals when two runs (in this store or another)
-  * were started with identical args, and low-entropy args (a boolean,
-  * an approval flag, a role, a short id) are recoverable by hashing
-  * candidate values. Protect meta, `inspect` output, and run listings
-  * with the same access control as the journal and transcripts; the
-  * digest confers no confidentiality on the args it binds. Stores must
-  * round-trip the field (the conformance kit checks).
+  * and unsalted BY DEFAULT, so it reveals when two runs (in this store
+  * or another) were started with identical args, and low-entropy args
+  * (a boolean, an approval flag, a role, a short id) are recoverable by
+  * hashing candidate values. `createEngine security.argsHashSalt`
+  * switches the digest to HMAC-SHA256 under a deployment salt (RV-217),
+  * which removes both leaks at the cost of binding every resuming
+  * engine to the same salt. Protect meta, `inspect` output, and run
+  * listings with the same access control as the journal and
+  * transcripts; the digest confers no confidentiality on the args it
+  * binds. Stores must round-trip the field (the conformance kit
+  * checks).
   */
   argsHash?: string;
   /**
