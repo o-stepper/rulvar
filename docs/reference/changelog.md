@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
+
 ### 1.95.0
 
 #### Patch Changes
@@ -1100,6 +1106,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
+
 ### 1.95.0
 
 #### Patch Changes
@@ -2037,6 +2049,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
 
 ### 1.95.0
 
@@ -3314,6 +3332,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.96.0
 
 ### 1.95.0
 
@@ -4944,6 +4964,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.96.0
+
 ### 1.95.0
 
 ### 1.94.0
@@ -5236,6 +5258,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
+- @rulvar/testing@1.96.0
 
 ### 1.95.0
 
@@ -6380,6 +6409,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.96.0
+
+#### Minor Changes
+
+- 89fd032: Attempt-exact effect-ledger identity, torn-tail repair, and workdir cleanup on a failed audit write (RV501/RV502/RV503, the two ninth-experiment P0s plus their P1 neighbor).
+
+  RV501: every reference-executor dispatch now mints a unique `attemptId`, written into the intent row and copied verbatim onto the same attempt's outcome row, and `loadEffectLedger` pairs the two phases exactly: an outcome of ANY class resolves only its own attempt (rows written before the id shipped pair by the legacy `(idempotencyKey, startedAt)` join). This deliberately changes `orphanedIntents` in the conservative direction: a sibling retry's outcome no longer clears an older attempt whose effect may already have applied, so files that previously scanned clean can now (correctly) report orphans. Closing the logical idempotency key belongs to the host reconciler, against the effect provider's receipt. A SIGKILL test drives the real crash window against the built package.
+
+  RV502: before its first append, `jsonlEffectLedger` repairs a torn tail left by a crashed predecessor: a complete record missing only its newline is terminated in place; an unparseable fragment is truncated and quarantined verbatim as a `{"phase":"torn"}` line (surfaced as `tornArtifacts`), so an append can never glue onto torn bytes and hide the next valid record. `loadEffectLedger` now tolerates and NAMES a live unterminated trailing fragment (`tornTail`) but fails closed on an unparseable interior line with a typed `LedgerCorruptionError` (line numbers, byte offsets, sha256 hashes); pass `{ tolerateCorrupt: true }` to receive those lines as `corrupt` data for triage. Previously both records vanished silently after an append over a torn tail, and interior corruption was skipped without a signal.
+
+  RV503: the outcome record write and the workdir removal are now nested, so the ephemeral workdir never survives the dispatch even when the audit write fails, and a rejected `ledger.record` surfaces as a typed `ExecutorError` with code `ledger` (naming the dispatch failure too when both broke) instead of an untyped rejection that leaked the directory.
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
+
 ### 1.95.0
 
 #### Patch Changes
@@ -6700,6 +6745,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
 
 ### 1.95.0
 
@@ -7794,6 +7845,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
+
 ### 1.95.0
 
 #### Patch Changes
@@ -8844,6 +8901,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
+- eslint-plugin-rulvar@1.96.0
 
 ### 1.95.0
 
@@ -9952,6 +10016,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.96.0
+- @rulvar/core@1.96.0
+- @rulvar/openai@1.96.0
 
 ### 1.95.0
 
@@ -11237,6 +11309,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
+
 ### 1.95.0
 
 #### Patch Changes
@@ -12279,6 +12357,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
+
 ### 1.95.0
 
 #### Minor Changes
@@ -12619,6 +12703,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
 
 ### 1.95.0
 
@@ -13595,6 +13685,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.96.0
+
+#### Patch Changes
+
+- @rulvar/core@1.96.0
 
 ### 1.95.0
 
