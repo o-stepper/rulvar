@@ -612,3 +612,56 @@ describe('the invoice export (P1.3)', () => {
     expect(invoice.usageApprox).toBe(true);
   });
 });
+
+describe('bridge-shaped provenance parity (RV401)', () => {
+  it('falls back to the AI SDK bridge shape: a nested response.id becomes the record responseId', async () => {
+    const adapter = scriptedAdapter(() => ({
+      text: 'done',
+      usage: usageOf(10, 2),
+      providerMetadata: { fake: { response: { id: 'resp_nested', modelId: 'm' } } },
+    }));
+    const { internals } = makeInternals({ adapters: [adapter], routing: { loop: 'fake:model' } });
+    const result = fullResult(await createCtx(internals).agent('audit', { result: 'full' }));
+    expect(result.status).toBe('ok');
+    expect(result.providerCalls?.[0]?.responseId).toBe('resp_nested');
+  });
+
+  it('the flat responseId wins when both shapes are present', async () => {
+    const adapter = scriptedAdapter(() => ({
+      text: 'done',
+      usage: usageOf(10, 2),
+      providerMetadata: { fake: { responseId: 'resp_flat', response: { id: 'resp_nested' } } },
+    }));
+    const { internals } = makeInternals({ adapters: [adapter], routing: { loop: 'fake:model' } });
+    const result = fullResult(await createCtx(internals).agent('audit', { result: 'full' }));
+    expect(result.providerCalls?.[0]?.responseId).toBe('resp_flat');
+  });
+
+  it('a billed failed attempt keeps the provider id its error event carried', async () => {
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? {
+            usage: usageOf(100, 0),
+            error: transient,
+            providerMetadata: { fake: { responseId: 'resp_failed' } },
+          }
+        : {
+            text: 'recovered',
+            usage: usageOf(200, 20),
+            providerMetadata: { fake: { responseId: 'resp_ok' } },
+          },
+    );
+    const { internals } = makeInternals({ adapters: [adapter], routing: { loop: 'fake:model' } });
+    const result = fullResult(
+      await createCtx(internals).agent('audit', {
+        retry: { attempts: 2, backoff: { initialMs: 1, factor: 2, maxMs: 4 } },
+        result: 'full',
+      }),
+    );
+    expect(result.status).toBe('ok');
+    expect(result.providerCalls?.map((r) => [r.attempt, r.outcome, r.responseId])).toEqual([
+      [1, 'error', 'resp_failed'],
+      [2, 'ok', 'resp_ok'],
+    ]);
+  });
+});

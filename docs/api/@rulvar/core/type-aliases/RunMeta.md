@@ -40,20 +40,24 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L89)
+Defined in: [packages/core/src/l0/spi/store.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L93)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
 the args are not JCS-serializable (`argsProvided` still records
 presence). The raw args are never journaled, but the digest is
 sensitive-derived metadata, not an opaque token: it is deterministic
-and unsalted, so it reveals when two runs (in this store or another)
-were started with identical args, and low-entropy args (a boolean,
-an approval flag, a role, a short id) are recoverable by hashing
-candidate values. Protect meta, `inspect` output, and run listings
-with the same access control as the journal and transcripts; the
-digest confers no confidentiality on the args it binds. Stores must
-round-trip the field (the conformance kit checks).
+and unsalted BY DEFAULT, so it reveals when two runs (in this store
+or another) were started with identical args, and low-entropy args
+(a boolean, an approval flag, a role, a short id) are recoverable by
+hashing candidate values. `createEngine security.argsHashSalt`
+switches the digest to HMAC-SHA256 under a deployment salt (RV-217),
+which removes both leaks at the cost of binding every resuming
+engine to the same salt. Protect meta, `inspect` output, and run
+listings with the same access control as the journal and
+transcripts; the digest confers no confidentiality on the args it
+binds. Stores must round-trip the field (the conformance kit
+checks).
 
 ***
 
@@ -99,7 +103,7 @@ resumed run to uncapped.
 optional genesis?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L101)
+Defined in: [packages/core/src/l0/spi/store.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L105)
 
 Unique token minted at the run's fresh start (genesis) and preserved
 verbatim by every later segment, so two runs that reuse the same

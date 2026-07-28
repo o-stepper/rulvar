@@ -3523,17 +3523,17 @@ export function makeOrchestratorWorkflow(
       );
       synthesisSchemaRejectedExchanges = synthesized.schemaRejectedTerminalExchanges ?? 0;
       synthesisSchemaRecoveredExchanges = synthesized.schemaRecoveredTerminalExchanges ?? 0;
-      if (validationTermination !== undefined) {
-        // The synthesis finish rejection (or a defective validator)
-        // aborted the invocation; the typed failure wins.
-        throw validationTermination;
-      }
       if (configuredReserveUsd > 0) {
         // The lifecycle decision (RV304 second half): the first pass
         // freezes the live numbers; a resume finds the entry by key and
         // reports the identical facts, immune to price-table or
         // budget-rebuild drift, exactly like the cap and acceptance
-        // decisions. Only reserve-configured runs journal it.
+        // decisions. Only reserve-configured runs journal it. It
+        // journals BEFORE the validation-termination throw below (RV402,
+        // the eighth comparison experiment): the rejected synthesis was
+        // still paid for out of the released reserve, and a run that
+        // fails validation without this record has no audit trail of
+        // where the held money went.
         const reserveKey = 'synthesis-reserve-lifecycle';
         const prior = internals.replayer
           .snapshot()
@@ -3593,6 +3593,11 @@ export function makeOrchestratorWorkflow(
           },
           callingState.spanId,
         );
+      }
+      if (validationTermination !== undefined) {
+        // The synthesis finish rejection (or a defective validator)
+        // aborted the invocation; the typed failure wins.
+        throw validationTermination;
       }
       if (synthesized.status === 'ok') {
         return synthesized.output;

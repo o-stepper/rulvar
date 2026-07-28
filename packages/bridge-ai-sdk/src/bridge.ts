@@ -747,6 +747,21 @@ class StreamMapper {
 
   private mapFinish(part: Extract<LanguageModelV4StreamPart, { type: 'finish' }>): ChatEvent[] {
     if (part.finishReason.unified === 'error') {
+      // The provenance the stream accumulated before dying (RV401): the
+      // failed call is still billable, and its response id is the join
+      // key the reconciliation record needs. Same namespaced shape as
+      // the normal finish; retained parts are deliberately NOT carried,
+      // because a failed turn is discarded, never re-injected.
+      const errorBag: Record<string, unknown> = {};
+      if (this.response !== undefined) {
+        errorBag.response = this.response;
+        if (typeof this.response.id === 'string') {
+          errorBag.responseId = this.response.id;
+        }
+      }
+      if (this.warnings.length > 0) {
+        errorBag.warnings = this.warnings;
+      }
       return [
         // The error finish still carries the provider's bill; shipping
         // it as a usage event ahead of the terminal error keeps the
@@ -764,6 +779,9 @@ class StreamMapper {
             retryable: true,
             data: { kind: 'transport' },
           },
+          ...(Object.keys(errorBag).length === 0
+            ? {}
+            : { providerMetadata: { [this.adapterId]: errorBag } }),
         },
       ];
     }
@@ -789,6 +807,13 @@ class StreamMapper {
     }
     if (this.response !== undefined) {
       bag.response = this.response;
+      if (typeof this.response.id === 'string') {
+        // The flat form the core reconciliation record reads (RV401),
+        // beside the AI SDK's own nested shape: first-class adapters
+        // ship `responseId`, and a bridge-served invoice row must join
+        // the provider statement exactly like theirs.
+        bag.responseId = this.response.id;
+      }
     }
     if (part.providerMetadata !== undefined) {
       bag.upstream = part.providerMetadata;

@@ -173,7 +173,19 @@ export type ChatEvent =
   | { type: 'tool-call-end'; id: CanonicalId; args: unknown }
   | { type: 'usage'; usage: Partial<Usage> }
   | { type: 'finish'; finish: FinishInfo; usage: Usage; providerMetadata?: Record<string, unknown> }
-  | { type: 'error'; error: WireError };
+  | {
+      type: 'error';
+      error: WireError;
+      /**
+       * Provenance the adapter already holds when the stream dies (RV401,
+       * the eighth comparison experiment): a failed generation is still a
+       * billable provider call, and its response id is what joins the
+       * reconciliation record to the provider's own statement. Same
+       * namespaced shape as the finish event's; absent when the failure
+       * predates any provider response.
+       */
+      providerMetadata?: Record<string, unknown>;
+    };
 
 /** Strictly 'adapterId:model', no query parameters. */
 export type ModelRef = `${string}:${string}`;

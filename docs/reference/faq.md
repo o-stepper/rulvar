@@ -124,7 +124,7 @@ Under `dryRun` the first would-be-live call throws a typed `JournalMissError` in
 
 ## Is the worker sandbox a security boundary?
 
-No, and Rulvar says so on purpose. The `worker_threads` sandbox that executes planner-written scripts is a determinism and blast-radius boundary: seeded, journaled globals, an import allowlist, and no ambient engine access. It is not hostile-code containment, and you should not feed it code you would not review. Actual effect control lives in the permission chain, the single approval surface every tool call passes through regardless of mode. Subprocess and container executors for genuine containment are declared capabilities whose specification is documented as a plan, not a shipped guarantee. See [Planner](/guide/planner) and [Tools](/guide/tools).
+No, and Rulvar says so on purpose. The `worker_threads` sandbox that executes planner-written scripts is a determinism and blast-radius boundary: seeded, journaled globals, an import allowlist, and no ambient engine access. It is not hostile-code containment, and you should not feed it code you would not review. Actual effect control lives in the permission chain, the single approval surface every tool call passes through regardless of mode. Subprocess and container executors for genuine containment ship in `@rulvar/executor`: OS-process and Docker isolation behind the executor seam, with a side-effect ledger and a conformance kit that pins the semantics. See [Planner](/guide/planner), [Tools](/guide/tools), and [Isolated executor](/guide/isolated-executor).
 
 ## How do I pin model versions?
 

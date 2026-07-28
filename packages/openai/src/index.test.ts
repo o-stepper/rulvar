@@ -869,6 +869,20 @@ describe('response.failed usage and retry classification (v1.18.0 review P1-3)',
     expect(error.error.data).toMatchObject({ kind: 'transport', providerCode: 'server_error' });
   });
 
+  it('the failed response keeps its id: the error event carries the join key (RV401)', async () => {
+    const mapped = await collect(
+      mapResponsesStream(
+        failedStream(
+          { code: 'server_error', message: 'The server had an error.' },
+          { input_tokens: 500, output_tokens: 120 },
+        ),
+        ids(),
+      ),
+    );
+    const error = mapped.at(-1) as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.providerMetadata).toEqual({ openai: { responseId: 'resp_fail' } });
+  });
+
   it('rate_limit_exceeded classifies as a retryable rate limit', async () => {
     const mapped = await collect(
       mapResponsesStream(

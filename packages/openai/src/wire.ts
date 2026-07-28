@@ -457,6 +457,12 @@ export async function* mapResponsesStream(
             typeof error?.code === 'string' ? error.code : undefined,
             (error?.message as string | undefined) ?? 'response.failed',
           ),
+          // The failed response still names itself (RV401): its id is
+          // the join key that lets the billed failure reconcile against
+          // the provider statement, exactly like an ok row's.
+          ...(typeof response?.id === 'string'
+            ? { providerMetadata: { openai: { responseId: response.id } } }
+            : {}),
         };
         return;
       }

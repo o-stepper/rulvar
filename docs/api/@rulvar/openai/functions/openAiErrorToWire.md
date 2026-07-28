@@ -10,7 +10,7 @@
 function openAiErrorToWire(error): WireError;
 ```
 
-Defined in: [packages/openai/src/wire.ts:590](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L590)
+Defined in: [packages/openai/src/wire.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L596)
 
 Projects SDK/API errors into the retryable WireError vocabulary.
 

@@ -2997,6 +2997,52 @@ describe('the synthesis reserve lifecycle (RV304 second half, judge P1.7)', () =
       expect(JSON.stringify(entry)).not.toContain('orchestrator_synthesis_reserve');
     }
   });
+
+  it('a terminal validator rejection still journals the lifecycle decision (RV402)', async () => {
+    // The eighth-experiment finding: the throw of the validation
+    // termination preceded the lifecycle append, so a rejected synthesis
+    // settled with the reserve's audit record missing entirely.
+    const rejectingWorkflow = makeOrchestratorWorkflow('compose the assessment', {
+      budget: { capUsd: 2.0, capFraction: 1.0, synthesisReserveUsd: 0.7 },
+      synthesis: { limits: { maxTurns: 2 }, estCost: 0.05 },
+      finishValidation: { validators: [wordCountValidator({ min: 100000 })], maxRepairs: 0 },
+    });
+    const adapter = lifecycleAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      budgetUsd: 10,
+    });
+    await expect(executeWorkflow(internals, rejectingWorkflow, undefined)).rejects.toThrow(
+      /failed host validation/,
+    );
+    const entries = await store.load('test-run');
+    const decisions = reserveDecisionsOf(entries);
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0]?.value).toMatchObject({
+      decisionType: 'orchestrator_synthesis_reserve',
+      configuredUsd: 0.7,
+      heldUsd: 0.7,
+      releasedUsd: 0.7,
+    });
+    // The rejected synthesis was still paid for; the record says so.
+    const frozen = decisions[0]?.value as { consumedUsd?: number };
+    expect(frozen.consumedUsd).toBeGreaterThan(0);
+
+    // A resume replays into the same terminal rejection without minting
+    // a second lifecycle decision: the frozen facts are found by key.
+    const resumed = makeInternals({
+      adapters: [lifecycleAdapter()],
+      routing: ROUTING,
+      budgetUsd: 10,
+      priorEntries: entries,
+      store,
+    });
+    await expect(executeWorkflow(resumed.internals, rejectingWorkflow, undefined)).rejects.toThrow(
+      /failed host validation/,
+    );
+    expect(reserveDecisionsOf(await store.load('test-run'))).toHaveLength(1);
+  });
 });
 
 describe('exact fill parity between the projection and the live gate (RV307, judge P1.8)', () => {
