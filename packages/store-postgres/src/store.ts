@@ -72,15 +72,18 @@ export const DEFAULT_LEASE_TTL_MS = 60_000;
 /** Default pg Pool size; every operation is a short transaction. */
 export const DEFAULT_POOL_MAX = 10;
 
-/** The advisory-lock hash seed; a constant namespace for this store. */
-const LOCK_SEED = 8_214;
+/**
+ * The advisory-lock hash seed; a constant namespace shared by this
+ * store and the quota limiter beside it (their key strings differ).
+ */
+export const LOCK_SEED = 8_214;
 
 // Bound at module load, before any dev-mode bare-Date.now patch can
 // install (the SqliteStore convention).
 const wallClock: () => number = Date.now.bind(globalThis);
 
 /** A conservative SQL identifier gate for the schema option. */
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const IDENTIFIER: RegExp = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 interface LeaseRow {
   owner: string;

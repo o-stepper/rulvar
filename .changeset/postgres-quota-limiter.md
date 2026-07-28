@@ -1,0 +1,5 @@
+---
+'@rulvar/store-postgres': minor
+---
+
+`PostgresQuotaLimiter` (RV410): the multi-host reference implementation of the core `QuotaLimiter` SPI. Engine processes on any number of hosts pointing instances at one database and schema enforce one global provider quota: admission consumes the window counters inside a single transaction serialized on a schema-wide advisory lock, so two hosts can never both take the last slot; reservations are rows, so reconciliation settles a grant from any host; both tables are lazily pruned to two accounting windows. The rule model, the fixed epoch-aligned one-minute windows, and the admission decision are the core's own exported functions, so this limiter, `memoryQuotaLimiter`, and `SqliteQuotaLimiter` agree byte for byte on every verdict. A call still waiting for the admission lock past the exported `QUOTA_LOCK_TIMEOUT_MS` (2000 ms) throws into the engine's `onLimiterError` policy instead of hanging. The durable admission queue stays the host's documented boundary: a denial carries the honest window remainder, and what to do while waiting is host policy.

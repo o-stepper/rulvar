@@ -7983,6 +7983,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "PostgresQuotaLimiter",
+            "link": "/api/@rulvar/store-postgres/classes/PostgresQuotaLimiter.md"
+          },
+          {
             "text": "PostgresStore",
             "link": "/api/@rulvar/store-postgres/classes/PostgresStore.md"
           }
@@ -7992,6 +7996,10 @@
         "text": "Interfaces",
         "collapsed": true,
         "items": [
+          {
+            "text": "PostgresQuotaLimiterOptions",
+            "link": "/api/@rulvar/store-postgres/interfaces/PostgresQuotaLimiterOptions.md"
+          },
           {
             "text": "PostgresStoreOptions",
             "link": "/api/@rulvar/store-postgres/interfaces/PostgresStoreOptions.md"
@@ -8013,6 +8021,10 @@
           {
             "text": "DEFAULT_POOL_MAX",
             "link": "/api/@rulvar/store-postgres/variables/DEFAULT_POOL_MAX.md"
+          },
+          {
+            "text": "QUOTA_LOCK_TIMEOUT_MS",
+            "link": "/api/@rulvar/store-postgres/variables/QUOTA_LOCK_TIMEOUT_MS.md"
           }
         ]
       }

@@ -6,14 +6,17 @@
 
 # Class: PostgresStore
 
-Defined in: [packages/store-postgres/src/store.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L125)
+Defined in: [packages/store-postgres/src/store.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L128)
 
 @rulvar/store-postgres: PostgresStore implementing JournalStore and
 LeasableStore with fencing epochs over node-postgres, for
 multi-process and multi-host deployments (RV-214). Payloads stay
 opaque TEXT (A4); every run-scoped mutation serializes on a per-run
 advisory transaction lock so the fence check and the guarded
-mutation commit as one unit across hosts.
+mutation commit as one unit across hosts. Beside it,
+PostgresQuotaLimiter (RV410) is the multi-host reference of the core
+QuotaLimiter SPI: one database, one schema, one global provider
+quota, admission serialized on a schema-wide advisory lock.
 
 ## Implements
 
@@ -28,7 +31,7 @@ mutation commit as one unit across hosts.
 new PostgresStore(options): PostgresStore;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L145)
+Defined in: [packages/store-postgres/src/store.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L148)
 
 #### Parameters
 
@@ -44,7 +47,7 @@ Defined in: [packages/store-postgres/src/store.ts:145](https://github.com/o-step
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | The fenced writes promise (fenced run state RFC, phase 2). | [packages/store-postgres/src/store.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L127) |
+| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | The fenced writes promise (fenced run state RFC, phase 2). | [packages/store-postgres/src/store.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L130) |
 
 ## Accessors
 
@@ -56,7 +59,7 @@ Defined in: [packages/store-postgres/src/store.ts:145](https://github.com/o-step
 get leaseTtlMs(): number;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:572](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L572)
+Defined in: [packages/store-postgres/src/store.ts:575](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L575)
 
 TTL introspection (the LeasableStore optional capability).
 
@@ -82,7 +85,7 @@ stores without it are accepted with the worker's own ttl.
 acquire(runId, owner): Promise<Lease>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:576](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L576)
+Defined in: [packages/store-postgres/src/store.ts:579](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L579)
 
 #### Parameters
 
@@ -110,7 +113,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:393](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L393)
+Defined in: [packages/store-postgres/src/store.ts:396](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L396)
 
 #### Parameters
 
@@ -136,7 +139,7 @@ Defined in: [packages/store-postgres/src/store.ts:393](https://github.com/o-step
 close(): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L289)
+Defined in: [packages/store-postgres/src/store.ts:292](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L292)
 
 #### Returns
 
@@ -150,7 +153,7 @@ Defined in: [packages/store-postgres/src/store.ts:289](https://github.com/o-step
 delete(runId, lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:490](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L490)
+Defined in: [packages/store-postgres/src/store.ts:493](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L493)
 
 #### Parameters
 
@@ -175,7 +178,7 @@ Defined in: [packages/store-postgres/src/store.ts:490](https://github.com/o-step
 getMeta(runId): Promise<RunMeta | undefined>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:436](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L436)
+Defined in: [packages/store-postgres/src/store.ts:439](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L439)
 
 #### Parameters
 
@@ -199,7 +202,7 @@ Defined in: [packages/store-postgres/src/store.ts:436](https://github.com/o-step
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:445](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L445)
+Defined in: [packages/store-postgres/src/store.ts:448](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L448)
 
 #### Parameters
 
@@ -223,7 +226,7 @@ Defined in: [packages/store-postgres/src/store.ts:445](https://github.com/o-step
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:407](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L407)
+Defined in: [packages/store-postgres/src/store.ts:410](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L410)
 
 #### Parameters
 
@@ -247,7 +250,7 @@ Defined in: [packages/store-postgres/src/store.ts:407](https://github.com/o-step
 putMeta(m, lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:426](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L426)
+Defined in: [packages/store-postgres/src/store.ts:429](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L429)
 
 #### Parameters
 
@@ -272,7 +275,7 @@ Defined in: [packages/store-postgres/src/store.ts:426](https://github.com/o-step
 release(l): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:620](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L620)
+Defined in: [packages/store-postgres/src/store.ts:623](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L623)
 
 #### Parameters
 
@@ -296,7 +299,7 @@ Defined in: [packages/store-postgres/src/store.ts:620](https://github.com/o-step
 renew(l): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:608](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L608)
+Defined in: [packages/store-postgres/src/store.ts:611](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L611)
 
 #### Parameters
 
@@ -320,7 +323,7 @@ Defined in: [packages/store-postgres/src/store.ts:608](https://github.com/o-step
 transcripts(): PostgresTranscriptStore;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:509](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L509)
+Defined in: [packages/store-postgres/src/store.ts:512](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L512)
 
 The fenced transcript twin (RFC F2): blobs live in this store's
 database beside the lease rows, so a lease-carrying put or delete
