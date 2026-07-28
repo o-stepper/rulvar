@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+
 ### 1.92.0
 
 #### Patch Changes
@@ -1081,6 +1088,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+
 ### 1.92.0
 
 #### Patch Changes
@@ -1999,6 +2013,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
 
 ### 1.92.0
 
@@ -3253,6 +3274,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.93.0
+
+#### Minor Changes
+
+- c62150a: The mid-batch checkpoint boundary (RV408, the eighth-experiment review). Checkpoints write once per completed tool turn, so a kill inside one large parallel batch re-paid every executed call of that batch on resume; with the whole executed-call budget fitting into a single batch (the `tool-cap-before-checkpoint` preflight warning), the re-paid window was the entire budget. The opt-in `limits.checkpointEveryToolCalls: K` bounds it: after every K executed calls within a batch the loop durably writes the same pending state the ask-approval suspension already checkpoints (the executed prefix verbatim, the next call, the remaining tail), and the existing restore path reuses the prefix and re-runs at most the calls since the last boundary. Denied and refused calls never advance the cadence, the batch's last call writes no extra boundary, and isolated-executor idempotency keys are unchanged. Off by default and byte-identical when absent: no journal bytes and no model requests change, only the transcript checkpoint cadence. A cadence below the executed-call ceiling silences the `tool-cap-before-checkpoint` warning, whose message now names the mitigation.
 
 ### 1.92.0
 
@@ -4873,6 +4900,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.93.0
+
 ### 1.92.0
 
 ### 1.91.0
@@ -5159,6 +5188,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+  - @rulvar/testing@1.93.0
 
 ### 1.92.0
 
@@ -6281,6 +6318,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+
 ### 1.92.0
 
 #### Patch Changes
@@ -6582,6 +6626,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
 
 ### 1.92.0
 
@@ -7657,6 +7708,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+
 ### 1.92.0
 
 #### Patch Changes
@@ -8688,6 +8746,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+  - eslint-plugin-rulvar@1.93.0
 
 ### 1.92.0
 
@@ -9774,6 +9840,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+  - @rulvar/anthropic@1.93.0
+  - @rulvar/openai@1.93.0
 
 ### 1.92.0
 
@@ -11034,6 +11109,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+
 ### 1.92.0
 
 #### Patch Changes
@@ -12057,6 +12139,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
+
 ### 1.92.0
 
 #### Patch Changes
@@ -12374,6 +12463,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
 
 ### 1.92.0
 
@@ -13331,6 +13427,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.93.0
+
+#### Patch Changes
+
+- Updated dependencies [c62150a]
+  - @rulvar/core@1.93.0
 
 ### 1.92.0
 

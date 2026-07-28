@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.93.0
+
+### Minor Changes
+
+- c62150a: The mid-batch checkpoint boundary (RV408, the eighth-experiment review). Checkpoints write once per completed tool turn, so a kill inside one large parallel batch re-paid every executed call of that batch on resume; with the whole executed-call budget fitting into a single batch (the `tool-cap-before-checkpoint` preflight warning), the re-paid window was the entire budget. The opt-in `limits.checkpointEveryToolCalls: K` bounds it: after every K executed calls within a batch the loop durably writes the same pending state the ask-approval suspension already checkpoints (the executed prefix verbatim, the next call, the remaining tail), and the existing restore path reuses the prefix and re-runs at most the calls since the last boundary. Denied and refused calls never advance the cadence, the batch's last call writes no extra boundary, and isolated-executor idempotency keys are unchanged. Off by default and byte-identical when absent: no journal bytes and no model requests change, only the transcript checkpoint cadence. A cadence below the executed-call ceiling silences the `tool-cap-before-checkpoint` warning, whose message now names the mitigation.
+
 ## 1.92.0
 
 ### Minor Changes
