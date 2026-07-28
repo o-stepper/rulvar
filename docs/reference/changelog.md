@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
+
 ### 1.93.0
 
 #### Patch Changes
@@ -1088,6 +1094,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
+
 ### 1.93.0
 
 #### Patch Changes
@@ -2013,6 +2025,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.94.0
+
+#### Minor Changes
+
+- 426e57d: The SSE replay buffer of `createServer` is finite by default (RV409): an absent `maxBufferedEventsPerRun` now resolves to the exported `DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN` (50,000 events per run) instead of unbounded, with the already established drop semantics past the bound (oldest events dropped in chunks, the retained window never below seven eighths of the bound, replays carrying `x-rulvar-events-dropped` and a leading SSE comment naming the first retained seq; the journal remains the durable record). Migration: a deployment that relied on the historical unbounded buffer sets an explicit huge bound, for example `Number.MAX_SAFE_INTEGER`; nothing changes for servers that already configured the option, and the option's domain (a positive safe integer, typed `ConfigError` otherwise) is unchanged.
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
 
 ### 1.93.0
 
@@ -3274,6 +3296,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.94.0
 
 ### 1.93.0
 
@@ -4900,6 +4924,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.94.0
+
 ### 1.93.0
 
 ### 1.92.0
@@ -5188,6 +5214,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
+- @rulvar/testing@1.94.0
 
 ### 1.93.0
 
@@ -6318,6 +6351,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
+
 ### 1.93.0
 
 #### Patch Changes
@@ -6626,6 +6665,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
 
 ### 1.93.0
 
@@ -7708,6 +7753,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
+
 ### 1.93.0
 
 #### Patch Changes
@@ -8746,6 +8797,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
+- eslint-plugin-rulvar@1.94.0
 
 ### 1.93.0
 
@@ -9840,6 +9898,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.94.0
+- @rulvar/core@1.94.0
+- @rulvar/openai@1.94.0
 
 ### 1.93.0
 
@@ -11109,6 +11175,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
+
 ### 1.93.0
 
 #### Patch Changes
@@ -12139,6 +12211,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
+
 ### 1.93.0
 
 #### Patch Changes
@@ -12463,6 +12541,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
 
 ### 1.93.0
 
@@ -13427,6 +13511,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.94.0
+
+#### Patch Changes
+
+- @rulvar/core@1.94.0
 
 ### 1.93.0
 
