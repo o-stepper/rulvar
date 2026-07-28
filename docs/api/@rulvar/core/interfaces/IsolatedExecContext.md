@@ -17,9 +17,9 @@ cancellation signal, and a stable idempotency key.
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-agenttype"></a> `agentType` | `string` | - | [packages/core/src/l0/spi/executor.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L32) |
-| <a id="property-idempotencykey"></a> `idempotencyKey` | `string` | Stable identity of THIS logical tool call: identical (runId, tool, args) always derive the same key, so a provider whose work has external side effects can fold an at-least-once retry into effectively-once. A rerun of the same call after a mid-flight crash reuses the key; a different call never collides. | [packages/core/src/l0/spi/executor.ts:40](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L40) |
+| <a id="property-idempotencykey"></a> `idempotencyKey` | `string` | Stable identity of THIS logical tool call within THIS run incarnation: a deterministic function of the run, the logical invocation (the containing agent's journal seq plus the call's ordinal in that agent's tool loop), the tool name, the canonical arguments, and, for runs stamped with derivation 2 (RunMeta.execKeyDerivation; RV403), the run's generation token. A rerun of the same call after a mid-flight crash reuses the key, so a provider whose work has external side effects can fold an at-least-once retry into effectively-once; a different call, even with byte-identical arguments, never collides; and under derivation 2 a deleteRun-then-recreate of the same runId never reuses the deleted incarnation's keys. | [packages/core/src/l0/spi/executor.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L47) |
 | <a id="property-runid"></a> `runId` | `string` | - | [packages/core/src/l0/spi/executor.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L29) |
-| <a id="property-signal"></a> `signal` | `AbortSignal` | Fires on cancellation, a budget ceiling, or UsageLimits expiry. | [packages/core/src/l0/spi/executor.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L42) |
+| <a id="property-signal"></a> `signal` | `AbortSignal` | Fires on cancellation, a budget ceiling, or UsageLimits expiry. | [packages/core/src/l0/spi/executor.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L49) |
 | <a id="property-spanid"></a> `spanId` | `string` | The tool span, minted under the agent span exactly like inprocess. | [packages/core/src/l0/spi/executor.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L31) |
 
 ## Methods
@@ -33,7 +33,7 @@ log(
    data?): void;
 ```
 
-Defined in: [packages/core/src/l0/spi/executor.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L44)
+Defined in: [packages/core/src/l0/spi/executor.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L51)
 
 Emits telemetry log events under the tool span; never journals.
 

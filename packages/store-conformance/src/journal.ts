@@ -410,6 +410,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             argsProvided: true,
             argsHash: 'a'.repeat(64),
             genesis: 'g'.repeat(26),
+            execKeyDerivation: 2,
           }),
         );
         const roundTripped = (await store.listRuns()).find((candidate) => candidate.runId === RUN);
@@ -435,6 +436,15 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           roundTripped?.genesis === 'g'.repeat(26),
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (genesis)',
+        );
+        // The exec key derivation stamp (RV403): a store that drops it
+        // degrades a resumed run's NEW isolated dispatches to version 1
+        // keys, which breaks the at-least-once fold of a redispatched
+        // call for a run whose fresh segment derived version 2.
+        ensure(
+          roundTripped?.execKeyDerivation === 2,
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (execKeyDerivation)',
         );
         // The statuses filter is an advisory optimization: a store may
         // ignore it and return a superset, but it must never DROP a

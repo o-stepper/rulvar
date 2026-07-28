@@ -103,6 +103,24 @@ export type RunMeta = {
    * Stores must round-trip the field (the conformance kit checks).
    */
   genesis?: string;
+  /**
+   * Which isolated-executor idempotency key derivation this run uses
+   * (RV403), for its WHOLE life: stamped at the fresh start by the
+   * engine (current engines stamp 2, the incarnation-scoped derivation
+   * that binds `genesis` into the key so a `deleteRun`-then-recreate of
+   * the same explicit runId never reuses keys against a long-lived
+   * external dedup store) and carried verbatim by every resume segment.
+   * Absent on runs recorded before the field shipped: those derive the
+   * original genesis-free version 1 keys forever, across resume and
+   * upgrade, so external dedup state accumulated for them stays valid.
+   * A recorded version this engine does not know is a typed resume
+   * refusal when isolated executors are configured (resume with a newer
+   * rulvar), never a silent fallback. Stores must round-trip the field
+   * (the conformance kit checks); a store that drops it degrades a
+   * resumed run's NEW dispatches to version 1 keys, which breaks the
+   * at-least-once fold of a redispatched call for a version 2 run.
+   */
+  execKeyDerivation?: number;
 };
 
 export type RunFilter = {

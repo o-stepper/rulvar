@@ -110,7 +110,11 @@ import {
 import { buildToolContext } from '../tools/context.js';
 import { latestProgressReport } from '../tools/progress.js';
 import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
-import { deriveExecIdempotencyKey } from '../runtime/executor.js';
+import {
+  deriveExecIdempotencyKey,
+  deriveExecIdempotencyKeyV2,
+  type ExecKeyDerivation,
+} from '../runtime/executor.js';
 import { AdmissionController, type AdmitVerdict } from '../orchestrator/admission.js';
 import { makeOrchestratorWorkflow, type OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import { toJournalValue } from '../journal/serializable.js';
@@ -715,6 +719,14 @@ export interface RunInternals {
    * are accepted.
    */
   executors?: ExecutorRegistry;
+  /**
+   * Which exec idempotency key derivation this run's isolated dispatches
+   * use (RV403), resolved at engine boot from RunMeta.execKeyDerivation:
+   * version 2 carries the run's generation token to scope keys to the
+   * incarnation; absent behaves as version 1 (the genesis-free
+   * derivation of runs recorded before the stamp shipped).
+   */
+  execKey?: ExecKeyDerivation;
   /**
    * The ModelKnowledge runtime handle (M10-T03): current()
    * only, commit physically absent. Present only when the engine was
@@ -1888,12 +1900,16 @@ export function createCtx(
       // registered ToolExecutorProvider. The tool span is minted under the
       // agent span exactly like an inprocess call, and the idempotency key
       // is a pure function of the LOGICAL invocation (runId, agent-entry
-      // seq, per-agent ordinal, tool, args; see deriveExecIdempotencyKey)
-      // so a crash-and-resume redispatch of the same call reuses it while
-      // two separate calls sharing arguments never collide. A provider
-      // throw surfaces to the loop as the call's error tool result.
+      // seq, per-agent ordinal, tool, args) plus, at derivation 2, the
+      // run's generation token (RV403; see deriveExecIdempotencyKey and
+      // deriveExecIdempotencyKeyV2): a crash-and-resume redispatch of the
+      // same call reuses its key, two separate calls sharing arguments
+      // never collide, and a deleted-then-recreated runId never reuses
+      // the dead incarnation's keys. A provider throw surfaces to the
+      // loop as the call's error tool result.
       if (internals.executors !== undefined) {
         const executors = internals.executors;
+        const execKey = internals.execKey;
         // The containing agent's dispatch-entry seq scopes the idempotency
         // key to THIS invocation: it is journal-deterministic and an
         // at-least-once redispatch reuses the same entry, so the key is
@@ -1919,13 +1935,17 @@ export function createCtx(
               runId: internals.runId,
               spanId: toolSpanId,
               agentType,
-              idempotencyKey: deriveExecIdempotencyKey(
-                internals.runId,
-                agentSeq,
-                ordinal,
-                def.name,
-                args,
-              ),
+              idempotencyKey:
+                execKey !== undefined && execKey.version === 2
+                  ? deriveExecIdempotencyKeyV2(
+                      internals.runId,
+                      execKey.genesis,
+                      agentSeq,
+                      ordinal,
+                      def.name,
+                      args,
+                    )
+                  : deriveExecIdempotencyKey(internals.runId, agentSeq, ordinal, def.name, args),
               signal: toolSignal,
               log: (level, msg, data) =>
                 internals.events.emit(
