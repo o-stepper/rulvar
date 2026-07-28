@@ -3637,6 +3637,10 @@
             "link": "/api/@rulvar/executor/interfaces/ContainerExecutorOptions.md"
           },
           {
+            "text": "EffectLedgerScan",
+            "link": "/api/@rulvar/executor/interfaces/EffectLedgerScan.md"
+          },
+          {
             "text": "ExecutorConformanceCheck",
             "link": "/api/@rulvar/executor/interfaces/ExecutorConformanceCheck.md"
           },
@@ -3659,6 +3663,10 @@
           {
             "text": "SubprocessToolInit",
             "link": "/api/@rulvar/executor/interfaces/SubprocessToolInit.md"
+          },
+          {
+            "text": "ToolEffectIntent",
+            "link": "/api/@rulvar/executor/interfaces/ToolEffectIntent.md"
           },
           {
             "text": "ToolEffectLedger",
@@ -3703,6 +3711,14 @@
           {
             "text": "hashArgs",
             "link": "/api/@rulvar/executor/functions/hashArgs.md"
+          },
+          {
+            "text": "jsonlEffectLedger",
+            "link": "/api/@rulvar/executor/functions/jsonlEffectLedger.md"
+          },
+          {
+            "text": "loadEffectLedger",
+            "link": "/api/@rulvar/executor/functions/loadEffectLedger.md"
           },
           {
             "text": "memoryEffectLedger",

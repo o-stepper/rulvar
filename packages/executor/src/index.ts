@@ -33,9 +33,11 @@ export {
   hashArgs,
   parseToolResult,
   type ExecutorErrorCode,
+  type ToolEffectIntent,
   type ToolEffectLedger,
   type ToolEffectRecord,
 } from './spi.js';
+export { jsonlEffectLedger, loadEffectLedger, type EffectLedgerScan } from './ledger.js';
 export {
   executorConformance,
   registerExecutorConformance,

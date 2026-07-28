@@ -10,7 +10,7 @@
 type ConformanceExecutorFactory = (config) => ToolExecutorProvider;
 ```
 
-Defined in: [packages/executor/src/conformance.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L39)
+Defined in: [packages/executor/src/conformance.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L44)
 
 Builds the provider under test from a shared-contract config.
 

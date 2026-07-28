@@ -130,6 +130,26 @@ const executor = subprocessExecutor({ ledger });
 
 Binding an approval to the effect it authorized is then a lookup: an [ask-approval](/guide/tools#ask-approvals-surface-to-the-host) entry and its effect share `(runId, tool, argsHash)`, and the idempotency key is stable across a rerun of the same call. Pair a side-effecting tool's `needsApproval: true` with the ledger to prove that only approved calls ran, and each ran once.
 
+### The two-phase intent contract and the crash window
+
+A single outcome record has a window the run journal cannot close on its own: the record is written AFTER the effect, so a host process killed between the external effect and the ledger write leaves an effect with no row anywhere. The two-phase capability closes it. A ledger that implements the optional `intent` method opts in: the executor durably records the intent (the idempotency key, tool, `argsHash`, runId, spanId, workdir, and the attempt's `startedAt`) and AWAITS it strictly before the effect is dispatched, then writes the outcome `record` after, with the same `(idempotencyKey, startedAt)` pair joining the phases of one attempt. A failed intent write refuses the dispatch with the typed `ledger` error code, because proceeding would reopen exactly the untracked-effect window; a ledger without the method keeps the historical single-record contract, byte for byte.
+
+The crash between the phases now leaves an **orphan intent**, and that orphan is a contract, not a curiosity: an intent whose idempotency key has no outcome row means "an effect may have happened that nothing accounts for", and the host's reconciliation procedure is mandatory before retrying or compensating: look the idempotency key up with the effect's provider (the key was forwarded to the tool, so a well-built tool program attached it to the external call), correlate by `(runId, tool, argsHash)`, and only then decide. A key that also has a LATER outcome row is not orphaned: the at-least-once retry of the same logical call already resolved it. The reference `jsonlEffectLedger(path)` writes both phases as JSON lines and `loadEffectLedger(path)` scans them back with `orphanedIntents` precomputed under exactly that rule (a torn trailing line, the artifact of a crash mid-write, is skipped, never a scan failure):
+
+```ts
+import { subprocessExecutor, jsonlEffectLedger, loadEffectLedger } from '@rulvar/executor';
+
+const executor = subprocessExecutor({ ledger: jsonlEffectLedger('/var/lib/app/effects.jsonl') });
+// After a crash, at boot, before resuming anything:
+const scan = await loadEffectLedger('/var/lib/app/effects.jsonl');
+for (const orphan of scan.orphanedIntents) {
+  // Mandatory: reconcile with the provider by orphan.idempotencyKey
+  // before the run's at-least-once redispatch is allowed to re-fire.
+}
+```
+
+The boundary stays honest in both directions. An awaited JSONL append survives a process crash, not necessarily a power loss before the OS flushes; a host that needs power-loss durability implements the same two-method seam over its own fsync or transactional store. And the library deliberately stops at the strict interface plus this checkable contract (the conformance kit's e13 kills a simulated host between the phases and demands the orphan): a full transactional outbox, business authorization, and monetary reconciliation remain host obligations, built ON the ledger, not inside it.
+
 ## Conformance
 
 `executorConformance` is the executable shared-contract battery any command-based executor must pass, mirroring the [store conformance kit](/guide/stores):
@@ -142,7 +162,7 @@ const suite = executorConformance((cfg) => subprocessExecutor(cfg));
 registerExecutorConformance(suite, { describe, it });
 ```
 
-It drives a provider through the protocol and asserts the properties the seam promises, foremost the gate the epic exists for: a hostile tool cannot read the host's ambient credentials. It also proves the environment allowlist passes named variables through, per-call credentials are injected, the timeout kills a slow tool, the output cap kills a flood, a non-zero exit surfaces typed with its stderr tail, unparseable output is rejected, each call gets a fresh empty workdir that is removed afterward, and every dispatch reaches the ledger with the outcome it actually had (a protocol failure ledgers `error`, never `ok`). The subprocess reference passes all of it; the container reference additionally proves the network and filesystem isolation only a container can enforce.
+It drives a provider through the protocol and asserts the properties the seam promises, foremost the gate the epic exists for: a hostile tool cannot read the host's ambient credentials. It also proves the environment allowlist passes named variables through, per-call credentials are injected, the timeout kills a slow tool, the output cap kills a flood, a non-zero exit surfaces typed with its stderr tail, unparseable output is rejected, each call gets a fresh empty workdir that is removed afterward, every dispatch reaches the ledger with the outcome it actually had (a protocol failure ledgers `error`, never `ok`), and, against a two-phase ledger, a simulated kill between the effect and the outcome write leaves the orphan intent with the full reconciliation lookup set, recorded strictly before the effect (e13). The subprocess reference passes all of it; the container reference additionally proves the network and filesystem isolation only a container can enforce.
 
 ## Next steps
 

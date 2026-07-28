@@ -6,14 +6,14 @@
 
 # Interface: ExecutorConformanceCheck
 
-Defined in: [packages/executor/src/conformance.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L43)
+Defined in: [packages/executor/src/conformance.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L48)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-id"></a> `id` | `string` | [packages/executor/src/conformance.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L44) |
-| <a id="property-title"></a> `title` | `string` | [packages/executor/src/conformance.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L45) |
+| <a id="property-id"></a> `id` | `string` | [packages/executor/src/conformance.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L49) |
+| <a id="property-title"></a> `title` | `string` | [packages/executor/src/conformance.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L50) |
 
 ## Methods
 
@@ -23,7 +23,7 @@ Defined in: [packages/executor/src/conformance.ts:43](https://github.com/o-stepp
 run(): Promise<void>;
 ```
 
-Defined in: [packages/executor/src/conformance.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L46)
+Defined in: [packages/executor/src/conformance.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L51)
 
 #### Returns
 
