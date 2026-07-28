@@ -53,8 +53,11 @@ export class ExecutorError extends Error {
  * the executor knows BEFORE the external effect is dispatched, which is
  * exactly the set a host needs to reconcile an orphaned effect with the
  * effect's provider (look the idempotency key up, correlate by tool and
- * argsHash). `startedAt` is the attempt join key: the outcome record of
- * the same attempt carries the identical value.
+ * argsHash). `attemptId` is the attempt join key (RV501): the outcome
+ * record of the same attempt carries the identical value. `startedAt`
+ * remains the documented legacy join for rows written before the id
+ * shipped; a wall-clock millisecond is not unique, which is why the id
+ * exists.
  */
 export interface ToolEffectIntent {
   /** The stable per-call idempotency key (createEngine derives it). */
@@ -68,6 +71,15 @@ export interface ToolEffectIntent {
   /** The ephemeral working directory the dispatch runs in. */
   workdir: string;
   startedAt: number;
+  /**
+   * Unique id of this dispatch ATTEMPT (RV501): the reference executors
+   * mint one before the intent row is written and copy it verbatim onto
+   * the same attempt's outcome row, so the two phases pair exactly.
+   * Optional because rows written before v1.96.0 (and third-party
+   * ledgers) may omit it; {@link loadEffectLedger} then falls back to
+   * the legacy (idempotencyKey, startedAt) join.
+   */
+  attemptId?: string;
 }
 
 /** One dispatch's side-effect facts, for the ledger. */
@@ -96,9 +108,9 @@ export interface ToolEffectLedger {
    * with the typed `ledger` code) and the outcome `record` after it. A
    * host crash between the effect and the outcome row then leaves an
    * orphan intent, the reconciliation signal, instead of an untracked
-   * effect: an intent whose idempotency key has no outcome row means
-   * "look this key up with the effect's provider before retrying or
-   * compensating". Absent, the ledger keeps the historical
+   * effect: an intent whose OWN attempt has no outcome row (RV501)
+   * means "look this key up with the effect's provider before retrying
+   * or compensating". Absent, the ledger keeps the historical
    * single-record contract and executor behavior is byte-identical.
    */
   intent?(entry: ToolEffectIntent): void | Promise<void>;

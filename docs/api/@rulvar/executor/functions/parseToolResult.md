@@ -10,7 +10,7 @@
 function parseToolResult(stdout, tool): unknown;
 ```
 
-Defined in: [packages/executor/src/spi.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L158)
+Defined in: [packages/executor/src/spi.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L170)
 
 The tool-program result protocol: the child's stdout, trimmed, is the
 JSON result. Empty stdout is the null result; anything else must parse

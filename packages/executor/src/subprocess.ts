@@ -20,6 +20,7 @@
  *
  * Docs: https://docs.rulvar.com/guide/isolated-executor.
  */
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -134,6 +135,9 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
       const workdir = await mkdtemp(join(workdirBase, `rulvar-exec-${request.tool}-`));
       const startedAt = now();
       const argsHash = hashArgs(request.args);
+      // One dispatch is one ATTEMPT (RV501): the id joins the intent to
+      // exactly its own outcome row, whatever the wall clock says.
+      const attemptId = randomUUID();
       // The two-phase capability (RV404): the intent lands durably
       // BEFORE the external effect, so a host crash between the effect
       // and the outcome row leaves an orphan intent (the reconciliation
@@ -153,6 +157,7 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
             executor: request.executor,
             workdir,
             startedAt,
+            attemptId,
           });
         } catch (err) {
           await rm(workdir, { recursive: true, force: true });
@@ -170,6 +175,9 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
       let outcome: ToolEffectRecord['outcome'] = 'error';
       let exitCode: number | null = null;
       let signal: string | null = null;
+      let settled: Json | undefined;
+      let bodyThrew = false;
+      let thrownBody: unknown;
       try {
         const env: Record<string, string> = {};
         for (const name of options.allowEnv ?? []) {
@@ -240,9 +248,19 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
         }
         const result = parseToolResult(child.stdout, request.tool) as Json;
         outcome = 'ok';
-        return result;
-      } finally {
-        const durationMs = now() - startedAt;
+        settled = result;
+      } catch (thrown) {
+        bodyThrew = true;
+        thrownBody = thrown;
+      }
+      // The settle epilogue (RV503), on every path: the ephemeral
+      // workdir never survives the dispatch, even when the audit write
+      // fails, and a rejected record surfaces as the typed 'ledger'
+      // refusal because an effect whose outcome could not be audited
+      // must not report success silently.
+      const durationMs = now() - startedAt;
+      let ledgerFailure: ExecutorError | undefined;
+      try {
         if (options.ledger !== undefined) {
           await options.ledger.record({
             idempotencyKey: request.ctx.idempotencyKey,
@@ -253,14 +271,29 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
             executor: request.executor,
             workdir,
             startedAt,
+            attemptId,
             durationMs,
             outcome,
             exitCode,
             signal,
           });
         }
-        await rm(workdir, { recursive: true, force: true });
+      } catch (recordErr) {
+        ledgerFailure = new ExecutorError(
+          'ledger',
+          `tool '${request.tool}' outcome was not recorded: the ledger record write failed ` +
+            `(${recordErr instanceof Error ? recordErr.message : String(recordErr)})` +
+            (bodyThrew
+              ? `; the dispatch itself had already failed (${
+                  thrownBody instanceof Error ? thrownBody.message : String(thrownBody)
+                })`
+              : ''),
+        );
       }
+      await rm(workdir, { recursive: true, force: true });
+      if (ledgerFailure !== undefined) throw ledgerFailure;
+      if (bodyThrew) throw thrownBody;
+      return settled as Json;
     },
   };
 }

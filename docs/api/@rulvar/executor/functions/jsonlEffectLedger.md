@@ -7,21 +7,24 @@
 # Function: jsonlEffectLedger()
 
 ```ts
-function jsonlEffectLedger(path): ToolEffectLedger;
+function jsonlEffectLedger(path, options?): ToolEffectLedger;
 ```
 
-Defined in: [packages/executor/src/ledger.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L28)
+Defined in: [packages/executor/src/ledger.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L84)
 
 A two-phase ToolEffectLedger appending JSON lines to `path`
 (`{ phase: 'intent' | 'outcome', ... }`). Pass it to
 `subprocessExecutor({ ledger })` or `containerExecutor({ ledger })`;
-scan it back with [loadEffectLedger](/api/@rulvar/executor/functions/loadEffectLedger.md).
+scan it back with [loadEffectLedger](/api/@rulvar/executor/functions/loadEffectLedger.md). The first append lazily
+repairs a torn tail left by a crashed predecessor (RV502).
 
 ## Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `path` | `string` |
+| `options?` | \{ `now?`: () => `number`; \} |
+| `options.now?` | () => `number` |
 
 ## Returns
 

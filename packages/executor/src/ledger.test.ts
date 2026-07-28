@@ -1,22 +1,25 @@
 /**
- * The durable JSONL reference of the two-phase effect ledger (RV404): it
- * writes one line per phase, loads back into paired intents and
- * outcomes, and identifies the orphan intents (an intent whose key never
- * got an outcome row) that are the host's reconciliation signal after a
- * crash between the effect and the outcome write.
+ * The durable JSONL reference of the two-phase effect ledger (RV404,
+ * hardened by RV501/RV502): it writes one line per phase, pairs an
+ * outcome with EXACTLY the intent of its own attempt (attemptId, with
+ * the legacy (idempotencyKey, startedAt) join for rows written before
+ * attemptId shipped), repairs a torn tail before appending over it, and
+ * surfaces corruption instead of swallowing it. The orphaned intents it
+ * reports are the host's reconciliation signal after a crash between
+ * the effect and the outcome write.
  */
-import { appendFileSync, mkdtempSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { jsonlEffectLedger, loadEffectLedger } from './ledger.js';
+import { LedgerCorruptionError, jsonlEffectLedger, loadEffectLedger } from './ledger.js';
 import type { ToolEffectIntent, ToolEffectRecord } from './spi.js';
 
 const DIR = mkdtempSync(join(tmpdir(), 'rulvar-ledger-tests-'));
 let fileSeq = 0;
 const freshPath = (): string => join(DIR, `ledger-${(fileSeq += 1)}.jsonl`);
 
-function intentOf(key: string, startedAt: number): ToolEffectIntent {
+function intentOf(key: string, startedAt: number, attemptId?: string): ToolEffectIntent {
   return {
     idempotencyKey: key,
     runId: 'run-1',
@@ -26,39 +29,49 @@ function intentOf(key: string, startedAt: number): ToolEffectIntent {
     executor: 'subprocess',
     workdir: '/tmp/w',
     startedAt,
+    ...(attemptId === undefined ? {} : { attemptId }),
   };
 }
 
-function outcomeOf(key: string, startedAt: number): ToolEffectRecord {
+function outcomeOf(
+  key: string,
+  startedAt: number,
+  attemptId?: string,
+  outcome: ToolEffectRecord['outcome'] = 'ok',
+): ToolEffectRecord {
   return {
-    ...intentOf(key, startedAt),
+    ...intentOf(key, startedAt, attemptId),
     durationMs: 5,
-    outcome: 'ok',
-    exitCode: 0,
+    outcome,
+    exitCode: outcome === 'ok' ? 0 : null,
     signal: null,
   };
 }
 
-describe('jsonlEffectLedger and loadEffectLedger (RV404)', () => {
+describe('jsonlEffectLedger and loadEffectLedger (RV404 + RV501)', () => {
   it('writes both phases and loads them back paired', async () => {
     const path = freshPath();
     const ledger = jsonlEffectLedger(path);
-    await ledger.intent?.(intentOf('k-1', 100));
-    await ledger.record(outcomeOf('k-1', 100));
+    await ledger.intent?.(intentOf('k-1', 100, 'a-1'));
+    await ledger.record(outcomeOf('k-1', 100, 'a-1'));
     const scan = await loadEffectLedger(path);
     expect(scan.intents).toHaveLength(1);
     expect(scan.outcomes).toHaveLength(1);
     expect(scan.intents[0]?.idempotencyKey).toBe('k-1');
+    expect(scan.intents[0]?.attemptId).toBe('a-1');
     expect(scan.outcomes[0]?.outcome).toBe('ok');
     expect(scan.orphanedIntents).toHaveLength(0);
+    expect(scan.corrupt).toHaveLength(0);
+    expect(scan.tornArtifacts).toHaveLength(0);
+    expect(scan.tornTail).toBeUndefined();
   });
 
-  it('reports an intent whose key never got an outcome as orphaned', async () => {
+  it('reports an intent whose attempt never got an outcome as orphaned', async () => {
     const path = freshPath();
     const ledger = jsonlEffectLedger(path);
-    await ledger.intent?.(intentOf('k-dead', 100));
-    await ledger.intent?.(intentOf('k-live', 200));
-    await ledger.record(outcomeOf('k-live', 200));
+    await ledger.intent?.(intentOf('k-dead', 100, 'a-dead'));
+    await ledger.intent?.(intentOf('k-live', 200, 'a-live'));
+    await ledger.record(outcomeOf('k-live', 200, 'a-live'));
     const scan = await loadEffectLedger(path);
     expect(scan.orphanedIntents).toHaveLength(1);
     expect(scan.orphanedIntents[0]?.idempotencyKey).toBe('k-dead');
@@ -68,31 +81,199 @@ describe('jsonlEffectLedger and loadEffectLedger (RV404)', () => {
     expect(scan.orphanedIntents[0]?.runId).toBe('run-1');
   });
 
-  it('does not orphan a retried key whose later attempt has the outcome', async () => {
-    // At-least-once: attempt 1 crashed between phases, attempt 2 of the
-    // SAME logical call completed. The key has an outcome, so the first
-    // intent needs no reconciliation: the retry already resolved it.
+  it("a sibling attempt's ok outcome never resolves another attempt (RV501)", async () => {
+    // Before RV501 the key-level rule let ANY outcome of the key clear
+    // every intent of that key, so attempt 1 (crash between phases, its
+    // effect possibly applied) vanished from the reconciliation queue
+    // the moment attempt 2 completed. That inference belongs to the
+    // host's provider reconciliation, never to this scan: attempt 1 is
+    // still unknown and stays orphaned.
     const path = freshPath();
     const ledger = jsonlEffectLedger(path);
-    await ledger.intent?.(intentOf('k-retry', 100));
-    await ledger.intent?.(intentOf('k-retry', 200));
-    await ledger.record(outcomeOf('k-retry', 200));
+    await ledger.intent?.(intentOf('k-retry', 100, 'a-1'));
+    await ledger.intent?.(intentOf('k-retry', 200, 'a-2'));
+    await ledger.record(outcomeOf('k-retry', 200, 'a-2', 'ok'));
     const scan = await loadEffectLedger(path);
     expect(scan.intents).toHaveLength(2);
-    expect(scan.orphanedIntents).toHaveLength(0);
+    expect(scan.orphanedIntents).toHaveLength(1);
+    expect(scan.orphanedIntents[0]?.attemptId).toBe('a-1');
   });
 
-  it('skips a torn trailing line instead of failing the whole scan', async () => {
-    // A crash mid-write leaves exactly this artifact: a complete line
-    // followed by a torn tail with no newline. The scan must keep the
-    // durable rows.
+  it("a sibling attempt's error outcome never resolves another attempt (the ninth-experiment counterexample)", async () => {
+    // Attempt 1 wrote its intent and crashed: the effect MAY have
+    // applied. Retry attempt 2 failed before dispatch (a credentials or
+    // spawn failure ledgers 'error'). The pre-RV501 scan returned zero
+    // orphans here, hiding the unknown effect behind a retry that
+    // provably did nothing.
     const path = freshPath();
     const ledger = jsonlEffectLedger(path);
-    await ledger.intent?.(intentOf('k-torn', 100));
+    await ledger.intent?.(intentOf('same-key', 100, 'a-1'));
+    await ledger.intent?.(intentOf('same-key', 200, 'a-2'));
+    await ledger.record(outcomeOf('same-key', 200, 'a-2', 'error'));
+    const scan = await loadEffectLedger(path);
+    expect(scan.orphanedIntents).toHaveLength(1);
+    expect(scan.orphanedIntents[0]?.attemptId).toBe('a-1');
+    expect(scan.orphanedIntents[0]?.startedAt).toBe(100);
+  });
+
+  it('pairs attempts sharing a millisecond by attemptId, not by clock', async () => {
+    const path = freshPath();
+    const ledger = jsonlEffectLedger(path);
+    await ledger.intent?.(intentOf('k-ms', 100, 'a-1'));
+    await ledger.intent?.(intentOf('k-ms', 100, 'a-2'));
+    await ledger.record(outcomeOf('k-ms', 100, 'a-2'));
+    const scan = await loadEffectLedger(path);
+    expect(scan.orphanedIntents).toHaveLength(1);
+    expect(scan.orphanedIntents[0]?.attemptId).toBe('a-1');
+  });
+
+  it('pairs legacy rows without attemptId by (idempotencyKey, startedAt)', async () => {
+    // Files written before v1.96.0 carry no attemptId: the documented
+    // legacy join is the (key, startedAt) pair the SPI always named.
+    // Key-level resolution is gone for them too: the outcome of attempt
+    // 200 says nothing about attempt 100.
+    const path = freshPath();
+    const ledger = jsonlEffectLedger(path);
+    await ledger.intent?.(intentOf('k-legacy', 100));
+    await ledger.intent?.(intentOf('k-legacy', 200));
+    await ledger.record(outcomeOf('k-legacy', 200));
+    const scan = await loadEffectLedger(path);
+    expect(scan.orphanedIntents).toHaveLength(1);
+    expect(scan.orphanedIntents[0]?.startedAt).toBe(100);
+  });
+
+  it('pairs a mixed file: legacy intent stays orphaned beside a new resolved attempt', async () => {
+    const path = freshPath();
+    const ledger = jsonlEffectLedger(path);
+    await ledger.intent?.(intentOf('k-mixed', 100));
+    await ledger.intent?.(intentOf('k-mixed', 200, 'a-new'));
+    await ledger.record(outcomeOf('k-mixed', 200, 'a-new'));
+    const scan = await loadEffectLedger(path);
+    expect(scan.orphanedIntents).toHaveLength(1);
+    expect(scan.orphanedIntents[0]?.attemptId).toBeUndefined();
+    expect(scan.orphanedIntents[0]?.startedAt).toBe(100);
+  });
+
+  it('pairs by identity, not by line order', async () => {
+    // An outcome landing before its intent in the file (interleaved
+    // writers on separate attempts) still resolves exactly its attempt.
+    const path = freshPath();
+    writeFileSync(
+      path,
+      `${JSON.stringify({ phase: 'outcome', ...outcomeOf('k-order', 100, 'a-1') })}\n` +
+        `${JSON.stringify({ phase: 'intent', ...intentOf('k-order', 100, 'a-1') })}\n`,
+      'utf8',
+    );
+    const scan = await loadEffectLedger(path);
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.outcomes).toHaveLength(1);
+    expect(scan.orphanedIntents).toHaveLength(0);
+  });
+});
+
+describe('torn tails and corruption (RV502)', () => {
+  it('reports a live torn trailing line instead of failing the whole scan', async () => {
+    // A crash mid-write leaves exactly this artifact: a complete line
+    // followed by a torn tail with no newline. The scan keeps the
+    // durable rows and names the tail instead of staying silent.
+    const path = freshPath();
+    const ledger = jsonlEffectLedger(path);
+    await ledger.intent?.(intentOf('k-torn', 100, 'a-torn'));
     appendFileSync(path, '{"phase":"outcome","idempo');
     const scan = await loadEffectLedger(path);
     expect(scan.intents).toHaveLength(1);
     expect(scan.outcomes).toHaveLength(0);
     expect(scan.orphanedIntents).toHaveLength(1);
+    expect(scan.corrupt).toHaveLength(0);
+    expect(scan.tornTail?.preview).toContain('{"phase":"outcome","idempo');
+  });
+
+  it('appending after a torn tail preserves the next record (the reproduced P0)', async () => {
+    // Before RV502 the next append glued onto the torn fragment: ONE
+    // invalid line, BOTH records invisible, while the awaited intent
+    // write reported success and the effect dispatched untracked.
+    const path = freshPath();
+    writeFileSync(
+      path,
+      `${JSON.stringify({ phase: 'intent', ...intentOf('k-prior', 1, 'a-prior') })}\n` +
+        '{"phase":"intent","idempotencyKey":"torn',
+      'utf8',
+    );
+    const ledger = jsonlEffectLedger(path, { now: () => 777 });
+    await ledger.intent?.(intentOf('k-next', 2, 'a-next'));
+    const scan = await loadEffectLedger(path);
+    expect(scan.intents.map((entry) => entry.idempotencyKey)).toEqual(['k-prior', 'k-next']);
+    expect(scan.orphanedIntents).toHaveLength(2);
+    // The fragment is quarantined with its raw bytes, never lost.
+    expect(scan.tornArtifacts).toHaveLength(1);
+    expect(scan.tornArtifacts[0]?.bytes).toBe('{"phase":"intent","idempotencyKey":"torn');
+    expect(scan.tornArtifacts[0]?.recoveredAt).toBe(777);
+    expect(scan.corrupt).toHaveLength(0);
+    expect(scan.tornTail).toBeUndefined();
+  });
+
+  it('terminates a parseable unterminated tail in place, losing nothing', async () => {
+    // A crash exactly between the JSON bytes and the newline leaves a
+    // COMPLETE record missing only its terminator: the repair appends
+    // the newline instead of quarantining real data.
+    const path = freshPath();
+    writeFileSync(
+      path,
+      JSON.stringify({ phase: 'intent', ...intentOf('k-whole', 1, 'a-whole') }),
+      'utf8',
+    );
+    const ledger = jsonlEffectLedger(path);
+    await ledger.intent?.(intentOf('k-after', 2, 'a-after'));
+    const scan = await loadEffectLedger(path);
+    expect(scan.intents.map((entry) => entry.idempotencyKey)).toEqual(['k-whole', 'k-after']);
+    expect(scan.tornArtifacts).toHaveLength(0);
+    expect(scan.corrupt).toHaveLength(0);
+  });
+
+  it('repair is lazy, idempotent, and leaves a clean file byte for byte', async () => {
+    const path = freshPath();
+    const first = jsonlEffectLedger(path);
+    await first.intent?.(intentOf('k-clean', 1, 'a-clean'));
+    const before = readFileSync(path, 'utf8');
+    // A second instance on the already-clean file repairs nothing.
+    const second = jsonlEffectLedger(path);
+    await second.record(outcomeOf('k-clean', 1, 'a-clean'));
+    const after = readFileSync(path, 'utf8');
+    expect(after.startsWith(before)).toBe(true);
+    const scan = await loadEffectLedger(path);
+    expect(scan.tornArtifacts).toHaveLength(0);
+    expect(scan.orphanedIntents).toHaveLength(0);
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.outcomes).toHaveLength(1);
+  });
+
+  it('fails closed on interior corruption with offsets and hashes', async () => {
+    const path = freshPath();
+    writeFileSync(
+      path,
+      `{malformed}\n${JSON.stringify({ phase: 'intent', ...intentOf('k-visible', 3, 'a-visible') })}\n`,
+      'utf8',
+    );
+    await expect(loadEffectLedger(path)).rejects.toMatchObject({ name: 'LedgerCorruptionError' });
+    const thrown = await loadEffectLedger(path).catch((err: unknown) => err);
+    expect(thrown).toBeInstanceOf(LedgerCorruptionError);
+    const corruption = thrown as LedgerCorruptionError;
+    expect(corruption.lines).toHaveLength(1);
+    expect(corruption.lines[0]?.line).toBe(1);
+    expect(corruption.lines[0]?.offset).toBe(0);
+    expect(corruption.lines[0]?.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(corruption.lines[0]?.preview).toBe('{malformed}');
+  });
+
+  it('tolerateCorrupt surfaces interior corruption as data instead of throwing', async () => {
+    const path = freshPath();
+    const valid = JSON.stringify({ phase: 'intent', ...intentOf('k-visible', 3, 'a-visible') });
+    writeFileSync(path, `${valid}\n{malformed}\n`, 'utf8');
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.corrupt).toHaveLength(1);
+    expect(scan.corrupt[0]?.line).toBe(2);
+    expect(scan.corrupt[0]?.offset).toBe(Buffer.byteLength(valid, 'utf8') + 1);
+    expect(scan.corrupt[0]?.preview).toBe('{malformed}');
   });
 });
