@@ -228,6 +228,25 @@ const MUTATIONS = [
       '    const execKeyVersion =\n      resumeCtx === undefined ? undefined : resumeCtx.execKeyDerivation;',
     test: 'packages/core/src/engine/engine-exec-key.test.ts',
   },
+  {
+    id: 'ledger-attempt-pairing',
+    doctrine:
+      "an outcome resolves only its OWN attempt; a sibling retry's outcome never clears another attempt (RV501)",
+    file: 'packages/executor/src/ledger.ts',
+    find: '      : !resolvedAttempts.has(entry.attemptId),',
+    replace:
+      '      : !resolvedAttempts.has(entry.attemptId) && !outcomes.some((candidate) => candidate.idempotencyKey === entry.idempotencyKey),',
+    test: 'packages/executor/src/ledger.test.ts',
+  },
+  {
+    id: 'ledger-torn-boundary',
+    doctrine:
+      'the writer repairs a torn tail before appending, so a crash artifact can never swallow the next record (RV502)',
+    file: 'packages/executor/src/ledger.ts',
+    find: '    boundaryReady ??= repairTail(path, now);',
+    replace: '    boundaryReady ??= Promise.resolve();',
+    test: 'packages/executor/src/ledger.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

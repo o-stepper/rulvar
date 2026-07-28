@@ -10,7 +10,7 @@
 function subprocessExecutor(options?): ToolExecutorProvider;
 ```
 
-Defined in: [packages/executor/src/subprocess.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L124)
+Defined in: [packages/executor/src/subprocess.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L125)
 
 Builds a subprocess ToolExecutorProvider. Register it on the engine as
 `createEngine({ executors: { subprocess: subprocessExecutor(...) } })`;

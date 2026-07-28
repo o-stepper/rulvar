@@ -13,7 +13,7 @@ function memoryEffectLedger(): ToolEffectLedger & {
 };
 ```
 
-Defined in: [packages/executor/src/spi.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L112)
+Defined in: [packages/executor/src/spi.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L124)
 
 An in-memory ledger for tests and single-process hosts. It implements
 the two-phase capability: `intents()` exposes the pre-dispatch rows,

@@ -3633,6 +3633,10 @@
           {
             "text": "ExecutorError",
             "link": "/api/@rulvar/executor/classes/ExecutorError.md"
+          },
+          {
+            "text": "LedgerCorruptionError",
+            "link": "/api/@rulvar/executor/classes/LedgerCorruptionError.md"
           }
         ]
       },
@@ -3655,6 +3659,10 @@
           {
             "text": "ContainerExecutorOptions",
             "link": "/api/@rulvar/executor/interfaces/ContainerExecutorOptions.md"
+          },
+          {
+            "text": "CorruptLedgerLine",
+            "link": "/api/@rulvar/executor/interfaces/CorruptLedgerLine.md"
           },
           {
             "text": "EffectLedgerScan",
@@ -3695,6 +3703,10 @@
           {
             "text": "ToolEffectRecord",
             "link": "/api/@rulvar/executor/interfaces/ToolEffectRecord.md"
+          },
+          {
+            "text": "TornLedgerArtifact",
+            "link": "/api/@rulvar/executor/interfaces/TornLedgerArtifact.md"
           }
         ]
       },

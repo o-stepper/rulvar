@@ -20,6 +20,7 @@
  * ToolExecutorProvider seam; this docker adapter is the batteries-included
  * reference. Docs: https://docs.rulvar.com/guide/isolated-executor.
  */
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -126,6 +127,8 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
       const workdir = await mkdtemp(join(workdirBase, `rulvar-cexec-${request.tool}-`));
       const startedAt = now();
       const argsHash = hashArgs(request.args);
+      // One dispatch is one ATTEMPT (RV501), the subprocess twin.
+      const attemptId = randomUUID();
       // The two-phase capability (RV404), the exact subprocess twin: the
       // intent lands durably BEFORE the container launches, a failed
       // intent write refuses the dispatch typed, and a ledger without
@@ -141,6 +144,7 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
             executor: request.executor,
             workdir,
             startedAt,
+            attemptId,
           });
         } catch (err) {
           await rm(workdir, { recursive: true, force: true });
@@ -158,6 +162,9 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
       let outcome: ToolEffectRecord['outcome'] = 'error';
       let exitCode: number | null = null;
       let signal: string | null = null;
+      let settled: Json | undefined;
+      let bodyThrew = false;
+      let thrownBody: unknown;
       try {
         // The docker CLI process env: the daemon-reach allowlist, plus the
         // forwarded vars and minted credentials so `-e NAME` copies them
@@ -250,9 +257,18 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
         }
         const result = parseToolResult(child.stdout, request.tool) as Json;
         outcome = 'ok';
-        return result;
-      } finally {
-        const durationMs = now() - startedAt;
+        settled = result;
+      } catch (thrown) {
+        bodyThrew = true;
+        thrownBody = thrown;
+      }
+      // The settle epilogue (RV503), the subprocess twin, on every
+      // path: the workdir never survives the dispatch, and a rejected
+      // record surfaces as the typed 'ledger' refusal, never a silently
+      // unaudited success.
+      const durationMs = now() - startedAt;
+      let ledgerFailure: ExecutorError | undefined;
+      try {
         if (options.ledger !== undefined) {
           await options.ledger.record({
             idempotencyKey: request.ctx.idempotencyKey,
@@ -263,14 +279,29 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
             executor: request.executor,
             workdir,
             startedAt,
+            attemptId,
             durationMs,
             outcome,
             exitCode,
             signal,
           });
         }
-        await rm(workdir, { recursive: true, force: true });
+      } catch (recordErr) {
+        ledgerFailure = new ExecutorError(
+          'ledger',
+          `container tool '${request.tool}' outcome was not recorded: the ledger record ` +
+            `write failed (${recordErr instanceof Error ? recordErr.message : String(recordErr)})` +
+            (bodyThrew
+              ? `; the dispatch itself had already failed (${
+                  thrownBody instanceof Error ? thrownBody.message : String(thrownBody)
+                })`
+              : ''),
+        );
       }
+      await rm(workdir, { recursive: true, force: true });
+      if (ledgerFailure !== undefined) throw ledgerFailure;
+      if (bodyThrew) throw thrownBody;
+      return settled as Json;
     },
   };
 }

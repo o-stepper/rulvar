@@ -10,7 +10,7 @@
 function hashArgs(args): string;
 ```
 
-Defined in: [packages/executor/src/spi.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L139)
+Defined in: [packages/executor/src/spi.ts:151](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L151)
 
 A stable content hash of the arguments for the ledger's `argsHash`. It
 canonicalizes object key order so equal arguments hash equally

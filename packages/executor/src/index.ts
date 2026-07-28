@@ -37,7 +37,14 @@ export {
   type ToolEffectLedger,
   type ToolEffectRecord,
 } from './spi.js';
-export { jsonlEffectLedger, loadEffectLedger, type EffectLedgerScan } from './ledger.js';
+export {
+  LedgerCorruptionError,
+  jsonlEffectLedger,
+  loadEffectLedger,
+  type CorruptLedgerLine,
+  type EffectLedgerScan,
+  type TornLedgerArtifact,
+} from './ledger.js';
 export {
   executorConformance,
   registerExecutorConformance,

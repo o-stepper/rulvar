@@ -7,7 +7,7 @@
  * The tool programs are busybox shell one-liners over the same
  * stdin/stdout protocol, so the image needs no Node.
  */
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -154,6 +154,30 @@ describe('containerExecutor argv assembly (stubbed docker, no daemon)', () => {
     expect(intents[0]?.startedAt).toBe(outcomes[0]?.startedAt);
     expect(intents[0]?.workdir).toBe(outcomes[0]?.workdir);
     expect(outcomes[0]?.outcome).toBe('ok');
+    // RV501: one attempt, one id, shared by both phases.
+    expect(typeof intents[0]?.attemptId).toBe('string');
+    expect(intents[0]?.attemptId).toBe(outcomes[0]?.attemptId);
+  });
+
+  it('removes the workdir and types the failure when the outcome record rejects (RV503 twin)', async () => {
+    const workdirBase = mkdtempSync(join(tmpdir(), 'rulvar-crv503-'));
+    const ledger: ToolEffectLedger = {
+      record() {
+        throw new Error('audit volume detached');
+      },
+    };
+    const executor = containerExecutor({
+      image: 'acme/img:pinned',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+      workdirBase,
+      ledger,
+    });
+    await expect(executor.run(containerRequest('probe'))).rejects.toMatchObject({
+      name: 'ExecutorError',
+      code: 'ledger',
+    });
+    expect(readdirSync(workdirBase)).toHaveLength(0);
   });
 
   it('ledgers a pre-launch credentials failure as an error outcome, never ok', async () => {

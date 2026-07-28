@@ -10,7 +10,7 @@
 function containerExecutor(options): ToolExecutorProvider;
 ```
 
-Defined in: [packages/executor/src/container.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/container.ts#L96)
+Defined in: [packages/executor/src/container.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/container.ts#L97)
 
 Builds a container ToolExecutorProvider over a docker-compatible CLI.
 Register it as

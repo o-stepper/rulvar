@@ -6,7 +6,7 @@
 
 # Interface: SubprocessToolInit\&lt;S\&gt;
 
-Defined in: [packages/executor/src/subprocess.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L268)
+Defined in: [packages/executor/src/subprocess.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L301)
 
 @rulvar/executor: isolated tool executors (RV-216). Reference
 ToolExecutorProvider adapters that run a tool's work OUT of the engine
@@ -38,11 +38,11 @@ https://docs.rulvar.com/guide/isolated-executor.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-args"></a> `args?` | readonly `string`[] | - | [packages/executor/src/subprocess.ts:276](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L276) |
-| <a id="property-command"></a> `command` | `string` | The program to run, and its fixed argv. | [packages/executor/src/subprocess.ts:275](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L275) |
-| <a id="property-description"></a> `description` | `string` | - | [packages/executor/src/subprocess.ts:270](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L270) |
-| <a id="property-name"></a> `name` | `string` | - | [packages/executor/src/subprocess.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L269) |
-| <a id="property-needsapproval"></a> `needsApproval?` | `boolean` | The terminal permission default asks when true. | [packages/executor/src/subprocess.ts:278](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L278) |
-| <a id="property-parameters"></a> `parameters` | `S` | - | [packages/executor/src/subprocess.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L271) |
-| <a id="property-risk"></a> `risk?` | [`ToolRisk`](/api/@rulvar/rulvar/type-aliases/ToolRisk.md) | Policy metadata; never identity. | [packages/executor/src/subprocess.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L280) |
-| <a id="property-version"></a> `version?` | `string` | Contract version, part of toolsetHash. | [packages/executor/src/subprocess.ts:273](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L273) |
+| <a id="property-args"></a> `args?` | readonly `string`[] | - | [packages/executor/src/subprocess.ts:309](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L309) |
+| <a id="property-command"></a> `command` | `string` | The program to run, and its fixed argv. | [packages/executor/src/subprocess.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L308) |
+| <a id="property-description"></a> `description` | `string` | - | [packages/executor/src/subprocess.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L303) |
+| <a id="property-name"></a> `name` | `string` | - | [packages/executor/src/subprocess.ts:302](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L302) |
+| <a id="property-needsapproval"></a> `needsApproval?` | `boolean` | The terminal permission default asks when true. | [packages/executor/src/subprocess.ts:311](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L311) |
+| <a id="property-parameters"></a> `parameters` | `S` | - | [packages/executor/src/subprocess.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L304) |
+| <a id="property-risk"></a> `risk?` | [`ToolRisk`](/api/@rulvar/rulvar/type-aliases/ToolRisk.md) | Policy metadata; never identity. | [packages/executor/src/subprocess.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L313) |
+| <a id="property-version"></a> `version?` | `string` | Contract version, part of toolsetHash. | [packages/executor/src/subprocess.ts:306](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L306) |

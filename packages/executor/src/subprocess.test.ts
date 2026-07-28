@@ -4,7 +4,7 @@
  * exists for, a hostile tool dispatched by the model cannot read the
  * host's ambient credentials.
  */
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineWorkflow } from '@rulvar/core';
@@ -331,5 +331,81 @@ describe('the two-phase intent ledger (RV404)', () => {
     // capability exists to close: nothing was dispatched, no outcome row.
     expect(existsSync(effectPath)).toBe(false);
     expect(rows).toHaveLength(0);
+  });
+
+  it('mints one attemptId shared by the intent and its outcome (RV501)', async () => {
+    const effectPath = join(SCRIPTS, 'effect-attempt-id.txt');
+    const intents: ToolEffectIntent[] = [];
+    const outcomes: ToolEffectRecord[] = [];
+    const ledger: ToolEffectLedger = {
+      intent(entry) {
+        intents.push(entry);
+      },
+      record(entry) {
+        outcomes.push(entry);
+      },
+    };
+    const executor = subprocessExecutor({ ledger });
+    await executor.run(markerRequest(effectPath, 'k-attempt'));
+    await executor.run(markerRequest(effectPath, 'k-attempt'));
+    expect(intents).toHaveLength(2);
+    expect(outcomes).toHaveLength(2);
+    // Each dispatch is one attempt: the id exists, joins its own two
+    // phases exactly, and never repeats across attempts.
+    expect(typeof intents[0]?.attemptId).toBe('string');
+    expect(intents[0]?.attemptId?.length).toBeGreaterThan(0);
+    expect(intents[0]?.attemptId).toBe(outcomes[0]?.attemptId);
+    expect(intents[1]?.attemptId).toBe(outcomes[1]?.attemptId);
+    expect(intents[0]?.attemptId).not.toBe(intents[1]?.attemptId);
+  });
+});
+
+describe('workdir cleanup when the outcome record fails (RV503)', () => {
+  it('removes the workdir and types the failure when record rejects after success', async () => {
+    const effectPath = join(SCRIPTS, 'effect-record-fails.txt');
+    const workdirBase = mkdtempSync(join(tmpdir(), 'rulvar-rv503-'));
+    const ledger: ToolEffectLedger = {
+      record() {
+        throw new Error('audit volume detached');
+      },
+    };
+    const executor = subprocessExecutor({ ledger, workdirBase });
+    // The effect ran, but its outcome could not be audited: fail closed
+    // with the typed ledger code instead of reporting an unrecorded
+    // success.
+    await expect(executor.run(markerRequest(effectPath, 'k-rec-fail'))).rejects.toMatchObject({
+      name: 'ExecutorError',
+      code: 'ledger',
+    });
+    expect(existsSync(effectPath)).toBe(true);
+    // The ephemeral workdir never survives the dispatch, even when the
+    // audit write does not: sensitive residue is the RV503 defect.
+    expect(readdirSync(workdirBase)).toHaveLength(0);
+  });
+
+  it('cleans up and names both failures when the dispatch and the record both fail', async () => {
+    const effectPath = join(SCRIPTS, 'effect-double-fail.txt');
+    const workdirBase = mkdtempSync(join(tmpdir(), 'rulvar-rv503-both-'));
+    const ledger: ToolEffectLedger = {
+      record() {
+        throw new Error('audit volume detached');
+      },
+    };
+    const executor = subprocessExecutor({
+      ledger,
+      workdirBase,
+      credentials: () => {
+        throw new Error('vault unavailable');
+      },
+    });
+    const thrown = await executor
+      .run(markerRequest(effectPath, 'k-double'))
+      .then(() => undefined)
+      .catch((err: unknown) => err);
+    expect(thrown).toMatchObject({ name: 'ExecutorError', code: 'ledger' });
+    expect(String((thrown as Error).message)).toContain('audit volume detached');
+    expect(String((thrown as Error).message)).toContain('vault unavailable');
+    expect(existsSync(effectPath)).toBe(false);
+    expect(readdirSync(workdirBase)).toHaveLength(0);
   });
 });

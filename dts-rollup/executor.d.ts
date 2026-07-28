@@ -18,8 +18,11 @@ declare class ExecutorError extends Error {
 * the executor knows BEFORE the external effect is dispatched, which is
 * exactly the set a host needs to reconcile an orphaned effect with the
 * effect's provider (look the idempotency key up, correlate by tool and
-* argsHash). `startedAt` is the attempt join key: the outcome record of
-* the same attempt carries the identical value.
+* argsHash). `attemptId` is the attempt join key (RV501): the outcome
+* record of the same attempt carries the identical value. `startedAt`
+* remains the documented legacy join for rows written before the id
+* shipped; a wall-clock millisecond is not unique, which is why the id
+* exists.
 */
 interface ToolEffectIntent {
   /** The stable per-call idempotency key (createEngine derives it). */
@@ -33,6 +36,15 @@ interface ToolEffectIntent {
   /** The ephemeral working directory the dispatch runs in. */
   workdir: string;
   startedAt: number;
+  /**
+  * Unique id of this dispatch ATTEMPT (RV501): the reference executors
+  * mint one before the intent row is written and copy it verbatim onto
+  * the same attempt's outcome row, so the two phases pair exactly.
+  * Optional because rows written before v1.96.0 (and third-party
+  * ledgers) may omit it; {@link loadEffectLedger} then falls back to
+  * the legacy (idempotencyKey, startedAt) join.
+  */
+  attemptId?: string;
 }
 /** One dispatch's side-effect facts, for the ledger. */
 interface ToolEffectRecord extends ToolEffectIntent {
@@ -59,9 +71,9 @@ interface ToolEffectLedger {
   * with the typed `ledger` code) and the outcome `record` after it. A
   * host crash between the effect and the outcome row then leaves an
   * orphan intent, the reconciliation signal, instead of an untracked
-  * effect: an intent whose idempotency key has no outcome row means
-  * "look this key up with the effect's provider before retrying or
-  * compensating". Absent, the ledger keeps the historical
+  * effect: an intent whose OWN attempt has no outcome row (RV501)
+  * means "look this key up with the effect's provider before retrying
+  * or compensating". Absent, the ledger keeps the historical
   * single-record contract and executor behavior is byte-identical.
   */
   intent?(entry: ToolEffectIntent): void | Promise<void>;
@@ -230,29 +242,87 @@ declare function containerExecutor(options: ContainerExecutorOptions): ToolExecu
 * A two-phase ToolEffectLedger appending JSON lines to `path`
 * (`{ phase: 'intent' | 'outcome', ... }`). Pass it to
 * `subprocessExecutor({ ledger })` or `containerExecutor({ ledger })`;
-* scan it back with {@link loadEffectLedger}.
+* scan it back with {@link loadEffectLedger}. The first append lazily
+* repairs a torn tail left by a crashed predecessor (RV502).
 */
-declare function jsonlEffectLedger(path: string): ToolEffectLedger;
+declare function jsonlEffectLedger(path: string, options?: {
+  now?: () => number;
+}): ToolEffectLedger;
+/** One unparseable interior line of the ledger file, surfaced for triage. */
+interface CorruptLedgerLine {
+  /** 1-based physical line number in the file. */
+  line: number;
+  /** Byte offset of the line's first byte within the file. */
+  offset: number;
+  /** sha256 (hex) of the raw line bytes: forensics without re-reading. */
+  sha256: string;
+  /** The first 120 characters of the line. */
+  preview: string;
+}
+/** A torn fragment the writer quarantined while repairing a tail (RV502). */
+interface TornLedgerArtifact {
+  /** The raw torn bytes, preserved verbatim. */
+  bytes: string;
+  /** Wall-clock ms when the writer quarantined the fragment. */
+  recoveredAt: number;
+}
+/**
+* The fail-closed refusal of {@link loadEffectLedger} (RV502): the file
+* holds at least one unparseable INTERIOR line, which the writer's tail
+* repair can never produce, so it means external damage or a second
+* writer, never a normal crash artifact. Reconciling from a partial
+* scan would silently drop intents; triage the named lines instead
+* (`tolerateCorrupt: true` surfaces them as data).
+*/
+declare class LedgerCorruptionError extends Error {
+  readonly lines: CorruptLedgerLine[];
+  constructor(path: string, lines: CorruptLedgerLine[]);
+}
 /** What {@link loadEffectLedger} reads back from a JSONL ledger file. */
 interface EffectLedgerScan {
   intents: ToolEffectIntent[];
   outcomes: ToolEffectRecord[];
   /**
-  * The reconciliation signal (RV404): every intent whose idempotency
-  * key has NO outcome row at all. A key with a later outcome (an
-  * at-least-once retry of the same logical call that completed) is not
-  * orphaned: the retry resolved it. For each orphan, look the key up
-  * with the effect's provider before retrying or compensating.
+  * The reconciliation signal (RV501): every intent whose OWN attempt
+  * never got an outcome row. Pairing is exact: an outcome resolves the
+  * intent carrying the same `attemptId` (rows written before the id
+  * shipped pair by the legacy (idempotencyKey, startedAt) join), and
+  * an outcome of ANY class resolves only its own attempt. A sibling
+  * retry's outcome, ok or error, says nothing about THIS attempt, so
+  * it never clears it: closing the logical key belongs to the host
+  * reconciler, against the effect provider's receipt. For each orphan,
+  * look the key up with the effect's provider before retrying or
+  * compensating.
   */
   orphanedIntents: ToolEffectIntent[];
+  /**
+  * Unparseable interior lines, populated only under `tolerateCorrupt`
+  * (the default scan throws {@link LedgerCorruptionError} instead).
+  * Empty on a healthy file.
+  */
+  corrupt: CorruptLedgerLine[];
+  /** Fragments the writer quarantined while repairing torn tails (RV502). */
+  tornArtifacts: TornLedgerArtifact[];
+  /**
+  * A live unterminated, unparseable trailing fragment: the artifact of
+  * a crash mid-write no writer has repaired yet. Tolerated and named,
+  * never silent.
+  */
+  tornTail?: {
+    preview: string;
+  };
 }
 /**
 * Scans a JSONL ledger file into intents, outcomes, and the orphaned
-* intents a host must reconcile. A torn trailing line (the artifact of
-* a crash mid-write) is skipped, never a scan failure: the durable rows
-* before it are exactly what reconciliation needs.
+* intents a host must reconcile, pairing attempts exactly (RV501). A
+* torn TRAILING fragment (the crash-mid-write artifact) is tolerated
+* and reported; an unparseable INTERIOR line fails the scan closed with
+* a typed {@link LedgerCorruptionError} unless `tolerateCorrupt` asks
+* for the lines as data (RV502).
 */
-declare function loadEffectLedger(path: string): Promise<EffectLedgerScan>;
+declare function loadEffectLedger(path: string, options?: {
+  tolerateCorrupt?: boolean;
+}): Promise<EffectLedgerScan>;
 //#endregion
 //#region src/conformance.d.ts
 /** The executor options the shared contract exercises. */
@@ -337,4 +407,4 @@ interface ChildResult {
 */
 declare function runChildProcess(spec: ChildSpec): Promise<ChildResult>;
 //#endregion
-export { type ChildResult, type ChildSpec, type ChildStopReason, type ConformanceExecutorConfig, type ConformanceExecutorFactory, type ContainerExecutorOptions, type EffectLedgerScan, type ExecutorConformanceCheck, type ExecutorConformanceSuite, ExecutorError, type ExecutorErrorCode, type ExecutorTestRegistrar, type SubprocessCommandSpec, type SubprocessExecutorOptions, type SubprocessToolInit, type ToolEffectIntent, type ToolEffectLedger, type ToolEffectRecord, containerExecutor, executorConformance, hashArgs, jsonlEffectLedger, loadEffectLedger, memoryEffectLedger, parseToolResult, registerExecutorConformance, runChildProcess, subprocessExecutor, subprocessTool };
+export { type ChildResult, type ChildSpec, type ChildStopReason, type ConformanceExecutorConfig, type ConformanceExecutorFactory, type ContainerExecutorOptions, type CorruptLedgerLine, type EffectLedgerScan, type ExecutorConformanceCheck, type ExecutorConformanceSuite, ExecutorError, type ExecutorErrorCode, type ExecutorTestRegistrar, LedgerCorruptionError, type SubprocessCommandSpec, type SubprocessExecutorOptions, type SubprocessToolInit, type ToolEffectIntent, type ToolEffectLedger, type ToolEffectRecord, type TornLedgerArtifact, containerExecutor, executorConformance, hashArgs, jsonlEffectLedger, loadEffectLedger, memoryEffectLedger, parseToolResult, registerExecutorConformance, runChildProcess, subprocessExecutor, subprocessTool };
