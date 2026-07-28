@@ -6,7 +6,7 @@
 
 # Class: PostgresQuotaLimiter
 
-Defined in: [packages/store-postgres/src/quota.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L126)
+Defined in: [packages/store-postgres/src/quota.ts:228](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L228)
 
 The multi-host reference implementation of the core QuotaLimiter
 SPI: engine processes pointing instances at ONE database and schema
@@ -20,11 +20,19 @@ window. The rule model, the fixed epoch-aligned one-minute windows,
 and the admission decision are the core's own exported functions, so
 this limiter, `memoryQuotaLimiter`, and `SqliteQuotaLimiter` agree
 on every verdict. The `rules` MUST be identical across coordinating
-processes (buckets key on rule content). Runtime contention queues
-on the advisory lock (a hot limiter is EXPECTED to serialize); a
-call still waiting past `QUOTA_LOCK_TIMEOUT_MS` throws, and the
-engine's `onLimiterError` policy decides what that means. Call
-`close()` when done.
+processes (buckets key on rule content), and since RV506 that is
+enforced: boot records `quotaRulesFingerprint(rules)` in the
+schema's `rulvar_quota_meta` row and refuses a drifted instance with
+a typed `ConfigError` naming both hashes (`acceptRulesUpdate: true`
+rotates the record). Runtime contention queues on the advisory lock
+(a hot limiter is EXPECTED to serialize; note the lock serializes
+`reserve` AND `reconcile`, so it sees admission attempts plus
+grants); a call still waiting past `QUOTA_LOCK_TIMEOUT_MS` throws,
+and the whole admission path (bootstrap, checkout, transaction) is
+bounded by `admissionDeadlineMs`, whose expiry throws a typed
+`QuotaDeadlineError` and destroys the held connection. Both throws
+land in the engine's `onLimiterError` policy, which decides what
+they mean. Call `close()` when done.
 
 ## Implements
 
@@ -38,7 +46,7 @@ engine's `onLimiterError` policy decides what that means. Call
 new PostgresQuotaLimiter(options): PostgresQuotaLimiter;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L133)
+Defined in: [packages/store-postgres/src/quota.ts:237](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L237)
 
 #### Parameters
 
@@ -58,7 +66,7 @@ Defined in: [packages/store-postgres/src/quota.ts:133](https://github.com/o-step
 close(): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:370](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L370)
+Defined in: [packages/store-postgres/src/quota.ts:585](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L585)
 
 #### Returns
 
@@ -72,7 +80,7 @@ Defined in: [packages/store-postgres/src/quota.ts:370](https://github.com/o-step
 reconcile(reservationId, usage): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L304)
+Defined in: [packages/store-postgres/src/quota.ts:519](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L519)
 
 #### Parameters
 
@@ -97,7 +105,7 @@ Defined in: [packages/store-postgres/src/quota.ts:304](https://github.com/o-step
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:246](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L246)
+Defined in: [packages/store-postgres/src/quota.ts:461](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L461)
 
 #### Parameters
 
@@ -126,7 +134,7 @@ snapshot(): Promise<{
 }[]>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:343](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L343)
+Defined in: [packages/store-postgres/src/quota.ts:558](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L558)
 
 Current-window counters per rule, for telemetry and referees.
 

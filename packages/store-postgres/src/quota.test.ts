@@ -26,7 +26,12 @@ import {
   type QuotaReservationRequest,
 } from '@rulvar/core';
 
-import { PostgresQuotaLimiter, QUOTA_LOCK_TIMEOUT_MS } from './quota.js';
+import {
+  PostgresQuotaLimiter,
+  QUOTA_LOCK_TIMEOUT_MS,
+  QuotaDeadlineError,
+  quotaRulesFingerprint,
+} from './quota.js';
 
 const url = process.env.RULVAR_POSTGRES_URL;
 const hasDb = typeof url === 'string' && url !== '';
@@ -48,10 +53,7 @@ function freshSchema(): string {
 /** A limiter over a schema; tracked for teardown. */
 function limiterOver(
   schema: string,
-  options: {
-    rules: ConstructorParameters<typeof PostgresQuotaLimiter>[0]['rules'];
-    now?: () => number;
-  },
+  options: Omit<ConstructorParameters<typeof PostgresQuotaLimiter>[0], 'url' | 'schema'>,
 ): PostgresQuotaLimiter {
   const limiter = new PostgresQuotaLimiter({ url: url ?? '', schema, max: 2, ...options });
   limiters.push(limiter);
@@ -107,6 +109,43 @@ describe('PostgresQuotaLimiter construction refusals (no database needed)', () =
           rules: [{ requestsPerMinute: 1 }],
         }),
     ).toThrow(ConfigError);
+  });
+
+  it('refuses an admission deadline that is not an integer above the internal lock bound', () => {
+    const base = {
+      url: 'postgres://nobody@localhost:1/none',
+      rules: [{ requestsPerMinute: 1 }],
+    };
+    // The 2000 ms lock_timeout is an INTERNAL stage of the admission
+    // path; a full-path deadline at or below it could never be the
+    // bound that fires, so the constructor refuses the misconfiguration
+    // instead of shipping a dead knob.
+    expect(
+      () => new PostgresQuotaLimiter({ ...base, admissionDeadlineMs: QUOTA_LOCK_TIMEOUT_MS }),
+    ).toThrow(/greater than/);
+    expect(() => new PostgresQuotaLimiter({ ...base, admissionDeadlineMs: 0 })).toThrow(
+      ConfigError,
+    );
+    expect(() => new PostgresQuotaLimiter({ ...base, admissionDeadlineMs: 2_500.5 })).toThrow(
+      ConfigError,
+    );
+    expect(() => new PostgresQuotaLimiter({ ...base, admissionDeadlineMs: 2_001 })).not.toThrow();
+  });
+
+  it('fingerprints identical rule sets identically regardless of order', () => {
+    const one = [
+      { provider: 'fake', requestsPerMinute: 3 },
+      { provider: 'fake', tokensPerMinute: 500 },
+    ];
+    const two = [
+      { provider: 'fake', tokensPerMinute: 500 },
+      { provider: 'fake', requestsPerMinute: 3 },
+    ];
+    expect(quotaRulesFingerprint(one)).toBe(quotaRulesFingerprint(two));
+    expect(quotaRulesFingerprint(one)).toMatch(/^[0-9a-f]{64}$/);
+    expect(quotaRulesFingerprint(one)).not.toBe(
+      quotaRulesFingerprint([{ provider: 'fake', requestsPerMinute: 4 }]),
+    );
   });
 });
 
@@ -231,6 +270,95 @@ describeDb('PostgresQuotaLimiter semantics', () => {
     await camper.query('ROLLBACK');
     await camper.end();
   }, 20_000);
+
+  it('the FULL admission path is bounded by admissionDeadlineMs and the refused connection does not leak', async () => {
+    const schema = freshSchema();
+    const rules = [{ provider: 'fake', requestsPerMinute: 50 }];
+    // Pool of ONE client and a 2600 ms full deadline: call A occupies
+    // the only client waiting on the admission lock (its own 2000 ms
+    // lock_timeout cancels it); call B spends ~2000 ms of its deadline
+    // waiting for the checkout and the rest inside the transaction, so
+    // NEITHER internal stage bound fires for B. Only a deadline over
+    // the whole path (checkout wait PLUS transaction) can refuse it.
+    const limiter = limiterOver(schema, { rules, max: 1, admissionDeadlineMs: 2_600 });
+    // Prime the bootstrap so the timed calls measure admission alone.
+    expect((await limiter.reserve(request())).granted).toBe(true);
+    const camper = new pg.Client({ connectionString: url });
+    await camper.connect();
+    await camper.query('BEGIN');
+    await camper.query('SELECT pg_advisory_xact_lock(hashtextextended($1, $2))', [
+      `${schema}:rulvar-quota`,
+      8_214,
+    ]);
+    const started = Date.now();
+    const first = limiter.reserve(request()).then(
+      () => 'granted',
+      (thrown: unknown) => thrown,
+    );
+    const second = limiter.reserve(request());
+    await expect(second).rejects.toThrow(QuotaDeadlineError);
+    await expect(second).rejects.toThrow(/admission/);
+    const elapsed = Date.now() - started;
+    expect(elapsed).toBeGreaterThanOrEqual(2_500);
+    expect(elapsed).toBeLessThan(4_000);
+    expect(String(await first)).toMatch(/lock timeout|canceling statement/);
+    await camper.query('ROLLBACK');
+    await camper.end();
+    // The deadline destroyed B's checked-out connection instead of
+    // returning it dirty; the pool of one still serves fresh admissions.
+    expect((await limiter.reserve(request())).granted).toBe(true);
+  }, 20_000);
+
+  it('a second instance with different rules is refused with both fingerprints, and acceptRulesUpdate rotates', async () => {
+    const schema = freshSchema();
+    const original = [{ provider: 'fake', requestsPerMinute: 50 }];
+    const changed = [{ provider: 'fake', requestsPerMinute: 9 }];
+    const a = limiterOver(schema, { rules: original });
+    expect((await a.reserve(request())).granted).toBe(true);
+    // A host with a drifted rule set must NOT silently split the budget
+    // into its own buckets: boot compares the recorded fingerprint and
+    // refuses typed, naming both hashes and the schema.
+    const b = limiterOver(schema, { rules: changed });
+    const refusal = await b.reserve(request()).then(
+      () => undefined,
+      (thrown: unknown) => thrown,
+    );
+    expect(refusal).toBeInstanceOf(ConfigError);
+    expect(String(refusal)).toContain(quotaRulesFingerprint(original));
+    expect(String(refusal)).toContain(quotaRulesFingerprint(changed));
+    expect(String(refusal)).toContain(schema);
+    // The refusal is stable: the cleared boot memo re-runs the check.
+    await expect(b.reserve(request())).rejects.toThrow(ConfigError);
+    // Rotation: a deployment booted with acceptRulesUpdate rewrites the
+    // recorded fingerprint under the boot lock...
+    const c = limiterOver(schema, { rules: changed, acceptRulesUpdate: true });
+    expect((await c.reserve(request())).granted).toBe(true);
+    // ...after which instances with the NEW rules boot clean without
+    // the flag, and the ORIGINAL set is the refused one.
+    const d = limiterOver(schema, { rules: changed });
+    expect((await d.reserve(request())).granted).toBe(true);
+    await expect(limiterOver(schema, { rules: original }).reserve(request())).rejects.toThrow(
+      /fingerprint/,
+    );
+  });
+
+  it('reordered identical rule sets share one fingerprint and coexist over one schema', async () => {
+    const schema = freshSchema();
+    const one = [
+      { provider: 'fake', requestsPerMinute: 30 },
+      { provider: 'fake', tokensPerMinute: 5_000 },
+    ];
+    const two = [
+      { provider: 'fake', tokensPerMinute: 5_000 },
+      { provider: 'fake', requestsPerMinute: 30 },
+    ];
+    const a = limiterOver(schema, { rules: one });
+    const b = limiterOver(schema, { rules: two });
+    expect((await a.reserve(request())).granted).toBe(true);
+    expect((await b.reserve(request())).granted).toBe(true);
+    // Both instances hit the SAME buckets: rule identity is content.
+    expect((await a.snapshot())[0]?.requests).toBe(2);
+  });
 });
 
 const caps: ModelCaps = {

@@ -18,6 +18,9 @@ export {
 } from './store.js';
 export {
   PostgresQuotaLimiter,
+  QUOTA_ADMISSION_DEADLINE_MS,
   QUOTA_LOCK_TIMEOUT_MS,
+  QuotaDeadlineError,
+  quotaRulesFingerprint,
   type PostgresQuotaLimiterOptions,
 } from './quota.js';

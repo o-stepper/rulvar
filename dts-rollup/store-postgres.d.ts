@@ -120,6 +120,46 @@ declare class PostgresStore implements MetaLookupStore, LeasableStore {
 * the cross-host serialization working.
 */
 declare const QUOTA_LOCK_TIMEOUT_MS = 2e3;
+/**
+* The default bound on one WHOLE admission path (RV506): lazy
+* bootstrap, pool checkout, and the admission transaction together.
+* `QUOTA_LOCK_TIMEOUT_MS` bounds only the lock-wait stage inside the
+* transaction; before RV506 a call could spend that bound once at
+* checkout and again at the lock and still not be refused. Overridable
+* per limiter through `admissionDeadlineMs`.
+*/
+declare const QUOTA_ADMISSION_DEADLINE_MS = 5e3;
+/**
+* Thrown when one quota admission (reserve or reconcile) misses the
+* full-path deadline. It surfaces exactly where the lock timeout
+* surfaces, as a limiter error consumed by the engine's
+* `onLimiterError` policy: `'deny'` (the default) turns it into a
+* retryable transport-class denial, so nothing dispatches unpoliced.
+* The connection the refused call held is destroyed, never returned
+* dirty to the pool; a transaction cut mid-flight is rolled back by
+* the server. Like any client-side timeout, expiry exactly at the
+* commit boundary can leave a committed reservation behind; it ages
+* out with its window unreconciled, the same bounded residue a
+* crashed process leaves.
+*/
+declare class QuotaDeadlineError extends Error {
+  /** The deadline that expired, in milliseconds. */
+  readonly deadlineMs: number;
+  /** The schema whose admission missed it. */
+  readonly schema: string;
+  /** Where the path stood: acquiring a connection, or mid-transaction. */
+  readonly phase: "acquire" | "transaction";
+  constructor(deadlineMs: number, schema: string, phase: "acquire" | "transaction");
+}
+/**
+* The canonical fingerprint of one rule SET (RV506): sha256 hex over
+* the sorted canonical rule keys. Order-insensitive on purpose,
+* matching bucket semantics (equal rules land on the same bucket
+* regardless of array position), so reordering a config never reads as
+* a rules change. Exported so a deployment can precompute the value it
+* expects a schema to have recorded.
+*/
+declare function quotaRulesFingerprint(rules: readonly QuotaRule[]): string;
 interface PostgresQuotaLimiterOptions {
   /**
   * A postgres connection string shared by every coordinating process
@@ -133,10 +173,33 @@ interface PostgresQuotaLimiterOptions {
   * identifier.
   */
   schema?: string;
-  /** The shared rule set; must be identical across hosts. */
+  /**
+  * The shared rule set; must be identical across hosts. Enforced: the
+  * schema records `quotaRulesFingerprint(rules)` on first boot, and an
+  * instance whose fingerprint differs is refused with a typed
+  * `ConfigError` naming both hashes.
+  */
   rules: readonly QuotaRule[];
   /** Pool size ceiling; default 10. Admissions are short transactions. */
   max?: number;
+  /**
+  * Bound on one whole admission path (bootstrap, pool checkout, and
+  * the admission transaction together); default
+  * `QUOTA_ADMISSION_DEADLINE_MS` (5000). Must be an integer strictly
+  * greater than `QUOTA_LOCK_TIMEOUT_MS`, which bounds only the
+  * lock-wait stage inside it. Expiry throws `QuotaDeadlineError` into
+  * the engine's `onLimiterError` policy and destroys the connection
+  * the refused call held.
+  */
+  admissionDeadlineMs?: number;
+  /**
+  * Rules rotation opt-in: rewrite the schema's recorded rules
+  * fingerprint with this instance's own at boot instead of refusing on
+  * a mismatch. Procedure: enable on the NEW deployment, roll every
+  * host to the new rule set, then remove the flag so drift is refused
+  * again. Default false.
+  */
+  acceptRulesUpdate?: boolean;
   /** Injectable clock for window tests. */
   now?: () => number;
 }
@@ -153,16 +216,26 @@ interface PostgresQuotaLimiterOptions {
 * and the admission decision are the core's own exported functions, so
 * this limiter, `memoryQuotaLimiter`, and `SqliteQuotaLimiter` agree
 * on every verdict. The `rules` MUST be identical across coordinating
-* processes (buckets key on rule content). Runtime contention queues
-* on the advisory lock (a hot limiter is EXPECTED to serialize); a
-* call still waiting past `QUOTA_LOCK_TIMEOUT_MS` throws, and the
-* engine's `onLimiterError` policy decides what that means. Call
-* `close()` when done.
+* processes (buckets key on rule content), and since RV506 that is
+* enforced: boot records `quotaRulesFingerprint(rules)` in the
+* schema's `rulvar_quota_meta` row and refuses a drifted instance with
+* a typed `ConfigError` naming both hashes (`acceptRulesUpdate: true`
+* rotates the record). Runtime contention queues on the advisory lock
+* (a hot limiter is EXPECTED to serialize; note the lock serializes
+* `reserve` AND `reconcile`, so it sees admission attempts plus
+* grants); a call still waiting past `QUOTA_LOCK_TIMEOUT_MS` throws,
+* and the whole admission path (bootstrap, checkout, transaction) is
+* bounded by `admissionDeadlineMs`, whose expiry throws a typed
+* `QuotaDeadlineError` and destroys the held connection. Both throws
+* land in the engine's `onLimiterError` policy, which decides what
+* they mean. Call `close()` when done.
 */
 declare class PostgresQuotaLimiter implements QuotaLimiter {
   private readonly pool;
   private readonly schema;
   private readonly rules;
+  private readonly admissionDeadlineMs;
+  private readonly acceptRulesUpdate;
   private readonly now;
   private boot;
   constructor(options: PostgresQuotaLimiterOptions);
@@ -182,6 +255,17 @@ declare class PostgresQuotaLimiter implements QuotaLimiter {
   * take the schema-wide quota advisory lock, run `fn`, COMMIT. Every
   * counter mutation goes through here, which is what makes the
   * verdict read and the consume one unit across processes and hosts.
+  *
+  * The WHOLE path (lazy bootstrap, pool checkout, transaction) races
+  * `admissionDeadlineMs` (RV506): `lock_timeout` bounds one stage, and
+  * before the deadline a call could spend that bound at checkout and
+  * again at the lock without ever being refused. On expiry the caller
+  * gets a typed `QuotaDeadlineError`, and a connection the refused
+  * call holds is destroyed through `release(err)`, never returned
+  * mid-transaction to the pool; destroying it also cancels the
+  * abandoned wait server-side. The deadline runs on the REAL clock
+  * (an injected test `now` freezes window math, not infrastructure
+  * timeouts).
   */
   private withQuotaLock;
   reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
@@ -198,4 +282,4 @@ declare class PostgresQuotaLimiter implements QuotaLimiter {
   private prune;
 }
 //#endregion
-export { DEFAULT_LEASE_TTL_MS, DEFAULT_POOL_MAX, PostgresQuotaLimiter, type PostgresQuotaLimiterOptions, PostgresStore, type PostgresStoreOptions, type PostgresTranscriptStore, QUOTA_LOCK_TIMEOUT_MS };
+export { DEFAULT_LEASE_TTL_MS, DEFAULT_POOL_MAX, PostgresQuotaLimiter, type PostgresQuotaLimiterOptions, PostgresStore, type PostgresStoreOptions, type PostgresTranscriptStore, QUOTA_ADMISSION_DEADLINE_MS, QUOTA_LOCK_TIMEOUT_MS, QuotaDeadlineError, quotaRulesFingerprint };

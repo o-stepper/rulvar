@@ -10,7 +10,7 @@
 const QUOTA_LOCK_TIMEOUT_MS: 2000 = 2_000;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L64)
+Defined in: [packages/store-postgres/src/quota.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L76)
 
 How long a reserve/reconcile transaction waits for the schema-wide
 admission lock before postgres cancels the statement. Quota

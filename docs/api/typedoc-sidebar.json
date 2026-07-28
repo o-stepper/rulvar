@@ -8025,6 +8025,10 @@
           {
             "text": "PostgresStore",
             "link": "/api/@rulvar/store-postgres/classes/PostgresStore.md"
+          },
+          {
+            "text": "QuotaDeadlineError",
+            "link": "/api/@rulvar/store-postgres/classes/QuotaDeadlineError.md"
           }
         ]
       },
@@ -8059,8 +8063,22 @@
             "link": "/api/@rulvar/store-postgres/variables/DEFAULT_POOL_MAX.md"
           },
           {
+            "text": "QUOTA_ADMISSION_DEADLINE_MS",
+            "link": "/api/@rulvar/store-postgres/variables/QUOTA_ADMISSION_DEADLINE_MS.md"
+          },
+          {
             "text": "QUOTA_LOCK_TIMEOUT_MS",
             "link": "/api/@rulvar/store-postgres/variables/QUOTA_LOCK_TIMEOUT_MS.md"
+          }
+        ]
+      },
+      {
+        "text": "Functions",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "quotaRulesFingerprint",
+            "link": "/api/@rulvar/store-postgres/functions/quotaRulesFingerprint.md"
           }
         ]
       }
