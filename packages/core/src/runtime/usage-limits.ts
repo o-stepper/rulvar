@@ -75,6 +75,24 @@ export interface UsageLimits {
    */
   toolUnits?: { max: number; costs?: Record<string, number> };
   /**
+   * The mid-batch checkpoint boundary (RV408, the eighth-experiment
+   * review): checkpoints normally write once per COMPLETED tool turn,
+   * so a kill inside one large parallel batch re-pays every executed
+   * call of that batch on resume; with the whole executed-call budget
+   * fitting into a single batch (the `tool-cap-before-checkpoint`
+   * preflight warning), the re-paid window is the entire budget. Set to
+   * K to bound it: after every K EXECUTED calls within a batch the loop
+   * durably writes the same pending state the ask suspension already
+   * checkpoints (the executed prefix verbatim, the next call, the
+   * remaining tail), so a resume reuses the prefix and re-runs at most
+   * the calls since the last boundary. Denied and skipped calls do not
+   * advance the cadence, and the batch tail writes no extra boundary
+   * (the turn checkpoint follows immediately). Off by default: the
+   * boundary writes extra transcript blobs, and enabling it changes no
+   * journal bytes and no model requests, only the checkpoint cadence.
+   */
+  checkpointEveryToolCalls?: number;
+  /**
    * The guaranteed finalization turn (the experiment-review P1.1): when
    * a TOOL budget limiter (maxToolCalls or toolUnits) expires, the
    * runtime closes the current batch's remaining calls with explicit
@@ -159,6 +177,8 @@ export interface EffectiveUsageLimits {
   maxNoNewEvidenceCalls?: number;
   maxCallsPerTool?: Record<string, number>;
   toolUnits?: { max: number; costs?: Record<string, number> };
+  /** RV408 mid-batch checkpoint cadence; absent = per-turn only. */
+  checkpointEveryToolCalls?: number;
   finalizationReserve?: { maxOutputTokens?: number };
   toolBudgetExtension?: {
     increment: number;
@@ -222,6 +242,10 @@ export function mergeUsageLimits(
   const toolUnits = pick('toolUnits');
   if (toolUnits !== undefined) {
     merged.toolUnits = toolUnits;
+  }
+  const checkpointEveryToolCalls = pick('checkpointEveryToolCalls');
+  if (checkpointEveryToolCalls !== undefined) {
+    merged.checkpointEveryToolCalls = checkpointEveryToolCalls;
   }
   const finalizationReserve = pick('finalizationReserve');
   if (finalizationReserve !== undefined) {
@@ -304,6 +328,9 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
         requireNonNegativeInteger(cost as number, `${site}.toolUnits.costs['${name}']`);
       }
     }
+  }
+  if (limits.checkpointEveryToolCalls !== undefined) {
+    requirePositiveInteger(limits.checkpointEveryToolCalls, `${site}.checkpointEveryToolCalls`);
   }
   if (limits.finalizationReserve !== undefined) {
     const reserve: unknown = limits.finalizationReserve;
