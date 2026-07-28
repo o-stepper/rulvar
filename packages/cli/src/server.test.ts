@@ -25,7 +25,7 @@ import {
 import { SqliteStore } from '@rulvar/store-sqlite';
 import { FAKE_MODEL_REF, FakeAdapter, fakeToolCalls } from '@rulvar/testing';
 
-import { createServer, type RulvarServer } from './server.js';
+import { createServer, DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN, type RulvarServer } from './server.js';
 
 interface GatedValue {
   analysis: unknown;
@@ -816,6 +816,38 @@ describe('memory retention and bounded SSE buffer (v1.25.0 scale review P1-2)', 
       full.slice(full.length - tail.length).map((frame) => frame.id),
     );
   });
+
+  it('an UNCONFIGURED server bounds the replay buffer at the exported default (RV409 soak)', async () => {
+    // The default must be a real bound: a positive safe integer small
+    // enough that this soak can overflow it in-process.
+    expect(Number.isSafeInteger(DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN)).toBe(true);
+    expect(DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN).toBeGreaterThan(0);
+    const { server } = assemble();
+    const margin = 10_000;
+    const logs = DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN + margin;
+    const started = await post(server, '/runs', { workflow: 'burst', args: { events: logs } });
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    await untilStatus(server, runId, 'ok');
+    // A cursor far past the stream keeps the read tiny: the header alone
+    // carries the drop count, and the known emission total pins the
+    // retained window (retained = total - dropped) without replaying
+    // tens of thousands of frames.
+    const replay = await get(server, `/runs/${runId}/events`, {
+      'last-event-id': '999999999',
+    });
+    await replay.text();
+    const dropped = Number(replay.headers.get('x-rulvar-events-dropped'));
+    expect(Number.isSafeInteger(dropped)).toBe(true);
+    // retained <= DEFAULT: at least the margin over the bound dropped
+    // (the run also emits lifecycle events beyond the logs).
+    expect(dropped).toBeGreaterThanOrEqual(margin);
+    // retained >= seven eighths of DEFAULT: the drop chunks never
+    // shrink the window below the documented floor. Lifecycle overhead
+    // (run:start, the agent turn, run:end) stays well under 200 events.
+    const windowFloor =
+      DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN - Math.floor(DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN / 8);
+    expect(dropped).toBeLessThanOrEqual(logs + 200 - windowFloor);
+  });
 });
 
 /** Reads a stream to ITS OWN close; returns the raw text. */
@@ -1058,6 +1090,9 @@ describe('terminal drain, per-client pending bound, cap validation (v1.26.0 deep
       { maxTrackedRuns: 1_000_000 },
       { maxBufferedEventsPerRun: 1 },
       { maxBufferedEventsPerRun: 1_000_000 },
+      // The documented migration escape: an explicit huge bound is the
+      // way to keep the pre-v1.94.0 unbounded-in-effect buffer.
+      { maxBufferedEventsPerRun: Number.MAX_SAFE_INTEGER },
       { maxPendingEventsPerClient: 1 },
       { maxPendingEventsPerClient: 1_000_000 },
     ]) {

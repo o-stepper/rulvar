@@ -63,6 +63,7 @@ pnpm exec rulvar --help
 
 | Variable | Description |
 | ------ | ------ |
+| [DEFAULT\_MAX\_BUFFERED\_EVENTS\_PER\_RUN](/api/@rulvar/cli/variables/DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN.md) | The default per-run replay-buffer bound (RV409): generous enough that any ordinary run keeps its full replay (lifecycle events number in the hundreds; only long `agent:stream` delta torrents approach tens of thousands), small enough that one delta-heavy run cannot grow process memory past a few tens of megabytes. Past the bound the oldest events are dropped and the replay marks the gap; the journal remains the durable record. Before v1.94.0 an absent `maxBufferedEventsPerRun` meant unbounded; set an explicit huge bound (`Number.MAX_SAFE_INTEGER`) to restore that in effect. |
 | [DEFAULT\_MAX\_PENDING\_EVENTS\_PER\_CLIENT](/api/@rulvar/cli/variables/DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT.md) | The default per-connection pending-frame bound: generous enough that a reading consumer never notices (a normal reader keeps the queue near empty), small enough that a consumer that stopped reading cannot grow process memory past a few megabytes per connection. |
 | [DEFAULT\_STORE\_DIR](/api/@rulvar/cli/variables/DEFAULT_STORE_DIR.md) | - |
 | [DEFAULT\_WORKER\_TTL\_MS](/api/@rulvar/cli/variables/DEFAULT_WORKER_TTL_MS.md) | Appendix A: the committed reference lease ttl. |

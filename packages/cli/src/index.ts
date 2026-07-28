@@ -32,6 +32,7 @@ export { assembleEngine, DEFAULT_STORE_DIR, type AssembledCli } from './engine-a
 export { driveRun, reportOutcome, strictExitCode } from './drive.js';
 export {
   createServer,
+  DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN,
   DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT,
   type CreateServerOptions,
   type RulvarServer,
