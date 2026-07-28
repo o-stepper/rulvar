@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+
 ### 1.91.0
 
 #### Patch Changes
@@ -1074,6 +1081,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+
 ### 1.91.0
 
 #### Patch Changes
@@ -1985,6 +1999,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.92.0
+
+#### Minor Changes
+
+- 351d1f5: Historically stable invoices via the applied-pricing pin (RV407, the eighth-experiment review). The invoice and cost folds price at fold time, so a live price-table update used to silently re-price history. When `createEngine({ pricing })` is configured, the settling segment now pins what it actually applied, the resolved pricing row of every model the journal used plus the table's `pricingVersion`, additively inside the existing run-settle decision value (the `outputHash` precedent: no journal shape change). The pin is gated on the configured table deliberately: caps-fallback pricing arrives ambiently from adapters and a setting the user never enabled must not change the journal, so table-less runs settle byte for byte as before; rates the fold would refuse anyway, non-finite or negative, are never pinned. New `journalPricingSnapshot(entries)` reads the pin back and rebuilds a `priceUsd` over exactly the pinned rows (absent models fold as unpriced, never a silent zero); `invoiceFromJournal` accepts a declared provenance and the export carries `pricing: { source: 'snapshot' | 'current-table', pricingVersion?, rows? }`. `rulvar invoice`, `rulvar inspect`, and the server's stored-run cost endpoint prefer the pin, so a repeated fold after the table changes reproduces the original numbers; journals settled before the pin keep the current-table fold and say so. Live pricing, budget admission, and journaled spend debits are untouched.
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
 
 ### 1.91.0
 
@@ -3228,6 +3253,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.92.0
+
+#### Minor Changes
+
+- 351d1f5: Historically stable invoices via the applied-pricing pin (RV407, the eighth-experiment review). The invoice and cost folds price at fold time, so a live price-table update used to silently re-price history. When `createEngine({ pricing })` is configured, the settling segment now pins what it actually applied, the resolved pricing row of every model the journal used plus the table's `pricingVersion`, additively inside the existing run-settle decision value (the `outputHash` precedent: no journal shape change). The pin is gated on the configured table deliberately: caps-fallback pricing arrives ambiently from adapters and a setting the user never enabled must not change the journal, so table-less runs settle byte for byte as before; rates the fold would refuse anyway, non-finite or negative, are never pinned. New `journalPricingSnapshot(entries)` reads the pin back and rebuilds a `priceUsd` over exactly the pinned rows (absent models fold as unpriced, never a silent zero); `invoiceFromJournal` accepts a declared provenance and the export carries `pricing: { source: 'snapshot' | 'current-table', pricingVersion?, rows? }`. `rulvar invoice`, `rulvar inspect`, and the server's stored-run cost endpoint prefer the pin, so a repeated fold after the table changes reproduces the original numbers; journals settled before the pin keep the current-table fold and say so. Live pricing, budget admission, and journaled spend debits are untouched.
 
 ### 1.91.0
 
@@ -4842,6 +4873,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.92.0
+
 ### 1.91.0
 
 ### 1.90.0
@@ -5126,6 +5159,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+  - @rulvar/testing@1.92.0
 
 ### 1.91.0
 
@@ -6240,6 +6281,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.92.0
+
+#### Patch Changes
+
+- 351d1f5: Honest ledger outcomes for dispatches that never ran. A failure between the intent point and the spawn (a credentials mint that throws, a sandbox launcher that throws, cancellation mid-mint) used to ledger `outcome: 'ok'` with a null exit code even though nothing was dispatched. Both reference executors now default the outcome to `error` and set `ok` at exactly one place, the successful protocol return, so every unclassified throw ledgers as the error it is. All previously classified paths (spawn failure, timeout, abort, output cap, non-zero exit, protocol violation, success) keep byte-identical records.
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+
 ### 1.91.0
 
 #### Minor Changes
@@ -6533,6 +6582,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
 
 ### 1.91.0
 
@@ -7601,6 +7657,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+
 ### 1.91.0
 
 #### Patch Changes
@@ -8625,6 +8688,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+  - eslint-plugin-rulvar@1.92.0
 
 ### 1.91.0
 
@@ -9703,6 +9774,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+  - @rulvar/anthropic@1.92.0
+  - @rulvar/openai@1.92.0
 
 ### 1.91.0
 
@@ -10954,6 +11034,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+
 ### 1.91.0
 
 #### Patch Changes
@@ -11970,6 +12057,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+
 ### 1.91.0
 
 #### Patch Changes
@@ -12280,6 +12374,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
 
 ### 1.91.0
 
@@ -13230,6 +13331,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.92.0
+
+#### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
 
 ### 1.91.0
 
