@@ -31,11 +31,18 @@ export interface IsolatedExecContext {
   spanId: string;
   agentType: string;
   /**
-   * Stable identity of THIS logical tool call: identical
-   * (runId, tool, args) always derive the same key, so a provider whose
-   * work has external side effects can fold an at-least-once retry into
-   * effectively-once. A rerun of the same call after a mid-flight crash
-   * reuses the key; a different call never collides.
+   * Stable identity of THIS logical tool call within THIS run
+   * incarnation: a deterministic function of the run, the logical
+   * invocation (the containing agent's journal seq plus the call's
+   * ordinal in that agent's tool loop), the tool name, the canonical
+   * arguments, and, for runs stamped with derivation 2
+   * (RunMeta.execKeyDerivation; RV403), the run's generation token. A
+   * rerun of the same call after a mid-flight crash reuses the key, so
+   * a provider whose work has external side effects can fold an
+   * at-least-once retry into effectively-once; a different call, even
+   * with byte-identical arguments, never collides; and under
+   * derivation 2 a deleteRun-then-recreate of the same runId never
+   * reuses the deleted incarnation's keys.
    */
   idempotencyKey: string;
   /** Fires on cancellation, a budget ceiling, or UsageLimits expiry. */

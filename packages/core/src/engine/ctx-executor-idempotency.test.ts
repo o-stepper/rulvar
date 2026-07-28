@@ -16,7 +16,7 @@ import type { IsolatedExecRequest, ToolExecutorProvider } from '../l0/spi/execut
 import { InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { tool } from '../tools/tool.js';
 import { resolveToolset } from '../tools/toolset-hash.js';
-import { deriveExecIdempotencyKey } from '../runtime/executor.js';
+import { deriveExecIdempotencyKey, deriveExecIdempotencyKeyV2 } from '../runtime/executor.js';
 import { createCtx } from './ctx.js';
 import { makeInternals, scriptedAdapter } from './test-harness.js';
 
@@ -167,5 +167,105 @@ describe('isolated-executor idempotency key binds to the logical invocation (P0.
     // retry of this same logical call would derive the identical key.
     expect(keys).toHaveLength(1);
     expect(keys[0]).toBe(deriveExecIdempotencyKey('test-run', running.seq, 3, 'charge', {}));
+  });
+});
+
+describe('incarnation-scoped derivation (RV403)', () => {
+  it('scopes the key to the generation token under derivation 2', async () => {
+    // Two incarnations of the same logical call, differing ONLY in the
+    // generation token, must never share a key; one incarnation repeats
+    // its own key exactly.
+    const perGenesis = async (genesis: string): Promise<string> => {
+      const keys: string[] = [];
+      const adapter = scriptedAdapter((_req, call) =>
+        call === 0 ? { toolCalls: [{ name: 'charge', args: {} }] } : { text: 'done' },
+      );
+      const { internals } = makeInternals({
+        adapters: [adapter],
+        routing: { loop: 'fake:model' },
+        executors: recordingExecutor(keys),
+        execKey: { version: 2, genesis },
+      });
+      const ctx = createCtx(internals);
+      await ctx.agent('charge once', { tools: [charge] });
+      expect(keys).toHaveLength(1);
+      return keys[0];
+    };
+    const genA = await perGenesis('gen-a');
+    const genARepeat = await perGenesis('gen-a');
+    const genB = await perGenesis('gen-b');
+    expect(genARepeat).toBe(genA);
+    expect(genB).not.toBe(genA);
+  });
+
+  it('keeps the version 2 key stable across an at-least-once resume', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const PROMPT = 'charge once after the restored turns';
+    const toolset = await resolveToolset(
+      [charge],
+      { runId: 'test-run' },
+      undefined,
+      new Set(['subprocess']),
+    );
+    const identity: IdentityInput = {
+      kind: 'agent',
+      agentType: '',
+      modelSpec: { kind: 'model', model: 'fake:model' },
+      prompt: PROMPT,
+      schemaHash: EMPTY_SCHEMA_HASH,
+      toolsetHash: toolset.hash,
+      isolation: 'none',
+    };
+    const key = deriveContentKey(identity);
+
+    // Simulated crash mid-agent, exactly like the v1 twin above.
+    const seed = makeInternals({ adapters: [], transcripts });
+    const running = await seed.internals.replayer.appendRunning({
+      scope: '',
+      key,
+      kind: 'agent',
+      spanId: 's0',
+    });
+    const history: Msg[] = [
+      { role: 'user', parts: [{ type: 'text', text: PROMPT }] },
+      { role: 'assistant', parts: [{ type: 'tool-call', id: 'a', name: 'charge', args: {} }] },
+      {
+        role: 'tool',
+        parts: [{ type: 'tool-result', id: 'a', name: 'charge', result: { ok: true } }],
+      },
+    ];
+    const checkpoint: CheckpointState = {
+      v: 1,
+      messages: history,
+      turns: 1,
+      usage: { inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      toolCallsUsed: 1,
+      schemaAttempts: 0,
+      compaction: [],
+    };
+    await transcripts.put(checkpointRefFor('test-run', running.seq), encodeCheckpoint(checkpoint));
+    const prior = await seed.store.load('test-run');
+
+    // The resumed segment of a derivation 2 run: the same restored seq
+    // and continued ordinal, plus the CARRIED generation token, derive
+    // the exact version 2 key, so the at-least-once fold still holds.
+    const keys: string[] = [];
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCalls: [{ name: 'charge', args: {} }] } : { text: 'settled' },
+    );
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      priorEntries: prior,
+      transcripts,
+      executors: recordingExecutor(keys),
+      execKey: { version: 2, genesis: 'gen-resume' },
+    });
+    const ctx = createCtx(internals);
+    await ctx.agent(PROMPT, { tools: [charge] });
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toBe(
+      deriveExecIdempotencyKeyV2('test-run', 'gen-resume', running.seq, 2, 'charge', {}),
+    );
   });
 });

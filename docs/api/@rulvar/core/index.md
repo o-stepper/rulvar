@@ -383,6 +383,7 @@ exactly the pieces you need, for example
 | [EscalationDecision](/api/@rulvar/core/type-aliases/EscalationDecision.md) | - |
 | [EscalationKind](/api/@rulvar/core/type-aliases/EscalationKind.md) | Closed in v1. |
 | [EvidenceRef](/api/@rulvar/core/type-aliases/EvidenceRef.md) | entryRef is the journal entry seq (canonical EntryRef; XF ruling). |
+| [ExecKeyDerivation](/api/@rulvar/core/type-aliases/ExecKeyDerivation.md) | Which exec idempotency key derivation a run uses (RV403), resolved at engine boot from RunMeta.execKeyDerivation. Version 1 is the original genesis-free five-part key, the only derivation runs recorded without the meta field can ever use; version 2 additionally binds the run's generation token, so it must carry it. |
 | [ExecutorRegistry](/api/@rulvar/core/type-aliases/ExecutorRegistry.md) | The engine's executor registry: at most one provider per non-inprocess tag. A tool whose `executor` tag is absent here fails typed at spawn time, before any provider or model call. |
 | [FailoverTrigger](/api/@rulvar/core/type-aliases/FailoverTrigger.md) | Transport-level failover triggers; budget is explicitly excluded. |
 | [FallbackTrigger](/api/@rulvar/core/type-aliases/FallbackTrigger.md) | The degenerate fallback triggers. |

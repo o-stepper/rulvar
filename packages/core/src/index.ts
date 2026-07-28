@@ -94,6 +94,7 @@ export * from './orchestrator/orchestrate.js';
 export * from './orchestrator/claims.js';
 export * from './orchestrator/wake.js';
 export * from './engine/ctx.js';
+export type { ExecKeyDerivation } from './runtime/executor.js';
 export type * from './l0/events.js';
 export * from './engine/events.js';
 export {

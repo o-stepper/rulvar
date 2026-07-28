@@ -6,7 +6,7 @@
 
 # Interface: ToolExecutorProvider
 
-Defined in: [packages/core/src/l0/spi/executor.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L72)
+Defined in: [packages/core/src/l0/spi/executor.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L79)
 
 The isolated tool executor seam. A provider runs one dispatch to its
 JSON result. A thrown error becomes the call's error tool result, never
@@ -23,7 +23,7 @@ stays durable.
 run(request): Promise<Json>;
 ```
 
-Defined in: [packages/core/src/l0/spi/executor.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L74)
+Defined in: [packages/core/src/l0/spi/executor.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L81)
 
 Runs one dispatch to its JSON result; throws to signal tool failure.
 

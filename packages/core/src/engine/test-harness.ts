@@ -237,6 +237,8 @@ export interface TestInternalsOptions {
   extraDerivers?: readonly unknown[];
   /** Registered isolated-executor providers (RV-216). */
   executors?: RunInternals['executors'];
+  /** The exec key derivation the simulated run uses (RV403); absent = v1. */
+  execKey?: RunInternals['execKey'];
 }
 
 export function makeInternals(options: TestInternalsOptions = {}): {
@@ -357,6 +359,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     priceUsd,
     ...(options.isolation === undefined ? {} : { isolation: options.isolation }),
     ...(options.executors === undefined ? {} : { executors: options.executors }),
+    ...(options.execKey === undefined ? {} : { execKey: options.execKey }),
     ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),
     external: new ExternalRegistry(replayer),
     mintTranscriptRef: () => `test-run/t${refCounter++}`,

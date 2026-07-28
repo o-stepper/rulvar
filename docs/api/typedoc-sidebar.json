@@ -1749,6 +1749,10 @@
             "link": "/api/@rulvar/core/type-aliases/EvidenceRef.md"
           },
           {
+            "text": "ExecKeyDerivation",
+            "link": "/api/@rulvar/core/type-aliases/ExecKeyDerivation.md"
+          },
+          {
             "text": "ExecutorRegistry",
             "link": "/api/@rulvar/core/type-aliases/ExecutorRegistry.md"
           },
@@ -6109,6 +6113,10 @@
           {
             "text": "EvidenceRef",
             "link": "/api/@rulvar/rulvar/type-aliases/EvidenceRef.md"
+          },
+          {
+            "text": "ExecKeyDerivation",
+            "link": "/api/@rulvar/rulvar/type-aliases/ExecKeyDerivation.md"
           },
           {
             "text": "ExecutorRegistry",

@@ -58,6 +58,7 @@ import type { Bytes } from '../l0/json.js';
 import { readRunMeta } from '../stores/meta-lookup.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
 import type { EscalationDecision } from '../runtime/escalation.js';
+import { CURRENT_EXEC_KEY_DERIVATION, type ExecKeyDerivation } from '../runtime/executor.js';
 import type { EscalatedResult, MechanicalGateProfile } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
 import { validateUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
@@ -910,6 +911,14 @@ export function createEngine(options: CreateEngineOptions): Engine {
      * run must not gain a generation marker retroactively).
      */
     genesis?: string;
+    /**
+     * The RunMeta-recorded exec idempotency key derivation carried
+     * through verbatim (RV403): a resume segment derives the version the
+     * run STARTED with, and absence stays absent, so a run recorded
+     * before the field shipped keeps its version 1 keys forever and a
+     * mid-run upgrade never flips keys inside one incarnation.
+     */
+    execKeyDerivation?: number;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -1092,6 +1101,42 @@ export function createEngine(options: CreateEngineOptions): Engine {
     });
     const external = new ExternalRegistry(replayer, (body) => bus.emit(body, rootSpanId));
     let transcriptCounter = 0;
+    // The generation token (RunMeta.genesis): minted once at the fresh
+    // start, carried verbatim by every resume segment. Distinguishes a
+    // deleteRun and recreate of the same explicit runId from the same
+    // run continuing, which journal length alone cannot (v1.25.0 scale
+    // review: the queue worker's skip cache).
+    const genesis = resumeCtx === undefined ? mintRunId() : resumeCtx.genesis;
+    // The exec idempotency key derivation (RV403): a fresh run stamps
+    // the current version; a resume derives EXACTLY what the run
+    // started with (absence = version 1, the genesis-free derivation of
+    // runs recorded before the field), so keys stay stable within one
+    // incarnation across crash, resume, and engine upgrade, while a
+    // recreated runId's version 2 keys never collide with the deleted
+    // incarnation's in a long-lived external dedup store.
+    const execKeyVersion =
+      resumeCtx === undefined ? CURRENT_EXEC_KEY_DERIVATION : resumeCtx.execKeyDerivation;
+    let execKey: ExecKeyDerivation | undefined;
+    if (execKeyVersion === undefined || execKeyVersion === 1) {
+      execKey = { version: 1 };
+    } else if (execKeyVersion === 2 && typeof genesis === 'string') {
+      execKey = { version: 2, genesis };
+    }
+    if (execKey === undefined && options.executors !== undefined) {
+      // Fail closed BEFORE any store write or dispatch: deriving some
+      // other version's key here would silently break the external
+      // effect deduplication the run's provider already accumulated.
+      throw new ConfigError(
+        execKeyVersion === 2
+          ? `resume: run '${runId}' records exec idempotency key derivation 2 but its meta ` +
+              'carries no genesis token; the journal store violated the RunMeta round-trip ' +
+              'contract (https://docs.rulvar.com/guide/store-authors)'
+          : `resume: run '${runId}' records exec idempotency key derivation ` +
+              `${String(execKeyVersion)}; this engine derives versions 1 and 2 only, so ` +
+              "resuming it here would break the run's external effect deduplication; " +
+              'resume with a rulvar release that supports the recorded derivation',
+      );
+    }
     const internals: RunInternals = {
       runId,
       replayer,
@@ -1146,6 +1191,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       runSignal: controller.signal,
       ...(defaults.isolation === undefined ? {} : { isolation: defaults.isolation }),
       ...(options.executors === undefined ? {} : { executors: options.executors }),
+      ...(execKey === undefined ? {} : { execKey }),
       ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),
       external,
       mintTranscriptRef: () => `${runId}/t${transcriptCounter++}`,
@@ -1186,13 +1232,6 @@ export function createEngine(options: CreateEngineOptions): Engine {
       }
     }
 
-    // The generation token (RunMeta.genesis): minted once at the fresh
-    // start, carried verbatim by every resume segment. Distinguishes a
-    // deleteRun and recreate of the same explicit runId from the same
-    // run continuing, which journal length alone cannot (v1.25.0 scale
-    // review: the queue worker's skip cache).
-    const genesis = resumeCtx === undefined ? mintRunId() : resumeCtx.genesis;
-
     const putMeta = (status: RunStatus): Promise<void> =>
       resumeCtx?.strict === true
         ? // A dry-run preview leaves the store untouched: no status flip,
@@ -1215,6 +1254,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
                 : { argsProvided: argsBinding.argsProvided }),
               ...(argsBinding.argsHash === undefined ? {} : { argsHash: argsBinding.argsHash }),
               ...(genesis === undefined ? {} : { genesis }),
+              // The derivation stamp is carried verbatim like genesis:
+              // a version this engine does not know is still preserved
+              // (an executor-less resume is allowed to drive the run
+              // without ever deriving a key).
+              ...(execKeyVersion === undefined ? {} : { execKeyDerivation: execKeyVersion }),
               workflowName: wf.name,
               workflowHash:
                 compiled === undefined
@@ -1851,6 +1895,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // The generation token travels back in verbatim; absence stays
         // absent (a legacy run never gains one retroactively).
         ...(typeof meta?.genesis === 'string' ? { genesis: meta.genesis } : {}),
+        // The exec key derivation stamp travels back in verbatim
+        // (RV403); absence stays absent, so a pre-stamp run derives
+        // version 1 keys for its whole life.
+        ...(typeof meta?.execKeyDerivation === 'number'
+          ? { execKeyDerivation: meta.execKeyDerivation }
+          : {}),
         previewResolve,
       });
     })();

@@ -168,6 +168,26 @@ const MUTATIONS = [
     replace: '      if (configuredReserveUsd > 0 && validationTermination === undefined) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'exec-key-incarnation-scope',
+    doctrine:
+      "a recreated runId never reuses the deleted incarnation's exec idempotency keys (RV403)",
+    file: 'packages/core/src/runtime/executor.ts',
+    find: '  const canonical = jcsSerialize({ derivation: 2, runId, genesis, agentSeq, ordinal, tool, args });',
+    replace:
+      '  const canonical = jcsSerialize({ derivation: 2, runId, agentSeq, ordinal, tool, args });',
+    test: 'packages/core/src/engine/engine-exec-key.test.ts',
+  },
+  {
+    id: 'exec-key-derivation-stamp',
+    doctrine:
+      'a fresh run stamps its exec key derivation into RunMeta so resume derives the same keys (RV403)',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '    const execKeyVersion =\n      resumeCtx === undefined ? CURRENT_EXEC_KEY_DERIVATION : resumeCtx.execKeyDerivation;',
+    replace:
+      '    const execKeyVersion =\n      resumeCtx === undefined ? undefined : resumeCtx.execKeyDerivation;',
+    test: 'packages/core/src/engine/engine-exec-key.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

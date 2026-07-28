@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { deriveExecIdempotencyKey } from './executor.js';
+import { deriveExecIdempotencyKey, deriveExecIdempotencyKeyV2 } from './executor.js';
 
 describe('deriveExecIdempotencyKey (RV-216; P0.4 logical-invocation binding)', () => {
   it('is stable for identical (runId, agentSeq, ordinal, tool, args)', () => {
@@ -21,6 +21,23 @@ describe('deriveExecIdempotencyKey (RV-216; P0.4 logical-invocation binding)', (
     expect(deriveExecIdempotencyKey('run-2', 7, 1, 't', { code: 'x' })).not.toBe(base);
     expect(deriveExecIdempotencyKey('run-1', 7, 1, 'u', { code: 'x' })).not.toBe(base);
     expect(deriveExecIdempotencyKey('run-1', 7, 1, 't', { code: 'y' })).not.toBe(base);
+  });
+
+  it('scopes the version 2 key to the run incarnation (RV403)', () => {
+    // The generation token is the only distinguisher between a deleted
+    // incarnation and its recreate under the same runId: version 2 keys
+    // differ across genesis and stay stable within one.
+    const a = deriveExecIdempotencyKeyV2('run-1', 'gen-a', 7, 1, 't', { code: 'x' });
+    expect(deriveExecIdempotencyKeyV2('run-1', 'gen-a', 7, 1, 't', { code: 'x' })).toBe(a);
+    expect(deriveExecIdempotencyKeyV2('run-1', 'gen-b', 7, 1, 't', { code: 'x' })).not.toBe(a);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('keeps the version 2 key domain-separated from version 1 (RV403)', () => {
+    // Same five logical parts: the derivations must never collide, so a
+    // mixed fleet's external dedup cannot fold a v1 key into a v2 one.
+    const v1 = deriveExecIdempotencyKey('run-1', 7, 1, 't', { code: 'x' });
+    expect(deriveExecIdempotencyKeyV2('run-1', 'gen-a', 7, 1, 't', { code: 'x' })).not.toBe(v1);
   });
 
   it('separates two calls with identical args by their logical invocation (P0.4)', () => {

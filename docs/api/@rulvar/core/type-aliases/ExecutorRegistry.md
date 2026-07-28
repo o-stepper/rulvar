@@ -10,7 +10,7 @@
 type ExecutorRegistry = Partial<Record<IsolatedExecutorTag, ToolExecutorProvider>>;
 ```
 
-Defined in: [packages/core/src/l0/spi/executor.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L82)
+Defined in: [packages/core/src/l0/spi/executor.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L89)
 
 The engine's executor registry: at most one provider per non-inprocess
 tag. A tool whose `executor` tag is absent here fails typed at spawn
