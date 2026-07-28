@@ -1,5 +1,12 @@
 # @rulvar/core
 
+## 1.89.0
+
+### Minor Changes
+
+- f18b671: Provider-id provenance parity across every adapter path (RV401, the eighth comparison experiment). The AI SDK bridge now ships the flat `responseId` the core reconciliation record reads, beside the nested `response` object it always emitted, and an error finish carries the accumulated response metadata and warnings on the error event instead of dropping them (retained parts stay deliberately absent there: a failed turn is discarded, never re-injected). The core agent loop captures provider metadata from error events and falls back to the AI SDK's nested `response.id` shape when a third-party adapter ships only that, with the flat first-class form winning when both are present. The OpenAI adapter attaches the failed response's id to its `response.failed` error event, so a billed failure reconciles against the provider statement exactly like an ok row. End-to-end tests pin a bridged engine run whose per-call reconciliation records carry ids on the success, retry, and billed-failure paths alike.
+- f18b671: The synthesis reserve lifecycle decision now journals BEFORE the finish-validation termination throw (RV402, the eighth comparison experiment): a synthesis the validators terminally reject was still paid for out of the released reserve, and the run now keeps the frozen configured/held/released/remaining/consumed record on that failure path exactly as on success, idempotently across resume. Docs drift closed alongside: the FAQ now says the subprocess and container executors ship in `@rulvar/executor` instead of calling them a plan, the workflow guide no longer promises deadlines on approval suspensions (escalations only, per the durability table), the server guide scopes the approved tool's "exactly once" to its continuation segment under the documented at-least-once tool window, the RunMeta.argsHash doc points at `security.argsHashSalt` as the salted HMAC option, and the ctx dispatch comment names the full five-part idempotency key.
+
 ## 1.88.0
 
 ### Minor Changes
