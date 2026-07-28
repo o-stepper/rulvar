@@ -225,6 +225,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN",
+            "link": "/api/@rulvar/cli/variables/DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN.md"
+          },
+          {
             "text": "DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT",
             "link": "/api/@rulvar/cli/variables/DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT.md"
           },

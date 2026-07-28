@@ -256,9 +256,12 @@ interface CreateServerOptions {
   * and counted. A replay that no longer reaches back to a client's
   * cursor carries `x-rulvar-events-dropped: <count>` and a leading SSE
   * comment naming the first retained seq; the journal remains the
-  * durable record of the run itself. Absent means unbounded (the
-  * historical behavior). Validated at construction: a positive safe
-  * integer, anything else is a typed ConfigError.
+  * durable record of the run itself. Defaults to
+  * {@link DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN} (RV409; before v1.94.0
+  * absent meant unbounded, and an explicit huge bound such as
+  * `Number.MAX_SAFE_INTEGER` restores that behavior in effect).
+  * Validated at construction: a positive safe integer, anything else
+  * is a typed ConfigError.
   */
   maxBufferedEventsPerRun?: number;
   /**
@@ -284,6 +287,18 @@ interface CreateServerOptions {
 * cannot grow process memory past a few megabytes per connection.
 */
 declare const DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT = 1e4;
+/**
+* The default per-run replay-buffer bound (RV409): generous enough
+* that any ordinary run keeps its full replay (lifecycle events number
+* in the hundreds; only long `agent:stream` delta torrents approach
+* tens of thousands), small enough that one delta-heavy run cannot
+* grow process memory past a few tens of megabytes. Past the bound the
+* oldest events are dropped and the replay marks the gap; the journal
+* remains the durable record. Before v1.94.0 an absent
+* `maxBufferedEventsPerRun` meant unbounded; set an explicit huge
+* bound (`Number.MAX_SAFE_INTEGER`) to restore that in effect.
+*/
+declare const DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN = 5e4;
 interface RulvarServer {
   fetch(req: Request): Promise<Response>;
 }
@@ -416,4 +431,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type PreflightDeclaration, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, preflightCommand, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type PreflightDeclaration, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, preflightCommand, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };

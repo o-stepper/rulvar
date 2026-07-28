@@ -203,6 +203,14 @@ const MUTATIONS = [
     test: 'packages/core/src/runtime/mid-batch-checkpoint.test.ts',
   },
   {
+    id: 'sse-buffer-default-bound',
+    doctrine: 'an unconfigured server still bounds the per-run SSE replay buffer (RV409)',
+    file: 'packages/cli/src/server.ts',
+    find: '  const bufferCap = options.maxBufferedEventsPerRun ?? DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN;',
+    replace: '  const bufferCap = options.maxBufferedEventsPerRun ?? Number.MAX_SAFE_INTEGER;',
+    test: 'packages/cli/src/server.test.ts',
+  },
+  {
     id: 'exec-ledger-honest-outcome',
     doctrine: 'a dispatch that never ran ledgers error, never a success (cycle 92)',
     file: 'packages/executor/src/subprocess.ts',

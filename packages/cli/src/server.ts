@@ -110,9 +110,12 @@ export interface CreateServerOptions {
    * and counted. A replay that no longer reaches back to a client's
    * cursor carries `x-rulvar-events-dropped: <count>` and a leading SSE
    * comment naming the first retained seq; the journal remains the
-   * durable record of the run itself. Absent means unbounded (the
-   * historical behavior). Validated at construction: a positive safe
-   * integer, anything else is a typed ConfigError.
+   * durable record of the run itself. Defaults to
+   * {@link DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN} (RV409; before v1.94.0
+   * absent meant unbounded, and an explicit huge bound such as
+   * `Number.MAX_SAFE_INTEGER` restores that behavior in effect).
+   * Validated at construction: a positive safe integer, anything else
+   * is a typed ConfigError.
    */
   maxBufferedEventsPerRun?: number;
   /**
@@ -140,6 +143,19 @@ export interface CreateServerOptions {
  */
 export const DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT = 10_000;
 
+/**
+ * The default per-run replay-buffer bound (RV409): generous enough
+ * that any ordinary run keeps its full replay (lifecycle events number
+ * in the hundreds; only long `agent:stream` delta torrents approach
+ * tens of thousands), small enough that one delta-heavy run cannot
+ * grow process memory past a few tens of megabytes. Past the bound the
+ * oldest events are dropped and the replay marks the gap; the journal
+ * remains the durable record. Before v1.94.0 an absent
+ * `maxBufferedEventsPerRun` meant unbounded; set an explicit huge
+ * bound (`Number.MAX_SAFE_INTEGER`) to restore that in effect.
+ */
+export const DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN = 50_000;
+
 export interface RulvarServer {
   fetch(req: Request): Promise<Response>;
 }
@@ -164,7 +180,8 @@ interface TrackedRun {
   args: unknown;
   /**
    * Events observed across resume segments, in arrival (= seq) order;
-   * bounded by maxBufferedEventsPerRun when configured.
+   * bounded by the resolved maxBufferedEventsPerRun (finite by default
+   * since v1.94.0, RV409).
    */
   buffer: WorkflowEvent[];
   /** Oldest events dropped from the buffer by the configured bound. */
@@ -277,21 +294,21 @@ export function createServer(options: CreateServerOptions): RulvarServer {
   requireCap('maxTrackedRuns', options.maxTrackedRuns, 0);
   requireCap('maxBufferedEventsPerRun', options.maxBufferedEventsPerRun, 1);
   requireCap('maxPendingEventsPerClient', options.maxPendingEventsPerClient, 1);
+  const bufferCap = options.maxBufferedEventsPerRun ?? DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN;
   const pendingCap = options.maxPendingEventsPerClient ?? DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT;
   const journal = engine.stores.journal;
   const runs = new Map<string, TrackedRun>();
 
   /**
-   * Buffers one event under the configured bound. Overflow drops the
+   * Buffers one event under the resolved bound. Overflow drops the
    * oldest chunk (an eighth of the bound) in one splice, so the
    * amortized cost per event stays O(1) and the retained window never
    * falls below seven eighths of the bound.
    */
   function pushBuffered(run: TrackedRun, event: WorkflowEvent): void {
     run.buffer.push(event);
-    const max = options.maxBufferedEventsPerRun;
-    if (max !== undefined && run.buffer.length > max) {
-      const chunk = Math.max(1, Math.floor(max / 8));
+    if (run.buffer.length > bufferCap) {
+      const chunk = Math.max(1, Math.floor(bufferCap / 8));
       run.buffer.splice(0, chunk);
       run.dropped += chunk;
     }
