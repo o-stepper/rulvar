@@ -1,5 +1,12 @@
 # @rulvar/store-postgres
 
+## 1.92.0
+
+### Patch Changes
+
+- Updated dependencies [351d1f5]
+  - @rulvar/core@1.92.0
+
 ## 1.91.0
 
 ### Patch Changes
