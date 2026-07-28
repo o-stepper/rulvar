@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
+
 ### 1.90.0
 
 #### Patch Changes
@@ -1068,6 +1074,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
+
 ### 1.90.0
 
 #### Patch Changes
@@ -1973,6 +1985,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
 
 ### 1.90.0
 
@@ -3210,6 +3228,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.91.0
 
 ### 1.90.0
 
@@ -4822,6 +4842,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.91.0
+
 ### 1.90.0
 
 ### 1.89.0
@@ -5104,6 +5126,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
+- @rulvar/testing@1.91.0
 
 ### 1.90.0
 
@@ -6211,6 +6240,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.91.0
+
+#### Minor Changes
+
+- f93f5ca: Two-phase intent protocol for external effects (RV404, the eighth-experiment review, variant a). A `ToolEffectLedger` that implements the new optional `intent` method opts into the capability: both reference executors durably record the intent (idempotency key, tool, `argsHash`, runId, spanId, workdir, the attempt's `startedAt`) strictly BEFORE the external effect is dispatched and the outcome `record` after it, so a host crash between the effect and the outcome row leaves an orphan intent, the mandatory reconciliation signal, instead of an untracked effect. A failed intent write refuses the dispatch with the new typed `ledger` error code; a ledger without the method keeps the historical single-record contract byte for byte. Ships the durable JSONL reference (`jsonlEffectLedger`, `loadEffectLedger` with `orphanedIntents` precomputed, a torn trailing line skipped), the two-phase `memoryEffectLedger` upgrade with `intents()`, the conformance scenario e13 (a simulated kill between the phases must leave the orphan intent, recorded before the effect), and the documented host reconciliation contract. Full outbox, business authorization, and monetary reconciliation remain host obligations built on the ledger, not inside it.
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
+
 ### 1.90.0
 
 #### Patch Changes
@@ -6494,6 +6533,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
 
 ### 1.90.0
 
@@ -7556,6 +7601,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
+
 ### 1.90.0
 
 #### Patch Changes
@@ -8574,6 +8625,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
+- eslint-plugin-rulvar@1.91.0
 
 ### 1.90.0
 
@@ -9645,6 +9703,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.91.0
+- @rulvar/core@1.91.0
+- @rulvar/openai@1.91.0
 
 ### 1.90.0
 
@@ -10888,6 +10954,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
+
 ### 1.90.0
 
 #### Minor Changes
@@ -11898,6 +11970,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
+
 ### 1.90.0
 
 #### Patch Changes
@@ -12202,6 +12280,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
 
 ### 1.90.0
 
@@ -13146,6 +13230,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.91.0
+
+#### Patch Changes
+
+- @rulvar/core@1.91.0
 
 ### 1.90.0
 

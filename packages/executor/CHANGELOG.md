@@ -1,5 +1,15 @@
 # @rulvar/executor
 
+## 1.91.0
+
+### Minor Changes
+
+- f93f5ca: Two-phase intent protocol for external effects (RV404, the eighth-experiment review, variant a). A `ToolEffectLedger` that implements the new optional `intent` method opts into the capability: both reference executors durably record the intent (idempotency key, tool, `argsHash`, runId, spanId, workdir, the attempt's `startedAt`) strictly BEFORE the external effect is dispatched and the outcome `record` after it, so a host crash between the effect and the outcome row leaves an orphan intent, the mandatory reconciliation signal, instead of an untracked effect. A failed intent write refuses the dispatch with the new typed `ledger` error code; a ledger without the method keeps the historical single-record contract byte for byte. Ships the durable JSONL reference (`jsonlEffectLedger`, `loadEffectLedger` with `orphanedIntents` precomputed, a torn trailing line skipped), the two-phase `memoryEffectLedger` upgrade with `intents()`, the conformance scenario e13 (a simulated kill between the phases must leave the orphan intent, recorded before the effect), and the documented host reconciliation contract. Full outbox, business authorization, and monetary reconciliation remain host obligations built on the ledger, not inside it.
+
+### Patch Changes
+
+- @rulvar/core@1.91.0
+
 ## 1.90.0
 
 ### Patch Changes
