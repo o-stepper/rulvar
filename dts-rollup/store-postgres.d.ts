@@ -1,4 +1,4 @@
-import { JournalEntry, LeasableStore, Lease, MetaLookupStore, RunFilter, RunMeta, TranscriptStore } from "@rulvar/core";
+import { JournalEntry, LeasableStore, Lease, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference, shared with the sqlite store. */
@@ -112,4 +112,90 @@ declare class PostgresStore implements MetaLookupStore, LeasableStore {
   release(l: Lease): Promise<void>;
 }
 //#endregion
-export { DEFAULT_LEASE_TTL_MS, DEFAULT_POOL_MAX, PostgresStore, type PostgresStoreOptions, type PostgresTranscriptStore };
+//#region src/quota.d.ts
+/**
+* How long a reserve/reconcile transaction waits for the schema-wide
+* admission lock before postgres cancels the statement. Quota
+* admissions are short single-writer transactions; queueing here IS
+* the cross-host serialization working.
+*/
+declare const QUOTA_LOCK_TIMEOUT_MS = 2e3;
+interface PostgresQuotaLimiterOptions {
+  /**
+  * A postgres connection string shared by every coordinating process
+  * and host (the database may also hold a PostgresStore; the tables
+  * do not collide).
+  */
+  url: string;
+  /**
+  * Schema holding the two quota tables; default `public`. A
+  * non-public schema is created on boot. Must be a plain SQL
+  * identifier.
+  */
+  schema?: string;
+  /** The shared rule set; must be identical across hosts. */
+  rules: readonly QuotaRule[];
+  /** Pool size ceiling; default 10. Admissions are short transactions. */
+  max?: number;
+  /** Injectable clock for window tests. */
+  now?: () => number;
+}
+/**
+* The multi-host reference implementation of the core QuotaLimiter
+* SPI: engine processes pointing instances at ONE database and schema
+* (a PostgresStore's database or their own) enforce one global
+* provider quota. Admission consumes the window counters inside a
+* single transaction serialized on a schema-wide advisory transaction
+* lock, so two processes or HOSTS can never both take the last slot;
+* reservations are rows, so `reconcile` settles a grant from any host;
+* both tables are lazily pruned to the current and previous accounting
+* window. The rule model, the fixed epoch-aligned one-minute windows,
+* and the admission decision are the core's own exported functions, so
+* this limiter, `memoryQuotaLimiter`, and `SqliteQuotaLimiter` agree
+* on every verdict. The `rules` MUST be identical across coordinating
+* processes (buckets key on rule content). Runtime contention queues
+* on the advisory lock (a hot limiter is EXPECTED to serialize); a
+* call still waiting past `QUOTA_LOCK_TIMEOUT_MS` throws, and the
+* engine's `onLimiterError` policy decides what that means. Call
+* `close()` when done.
+*/
+declare class PostgresQuotaLimiter implements QuotaLimiter {
+  private readonly pool;
+  private readonly schema;
+  private readonly rules;
+  private readonly now;
+  private boot;
+  constructor(options: PostgresQuotaLimiterOptions);
+  /** `"schema".rulvar_<name>`, always schema-qualified. */
+  private table;
+  /**
+  * The lazy idempotent bootstrap, memoized so it runs once per
+  * limiter; a rejected boot clears the memo so the next call retries.
+  * The schema-scoped advisory transaction lock serializes a fleet of
+  * processes bootstrapping the same fresh database (the PostgresStore
+  * pattern: postgres queues on the lock and needs no busy retry).
+  */
+  private booted;
+  private runBootstrap;
+  /**
+  * One serialized admission transaction: BEGIN, bound the lock wait,
+  * take the schema-wide quota advisory lock, run `fn`, COMMIT. Every
+  * counter mutation goes through here, which is what makes the
+  * verdict read and the consume one unit across processes and hosts.
+  */
+  private withQuotaLock;
+  reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
+  reconcile(reservationId: string, usage: Usage): Promise<void>;
+  /** Current-window counters per rule, for telemetry and referees. */
+  snapshot(): Promise<Array<{
+    rule: QuotaRule;
+    windowStart: number;
+    requests: number;
+    tokens: number;
+  }>>;
+  close(): Promise<void>;
+  /** Both tables stay bounded to the current and previous window. */
+  private prune;
+}
+//#endregion
+export { DEFAULT_LEASE_TTL_MS, DEFAULT_POOL_MAX, PostgresQuotaLimiter, type PostgresQuotaLimiterOptions, PostgresStore, type PostgresStoreOptions, type PostgresTranscriptStore, QUOTA_LOCK_TIMEOUT_MS };
