@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
+
 ### 1.94.0
 
 #### Patch Changes
@@ -1094,6 +1100,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
+
 ### 1.94.0
 
 #### Patch Changes
@@ -2025,6 +2037,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
 
 ### 1.94.0
 
@@ -3296,6 +3314,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.95.0
 
 ### 1.94.0
 
@@ -4924,6 +4944,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.95.0
+
 ### 1.94.0
 
 ### 1.93.0
@@ -5214,6 +5236,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
+- @rulvar/testing@1.95.0
 
 ### 1.94.0
 
@@ -6351,6 +6380,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
+
 ### 1.94.0
 
 #### Patch Changes
@@ -6665,6 +6700,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
 
 ### 1.94.0
 
@@ -7753,6 +7794,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
+
 ### 1.94.0
 
 #### Patch Changes
@@ -8797,6 +8844,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
+- eslint-plugin-rulvar@1.95.0
 
 ### 1.94.0
 
@@ -9898,6 +9952,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.95.0
+- @rulvar/core@1.95.0
+- @rulvar/openai@1.95.0
 
 ### 1.94.0
 
@@ -11175,6 +11237,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
+
 ### 1.94.0
 
 #### Patch Changes
@@ -12211,6 +12279,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.95.0
+
+#### Minor Changes
+
+- 2bda821: `PostgresQuotaLimiter` (RV410): the multi-host reference implementation of the core `QuotaLimiter` SPI. Engine processes on any number of hosts pointing instances at one database and schema enforce one global provider quota: admission consumes the window counters inside a single transaction serialized on a schema-wide advisory lock, so two hosts can never both take the last slot; reservations are rows, so reconciliation settles a grant from any host; both tables are lazily pruned to two accounting windows. The rule model, the fixed epoch-aligned one-minute windows, and the admission decision are the core's own exported functions, so this limiter, `memoryQuotaLimiter`, and `SqliteQuotaLimiter` agree byte for byte on every verdict. A call still waiting for the admission lock past the exported `QUOTA_LOCK_TIMEOUT_MS` (2000 ms) throws into the engine's `onLimiterError` policy instead of hanging. The durable admission queue stays the host's documented boundary: a denial carries the honest window remainder, and what to do while waiting is host policy.
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
+
 ### 1.94.0
 
 #### Patch Changes
@@ -12541,6 +12619,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
 
 ### 1.94.0
 
@@ -13511,6 +13595,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.95.0
+
+#### Patch Changes
+
+- @rulvar/core@1.95.0
 
 ### 1.94.0
 
