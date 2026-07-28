@@ -187,6 +187,22 @@ const MUTATIONS = [
     test: 'packages/executor/src/subprocess.test.ts',
   },
   {
+    id: 'invoice-pricing-pin',
+    doctrine: 'the settle pins the applied pricing so a re-fold reproduces the invoice (RV407)',
+    file: 'packages/core/src/engine/pricing-snapshot.ts',
+    find: '  return rows.length === 0 ? undefined : rows;',
+    replace: '  return undefined;',
+    test: 'packages/core/src/engine/pricing-snapshot.test.ts',
+  },
+  {
+    id: 'exec-ledger-honest-outcome',
+    doctrine: 'a dispatch that never ran ledgers error, never a success (cycle 92)',
+    file: 'packages/executor/src/subprocess.ts',
+    find: "      let outcome: ToolEffectRecord['outcome'] = 'error';",
+    replace: "      let outcome: ToolEffectRecord['outcome'] = 'ok';",
+    test: 'packages/executor/src/subprocess.test.ts',
+  },
+  {
     id: 'exec-key-derivation-stamp',
     doctrine:
       'a fresh run stamps its exec key derivation into RunMeta so resume derives the same keys (RV403)',

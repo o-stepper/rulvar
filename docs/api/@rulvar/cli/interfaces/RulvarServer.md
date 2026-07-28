@@ -6,7 +6,7 @@
 
 # Interface: RulvarServer
 
-Defined in: [packages/cli/src/server.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L142)
+Defined in: [packages/cli/src/server.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L143)
 
 ## Methods
 
@@ -16,7 +16,7 @@ Defined in: [packages/cli/src/server.ts:142](https://github.com/o-stepper/rulvar
 fetch(req): Promise<Response>;
 ```
 
-Defined in: [packages/cli/src/server.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L143)
+Defined in: [packages/cli/src/server.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L144)
 
 #### Parameters
 

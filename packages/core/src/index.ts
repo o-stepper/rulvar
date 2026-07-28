@@ -61,6 +61,11 @@ export * from './stores/reconcile.js';
 export * from './stores/jsonl.js';
 export * from './engine/cost-report.js';
 export * from './engine/invoice.js';
+export {
+  journalPricingSnapshot,
+  type AppliedPricingRow,
+  type JournalPricingSnapshot,
+} from './engine/pricing-snapshot.js';
 export * from './engine/preflight.js';
 export * from './engine/run-profiles.js';
 export * from './model/caps.js';

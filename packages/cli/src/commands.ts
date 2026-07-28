@@ -18,6 +18,7 @@ import {
   ConfigError,
   costReportFromJournal,
   invoiceFromJournal,
+  journalPricingSnapshot,
   createEngine,
   FileModelKnowledgeStore,
   hashRunArgs,
@@ -669,10 +670,21 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
     context.io.out(`  ${kind}: ${count}`);
   }
   context.io.out(`open suspensions: ${openSuspensions}`);
-  // Cost view (M5-T03): the pure journal fold, priced through the
-  // config's adapters and table; unpriced surfaces, never silent zero.
-  const cost = costReportFromJournal(entries, assembled.priceUsd);
+  // Cost view (M5-T03): the pure journal fold. Priced by the run's own
+  // settle-pinned rates when present (RV407: historically stable
+  // against later table updates), else through the config's adapters
+  // and table; unpriced surfaces, never silent zero.
+  const inspectSnapshot = journalPricingSnapshot(entries);
+  const cost = costReportFromJournal(entries, inspectSnapshot?.priceUsd ?? assembled.priceUsd);
   context.io.out(`cost: $${cost.totalUsd.toFixed(4)}`);
+  if (inspectSnapshot !== undefined) {
+    context.io.out(
+      'pricing: run-settle snapshot' +
+        (inspectSnapshot.pricingVersion === undefined
+          ? ''
+          : ` (${inspectSnapshot.pricingVersion})`),
+    );
+  }
   // The gross/net split surfaces only when the run actually abandoned
   // paid work (P1.3); every other inspect output stays byte-identical.
   if (cost.abandoned.usd > 0) {
@@ -726,7 +738,23 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
     throw new ConfigError(`run '${runId}' not found in the store`);
   }
   const entries = await assembled.store.load(runId);
-  const invoice = invoiceFromJournal(entries, assembled.priceUsd);
+  // The run's settle-pinned rates win (RV407): the invoice reproduces
+  // the numbers the run settled with, whatever the config table says
+  // today; journals without a pin keep the current-table fold and the
+  // export says so.
+  const snapshot = journalPricingSnapshot(entries);
+  const invoice = invoiceFromJournal(entries, snapshot?.priceUsd ?? assembled.priceUsd, {
+    pricing:
+      snapshot === undefined
+        ? { source: 'current-table' }
+        : {
+            source: 'snapshot',
+            ...(snapshot.pricingVersion === undefined
+              ? {}
+              : { pricingVersion: snapshot.pricingVersion }),
+            rows: snapshot.rows,
+          },
+  });
   if (json) {
     context.io.out(JSON.stringify(invoice, null, 2));
     return 0;
@@ -742,6 +770,14 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
   );
   context.io.out(
     `pricing basis: ${invoice.pricingBasis} (row usd is non-additive; allocatedUsd sums to gross)`,
+  );
+  context.io.out(
+    invoice.pricing?.source === 'snapshot'
+      ? 'pricing rates: run-settle snapshot' +
+          (invoice.pricing.pricingVersion === undefined
+            ? ''
+            : ` (${invoice.pricing.pricingVersion})`)
+      : 'pricing rates: current table (no snapshot in the journal)',
   );
   for (const row of invoice.rows) {
     const usd = row.usd === undefined ? 'unpriced' : `$${row.usd.toFixed(4)}`;
