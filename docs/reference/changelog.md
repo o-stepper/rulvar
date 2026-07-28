@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+
 ### 1.89.0
 
 #### Patch Changes
@@ -1061,6 +1068,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+
 ### 1.89.0
 
 #### Minor Changes
@@ -1959,6 +1973,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
 
 ### 1.89.0
 
@@ -3189,6 +3210,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.90.0
+
+#### Minor Changes
+
+- 9603940: Scope the isolated-executor idempotency key to the run incarnation (RV403, the eighth-experiment review). A fresh run stamps the additive optional `RunMeta.execKeyDerivation` field (version 2) at genesis and every resume segment carries it verbatim; version 2 keys bind the run's generation token, so a `deleteRun`-then-recreate of the same explicit runId never reuses the deleted incarnation's keys against a long-lived external dedup store, while a crash-and-resume redispatch inside one incarnation keeps its key exactly as before. Runs recorded without the stamp derive the original genesis-free version 1 keys for their whole life, across resume and upgrade, so external dedup state accumulated for them stays valid; a recorded derivation the engine does not know, or a version 2 stamp whose store dropped the genesis token, is a typed resume refusal when executors are configured, never a silent fallback. The store conformance kit now checks the field's round trip alongside `genesis`.
 
 ### 1.89.0
 
@@ -4795,6 +4822,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.90.0
+
 ### 1.89.0
 
 ### 1.88.0
@@ -5075,6 +5104,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+  - @rulvar/testing@1.90.0
 
 ### 1.89.0
 
@@ -6174,6 +6211,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+
 ### 1.89.0
 
 #### Patch Changes
@@ -6450,6 +6494,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
 
 ### 1.89.0
 
@@ -7505,6 +7556,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+
 ### 1.89.0
 
 #### Patch Changes
@@ -8516,6 +8574,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+  - eslint-plugin-rulvar@1.90.0
 
 ### 1.89.0
 
@@ -9579,6 +9645,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+  - @rulvar/anthropic@1.90.0
+  - @rulvar/openai@1.90.0
 
 ### 1.89.0
 
@@ -10813,6 +10888,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.90.0
+
+#### Minor Changes
+
+- 9603940: Scope the isolated-executor idempotency key to the run incarnation (RV403, the eighth-experiment review). A fresh run stamps the additive optional `RunMeta.execKeyDerivation` field (version 2) at genesis and every resume segment carries it verbatim; version 2 keys bind the run's generation token, so a `deleteRun`-then-recreate of the same explicit runId never reuses the deleted incarnation's keys against a long-lived external dedup store, while a crash-and-resume redispatch inside one incarnation keeps its key exactly as before. Runs recorded without the stamp derive the original genesis-free version 1 keys for their whole life, across resume and upgrade, so external dedup state accumulated for them stays valid; a recorded derivation the engine does not know, or a version 2 stamp whose store dropped the genesis token, is a typed resume refusal when executors are configured, never a silent fallback. The store conformance kit now checks the field's round trip alongside `genesis`.
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+
 ### 1.89.0
 
 #### Patch Changes
@@ -11812,6 +11898,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
+
 ### 1.89.0
 
 #### Patch Changes
@@ -12109,6 +12202,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
 
 ### 1.89.0
 
@@ -13046,6 +13146,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.90.0
+
+#### Patch Changes
+
+- Updated dependencies [9603940]
+  - @rulvar/core@1.90.0
 
 ### 1.89.0
 
