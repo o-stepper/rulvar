@@ -38,6 +38,7 @@ import {
   RulvarError,
   Replayer,
   costReportFromJournal,
+  journalPricingSnapshot,
   normalizeEntry,
   readRunMeta,
   validateSchemaSpec,
@@ -868,9 +869,12 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       return json(404, { error: { code: 'config', message: `run '${runId}' not found` } });
     }
     const entries = (await journal.load(runId)).map((raw) => normalizeEntry(raw));
+    // The run's settle-pinned rates win (RV407): a stored run's cost
+    // view stays stable against later price-table updates.
+    const settleSnapshot = journalPricingSnapshot(entries);
     const report: CostReport = costReportFromJournal(
       entries,
-      options.priceUsd ?? (() => undefined),
+      settleSnapshot?.priceUsd ?? options.priceUsd ?? (() => undefined),
     );
     return json(200, report);
   }

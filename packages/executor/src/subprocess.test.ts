@@ -286,6 +286,31 @@ describe('the two-phase intent ledger (RV404)', () => {
     expect(rows[0]?.outcome).toBe('ok');
   });
 
+  it('ledgers a pre-spawn failure as an error outcome, never ok', async () => {
+    // A credentials mint that dies inside the try: nothing was spawned,
+    // so the single record must say error with a null exit code, not ok.
+    const effectPath = join(SCRIPTS, 'effect-creds-failed.txt');
+    const rows: ToolEffectRecord[] = [];
+    const ledger: ToolEffectLedger = {
+      record(entry) {
+        rows.push(entry);
+      },
+    };
+    const executor = subprocessExecutor({
+      ledger,
+      credentials: () => {
+        throw new Error('vault unavailable');
+      },
+    });
+    await expect(executor.run(markerRequest(effectPath, 'k-creds'))).rejects.toThrow(
+      'vault unavailable',
+    );
+    expect(existsSync(effectPath)).toBe(false);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.outcome).toBe('error');
+    expect(rows[0]?.exitCode).toBeNull();
+  });
+
   it('refuses the dispatch typed when the intent write fails', async () => {
     const effectPath = join(SCRIPTS, 'effect-refused.txt');
     const rows: ToolEffectRecord[] = [];

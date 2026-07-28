@@ -151,7 +151,11 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
           );
         }
       }
-      let outcome: ToolEffectRecord['outcome'] = 'ok';
+      // Honest by default, the subprocess twin: any throw the branches
+      // below do not classify (a credentials mint, cancellation mid-mint)
+      // ledgers 'error' with the null exit code of a container that never
+      // launched; 'ok' is set at exactly one place, the successful return.
+      let outcome: ToolEffectRecord['outcome'] = 'error';
       let exitCode: number | null = null;
       let signal: string | null = null;
       try {
@@ -212,7 +216,6 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
             signal: request.ctx.signal,
           });
         } catch (err) {
-          outcome = 'error';
           throw new ExecutorError(
             'spawn',
             `container tool '${request.tool}' could not launch '${docker}': ${err instanceof Error ? err.message : String(err)}`,
@@ -229,18 +232,15 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
           );
         }
         if (child.stopped && child.reason === 'aborted') {
-          outcome = 'error';
           throw new ExecutorError('aborted', `container tool '${request.tool}' was cancelled`);
         }
         if (child.stopped && child.reason === 'output-cap') {
-          outcome = 'error';
           throw new ExecutorError(
             'output-cap',
             `container tool '${request.tool}' wrote more than ${maxOutputBytes} bytes and was killed`,
           );
         }
         if (child.code !== 0) {
-          outcome = 'error';
           const tail = child.stderr.trim().slice(-500);
           throw new ExecutorError(
             'exit',
@@ -248,12 +248,9 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
               `${tail === '' ? '' : `: ${tail}`}`,
           );
         }
-        try {
-          return parseToolResult(child.stdout, request.tool) as Json;
-        } catch (err) {
-          outcome = 'error';
-          throw err;
-        }
+        const result = parseToolResult(child.stdout, request.tool) as Json;
+        outcome = 'ok';
+        return result;
       } finally {
         const durationMs = now() - startedAt;
         if (options.ledger !== undefined) {

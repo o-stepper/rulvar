@@ -711,6 +711,10 @@
             "link": "/api/@rulvar/core/interfaces/AgentResultMeta.md"
           },
           {
+            "text": "AppliedPricingRow",
+            "link": "/api/@rulvar/core/interfaces/AppliedPricingRow.md"
+          },
+          {
             "text": "ApproachSignatureInputs",
             "link": "/api/@rulvar/core/interfaces/ApproachSignatureInputs.md"
           },
@@ -1023,6 +1027,10 @@
             "link": "/api/@rulvar/core/interfaces/InvoiceExport.md"
           },
           {
+            "text": "InvoicePricingProvenance",
+            "link": "/api/@rulvar/core/interfaces/InvoicePricingProvenance.md"
+          },
+          {
             "text": "InvoiceRow",
             "link": "/api/@rulvar/core/interfaces/InvoiceRow.md"
           },
@@ -1041,6 +1049,10 @@
           {
             "text": "JournalOperation",
             "link": "/api/@rulvar/core/interfaces/JournalOperation.md"
+          },
+          {
+            "text": "JournalPricingSnapshot",
+            "link": "/api/@rulvar/core/interfaces/JournalPricingSnapshot.md"
           },
           {
             "text": "JournalSerializationContext",
@@ -2815,6 +2827,10 @@
           {
             "text": "isStrictCompatibleSchema",
             "link": "/api/@rulvar/core/functions/isStrictCompatibleSchema.md"
+          },
+          {
+            "text": "journalPricingSnapshot",
+            "link": "/api/@rulvar/core/functions/journalPricingSnapshot.md"
           },
           {
             "text": "kMaxOf",
@@ -5069,6 +5085,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/AnthropicAdapterOptions.md"
           },
           {
+            "text": "AppliedPricingRow",
+            "link": "/api/@rulvar/rulvar/interfaces/AppliedPricingRow.md"
+          },
+          {
             "text": "ApproachSignatureInputs",
             "link": "/api/@rulvar/rulvar/interfaces/ApproachSignatureInputs.md"
           },
@@ -5381,6 +5401,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/InvoiceExport.md"
           },
           {
+            "text": "InvoicePricingProvenance",
+            "link": "/api/@rulvar/rulvar/interfaces/InvoicePricingProvenance.md"
+          },
+          {
             "text": "InvoiceRow",
             "link": "/api/@rulvar/rulvar/interfaces/InvoiceRow.md"
           },
@@ -5399,6 +5423,10 @@
           {
             "text": "JournalOperation",
             "link": "/api/@rulvar/rulvar/interfaces/JournalOperation.md"
+          },
+          {
+            "text": "JournalPricingSnapshot",
+            "link": "/api/@rulvar/rulvar/interfaces/JournalPricingSnapshot.md"
           },
           {
             "text": "JournalSerializationContext",
@@ -7221,6 +7249,10 @@
           {
             "text": "isStrictCompatibleSchema",
             "link": "/api/@rulvar/rulvar/functions/isStrictCompatibleSchema.md"
+          },
+          {
+            "text": "journalPricingSnapshot",
+            "link": "/api/@rulvar/rulvar/functions/journalPricingSnapshot.md"
           },
           {
             "text": "kMaxOf",

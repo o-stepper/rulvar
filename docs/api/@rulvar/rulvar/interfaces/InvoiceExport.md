@@ -16,6 +16,7 @@ The machine-readable invoice: rows plus the ledger totals.
 | ------ | ------ | ------ | ------ |
 | <a id="property-abandonedusd"></a> `abandonedUsd` | `number` | The abandoned share: totalUsd - netUsd, equals CostReport.abandoned.usd. | `packages/core/dist/index.d.ts` |
 | <a id="property-netusd"></a> `netUsd` | `number` | The net ledger (abandoned subtrees contribute zero): equals CostReport.totalUsd. | `packages/core/dist/index.d.ts` |
+| <a id="property-pricing"></a> `pricing?` | [`InvoicePricingProvenance`](/api/@rulvar/rulvar/interfaces/InvoicePricingProvenance.md) | The rates provenance (RV407); present when the caller declared it. | `packages/core/dist/index.d.ts` |
 | <a id="property-pricingbasis"></a> `pricingBasis` | `"per-call"` | How per-row `usd` was computed: each call priced individually at the current table's rates. Always `'per-call'` today; declared so finance tooling never has to guess the basis. | `packages/core/dist/index.d.ts` |
 | <a id="property-reconciliationfailures"></a> `reconciliationFailures` | `number` | Rows whose reconciliation is not 'provider-id-present'. | `packages/core/dist/index.d.ts` |
 | <a id="property-rows"></a> `rows` | [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[] | - | `packages/core/dist/index.d.ts` |

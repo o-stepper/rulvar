@@ -24,8 +24,11 @@
  * no id to match).
  *
  * Pricing happens at fold time from the table you pass, exactly like
- * CostReport: the export reflects current rates, not the rates at
- * write time.
+ * CostReport. For historical stability against price-table updates,
+ * pass the priceUsd rebuilt by `journalPricingSnapshot` (RV407): the
+ * settling segment pins the rates it applied into the run-settle
+ * decision value, and a fold over the pinned rows reproduces the
+ * settled numbers whatever the live table says today.
  */
 import { buildAbandonFold } from '../journal/disposition.js';
 import {
@@ -36,6 +39,7 @@ import {
 } from '../l0/entries.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import { costReportFromJournal } from './cost-report.js';
+import type { AppliedPricingRow } from './pricing-snapshot.js';
 
 /**
  * How far a row's identity goes toward provider-side reconciliation.
@@ -93,6 +97,20 @@ export interface InvoiceRow {
   reconciliation: InvoiceReconciliation;
 }
 
+/**
+ * Where the fold's rates came from (RV407): `snapshot` says the caller
+ * priced with the run-settle pin (`journalPricingSnapshot`), so these
+ * numbers are stable against later table updates; `current-table` says
+ * the live table priced it, the historical behavior. Attached by the
+ * caller, who is the one that chose.
+ */
+export interface InvoicePricingProvenance {
+  source: 'snapshot' | 'current-table';
+  pricingVersion?: string | undefined;
+  /** The pinned rows the fold used; present on snapshot-priced exports. */
+  rows?: AppliedPricingRow[] | undefined;
+}
+
 /** The machine-readable invoice: rows plus the ledger totals. */
 export interface InvoiceExport {
   rows: InvoiceRow[];
@@ -123,6 +141,8 @@ export interface InvoiceExport {
   usageUnknownRows?: number;
   /** Present and true when any contributing entry carried approximate usage. */
   usageApprox?: boolean;
+  /** The rates provenance (RV407); present when the caller declared it. */
+  pricing?: InvoicePricingProvenance;
 }
 
 const USAGE_FIELDS = [
@@ -260,11 +280,16 @@ function rowUsd(
 /**
  * The pure invoice fold. Pass the same entries and price table you
  * would pass `costReportFromJournal`; the totals are that report's
- * gross/net split verbatim.
+ * gross/net split verbatim. To make the export historically stable
+ * against price-table updates, pass the priceUsd rebuilt by
+ * `journalPricingSnapshot` and declare it via `options.pricing` (RV407);
+ * without a snapshot the fold prices at the current table's rates,
+ * exactly as before.
  */
 export function invoiceFromJournal(
   entries: readonly JournalEntry[],
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined,
+  options?: { pricing?: InvoicePricingProvenance },
 ): InvoiceExport {
   const report = costReportFromJournal(entries, priceUsd);
   const abandonFold = buildAbandonFold(entries);
@@ -372,5 +397,6 @@ export function invoiceFromJournal(
       return count === 0 ? {} : { usageUnknownRows: count };
     })(),
     ...(usageApprox ? { usageApprox: true } : {}),
+    ...(options?.pricing === undefined ? {} : { pricing: options.pricing }),
   };
 }

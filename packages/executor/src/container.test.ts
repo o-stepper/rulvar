@@ -156,6 +156,23 @@ describe('containerExecutor argv assembly (stubbed docker, no daemon)', () => {
     expect(outcomes[0]?.outcome).toBe('ok');
   });
 
+  it('ledgers a pre-launch credentials failure as an error outcome, never ok', async () => {
+    const ledger = memoryEffectLedger();
+    const executor = containerExecutor({
+      image: 'acme/img',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+      credentials: () => {
+        throw new Error('vault unavailable');
+      },
+      ledger,
+    });
+    await expect(executor.run(containerRequest('probe'))).rejects.toThrow('vault unavailable');
+    expect(ledger.entries()).toHaveLength(1);
+    expect(ledger.entries()[0]?.outcome).toBe('error');
+    expect(ledger.entries()[0]?.exitCode).toBeNull();
+  });
+
   it('surfaces a non-zero docker exit as a typed error', async () => {
     const exitStub = join(STUB_DIR, 'exit-stub');
     writeFileSync(

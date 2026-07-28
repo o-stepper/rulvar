@@ -264,6 +264,10 @@ export default {
     expect(lines).toContain(
       'pricing basis: per-call (row usd is non-additive; allocatedUsd sums to gross)',
     );
+    // No price table is configured in this fixture, so no pin exists
+    // (RV407 gates on the configured table) and the export says the
+    // current table priced it.
+    expect(lines).toContain('pricing rates: current table (no snapshot in the journal)');
 
     const json = scriptedIo();
     expect(await runCli(['invoice', runId, '--json'], { cwd, io: json })).toBe(0);
@@ -289,10 +293,64 @@ export default {
     expect(parsed.rows.every((row) => typeof row.allocatedUsd === 'number')).toBe(true);
     expect(parsed.rows.reduce((acc, row) => acc + row.allocatedUsd, 0)).toBe(parsed.totalUsd);
     expect(parsed.reconciliationFailures).toBe(parsed.rows.length);
+    const provenance = (parsed as unknown as { pricing?: { source?: string } }).pricing;
+    expect(provenance?.source).toBe('current-table');
 
     const missing = scriptedIo();
     expect(await runCli(['invoice', 'missing-run'], { cwd, io: missing })).toBe(1);
     expect(missing.errLines.join('\n')).toContain("run 'missing-run' not found");
+  });
+
+  it('invoice reproduces the settled numbers after the config table changes (RV407)', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-pricing-'));
+    const configWith = (version: string, inputRate: number): string =>
+      `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
+import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING_DIST)};
+
+const echo = defineWorkflow({ name: 'echo' }, async (ctx, args) => {
+  return await ctx.agent('echo ' + String(args?.value ?? 'missing'));
+});
+
+export default {
+  engineOptions: {
+    adapters: [new FakeAdapter({ agents: { '*': 'echoed' } })],
+    defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    pricing: {
+      pricingVersion: ${JSON.stringify(version)},
+      models: { [FAKE_MODEL_REF]: { inputUsdPerMTok: ${String(inputRate)}, outputUsdPerMTok: ${String(inputRate)} } },
+    },
+  },
+  workflows: { echo },
+};
+`;
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configWith('v-a', 1000), 'utf8');
+    const io = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":1}'], { cwd, io });
+    const runId = runIdOf(io);
+
+    const first = scriptedIo();
+    expect(await runCli(['invoice', runId, '--json'], { cwd, io: first })).toBe(0);
+    const settled = JSON.parse(first.outLines.join('\n')) as {
+      totalUsd: number;
+      pricing?: { source?: string; pricingVersion?: string };
+    };
+    expect(settled.totalUsd).toBeGreaterThan(0);
+    expect(settled.pricing?.source).toBe('snapshot');
+    expect(settled.pricing?.pricingVersion).toBe('v-a');
+
+    // The live table moves 1000x. The settle pin wins: the invoice
+    // reproduces the numbers the run settled with, and says which
+    // version priced it.
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configWith('v-b', 1_000_000), 'utf8');
+    const second = scriptedIo();
+    expect(await runCli(['invoice', runId, '--json'], { cwd, io: second })).toBe(0);
+    const repriced = JSON.parse(second.outLines.join('\n')) as {
+      totalUsd: number;
+      pricing?: { source?: string; pricingVersion?: string };
+    };
+    expect(repriced.totalUsd).toBe(settled.totalUsd);
+    expect(repriced.pricing?.source).toBe('snapshot');
+    expect(repriced.pricing?.pricingVersion).toBe('v-a');
   });
 
   it('preflight prints the synthesis projection line (v1.71 review)', async () => {

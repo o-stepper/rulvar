@@ -54,7 +54,7 @@ import { dispositionHook } from '../journal/disposition.js';
 import type { EscalationLimits } from '../journal/lineage.js';
 import type { ResumeReport } from '../journal/matching.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
-import type { Bytes } from '../l0/json.js';
+import type { Bytes, Json } from '../l0/json.js';
 import { readRunMeta } from '../stores/meta-lookup.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
 import type { EscalationDecision } from '../runtime/escalation.js';
@@ -74,6 +74,7 @@ import {
   type Workflow,
 } from './ctx.js';
 import { costReportFromJournal } from './cost-report.js';
+import { snapshotJournalPricing } from './pricing-snapshot.js';
 import { EVENT_SEGMENT_STRIDE, EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
 import {
@@ -1627,6 +1628,20 @@ export function createEngine(options: CreateEngineOptions): Engine {
           // never overwrite the live baseline), absent when the result
           // is undefined or not JCS-serializable.
           const outputHash = hashRunOutput(outcome.value);
+          // The applied-pricing pin (RV407): the settle records the
+          // resolved row of every model the journal used plus the table
+          // version, so a later invoice fold can reproduce THESE numbers
+          // after the live table changes. Additive in the existing value
+          // (the outputHash precedent), and gated on the CONFIGURED
+          // table: caps-fallback pricing arrives ambiently from
+          // adapters, and a setting the user never enabled must not
+          // change the journal (the byte doctrine; the plan cassettes
+          // pin exactly that). Under the opt-in, table-missing models
+          // that resolved through caps are part of the applied set.
+          const appliedPricing =
+            options.pricing === undefined
+              ? undefined
+              : snapshotJournalPricing(replayer.snapshot(), pricingOf);
           try {
             await replayer.appendSinglePhase({
               scope: '',
@@ -1640,6 +1655,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
                 runStatus: status,
                 segment: segmentsBefore + 1,
                 ...(outputHash === undefined ? {} : { outputHash }),
+                ...(appliedPricing === undefined || options.pricing === undefined
+                  ? {}
+                  : {
+                      pricing: appliedPricing as unknown as Json,
+                      pricingVersion: options.pricing.pricingVersion,
+                    }),
               },
             });
           } catch (settleErr) {
