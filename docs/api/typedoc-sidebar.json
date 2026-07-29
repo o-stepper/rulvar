@@ -2395,6 +2395,10 @@
             "link": "/api/@rulvar/core/variables/MAX_DEPTH_CEILING.md"
           },
           {
+            "text": "MAX_TIMER_DELAY_MS",
+            "link": "/api/@rulvar/core/variables/MAX_TIMER_DELAY_MS.md"
+          },
+          {
             "text": "ORCHESTRATE_WORKFLOW_NAME",
             "link": "/api/@rulvar/core/variables/ORCHESTRATE_WORKFLOW_NAME.md"
           },
@@ -3065,6 +3069,10 @@
             "link": "/api/@rulvar/core/functions/quotaRuleAdmission.md"
           },
           {
+            "text": "quotaRuleKey",
+            "link": "/api/@rulvar/core/functions/quotaRuleKey.md"
+          },
+          {
             "text": "quotaRuleMatches",
             "link": "/api/@rulvar/core/functions/quotaRuleMatches.md"
           },
@@ -3203,6 +3211,10 @@
           {
             "text": "shouldCompact",
             "link": "/api/@rulvar/core/functions/shouldCompact.md"
+          },
+          {
+            "text": "snapshotQuotaRules",
+            "link": "/api/@rulvar/core/functions/snapshotQuotaRules.md"
           },
           {
             "text": "snapshotUsage",
@@ -6833,6 +6845,10 @@
             "link": "/api/@rulvar/rulvar/variables/MAX_DEPTH_CEILING.md"
           },
           {
+            "text": "MAX_TIMER_DELAY_MS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_TIMER_DELAY_MS.md"
+          },
+          {
             "text": "OPENAI_MODELS",
             "link": "/api/@rulvar/rulvar/variables/OPENAI_MODELS.md"
           },
@@ -7523,6 +7539,10 @@
             "link": "/api/@rulvar/rulvar/functions/quotaRuleAdmission.md"
           },
           {
+            "text": "quotaRuleKey",
+            "link": "/api/@rulvar/rulvar/functions/quotaRuleKey.md"
+          },
+          {
             "text": "quotaRuleMatches",
             "link": "/api/@rulvar/rulvar/functions/quotaRuleMatches.md"
           },
@@ -7665,6 +7685,10 @@
           {
             "text": "shouldCompact",
             "link": "/api/@rulvar/rulvar/functions/shouldCompact.md"
+          },
+          {
+            "text": "snapshotQuotaRules",
+            "link": "/api/@rulvar/rulvar/functions/snapshotQuotaRules.md"
           },
           {
             "text": "snapshotUsage",
@@ -8037,6 +8061,10 @@
           {
             "text": "QuotaDeadlineError",
             "link": "/api/@rulvar/store-postgres/classes/QuotaDeadlineError.md"
+          },
+          {
+            "text": "QuotaGenerationError",
+            "link": "/api/@rulvar/store-postgres/classes/QuotaGenerationError.md"
           }
         ]
       },

@@ -38,8 +38,9 @@ import {
   quotaActualTokens,
   quotaEstimateTokens,
   quotaRuleAdmission,
+  quotaRuleKey,
   quotaRuleMatches,
-  validateQuotaRules,
+  snapshotQuotaRules,
   type QuotaDecision,
   type QuotaLimiter,
   type QuotaReservationRequest,
@@ -73,20 +74,6 @@ function sleepSync(ms: number): void {
 // infrastructure on the live-only dispatch path.
 const wallClock: () => number = Date.now.bind(globalThis);
 
-/**
- * The canonical bucket key of one rule: a fixed-field-order JSON of
- * its content, identical across processes for identical rules.
- */
-function ruleKey(rule: QuotaRule): string {
-  return JSON.stringify({
-    provider: rule.provider ?? null,
-    model: rule.model ?? null,
-    tenant: rule.tenant ?? null,
-    requestsPerMinute: rule.requestsPerMinute ?? null,
-    tokensPerMinute: rule.tokensPerMinute ?? null,
-  });
-}
-
 export interface SqliteQuotaLimiterOptions {
   /** Database file path shared by every coordinating process. */
   path: string;
@@ -117,14 +104,23 @@ export interface SqliteQuotaLimiterOptions {
 export class SqliteQuotaLimiter implements QuotaLimiter {
   private readonly db: DatabaseSync;
   private readonly rules: readonly QuotaRule[];
+  /** Matching order for the denial fold: canonical rule-key order
+   * (RV608), so permuted identical sets produce byte-identical
+   * refusals. Telemetry keeps the declared order. */
+  private readonly ordered: ReadonlyArray<{ rule: QuotaRule; key: string }>;
   private readonly now: () => number;
 
   constructor(options: SqliteQuotaLimiterOptions) {
     if (typeof options.path !== 'string' || options.path === '') {
       throw new ConfigError('SqliteQuotaLimiterOptions.path must be a nonempty string');
     }
-    validateQuotaRules(options.rules, 'SqliteQuotaLimiterOptions.rules');
-    this.rules = options.rules;
+    // The immutable snapshot (RV608): decisions, bucket keys, and
+    // telemetry read ONLY this copy, so caller mutation after the
+    // constructor can never move a cap or a bucket.
+    this.rules = snapshotQuotaRules(options.rules, 'SqliteQuotaLimiterOptions.rules');
+    this.ordered = this.rules
+      .map((rule) => ({ rule, key: quotaRuleKey(rule) }))
+      .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
     this.now = options.now ?? wallClock;
     this.db = new DatabaseSync(options.path);
     // Boot-scoped busy handling, the SqliteStore pattern: N processes
@@ -175,11 +171,10 @@ export class SqliteQuotaLimiter implements QuotaLimiter {
       );
       const matched: string[] = [];
       let denial: { retryAfterMs: number; reason: string } | undefined;
-      for (const rule of this.rules) {
+      for (const { rule, key } of this.ordered) {
         if (!quotaRuleMatches(rule, request)) {
           continue;
         }
-        const key = ruleKey(rule);
         matched.push(key);
         const row = read.get(key, windowStart) as { requests: number; tokens: number } | undefined;
         const verdict = quotaRuleAdmission(
@@ -265,7 +260,7 @@ export class SqliteQuotaLimiter implements QuotaLimiter {
       'SELECT requests, tokens FROM quota_buckets WHERE rule_key = ? AND window_start = ?',
     );
     return this.rules.map((rule) => {
-      const row = read.get(ruleKey(rule), windowStart) as
+      const row = read.get(quotaRuleKey(rule), windowStart) as
         { requests: number; tokens: number } | undefined;
       return {
         rule,

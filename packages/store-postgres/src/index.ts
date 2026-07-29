@@ -21,6 +21,7 @@ export {
   QUOTA_ADMISSION_DEADLINE_MS,
   QUOTA_LOCK_TIMEOUT_MS,
   QuotaDeadlineError,
+  QuotaGenerationError,
   quotaRulesFingerprint,
   type PostgresQuotaLimiterOptions,
 } from './quota.js';

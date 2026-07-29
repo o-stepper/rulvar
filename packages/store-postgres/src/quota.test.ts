@@ -16,6 +16,7 @@ import pg from 'pg';
 import {
   ConfigError,
   InMemoryStore,
+  MAX_TIMER_DELAY_MS,
   QUOTA_WINDOW_MS,
   createEngine,
   defineWorkflow,
@@ -24,12 +25,14 @@ import {
   type ModelCaps,
   type ProviderAdapter,
   type QuotaReservationRequest,
+  type QuotaRule,
 } from '@rulvar/core';
 
 import {
   PostgresQuotaLimiter,
   QUOTA_LOCK_TIMEOUT_MS,
   QuotaDeadlineError,
+  QuotaGenerationError,
   quotaRulesFingerprint,
 } from './quota.js';
 
@@ -130,6 +133,50 @@ describe('PostgresQuotaLimiter construction refusals (no database needed)', () =
       ConfigError,
     );
     expect(() => new PostgresQuotaLimiter({ ...base, admissionDeadlineMs: 2_001 })).not.toThrow();
+  });
+
+  it('refuses a non-boolean acceptRulesUpdate before any connection (RV608)', () => {
+    const base = {
+      url: 'postgres://nobody@localhost:1/none',
+      rules: [{ requestsPerMinute: 1 }],
+    };
+    // The rotation opt-in authorizes rewriting the schema's recorded
+    // rule identity; truthiness ("false", 1) must never be able to.
+    expect(
+      () => new PostgresQuotaLimiter({ ...base, acceptRulesUpdate: 'false' as never }),
+    ).toThrow(/acceptRulesUpdate must be a boolean/);
+    expect(() => new PostgresQuotaLimiter({ ...base, acceptRulesUpdate: 1 as never })).toThrow(
+      ConfigError,
+    );
+    expect(() => new PostgresQuotaLimiter({ ...base, acceptRulesUpdate: false })).not.toThrow();
+    expect(() => new PostgresQuotaLimiter({ ...base, acceptRulesUpdate: true })).not.toThrow();
+  });
+
+  it('refuses an admission deadline above the Node timer ceiling (RV608)', () => {
+    const base = {
+      url: 'postgres://nobody@localhost:1/none',
+      rules: [{ requestsPerMinute: 1 }],
+    };
+    // Above the ceiling, setTimeout clamps to 1 ms: a configured
+    // multi-week deadline would refuse every admission after about a
+    // millisecond, so the constructor refuses it before the pool exists.
+    expect(
+      () => new PostgresQuotaLimiter({ ...base, admissionDeadlineMs: MAX_TIMER_DELAY_MS + 1 }),
+    ).toThrow(/timer maximum/);
+    expect(
+      () => new PostgresQuotaLimiter({ ...base, admissionDeadlineMs: MAX_TIMER_DELAY_MS }),
+    ).not.toThrow();
+  });
+
+  it('the deadline refusal narrates only what actually happened to a connection (RV608)', () => {
+    // A refusal while WAITING held no connection, so claiming one was
+    // destroyed misdirects the operator reading the incident.
+    expect(new QuotaDeadlineError(2_500, 's', 'acquire').message).not.toMatch(/destroyed/);
+    expect(new QuotaDeadlineError(2_500, 's', 'transaction').message).toMatch(/destroyed/);
+    expect(new QuotaDeadlineError(2_500, 's', 'bootstrap').message).toMatch(/bootstrap/);
+    expect(new QuotaDeadlineError(2_500, 's', 'bootstrap').message).toMatch(
+      /was committed|committed/,
+    );
   });
 
   it('fingerprints identical rule sets identically regardless of order', () => {
@@ -358,6 +405,161 @@ describeDb('PostgresQuotaLimiter semantics', () => {
     expect((await b.reserve(request())).granted).toBe(true);
     // Both instances hit the SAME buckets: rule identity is content.
     expect((await a.snapshot())[0]?.requests).toBe(2);
+  });
+});
+
+describeDb('quota generations, rotation, and the snapshot (RV608)', () => {
+  it('rotation carries current-window consumption conservatively', async () => {
+    const schema = freshSchema();
+    const at = QUOTA_WINDOW_MS * 500 + 10_000;
+    const a = limiterOver(schema, {
+      rules: [{ provider: 'fake', requestsPerMinute: 3 }],
+      now: () => at,
+    });
+    expect((await a.reserve(request())).granted).toBe(true);
+    expect((await a.reserve(request())).granted).toBe(true);
+    // Rotate to a HIGHER cap mid-window: the new bucket must inherit
+    // the two consumed requests, so the raise grants the difference,
+    // never a fresh full window on top of old consumption.
+    const b = limiterOver(schema, {
+      rules: [{ provider: 'fake', requestsPerMinute: 4 }],
+      acceptRulesUpdate: true,
+      now: () => at,
+    });
+    expect((await b.reserve(request())).granted).toBe(true);
+    expect((await b.reserve(request())).granted).toBe(true);
+    const fifth = await b.reserve(request());
+    expect(fifth.granted).toBe(false);
+    expect((await b.snapshot())[0]?.requests).toBe(4);
+  });
+
+  it('a booted host is fenced typed after rotation instead of admitting under retired rules', async () => {
+    const schema = freshSchema();
+    const at = QUOTA_WINDOW_MS * 600;
+    const stale = limiterOver(schema, {
+      rules: [{ provider: 'fake', requestsPerMinute: 50 }],
+      now: () => at,
+    });
+    expect((await stale.reserve(request())).granted).toBe(true);
+    const rotator = limiterOver(schema, {
+      rules: [{ provider: 'fake', requestsPerMinute: 2 }],
+      acceptRulesUpdate: true,
+      now: () => at,
+    });
+    // The carry counts the stale host's grant against the new cap.
+    expect((await rotator.reserve(request())).granted).toBe(true);
+    // The stale host's next admission re-reads the schema's identity
+    // INSIDE its transaction and is fenced typed, never silently
+    // admitting under retired bucket keys.
+    const fenced = await stale.reserve(request()).then(
+      () => undefined,
+      (thrown: unknown) => thrown,
+    );
+    expect(fenced).toBeInstanceOf(QuotaGenerationError);
+    expect(String(fenced)).toContain(schema);
+    expect(String(fenced)).toMatch(/generation/);
+    // The fence cleared the boot memo: the NEXT call re-boots and gets
+    // the honest boot-time fingerprint refusal.
+    await expect(stale.reserve(request())).rejects.toThrow(ConfigError);
+    // Reconcile from the fenced host is refused the same way; its
+    // reservation ages out with the window, the documented residue.
+    await expect(
+      stale.reconcile('r-any', {
+        inputTokens: 1,
+        outputTokens: 1,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      }),
+    ).rejects.toThrow(/fingerprint|generation/);
+  });
+
+  it('a held boot lock cannot produce a late rotation commit after the caller was refused', async () => {
+    const schema = freshSchema();
+    const original = [{ provider: 'fake', requestsPerMinute: 5 }];
+    const a = limiterOver(schema, { rules: original });
+    expect((await a.reserve(request())).granted).toBe(true);
+    // A raw client camps on the BOOT lock in an open transaction; the
+    // rotating limiter's bootstrap must be refused within its own
+    // bounds, and releasing the lock afterwards must NOT let an
+    // abandoned bootstrap commit the rotation late.
+    const camper = new pg.Client({ connectionString: url });
+    await camper.connect();
+    await camper.query('BEGIN');
+    await camper.query('SELECT pg_advisory_xact_lock(hashtextextended($1, $2))', [
+      `rulvar-quota-boot:${schema}`,
+      8_214,
+    ]);
+    const changed = [{ provider: 'fake', requestsPerMinute: 9 }];
+    const rotator = limiterOver(schema, {
+      rules: changed,
+      acceptRulesUpdate: true,
+      admissionDeadlineMs: 4_000,
+    });
+    const started = Date.now();
+    await expect(rotator.reserve(request())).rejects.toThrow(
+      /lock timeout|canceling statement|deadline/,
+    );
+    // Bounded by the bootstrap's own lock_timeout, NOT by when the
+    // camper happens to release.
+    expect(Date.now() - started).toBeLessThan(2_600);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await camper.query('ROLLBACK');
+    await camper.end();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const meta = new pg.Client({ connectionString: url });
+    await meta.connect();
+    const recorded = (
+      (
+        await meta.query(
+          `SELECT value FROM "${schema}".rulvar_quota_meta WHERE key = 'rules_fingerprint'`,
+        )
+      ).rows as Array<{ value: string }>
+    )[0]?.value;
+    await meta.end();
+    expect(recorded).toBe(quotaRulesFingerprint(original));
+    // The schema still serves the original set cleanly.
+    expect((await a.reserve(request())).granted).toBe(true);
+  }, 20_000);
+
+  it('caller mutation after construction changes no decision and not the recorded fingerprint', async () => {
+    const schema = freshSchema();
+    const rules: QuotaRule[] = [{ provider: 'fake', requestsPerMinute: 1 }];
+    const at = QUOTA_WINDOW_MS * 700;
+    const limiter = limiterOver(schema, { rules, now: () => at });
+    // Mutate BEFORE the first admission (the fingerprint is recorded at
+    // the lazy boot) and after it: neither may reach a decision or the
+    // recorded identity.
+    rules[0].requestsPerMinute = 100;
+    expect((await limiter.reserve(request())).granted).toBe(true);
+    rules.push({ provider: 'fake', tokensPerMinute: 1 });
+    expect((await limiter.reserve(request())).granted).toBe(false);
+    // A sibling declaring the ORIGINAL set matches the recorded
+    // fingerprint and shares the same exhausted bucket.
+    const sibling = limiterOver(schema, {
+      rules: [{ provider: 'fake', requestsPerMinute: 1 }],
+      now: () => at,
+    });
+    expect((await sibling.reserve(request())).granted).toBe(false);
+  });
+
+  it('permuted identical rule sets yield the byte-identical denial object over one schema', async () => {
+    const schema = freshSchema();
+    const at = QUOTA_WINDOW_MS * 800 + 30_000;
+    const ruleA = { provider: 'fake', requestsPerMinute: 1 };
+    const ruleB = { provider: 'fake', tokensPerMinute: 5 };
+    const one = limiterOver(schema, { rules: [ruleA, ruleB], now: () => at });
+    const two = limiterOver(schema, { rules: [ruleB, ruleA], now: () => at });
+    expect(
+      (await one.reserve(request({ estimate: { requests: 1, inputTokens: 2 } }))).granted,
+    ).toBe(true);
+    const d1 = await one.reserve(request({ estimate: { requests: 1, inputTokens: 10 } }));
+    const d2 = await two.reserve(request({ estimate: { requests: 1, inputTokens: 10 } }));
+    expect(d1).toEqual({
+      granted: false,
+      retryAfterMs: 30_000,
+      reason: 'requestsPerMinute 1 exhausted',
+    });
+    expect(JSON.stringify(d2)).toBe(JSON.stringify(d1));
   });
 });
 

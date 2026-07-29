@@ -21,6 +21,7 @@ import {
   type ModelCaps,
   type ProviderAdapter,
   type QuotaReservationRequest,
+  type QuotaRule,
 } from '@rulvar/core';
 
 import { SqliteQuotaLimiter } from './quota.js';
@@ -181,5 +182,47 @@ describe('two engines over one database file (the RV-215 acceptance, in-process 
     expect(limiterB.snapshot()[0]?.requests).toBe(1);
     limiterA.close();
     limiterB.close();
+  });
+});
+
+describe('immutable rules snapshot and canonical denial order (RV608)', () => {
+  it('caller mutation of the array and the rule objects changes no decision', async () => {
+    const rules: QuotaRule[] = [{ provider: 'fake', requestsPerMinute: 1 }];
+    const at = QUOTA_WINDOW_MS * 21;
+    const limiter = new SqliteQuotaLimiter({ path: freshPath(), rules, now: () => at });
+    rules[0].requestsPerMinute = 100;
+    expect((await limiter.reserve(request())).granted).toBe(true);
+    rules.push({ provider: 'fake', tokensPerMinute: 1 });
+    const second = await limiter.reserve(request());
+    expect(second).toEqual({
+      granted: false,
+      retryAfterMs: QUOTA_WINDOW_MS,
+      reason: 'requestsPerMinute 1 exhausted',
+    });
+    expect(limiter.snapshot()).toHaveLength(1);
+    expect(limiter.snapshot()[0]?.rule).toEqual({ provider: 'fake', requestsPerMinute: 1 });
+    limiter.close();
+  });
+
+  it('permuted identical rule sets yield the byte-identical denial object', async () => {
+    const at = QUOTA_WINDOW_MS * 23 + 30_000;
+    const ruleA: QuotaRule = { provider: 'fake', requestsPerMinute: 1 };
+    const ruleB: QuotaRule = { provider: 'fake', tokensPerMinute: 5 };
+    const denialOver = async (rules: QuotaRule[]): Promise<unknown> => {
+      const limiter = new SqliteQuotaLimiter({ path: freshPath(), rules, now: () => at });
+      const first = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 2 } }));
+      expect(first.granted).toBe(true);
+      const denial = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 10 } }));
+      limiter.close();
+      return denial;
+    };
+    const one = await denialOver([ruleA, ruleB]);
+    const two = await denialOver([ruleB, ruleA]);
+    expect(one).toEqual({
+      granted: false,
+      retryAfterMs: 30_000,
+      reason: 'requestsPerMinute 1 exhausted',
+    });
+    expect(JSON.stringify(two)).toBe(JSON.stringify(one));
   });
 });

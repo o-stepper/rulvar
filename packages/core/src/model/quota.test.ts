@@ -12,8 +12,11 @@ import {
   QUOTA_WINDOW_MS,
   memoryQuotaLimiter,
   quotaRuleAdmission,
+  quotaRuleKey,
+  snapshotQuotaRules,
   validateEngineQuotaConfig,
   validateQuotaRules,
+  type QuotaRule,
 } from './quota.js';
 
 const request = (over: Partial<QuotaReservationRequest> = {}): QuotaReservationRequest => ({
@@ -192,5 +195,77 @@ describe('quotaRuleAdmission', () => {
       retryAfterMs: 1_000,
       reason: 'requestsPerMinute 3 exhausted',
     });
+  });
+});
+
+describe('immutable rules snapshot and canonical denial order (RV608)', () => {
+  it('snapshotQuotaRules validates, copies only the known fields, and freezes both layers', () => {
+    const original = [
+      { provider: 'fake', requestsPerMinute: 2, extra: 'dropped' } as QuotaRule,
+      { tokensPerMinute: 9 },
+    ];
+    const snapshot = snapshotQuotaRules(original, 'test rules');
+    expect(snapshot).not.toBe(original);
+    expect(snapshot[0]).not.toBe(original[0]);
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot[0])).toBe(true);
+    expect(snapshot[0]).toEqual({ provider: 'fake', requestsPerMinute: 2 });
+    expect('extra' in (snapshot[0] as object)).toBe(false);
+    // The caller's own graph stays untouched and unfrozen.
+    expect(Object.isFrozen(original)).toBe(false);
+    expect(Object.isFrozen(original[0])).toBe(false);
+    expect(() => snapshotQuotaRules([], 'test rules')).toThrow(/at least one rule/);
+  });
+
+  it('quotaRuleKey is the canonical fixed-order content key', () => {
+    expect(quotaRuleKey({ requestsPerMinute: 1 })).toBe(
+      '{"provider":null,"model":null,"tenant":null,"requestsPerMinute":1,"tokensPerMinute":null}',
+    );
+    expect(quotaRuleKey({ tokensPerMinute: 5, provider: 'fake' })).toBe(
+      quotaRuleKey({ provider: 'fake', tokensPerMinute: 5 }),
+    );
+  });
+
+  it('caller mutation of the array and the rule objects changes no decision', async () => {
+    const rules: QuotaRule[] = [{ provider: 'fake', requestsPerMinute: 1 }];
+    const at = QUOTA_WINDOW_MS * 7;
+    const limiter = memoryQuotaLimiter(rules, { now: () => at });
+    // Ordinary JavaScript on the caller's graph, BEFORE the first
+    // admission and after one: neither the raised cap nor the appended
+    // broader rule may reach a decision.
+    rules[0].requestsPerMinute = 100;
+    expect((await limiter.reserve(request())).granted).toBe(true);
+    rules.push({ provider: 'fake', tokensPerMinute: 1 });
+    const second = await limiter.reserve(request());
+    expect(second).toEqual({
+      granted: false,
+      retryAfterMs: QUOTA_WINDOW_MS,
+      reason: 'requestsPerMinute 1 exhausted',
+    });
+    // The snapshot also pins what telemetry reports.
+    expect(limiter.snapshot()).toHaveLength(1);
+    expect(limiter.snapshot()[0]?.rule).toEqual({ provider: 'fake', requestsPerMinute: 1 });
+  });
+
+  it('permuted identical rule sets yield the byte-identical denial object', async () => {
+    const at = QUOTA_WINDOW_MS * 3 + 30_000;
+    const ruleA: QuotaRule = { provider: 'fake', requestsPerMinute: 1 };
+    const ruleB: QuotaRule = { provider: 'fake', tokensPerMinute: 5 };
+    const denialOver = async (rules: QuotaRule[]): Promise<unknown> => {
+      const limiter = memoryQuotaLimiter(rules, { now: () => at });
+      const first = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 2 } }));
+      expect(first.granted).toBe(true);
+      return limiter.reserve(request({ estimate: { requests: 1, inputTokens: 10 } }));
+    };
+    const one = await denialOver([ruleA, ruleB]);
+    const two = await denialOver([ruleB, ruleA]);
+    // Both rules deny (the request cap is exhausted, the token estimate
+    // can never fit); the fold must pick the same rule in both orders.
+    expect(one).toEqual({
+      granted: false,
+      retryAfterMs: 30_000,
+      reason: 'requestsPerMinute 1 exhausted',
+    });
+    expect(JSON.stringify(two)).toBe(JSON.stringify(one));
   });
 });
