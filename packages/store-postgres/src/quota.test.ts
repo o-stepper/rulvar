@@ -391,6 +391,11 @@ describeDb('PostgresQuotaLimiter semantics', () => {
 
   it('reordered identical rule sets share one fingerprint and coexist over one schema', async () => {
     const schema = freshSchema();
+    // Frozen mid-window: on the real clock, two reserves landing just
+    // before a minute boundary read back as zero after it rolls (seen
+    // once in CI, run 30458711808), which is window math working, not
+    // coexistence failing. Freezing pins the assertion to one window.
+    const at = QUOTA_WINDOW_MS * 850 + 10_000;
     const one = [
       { provider: 'fake', requestsPerMinute: 30 },
       { provider: 'fake', tokensPerMinute: 5_000 },
@@ -399,8 +404,8 @@ describeDb('PostgresQuotaLimiter semantics', () => {
       { provider: 'fake', tokensPerMinute: 5_000 },
       { provider: 'fake', requestsPerMinute: 30 },
     ];
-    const a = limiterOver(schema, { rules: one });
-    const b = limiterOver(schema, { rules: two });
+    const a = limiterOver(schema, { rules: one, now: () => at });
+    const b = limiterOver(schema, { rules: two, now: () => at });
     expect((await a.reserve(request())).granted).toBe(true);
     expect((await b.reserve(request())).granted).toBe(true);
     // Both instances hit the SAME buckets: rule identity is content.

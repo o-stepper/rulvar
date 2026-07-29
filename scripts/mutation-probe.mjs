@@ -341,6 +341,16 @@ const MUTATIONS = [
     replace: '    .sort(() => 0);',
     test: 'packages/core/src/model/quota.test.ts',
   },
+  {
+    id: 'restored-child-alias',
+    doctrine:
+      'recovered attempts alias by admission identity, not by the strictly monotonic call ordinal that makes the alias unreachable for any rerun (RV609)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '              prior.key === dispatched.key &&\n              !records.has(prior.seq)',
+    replace:
+      '              prior.key === dispatched.key &&\n              prior.ordinal === dispatched.ordinal &&\n              !records.has(prior.seq)',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
