@@ -3318,3 +3318,163 @@ describe('exact fill parity between the projection and the live gate (RV307, jud
     expect(firstResults).toContain('budget');
   });
 });
+
+describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
+  const SECTIONED = '## Findings\nEverything the contract demands.';
+  const SECTIONLESS = 'a schema-valid candidate without the required section';
+  const SYNTHESIZED = '## Findings\nThe synthesis rewrite.';
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const CONTRACT = () => ({
+    validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+    maxRepairs: 3,
+  });
+  /** Coordination draft first, then every synthesis turn serves `final`. */
+  function draftThenSynthesis(draft: string, final: string) {
+    let call = 0;
+    return scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      return call === 1
+        ? { toolCall: { name: 'finish', args: { result: draft } } }
+        : { toolCall: { name: 'finish', args: { result: final } } };
+    });
+  }
+  const skipDecisions = (entries: readonly JournalEntry[]): JournalEntry[] =>
+    entries.filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_skip',
+    );
+
+  it('a draft that passes the full finish contract skips the synthesis span, journaled and announced', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, 'NEVER');
+    const { internals, events } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SECTIONED);
+    // One coordination turn; the synthesis invocation never dispatched.
+    expect(adapter.calls).toHaveLength(1);
+    await internals.replayer.flush();
+    const entries = internals.replayer.snapshot();
+    const skips = skipDecisions(entries);
+    expect(skips).toHaveLength(1);
+    expect(skips[0]?.value).toEqual({
+      decisionType: 'orchestrator_synthesis_skip',
+      reason: 'synthesis_skipped_by_valid_draft',
+      validators: ['required-sections'],
+    });
+    // No synthesis agent entry exists: the span never started.
+    const agentEntries = entries.filter((e) => e.kind === 'agent' && e.status === 'running');
+    expect(agentEntries).toHaveLength(1);
+    const logs = events.ofType('log') as Array<{ msg: string; data?: { reason?: string } }>;
+    const skipLog = logs.find((entry) => entry.msg === 'orchestrator synthesis skipped');
+    expect(skipLog?.data?.reason).toBe('synthesis_skipped_by_valid_draft');
+  });
+
+  it('an invalid draft goes to synthesis exactly as before, with no skip decision', async () => {
+    const adapter = draftThenSynthesis(SECTIONLESS, SYNTHESIZED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SYNTHESIZED);
+    expect(adapter.calls.length).toBeGreaterThan(1);
+    await internals.replayer.flush();
+    expect(skipDecisions(internals.replayer.snapshot())).toHaveLength(0);
+  });
+
+  it('the default is off: a valid draft still pays for synthesis and nothing new journals', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, SYNTHESIZED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 } },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SYNTHESIZED);
+    expect(adapter.calls).toHaveLength(2);
+    await internals.replayer.flush();
+    expect(skipDecisions(internals.replayer.snapshot())).toHaveLength(0);
+  });
+
+  it('with acceptance configured the envelope names the skip beside the draft result', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, 'NEVER');
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      result: unknown;
+      completion: string;
+      synthesisSkipped?: string;
+    };
+    expect(outcome.result).toBe(SECTIONED);
+    expect(outcome.completion).toBe('complete');
+    expect(outcome.synthesisSkipped).toBe('synthesis_skipped_by_valid_draft');
+  });
+
+  it('resume rolls the journaled skip forward with zero adapter calls', async () => {
+    const store = new InMemoryStore();
+    const liveAdapter = draftThenSynthesis(SECTIONED, 'NEVER');
+    const engineA = createEngine({
+      adapters: [liveAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const options = {
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: CONTRACT(),
+    };
+    const first = await engineA.run(makeOrchestratorWorkflow('assess', options), undefined, {
+      runId: 'SKIP-RESUME',
+    }).result;
+    expect(first.status).toBe('ok');
+    expect(first.value).toBe(SECTIONED);
+
+    const replayAdapter = draftThenSynthesis(SECTIONED, 'NEVER');
+    const engineB = createEngine({
+      adapters: [replayAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const resumed = await engineB.resume(
+      'SKIP-RESUME',
+      makeOrchestratorWorkflow('assess', options),
+    ).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe(SECTIONED);
+    expect(replayAdapter.calls).toHaveLength(0);
+    const entries = await store.load('SKIP-RESUME');
+    expect(skipDecisions(entries)).toHaveLength(1);
+  });
+
+  it('rejects skipWhenDraftValid without finishValidation, and non-boolean values, at construction', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { skipWhenDraftValid: true },
+      }),
+    ).toThrow(/skipWhenDraftValid/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { skipWhenDraftValid: 'yes' as never },
+        finishValidation: CONTRACT(),
+      }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { skipWhenDraftValid: true },
+        finishValidation: CONTRACT(),
+      }),
+    ).not.toThrow();
+  });
+});

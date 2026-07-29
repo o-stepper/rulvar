@@ -536,6 +536,32 @@ export interface OrchestrateSynthesis {
    * accordingly).
    */
   context?: 'digests' | 'full';
+  /**
+   * The conditional synthesis gate (RV510, the ninth comparison
+   * experiment: synthesis returned the byte-identical draft after
+   * 101.3 s and 0.5512 USD, 57.3% of post-fan-in wall time). With
+   * `true`, before the 'single' synthesis span starts the coordination
+   * draft is run through the FULL declared finish contract (the same
+   * `finishValidation.validators` that would bind the synthesis
+   * finish): a draft that passes skips the synthesis invocation
+   * entirely under a journaled 'orchestrator_synthesis_skip' decision
+   * with reason 'synthesis_skipped_by_valid_draft' (the existing skip
+   * vocabulary; the info log and the acceptance envelope carry it), and
+   * a resume rolls the journaled skip forward with zero paid calls. A
+   * draft that fails any validator goes to synthesis exactly as before,
+   * with the repair budget untouched (the gate is a pre-pass, never a
+   * journaled validation verdict). Deterministic by construction: only
+   * the declared contract judges, never a semantic delta heuristic.
+   * Requires `finishValidation` (a ConfigError at intake otherwise:
+   * without a contract there is nothing to judge the draft valid by),
+   * which transitively limits it to mode 'single'. With a configured
+   * `budget.synthesisReserveUsd` the held money is released unconsumed
+   * on the skip and no reserve lifecycle journals: there was no
+   * synthesis invocation to account. Default false: the gate, the
+   * decision entry, and the envelope field are all absent, byte for
+   * byte.
+   */
+  skipWhenDraftValid?: boolean;
 }
 
 /**
@@ -574,16 +600,25 @@ export interface IncrementalSynthesisResult {
  * notes were already paid during the run; the skipped step is the free
  * deterministic reconciliation). 'synthesis_skipped_by_budget_cap': the
  * orchestrator budget cap froze the plan, and a capped run settles
- * through the reserved finalizer, never synthesis. The reason is frozen
- * into the journaled decision that caused the skip (the acceptance
- * decision or the budget-cap decision), spread into the typed
- * FailRunError data on the failing paths, and announced by an info
- * 'orchestrator synthesis skipped' log event; it is absent everywhere
- * when synthesis is not configured or actually ran, so existing runs
- * stay byte identical.
+ * through the reserved finalizer, never synthesis.
+ * 'synthesis_skipped_by_valid_draft' (RV510): the opt-in
+ * `synthesis.skipWhenDraftValid` gate ran the coordination draft
+ * through the full declared finish contract and every validator
+ * passed, so the synthesis invocation had nothing to add and never
+ * started; unlike the other two reasons the run still settles ok with
+ * the draft as its result. The reason is frozen into the journaled
+ * decision that caused the skip (the acceptance decision, the
+ * budget-cap decision, or the 'orchestrator_synthesis_skip' decision),
+ * spread into the typed FailRunError data on the failing paths and
+ * into the acceptance envelope on the valid-draft path, and announced
+ * by an info 'orchestrator synthesis skipped' log event; it is absent
+ * everywhere when synthesis is not configured or actually ran, so
+ * existing runs stay byte identical.
  */
 export type OrchestrateSynthesisSkipReason =
-  'synthesis_skipped_by_acceptance' | 'synthesis_skipped_by_budget_cap';
+  | 'synthesis_skipped_by_acceptance'
+  | 'synthesis_skipped_by_budget_cap'
+  | 'synthesis_skipped_by_valid_draft';
 
 export const ORCHESTRATE_WORKFLOW_NAME = 'rulvar-orchestrate';
 
@@ -899,6 +934,21 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         'orchestrate synthesis.exposeChildResultTools must be a boolean; got ' +
           typeof symmetry.exposeChildResultTools,
       );
+    }
+    const conditional = synthesis as { skipWhenDraftValid?: unknown };
+    if (conditional.skipWhenDraftValid !== undefined) {
+      if (typeof conditional.skipWhenDraftValid !== 'boolean') {
+        throw new ConfigError(
+          'orchestrate synthesis.skipWhenDraftValid must be a boolean; got ' +
+            typeof conditional.skipWhenDraftValid,
+        );
+      }
+      if (conditional.skipWhenDraftValid && opts.finishValidation === undefined) {
+        throw new ConfigError(
+          'orchestrate synthesis.skipWhenDraftValid requires finishValidation: without a ' +
+            'declared finish contract there is nothing to judge the draft valid by',
+        );
+      }
     }
     if (
       symmetry.context !== undefined &&
@@ -2693,6 +2743,35 @@ export function makeOrchestratorWorkflow(
           ).length <= 1
       );
     };
+    /**
+     * The children snapshot (RV-202): spawn order, pure reads of the
+     * records the orchestrator already tracks, so validators can hold
+     * a finish result (or the RV510 draft pre-pass) against the
+     * evidence the children produced. Only the JOURNALED verdict of
+     * validateFinish survives; on replay the snapshot is never rebuilt
+     * because the entry is read by call id there.
+     */
+    const validationChildren = (): FinishValidationInput['children'] => {
+      const salvageOutputOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
+      return [...records.values()]
+        .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
+        .map((record) => ({
+          handle: record.handle,
+          nodeId: record.nodeId,
+          status: record.settled?.status ?? 'running',
+          text: record.settled === undefined ? '' : serializeChildOutput(record.settled),
+          // The salvage marker (P0.4): set only under the acceptance
+          // option, for a limit child whose terminal output acceptance
+          // WILL count as a success, so evidencePreservedValidator
+          // includes its text in the cited pool.
+          ...(salvageOutputOn &&
+          record.settled?.status === 'limit' &&
+          record.settled.output !== null &&
+          record.settled.output !== undefined
+            ? { salvageableOutput: true }
+            : {}),
+        }));
+    };
     const validateFinish = async (call: {
       id: string;
       result: unknown;
@@ -2705,34 +2784,10 @@ export function makeOrchestratorWorkflow(
       let decision = known.find((candidate) => candidate.callId === call.id);
       if (decision === undefined) {
         const result = (call.result ?? null) as Json | null;
-        // The children snapshot (RV-202): spawn order, pure reads of the
-        // records the orchestrator already tracks, so validators can hold
-        // the finish result against the evidence the children produced.
-        // Only the JOURNALED verdict survives; on replay the snapshot is
-        // never rebuilt because the entry is read by call id above.
-        const salvageOutputOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
-        const children = [...records.values()]
-          .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
-          .map((record) => ({
-            handle: record.handle,
-            nodeId: record.nodeId,
-            status: record.settled?.status ?? 'running',
-            text: record.settled === undefined ? '' : serializeChildOutput(record.settled),
-            // The salvage marker (P0.4): set only under the acceptance
-            // option, for a limit child whose terminal output acceptance
-            // WILL count as a success, so evidencePreservedValidator
-            // includes its text in the cited pool.
-            ...(salvageOutputOn &&
-            record.settled?.status === 'limit' &&
-            record.settled.output !== null &&
-            record.settled.output !== undefined
-              ? { salvageableOutput: true }
-              : {}),
-          }));
         const input: FinishValidationInput = {
           result,
           text: typeof result === 'string' ? result : JSON.stringify(result),
-          children,
+          children: validationChildren(),
         };
         const failed: { name: string; reasons: string[] }[] = [];
         for (const validator of validationSpec.validators) {
@@ -3359,6 +3414,12 @@ export function makeOrchestratorWorkflow(
           consumedUsd?: number;
         }
       | undefined;
+    /**
+     * Set exactly when the RV510 gate skipped the synthesis span (live
+     * pass and resume roll-forward alike); the acceptance envelope
+     * reports the machine reason through it.
+     */
+    let synthesisSkippedByValidDraft = false;
 
     const runSynthesis = async (draft: unknown): Promise<unknown> => {
       const spec = opts?.synthesis;
@@ -3374,6 +3435,92 @@ export function makeOrchestratorWorkflow(
         // The final step of incremental synthesis is deterministic:
         // no model call composes the final result.
         return await reconcileIncremental(draft, spec);
+      }
+      if (spec.skipWhenDraftValid === true && validationSpec !== undefined) {
+        // The conditional synthesis gate (RV510): the draft is judged by
+        // the FULL declared finish contract before the span starts. The
+        // journaled skip is the authority on resume (the acceptance and
+        // cap precedents); a failed pre-pass journals nothing (a pure
+        // function of the draft re-derives identically) and spends no
+        // repair budget.
+        const skipKey = 'synthesis-draft-valid-skip';
+        const announceSkip = (entryRef: number): void => {
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'info',
+              msg: 'orchestrator synthesis skipped',
+              data: {
+                reason: 'synthesis_skipped_by_valid_draft' satisfies OrchestrateSynthesisSkipReason,
+                skipDecisionRef: entryRef,
+              },
+            },
+            callingState.spanId,
+          );
+        };
+        const prior = internals.replayer
+          .snapshot()
+          .find(
+            (entry) =>
+              entry.kind === 'decision' &&
+              entry.scope === callingState.scope &&
+              entry.key === skipKey,
+          );
+        if (prior !== undefined) {
+          synthesisSkippedByValidDraft = true;
+          announceSkip(prior.seq);
+          return draft;
+        }
+        const draftValue = (draft ?? null) as Json | null;
+        const input: FinishValidationInput = {
+          result: draftValue,
+          text: typeof draftValue === 'string' ? draftValue : JSON.stringify(draftValue),
+          children: validationChildren(),
+        };
+        let allPassed = true;
+        for (const validator of validationSpec.validators) {
+          let verdict: FinishValidationVerdict;
+          try {
+            verdict = validator.validate(input);
+          } catch (thrown) {
+            throw new ConfigError(
+              `finish validator '${validator.name}' threw instead of returning a verdict ` +
+                'during the skipWhenDraftValid pre-pass: ' +
+                (thrown instanceof Error ? thrown.message : String(thrown)),
+            );
+          }
+          if (!verdict.ok) {
+            allPassed = false;
+            break;
+          }
+        }
+        if (allPassed) {
+          const skipEntry = await internals.replayer.appendSinglePhase({
+            scope: callingState.scope,
+            key: skipKey,
+            kind: 'decision',
+            status: 'ok',
+            spanId: internals.spans.mint(callingState.spanId),
+            site: 'orchestrator-synthesis-skip',
+            value: {
+              decisionType: 'orchestrator_synthesis_skip',
+              reason: 'synthesis_skipped_by_valid_draft',
+              validators: validationSpec.validators.map((validator) => validator.name),
+            },
+          });
+          if (
+            orchestratorAccount !== undefined &&
+            (opts?.budget?.synthesisReserveUsd ?? 0) > 0
+          ) {
+            // A held reserve is released unconsumed: there is no
+            // synthesis invocation to fund, and no lifecycle decision
+            // journals because there is no invocation to account.
+            internals.budget.releaseSynthesisReserve(orchestratorAccount);
+          }
+          synthesisSkippedByValidDraft = true;
+          announceSkip(skipEntry.seq);
+          return draft;
+        }
       }
       // The evidence symmetry options (the v1.74 experiment review,
       // P0.2): both default off, and the synthesis toolset and prompt
@@ -4119,6 +4266,11 @@ export function makeOrchestratorWorkflow(
       ...(synthesisReserveLifecycle === undefined
         ? {}
         : { synthesisReserve: synthesisReserveLifecycle }),
+      // The conditional-synthesis skip (RV510): absent unless the gate
+      // fired, so every pre-existing envelope stays byte identical.
+      ...(synthesisSkippedByValidDraft
+        ? { synthesisSkipped: 'synthesis_skipped_by_valid_draft' as const }
+        : {}),
     };
   });
 }
