@@ -730,7 +730,7 @@ export async function verifySoakHistory(
     }
   }
 
-  // Epochs are granted exactly once, and each writer's grants increase.
+  // Epochs are granted once each, and each writer's grants increase.
   const grantee = new Map<number, number>();
   const lastGrant = new Map<number, number>();
   for (const event of events) {

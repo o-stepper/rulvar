@@ -67,7 +67,7 @@ Without `stores.journal`, the engine uses `InMemoryStore`: fine for tests, but n
 
 Three rules define how a workflow body executes:
 
-1. **Single pass.** The body runs exactly once, top to bottom, per process attempt. On resume after a crash, an edit, or a suspension, the body re-executes from the top, and every `ctx` call is matched against the journal by scope path and content key (scoped forward-matching). Completed entries replay; only genuinely new work runs live. There is no per-step re-entry of the body, so a long run never degrades into quadratic re-execution.
+1. **Single pass.** The body runs once, top to bottom, per process attempt. On resume after a crash, an edit, or a suspension, the body re-executes from the top, and every `ctx` call is matched against the journal by scope path and content key (scoped forward-matching). Completed entries replay; only genuinely new work runs live. There is no per-step re-entry of the body, so a long run never degrades into quadratic re-execution.
 2. **No module state.** A workflow module must not hold state that influences execution. Everything the run needs arrives through `args` and `ctx`; everything it produces leaves through the return value and journaled effects.
 3. **Closures stay in process.** A `Workflow` value from `defineWorkflow` runs on the in-process runner. Machine-generated scripts are a separate, source-backed `CompiledWorkflow` type that only the worker sandbox will execute; the type split makes feeding a closure to the sandbox impossible at compile time. See [Planner](/guide/planner).
 
@@ -188,7 +188,7 @@ const summaries = await ctx.pipeline(
 
 ### Journaling host work with ctx.step
 
-`ctx.step` records an arbitrary host computation as a journal entry, so it runs live exactly once and replays afterward. Use it for anything effectful or non-deterministic that is not a model call: file reads, database queries, parsing that must stay byte-stable.
+`ctx.step` records an arbitrary host computation as a journal entry, so a completed step replays from its payload and is never re-paid. The execution itself is at-least-once, like every dispatched kind: a crash between the step's effect and its journal append re-runs the body on resume (the same window [SECURITY.md](https://github.com/o-stepper/rulvar/blob/main/SECURITY.md) documents for tools), so a step with an external effect should be idempotent. Use it for anything effectful or non-deterministic that is not a model call: file reads, database queries, parsing that must stay byte-stable.
 
 ```ts
 const stats = await ctx.step(

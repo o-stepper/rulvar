@@ -2762,7 +2762,7 @@ interface RefEntryAppender {
 /**
 * Per-run, per-target FIFO serializer of resolution/abandon attempts:
 * classification against the in-memory fold ->
-* durable append -> settle exactly once; losing attempts are ALSO
+* durable append -> a single settle; losing attempts are ALSO
 * appended and become journaled noops by fold classification. Winner
 * effects run strictly after the critical section (the caller's job).
 * Cross-process protection remains the LeasableStore fencing epoch.
@@ -2959,7 +2959,7 @@ declare class Replayer {
   /** Suspended kinds (external, approval): appended once, closed by ref-entries (M2). */
   appendSuspended(input: SuspendedAppend): Promise<JournalEntry>;
   /**
-  * The budget ledger fold: usage sums over terminal entries exactly once; agentsSpawned
+  * The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
   * counts agent dispatches.
   */
   ledger(): Ledger;
@@ -6697,7 +6697,7 @@ declare function stripFencedBlocks(text: string): string;
 * heading nor trip exclusivity. Heading lines compare trimmed, whole
 * line. With `ordered` (default true) the declared headings must
 * appear in declaration order; with `exclusive` (default true) each
-* declared heading must appear exactly once and no undeclared heading
+* declared heading must appear once, unrepeated, and no undeclared heading
 * of the governed level may exist (other levels stay free). Default
 * name 'heading-structure'.
 */

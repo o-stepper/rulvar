@@ -129,7 +129,7 @@ Every entry carries an integer `hashVersion` that versions the whole identity an
 
 Tool calls inside an agent's loop are not individual journal entries: they live in the transcript, and the runtime writes a checkpoint at every turn boundary, so an approval or a crash continues the loop from the same turn without re-invoking tools. Between a tool's execution and the checkpoint write, tools are at-least-once; prefer idempotent tools. See [Tools](/guide/tools) and [Durability](/guide/durability).
 
-Decision entries have a request/value split: only the proposed request is hashed, while everything the engine computed (minted ids, admission verdicts, budget reserves) is stored in the value part and read back on replay, never recomputed. A decision is made exactly once.
+Decision entries have a request/value split: only the proposed request is hashed, while everything the engine computed (minted ids, admission verdicts, budget reserves) is stored in the value part and read back on replay, never recomputed. A decision is made once and read back thereafter.
 
 All journaled values must be JSON-serializable; a violation throws a typed `NonSerializableValueError` at the call site without journaling anything. Large artifacts belong in the transcript store by reference; a value over the soft threshold (256 KiB) produces a warning event, never an error.
 
@@ -217,7 +217,7 @@ console.log(preview.hits, preview.misses, preview.reruns, preview.orphaned);
 
 Dispatched kinds (`agent`, `step`, `child`) are two-phase: a `running` entry is appended at dispatch, and a terminal entry (`ok`, `error`, `limit`, `cancelled`, `escalated`) is appended at completion, referencing the running entry by sequence number. This split defines the crash semantics precisely:
 
-* Crash after the terminal entry: the work is complete and paid; resume replays it. Reuse of a completed entry is exactly-once.
+* Crash after the terminal entry: the work is complete and paid; resume replays it and never re-pays it.
 * Crash between the two: the `running` entry is left hanging. Resume re-dispatches the operation live (dispatch is at-least-once) and counts it under `reruns` in the resume report; `orphaned` stays reserved for deleted calls, entries never consumed by any live call.
 
 For agents, re-dispatch is cheaper than it sounds: the runtime checkpoints the transcript at every turn boundary, so a re-dispatched agent continues from its last completed turn instead of turn zero. The repaid window is bounded by one turn.
@@ -241,7 +241,7 @@ const outcome = await handle.resolveExternal('legal-signoff', { approved: true }
 // outcome.applied is false when an earlier attempt already closed the suspension
 ```
 
-Because every attempt is appended, even losing ones, races resolve by construction: the **first-closing-wins fold** picks the first valid closing entry in journal order; later attempts are classified as no-ops by the fold, never stored as such, and the waiting promise settles exactly once. A deadline timer firing in the same instant as an operator's answer is just two appended attempts; the journal order decides, identically on every replay. Escalation suspensions carry a journaled `deadlineAt`, so their deadlines survive resume deterministically; tool approvals and `awaitExternal` have no deadline in v1 and wait until resolved.
+Because every attempt is appended, even losing ones, races resolve by construction: the **first-closing-wins fold** picks the first valid closing entry in journal order; later attempts are classified as no-ops by the fold, never stored as such, and the waiting promise settles a single time. A deadline timer firing in the same instant as an operator's answer is just two appended attempts; the journal order decides, identically on every replay. Escalation suspensions carry a journaled `deadlineAt`, so their deadlines survive resume deterministically; tool approvals and `awaitExternal` have no deadline in v1 and wait until resolved.
 
 `abandon` is the journaled decision to stop pursuing a subtree. It covers its target and, transitively, every entry under the target's scope. Covered entries get the derived `skipped` status: they are not re-dispatched at resume, contribute zero spend, and the caller sees status `skipped`. The `skipped` status is never persisted; it is always derived by the fold, and the underlying payloads stay addressable so completed work inside an abandoned branch can later be reused by reference. See [Adaptive orchestration](/guide/adaptive-orchestration) for how plan revisions compile into abandons and reuse.
 

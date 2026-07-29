@@ -65,8 +65,8 @@ Canonical messages are `Msg` values: a role plus an ordered list of `Part`s (tex
 ```mermaid
 flowchart TD
   O[stream opens] --> D[deltas: text, reasoning, tool calls, usage]
-  D --> F[finish, exactly once]
-  D --> E[error, exactly once]
+  D --> F[finish, the single terminal]
+  D --> E[error, the single terminal]
   D --> A[signal aborted: return with no terminal event]
 ```
 

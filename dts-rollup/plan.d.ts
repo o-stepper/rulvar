@@ -1286,7 +1286,7 @@ declare function runRewordedLessonsCollide(): Promise<JournalEntry[]>;
 * oscillation-bounded (DEF-2): an escalated branch is cancelled and
 * re-added byte-identically twice; every plan_revise call debits one
 * revisionUnit (including the drop on the linked done node), each link
-* debits one spawnUnit, the worker is paid exactly once, and the
+* debits one spawnUnit, the worker is paid once and only once, and the
 * lineage counters never reset.
 */
 declare function runOscillationBounded(): Promise<JournalEntry[]>;
@@ -1320,7 +1320,7 @@ declare function runOscillationFullReuse(): Promise<JournalEntry[]>;
 * mid-top-rung after two completed rung attempts; the byte-identical
 * re-add grafts (exclusive link), the completed rung attempts
 * forward-match through the scope alias, and only the interrupted rung
-* reruns live, exactly once.
+* reruns live, a single time.
 */
 declare function runGraftPartialSubtree(): Promise<JournalEntry[]>;
 /**
@@ -1366,7 +1366,7 @@ declare function runReviseRacingDefaultDecision(): Promise<JournalEntry[]>;
 * crash-after-append-before-effects (DEF-8): the kill lands immediately
 * after the durable plan.revision carrying add_task x2 plus cancel_task
 * on a running node; the resume re-issues the effects: both children
-* spawn live exactly once and the cancel lands.
+* spawn live once, never twice, and the cancel lands.
 */
 declare function runCrashAfterAppendBeforeEffects(): Promise<JournalEntry[]>;
 /**

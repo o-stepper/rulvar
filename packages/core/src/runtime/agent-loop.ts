@@ -1791,7 +1791,7 @@ export async function runAgent<S extends SchemaSpec>(
    * Gates and executes one turn's tool calls in source order. priorParts
    * carries results already executed before a mid-turn suspension; the
    * pending state checkpointed at an ask verdict stores RAW model args so
-   * a resume re-runs the chain (hooks apply exactly once) and re-matches
+   * a resume re-runs the chain (hooks apply once) and re-matches
    * the same approval identity.
    */
   const runToolCalls = async (

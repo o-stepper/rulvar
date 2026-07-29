@@ -604,7 +604,7 @@ export function foldTermination(entries: readonly JournalEntry[]):
     }
     if (entry.kind === 'resolution' && entry.ref !== undefined) {
       // A timeout defaultDecision is a resolution with by 'timeout' and
-      // debits the affected lineage exactly once under first-closing-wins;
+      // debits the affected lineage once under first-closing-wins;
       // class_decision resolutions never debit
       // here, their class decision carries the array (XF-06).
       if (closedTargets.has(entry.ref)) {

@@ -210,7 +210,7 @@ const MAX_LISTED_EXTRA_HEADINGS = 5;
  * heading nor trip exclusivity. Heading lines compare trimmed, whole
  * line. With `ordered` (default true) the declared headings must
  * appear in declaration order; with `exclusive` (default true) each
- * declared heading must appear exactly once and no undeclared heading
+ * declared heading must appear once, unrepeated, and no undeclared heading
  * of the governed level may exist (other levels stay free). Default
  * name 'heading-structure'.
  */

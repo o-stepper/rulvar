@@ -15,7 +15,7 @@ Defined in: [packages/plan/src/m9-cassettes.ts:2167](https://github.com/o-steppe
 crash-after-append-before-effects (DEF-8): the kill lands immediately
 after the durable plan.revision carrying add_task x2 plus cancel_task
 on a running node; the resume re-issues the effects: both children
-spawn live exactly once and the cancel lands.
+spawn live once, never twice, and the cancel lands.
 
 ## Returns
 

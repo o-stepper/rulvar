@@ -16,7 +16,7 @@ graft-partial-subtree (DEF-5): the three-rung limit ladder is severed
 mid-top-rung after two completed rung attempts; the byte-identical
 re-add grafts (exclusive link), the completed rung attempts
 forward-match through the scope alias, and only the interrupted rung
-reruns live, exactly once.
+reruns live, a single time.
 
 ## Returns
 

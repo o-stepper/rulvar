@@ -557,7 +557,7 @@ async function recordClassDecisionFanout(): Promise<JournalEntry[]> {
  * DEF-4 abandon-then-crash-then-resume, LIVE form: the paid branch is
  * abandoned offline (decision plus abandon through the kernel writer),
  * the crash cut drops the effects, and the resume derives skipped for
- * the branch while paying the revision effects exactly once.
+ * the branch while paying the revision effects once, never twice.
  */
 async function recordAbandonThenCrashThenResume(): Promise<JournalEntry[]> {
   const store = new InMemoryStore();

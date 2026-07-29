@@ -187,7 +187,7 @@ interface TrackedRun {
   /** Oldest events dropped from the buffer by the configured bound. */
   dropped: number;
   /**
-   * Live SSE feeds; fed `null` exactly once at the terminal settle,
+   * Live SSE feeds; fed `null` once at the terminal settle,
    * AFTER the segment's event pump drained (an optional note becomes a
    * closing SSE comment when delivery could not be proven complete).
    */

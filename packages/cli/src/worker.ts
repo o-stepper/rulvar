@@ -30,10 +30,13 @@
  * Appendix A (committed at M8 entry): concurrency defaults to 1 (one
  * leased run per worker process; hosts scale out by adding workers,
  * which the fencing epoch makes safe by construction); the renew
- * cadence is ttl/3 with the reference ttl of 60000 ms. There is no
- * distributed cross-process rate limiter in v1 (EXC-14; OQ-17):
- * divide provider quota per worker or front an external
- * gateway.
+ * cadence is ttl/3 with the reference ttl of 60000 ms. Shared provider
+ * quota coordination ships as QuotaLimiter references (RV508 header
+ * refresh; EXC-14 and OQ-17 are closed): SqliteQuotaLimiter
+ * (@rulvar/store-sqlite) coordinates PROCESSES over one database file,
+ * PostgresQuotaLimiter (@rulvar/store-postgres) coordinates HOSTS over
+ * one database and schema. Dividing quota per worker and fronting an
+ * external gateway remain valid simpler deployments.
  */
 import {
   ConfigError,

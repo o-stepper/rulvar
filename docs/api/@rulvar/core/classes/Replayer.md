@@ -273,7 +273,7 @@ ledger(): Ledger;
 
 Defined in: [packages/core/src/journal/replayer.ts:540](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L540)
 
-The budget ledger fold: usage sums over terminal entries exactly once; agentsSpawned
+The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
 counts agent dispatches.
 
 #### Returns
