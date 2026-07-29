@@ -1833,7 +1833,7 @@ export async function runAgent<S extends SchemaSpec>(
         usageViolations(slice.usage).length === 0 ? slice.usage : sanitizeUsage(slice.usage);
       addPhaseUsage(slice.role ?? primaryRole, slice.servedBy, sliceUsage);
       options.budget?.onUsage(sliceUsage, slice.servedBy);
-      const key = `${slice.role ?? primaryRole} ${slice.servedBy}`;
+      const key = `${slice.role ?? primaryRole} ${slice.servedBy}`;
       restoredSliceSums.set(key, addUsage(restoredSliceSums.get(key) ?? ZERO_USAGE, sliceUsage));
     }
     // The reconciliation ledger restores like the slices (a persisted
@@ -1853,7 +1853,7 @@ export async function runAgent<S extends SchemaSpec>(
       // The restored money twin (RV702): each restored call priced
       // individually, so a covered resume keeps the per-call basis.
       addCallUsd(sane.role ?? primaryRole, sane.servedBy, sane.usage);
-      const key = `${sane.role ?? primaryRole} ${sane.servedBy}`;
+      const key = `${sane.role ?? primaryRole} ${sane.servedBy}`;
       restoredRecordSums.set(key, addUsage(restoredRecordSums.get(key) ?? ZERO_USAGE, sane.usage));
     }
     // Coverage, counter for counter per (role, model) key (RV702): a
