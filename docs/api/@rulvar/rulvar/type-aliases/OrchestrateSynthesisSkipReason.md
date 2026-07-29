@@ -7,7 +7,10 @@
 # Type Alias: OrchestrateSynthesisSkipReason
 
 ```ts
-type OrchestrateSynthesisSkipReason = "synthesis_skipped_by_acceptance" | "synthesis_skipped_by_budget_cap";
+type OrchestrateSynthesisSkipReason = 
+  | "synthesis_skipped_by_acceptance"
+  | "synthesis_skipped_by_budget_cap"
+  | "synthesis_skipped_by_valid_draft";
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -21,10 +24,17 @@ for the post-fan-in composing step (in 'incremental' mode the settled
 notes were already paid during the run; the skipped step is the free
 deterministic reconciliation). 'synthesis_skipped_by_budget_cap': the
 orchestrator budget cap froze the plan, and a capped run settles
-through the reserved finalizer, never synthesis. The reason is frozen
-into the journaled decision that caused the skip (the acceptance
-decision or the budget-cap decision), spread into the typed
-FailRunError data on the failing paths, and announced by an info
-'orchestrator synthesis skipped' log event; it is absent everywhere
-when synthesis is not configured or actually ran, so existing runs
-stay byte identical.
+through the reserved finalizer, never synthesis.
+'synthesis_skipped_by_valid_draft' (RV510): the opt-in
+`synthesis.skipWhenDraftValid` gate ran the coordination draft
+through the full declared finish contract and every validator
+passed, so the synthesis invocation had nothing to add and never
+started; unlike the other two reasons the run still settles ok with
+the draft as its result. The reason is frozen into the journaled
+decision that caused the skip (the acceptance decision, the
+budget-cap decision, or the 'orchestrator_synthesis_skip' decision),
+spread into the typed FailRunError data on the failing paths and
+into the acceptance envelope on the valid-draft path, and announced
+by an info 'orchestrator synthesis skipped' log event; it is absent
+everywhere when synthesis is not configured or actually ran, so
+existing runs stay byte identical.

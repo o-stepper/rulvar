@@ -7909,6 +7909,32 @@ interface OrchestrateSynthesis {
   * accordingly).
   */
   context?: "digests" | "full";
+  /**
+  * The conditional synthesis gate (RV510, the ninth comparison
+  * experiment: synthesis returned the byte-identical draft after
+  * 101.3 s and 0.5512 USD, 57.3% of post-fan-in wall time). With
+  * `true`, before the 'single' synthesis span starts the coordination
+  * draft is run through the FULL declared finish contract (the same
+  * `finishValidation.validators` that would bind the synthesis
+  * finish): a draft that passes skips the synthesis invocation
+  * entirely under a journaled 'orchestrator_synthesis_skip' decision
+  * with reason 'synthesis_skipped_by_valid_draft' (the existing skip
+  * vocabulary; the info log and the acceptance envelope carry it), and
+  * a resume rolls the journaled skip forward with zero paid calls. A
+  * draft that fails any validator goes to synthesis exactly as before,
+  * with the repair budget untouched (the gate is a pre-pass, never a
+  * journaled validation verdict). Deterministic by construction: only
+  * the declared contract judges, never a semantic delta heuristic.
+  * Requires `finishValidation` (a ConfigError at intake otherwise:
+  * without a contract there is nothing to judge the draft valid by),
+  * which transitively limits it to mode 'single'. With a configured
+  * `budget.synthesisReserveUsd` the held money is released unconsumed
+  * on the skip and no reserve lifecycle journals: there was no
+  * synthesis invocation to account. Default false: the gate, the
+  * decision entry, and the envelope field are all absent, byte for
+  * byte.
+  */
+  skipWhenDraftValid?: boolean;
 }
 /**
 * The deterministic reconciliation envelope an 'incremental' synthesis
@@ -7943,15 +7969,22 @@ interface IncrementalSynthesisResult {
 * notes were already paid during the run; the skipped step is the free
 * deterministic reconciliation). 'synthesis_skipped_by_budget_cap': the
 * orchestrator budget cap froze the plan, and a capped run settles
-* through the reserved finalizer, never synthesis. The reason is frozen
-* into the journaled decision that caused the skip (the acceptance
-* decision or the budget-cap decision), spread into the typed
-* FailRunError data on the failing paths, and announced by an info
-* 'orchestrator synthesis skipped' log event; it is absent everywhere
-* when synthesis is not configured or actually ran, so existing runs
-* stay byte identical.
+* through the reserved finalizer, never synthesis.
+* 'synthesis_skipped_by_valid_draft' (RV510): the opt-in
+* `synthesis.skipWhenDraftValid` gate ran the coordination draft
+* through the full declared finish contract and every validator
+* passed, so the synthesis invocation had nothing to add and never
+* started; unlike the other two reasons the run still settles ok with
+* the draft as its result. The reason is frozen into the journaled
+* decision that caused the skip (the acceptance decision, the
+* budget-cap decision, or the 'orchestrator_synthesis_skip' decision),
+* spread into the typed FailRunError data on the failing paths and
+* into the acceptance envelope on the valid-draft path, and announced
+* by an info 'orchestrator synthesis skipped' log event; it is absent
+* everywhere when synthesis is not configured or actually ran, so
+* existing runs stay byte identical.
 */
-type OrchestrateSynthesisSkipReason = "synthesis_skipped_by_acceptance" | "synthesis_skipped_by_budget_cap";
+type OrchestrateSynthesisSkipReason = "synthesis_skipped_by_acceptance" | "synthesis_skipped_by_budget_cap" | "synthesis_skipped_by_valid_draft";
 declare const ORCHESTRATE_WORKFLOW_NAME = "rulvar-orchestrate";
 /**
 * Resolves per-spawn dispatch options against the engine registries

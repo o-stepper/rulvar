@@ -3447,10 +3447,8 @@ describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
       stores: { journal: store },
       defaults: DEFAULTS,
     });
-    const resumed = await engineB.resume(
-      'SKIP-RESUME',
-      makeOrchestratorWorkflow('assess', options),
-    ).result;
+    const resumed = await engineB.resume('SKIP-RESUME', makeOrchestratorWorkflow('assess', options))
+      .result;
     expect(resumed.status).toBe('ok');
     expect(resumed.value).toBe(SECTIONED);
     expect(replayAdapter.calls).toHaveLength(0);

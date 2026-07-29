@@ -3508,10 +3508,7 @@ export function makeOrchestratorWorkflow(
               validators: validationSpec.validators.map((validator) => validator.name),
             },
           });
-          if (
-            orchestratorAccount !== undefined &&
-            (opts?.budget?.synthesisReserveUsd ?? 0) > 0
-          ) {
+          if (orchestratorAccount !== undefined && (opts?.budget?.synthesisReserveUsd ?? 0) > 0) {
             // A held reserve is released unconsumed: there is no
             // synthesis invocation to fund, and no lifecycle decision
             // journals because there is no invocation to account.
