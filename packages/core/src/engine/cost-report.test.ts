@@ -8,8 +8,11 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { JsonlFileStore } from '../stores/jsonl.js';
+import { InMemoryStore } from '../stores/inmemory.js';
+import { tool } from '../tools/tool.js';
 import { Replayer } from '../journal/replayer.js';
 import { parseModelRef } from '../model/router.js';
 import { defineWorkflow } from './ctx.js';
@@ -652,5 +655,203 @@ describe('the per-call additive fold (RV504, the ninth-experiment accounting P1)
     const entry = entryOf(1, { usage: usageOf(600, 40) });
     const report = costReportFromJournal([entry], tiered);
     expect(report.totalUsd).toBe((600 * 30 + 40 * 60) / 1e6);
+  });
+});
+
+describe('the symmetric coverage key (RV604, the round-52 accounting P1)', () => {
+  const usageOf = (inputTokens: number, outputTokens: number): Usage => ({
+    inputTokens,
+    outputTokens,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  });
+  const call = (
+    ordinal: number,
+    usage: Usage,
+    overrides: Partial<ProviderCallRecord> = {},
+  ): ProviderCallRecord => ({
+    ordinal,
+    role: 'loop',
+    servedBy: 'fake:model',
+    attempt: 1,
+    outcome: 'ok',
+    usage,
+    ...overrides,
+  });
+  const entryOf = (seq: number, overrides: Partial<JournalEntry>): JournalEntry => ({
+    hashVersion: 2,
+    spanId: 's0',
+    startedAt: '2026-07-29T00:00:00.000Z',
+    seq,
+    scope: '',
+    key: `agent:${String(seq)}`,
+    ordinal: 0,
+    kind: 'agent',
+    status: 'ok',
+    servedBy: 'fake:model',
+    ...overrides,
+  });
+  const tiered = (ref: ModelRef, usage: Usage): number | undefined => {
+    if (!ref.startsWith('fake:') && !ref.startsWith('other:')) return undefined;
+    const long = usage.inputTokens > 500;
+    return (usage.inputTokens * (long ? 30 : 10) + usage.outputTokens * (long ? 60 : 30)) / 1e6;
+  };
+
+  it('several roles on ONE model still price per provider call: the default schema configuration', () => {
+    // The audit reproduction: two loop calls of 300 and one extract call
+    // of 100, all on the same model, so the per-role slices are
+    // (loop, 600) and (extract, 100) while the records sum to 700. The
+    // pre-RV604 coverage check compared each per-role SLICE against the
+    // per-model record sum, refused coverage, and the aggregate basis
+    // tiered the 600-token loop slice: 1900 monetary units instead of
+    // the 700 the three requests actually cost.
+    const entry = entryOf(1, {
+      usage: usageOf(700, 0),
+      usageByModel: [
+        { servedBy: 'fake:model', role: 'loop', usage: usageOf(600, 0) },
+        { servedBy: 'fake:model', role: 'extract', usage: usageOf(100, 0) },
+      ],
+      providerCalls: [
+        call(1, usageOf(300, 0)),
+        call(2, usageOf(300, 0)),
+        call(3, usageOf(100, 0), { role: 'extract' }),
+      ],
+    });
+    const report = costReportFromJournal([entry], tiered);
+    expect(report.totalUsd).toBeCloseTo((700 * 10) / 1e6, 15);
+    expect(report.totalUsd).toBeLessThan((600 * 30 + 100 * 10) / 1e6);
+    // byRole is preserved from the records, not lost to the aggregation.
+    expect(report.byRole.loop).toBeCloseTo((600 * 10) / 1e6, 15);
+    expect(report.byRole.extract).toBeCloseTo((100 * 10) / 1e6, 15);
+  });
+
+  it('the same roles on different models keep pricing exactly as before', () => {
+    const entry = entryOf(1, {
+      usage: usageOf(700, 0),
+      usageByModel: [
+        { servedBy: 'fake:model', role: 'loop', usage: usageOf(600, 0) },
+        { servedBy: 'other:model', role: 'extract', usage: usageOf(100, 0) },
+      ],
+      providerCalls: [
+        call(1, usageOf(300, 0)),
+        call(2, usageOf(300, 0)),
+        call(3, usageOf(100, 0), { role: 'extract', servedBy: 'other:model' }),
+      ],
+    });
+    const report = costReportFromJournal([entry], tiered);
+    expect(report.totalUsd).toBeCloseTo((700 * 10) / 1e6, 15);
+    expect(report.byModel['fake:model']).toBeCloseTo((600 * 10) / 1e6, 15);
+    expect(report.byModel['other:model']).toBeCloseTo((100 * 10) / 1e6, 15);
+  });
+
+  it('per-model coverage splits: a covered model prices per call while an uncovered one keeps the aggregate', () => {
+    // Model A's records cover its slices exactly; model B has no records
+    // at all (a partially restored ledger). A's two 300-token requests
+    // price at the base rate; B's 600-token slice keeps the honest
+    // aggregate basis and tiers, because nothing proves its per-request
+    // split.
+    const entry = entryOf(1, {
+      usage: usageOf(1200, 0),
+      usageByModel: [
+        { servedBy: 'fake:model', role: 'loop', usage: usageOf(600, 0) },
+        { servedBy: 'other:model', role: 'finalize', usage: usageOf(600, 0) },
+      ],
+      providerCalls: [call(1, usageOf(300, 0)), call(2, usageOf(300, 0))],
+    });
+    const report = costReportFromJournal([entry], tiered);
+    expect(report.byModel['fake:model']).toBeCloseTo((600 * 10) / 1e6, 15);
+    expect(report.byModel['other:model']).toBeCloseTo((600 * 30) / 1e6, 15);
+    expect(report.totalUsd).toBeCloseTo((600 * 10 + 600 * 30) / 1e6, 15);
+  });
+
+  it('records that undercover their own model keep that model on the aggregate basis', () => {
+    const entry = entryOf(1, {
+      usage: usageOf(600, 40),
+      usageByModel: [{ servedBy: 'fake:model', role: 'loop', usage: usageOf(600, 40) }],
+      providerCalls: [call(1, usageOf(300, 20))],
+    });
+    const report = costReportFromJournal([entry], tiered);
+    expect(report.totalUsd).toBe((600 * 30 + 40 * 60) / 1e6);
+  });
+
+  it('the live ceiling and the settled fold agree on a multi-role single-model run', async () => {
+    // The engine-level coherence obligation (tenth-plan doctrine 2 by
+    // way of RV604): with finalize routed and a schema set, one agent
+    // spans loop, finalize, and extract on the SAME model, which is the
+    // default configuration under a schema. The live ceiling debits
+    // each request's delta at the base rate (no single request crosses
+    // the 500-token tier), so a 0.012 ceiling admits the run; the
+    // settled fold must reach the same dollars instead of re-tiering
+    // the 600-token loop aggregate to 2.5x what the ceiling debited.
+    const tieredTable = {
+      pricingVersion: 'coherence-1',
+      models: {
+        'fake:model': {
+          inputUsdPerMTok: 10,
+          outputUsdPerMTok: 30,
+          tiers: [{ aboveInputTokens: 500, inputMultiplier: 3, outputMultiplier: 2 }],
+        },
+      },
+    };
+    const readTool = tool({
+      name: 'read',
+      description: 'reads a page',
+      parameters: z.strictObject({}),
+      execute: () => Promise.resolve({ page: 1 }),
+    });
+    const adapter = scriptedAdapter((_req, callIndex) => {
+      switch (callIndex) {
+        case 0:
+          return { toolCall: { name: 'read', args: {} }, usage: { inputTokens: 300 } };
+        case 1:
+          return { text: 'done reading', usage: { inputTokens: 300 } };
+        case 2:
+          // finalize (toolChoice 'none' over the transcript)
+          return { text: 'the synthesis', usage: { inputTokens: 50 } };
+        default:
+          // extract (native tier): the schema-conforming JSON text
+          return { text: '{"score":1}', usage: { inputTokens: 100 } };
+      }
+    });
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      pricing: tieredTable,
+      // The default 0.50 USD flat spawn reserve dwarfs this run's cents;
+      // shrink it so the tight ceiling can admit the agent at all.
+      budgetDefaults: { flatReserveUsd: 0.005 },
+      defaults: {
+        routing: { loop: 'fake:model', finalize: 'fake:model', extract: 'fake:model' },
+      },
+    });
+    const coherence = defineWorkflow({ name: 'coherence' }, async (ctx) =>
+      ctx.agent('assess the repo', {
+        schema: z.strictObject({ score: z.number() }),
+        tools: [readTool],
+      }),
+    );
+    const outcome = await engine.run(coherence, undefined, {
+      runId: 'COHERENCE',
+      budgetUsd: 0.012,
+    }).result;
+    // The live ledger admitted every request under the ceiling.
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toEqual({ score: 1 });
+    // The terminal entry really is the audit's shape: three roles, one
+    // model, records covering the slices.
+    const terminal = (await store.load('COHERENCE')).find(
+      (entry) => entry.kind === 'agent' && entry.status === 'ok',
+    );
+    expect(terminal?.usageByModel?.map((slice) => slice.role).sort()).toEqual([
+      'extract',
+      'finalize',
+      'loop',
+    ]);
+    // 750 input and 20 output tokens across four requests, every one
+    // below the tier threshold: the settled total is the base-rate sum
+    // the ceiling debited, and it fits the ceiling the run ran under.
+    expect(outcome.cost.totalUsd).toBeCloseTo((750 * 10 + 20 * 30) / 1e6, 12);
+    expect(outcome.cost.totalUsd).toBeLessThan(0.012);
   });
 });

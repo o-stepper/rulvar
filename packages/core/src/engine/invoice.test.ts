@@ -281,6 +281,120 @@ describe('the honest invoice (P1.2/P1.3/P1.4)', () => {
   });
 });
 
+describe('the per-slice residual (RV605, the round-52 accounting P1)', () => {
+  it("an orphaned model's remainder lands on its OWN row, never on another model's", () => {
+    // The audit construction: records exist only for model A while the
+    // usage split carries a 2000-token slice on model B. The pre-RV605
+    // fold computed one whole-entry remainder, published it under
+    // entry.servedBy (A), and left the (entry, B) allocation pool with
+    // a target and zero rows; the dust pass then dumped B's whole USD
+    // onto the largest A row so the column would sum: 0.02067 on a row
+    // whose own price is 0.002.
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(2300, 0),
+        usageByModel: [
+          { servedBy: 'fake:model', role: 'loop', usage: usageOf(300, 0) },
+          { servedBy: 'exec:model', role: 'extract', usage: usageOf(2000, 0) },
+        ],
+        providerCalls: [
+          record(1, usageOf(100, 0), { responseId: 'resp_A1' }),
+          record(2, usageOf(200, 0), { responseId: 'resp_A2' }),
+        ],
+      }),
+    ];
+    const flat = (ref: ModelRef, usage: Usage): number | undefined =>
+      ref.startsWith('fake:') || ref.startsWith('exec:')
+        ? (usage.inputTokens * 10 + usage.outputTokens * 30) / 1e6
+        : undefined;
+    const invoice = invoiceFromJournal(entries, flat);
+    // Model B's spend is a row of model B, role and model intact.
+    const orphan = invoice.rows.find((row) => row.servedBy === 'exec:model');
+    expect(orphan).toBeDefined();
+    expect(orphan?.reconciliation).toBe('unattributed');
+    expect(orphan?.role).toBe('extract');
+    expect(orphan?.usage).toEqual(usageOf(2000, 0));
+    expect(orphan?.allocatedUsd).toBeCloseTo(0.02, 12);
+    // No A row carries more than A's own dollars.
+    for (const row of invoice.rows.filter((candidate) => candidate.servedBy === 'fake:model')) {
+      expect(row.allocatedUsd).toBeLessThanOrEqual(0.003 + 1e-12);
+    }
+    const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
+    expect(allocated).toBe(invoice.totalUsd);
+  });
+
+  it('per-role slices on one model subtract only their own records', () => {
+    // Loop records cover the loop slice exactly; the extract slice has
+    // no records (its dispatch predates the ledger). The remainder is
+    // exactly the extract slice, under its own role, not the whole
+    // usage minus every record.
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(700, 0),
+        usageByModel: [
+          { servedBy: 'fake:model', role: 'loop', usage: usageOf(600, 0) },
+          { servedBy: 'fake:model', role: 'extract', usage: usageOf(100, 0) },
+        ],
+        providerCalls: [
+          record(1, usageOf(300, 0), { responseId: 'resp_L1' }),
+          record(2, usageOf(300, 0), { responseId: 'resp_L2' }),
+        ],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    const remainders = invoice.rows.filter((row) => row.reconciliation === 'unattributed');
+    expect(remainders).toHaveLength(1);
+    expect(remainders[0]?.role).toBe('extract');
+    expect(remainders[0]?.usage).toEqual(usageOf(100, 0));
+    const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
+    expect(allocated).toBe(invoice.totalUsd);
+  });
+
+  it('a legacy single-model entry keeps its remainder row byte for byte', () => {
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(600, 50),
+        providerCalls: [record(1, usageOf(300, 30), { responseId: 'resp_P' })],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    const remainder = invoice.rows.find((row) => row.reconciliation === 'unattributed');
+    expect(remainder?.servedBy).toBe('fake:model');
+    expect(remainder?.usage).toEqual(usageOf(300, 20));
+    expect(remainder?.ordinal).toBe(2);
+    const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
+    expect(allocated).toBe(invoice.totalUsd);
+  });
+
+  it('a pool with a target and no rows refuses the transfer and reports it explicitly', () => {
+    // A pathological price function prices model B's zero-usage slice
+    // at a flat fee, so the (entry, B) pool has a target no row can
+    // carry. The dust pass must refuse to move those dollars onto
+    // another model's rows; the export names the unallocated share.
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(300, 0),
+        usageByModel: [
+          { servedBy: 'fake:model', role: 'loop', usage: usageOf(300, 0) },
+          { servedBy: 'exec:model', role: 'extract', usage: usageOf(0, 0) },
+        ],
+        providerCalls: [record(1, usageOf(300, 0), { responseId: 'resp_A' })],
+      }),
+    ];
+    const flatFee = (ref: ModelRef, usage: Usage): number | undefined =>
+      ref.startsWith('exec:') ? 5 : (usage.inputTokens * 10 + usage.outputTokens * 30) / 1e6;
+    const invoice = invoiceFromJournal(entries, flatFee);
+    expect(invoice.unallocatedUsd).toBeCloseTo(5, 12);
+    // The A rows keep A's dollars; the flat sum plus the declared
+    // unallocated share reproduces the total.
+    const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
+    expect(allocated).toBeCloseTo(invoice.totalUsd - 5, 12);
+    for (const row of invoice.rows) {
+      expect(row.allocatedUsd).toBeLessThanOrEqual(0.003 + 1e-12);
+    }
+  });
+});
+
 describe('usageUnknown on unconfirmed zero rows (the v1.71 experiment review, P1.4)', () => {
   it('marks only the unconfirmed rows that recorded nothing, and counts them', () => {
     const entry = terminalEntry(9, {

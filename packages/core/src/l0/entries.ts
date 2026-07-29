@@ -258,62 +258,79 @@ const BILLING_FIELDS = [
   'cacheWriteTokens',
 ] as const;
 
-/** Exact per-model coverage: records sum to every slice, counter for counter. */
-function callsCoverSlices(
-  slices: readonly UsageSlice[],
-  records: readonly ProviderCallRecord[],
-): boolean {
-  if (slices.length === 0 || records.length === 0) {
-    return false;
-  }
+/** Per-model billing-counter sums of either side of the coverage test. */
+function sumUsageByModel(
+  items: ReadonlyArray<{ servedBy: ModelRef; usage: Usage }>,
+): Map<ModelRef, { fields: Record<string, number>; reasoning: number }> {
   const sums = new Map<ModelRef, { fields: Record<string, number>; reasoning: number }>();
-  for (const record of records) {
-    let sum = sums.get(record.servedBy);
+  for (const item of items) {
+    let sum = sums.get(item.servedBy);
     if (sum === undefined) {
       sum = {
         fields: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
         reasoning: 0,
       };
-      sums.set(record.servedBy, sum);
+      sums.set(item.servedBy, sum);
     }
     for (const field of BILLING_FIELDS) {
-      sum.fields[field] = (sum.fields[field] ?? 0) + record.usage[field];
+      sum.fields[field] = (sum.fields[field] ?? 0) + item.usage[field];
     }
-    sum.reasoning += record.usage.reasoningTokens ?? 0;
+    sum.reasoning += item.usage.reasoningTokens ?? 0;
   }
-  for (const slice of slices) {
-    const sum = sums.get(slice.servedBy);
-    if (sum === undefined) {
-      return false;
+  return sums;
+}
+
+/**
+ * The models whose records exactly cover their usage, counter for
+ * counter. BOTH sides aggregate by `servedBy` (RV604): the usage slices
+ * split one model's spend by role (a schema fires a same-model extract
+ * by default, so several slices of one model are the ordinary shape),
+ * and comparing a per-role slice against the per-model record sum
+ * refused coverage on exactly that default, re-tiering aggregates no
+ * single request crossed. The symmetric key compares model sum against
+ * model sum, so coverage is per model: a covered model prices per call
+ * while an uncovered one honestly keeps the aggregate basis.
+ */
+function coveredModels(
+  slices: readonly UsageSlice[],
+  records: readonly ProviderCallRecord[],
+): Set<ModelRef> {
+  const covered = new Set<ModelRef>();
+  if (slices.length === 0 || records.length === 0) {
+    return covered;
+  }
+  const recordSums = sumUsageByModel(records);
+  const sliceSums = sumUsageByModel(slices);
+  for (const [model, sliceSum] of sliceSums) {
+    const recordSum = recordSums.get(model);
+    if (recordSum === undefined) {
+      continue;
     }
-    for (const field of BILLING_FIELDS) {
-      if (sum.fields[field] !== slice.usage[field]) {
-        return false;
-      }
-    }
-    if (sum.reasoning !== (slice.usage.reasoningTokens ?? 0)) {
-      return false;
+    const matches =
+      BILLING_FIELDS.every((field) => recordSum.fields[field] === sliceSum.fields[field]) &&
+      recordSum.reasoning === sliceSum.reasoning;
+    if (matches) {
+      covered.add(model);
     }
   }
-  for (const model of sums.keys()) {
-    if (!slices.some((slice) => slice.servedBy === model)) {
-      return false;
-    }
-  }
-  return true;
+  return covered;
 }
 
 /**
  * The billing fold over one terminal entry (RV504), shared by the
  * CostReport and invoice folds so the total, every breakdown, and the
- * per-row prices can never disagree. When the entry's per-dispatch
- * `providerCalls` exactly cover its usage, each call is priced
+ * per-row prices can never disagree. Coverage is decided per MODEL with
+ * the symmetric key (RV604): for every model whose per-dispatch
+ * `providerCalls` sum to exactly its usage, each call is priced
  * individually, so a nonlinear long-context tier fires per REQUEST,
  * which is the pricing contract's stated semantics; an aggregate that
  * crossed a threshold no single request crossed no longer re-prices
- * the whole entry (the ninth-experiment 52% overreport). An entry with
- * no records, or records that do not cover its usage, folds exactly as
- * before: the per-model aggregate slices of {@link priceEntryUsage}.
+ * that model (the ninth-experiment 52% overreport, and the round-52
+ * multi-role default). A model with no records, or records that do not
+ * cover its usage, folds exactly as before: the per-model aggregate
+ * slices of {@link priceEntryUsage}. `fullyAttributed` is true only
+ * when every slice model is covered and no record names a model absent
+ * from the slices.
  */
 export function priceEntryBilling(
   entry: JournalEntry,
@@ -321,25 +338,16 @@ export function priceEntryBilling(
 ): EntryBillingFold {
   const slices = entryUsageSlices(entry);
   const records = entry.providerCalls ?? [];
-  if (!callsCoverSlices(slices, records)) {
-    const aggregate = priceEntryUsage(entry, priceUsd);
-    return {
-      units: aggregate.priced.map((slice) => ({
-        source: 'slice',
-        servedBy: slice.servedBy,
-        usage: slice.usage,
-        ...(slice.role === undefined ? {} : { role: slice.role }),
-        usd: slice.usd,
-      })),
-      usd: aggregate.usd,
-      unpriced: aggregate.unpriced,
-      fullyAttributed: false,
-    };
-  }
+  const covered = coveredModels(slices, records);
   const units: EntryBillingUnit[] = [];
   const unpricedByModel = new Map<ModelRef, Usage>();
   let usd = 0;
+  // Covered models price per record, in dispatch order; the role rides
+  // each record, so byRole attribution survives the aggregation.
   for (const record of records) {
+    if (!covered.has(record.servedBy)) {
+      continue;
+    }
     const price = priceUsd(record.servedBy, record.usage, entry.seq);
     if (price === undefined || !Number.isFinite(price) || price < 0) {
       const sum = unpricedByModel.get(record.servedBy) ?? {
@@ -368,11 +376,47 @@ export function priceEntryBilling(
       usd: price,
     });
   }
+  // Uncovered slices keep the historical aggregate basis, in slice order.
+  for (const slice of slices) {
+    if (covered.has(slice.servedBy)) {
+      continue;
+    }
+    const price = priceUsd(slice.servedBy, slice.usage, entry.seq);
+    if (price === undefined || !Number.isFinite(price) || price < 0) {
+      const sum = unpricedByModel.get(slice.servedBy) ?? {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      };
+      for (const field of BILLING_FIELDS) {
+        sum[field] += slice.usage[field];
+      }
+      const reasoning = (sum.reasoningTokens ?? 0) + (slice.usage.reasoningTokens ?? 0);
+      if (reasoning > 0) {
+        sum.reasoningTokens = reasoning;
+      }
+      unpricedByModel.set(slice.servedBy, sum);
+      continue;
+    }
+    usd += price;
+    units.push({
+      source: 'slice',
+      servedBy: slice.servedBy,
+      usage: slice.usage,
+      ...(slice.role === undefined ? {} : { role: slice.role }),
+      usd: price,
+    });
+  }
+  const fullyAttributed =
+    slices.length > 0 &&
+    slices.every((slice) => covered.has(slice.servedBy)) &&
+    records.every((record) => slices.some((slice) => slice.servedBy === record.servedBy));
   return {
     units,
     usd,
     unpriced: [...unpricedByModel].map(([servedBy, usage]) => ({ servedBy, usage })),
-    fullyAttributed: true,
+    fullyAttributed,
   };
 }
 
