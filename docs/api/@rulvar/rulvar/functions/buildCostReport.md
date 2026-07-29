@@ -18,7 +18,11 @@ Defined in: `packages/core/dist/index.d.ts`
 Folds the per-run attribution buckets into the normative CostReport.
 Live attribution buckets never see abandoned subtrees, so a host
 that tracked abandoned spend itself passes it as `abandoned`;
-omitted, the report shows a gross equal to the net.
+omitted, the report shows a gross equal to the net. Non-finite
+numbers anywhere in the inputs are a typed refusal (RV705): this
+exported builder is the same public surface as
+[costReportFromJournal](/api/@rulvar/rulvar/functions/costReportFromJournal.md) and holds the same RV610 doctrine,
+instead of letting an Infinity or NaN serialize into null downstream.
 
 ## Parameters
 

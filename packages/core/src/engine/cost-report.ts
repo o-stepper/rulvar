@@ -55,7 +55,11 @@ function isOrchestratorAccount(scope: string): boolean {
  * Folds the per-run attribution buckets into the normative CostReport.
  * Live attribution buckets never see abandoned subtrees, so a host
  * that tracked abandoned spend itself passes it as `abandoned`;
- * omitted, the report shows a gross equal to the net.
+ * omitted, the report shows a gross equal to the net. Non-finite
+ * numbers anywhere in the inputs are a typed refusal (RV705): this
+ * exported builder is the same public surface as
+ * {@link costReportFromJournal} and holds the same RV610 doctrine,
+ * instead of letting an Infinity or NaN serialize into null downstream.
  */
 export function buildCostReport(
   attribution: CostAttribution,
@@ -72,7 +76,7 @@ export function buildCostReport(
     forcedFinish: false,
     reserveUsedUsd: 0,
   };
-  return {
+  const report: CostReport = {
     totalUsd,
     grossUsd: totalUsd + abandoned.usd,
     abandoned,
@@ -87,6 +91,11 @@ export function buildCostReport(
     },
     unpriced: attribution.unpriced,
   };
+  // The public boundary (RV610, completed by RV705): the journal fold
+  // refuses non-finite reports, and the live builder a host feeds its
+  // own accumulation must refuse them identically.
+  requireFiniteNumbersDeep(report, 'costReport');
+  return report;
 }
 
 /**

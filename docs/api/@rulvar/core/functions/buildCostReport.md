@@ -13,12 +13,16 @@ function buildCostReport(
    abandoned?): CostReport;
 ```
 
-Defined in: [packages/core/src/engine/cost-report.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L60)
+Defined in: [packages/core/src/engine/cost-report.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L64)
 
 Folds the per-run attribution buckets into the normative CostReport.
 Live attribution buckets never see abandoned subtrees, so a host
 that tracked abandoned spend itself passes it as `abandoned`;
-omitted, the report shows a gross equal to the net.
+omitted, the report shows a gross equal to the net. Non-finite
+numbers anywhere in the inputs are a typed refusal (RV705): this
+exported builder is the same public surface as
+[costReportFromJournal](/api/@rulvar/core/functions/costReportFromJournal.md) and holds the same RV610 doctrine,
+instead of letting an Infinity or NaN serialize into null downstream.
 
 ## Parameters
 

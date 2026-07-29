@@ -5973,7 +5973,11 @@ declare class AdmissionController {
 * Folds the per-run attribution buckets into the normative CostReport.
 * Live attribution buckets never see abandoned subtrees, so a host
 * that tracked abandoned spend itself passes it as `abandoned`;
-* omitted, the report shows a gross equal to the net.
+* omitted, the report shows a gross equal to the net. Non-finite
+* numbers anywhere in the inputs are a typed refusal (RV705): this
+* exported builder is the same public surface as
+* {@link costReportFromJournal} and holds the same RV610 doctrine,
+* instead of letting an Infinity or NaN serialize into null downstream.
 */
 declare function buildCostReport(attribution: CostAttribution, totalUsd: number, abandoned?: CostReport["abandoned"]): CostReport;
 /**
@@ -9430,6 +9434,13 @@ declare class JsonlFileStore implements MetaLookupStore {
   private metaPath;
   append(runId: string, e: JournalEntry): Promise<void>;
   load(runId: string): Promise<JournalEntry[]>;
+  /**
+  * Restores the trailing '\n' of a parseable-but-unterminated tail
+  * (RV701). One byte appended in place terminates the record exactly
+  * where the crash left it; the file's bytes before it stay untouched.
+  * No-op on a missing, empty, or already-terminated journal.
+  */
+  private terminateUnterminatedTail;
   private repairTornTail;
   putMeta(m: RunMeta): Promise<void>;
   getMeta(runId: string): Promise<RunMeta | undefined>;
