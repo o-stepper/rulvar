@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.100.0
+
+### Minor Changes
+
+- 9785bea: Durable parallel of the ToolBudgetSummary (RV509, the ninth-experiment review): an adaptive tool-budget extension grant and the finalization-window entry now journal as decision entries of the existing vocabulary (`tool_budget_extension`, `finalization_window_entry`), bound to the agent dispatch by targetRef the moment each fires. A crash-resume restores the granted cap and the window-entry fact from the journal, so a granted-but-unspent extension is honored instead of silently revoked (the conservative executed-call derivation stays as the floor beneath a lost journal tail) and `finalizationWindowEntered` stays truthful when a later grant moved the counts back out of the window. A replayed result now carries the journal-backed summary subset (`used` from the terminal checkpoint, the granted cap, `extensionsGranted`, `finalizationWindowEntered`) with zero provider calls. Pressure notices stay events, grant-free runs journal nothing new, and their journals and cassettes remain byte-identical.
+
 ## 1.99.1
 
 ### Patch Changes

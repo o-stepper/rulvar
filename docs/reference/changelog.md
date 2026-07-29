@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+
 ### 1.99.1
 
 #### Patch Changes
@@ -1133,6 +1140,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+
 ### 1.99.1
 
 #### Patch Changes
@@ -2103,6 +2117,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
 
 ### 1.99.1
 
@@ -3424,6 +3445,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.100.0
+
+#### Minor Changes
+
+- 9785bea: Durable parallel of the ToolBudgetSummary (RV509, the ninth-experiment review): an adaptive tool-budget extension grant and the finalization-window entry now journal as decision entries of the existing vocabulary (`tool_budget_extension`, `finalization_window_entry`), bound to the agent dispatch by targetRef the moment each fires. A crash-resume restores the granted cap and the window-entry fact from the journal, so a granted-but-unspent extension is honored instead of silently revoked (the conservative executed-call derivation stays as the floor beneath a lost journal tail) and `finalizationWindowEntered` stays truthful when a later grant moved the counts back out of the window. A replayed result now carries the journal-backed summary subset (`used` from the terminal checkpoint, the granted cap, `extensionsGranted`, `finalizationWindowEntered`) with zero provider calls. Pressure notices stay events, grant-free runs journal nothing new, and their journals and cassettes remain byte-identical.
 
 ### 1.99.1
 
@@ -5082,6 +5109,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.100.0
+
 ### 1.99.1
 
 ### 1.99.0
@@ -5384,6 +5413,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+  - @rulvar/testing@1.100.0
 
 ### 1.99.1
 
@@ -6566,6 +6603,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+
 ### 1.99.1
 
 #### Patch Changes
@@ -6929,6 +6973,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
 
 ### 1.99.1
 
@@ -8057,6 +8108,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+
 ### 1.99.1
 
 #### Patch Changes
@@ -9141,6 +9199,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+  - eslint-plugin-rulvar@1.100.0
 
 ### 1.99.1
 
@@ -10287,6 +10353,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+  - @rulvar/anthropic@1.100.0
+  - @rulvar/openai@1.100.0
 
 ### 1.99.1
 
@@ -11615,6 +11690,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+
 ### 1.99.1
 
 #### Patch Changes
@@ -12691,6 +12773,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
+
 ### 1.99.1
 
 #### Patch Changes
@@ -13068,6 +13157,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
 
 ### 1.99.1
 
@@ -14077,6 +14173,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.100.0
+
+#### Patch Changes
+
+- Updated dependencies [9785bea]
+  - @rulvar/core@1.100.0
 
 ### 1.99.1
 
