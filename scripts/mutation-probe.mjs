@@ -322,6 +322,25 @@ const MUTATIONS = [
     replace: '    const entry = parsed as LedgerLine;\n    if (false) {',
     test: 'packages/executor/src/ledger.test.ts',
   },
+  {
+    id: 'quota-rules-snapshot',
+    doctrine:
+      'a limiter admits under the immutable snapshot taken at construction, never the caller’s live rule graph (RV608)',
+    file: 'packages/core/src/model/quota.ts',
+    find: '): readonly QuotaRule[] {\n  validateQuotaRules(rules, site);\n  return Object.freeze(',
+    replace:
+      '): readonly QuotaRule[] {\n  validateQuotaRules(rules, site);\n  if (rules.length > -1) return rules;\n  return Object.freeze(',
+    test: 'packages/core/src/model/quota.test.ts',
+  },
+  {
+    id: 'quota-denial-canonical-order',
+    doctrine:
+      'the denial fold visits matching rules in canonical rule-key order, so permuted identical sets refuse byte-identically (RV608)',
+    file: 'packages/core/src/model/quota.ts',
+    find: '    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));',
+    replace: '    .sort(() => 0);',
+    test: 'packages/core/src/model/quota.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -17,6 +17,8 @@ import type { QuotaDecision, QuotaLimiter, QuotaReservationRequest } from '../l0
 import type { Usage } from '../l0/messages.js';
 import { requirePositiveInteger } from '../l0/validate-numbers.js';
 
+export { MAX_TIMER_DELAY_MS } from '../l0/validate-numbers.js';
+
 /**
  * Captured at module load, before the InProcessRunner's
  * nondeterminism guard can patch the global: the limiter's clock is
@@ -85,6 +87,54 @@ export function validateQuotaRules(rules: readonly QuotaRule[], site = 'quota ru
       }
     }
   });
+}
+
+/**
+ * The canonical content key of one rule (RV608, promoted from the
+ * store limiters): a fixed-field-order JSON of the rule, identical
+ * across processes and hosts for identical rules. It is the bucket key
+ * of both store references, the input of
+ * `quotaRulesFingerprint`, and the CANONICAL ORDER every reference
+ * limiter folds denials in, so equal rule sets produce byte-identical
+ * refusal objects regardless of array permutation.
+ */
+export function quotaRuleKey(rule: QuotaRule): string {
+  return JSON.stringify({
+    provider: rule.provider ?? null,
+    model: rule.model ?? null,
+    tenant: rule.tenant ?? null,
+    requestsPerMinute: rule.requestsPerMinute ?? null,
+    tokensPerMinute: rule.tokensPerMinute ?? null,
+  });
+}
+
+/**
+ * Validates a rule set and returns the immutable snapshot every
+ * reference limiter admits under (RV608): a fresh array of fresh
+ * objects carrying ONLY the known rule fields, each frozen, the array
+ * frozen. The caller's array and objects stay untouched and unshared,
+ * so ordinary JavaScript after the constructor (a pushed rule, a
+ * reassigned cap) can no longer change a decision, a bucket key, or a
+ * recorded fingerprint.
+ */
+export function snapshotQuotaRules(
+  rules: readonly QuotaRule[],
+  site = 'quota rules',
+): readonly QuotaRule[] {
+  validateQuotaRules(rules, site);
+  return Object.freeze(
+    rules.map((rule) =>
+      Object.freeze({
+        ...(rule.provider === undefined ? {} : { provider: rule.provider }),
+        ...(rule.model === undefined ? {} : { model: rule.model }),
+        ...(rule.tenant === undefined ? {} : { tenant: rule.tenant }),
+        ...(rule.requestsPerMinute === undefined
+          ? {}
+          : { requestsPerMinute: rule.requestsPerMinute }),
+        ...(rule.tokensPerMinute === undefined ? {} : { tokensPerMinute: rule.tokensPerMinute }),
+      }),
+    ),
+  );
 }
 
 /** True when every dimension the rule pins matches the request. */
@@ -211,7 +261,17 @@ export function memoryQuotaLimiter(
   rules: readonly QuotaRule[],
   options: { now?: () => number } = {},
 ): MemoryQuotaLimiter {
-  validateQuotaRules(rules, 'memoryQuotaLimiter rules');
+  // The immutable snapshot (RV608): decisions, buckets, and telemetry
+  // read ONLY this copy, so caller mutation after the constructor can
+  // never move a cap or a bucket.
+  const frozen = snapshotQuotaRules(rules, 'memoryQuotaLimiter rules');
+  // The canonical fold order (RV608): matching rules are visited in
+  // rule-key order, so permuted but identical rule sets produce the
+  // byte-identical denial object. Buckets stay index-keyed against the
+  // snapshot; telemetry keeps the declared order.
+  const ordered = frozen
+    .map((rule, index) => ({ rule, index, key: quotaRuleKey(rule) }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const now = options.now ?? ((): number => nativeNow());
   const buckets = new Map<number, MemoryBucket>();
   const reservations = new Map<string, MemoryReservation>();
@@ -243,9 +303,9 @@ export function memoryQuotaLimiter(
       const msUntilWindowEnd = windowStart + QUOTA_WINDOW_MS - at;
       const matched: number[] = [];
       let denial: { retryAfterMs: number; reason: string } | undefined;
-      rules.forEach((rule, index) => {
+      for (const { rule, index } of ordered) {
         if (!quotaRuleMatches(rule, request)) {
-          return;
+          continue;
         }
         matched.push(index);
         const verdict = quotaRuleAdmission(
@@ -257,7 +317,7 @@ export function memoryQuotaLimiter(
         if (!verdict.admit) {
           denial = mergeQuotaDenial(denial, verdict);
         }
-      });
+      }
       if (denial !== undefined) {
         return Promise.resolve({ granted: false, ...denial });
       }
@@ -295,7 +355,7 @@ export function memoryQuotaLimiter(
 
     snapshot(): QuotaWindowSnapshot[] {
       const windowStart = windowStartAt(now());
-      return rules.map((rule, index) => {
+      return frozen.map((rule, index) => {
         const bucket = buckets.get(index);
         const current = bucket !== undefined && bucket.windowStart === windowStart;
         return {

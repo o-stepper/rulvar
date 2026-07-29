@@ -6,7 +6,7 @@
 
 # Class: PostgresQuotaLimiter
 
-Defined in: [packages/store-postgres/src/quota.ts:228](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L228)
+Defined in: [packages/store-postgres/src/quota.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L274)
 
 The multi-host reference implementation of the core QuotaLimiter
 SPI: engine processes pointing instances at ONE database and schema
@@ -46,7 +46,7 @@ they mean. Call `close()` when done.
 new PostgresQuotaLimiter(options): PostgresQuotaLimiter;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:237](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L237)
+Defined in: [packages/store-postgres/src/quota.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L297)
 
 #### Parameters
 
@@ -66,7 +66,7 @@ Defined in: [packages/store-postgres/src/quota.ts:237](https://github.com/o-step
 close(): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:585](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L585)
+Defined in: [packages/store-postgres/src/quota.ts:799](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L799)
 
 #### Returns
 
@@ -80,7 +80,7 @@ Defined in: [packages/store-postgres/src/quota.ts:585](https://github.com/o-step
 reconcile(reservationId, usage): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:519](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L519)
+Defined in: [packages/store-postgres/src/quota.ts:732](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L732)
 
 #### Parameters
 
@@ -105,7 +105,7 @@ Defined in: [packages/store-postgres/src/quota.ts:519](https://github.com/o-step
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:461](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L461)
+Defined in: [packages/store-postgres/src/quota.ts:674](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L674)
 
 #### Parameters
 
@@ -134,7 +134,7 @@ snapshot(): Promise<{
 }[]>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:558](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L558)
+Defined in: [packages/store-postgres/src/quota.ts:772](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L772)
 
 Current-window counters per rule, for telemetry and referees.
 

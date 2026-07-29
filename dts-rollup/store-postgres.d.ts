@@ -147,17 +147,56 @@ declare class QuotaDeadlineError extends Error {
   readonly deadlineMs: number;
   /** The schema whose admission missed it. */
   readonly schema: string;
-  /** Where the path stood: acquiring a connection, or mid-transaction. */
-  readonly phase: "acquire" | "transaction";
-  constructor(deadlineMs: number, schema: string, phase: "acquire" | "transaction");
+  /**
+  * Where the path stood: inside the schema bootstrap transaction,
+  * waiting for a pooled connection, or mid-admission-transaction. The
+  * message narrates only what actually happened to a connection in
+  * that phase (RV608): a refusal while WAITING held nothing, so it
+  * destroyed nothing.
+  */
+  readonly phase: "bootstrap" | "acquire" | "transaction";
+  constructor(deadlineMs: number, schema: string, phase: "bootstrap" | "acquire" | "transaction");
+}
+/**
+* Thrown by an admission whose booted rule identity no longer matches
+* the schema's (RV608): another deployment rotated the recorded rules
+* fingerprint and generation after this host booted, so admitting under
+* the retired rules would silently split the budget across mismatched
+* bucket keys. The refused host must restart with the current rule set;
+* its outstanding reservations age out with their window (the same
+* bounded residue a crashed process leaves), and the rotation carried
+* current-window consumption conservatively. Like every limiter throw,
+* it lands in the engine's `onLimiterError` policy.
+*/
+declare class QuotaGenerationError extends Error {
+  /** The schema whose recorded identity moved. */
+  readonly schema: string;
+  /** What this instance booted with. */
+  readonly booted: {
+    fingerprint: string;
+    generation: number;
+  };
+  /** What the schema records now (absent fields mean a wiped meta row). */
+  readonly recorded: {
+    fingerprint: string | undefined;
+    generation: number | undefined;
+  };
+  constructor(schema: string, booted: {
+    fingerprint: string;
+    generation: number;
+  }, recorded: {
+    fingerprint: string | undefined;
+    generation: number | undefined;
+  });
 }
 /**
 * The canonical fingerprint of one rule SET (RV506): sha256 hex over
-* the sorted canonical rule keys. Order-insensitive on purpose,
-* matching bucket semantics (equal rules land on the same bucket
-* regardless of array position), so reordering a config never reads as
-* a rules change. Exported so a deployment can precompute the value it
-* expects a schema to have recorded.
+* the sorted canonical rule keys (the core's `quotaRuleKey`, the same
+* encoding both store references bucket on). Order-insensitive on
+* purpose, matching bucket semantics (equal rules land on the same
+* bucket regardless of array position), so reordering a config never
+* reads as a rules change. Exported so a deployment can precompute the
+* value it expects a schema to have recorded.
 */
 declare function quotaRulesFingerprint(rules: readonly QuotaRule[]): string;
 interface PostgresQuotaLimiterOptions {
@@ -234,10 +273,24 @@ declare class PostgresQuotaLimiter implements QuotaLimiter {
   private readonly pool;
   private readonly schema;
   private readonly rules;
+  /** Matching order for the denial fold: canonical rule-key order
+  * (RV608), so permuted identical sets produce byte-identical
+  * refusals. Telemetry keeps the declared order. */
+  private readonly ordered;
+  /** Computed ONCE from the immutable snapshot at construction (RV608):
+  * what boot records and every admission re-verifies. */
+  private readonly fingerprint;
+  /** The schema generation this instance booted at; admissions re-read
+  * the schema's and are fenced typed on a mismatch (RV608). */
+  private generation;
   private readonly admissionDeadlineMs;
   private readonly acceptRulesUpdate;
   private readonly now;
   private boot;
+  /** The bootstrap transaction's connection while one is in flight, so
+  * a deadline can destroy it instead of letting an abandoned bootstrap
+  * commit DDL or a rotation late (RV608). */
+  private bootClient;
   constructor(options: PostgresQuotaLimiterOptions);
   /** `"schema".rulvar_<name>`, always schema-qualified. */
   private table;
@@ -268,6 +321,16 @@ declare class PostgresQuotaLimiter implements QuotaLimiter {
   * timeouts).
   */
   private withQuotaLock;
+  /**
+  * The generation fence (RV608), run INSIDE every admission
+  * transaction after the lock is taken: the schema's recorded rule
+  * identity is re-read and compared to what this instance booted, so a
+  * host whose rules were rotated away admits NOTHING under retired
+  * bucket keys. The refusal is typed, and the boot memo is cleared so
+  * the host's next call re-boots into the honest boot-time refusal
+  * naming both fingerprints.
+  */
+  private assertCurrentIdentity;
   reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
   reconcile(reservationId: string, usage: Usage): Promise<void>;
   /** Current-window counters per rule, for telemetry and referees. */
@@ -282,4 +345,4 @@ declare class PostgresQuotaLimiter implements QuotaLimiter {
   private prune;
 }
 //#endregion
-export { DEFAULT_LEASE_TTL_MS, DEFAULT_POOL_MAX, PostgresQuotaLimiter, type PostgresQuotaLimiterOptions, PostgresStore, type PostgresStoreOptions, type PostgresTranscriptStore, QUOTA_ADMISSION_DEADLINE_MS, QUOTA_LOCK_TIMEOUT_MS, QuotaDeadlineError, quotaRulesFingerprint };
+export { DEFAULT_LEASE_TTL_MS, DEFAULT_POOL_MAX, PostgresQuotaLimiter, type PostgresQuotaLimiterOptions, PostgresStore, type PostgresStoreOptions, type PostgresTranscriptStore, QUOTA_ADMISSION_DEADLINE_MS, QUOTA_LOCK_TIMEOUT_MS, QuotaDeadlineError, QuotaGenerationError, quotaRulesFingerprint };

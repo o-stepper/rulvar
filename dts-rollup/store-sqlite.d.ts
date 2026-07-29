@@ -150,6 +150,10 @@ interface SqliteQuotaLimiterOptions {
 declare class SqliteQuotaLimiter implements QuotaLimiter {
   private readonly db;
   private readonly rules;
+  /** Matching order for the denial fold: canonical rule-key order
+  * (RV608), so permuted identical sets produce byte-identical
+  * refusals. Telemetry keeps the declared order. */
+  private readonly ordered;
   private readonly now;
   constructor(options: SqliteQuotaLimiterOptions);
   reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;

@@ -6,7 +6,7 @@
 
 # Class: SqliteQuotaLimiter
 
-Defined in: [packages/store-sqlite/src/quota.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L117)
+Defined in: [packages/store-sqlite/src/quota.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L104)
 
 The cross-process reference implementation of the core QuotaLimiter
 SPI: engine processes pointing instances at ONE database file (this
@@ -37,7 +37,7 @@ policy decides what that means. Call `close()` when done.
 new SqliteQuotaLimiter(options): SqliteQuotaLimiter;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L122)
+Defined in: [packages/store-sqlite/src/quota.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L113)
 
 #### Parameters
 
@@ -57,7 +57,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:122](https://github.com/o-steppe
 close(): void;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:279](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L279)
+Defined in: [packages/store-sqlite/src/quota.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L274)
 
 #### Returns
 
@@ -71,7 +71,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:279](https://github.com/o-steppe
 reconcile(reservationId, usage): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L224)
+Defined in: [packages/store-sqlite/src/quota.ts:219](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L219)
 
 #### Parameters
 
@@ -96,7 +96,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:224](https://github.com/o-steppe
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L166)
+Defined in: [packages/store-sqlite/src/quota.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L162)
 
 #### Parameters
 
@@ -125,7 +125,7 @@ snapshot(): {
 }[];
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L261)
+Defined in: [packages/store-sqlite/src/quota.ts:256](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L256)
 
 Current-window counters per rule, for telemetry and referees.
 
