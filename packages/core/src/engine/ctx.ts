@@ -2124,13 +2124,18 @@ export function createCtx(
       // The durable tool-budget decisions (RV509): a grant and the
       // window entry journal the moment they fire, bound to this
       // dispatch by targetRef (stable across a dangling redispatch),
-      // fire-and-forget through the serialized queue exactly like rand
-      // (the engine awaits flush before settling the run). On a resume
-      // the state read back from those entries reaches the loop as
-      // `restored`, so a granted-but-unspent extension survives the
-      // crash and a window entry stays truthful after a grant moved the
-      // counts back out. Grant-free runs never call the hooks, keeping
-      // their journals byte-identical.
+      // through the serialized queue. Since RV601 the loop AWAITS these
+      // appends before the grant lifts an expiry or the window binds a
+      // call: an extension authorizes future tool work whose effects
+      // are external, so the precedent is intent-before-effect, not the
+      // fire-and-forget of a rand entry that merely records a value the
+      // caller already holds. On a resume the state read back from
+      // those entries reaches the loop as `restored`, cap included, so
+      // a granted-but-unspent extension survives the crash, a window
+      // entry stays truthful after a grant moved the counts back out,
+      // and drifting live limits cannot revoke the raise the journal
+      // recorded. Grant-free runs never call the hooks, keeping their
+      // journals byte-identical.
       const durableRestored = readToolBudgetDecisions(internals.replayer.snapshot(), running.seq);
       runAgentOptions.toolBudgetDurability = {
         ...(durableRestored === undefined
@@ -2139,10 +2144,11 @@ export function createCtx(
               restored: {
                 extensionsGranted: durableRestored.extensionsGranted,
                 finalizationWindowEntered: durableRestored.finalizationWindowEntered,
+                ...(durableRestored.cap === undefined ? {} : { cap: durableRestored.cap }),
               },
             }),
-        onExtensionGrant: (grant) => {
-          void internals.replayer.appendSinglePhase({
+        onExtensionGrant: async (grant) => {
+          await internals.replayer.appendSinglePhase({
             scope: state.scope,
             key: '',
             kind: 'decision',
@@ -2155,8 +2161,8 @@ export function createCtx(
             },
           });
         },
-        onWindowEntry: (entry) => {
-          void internals.replayer.appendSinglePhase({
+        onWindowEntry: async (entry) => {
+          await internals.replayer.appendSinglePhase({
             scope: state.scope,
             key: '',
             kind: 'decision',

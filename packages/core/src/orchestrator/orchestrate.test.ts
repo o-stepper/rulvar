@@ -9,7 +9,7 @@ import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { ConfigError, FailRunError } from '../l0/errors.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
-import { executeWorkflow } from '../engine/ctx.js';
+import { defineWorkflow, executeWorkflow } from '../engine/ctx.js';
 import {
   makeInternals,
   scriptedAdapter,
@@ -26,6 +26,7 @@ import {
   requiredSectionsValidator,
   wordCountValidator,
   type FinishValidationInput,
+  type FinishValidator,
 } from './finish-validators.js';
 import { finishContract } from './output-contract.js';
 import { makeOrchestratorWorkflow, orchestrate } from './orchestrate.js';
@@ -3364,7 +3365,11 @@ describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
     const entries = internals.replayer.snapshot();
     const skips = skipDecisions(entries);
     expect(skips).toHaveLength(1);
-    expect(skips[0]?.value).toEqual({
+    // No contract descriptor is configured here, so the entry binds by
+    // the draft it judged and the validator names (RV603).
+    const { draftHash, ...skipValue } = skips[0]?.value as { draftHash?: string };
+    expect(draftHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(skipValue).toEqual({
       decisionType: 'orchestrator_synthesis_skip',
       reason: 'synthesis_skipped_by_valid_draft',
       validators: ['required-sections'],
@@ -3454,6 +3459,168 @@ describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
     expect(replayAdapter.calls).toHaveLength(0);
     const entries = await store.load('SKIP-RESUME');
     expect(skipDecisions(entries)).toHaveLength(1);
+  });
+
+  it('a stale skip does not survive a superseding contract (RV603)', async () => {
+    const store = new InMemoryStore();
+    // Contract A accepts the draft; contract B, the fix, demands a
+    // section the draft lacks. Same validator NAME, different hash:
+    // only the contract identity can tell the generations apart.
+    const contractA = finishContract({ sections: ['## Findings'] });
+    const contractB = finishContract({ sections: ['## Findings', '## Evidence'] });
+    const optionsFor = (contract: ReturnType<typeof finishContract>) => ({
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: { validators: [...contract.validators], contract, maxRepairs: 3 },
+    });
+    const COMPLETE = '## Findings\nthe draft.\n## Evidence\ndocs/a.md:1';
+    const engineA = createEngine({
+      adapters: [draftThenSynthesis(SECTIONED, 'NEVER')],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    // A crash between the journaled skip and the run settle.
+    const inner = makeOrchestratorWorkflow('assess', optionsFor(contractA));
+    const crashing = defineWorkflow({ name: inner.name }, async (ctx) => {
+      await inner.body(ctx, undefined);
+      throw new Error('killed after the synthesis skip');
+    });
+    const first = await engineA.run(crashing, undefined, { runId: 'SKIP-SUPERSEDE' }).result;
+    expect(first.status).toBe('error');
+    expect(skipDecisions(await store.load('SKIP-SUPERSEDE'))).toHaveLength(1);
+
+    // The documented remedy: fix the contract, resume. The stale skip
+    // may not carry the old verdict into the new generation.
+    const resumeAdapter = draftThenSynthesis(SECTIONED, COMPLETE);
+    const engineB = createEngine({
+      adapters: [resumeAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const resumed = await engineB.resume(
+      'SKIP-SUPERSEDE',
+      makeOrchestratorWorkflow('assess', optionsFor(contractB)),
+    ).result;
+    expect(resumed.status).toBe('ok');
+    // The synthesis ran under the CURRENT contract and its output
+    // satisfies it; the draft the old generation accepted does not.
+    expect(resumed.value).toBe(COMPLETE);
+  });
+
+  it('an unchanged contract and draft roll the journaled skip forward across a crash (RV603)', async () => {
+    const store = new InMemoryStore();
+    const options = {
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: CONTRACT(),
+    };
+    const engineA = createEngine({
+      adapters: [draftThenSynthesis(SECTIONED, 'NEVER')],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const inner = makeOrchestratorWorkflow('assess', options);
+    const crashing = defineWorkflow({ name: inner.name }, async (ctx) => {
+      await inner.body(ctx, undefined);
+      throw new Error('killed after the synthesis skip');
+    });
+    expect((await engineA.run(crashing, undefined, { runId: 'SKIP-CRASH' }).result).status).toBe(
+      'error',
+    );
+
+    const resumeAdapter = draftThenSynthesis(SECTIONED, 'NEVER');
+    const engineB = createEngine({
+      adapters: [resumeAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const resumed = await engineB.resume('SKIP-CRASH', makeOrchestratorWorkflow('assess', options))
+      .result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe(SECTIONED);
+    // Nothing re-dispatched and no second skip decision: the journaled
+    // verdict is still the authority for its own generation and draft.
+    expect(resumeAdapter.calls).toHaveLength(0);
+    expect(skipDecisions(await store.load('SKIP-CRASH'))).toHaveLength(1);
+  });
+
+  it('a different draft under the same contract re-runs the gate (RV603)', async () => {
+    const store = new InMemoryStore();
+    const contract = finishContract({ sections: ['## Findings'] });
+    // maxRepairs rides the coordination prompt, so lowering it reruns
+    // the coordination turn while leaving the contract identity alone.
+    const optionsWith = (maxRepairs: number) => ({
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: { validators: [...contract.validators], contract, maxRepairs },
+    });
+    const engineA = createEngine({
+      adapters: [draftThenSynthesis(SECTIONED, 'NEVER')],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const inner = makeOrchestratorWorkflow('assess', optionsWith(3));
+    const crashing = defineWorkflow({ name: inner.name }, async (ctx) => {
+      await inner.body(ctx, undefined);
+      throw new Error('killed after the synthesis skip');
+    });
+    expect((await engineA.run(crashing, undefined, { runId: 'SKIP-DRAFT' }).result).status).toBe(
+      'error',
+    );
+
+    // The rerun coordination produces a draft the contract rejects: the
+    // skip journaled for the OTHER draft may not stand in for it.
+    const resumeAdapter = draftThenSynthesis(SECTIONLESS, SYNTHESIZED);
+    const engineB = createEngine({
+      adapters: [resumeAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const resumed = await engineB.resume(
+      'SKIP-DRAFT',
+      makeOrchestratorWorkflow('assess', optionsWith(2)),
+    ).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe(SYNTHESIZED);
+  });
+
+  it('without a contract descriptor the skip binds by draft and validator names (RV603)', async () => {
+    const store = new InMemoryStore();
+    // No finishContract: there is no generation identity to compare, so
+    // the binding is the honestly weaker draft-plus-names pair.
+    const optionsWith = (validators: FinishValidator[]) => ({
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: { validators, maxRepairs: 3 },
+    });
+    const TINY = 'ok now';
+    const engineA = createEngine({
+      adapters: [draftThenSynthesis(SECTIONED, 'NEVER')],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const inner = makeOrchestratorWorkflow(
+      'assess',
+      optionsWith([requiredSectionsValidator({ sections: ['## Findings'] })]),
+    );
+    const crashing = defineWorkflow({ name: inner.name }, async (ctx) => {
+      await inner.body(ctx, undefined);
+      throw new Error('killed after the synthesis skip');
+    });
+    expect((await engineA.run(crashing, undefined, { runId: 'SKIP-NAMES' }).result).status).toBe(
+      'error',
+    );
+
+    // A differently NAMED validator set: the journaled skip was rendered
+    // by validators that are no longer the ones in force.
+    const resumeAdapter = draftThenSynthesis(SECTIONED, TINY);
+    const engineB = createEngine({
+      adapters: [resumeAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const resumed = await engineB.resume(
+      'SKIP-NAMES',
+      makeOrchestratorWorkflow('assess', optionsWith([wordCountValidator({ max: 3 })])),
+    ).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe(TINY);
   });
 
   it('rejects skipWhenDraftValid without finishValidation, and non-boolean values, at construction', () => {
