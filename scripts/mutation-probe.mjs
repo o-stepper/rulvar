@@ -303,6 +303,25 @@ const MUTATIONS = [
     replace: '          true &&',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'ledger-repair-exclusion',
+    doctrine:
+      'tail repair is mutually exclusive across processes and never truncates a boundary computed from a stale read (RV606)',
+    file: 'packages/executor/src/ledger.ts',
+    find: '  await repairUnderLock(path, now);',
+    replace:
+      "  const boundary = raw.lastIndexOf(0x0a) + 1;\n  const fragment = raw.subarray(boundary).toString('utf8');\n  await truncate(path, boundary);\n  await appendFile(path, `${JSON.stringify({ phase: 'torn', bytes: fragment, recoveredAt: now() })}\\n`, 'utf8');",
+    test: 'packages/executor/src/ledger-exclusion.test.ts',
+  },
+  {
+    id: 'ledger-shape-validation',
+    doctrine:
+      'a ledger line is validated before anything dereferences it: an unknown phase, a primitive, or a missing field is corruption, never silence or a raw TypeError (RV607)',
+    file: 'packages/executor/src/ledger.ts',
+    find: '    const entry = asLedgerLine(parsed);\n    if (entry === undefined) {',
+    replace: '    const entry = parsed as LedgerLine;\n    if (false) {',
+    test: 'packages/executor/src/ledger.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

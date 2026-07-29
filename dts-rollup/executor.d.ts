@@ -244,11 +244,22 @@ declare function containerExecutor(options: ContainerExecutorOptions): ToolExecu
 * `subprocessExecutor({ ledger })` or `containerExecutor({ ledger })`;
 * scan it back with {@link loadEffectLedger}. The first append lazily
 * repairs a torn tail left by a crashed predecessor (RV502).
+*
+* Writer contract (RV606), stated publicly: appends are whole-line
+* O_APPEND writes, and the destructive tail repair is mutually
+* exclusive across processes (a sidecar `<path>.repair-lock` taken with
+* O_EXCL, the file re-read after capture, a stale lock stolen after a
+* ten-second TTL), so several writer processes on one LOCAL path can no
+* longer truncate away each other's confirmed rows while repairing.
+* Still, prefer ONE WRITER PER PATH, a `effects.<worker>.jsonl` file
+* per worker process merged at reconciliation time: per-line append
+* atomicity is a local-filesystem property, and neither O_APPEND nor
+* O_EXCL is dependable on network filesystems.
 */
 declare function jsonlEffectLedger(path: string, options?: {
   now?: () => number;
 }): ToolEffectLedger;
-/** One unparseable interior line of the ledger file, surfaced for triage. */
+/** One malformed line of the ledger file, surfaced for triage. */
 interface CorruptLedgerLine {
   /** 1-based physical line number in the file. */
   line: number;
@@ -256,7 +267,8 @@ interface CorruptLedgerLine {
   offset: number;
   /** sha256 (hex) of the raw line bytes: forensics without re-reading. */
   sha256: string;
-  /** The first 120 characters of the line. */
+  /** The first 120 characters of the line (lossy-decoded when the bytes
+  * are not valid UTF-8; the hash pins the exact bytes). */
   preview: string;
 }
 /** A torn fragment the writer quarantined while repairing a tail (RV502). */
@@ -267,12 +279,15 @@ interface TornLedgerArtifact {
   recoveredAt: number;
 }
 /**
-* The fail-closed refusal of {@link loadEffectLedger} (RV502): the file
-* holds at least one unparseable INTERIOR line, which the writer's tail
-* repair can never produce, so it means external damage or a second
-* writer, never a normal crash artifact. Reconciling from a partial
-* scan would silently drop intents; triage the named lines instead
-* (`tolerateCorrupt: true` surfaces them as data).
+* The fail-closed refusal of {@link loadEffectLedger} (RV502, widened
+* by RV607): the file holds at least one line the scan cannot admit,
+* unparseable bytes on an interior line, invalid UTF-8, a JSON value
+* that is not an object, a missing or mistyped required field, or an
+* unknown phase, none of which the writer's tail repair can produce, so
+* it means external damage or a foreign writer, never a normal crash
+* artifact. Reconciling from a partial scan would silently drop
+* intents; triage the named lines instead (`tolerateCorrupt: true`
+* surfaces them as data).
 */
 declare class LedgerCorruptionError extends Error {
   readonly lines: CorruptLedgerLine[];
@@ -296,9 +311,11 @@ interface EffectLedgerScan {
   */
   orphanedIntents: ToolEffectIntent[];
   /**
-  * Unparseable interior lines, populated only under `tolerateCorrupt`
-  * (the default scan throws {@link LedgerCorruptionError} instead).
-  * Empty on a healthy file.
+  * Lines the scan refused to admit (RV607): unparseable interior
+  * bytes, invalid UTF-8, non-object JSON, a missing or mistyped
+  * required field, or an unknown phase. Populated only under
+  * `tolerateCorrupt` (the default scan throws
+  * {@link LedgerCorruptionError} instead). Empty on a healthy file.
   */
   corrupt: CorruptLedgerLine[];
   /** Fragments the writer quarantined while repairing torn tails (RV502). */
@@ -306,7 +323,10 @@ interface EffectLedgerScan {
   /**
   * A live unterminated, unparseable trailing fragment: the artifact of
   * a crash mid-write no writer has repaired yet. Tolerated and named,
-  * never silent.
+  * never silent. (An unterminated line that PARSES but fails the shape
+  * is corruption instead: a torn prefix of the writer's own flat
+  * record can never parse, so such a line is foreign, not a crash
+  * artifact.)
   */
   tornTail?: {
     preview: string;
@@ -316,9 +336,12 @@ interface EffectLedgerScan {
 * Scans a JSONL ledger file into intents, outcomes, and the orphaned
 * intents a host must reconcile, pairing attempts exactly (RV501). A
 * torn TRAILING fragment (the crash-mid-write artifact) is tolerated
-* and reported; an unparseable INTERIOR line fails the scan closed with
-* a typed {@link LedgerCorruptionError} unless `tolerateCorrupt` asks
-* for the lines as data (RV502).
+* and reported; everything else the scan cannot decode, parse, and
+* validate, invalid UTF-8, non-object JSON, a missing required field,
+* an unknown phase (RV607), fails the scan closed with a typed
+* {@link LedgerCorruptionError} unless `tolerateCorrupt` asks for the
+* lines as data (RV502). Under `tolerateCorrupt` the scan never throws
+* anything rawer than that: a malformed line is data, not an exception.
 */
 declare function loadEffectLedger(path: string, options?: {
   tolerateCorrupt?: boolean;

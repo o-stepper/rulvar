@@ -277,3 +277,128 @@ describe('torn tails and corruption (RV502)', () => {
     expect(scan.corrupt[0]?.preview).toBe('{malformed}');
   });
 });
+
+describe('fail-closed parse (RV607)', () => {
+  const validLine = (): string =>
+    `${JSON.stringify({ phase: 'intent', ...intentOf('k-ok', 1, 'a-ok') })}\n`;
+
+  it('invalid UTF-8 in a terminated line is corruption, never a replacement-character key', async () => {
+    // 0xC3 0x28 is an invalid UTF-8 sequence. Decoded with replacement
+    // characters it still parses as JSON, so a mangled idempotency key
+    // used to enter reconciliation as genuine. The strict decode makes
+    // it corruption with the exact bytes pinned by the hash.
+    const path = freshPath();
+    const bad = Buffer.concat([
+      Buffer.from('{"phase":"intent","idempotencyKey":"k-', 'utf8'),
+      Buffer.from([0xc3, 0x28]),
+      Buffer.from(
+        '","runId":"r","spanId":"s","tool":"t","argsHash":"h","executor":"subprocess",' +
+          '"workdir":"/w","startedAt":1}\n',
+        'utf8',
+      ),
+    ]);
+    writeFileSync(path, Buffer.concat([Buffer.from(validLine(), 'utf8'), bad]));
+    await expect(loadEffectLedger(path)).rejects.toBeInstanceOf(LedgerCorruptionError);
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.intents[0]?.idempotencyKey).toBe('k-ok');
+    expect(scan.corrupt).toHaveLength(1);
+    expect(scan.corrupt[0]?.line).toBe(2);
+    expect(scan.corrupt[0]?.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('a null line surfaces typed in both modes, never a raw TypeError', async () => {
+    // JSON.parse('null') succeeds, and the phase dereference used to
+    // throw a raw TypeError that pierced BOTH the typed refusal and
+    // tolerateCorrupt.
+    const path = freshPath();
+    writeFileSync(path, `${validLine()}null\n`, 'utf8');
+    await expect(loadEffectLedger(path)).rejects.toBeInstanceOf(LedgerCorruptionError);
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.corrupt).toHaveLength(1);
+    expect(scan.corrupt[0]?.preview).toBe('null');
+  });
+
+  it('an intent missing required fields is corruption, not a half-empty orphan', async () => {
+    const path = freshPath();
+    writeFileSync(path, `${validLine()}{"phase":"intent","idempotencyKey":"k-bare"}\n`, 'utf8');
+    await expect(loadEffectLedger(path)).rejects.toBeInstanceOf(LedgerCorruptionError);
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.intents[0]?.idempotencyKey).toBe('k-ok');
+    expect(scan.orphanedIntents.map((entry) => entry.idempotencyKey)).toEqual(['k-ok']);
+    expect(scan.corrupt).toHaveLength(1);
+  });
+
+  it('an unknown phase is corruption, never silence', async () => {
+    // One flipped character in the phase used to erase the whole row,
+    // orphan and all. Forward compatibility with future phases is
+    // versioning's job, not silence's.
+    const path = freshPath();
+    const flipped = JSON.stringify({ phase: 'Intent', ...intentOf('k-flip', 2, 'a-flip') });
+    writeFileSync(path, `${validLine()}${flipped}\n`, 'utf8');
+    await expect(loadEffectLedger(path)).rejects.toBeInstanceOf(LedgerCorruptionError);
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.corrupt).toHaveLength(1);
+    expect(scan.corrupt[0]?.preview).toContain('"Intent"');
+  });
+
+  it('JSON primitives are corruption', async () => {
+    const path = freshPath();
+    writeFileSync(path, `${validLine()}42\n"str"\ntrue\n[]\n`, 'utf8');
+    await expect(loadEffectLedger(path)).rejects.toBeInstanceOf(LedgerCorruptionError);
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.corrupt.map((entry) => entry.preview)).toEqual(['42', '"str"', 'true', '[]']);
+  });
+
+  it('a torn quarantine record with a bad shape is corruption', async () => {
+    const path = freshPath();
+    writeFileSync(path, `${validLine()}{"phase":"torn","bytes":7}\n`, 'utf8');
+    await expect(loadEffectLedger(path)).rejects.toBeInstanceOf(LedgerCorruptionError);
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.tornArtifacts).toHaveLength(0);
+    expect(scan.corrupt).toHaveLength(1);
+  });
+
+  it('a parseable unterminated tail with a bad shape is corruption, not real data', async () => {
+    // A torn prefix of the writer's own flat record can never parse as
+    // JSON, so an unterminated line that parses but fails the shape is
+    // a foreign or damaged row, not a crash artifact to terminate in
+    // place.
+    const path = freshPath();
+    writeFileSync(path, `${validLine()}{"phase":"intent"}`, 'utf8');
+    await expect(loadEffectLedger(path)).rejects.toBeInstanceOf(LedgerCorruptionError);
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.corrupt).toHaveLength(1);
+    expect(scan.tornTail).toBeUndefined();
+  });
+
+  it('invalid UTF-8 in an unterminated tail stays a named torn tail', async () => {
+    const path = freshPath();
+    writeFileSync(
+      path,
+      Buffer.concat([Buffer.from(validLine(), 'utf8'), Buffer.from([0xff, 0xfe])]),
+    );
+    const scan = await loadEffectLedger(path);
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.corrupt).toHaveLength(0);
+    expect(scan.tornTail).toBeDefined();
+  });
+
+  it('a mixed file reads the valid rows and collects each defect', async () => {
+    const path = freshPath();
+    const intact = JSON.stringify({ phase: 'intent', ...intentOf('k-mixed', 5, 'a-mixed') });
+    const settled = JSON.stringify({ phase: 'outcome', ...outcomeOf('k-mixed', 5, 'a-mixed') });
+    const flipped = JSON.stringify({ phase: 'Outcome', ...outcomeOf('k-mixed', 6, 'a-late') });
+    writeFileSync(path, `${intact}\nnull\n${settled}\n${flipped}\n42\n`, 'utf8');
+    const scan = await loadEffectLedger(path, { tolerateCorrupt: true });
+    expect(scan.intents).toHaveLength(1);
+    expect(scan.outcomes).toHaveLength(1);
+    expect(scan.orphanedIntents).toHaveLength(0);
+    expect(scan.corrupt.map((entry) => entry.line)).toEqual([2, 4, 5]);
+  });
+});
