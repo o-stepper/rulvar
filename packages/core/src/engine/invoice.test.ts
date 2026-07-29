@@ -434,3 +434,18 @@ describe('usageUnknown on unconfirmed zero rows (the v1.71 experiment review, P1
     expect(invoiceFromJournal([retriedEntry()], tieredPrice).usageUnknownRows).toBeUndefined();
   });
 });
+
+describe('non-finite accounting is refused typed (RV610)', () => {
+  it('an invoice never carries non-finite numbers: overflow throws typed', () => {
+    // Two individually finite prices whose sum overflows: pre-fix the
+    // export carried totalUsd Infinity and allocatedUsd NaN, which JSON
+    // serializes as null, corrupting machine telemetry silently.
+    const entries = [
+      terminalEntry(1, { usage: usageOf(100, 0) }),
+      terminalEntry(2, { usage: usageOf(200, 0) }),
+    ];
+    expect(() => invoiceFromJournal(entries, () => Number.MAX_VALUE)).toThrow(/finite/);
+    // A single huge but finite total stays representable and allowed.
+    expect(() => invoiceFromJournal([entries[0]], () => Number.MAX_VALUE)).not.toThrow();
+  });
+});

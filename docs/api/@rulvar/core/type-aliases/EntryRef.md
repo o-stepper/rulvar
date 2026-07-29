@@ -10,6 +10,6 @@
 type EntryRef = number;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L53)
+Defined in: [packages/core/src/l0/entries.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L54)
 
 The canonical EntryRef between entries is seq.

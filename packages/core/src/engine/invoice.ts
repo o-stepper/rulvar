@@ -41,6 +41,7 @@ import {
   type ProviderCallRecord,
   type UsageSlice,
 } from '../l0/entries.js';
+import { requireFiniteNumbersDeep } from '../l0/validate-numbers.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import { costReportFromJournal } from './cost-report.js';
 import type { AppliedPricingRow } from './pricing-snapshot.js';
@@ -455,7 +456,7 @@ export function invoiceFromJournal(
   }
   const unallocatedUsd = allocateRows(rows, entries, priceUsd, report.grossUsd);
   const usageApprox = report.usageApprox === true || report.abandoned.usageApprox === true;
-  return {
+  const invoice: InvoiceExport = {
     rows,
     totalUsd: report.grossUsd,
     netUsd: report.totalUsd,
@@ -473,4 +474,9 @@ export function invoiceFromJournal(
     ...(usageApprox ? { usageApprox: true } : {}),
     ...(options?.pricing === undefined ? {} : { pricing: options.pricing }),
   };
+  // The public boundary (RV610): allocation math over pathological but
+  // individually finite amounts can breed Infinity and NaN, and a
+  // published invoice must never carry either.
+  requireFiniteNumbersDeep(invoice, 'invoice');
+  return invoice;
 }

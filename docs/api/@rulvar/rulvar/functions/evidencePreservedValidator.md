@@ -29,7 +29,14 @@ rejected instead of silently counting as evidence. Rejection reasons
 list the missing (and unknown) citations, capped at 20, so the repair
 turn can restore them. Purely textual and deterministic; checking
 that cited targets EXIST on disk is host territory (a custom
-validator), not this contract. Default name 'evidence-preserved'.
+validator), not this contract. Intake is fail closed (RV610): a
+pattern that can match the empty string is refused typed (an empty
+match would enter the pool as fabricated evidence and defeat
+`requireNonEmptyPool`), zero-length matches never enter the pool
+even when a lookaround produces them in context, and the strict-mode
+booleans must be real booleans, so a stray `'true'` can never
+silently disable the mode it names. Default name
+'evidence-preserved'.
 
 ## Parameters
 

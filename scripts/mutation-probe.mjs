@@ -351,6 +351,34 @@ const MUTATIONS = [
       '              prior.key === dispatched.key &&\n              prior.ordinal === dispatched.ordinal &&\n              !records.has(prior.seq)',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'evidence-empty-pattern-intake',
+    doctrine:
+      'a citation pattern that can match the empty string is refused at intake: an empty match is fabricated evidence (RV610)',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: "  if (probe.test('')) {",
+    replace: '  if (false) {',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'cost-overflow-fold',
+    doctrine:
+      'the per-entry price fold refuses a non-finite sum typed instead of returning Infinity (RV610)',
+    file: 'packages/core/src/l0/entries.ts',
+    find: '    usd += price;\n    if (!Number.isFinite(usd)) {\n      throw foldOverflow(entry.seq, record.servedBy);\n    }',
+    replace:
+      '    usd += price;\n    if (false) {\n      throw foldOverflow(entry.seq, record.servedBy);\n    }',
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
+    id: 'cost-overflow-boundary',
+    doctrine:
+      'no public cost report may carry a non-finite number: the cross-entry accumulation is guarded at the boundary (RV610)',
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: "  requireFiniteNumbersDeep(report, 'costReport');",
+    replace: '  void report;',
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -97,3 +97,38 @@ export function validateEvidenceContract(value: unknown, site: string): void {
     );
   }
 }
+
+/**
+ * Walks a finished public accounting object (a cost report, an
+ * invoice) and throws a typed ConfigError on the first non-finite
+ * number (RV610): JSON serializes Infinity and NaN as null, so a
+ * non-finite value in a published report is silent telemetry
+ * corruption, never a representable answer. Individually finite
+ * amounts can overflow in accumulation, which is exactly why the
+ * boundary is guarded and not only the per-item validations.
+ */
+export function requireFiniteNumbersDeep(value: unknown, site: string): void {
+  const walk = (node: unknown, path: string): void => {
+    if (typeof node === 'number') {
+      if (!Number.isFinite(node)) {
+        throw new ConfigError(
+          `cost accounting overflow at ${path}: the value is ${String(node)}; no public ` +
+            'report or invoice may carry a non-finite number (JSON would serialize it as null)',
+        );
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => {
+        walk(item, `${path}[${String(index)}]`);
+      });
+      return;
+    }
+    if (typeof node === 'object' && node !== null) {
+      for (const [key, item] of Object.entries(node)) {
+        walk(item, `${path}.${key}`);
+      }
+    }
+  };
+  walk(value, site);
+}

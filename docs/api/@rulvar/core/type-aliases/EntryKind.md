@@ -25,7 +25,7 @@ type EntryKind =
   | "termination.denied";
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L28)
+Defined in: [packages/core/src/l0/entries.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L29)
 
 The single kinds registry v2.
 Readers MUST tolerate unknown kinds; stores pass them through

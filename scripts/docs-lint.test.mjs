@@ -406,3 +406,59 @@ test('source scanning judges comment lines only, never string literals or code',
   );
   assert.match(hits[0].message, /exactly-once claim/);
 });
+
+// RV612: markdown renders a newline as whitespace, so the sentinel must
+// judge NORMALIZED contiguous prose and comment blocks, not single
+// source lines, and the prior shipped recurrence "each ran once" is the
+// same claim. The audit's two verbatim reproductions lead the block.
+test('a claim wrapped across a markdown line break is caught at the block start (RV612)', () => {
+  const wrapped = exactlyOnceHits('The approved tool executes exactly\nonce.', 'guide/tools.md');
+  assert.equal(wrapped.length, 1);
+  assert.equal(wrapped[0].line, 1);
+  assert.match(wrapped[0].message, /exactly-once claim/);
+  const spaced = exactlyOnceHits('It executes exactly  once with double spacing.', 'guide/x.md');
+  assert.equal(spaced.length, 1);
+});
+
+test('the shipped recurrence "each ran once" is the same forbidden claim (RV612)', () => {
+  assert.equal(exactlyOnceHits('The approved calls each ran once.', 'guide/tools.md').length, 1);
+  assert.equal(exactlyOnceHits('The approved calls each\nran once.', 'guide/tools.md').length, 1);
+  // Inside a vetted anchor the recurrence is as legal as the claim.
+  const vetted = [
+    '### The guarantee matrix',
+    '',
+    'Historically the docs said the approved calls each ran once.',
+  ].join('\n');
+  assert.equal(exactlyOnceHits(vetted, 'guide/isolated-executor.md').length, 0);
+});
+
+test('a comment block wrapped across lines is caught in sources (RV612)', () => {
+  const src = [
+    'run();',
+    '// the approved tool executes exactly',
+    '// once per turn, whatever the crash timing',
+    'more();',
+  ].join('\n');
+  const hits = exactlyOnceHits(src, 'packages/core/src/x.ts');
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].line, 2);
+  const starred = [' * applies exactly', ' * once on resume.'].join('\n');
+  assert.equal(exactlyOnceHits(starred, 'packages/core/src/y.ts').length, 1);
+});
+
+test('a wrapped claim inside a vetted anchor stays legal; the next section does not (RV612)', () => {
+  const doc = [
+    '## At-least-once dispatch, exactly-once pay',
+    '',
+    'A completed pair replays exactly',
+    'once, and that is the pay doctrine.',
+    '',
+    '## Elsewhere',
+    '',
+    'This wraps exactly',
+    'once outside the vetted anchor.',
+  ].join('\n');
+  const hits = exactlyOnceHits(doc, 'guide/durability.md');
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].line, 8);
+});

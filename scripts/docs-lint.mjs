@@ -219,6 +219,11 @@ export function overclaimSentences(content) {
  * toolset hash and assertion messages are runtime text, not claims.
  */
 const EXACTLY_ONCE = /\bexactly[ -]once\b/iu;
+/** The prior shipped recurrence of the same claim (RV612). */
+const EACH_RAN_ONCE = /\beach ran once\b/iu;
+/** True when the (already whitespace-normalized) text carries the claim. */
+/** @param {string} text @returns {boolean} */
+const claimIn = (text) => EXACTLY_ONCE.test(text) || EACH_RAN_ONCE.test(text);
 const EXACTLY_ONCE_MESSAGE =
   'exactly-once claim (RV508, the ninth-experiment review): tool execution is at-least-once ' +
   '(SECURITY.md: a crash between execution and the turn-boundary checkpoint re-runs the tool), ' +
@@ -259,6 +264,9 @@ export function exactlyOnceHits(content, relPath) {
   const isSource = relPath.endsWith('.ts');
   const allowedAnchors = EXACTLY_ONCE_ALLOWLIST.get(relPath);
   let currentAnchor = '';
+  /** Lines that already produced a per-line hit, so the block pass
+   * never double-reports the same occurrence. */
+  const lineHits = new Set();
   lines.forEach((text, index) => {
     if (!isSource) {
       const heading = /^#{1,6}\s+(.*)$/u.exec(text);
@@ -266,7 +274,7 @@ export function exactlyOnceHits(content, relPath) {
         currentAnchor = headingSlug(heading[1]);
       }
     }
-    if (!EXACTLY_ONCE.test(text)) {
+    if (!claimIn(text.replace(/\s+/gu, ' '))) {
       return;
     }
     if (isSource && !COMMENT_LINE.test(text)) {
@@ -275,9 +283,67 @@ export function exactlyOnceHits(content, relPath) {
     if (!isSource && allowedAnchors?.has(currentAnchor) === true) {
       return;
     }
+    lineHits.add(index);
     hits.push({ line: index + 1, message: EXACTLY_ONCE_MESSAGE });
   });
-  return hits;
+  // The block pass (RV612): markdown renders an ordinary newline as
+  // whitespace, so a claim wrapped between two lines of one paragraph
+  // (or one comment block) is the SAME published claim. Contiguous
+  // prose lines (markdown: non-blank, non-heading lines under one
+  // anchor; sources: consecutive comment lines with their markers
+  // stripped) are joined, whitespace collapsed, and judged as one text;
+  // a hit reports the block's first line. Blocks whose lines already
+  // produced a per-line hit stay silent, so an occurrence is reported
+  // once, at its most precise location.
+  currentAnchor = '';
+  /** @type {{ start: number, parts: string[], anchor: string, hit: boolean } | undefined} */
+  let block;
+  const flush = () => {
+    if (block === undefined) {
+      return;
+    }
+    const { start, parts, anchor, hit } = block;
+    block = undefined;
+    if (hit) {
+      return;
+    }
+    if (!isSource && allowedAnchors?.has(anchor) === true) {
+      return;
+    }
+    if (claimIn(parts.join(' ').replace(/\s+/gu, ' '))) {
+      hits.push({ line: start + 1, message: EXACTLY_ONCE_MESSAGE });
+    }
+  };
+  lines.forEach((text, index) => {
+    if (!isSource) {
+      const heading = /^#{1,6}\s+(.*)$/u.exec(text);
+      if (heading?.[1] !== undefined) {
+        currentAnchor = headingSlug(heading[1]);
+        flush();
+        return;
+      }
+      if (text.trim() === '') {
+        flush();
+        return;
+      }
+      block ??= { start: index, parts: [], anchor: currentAnchor, hit: false };
+      block.parts.push(text);
+      block.hit ||= lineHits.has(index);
+      return;
+    }
+    if (!COMMENT_LINE.test(text)) {
+      flush();
+      return;
+    }
+    // Strip the comment scaffolding so a claim wrapped across ' * '
+    // continuation lines joins into ordinary prose.
+    const prose = text.replace(/^\s*(?:\/\/|\/\*+|\*+\/|\*)\s?/u, '').replace(/\*+\/\s*$/u, '');
+    block ??= { start: index, parts: [], anchor: '', hit: false };
+    block.parts.push(prose);
+    block.hit ||= lineHits.has(index);
+  });
+  flush();
+  return hits.sort((a, b) => a.line - b.line);
 }
 
 const EXCLUDED_DIRS = new Set(['api', 'node_modules', '.vitepress']);
