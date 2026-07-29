@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+
 ### 1.105.0
 
 #### Patch Changes
@@ -1174,6 +1181,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+
 ### 1.105.0
 
 #### Patch Changes
@@ -2185,6 +2199,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
 
 ### 1.105.0
 
@@ -3547,6 +3568,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.106.0
+
+#### Minor Changes
+
+- 9a4ce49: Alias recovered child attempts by admission identity, so a restored coordinator's old handles reach the reborn attempt (RV609).
+
+  The handle-stability alias required the old and new running entries to share `(scope, key, ordinal)`, but occurrence ordinals are strictly monotonic per `(scope, key)`: a rerun always takes the NEXT ordinal, so the alias was unreachable for ANY rerun, not just a cancelled child. A restored coordinator transcript that kept calling the handle it saw (`await_all`, `cancel_agent`, `get_child_result`) got `unknown handle` repair turns instead of the reborn attempt and could exhaust before the acceptance policy or the `minSpawnedChildren` floor (RV507) was ever evaluated. The seam predates the ninth plan: it shipped in v1.7.0.
+
+  Recovery now aliases by what is actually stable, the admission identity: every prior attempt's RUNNING row of the redispatched admission's `(scope, key)` under the pinned child scope aliases to the reborn record (every handle is a running row's seq, so the claimable set is exactly the prior running rows; a terminal is a separate row and never a handle). A transiently claimed same-key sibling is content-interchangeable and is rebound the moment its own redispatch lands. Because several handles can now map to one record, every roster-shaped walk (wake digests, quiescence, finish-validation children, the forced-finish fold, incremental synthesis reconciliation, the acceptance decision, and the synthesis digest, now one row per spawn under its current handle) iterates the per-spawn-ordinal roster instead of the handle map, so an aliased child is never counted or digested twice. Without aliases the per-spawn walks are byte-identical to the old per-handle ones, so synthesis prompt bytes and existing journals roll forward unchanged.
+
+  Fresh runs are byte-identical; the change is confined to recovery. Also freezes the clock in a real-clock store-postgres test that could straddle a minute boundary in CI (test-only).
 
 ### 1.105.0
 
@@ -5257,6 +5290,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.106.0
+
 ### 1.105.0
 
 ### 1.104.0
@@ -5571,6 +5606,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+  - @rulvar/testing@1.106.0
 
 ### 1.105.0
 
@@ -6800,6 +6843,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+
 ### 1.105.0
 
 #### Patch Changes
@@ -7214,6 +7264,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
 
 ### 1.105.0
 
@@ -8383,6 +8440,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+
 ### 1.105.0
 
 #### Patch Changes
@@ -9508,6 +9572,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+  - eslint-plugin-rulvar@1.106.0
 
 ### 1.105.0
 
@@ -10701,6 +10773,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+  - @rulvar/anthropic@1.106.0
+  - @rulvar/openai@1.106.0
 
 ### 1.105.0
 
@@ -12082,6 +12163,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+
 ### 1.105.0
 
 #### Patch Changes
@@ -13199,6 +13287,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
+
 ### 1.105.0
 
 #### Minor Changes
@@ -13631,6 +13726,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
 
 ### 1.105.0
 
@@ -14695,6 +14797,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.106.0
+
+#### Patch Changes
+
+- Updated dependencies [9a4ce49]
+  - @rulvar/core@1.106.0
 
 ### 1.105.0
 
