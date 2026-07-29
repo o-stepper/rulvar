@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+
 ### 1.102.0
 
 #### Patch Changes
@@ -1154,6 +1161,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+
 ### 1.102.0
 
 #### Patch Changes
@@ -2145,6 +2159,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
 
 ### 1.102.0
 
@@ -3487,6 +3508,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.103.0
+
+#### Minor Changes
+
+- f2b809e: Symmetric billing coverage and the per-slice invoice residual (RV604, RV605: the round-52 accounting P1s).
+
+  **Coverage is decided per model with a symmetric key (RV604).** The per-call billing fold compared each usage slice against the per-MODEL sum of the provider-call records, while the slices split one model's usage by role. Several roles on one model, which is the DEFAULT configuration under a schema (the same-model extract), therefore always refused coverage and re-priced the aggregate, firing nonlinear long-context tiers no single request crossed: the audit reproduction turned 700 honest monetary units into 1900 while the live ceiling had debited ~700. Both sides now aggregate by serving model, coverage is decided per model, a covered model prices each of its records individually (the role rides the record, so byRole survives), and an uncovered model honestly keeps the aggregate basis. `fullyAttributed` is true exactly when every slice model is covered and no record names a model absent from the slices. The engine-level coherence obligation gets its own test: on a fully attributed multi-role run under a tiered table, the settled fold equals what the live ceiling debited.
+
+  **The invoice residual is computed per slice (RV605).** The unattributed remainder used to be one whole-entry row published under `entry.servedBy`: a slice of another model with no records left its allocation pool rowless, and the dust pass dumped that model's whole USD onto the largest row of a different model so the column would sum. The remainder is now computed per usage slice, subtracting only the records of the slice's own serving model (and role, when the slice carries one), and each non-zero remainder becomes a row under that slice's model and role. The dust pass refuses to transfer a target into a pool with no rows: the amount is excluded from the reconciliation and declared in the new `unallocatedUsd` field (absent when zero, which is every well-formed journal), so cross-model transfer is structurally impossible and additivity is honest rather than forced.
 
 ### 1.102.0
 
@@ -5169,6 +5200,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.103.0
+
 ### 1.102.0
 
 ### 1.101.0
@@ -5477,6 +5510,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+  - @rulvar/testing@1.103.0
 
 ### 1.102.0
 
@@ -6683,6 +6724,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+
 ### 1.102.0
 
 #### Patch Changes
@@ -7067,6 +7115,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
 
 ### 1.102.0
 
@@ -8216,6 +8271,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+
 ### 1.102.0
 
 #### Patch Changes
@@ -9321,6 +9383,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+  - eslint-plugin-rulvar@1.103.0
 
 ### 1.102.0
 
@@ -10491,6 +10561,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+  - @rulvar/anthropic@1.103.0
+  - @rulvar/openai@1.103.0
 
 ### 1.102.0
 
@@ -11846,6 +11925,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+
 ### 1.102.0
 
 #### Patch Changes
@@ -12943,6 +13029,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
+
 ### 1.102.0
 
 #### Patch Changes
@@ -13341,6 +13434,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
 
 ### 1.102.0
 
@@ -14371,6 +14471,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.103.0
+
+#### Patch Changes
+
+- Updated dependencies [f2b809e]
+  - @rulvar/core@1.103.0
 
 ### 1.102.0
 
