@@ -1545,15 +1545,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // rates its own debits used; the segment being settled now (no
       // pin covers it yet) prices at the live table, exactly like its
       // debits. Single-table runs are untouched: pins equal the table.
+      // The composition itself is the snapshot's exported method
+      // (RV611): the CLI cost and invoice views and the server cost
+      // endpoint call the same method over the same journal, so a
+      // stored fold and this mirror can never disagree by construction.
       const pinned = journalPricingSnapshot(replayer.snapshot());
-      const mirrorPriceUsd = (
-        servedBy: ModelRef,
-        usage: Usage,
-        seq?: number,
-      ): number | undefined =>
-        pinned !== undefined && seq !== undefined && seq < pinned.pinnedThroughSeq
-          ? (pinned.priceUsd(servedBy, usage, seq) ?? priceUsd(servedBy, usage))
-          : priceUsd(servedBy, usage);
+      const mirrorPriceUsd =
+        pinned === undefined
+          ? (servedBy: ModelRef, usage: Usage): number | undefined => priceUsd(servedBy, usage)
+          : pinned.composedPriceUsd((servedBy, usage) => priceUsd(servedBy, usage));
       const outcome: RunOutcome<R> = {
         status,
         dropped: internals.dropped,

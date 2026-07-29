@@ -379,6 +379,43 @@ const MUTATIONS = [
     replace: '  void report;',
     test: 'packages/core/src/engine/cost-report.test.ts',
   },
+  {
+    id: 'pin-composition-tail',
+    doctrine:
+      'the composed fold prices the tail past the last pin at the current table, never silently at the last pin (RV611)',
+    file: 'packages/core/src/engine/pricing-snapshot.ts',
+    find: '    composedPriceUsd: (current) => (servedBy, usage, seq) =>\n      seq !== undefined && seq < pinnedThroughSeq',
+    replace:
+      '    composedPriceUsd: (current) => (servedBy, usage, seq) =>\n      seq !== undefined',
+    test: 'packages/core/src/engine/pricing-snapshot.test.ts',
+  },
+  {
+    id: 'invoice-pin-composition',
+    doctrine:
+      'the CLI invoice folds through the snapshot composition, not the raw last-pin snapshot (RV611)',
+    file: 'packages/cli/src/commands.ts',
+    find: '    snapshot === undefined ? assembled.priceUsd : snapshot.composedPriceUsd(assembled.priceUsd),',
+    replace: '    snapshot?.priceUsd ?? assembled.priceUsd,',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'server-pin-composition',
+    doctrine:
+      'the server cost endpoint folds through the snapshot composition, not the raw last-pin snapshot (RV611)',
+    file: 'packages/cli/src/server.ts',
+    find: '      settleSnapshot === undefined\n        ? currentPriceUsd\n        : settleSnapshot.composedPriceUsd(currentPriceUsd),',
+    replace: '      settleSnapshot?.priceUsd ?? currentPriceUsd,',
+    test: 'packages/cli/src/server.test.ts',
+  },
+  {
+    id: 'invoice-provenance-segments',
+    doctrine:
+      'the invoice provenance declares every pinned version with its boundaries, not only the last (RV611)',
+    file: 'packages/cli/src/commands.ts',
+    find: '              segments: snapshot.segments,\n              pinnedThroughSeq: snapshot.pinnedThroughSeq,\n',
+    replace: '',
+    test: 'packages/cli/src/index.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

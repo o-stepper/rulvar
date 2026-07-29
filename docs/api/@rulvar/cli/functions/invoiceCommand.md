@@ -10,7 +10,7 @@
 function invoiceCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:727](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L727)
+Defined in: [packages/cli/src/commands.ts:732](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L732)
 
 rulvar invoice (P1.3): the per-dispatch reconciliation export from
 the journal's providerCalls ledger, one row per billable provider
@@ -23,8 +23,9 @@ pricing basis honestly (RV511): fully attributed runs price per
 request and the rows sum to gross; an aggregate-priced remainder or
 legacy entry makes the export say `row usd is non-additive`, and
 `allocatedUsd` is the additive column that sums to gross in every
-case. Pricing folds at read time from the assembled price table, the
-same numbers rulvar inspect reports.
+case. Pricing folds at read time from the run's settle pins composed
+with the assembled price table (RV611), the same numbers rulvar
+inspect reports and the engine's own settle mirrors.
 
 ## Parameters
 

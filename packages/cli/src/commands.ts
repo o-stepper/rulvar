@@ -37,6 +37,7 @@ import {
   type DeterminismEvents,
   type EvidenceRef,
   type GateRecord,
+  type JournalPricingSnapshot,
   type LeasableStore,
   type Lease,
   type ModelClaim,
@@ -671,18 +672,21 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
   }
   context.io.out(`open suspensions: ${openSuspensions}`);
   // Cost view (M5-T03): the pure journal fold. Priced by the run's own
-  // settle-pinned rates when present (RV407: historically stable
-  // against later table updates), else through the config's adapters
-  // and table; unpriced surfaces, never silent zero.
+  // settle pins COMPOSED with the config's current table (RV611), the
+  // engine's outcome-mirror rule: pin-covered rows at the rates their
+  // own settle recorded, the tail past the last pin at the current
+  // table; unpriced surfaces, never silent zero.
   const inspectSnapshot = journalPricingSnapshot(entries);
-  const cost = costReportFromJournal(entries, inspectSnapshot?.priceUsd ?? assembled.priceUsd);
+  const cost = costReportFromJournal(
+    entries,
+    inspectSnapshot === undefined
+      ? assembled.priceUsd
+      : inspectSnapshot.composedPriceUsd(assembled.priceUsd),
+  );
   context.io.out(`cost: $${cost.totalUsd.toFixed(4)}`);
   if (inspectSnapshot !== undefined) {
     context.io.out(
-      'pricing: run-settle snapshot' +
-        (inspectSnapshot.pricingVersion === undefined
-          ? ''
-          : ` (${inspectSnapshot.pricingVersion})`),
+      `pricing: run-settle pins composed with the current table${pinVersionsSuffix(inspectSnapshot)}`,
     );
   }
   // The gross/net split surfaces only when the run actually abandoned
@@ -721,8 +725,9 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
  * request and the rows sum to gross; an aggregate-priced remainder or
  * legacy entry makes the export say `row usd is non-additive`, and
  * `allocatedUsd` is the additive column that sums to gross in every
- * case. Pricing folds at read time from the assembled price table, the
- * same numbers rulvar inspect reports.
+ * case. Pricing folds at read time from the run's settle pins composed
+ * with the assembled price table (RV611), the same numbers rulvar
+ * inspect reports and the engine's own settle mirrors.
  */
 export async function invoiceCommand(argv: string[], context: CommandContext): Promise<number> {
   const parsed = parseCommand(GRAMMAR.invoice, argv);
@@ -740,23 +745,33 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
     throw new ConfigError(`run '${runId}' not found in the store`);
   }
   const entries = await assembled.store.load(runId);
-  // The run's settle-pinned rates win (RV407): the invoice reproduces
-  // the numbers the run settled with, whatever the config table says
-  // today; journals without a pin keep the current-table fold and the
-  // export says so.
+  // The run's settle pins compose with the config's current table
+  // (RV611), the engine's outcome-mirror rule: pin-covered rows
+  // reproduce the numbers the run settled with whatever the table says
+  // today (RV407), and the tail past the last pin (a segment journaled
+  // but never settled) prices at the current table instead of silently
+  // at the last pin; journals without a pin keep the current-table
+  // fold. The export declares the rule, every pinned version with its
+  // boundaries, and the composition bound.
   const snapshot = journalPricingSnapshot(entries);
-  const invoice = invoiceFromJournal(entries, snapshot?.priceUsd ?? assembled.priceUsd, {
-    pricing:
-      snapshot === undefined
-        ? { source: 'current-table' }
-        : {
-            source: 'snapshot',
-            ...(snapshot.pricingVersion === undefined
-              ? {}
-              : { pricingVersion: snapshot.pricingVersion }),
-            rows: snapshot.rows,
-          },
-  });
+  const invoice = invoiceFromJournal(
+    entries,
+    snapshot === undefined ? assembled.priceUsd : snapshot.composedPriceUsd(assembled.priceUsd),
+    {
+      pricing:
+        snapshot === undefined
+          ? { source: 'current-table' }
+          : {
+              source: 'composed',
+              ...(snapshot.pricingVersion === undefined
+                ? {}
+                : { pricingVersion: snapshot.pricingVersion }),
+              rows: snapshot.rows,
+              segments: snapshot.segments,
+              pinnedThroughSeq: snapshot.pinnedThroughSeq,
+            },
+    },
+  );
   if (json) {
     context.io.out(JSON.stringify(invoice, null, 2));
     return 0;
@@ -779,12 +794,9 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
           'sums to gross)'),
   );
   context.io.out(
-    invoice.pricing?.source === 'snapshot'
-      ? 'pricing rates: run-settle snapshot' +
-          (invoice.pricing.pricingVersion === undefined
-            ? ''
-            : ` (${invoice.pricing.pricingVersion})`)
-      : 'pricing rates: current table (no snapshot in the journal)',
+    snapshot === undefined
+      ? 'pricing rates: current table (no snapshot in the journal)'
+      : `pricing rates: run-settle pins composed with the current table${pinVersionsSuffix(snapshot)}`,
   );
   for (const row of invoice.rows) {
     const usd = row.usd === undefined ? 'unpriced' : `$${row.usd.toFixed(4)}`;
@@ -812,6 +824,23 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
 /** Formats an optional USD number for the preflight text rows. */
 function usdOf(value: number | undefined): string {
   return value === undefined ? 'n/a' : `$${value.toFixed(4)}`;
+}
+
+/**
+ * ` (v-a, v-b)` across the pins in journal order, deduplicated (RV611):
+ * one version per rotation, so the inspect and invoice text forms name
+ * every table that priced the fold, not only the last. Empty when no
+ * pin carried a version.
+ */
+function pinVersionsSuffix(snapshot: JournalPricingSnapshot): string {
+  const versions = [
+    ...new Set(
+      snapshot.segments
+        .map((segment) => segment.pricingVersion)
+        .filter((version): version is string => version !== undefined),
+    ),
+  ];
+  return versions.length === 0 ? '' : ` (${versions.join(', ')})`;
 }
 
 function renderPreflight(report: PreflightReport, io: CliIo): void {

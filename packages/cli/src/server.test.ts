@@ -15,6 +15,7 @@ import {
   defineWorkflow,
   EVENT_SEGMENT_STRIDE,
   normalizeEntry,
+  RUN_SETTLE_DECISION_TYPE,
   tool,
   type Engine,
   type JournalEntry,
@@ -485,6 +486,64 @@ describe('createServer (M8-T01)', () => {
     // Cost for an untracked run folds the journal (unpriced fake usage).
     const cost = await bodyOf(await get(server, `/runs/${first.runId}/cost`));
     expect(cost).toHaveProperty('totalUsd');
+  });
+
+  it('GET /runs/:id/cost composes the pins with the server current table (RV611)', async () => {
+    // A stored run with a settled pinned segment and a tail its crashed
+    // second segment journaled but never settled: the covered row prices
+    // at its own pin, the tail at the server's current table, exactly the
+    // engine's outcome-mirror composition. The raw last-pin fold reported
+    // 20, silently pricing the tail at rates the settle never applied.
+    const journal = new SqliteStore({ path: ':memory:' });
+    const engine = createEngine({
+      adapters: [new FakeAdapter({ agents: { '*': 'unused' } })],
+      stores: { journal },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    const server = createServer({
+      engine,
+      workflows: {},
+      priceUsd: (servedBy, usage) =>
+        servedBy === FAKE_MODEL_REF ? (usage.inputTokens * 1000) / 1_000_000 : undefined,
+    });
+    const runId = 'pin-compose-server';
+    const usageOf = (seq: number): JournalEntry => ({
+      hashVersion: 2,
+      spanId: 's0',
+      startedAt: '2026-07-29T00:00:00.000Z',
+      seq,
+      scope: '',
+      key: `agent:${String(seq)}`,
+      ordinal: 0,
+      kind: 'agent',
+      status: 'ok',
+      servedBy: FAKE_MODEL_REF,
+      usage: { inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    });
+    await journal.append(runId, usageOf(0));
+    await journal.append(runId, {
+      hashVersion: 2,
+      spanId: 's0',
+      startedAt: '2026-07-29T00:00:00.000Z',
+      seq: 1,
+      scope: '',
+      key: 'run-settle:1',
+      ordinal: 0,
+      kind: 'decision',
+      status: 'ok',
+      value: {
+        decisionType: RUN_SETTLE_DECISION_TYPE,
+        runStatus: 'suspended',
+        segment: 1,
+        pricing: [{ model: FAKE_MODEL_REF, rates: { inputUsdPerMTok: 10, outputUsdPerMTok: 0 } }],
+        pricingVersion: 'v-a',
+      },
+    });
+    await journal.append(runId, usageOf(2));
+    await journal.putMeta({ runId, status: 'suspended', updatedAt: '2026-07-29T00:00:01.000Z' });
+
+    const cost = await bodyOf(await get(server, `/runs/${runId}/cost`));
+    expect(cost.totalUsd).toBe(1010);
   });
 
   it('offline resolution: a lease takeover during the resolution append fences the stale write (v1.39.0 review)', async () => {

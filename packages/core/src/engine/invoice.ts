@@ -44,7 +44,7 @@ import {
 import { requireFiniteNumbersDeep } from '../l0/validate-numbers.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import { costReportFromJournal } from './cost-report.js';
-import type { AppliedPricingRow } from './pricing-snapshot.js';
+import type { AppliedPricingRow, PinnedPricingSegment } from './pricing-snapshot.js';
 
 /**
  * How far a row's identity goes toward provider-side reconciliation.
@@ -103,17 +103,34 @@ export interface InvoiceRow {
 }
 
 /**
- * Where the fold's rates came from (RV407): `snapshot` says the caller
- * priced with the run-settle pin (`journalPricingSnapshot`), so these
- * numbers are stable against later table updates; `current-table` says
- * the live table priced it, the historical behavior. Attached by the
- * caller, who is the one that chose.
+ * Where the fold's rates came from (RV407): `composed` says the caller
+ * priced with the snapshot's `composedPriceUsd` (RV611), the engine's
+ * own composition, so pin-covered rows reproduce the settled numbers
+ * and anything past the last pin priced at the caller's current table;
+ * `snapshot` says the caller priced with the raw pinned rows alone
+ * (the pre-RV611 label); `current-table` says the live table priced
+ * it, the historical behavior for journals without a pin. Attached by
+ * the caller, who is the one that chose.
  */
 export interface InvoicePricingProvenance {
-  source: 'snapshot' | 'current-table';
+  source: 'snapshot' | 'current-table' | 'composed';
   pricingVersion?: string | undefined;
   /** The pinned rows the fold used; present on snapshot-priced exports. */
   rows?: AppliedPricingRow[] | undefined;
+  /**
+   * Per-pin coverage (RV611): every settled segment's version and rows
+   * with its seq boundaries, not only the last. A fold across a
+   * price-table rotation used to export one `pricingVersion` while its
+   * rows priced under several; this array is the honest declaration.
+   */
+  segments?: PinnedPricingSegment[] | undefined;
+  /**
+   * On `composed` exports: the last pin's settle seq. Rows at or past
+   * it (a segment journaled but not yet settled) priced at the current
+   * table, not any pin; each row's `entrySeq` locates it against this
+   * bound.
+   */
+  pinnedThroughSeq?: number | undefined;
 }
 
 /** The machine-readable invoice: rows plus the ledger totals. */

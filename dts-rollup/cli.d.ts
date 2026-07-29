@@ -43,8 +43,9 @@ declare function inspectCommand(argv: string[], context: CommandContext): Promis
 * request and the rows sum to gross; an aggregate-priced remainder or
 * legacy entry makes the export say `row usd is non-additive`, and
 * `allocatedUsd` is the additive column that sums to gross in every
-* case. Pricing folds at read time from the assembled price table, the
-* same numbers rulvar inspect reports.
+* case. Pricing folds at read time from the run's settle pins composed
+* with the assembled price table (RV611), the same numbers rulvar
+* inspect reports and the engine's own settle mirrors.
 */
 declare function invoiceCommand(argv: string[], context: CommandContext): Promise<number>;
 /**

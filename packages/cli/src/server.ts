@@ -886,12 +886,19 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       return json(404, { error: { code: 'config', message: `run '${runId}' not found` } });
     }
     const entries = (await journal.load(runId)).map((raw) => normalizeEntry(raw));
-    // The run's settle-pinned rates win (RV407): a stored run's cost
-    // view stays stable against later price-table updates.
+    // The run's settle pins compose with the host's current table
+    // (RV611), the engine's outcome-mirror rule: pin-covered rows stay
+    // stable against later price-table updates (RV407), the tail past
+    // the last pin prices at the current table, and a tail model the
+    // host prices nowhere surfaces unpriced, never silently at the
+    // last pin's rates.
     const settleSnapshot = journalPricingSnapshot(entries);
+    const currentPriceUsd = options.priceUsd ?? ((): undefined => undefined);
     const report: CostReport = costReportFromJournal(
       entries,
-      settleSnapshot?.priceUsd ?? options.priceUsd ?? (() => undefined),
+      settleSnapshot === undefined
+        ? currentPriceUsd
+        : settleSnapshot.composedPriceUsd(currentPriceUsd),
     );
     return json(200, report);
   }
