@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+
 ### 1.98.0
 
 #### Patch Changes
@@ -1119,6 +1126,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+
 ### 1.98.0
 
 #### Patch Changes
@@ -2075,6 +2089,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
 
 ### 1.98.0
 
@@ -3381,6 +3402,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.99.0
+
+#### Minor Changes
+
+- 9e00888: Runtime floors for evidence and acceptance (RV507), all additive and opt in; defaults change nothing. `evidenceContract.enforce: 'refuse'` makes the declared floor binding at the child's terminal: an ok finish whose transcript carries fewer successful `record_evidence` executions (the tool's own `recorded: true`; duplicates and failed verifications never count) than `minEntries` becomes a typed `terminal` error whose journaled data carries the machine-readable `evidenceFloor: { recordedEntries, minEntries }`, memoized so a resume rolls the refusal forward instead of re-paying (the default `'warn'` keeps the historical preflight-only signal). `evidencePreservedValidator({ requireNonEmptyPool: true })` refuses the empty known citation pool with an `empty child citation pool` reason instead of the vacuous pass. `OrchestrateAcceptance.minSpawnedChildren: N` rejects a finish whose spawned roster is smaller than N under both child policies (zero spawned children stop being vacuously complete for a fan-out-shaped task), with the actual roster carried beside the floor in the journaled decision and the rejection's error data.
 
 ### 1.98.0
 
@@ -5027,6 +5054,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.99.0
+
 ### 1.98.0
 
 ### 1.97.0
@@ -5325,6 +5354,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+  - @rulvar/testing@1.99.0
 
 ### 1.98.0
 
@@ -6491,6 +6528,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+
 ### 1.98.0
 
 #### Patch Changes
@@ -6840,6 +6884,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
 
 ### 1.98.0
 
@@ -7953,6 +8004,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+
 ### 1.98.0
 
 #### Patch Changes
@@ -9022,6 +9080,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+  - eslint-plugin-rulvar@1.99.0
 
 ### 1.98.0
 
@@ -10152,6 +10218,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+  - @rulvar/anthropic@1.99.0
+  - @rulvar/openai@1.99.0
 
 ### 1.98.0
 
@@ -11462,6 +11537,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+
 ### 1.98.0
 
 #### Patch Changes
@@ -12523,6 +12605,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
+
 ### 1.98.0
 
 #### Minor Changes
@@ -12886,6 +12975,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
 
 ### 1.98.0
 
@@ -13881,6 +13977,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.99.0
+
+#### Patch Changes
+
+- Updated dependencies [9e00888]
+  - @rulvar/core@1.99.0
 
 ### 1.98.0
 
