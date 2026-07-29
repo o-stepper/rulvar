@@ -36,7 +36,7 @@ type Settled<T> =
 };
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:284](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L284)
+Defined in: [packages/core/src/engine/ctx.ts:302](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L302)
 
 The discriminated union over AgentStatus carrying the underlying
 AgentResult where one exists.

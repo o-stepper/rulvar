@@ -196,6 +196,19 @@ export interface OrchestrateAcceptance {
    */
   acceptPartialChildren?: boolean;
   /**
+   * The spawned-roster floor (RV507): finish is rejected when FEWER
+   * than this many children were spawned, under BOTH child policies.
+   * 'all-ok' alone treats zero spawned children as vacuously complete
+   * (spawn nothing you do not need to succeed), which lets a
+   * fan-out-shaped task settle ok without ever fanning out; the floor
+   * makes the intended decomposition binding. The journaled decision
+   * (and a rejection's error data) carries the actual
+   * `spawnedChildren` beside the configured floor, so a resume rolls
+   * the same verdict forward. Positive integer; policy only, never
+   * part of any identity.
+   */
+  minSpawnedChildren?: number;
+  /**
    * The terminal-output salvage switch (the 1.64.0 experiment review,
    * P0.4 + P1.1; default false). When true, a child that settled
    * 'limit' CARRYING a terminal output counts as a successful child for
@@ -673,6 +686,10 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         'orchestrate acceptance.acceptValidatedTerminalOutputOnLimit must be a boolean; got ' +
           typeof acceptOutput,
       );
+    }
+    const minSpawned = (opts.acceptance as { minSpawnedChildren?: unknown }).minSpawnedChildren;
+    if (minSpawned !== undefined) {
+      requirePositiveInteger(minSpawned as number, 'orchestrate acceptance.minSpawnedChildren');
     }
   }
   if (opts.finishValidation !== undefined) {
@@ -3869,6 +3886,14 @@ export function makeOrchestratorWorkflow(
       childPolicy: 'all-ok' | { minSuccessful: number };
       childStatusCounts: Record<string, number>;
       degradedReasons: string[];
+      /**
+       * The spawned-roster floor and the actual roster (RV507): present
+       * ONLY when acceptance.minSpawnedChildren was configured, so every
+       * earlier decision (and every run without the floor) keeps its
+       * exact bytes.
+       */
+      minSpawnedChildren?: number;
+      spawnedChildren?: number;
       /** Limit children salvaged by acceptPartialChildren (RV-210 close-out); absent before it. */
       salvagedPartialChildren?: string[];
       /**
@@ -3948,11 +3973,24 @@ export function makeOrchestratorWorkflow(
         );
       }
       const childPolicy = opts.acceptance.childPolicy;
+      // The spawned-roster floor (RV507) binds under BOTH policies: a
+      // policy over the settled statuses cannot see children that were
+      // never spawned, so an intended fan-out that finished solo would
+      // otherwise pass vacuously.
+      const minSpawned = opts.acceptance.minSpawnedChildren;
+      const rosterMet = minSpawned === undefined || sortedRecords.length >= minSpawned;
+      if (!rosterMet) {
+        degradedReasons.push(
+          `only ${String(sortedRecords.length)} children were spawned; the acceptance policy ` +
+            `requires at least ${String(minSpawned)} spawned children`,
+        );
+      }
       const accepted =
-        childPolicy === 'all-ok'
+        rosterMet &&
+        (childPolicy === 'all-ok'
           ? hardDegraded === 0
           : (childStatusCounts.ok ?? 0) + salvaged.length + salvagedOutput.length >=
-            childPolicy.minSuccessful;
+            childPolicy.minSuccessful);
       decision = {
         decisionType: 'orchestrator_acceptance',
         verdict: accepted ? 'accepted' : 'rejected',
@@ -3960,6 +3998,9 @@ export function makeOrchestratorWorkflow(
         childPolicy,
         childStatusCounts,
         degradedReasons,
+        ...(minSpawned === undefined
+          ? {}
+          : { minSpawnedChildren: minSpawned, spawnedChildren: sortedRecords.length }),
         ...(salvaged.length === 0 ? {} : { salvagedPartialChildren: salvaged }),
         ...(salvagedOutput.length === 0 ? {} : { salvagedTerminalOutputChildren: salvagedOutput }),
         // A rejected verdict skips a configured synthesis step by design
@@ -3995,9 +4036,12 @@ export function makeOrchestratorWorkflow(
         );
       }
       const required =
-        decision.childPolicy === 'all-ok'
+        (decision.childPolicy === 'all-ok'
           ? 'every child ok'
-          : `at least ${String(decision.childPolicy.minSuccessful)} children ok`;
+          : `at least ${String(decision.childPolicy.minSuccessful)} children ok`) +
+        (decision.minSpawnedChildren === undefined
+          ? ''
+          : `, with at least ${String(decision.minSpawnedChildren)} spawned children`);
       throw new FailRunError(
         `the orchestrator acceptance policy rejected the finish: ` +
           `${String(decision.childStatusCounts.ok ?? 0)} children settled 'ok' but the policy ` +
@@ -4011,6 +4055,12 @@ export function makeOrchestratorWorkflow(
             childPolicy: decision.childPolicy as unknown as Json,
             childStatusCounts: decision.childStatusCounts,
             degradedReasons: decision.degradedReasons,
+            ...(decision.minSpawnedChildren === undefined
+              ? {}
+              : {
+                  minSpawnedChildren: decision.minSpawnedChildren,
+                  spawnedChildren: decision.spawnedChildren ?? 0,
+                }),
             ...(decision.salvagedPartialChildren === undefined
               ? {}
               : { salvagedPartialChildren: decision.salvagedPartialChildren }),

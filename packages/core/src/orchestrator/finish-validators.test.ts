@@ -156,6 +156,35 @@ describe('evidencePreservedValidator', () => {
       ok: true,
     });
   });
+
+  it('requireNonEmptyPool refuses the empty known pool instead of passing vacuously (RV507)', () => {
+    const strict = evidencePreservedValidator({ requireNonEmptyPool: true });
+    // An ok child that produced NO citation used to make the whole
+    // contract vacuous: nothing to preserve, verdict ok. For an
+    // evidence-critical run that silence is the failure.
+    const empty = strict.validate(
+      withChildren('summary with no citations', [child('child found nothing')]),
+    );
+    expect(empty.ok).toBe(false);
+    expect(empty.ok ? '' : empty.reasons[0]).toContain('empty child citation pool');
+    // No children at all is the same empty pool.
+    const none = strict.validate(withChildren('anything', []));
+    expect(none.ok).toBe(false);
+  });
+
+  it('requireNonEmptyPool leaves non-empty pools to the ordinary verdict, and defaults stay vacuous', () => {
+    const strict = evidencePreservedValidator({ requireNonEmptyPool: true });
+    expect(strict.validate(withChildren('kept src/a.ts:12', [child('src/a.ts:12')]))).toEqual({
+      ok: true,
+    });
+    const lost = strict.validate(withChildren('kept nothing', [child('src/a.ts:12')]));
+    expect(lost.ok).toBe(false);
+    expect(lost.ok ? '' : lost.reasons[0]).toContain('below the required share');
+    // The default keeps the historical vacuous pass byte for byte.
+    expect(
+      evidencePreservedValidator().validate(withChildren('x', [child('no citations here')])),
+    ).toEqual({ ok: true });
+  });
 });
 
 describe('minMatchesValidator', () => {

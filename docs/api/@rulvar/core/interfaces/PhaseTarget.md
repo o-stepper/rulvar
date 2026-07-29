@@ -6,7 +6,7 @@
 
 # Interface: PhaseTarget
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:367](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L367)
+Defined in: [packages/core/src/runtime/agent-loop.ts:375](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L375)
 
 One serving target of a phase: the primary or a failover fallback.
 
@@ -14,5 +14,5 @@ One serving target of a phase: the primary or a failover fallback.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-adapter"></a> `adapter` | [`ProviderAdapter`](/api/@rulvar/core/interfaces/ProviderAdapter.md) | [packages/core/src/runtime/agent-loop.ts:368](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L368) |
-| <a id="property-resolved"></a> `resolved` | [`ResolvedInvocation`](/api/@rulvar/core/interfaces/ResolvedInvocation.md) | [packages/core/src/runtime/agent-loop.ts:369](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L369) |
+| <a id="property-adapter"></a> `adapter` | [`ProviderAdapter`](/api/@rulvar/core/interfaces/ProviderAdapter.md) | [packages/core/src/runtime/agent-loop.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L376) |
+| <a id="property-resolved"></a> `resolved` | [`ResolvedInvocation`](/api/@rulvar/core/interfaces/ResolvedInvocation.md) | [packages/core/src/runtime/agent-loop.ts:377](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L377) |

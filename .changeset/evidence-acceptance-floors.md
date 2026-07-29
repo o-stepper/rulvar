@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+Runtime floors for evidence and acceptance (RV507), all additive and opt in; defaults change nothing. `evidenceContract.enforce: 'refuse'` makes the declared floor binding at the child's terminal: an ok finish whose transcript carries fewer successful `record_evidence` executions (the tool's own `recorded: true`; duplicates and failed verifications never count) than `minEntries` becomes a typed `terminal` error whose journaled data carries the machine-readable `evidenceFloor: { recordedEntries, minEntries }`, memoized so a resume rolls the refusal forward instead of re-paying (the default `'warn'` keeps the historical preflight-only signal). `evidencePreservedValidator({ requireNonEmptyPool: true })` refuses the empty known citation pool with an `empty child citation pool` reason instead of the vacuous pass. `OrchestrateAcceptance.minSpawnedChildren: N` rejects a finish whose spawned roster is smaller than N under both child policies (zero spawned children stop being vacuously complete for a fan-out-shaped task), with the actual roster carried beside the floor in the journaled decision and the rejection's error data.
