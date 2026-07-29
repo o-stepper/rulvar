@@ -13,8 +13,16 @@ experiment): how close one agent invocation came to its tool budget,
 visible BEFORE the terminal 'limit' a starved worker would settle
 with. Attached to the full AgentResult and to the live `agent:end`
 event whenever maxToolCalls, toolUnits, or toolBudgetExtension is
-configured. Live telemetry only, exactly like transportRetries: never
-journaled, absent on a replayed result.
+configured. The snapshot itself never journals, but since RV509 it
+has a durable subset: an extension grant and the finalization-window
+entry journal as decision entries the moment they fire, a
+crash-resume restores them from the journal, and a replayed result
+carries `used` (from the terminal checkpoint), the granted `cap`,
+`extensionsGranted`, and `finalizationWindowEntered` whenever the
+invocation journaled at least one such decision. Every other field
+(unitsUsed/unitsMax, noticesFired, finalizationReserveUsed, limiter,
+and the cap of a grant-free run) is live-only fidelity, exactly like
+transportRetries, and stays absent on replay.
 
 ## Properties
 

@@ -229,6 +229,8 @@ The same bound holds for the money: the partial turn after the last checkpoint i
 
 Tools executed inside a turn are **at-least-once**: between a tool's execution and the checkpoint write there is a window where a crash forgets the execution but not its side effects. Make tools idempotent where they touch the outside world.
 
+Two tool-budget facts are journaled the moment they happen, as decision entries bound to the agent's dispatch: an adaptive [tool budget extension](/guide/agents#the-tool-budget-extension) grant, and the entry into the [finalization window](/guide/agents#the-finalization-window). Both are promises made to the model inside the conversation, and the executed-call count alone cannot always reconstruct them: a grant whose calls never ran before the crash is invisible to the count, and a later grant can move the counts back out of the window. On resume the runtime restores them from the journal, so a granted extension survives the crash instead of being silently revoked, and a replayed result's `toolBudget` summary reports the journal-backed fields (`used`, the granted cap, `extensionsGranted`, `finalizationWindowEntered`) with zero provider calls. The soft pressure notices around them stay events, never journal entries, and a run that grants nothing journals nothing new.
+
 When a run is finished, `engine.pruneRun(runId)` deletes the checkpoint blobs of successfully completed attempts; completed work replays from the journal and never boots its checkpoint again. Parked, cancelled, escalated, and hanging attempts keep theirs.
 
 ## At-least-once dispatch, exactly-once pay

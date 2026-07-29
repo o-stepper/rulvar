@@ -84,7 +84,7 @@ import {
   type PhaseTarget,
   type ToolRuntime,
 } from '../runtime/agent-loop.js';
-import type { ExplorationSummary } from '../l0/events.js';
+import type { ExplorationSummary, ToolBudgetSummary } from '../l0/events.js';
 import type { AbortClass } from '../runtime/no-progress.js';
 import {
   countsAgainstLimit,
@@ -365,6 +365,53 @@ export function agentResultWire(result: AgentResult<unknown>, fallbackMessage: s
       ? wire.data
       : {};
   return { ...wire, data: { ...data, abortClass: result.abortClass } };
+}
+
+/** The tool-budget decision vocabulary (RV509). */
+const TOOL_BUDGET_EXTENSION_DECISION = 'tool_budget_extension';
+const FINALIZATION_WINDOW_DECISION = 'finalization_window_entry';
+
+/**
+ * The durable subset of a dispatch's ToolBudgetSummary, folded from the
+ * decision entries bound to it (RV509). The grant ordinal, not the entry
+ * count, carries the total: a crash can lose an entry's persist while
+ * the count derivation still reproduces the grant, so ordinals may gap
+ * but never repeat, and the highest one is the authoritative tally. The
+ * cap is the effective cap the highest grant announced.
+ */
+function readToolBudgetDecisions(
+  entries: readonly JournalEntry[],
+  targetRef: number,
+): { extensionsGranted: number; cap?: number; finalizationWindowEntered: boolean } | undefined {
+  let extensionsGranted = 0;
+  let cap: number | undefined;
+  let finalizationWindowEntered = false;
+  for (const entry of entries) {
+    if (entry.kind !== 'decision') {
+      continue;
+    }
+    const value = entry.value as
+      { decisionType?: string; targetRef?: number; grant?: number; cap?: number } | undefined;
+    if (value?.targetRef !== targetRef) {
+      continue;
+    }
+    if (value.decisionType === TOOL_BUDGET_EXTENSION_DECISION && typeof value.grant === 'number') {
+      if (value.grant > extensionsGranted) {
+        extensionsGranted = value.grant;
+        cap = typeof value.cap === 'number' ? value.cap : undefined;
+      }
+    } else if (value.decisionType === FINALIZATION_WINDOW_DECISION) {
+      finalizationWindowEntered = true;
+    }
+  }
+  if (extensionsGranted === 0 && !finalizationWindowEntered) {
+    return undefined;
+  }
+  return {
+    extensionsGranted,
+    ...(cap === undefined ? {} : { cap }),
+    finalizationWindowEntered,
+  };
 }
 
 /** Pipeline results plus the dropped evidence, returned by onItemError: 'collect'. */
@@ -1354,11 +1401,13 @@ export function createCtx(
       // Tool results reconstructed from the replayed turn checkpoint are
       // re-emitted with the replay marker.
       let replayedToolResults: Array<{ name: string; isError: boolean }> = [];
+      let replayedToolCallsUsed: number | undefined;
       if (matched.kind === 'replay' && terminal?.checkpointRef !== undefined) {
         const blob = await internals.transcripts.get(terminal.checkpointRef);
         const checkpoint = blob === null ? undefined : decodeCheckpoint(blob);
         if (checkpoint !== undefined) {
           result.turns = checkpoint.turns;
+          replayedToolCallsUsed = checkpoint.toolCallsUsed;
           // The structured terminal partial (RV-210 close-out) rebuilds
           // from the terminal checkpoint's messages, the same scan the
           // live loop ran over the same window (the loop writes a final
@@ -1377,6 +1426,30 @@ export function createCtx(
               name: part.name,
               isError: (part as { isError?: boolean }).isError === true,
             }));
+        }
+      }
+      {
+        // The durable tool-budget subset (RV509): the summary fields the
+        // dispatch's decision entries back rebuild on replay, with the
+        // executed count restored from the terminal checkpoint. Present
+        // exactly when the invocation journaled a decision, so grant-free
+        // replays (and every pre-existing journal) stay byte-identical.
+        // Configuration-derived fields (unitsUsed/unitsMax, the cap when
+        // no grant fired, noticesFired, finalizationReserveUsed, limiter)
+        // are live-only fidelity, exactly like phase durations.
+        const durable = readToolBudgetDecisions(internals.replayer.snapshot(), matched.running.seq);
+        if (durable !== undefined && replayedToolCallsUsed !== undefined) {
+          const restoredSummary: ToolBudgetSummary = { used: replayedToolCallsUsed };
+          if (durable.cap !== undefined) {
+            restoredSummary.cap = durable.cap;
+          }
+          if (durable.extensionsGranted > 0) {
+            restoredSummary.extensionsGranted = durable.extensionsGranted;
+          }
+          if (durable.finalizationWindowEntered) {
+            restoredSummary.finalizationWindowEntered = true;
+          }
+          result.toolBudget = restoredSummary;
         }
       }
       internals.events.emit(
@@ -1446,6 +1519,9 @@ export function createCtx(
           ...(terminal?.usageApprox === true ? { usageApprox: true } : {}),
           // Present only when the guard abort journaled it (RV-210).
           ...(result.exploration === undefined ? {} : { exploration: result.exploration }),
+          // The durable tool-budget subset, when the dispatch journaled
+          // decision entries (RV509); absent exactly as before otherwise.
+          ...(result.toolBudget === undefined ? {} : { toolBudget: result.toolBudget }),
         },
         spanId,
         true,
@@ -2043,6 +2119,57 @@ export function createCtx(
       // it only under enforce: 'refuse', so 'warn' and absence keep the
       // historical preflight-only behavior byte for byte.
       runAgentOptions.evidenceContract = profile.evidenceContract;
+    }
+    {
+      // The durable tool-budget decisions (RV509): a grant and the
+      // window entry journal the moment they fire, bound to this
+      // dispatch by targetRef (stable across a dangling redispatch),
+      // fire-and-forget through the serialized queue exactly like rand
+      // (the engine awaits flush before settling the run). On a resume
+      // the state read back from those entries reaches the loop as
+      // `restored`, so a granted-but-unspent extension survives the
+      // crash and a window entry stays truthful after a grant moved the
+      // counts back out. Grant-free runs never call the hooks, keeping
+      // their journals byte-identical.
+      const durableRestored = readToolBudgetDecisions(internals.replayer.snapshot(), running.seq);
+      runAgentOptions.toolBudgetDurability = {
+        ...(durableRestored === undefined
+          ? {}
+          : {
+              restored: {
+                extensionsGranted: durableRestored.extensionsGranted,
+                finalizationWindowEntered: durableRestored.finalizationWindowEntered,
+              },
+            }),
+        onExtensionGrant: (grant) => {
+          void internals.replayer.appendSinglePhase({
+            scope: state.scope,
+            key: '',
+            kind: 'decision',
+            status: 'ok',
+            spanId,
+            value: {
+              decisionType: TOOL_BUDGET_EXTENSION_DECISION,
+              targetRef: running.seq,
+              ...grant,
+            },
+          });
+        },
+        onWindowEntry: (entry) => {
+          void internals.replayer.appendSinglePhase({
+            scope: state.scope,
+            key: '',
+            kind: 'decision',
+            status: 'ok',
+            spanId,
+            value: {
+              decisionType: FINALIZATION_WINDOW_DECISION,
+              targetRef: running.seq,
+              ...entry,
+            },
+          });
+        },
+      };
     }
     if (loopFallbacks.length > 0) {
       runAgentOptions.fallbacks = loopFallbacks;

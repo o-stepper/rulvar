@@ -484,6 +484,33 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * before.
    */
   evidenceContract?: { minEntries: number; enforce?: 'warn' | 'refuse' };
+  /**
+   * The durable parallel of the tool budget summary (RV509): the caller
+   * journals an extension grant and the finalization-window entry as
+   * decision entries at the moment each fires, and hands the state read
+   * back from those entries into `restored` on a dangling-dispatch
+   * resume. A restored grant is honored as granted (the model was
+   * already promised the raised cap), never re-admitted or re-announced,
+   * and a restored window entry keeps the summary's
+   * finalizationWindowEntered truthful even when a later grant moved the
+   * counts back out of the window. The hooks are fire-and-forget from
+   * the loop's view; pressure notices stay events and are never
+   * journaled. Absent, the loop is byte-identical to before.
+   */
+  toolBudgetDurability?: {
+    restored?: { extensionsGranted: number; finalizationWindowEntered: boolean };
+    onExtensionGrant?: (grant: {
+      grant: number;
+      maxExtensions: number;
+      toolCallsUsed: number;
+      cap: number;
+    }) => void;
+    onWindowEntry?: (entry: {
+      remaining: number;
+      reserveCalls: number;
+      budget: FinalizationWindowBudget;
+    }) => void;
+  };
   /** Emits agent:stream deltas when true (telemetry only). */
   stream?: boolean;
   /** Host or sibling cancellation. */
@@ -1438,9 +1465,10 @@ export async function runAgent<S extends SchemaSpec>(
    * 84-call cap while 38% of the USD ceiling sat unspent. A grant at the
    * expiry converts that headroom into `increment` more executed calls,
    * bounded by `maxExtensions`, admitted only with money remaining and
-   * (by default) new evidence since the last grant. Grants re-derive
-   * conservatively from the restored executed-call count on resume, so
-   * nothing new is journaled or checkpointed.
+   * (by default) new evidence since the last grant. Each grant reports
+   * through the durable decision hook (RV509) and restores on resume
+   * from the journaled decisions, with the conservative count
+   * derivation as the floor beneath a lost tail.
    */
   const extension = limits.toolBudgetExtension;
   let extensionGrants = 0;
@@ -1537,6 +1565,16 @@ export async function runAgent<S extends SchemaSpec>(
     extensionGrants += 1;
     extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
     const cap = limits.maxToolCalls + extensionGrants * extension.increment;
+    // The durable decision (RV509): the caller journals the grant with
+    // these exact counts, so a crash between the announcement and the
+    // granted calls restores the raised cap instead of breaking the
+    // promise the notice below just made.
+    options.toolBudgetDurability?.onExtensionGrant?.({
+      grant: extensionGrants,
+      maxExtensions: extension.maxExtensions,
+      toolCallsUsed,
+      cap,
+    });
     pendingExtensionNotices.push(
       toolBudgetExtensionNoticeText(extensionGrants, extension.maxExtensions, toolCallsUsed, cap),
     );
@@ -1606,6 +1644,15 @@ export async function runAgent<S extends SchemaSpec>(
     }
     windowEntered = true;
     windowNoticeFired = true;
+    // The durable decision (RV509): the entry is a fact about THIS
+    // invocation the counts cannot always re-derive (a later grant can
+    // move the remaining budget back out of the window), so the caller
+    // journals it the moment it happens.
+    options.toolBudgetDurability?.onWindowEntry?.({
+      remaining: state.remaining,
+      reserveCalls: finalizationWindow.reserveCalls,
+      budget: state.budget,
+    });
     pendingWindowNotices.push(
       finalizationWindowNoticeText(state.remaining, finalizationWindow.reserveCalls, state.budget),
     );
@@ -1700,12 +1747,15 @@ export async function runAgent<S extends SchemaSpec>(
         firedNotices.add(threshold);
       }
     }
-    // Grants re-derive from the restored count alone (RV301): executed
-    // calls beyond the base cap can only have been admitted by grants,
-    // so ceil over the increment reproduces at least the grants that
-    // funded them. Conservative like the guard-state rebuild: a grant
-    // whose calls never executed before the kill is not counted, and
-    // the next live expiry re-admits it under the current headroom.
+    // Grants re-derive from the restored count (RV301): executed calls
+    // beyond the base cap can only have been admitted by grants, so
+    // ceil over the increment reproduces at least the grants that
+    // funded them. Since RV509 the journaled grant decisions are the
+    // authoritative record and this derivation is the floor beneath
+    // them: a grant whose decision entry was lost with the crashed
+    // segment's tail is still reproduced from the calls it funded,
+    // while a granted-but-unspent extension (invisible to the count)
+    // restores from the journal below.
     if (
       extension !== undefined &&
       limits.maxToolCalls !== undefined &&
@@ -1717,10 +1767,28 @@ export async function runAgent<S extends SchemaSpec>(
       );
       extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
     }
+    const durableRestored = options.toolBudgetDurability?.restored;
+    if (extension !== undefined && durableRestored !== undefined) {
+      // The journaled grants are honored as granted (RV509): the model
+      // was already promised the raised cap in the restored notice, so
+      // the resume neither re-admits nor re-announces. A further LIVE
+      // grant still requires evidence beyond the restore point.
+      const journaled = Math.min(extension.maxExtensions, durableRestored.extensionsGranted);
+      if (journaled > extensionGrants) {
+        extensionGrants = journaled;
+        extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
+      }
+    }
     // A segment restored inside the window re-arms silently (RV302):
     // the entry notice is in the restored messages, so only the flags
-    // re-derive; refusals resume from the very next call.
-    if (windowActive() !== undefined) {
+    // re-derive; refusals resume from the very next call. The journaled
+    // entry decision (RV509) additionally keeps the summary truthful
+    // when a grant moved the restored counts back OUT of the window:
+    // the window was entered this invocation, and the flags say so.
+    if (
+      windowActive() !== undefined ||
+      (finalizationWindow !== undefined && durableRestored?.finalizationWindowEntered === true)
+    ) {
       windowEntered = true;
       windowNoticeFired = true;
     }
