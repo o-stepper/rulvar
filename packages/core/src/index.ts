@@ -65,6 +65,7 @@ export {
   journalPricingSnapshot,
   type AppliedPricingRow,
   type JournalPricingSnapshot,
+  type PinnedPricingSegment,
 } from './engine/pricing-snapshot.js';
 export * from './engine/preflight.js';
 export * from './engine/run-profiles.js';

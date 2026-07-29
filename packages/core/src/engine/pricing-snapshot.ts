@@ -18,7 +18,10 @@
  *
  * The snapshot governs REPORTING folds (the CLI invoice and inspect
  * cost views, and any host that opts in by passing the rebuilt
- * priceUsd). The engine's own live pricing, budget admission, and the
+ * priceUsd; since RV611 those consumers pass `composedPriceUsd`, the
+ * same pin-plus-current-table composition the engine's outcome mirror
+ * applies, so a stored fold and the settled outcome can never
+ * disagree). The engine's own live pricing, budget admission, and the
  * journaled spend debits are untouched: they were always priced at
  * write time and never re-priced by a fold.
  */
@@ -96,6 +99,28 @@ export function snapshotJournalPricing(
   return rows.length === 0 ? undefined : rows;
 }
 
+/**
+ * One pin's coverage (RV611): the run-settle that recorded it, the seq
+ * range it settled FIRST, and exactly the version and rows it pinned.
+ * The whole array is the per-segment provenance a single last-pin
+ * version used to hide: an invoice folded over a rotation can now say
+ * every table version that priced it, with the boundary seqs.
+ */
+export interface PinnedPricingSegment {
+  /**
+   * The first seq this pin covers: the previous pin's settle seq, 0 for
+   * the first pin. Rows with `fromSeq <= seq < settleSeq` price under
+   * this pin in the seq-aware fold.
+   */
+  fromSeq: number;
+  /** The pinning run-settle's own seq (the exclusive upper bound). */
+  settleSeq: number;
+  /** The PriceTable version THIS settle pinned; absent for caps-only rows. */
+  pricingVersion?: string;
+  /** The applied rows THIS settle pinned. */
+  rows: AppliedPricingRow[];
+}
+
 /** What `journalPricingSnapshot` rebuilds from a pinned run settle. */
 export interface JournalPricingSnapshot {
   /** The PriceTable version of the LAST pin; absent for caps-only rows. */
@@ -109,6 +134,13 @@ export interface JournalPricingSnapshot {
    */
   pinnedThroughSeq: number;
   /**
+   * Every pin in journal order (RV611): boundaries, versions, and rows,
+   * not only the last. This is the honest provenance for a fold across
+   * a price-table rotation: consumers exporting `pricingVersion` alone
+   * silently hid that different segments priced under different tables.
+   */
+  segments: PinnedPricingSegment[];
+  /**
    * Prices usage with the PINNED rows only: a model absent from the
    * snapshot folds as unpriced (surfaced, never a silent zero), exactly
    * the honesty contract of the live fold. With a `seq`, the row is
@@ -119,6 +151,26 @@ export interface JournalPricingSnapshot {
    * historical behavior.
    */
   priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined;
+  /**
+   * THE composition the engine's outcome mirror applies at settle
+   * (RV611), exported so stored consumers (the CLI cost and invoice
+   * views, the server cost endpoint) fold exactly like the engine
+   * instead of passing the raw snapshot: a pin-covered row (`seq <
+   * pinnedThroughSeq`) prices under the pin of its own segment; the
+   * tail past the last pin (a segment journaled but not yet settled,
+   * the crashed-mid-flight shape) and seq-less calls price at `current`
+   * alone, exactly like the live debits that tail will settle with,
+   * never silently at the last pin's rates. Two deliberate fallbacks,
+   * both documented rather than hidden: a covered model its covering
+   * pin missed back-reprices at the LAST pin when that pin names it
+   * (the journal never recorded what those debits actually cost), and
+   * otherwise falls to `current` (today's table may know a model the
+   * run's tables never priced); a model neither names folds as
+   * unpriced, surfaced, never a silent zero.
+   */
+  composedPriceUsd: (
+    current: (servedBy: ModelRef, usage: Usage) => number | undefined,
+  ) => (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined;
 }
 
 function pinnedRows(value: unknown): AppliedPricingRow[] | undefined {
@@ -154,10 +206,12 @@ function pinnedRows(value: unknown): AppliedPricingRow[] | undefined {
 export function journalPricingSnapshot(
   entries: readonly JournalEntry[],
 ): JournalPricingSnapshot | undefined {
-  const pins: Array<{ seq: number; byModel: Map<ModelRef, Pricing> }> = [];
-  let last:
-    | { rows: AppliedPricingRow[]; byModel: Map<ModelRef, Pricing>; pricingVersion?: string }
-    | undefined;
+  const pins: Array<{
+    seq: number;
+    byModel: Map<ModelRef, Pricing>;
+    rows: AppliedPricingRow[];
+    pricingVersion?: string;
+  }> = [];
   for (const entry of entries) {
     if (entry?.kind !== 'decision') {
       continue;
@@ -170,18 +224,19 @@ export function journalPricingSnapshot(
     if (rows === undefined) {
       continue;
     }
-    const byModel = new Map<ModelRef, Pricing>(rows.map((row) => [row.model, row.rates]));
-    pins.push({ seq: entry.seq, byModel });
-    last = {
+    pins.push({
+      seq: entry.seq,
+      byModel: new Map<ModelRef, Pricing>(rows.map((row) => [row.model, row.rates])),
       rows,
-      byModel,
       ...(typeof value.pricingVersion === 'string' ? { pricingVersion: value.pricingVersion } : {}),
-    };
+    });
   }
+  const last = pins[pins.length - 1];
   if (last === undefined) {
     return undefined;
   }
   const lastByModel = last.byModel;
+  const pinnedThroughSeq = last.seq;
   const ratesFor = (servedBy: ModelRef, seq?: number): Pricing | undefined => {
     if (seq === undefined) {
       return lastByModel.get(servedBy);
@@ -196,13 +251,24 @@ export function journalPricingSnapshot(
     }
     return lastByModel.get(servedBy);
   };
+  const priceUsd = (servedBy: ModelRef, usage: Usage, seq?: number): number | undefined => {
+    const rates = ratesFor(servedBy, seq);
+    return rates === undefined ? undefined : priceUsdOf(rates, usage);
+  };
   return {
     ...(last.pricingVersion === undefined ? {} : { pricingVersion: last.pricingVersion }),
     rows: last.rows,
-    pinnedThroughSeq: pins[pins.length - 1]?.seq ?? 0,
-    priceUsd: (servedBy, usage, seq) => {
-      const rates = ratesFor(servedBy, seq);
-      return rates === undefined ? undefined : priceUsdOf(rates, usage);
-    },
+    pinnedThroughSeq,
+    segments: pins.map((pin, index) => ({
+      fromSeq: index === 0 ? 0 : (pins[index - 1]?.seq ?? 0),
+      settleSeq: pin.seq,
+      ...(pin.pricingVersion === undefined ? {} : { pricingVersion: pin.pricingVersion }),
+      rows: pin.rows,
+    })),
+    priceUsd,
+    composedPriceUsd: (current) => (servedBy, usage, seq) =>
+      seq !== undefined && seq < pinnedThroughSeq
+        ? (priceUsd(servedBy, usage, seq) ?? current(servedBy, usage))
+        : current(servedBy, usage),
   };
 }

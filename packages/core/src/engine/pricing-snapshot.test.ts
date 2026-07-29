@@ -327,5 +327,164 @@ describe('rotation across a resume: the outcome mirror composes the pins (RV505 
     expect(snapshot).toBeDefined();
     const report = costReportFromJournal(entries, snapshot?.priceUsd ?? (() => undefined));
     expect(report.totalUsd).toBeCloseTo(33, 10);
+
+    // Stored-consumer parity (RV611): the composed fold IS the mirror's
+    // fold, so a CLI or server reading this journal reports the exact
+    // number the settled outcome carried.
+    const composed = snapshot?.composedPriceUsd(priceWith(TABLE_B));
+    expect(composed).toBeDefined();
+    const consumerReport = costReportFromJournal(entries, composed ?? (() => undefined));
+    expect(consumerReport.totalUsd).toBeCloseTo(33, 10);
+  });
+});
+
+describe('stored consumers compose the pins like the engine (RV611)', () => {
+  const usageOn = (seq: number, model: string, inputTokens: number): JournalEntry => ({
+    hashVersion: 2,
+    spanId: 's0',
+    startedAt: '2026-07-29T00:00:00.000Z',
+    seq,
+    scope: '',
+    key: `agent:${String(seq)}`,
+    ordinal: 0,
+    kind: 'agent',
+    status: 'ok',
+    servedBy: model as ModelRef,
+    usage: { inputTokens, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  });
+  const settleWith = (
+    seq: number,
+    segment: number,
+    rows: Array<{ model: string; inputUsdPerMTok: number }>,
+    version: string,
+  ): JournalEntry => ({
+    hashVersion: 2,
+    spanId: 's0',
+    startedAt: '2026-07-29T00:00:00.000Z',
+    seq,
+    scope: '',
+    key: `run-settle:${String(segment)}`,
+    ordinal: 0,
+    kind: 'decision',
+    status: 'ok',
+    value: {
+      decisionType: RUN_SETTLE_DECISION_TYPE,
+      runStatus: 'suspended',
+      segment,
+      pricing: rows.map((row) => ({
+        model: row.model,
+        rates: { inputUsdPerMTok: row.inputUsdPerMTok, outputUsdPerMTok: 0 },
+      })),
+      pricingVersion: version,
+    },
+  });
+  const oneM: Usage = {
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  };
+  const currentTable = (rows: Record<string, number>) =>
+    priceWith({
+      pricingVersion: 'v-live',
+      models: Object.fromEntries(
+        Object.entries(rows).map(([model, rate]) => [
+          model,
+          { inputUsdPerMTok: rate, outputUsdPerMTok: 0 },
+        ]),
+      ),
+    });
+
+  it('prices the tail after the last settle at the current table, never the last pin', () => {
+    // Segment one settled under a 10 USD/MTok pin; segment two journaled
+    // paid work and then the process died before its settle. The engine's
+    // outcome mirror prices exactly this shape live at the current table,
+    // so a stored consumer folding the same journal must agree: 10 + 30,
+    // never 10 + 10 (the raw last-pin fold, silently wrong rates).
+    const entries = [
+      usageOn(0, 'fake:model', 1_000_000),
+      settleWith(1, 1, [{ model: 'fake:model', inputUsdPerMTok: 10 }], 'v-a'),
+      usageOn(2, 'fake:model', 1_000_000),
+    ];
+    const snapshot = journalPricingSnapshot(entries);
+    const composed = snapshot?.composedPriceUsd(currentTable({ 'fake:model': 30 }));
+    expect(composed).toBeDefined();
+    expect(composed?.('fake:model', oneM, 0)).toBe(10);
+    expect(composed?.('fake:model', oneM, 2)).toBe(30);
+    // The seq-aware raw snapshot keeps its documented last-pin answer;
+    // the composition exists so stored consumers stop using it raw.
+    expect(snapshot?.priceUsd('fake:model', oneM, 2)).toBe(10);
+    const report = costReportFromJournal(entries, composed ?? (() => undefined));
+    expect(report.totalUsd).toBe(40);
+  });
+
+  it('a tail model no pin names prices at the current table instead of folding unpriced', () => {
+    const entries = [
+      usageOn(0, 'fake:model', 1_000_000),
+      settleWith(1, 1, [{ model: 'fake:model', inputUsdPerMTok: 10 }], 'v-a'),
+      usageOn(2, 'fake:new', 1_000_000),
+    ];
+    const snapshot = journalPricingSnapshot(entries);
+    const composed = snapshot?.composedPriceUsd(currentTable({ 'fake:model': 30, 'fake:new': 7 }));
+    expect(composed?.('fake:new', oneM, 2)).toBe(7);
+    const report = costReportFromJournal(entries, composed ?? (() => undefined));
+    expect(report.totalUsd).toBe(17);
+    expect(report.unpriced).toEqual([]);
+  });
+
+  it('a model first appearing in a late pin back-reprices its earlier covered rows at the last pin; a model no pin names falls to the current table', () => {
+    // 'fake:late' was unpriced when segment one settled and got its first
+    // pinned rates in segment two: its segment-one row back-reprices at
+    // the LAST pin, the documented deliberate compromise (the journal
+    // never recorded what those debits actually cost). 'fake:never' is in
+    // no pin at all: the current table answers, exactly like the engine
+    // mirror, never a silent unpriced when today's table knows the model.
+    const entries = [
+      usageOn(0, 'fake:late', 1_000_000),
+      usageOn(1, 'fake:never', 1_000_000),
+      settleWith(2, 1, [{ model: 'fake:model', inputUsdPerMTok: 10 }], 'v-a'),
+      usageOn(3, 'fake:late', 1_000_000),
+      settleWith(
+        4,
+        2,
+        [
+          { model: 'fake:model', inputUsdPerMTok: 10 },
+          { model: 'fake:late', inputUsdPerMTok: 100 },
+        ],
+        'v-b',
+      ),
+    ];
+    const snapshot = journalPricingSnapshot(entries);
+    const composed = snapshot?.composedPriceUsd(currentTable({ 'fake:late': 7, 'fake:never': 7 }));
+    expect(composed?.('fake:late', oneM, 0)).toBe(100);
+    expect(composed?.('fake:never', oneM, 1)).toBe(7);
+    expect(composed?.('fake:late', oneM, 3)).toBe(100);
+  });
+
+  it('segments declare every pin: boundaries, versions, and rows, not only the last', () => {
+    const entries = [
+      usageOn(0, 'fake:model', 1_000_000),
+      settleWith(1, 1, [{ model: 'fake:model', inputUsdPerMTok: 10 }], 'v-a'),
+      usageOn(2, 'fake:model', 1_000_000),
+      settleWith(3, 2, [{ model: 'fake:model', inputUsdPerMTok: 100 }], 'v-b'),
+    ];
+    const snapshot = journalPricingSnapshot(entries);
+    expect(snapshot?.segments).toEqual([
+      {
+        fromSeq: 0,
+        settleSeq: 1,
+        pricingVersion: 'v-a',
+        rows: [{ model: 'fake:model', rates: { inputUsdPerMTok: 10, outputUsdPerMTok: 0 } }],
+      },
+      {
+        fromSeq: 1,
+        settleSeq: 3,
+        pricingVersion: 'v-b',
+        rows: [{ model: 'fake:model', rates: { inputUsdPerMTok: 100, outputUsdPerMTok: 0 } }],
+      },
+    ]);
+    // The last-pin fields keep their historical meaning.
+    expect(snapshot?.pricingVersion).toBe('v-b');
+    expect(snapshot?.pinnedThroughSeq).toBe(3);
   });
 });

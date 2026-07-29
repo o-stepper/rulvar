@@ -10,7 +10,7 @@
 function preflightCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:933](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L933)
+Defined in: [packages/cli/src/commands.ts:962](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L962)
 
 rulvar preflight (the experiment-review P2.2; grammar in grammar.ts):
 the effective-config linter and dry-run estimator. Loads the SAME

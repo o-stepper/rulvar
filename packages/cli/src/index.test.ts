@@ -9,7 +9,12 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { JsonlFileStore, type RunMeta } from '@rulvar/core';
+import {
+  JsonlFileStore,
+  RUN_SETTLE_DECISION_TYPE,
+  type JournalEntry,
+  type RunMeta,
+} from '@rulvar/core';
 
 import type { CliIo } from './io.js';
 import { runCli } from './cli-main.js';
@@ -340,7 +345,7 @@ export default {
       pricing?: { source?: string; pricingVersion?: string };
     };
     expect(settled.totalUsd).toBeGreaterThan(0);
-    expect(settled.pricing?.source).toBe('snapshot');
+    expect(settled.pricing?.source).toBe('composed');
     expect(settled.pricing?.pricingVersion).toBe('v-a');
 
     // The live table moves 1000x. The settle pin wins: the invoice
@@ -354,8 +359,123 @@ export default {
       pricing?: { source?: string; pricingVersion?: string };
     };
     expect(repriced.totalUsd).toBe(settled.totalUsd);
-    expect(repriced.pricing?.source).toBe('snapshot');
+    expect(repriced.pricing?.source).toBe('composed');
     expect(repriced.pricing?.pricingVersion).toBe('v-a');
+  });
+
+  it('invoice and inspect compose the pins with the current table and declare every pinned version (RV611)', async () => {
+    // A run suspended mid-flight: two segments settled under two table
+    // versions, then a tail the crashed third segment journaled but never
+    // settled. Seeded directly through the store the CLI reads, because
+    // only a crash produces this shape and the shape is exactly what
+    // inspect and invoice exist to report honestly.
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-pin-compose-'));
+    writeFileSync(
+      join(cwd, 'rulvar.config.mjs'),
+      `import { FakeAdapter } from ${JSON.stringify(TESTING_DIST)};
+
+export default {
+  engineOptions: {
+    adapters: [new FakeAdapter({ agents: { '*': 'echoed' } })],
+    pricing: {
+      pricingVersion: 'v-live',
+      models: { 'fake:fake-model': { inputUsdPerMTok: 1000, outputUsdPerMTok: 0 } },
+    },
+  },
+  workflows: {},
+};
+`,
+      'utf8',
+    );
+    const store = new JsonlFileStore({ dir: join(cwd, '.rulvar') });
+    const runId = 'pin-compose-run';
+    const usageOf = (seq: number): JournalEntry => ({
+      hashVersion: 2,
+      spanId: 's0',
+      startedAt: '2026-07-29T00:00:00.000Z',
+      seq,
+      scope: '',
+      key: `agent:${String(seq)}`,
+      ordinal: 0,
+      kind: 'agent',
+      status: 'ok',
+      servedBy: 'fake:fake-model',
+      usage: { inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    });
+    const settleOf = (
+      seq: number,
+      segment: number,
+      rate: number,
+      version: string,
+    ): JournalEntry => ({
+      hashVersion: 2,
+      spanId: 's0',
+      startedAt: '2026-07-29T00:00:00.000Z',
+      seq,
+      scope: '',
+      key: `run-settle:${String(segment)}`,
+      ordinal: 0,
+      kind: 'decision',
+      status: 'ok',
+      value: {
+        decisionType: RUN_SETTLE_DECISION_TYPE,
+        runStatus: 'suspended',
+        segment,
+        pricing: [
+          { model: 'fake:fake-model', rates: { inputUsdPerMTok: rate, outputUsdPerMTok: 0 } },
+        ],
+        pricingVersion: version,
+      },
+    });
+    await store.append(runId, usageOf(0));
+    await store.append(runId, settleOf(1, 1, 10, 'v-a'));
+    await store.append(runId, usageOf(2));
+    await store.append(runId, settleOf(3, 2, 100, 'v-b'));
+    await store.append(runId, usageOf(4));
+    await store.putMeta({ runId, status: 'suspended', updatedAt: '2026-07-29T00:00:01.000Z' });
+
+    // Segment one at its own pin (10) plus segment two at its own pin
+    // (100) plus the tail at the CURRENT table (1000): the engine's
+    // composition. The raw last-pin fold said 210, silently pricing the
+    // tail at rates the run's own settle would never apply.
+    const io = scriptedIo();
+    expect(await runCli(['invoice', runId, '--json'], { cwd, io })).toBe(0);
+    const parsed = JSON.parse(io.outLines.join('\n')) as {
+      totalUsd: number;
+      pricing?: {
+        source?: string;
+        pricingVersion?: string;
+        pinnedThroughSeq?: number;
+        segments?: Array<{ fromSeq: number; settleSeq: number; pricingVersion?: string }>;
+      };
+    };
+    expect(parsed.totalUsd).toBe(1110);
+    expect(parsed.pricing?.source).toBe('composed');
+    expect(parsed.pricing?.pricingVersion).toBe('v-b');
+    expect(parsed.pricing?.pinnedThroughSeq).toBe(3);
+    expect(parsed.pricing?.segments?.map((segment) => segment.pricingVersion)).toEqual([
+      'v-a',
+      'v-b',
+    ]);
+    expect(
+      parsed.pricing?.segments?.map((segment) => [segment.fromSeq, segment.settleSeq]),
+    ).toEqual([
+      [0, 1],
+      [1, 3],
+    ]);
+
+    const text = scriptedIo();
+    expect(await runCli(['invoice', runId], { cwd, io: text })).toBe(0);
+    expect(text.outLines).toContain(
+      'pricing rates: run-settle pins composed with the current table (v-a, v-b)',
+    );
+
+    const inspected = scriptedIo();
+    expect(await runCli(['inspect', runId], { cwd, io: inspected })).toBe(0);
+    expect(inspected.outLines).toContain('cost: $1110.0000');
+    expect(inspected.outLines).toContain(
+      'pricing: run-settle pins composed with the current table (v-a, v-b)',
+    );
   });
 
   it('preflight prints the synthesis projection line (v1.71 review)', async () => {

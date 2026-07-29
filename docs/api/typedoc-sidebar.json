@@ -1211,6 +1211,10 @@
             "link": "/api/@rulvar/core/interfaces/PhaseTarget.md"
           },
           {
+            "text": "PinnedPricingSegment",
+            "link": "/api/@rulvar/core/interfaces/PinnedPricingSegment.md"
+          },
+          {
             "text": "PipelineCollected",
             "link": "/api/@rulvar/core/interfaces/PipelineCollected.md"
           },
@@ -5627,6 +5631,10 @@
           {
             "text": "PhaseTarget",
             "link": "/api/@rulvar/rulvar/interfaces/PhaseTarget.md"
+          },
+          {
+            "text": "PinnedPricingSegment",
+            "link": "/api/@rulvar/rulvar/interfaces/PinnedPricingSegment.md"
           },
           {
             "text": "PipelineCollected",
