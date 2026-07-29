@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+
 ### 1.109.0
 
 #### Patch Changes
@@ -1202,6 +1209,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+
 ### 1.109.0
 
 #### Patch Changes
@@ -2241,6 +2255,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
 
 ### 1.109.0
 
@@ -3639,6 +3660,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.110.0
+
+#### Minor Changes
+
+- 58afdb5: Price the live and replayed event telemetry per provider request, exactly like the settled fold, and label every money-bearing event with its basis (RV702).
+
+  The eleventh comparison experiment measured the defect live: `agent:phase:end` priced the phase-aggregate usage delta in one call, so a nonlinear long-context tier fired on aggregates no single request crossed; `agent:end` and `reduceInvocationTable` inherited the inflated dollars (raw sum +60.2%, loop bucket +82.9%) while the settled CostReport and invoice priced per request (RV504). Now every recorded provider call is priced individually at its own chokepoint, phase events carry the delta of that per-call accumulator, `agent:end` carries its sum, the replay path folds the terminal entry through the same `priceEntryBilling` the invoice uses, and the reducer's rows and `byRole` buckets match the settled fold whenever records cover the usage.
+
+  New `costBasis: 'per-call' | 'aggregate-estimate'` on `agent:phase:end`, `agent:end`, `AgentResult`, and the reducer's rows and buckets: `'aggregate-estimate'` appears only where per-request records cannot cover the number (a checkpoint written before the reconciliation ledger shipped restores usage without call records; the invocation total then keeps the aggregate-priced figure, labeled, instead of silently dropping restored spend), and the reducer defaults an absent field to `'aggregate-estimate'`, never to a per-call claim the stream cannot back.
 
 ### 1.109.0
 
@@ -5393,6 +5424,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.110.0
+
 ### 1.109.0
 
 ### 1.108.0
@@ -5715,6 +5748,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+  - @rulvar/testing@1.110.0
 
 ### 1.109.0
 
@@ -6976,6 +7017,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+
 ### 1.109.0
 
 #### Patch Changes
@@ -7418,6 +7466,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
 
 ### 1.109.0
 
@@ -8615,6 +8670,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+
 ### 1.109.0
 
 #### Patch Changes
@@ -9768,6 +9830,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+  - eslint-plugin-rulvar@1.110.0
 
 ### 1.109.0
 
@@ -10993,6 +11063,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+  - @rulvar/anthropic@1.110.0
+  - @rulvar/openai@1.110.0
 
 ### 1.109.0
 
@@ -12410,6 +12489,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+
 ### 1.109.0
 
 #### Patch Changes
@@ -13555,6 +13641,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
+
 ### 1.109.0
 
 #### Patch Changes
@@ -14015,6 +14108,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
 
 ### 1.109.0
 
@@ -15107,6 +15207,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.110.0
+
+#### Patch Changes
+
+- Updated dependencies [58afdb5]
+  - @rulvar/core@1.110.0
 
 ### 1.109.0
 
