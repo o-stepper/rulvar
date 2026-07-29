@@ -250,11 +250,20 @@ const MUTATIONS = [
   {
     id: 'cost-fold-per-call-basis',
     doctrine:
-      'a fully attributed entry prices per provider call: a nonlinear tier fires per request, never on the aggregate (RV504)',
+      'a covered model prices per provider call under the symmetric per-model key: a nonlinear tier fires per request, never on an aggregate, several roles on one model included (RV504, RV604)',
     file: 'packages/core/src/l0/entries.ts',
-    find: '  if (!callsCoverSlices(slices, records)) {',
-    replace: '  if (true || !callsCoverSlices(slices, records)) {',
+    find: '  const covered = coveredModels(slices, records);',
+    replace: '  const covered = new Set<ModelRef>();',
     test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
+    id: 'invoice-residual-transfer',
+    doctrine:
+      "a target with no rows never transfers onto another model's line: the dust pass reconciles only what rows can carry and declares the rest (RV605)",
+    file: 'packages/core/src/engine/invoice.ts',
+    find: '    if (target !== 0 && !pools.has(key)) {\n      unallocated += target;\n    }',
+    replace: '    if (false) {\n      unallocated += target;\n    }',
+    test: 'packages/core/src/engine/invoice.test.ts',
   },
   {
     id: 'pricing-pin-segment-composition',

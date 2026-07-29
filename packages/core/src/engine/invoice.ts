@@ -39,6 +39,7 @@ import {
   priceEntryBilling,
   type JournalEntry,
   type ProviderCallRecord,
+  type UsageSlice,
 } from '../l0/entries.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import { costReportFromJournal } from './cost-report.js';
@@ -145,6 +146,16 @@ export interface InvoiceExport {
   unpriced: Array<{ model: string; usage: Usage }>;
   /** Rows whose reconciliation is not 'provider-id-present'. */
   reconciliationFailures: number;
+  /**
+   * USD of allocation pools that had a target and no row to carry it
+   * (RV605). The dust pass refuses to move such dollars onto another
+   * model's rows just to make the column sum, so on the (pathological)
+   * journals where this happens the flat `allocatedUsd` sum reproduces
+   * `totalUsd` minus this amount. Absent when zero, which is every
+   * well-formed journal: the per-slice remainder rows guarantee a row
+   * wherever a slice has usage.
+   */
+  unallocatedUsd?: number;
   /** Rows carrying `usageUnknown`; present when at least one does. */
   usageUnknownRows?: number;
   /** Present and true when any contributing entry carried approximate usage. */
@@ -160,16 +171,36 @@ const USAGE_FIELDS = [
   'cacheWriteTokens',
 ] as const;
 
-/** entry.usage minus the records' sum, clamped at zero per field. */
-function usageRemainder(total: Usage, records: readonly ProviderCallRecord[]): Usage | undefined {
+/**
+ * One usage slice minus ITS OWN records' sum, clamped at zero per field
+ * (RV605). A record belongs to a slice when it names the same serving
+ * model, and the same role when the slice carries one; a slice written
+ * without a role (the legacy whole-entry fallback) absorbs every record
+ * of its model, which is exactly the pre-RV605 arithmetic for
+ * single-model entries. Computing the remainder per slice instead of
+ * per entry is what keeps an orphaned model's spend on a row of that
+ * model: the whole-entry remainder was published under `entry.servedBy`,
+ * so a slice with no records left its allocation pool rowless and the
+ * dust pass moved its dollars onto another model's row.
+ */
+function sliceRemainder(
+  slice: UsageSlice,
+  records: readonly ProviderCallRecord[],
+): Usage | undefined {
   const remainder: Usage = {
-    inputTokens: total.inputTokens,
-    outputTokens: total.outputTokens,
-    cacheReadTokens: total.cacheReadTokens,
-    cacheWriteTokens: total.cacheWriteTokens,
+    inputTokens: slice.usage.inputTokens,
+    outputTokens: slice.usage.outputTokens,
+    cacheReadTokens: slice.usage.cacheReadTokens,
+    cacheWriteTokens: slice.usage.cacheWriteTokens,
   };
-  let reasoning = total.reasoningTokens ?? 0;
+  let reasoning = slice.usage.reasoningTokens ?? 0;
   for (const record of records) {
+    if (record.servedBy !== slice.servedBy) {
+      continue;
+    }
+    if (slice.role !== undefined && record.role !== slice.role) {
+      continue;
+    }
     for (const field of USAGE_FIELDS) {
       remainder[field] = Math.max(0, remainder[field] - record.usage[field]);
     }
@@ -208,16 +239,21 @@ function totalTokens(usage: Usage): number {
  * association so the flat sum over `rows` reproduces `totalUsd`
  * exactly. Rows on unpriced models keep zero: their spend is in
  * `unpriced`, not in `totalUsd`.
+ *
+ * A pool with a target and NO rows refuses the transfer (RV605): its
+ * dollars are excluded from the dust reconciliation and returned as the
+ * unallocated share, because dumping them on the globally largest row
+ * moved one model's spend onto another model's line just to make the
+ * column sum. The returned amount is zero on every well-formed journal
+ * (the per-slice remainder rows above guarantee a row wherever a slice
+ * has usage), so the flat sum still reproduces `totalUsd` exactly there.
  */
 function allocateRows(
   rows: InvoiceRow[],
   entries: readonly JournalEntry[],
   priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
   totalUsd: number,
-): void {
-  if (rows.length === 0) {
-    return;
-  }
+): number {
   const targets = new Map<string, number>();
   for (const entry of entries) {
     if (entry.status === 'running' || entry.usage === undefined) {
@@ -237,6 +273,15 @@ function allocateRows(
     } else {
       pool.push(row);
     }
+  }
+  let unallocated = 0;
+  for (const [key, target] of targets) {
+    if (target !== 0 && !pools.has(key)) {
+      unallocated += target;
+    }
+  }
+  if (rows.length === 0) {
+    return unallocated;
   }
   for (const [key, members] of pools) {
     const target = targets.get(key) ?? 0;
@@ -261,18 +306,22 @@ function allocateRows(
     }
   }
   if (absorber === undefined) {
-    return;
+    return unallocated;
   }
   // Fixed-point dust pass: each correction shrinks the flat-sum gap to
   // rounding of the last addition, so this settles in a pass or two;
-  // the bound only guards a pathological tie.
+  // the bound only guards a pathological tie. The reconciliation goal
+  // excludes the unallocated share: dust absorption repairs IEEE
+  // association, never a missing row.
+  const goal = totalUsd - unallocated;
   for (let pass = 0; pass < 8; pass += 1) {
     const flat = rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
-    if (flat === totalUsd) {
+    if (flat === goal) {
       break;
     }
-    absorber.allocatedUsd += totalUsd - flat;
+    absorber.allocatedUsd += goal - flat;
   }
+  return unallocated;
 }
 
 /** A single row priced at its own model's rate; broken rates fold as unpriced. */
@@ -376,16 +425,23 @@ export function invoiceFromJournal(
       });
       continue;
     }
-    const remainder = usageRemainder(entry.usage, records);
-    if (remainder !== undefined && entry.servedBy !== undefined) {
-      // The records do not cover the entry's total (a resume restored
-      // a pre-ledger checkpoint): the difference is real billed usage,
-      // surfaced as an unattributed remainder instead of vanishing.
-      const usd = rowUsd(priceUsd, entry.servedBy, remainder, entry.seq);
+    // The records do not cover a slice's total (a resume restored a
+    // pre-ledger checkpoint, or one model's dispatches predate the
+    // ledger): the difference is real billed usage, surfaced as one
+    // unattributed remainder row PER SLICE under the slice's own
+    // serving model and role (RV605), never pooled onto entry.servedBy.
+    let remainderOrdinal = records.length + 1;
+    for (const slice of entryUsageSlices(entry)) {
+      const remainder = sliceRemainder(slice, records);
+      if (remainder === undefined) {
+        continue;
+      }
+      const usd = rowUsd(priceUsd, slice.servedBy, remainder, entry.seq);
       rows.push({
         ...base,
-        ordinal: records.length + 1,
-        servedBy: entry.servedBy,
+        ordinal: remainderOrdinal,
+        servedBy: slice.servedBy,
+        ...(slice.role === undefined ? {} : { role: slice.role }),
         outcome: 'unattributed',
         usage: remainder,
         ...(entry.usageApprox === true ? { usageApprox: true } : {}),
@@ -394,9 +450,10 @@ export function invoiceFromJournal(
         ...mark,
         reconciliation: 'unattributed',
       });
+      remainderOrdinal += 1;
     }
   }
-  allocateRows(rows, entries, priceUsd, report.grossUsd);
+  const unallocatedUsd = allocateRows(rows, entries, priceUsd, report.grossUsd);
   const usageApprox = report.usageApprox === true || report.abandoned.usageApprox === true;
   return {
     rows,
@@ -405,6 +462,7 @@ export function invoiceFromJournal(
     abandonedUsd: report.abandoned.usd,
     pricingBasis: 'per-call',
     rowUsdNonAdditive: !everyEntryFullyAttributed,
+    ...(unallocatedUsd === 0 ? {} : { unallocatedUsd }),
     unpriced: [...report.unpriced, ...report.abandoned.unpriced],
     reconciliationFailures: rows.filter((row) => row.reconciliation !== 'provider-id-present')
       .length,
