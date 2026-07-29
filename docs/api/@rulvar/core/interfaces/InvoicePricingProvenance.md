@@ -6,7 +6,7 @@
 
 # Interface: InvoicePricingProvenance
 
-Defined in: [packages/core/src/engine/invoice.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L111)
+Defined in: [packages/core/src/engine/invoice.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L112)
 
 Where the fold's rates came from (RV407): `snapshot` says the caller
 priced with the run-settle pin (`journalPricingSnapshot`), so these
@@ -18,6 +18,6 @@ caller, who is the one that chose.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-pricingversion"></a> `pricingVersion?` | `string` | - | [packages/core/src/engine/invoice.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L113) |
-| <a id="property-rows"></a> `rows?` | [`AppliedPricingRow`](/api/@rulvar/core/interfaces/AppliedPricingRow.md)[] | The pinned rows the fold used; present on snapshot-priced exports. | [packages/core/src/engine/invoice.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L115) |
-| <a id="property-source"></a> `source` | `"snapshot"` \| `"current-table"` | - | [packages/core/src/engine/invoice.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L112) |
+| <a id="property-pricingversion"></a> `pricingVersion?` | `string` | - | [packages/core/src/engine/invoice.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L114) |
+| <a id="property-rows"></a> `rows?` | [`AppliedPricingRow`](/api/@rulvar/core/interfaces/AppliedPricingRow.md)[] | The pinned rows the fold used; present on snapshot-priced exports. | [packages/core/src/engine/invoice.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L116) |
+| <a id="property-source"></a> `source` | `"snapshot"` \| `"current-table"` | - | [packages/core/src/engine/invoice.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L113) |

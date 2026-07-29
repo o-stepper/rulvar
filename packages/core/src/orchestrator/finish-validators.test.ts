@@ -516,3 +516,44 @@ describe('headingStructureValidator (the sixth comparison experiment, cycle 77)'
     ).toThrow(ConfigError);
   });
 });
+
+describe('evidencePreservedValidator fail-closed intake and pool (RV610)', () => {
+  it('refuses a pattern that can match the empty string, typed at construction', () => {
+    // An empty-matchable pattern manufactures a non-empty "evidence"
+    // pool out of nothing: '' enters the set, requireNonEmptyPool
+    // passes, and preserving '' trivially succeeds.
+    expect(() => evidencePreservedValidator({ pattern: '' })).toThrow(ConfigError);
+    expect(() => evidencePreservedValidator({ pattern: 'x*' })).toThrow(/empty string/);
+    expect(() => evidencePreservedValidator({ pattern: '(?:src/a\\.ts:1)?' })).toThrow(
+      /empty string/,
+    );
+    expect(() => evidencePreservedValidator({ pattern: '[A-Z]+-\\d+' })).not.toThrow();
+    expect(() => evidencePreservedValidator()).not.toThrow();
+  });
+
+  it('refuses non-boolean strict options instead of silently disabling them', () => {
+    expect(() => evidencePreservedValidator({ requireNonEmptyPool: 'true' as never })).toThrow(
+      /requireNonEmptyPool must be a boolean/,
+    );
+    expect(() => evidencePreservedValidator({ requireKnown: 1 as never })).toThrow(
+      /requireKnown must be a boolean/,
+    );
+    expect(() =>
+      evidencePreservedValidator({ requireNonEmptyPool: true, requireKnown: false }),
+    ).not.toThrow();
+  });
+
+  it('zero-length matches never enter the pool even when the pattern slips past intake', () => {
+    // A lookbehind matches empty AFTER its anchor but not in '': the
+    // construction probe cannot see it, so the pool filter is the
+    // layer that holds.
+    const validator = evidencePreservedValidator({
+      pattern: '(?<=anchor )[\\w./:-]*',
+      requireNonEmptyPool: true,
+    });
+    const verdict = validator.validate(withChildren('no citations kept', [child('anchor ')]));
+    expect(verdict.ok).toBe(false);
+    const reason = verdict.ok ? '' : (verdict.reasons[0] ?? '');
+    expect(reason).toContain('empty child citation pool');
+  });
+});

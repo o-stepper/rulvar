@@ -6,6 +6,7 @@
  * (DEF-6): https://docs.rulvar.com/guide/journal-compatibility
  */
 import type { Json } from './json.js';
+import { ConfigError } from './errors.js';
 import type { WireError } from './errors.js';
 import type { InvocationRole, ModelRef, Usage } from './messages.js';
 
@@ -190,6 +191,13 @@ export interface PricedUsage {
   unpriced: UsageSlice[];
 }
 
+const foldOverflow = (seq: number, servedBy: string): ConfigError =>
+  new ConfigError(
+    `cost accounting overflow: the price sum for entry seq ${String(seq)} became non-finite ` +
+      `at model ${servedBy} (individually finite prices overflowed); no public report may ` +
+      'carry a non-finite number',
+  );
+
 /**
  * The single pricing fold over one terminal entry, shared by the kernel
  * ledger and the CostReport fold so a run's total and its per-model
@@ -214,6 +222,9 @@ export function priceEntryUsage(
       continue;
     }
     result.usd += usd;
+    if (!Number.isFinite(result.usd)) {
+      throw foldOverflow(entry.seq, slice.servedBy);
+    }
     result.priced.push({ ...slice, usd });
   }
   return result;
@@ -367,6 +378,9 @@ export function priceEntryBilling(
       continue;
     }
     usd += price;
+    if (!Number.isFinite(usd)) {
+      throw foldOverflow(entry.seq, record.servedBy);
+    }
     units.push({
       source: 'call',
       servedBy: record.servedBy,
@@ -400,6 +414,9 @@ export function priceEntryBilling(
       continue;
     }
     usd += price;
+    if (!Number.isFinite(usd)) {
+      throw foldOverflow(entry.seq, slice.servedBy);
+    }
     units.push({
       source: 'slice',
       servedBy: slice.servedBy,

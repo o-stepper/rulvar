@@ -502,7 +502,14 @@ function listCitations(values: string[]): string {
  * list the missing (and unknown) citations, capped at 20, so the repair
  * turn can restore them. Purely textual and deterministic; checking
  * that cited targets EXIST on disk is host territory (a custom
- * validator), not this contract. Default name 'evidence-preserved'.
+ * validator), not this contract. Intake is fail closed (RV610): a
+ * pattern that can match the empty string is refused typed (an empty
+ * match would enter the pool as fabricated evidence and defeat
+ * `requireNonEmptyPool`), zero-length matches never enter the pool
+ * even when a lookaround produces them in context, and the strict-mode
+ * booleans must be real booleans, so a stray `'true'` can never
+ * silently disable the mode it names. Default name
+ * 'evidence-preserved'.
  */
 export function evidencePreservedValidator(options?: {
   pattern?: string;
@@ -515,8 +522,9 @@ export function evidencePreservedValidator(options?: {
   const pattern = options?.pattern ?? DEFAULT_CITATION_PATTERN;
   const flags = options?.flags ?? '';
   const globalFlags = flags.includes('g') ? flags : `${flags}g`;
+  let probe: RegExp;
   try {
-    new RegExp(pattern, globalFlags);
+    probe = new RegExp(pattern, flags.replace('g', ''));
   } catch (thrown) {
     throw new ConfigError(
       `evidencePreservedValidator pattern does not compile: ${
@@ -524,11 +532,37 @@ export function evidencePreservedValidator(options?: {
       }`,
     );
   }
+  // Fail-closed intake (RV610): a pattern that can match the empty
+  // string manufactures a non-empty "evidence" pool out of nothing ('',
+  // which every result trivially "preserves" and which defeats
+  // requireNonEmptyPool), so it is refused here, symmetric to the
+  // minShare domain check below. Patterns that produce zero-length
+  // matches only in context (a bare lookaround) slip past this probe
+  // and are caught by the pool filter instead.
+  if (probe.test('')) {
+    throw new ConfigError(
+      `evidencePreservedValidator pattern must not be able to match the empty string ` +
+        `(an empty match would enter the citation pool as fabricated evidence); got ` +
+        `${JSON.stringify(pattern)}`,
+    );
+  }
   const minShare = options?.minShare ?? DEFAULT_EVIDENCE_MIN_SHARE;
   if (typeof minShare !== 'number' || !Number.isFinite(minShare) || minShare <= 0 || minShare > 1) {
     throw new ConfigError(
       `evidencePreservedValidator minShare must be a number in (0, 1]; got ${String(minShare)}`,
     );
+  }
+  // The strict-mode booleans authorize refusals; truthiness ('true', 1)
+  // must never silently DISABLE them, so anything but a real boolean is
+  // refused at intake (RV610).
+  for (const option of ['requireKnown', 'requireNonEmptyPool'] as const) {
+    const value = options?.[option];
+    if (value !== undefined && typeof value !== 'boolean') {
+      throw new ConfigError(
+        `evidencePreservedValidator ${option} must be a boolean when given; got ` +
+          `${JSON.stringify(value)}`,
+      );
+    }
   }
   return {
     name: options?.name ?? 'evidence-preserved',
@@ -546,7 +580,12 @@ export function evidencePreservedValidator(options?: {
           continue;
         }
         for (const match of child.text.match(new RegExp(pattern, globalFlags)) ?? []) {
-          cited.add(match);
+          // Zero-length matches never enter the pool (RV610): a bare
+          // lookaround can produce them past the intake probe, and an
+          // empty "citation" is fabricated evidence by construction.
+          if (match.length > 0) {
+            cited.add(match);
+          }
         }
       }
       const reasons: string[] = [];
@@ -573,7 +612,7 @@ export function evidencePreservedValidator(options?: {
       if (options?.requireKnown === true) {
         const fabricated = [
           ...new Set(input.text.match(new RegExp(pattern, globalFlags)) ?? []),
-        ].filter((citation) => !cited.has(citation));
+        ].filter((citation) => citation.length > 0 && !cited.has(citation));
         if (fabricated.length > 0) {
           reasons.push(
             `unknown citations not present in any child report: ${listCitations(fabricated)}`,

@@ -21,6 +21,7 @@ import type { ModelRef, Usage } from '../l0/messages.js';
 import { makeOrchestratorWorkflow } from '../orchestrator/orchestrate.js';
 import { createEngine } from './engine.js';
 import { costReportFromJournal } from './cost-report.js';
+import { priceEntryBilling } from '../l0/entries.js';
 import { scriptedAdapter, testCaps, type ScriptedTurn } from './test-harness.js';
 
 const wf = defineWorkflow({ name: 'costly' }, async (ctx) => {
@@ -853,5 +854,63 @@ describe('the symmetric coverage key (RV604, the round-52 accounting P1)', () =>
     // the ceiling debited, and it fits the ceiling the run ran under.
     expect(outcome.cost.totalUsd).toBeCloseTo((750 * 10 + 20 * 30) / 1e6, 12);
     expect(outcome.cost.totalUsd).toBeLessThan(0.012);
+  });
+});
+
+describe('non-finite accounting is refused typed (RV610)', () => {
+  const usageOf = (inputTokens: number, outputTokens: number): Usage => ({
+    inputTokens,
+    outputTokens,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  });
+  const call = (ordinal: number, usage: Usage): ProviderCallRecord => ({
+    ordinal,
+    role: 'loop',
+    servedBy: 'fake:model',
+    attempt: 1,
+    outcome: 'ok',
+    usage,
+  });
+  const entryOf = (seq: number, overrides: Partial<JournalEntry>): JournalEntry => ({
+    hashVersion: 2,
+    spanId: 's0',
+    startedAt: '2026-07-29T00:00:00.000Z',
+    seq,
+    scope: '',
+    key: `agent:${String(seq)}`,
+    ordinal: 0,
+    kind: 'agent',
+    status: 'ok',
+    servedBy: 'fake:model',
+    ...overrides,
+  });
+
+  it('two covered calls with individually finite prices overflowing the fold throw typed', () => {
+    // The audit reproduction verbatim: each per-request price is
+    // Number.MAX_VALUE (finite, passes the per-price validation), and
+    // the sum is Infinity. Pre-fix the fold returned it and the report
+    // published it; JSON then serializes Infinity and the NaN it breeds
+    // into null.
+    const entry = entryOf(1, {
+      usage: usageOf(600, 0),
+      providerCalls: [call(1, usageOf(300, 0)), call(2, usageOf(300, 0))],
+    });
+    expect(() => priceEntryBilling(entry, () => Number.MAX_VALUE)).toThrow(/finite/);
+    expect(() => costReportFromJournal([entry], () => Number.MAX_VALUE)).toThrow(/finite/);
+  });
+
+  it('the aggregate slice path and the cross-entry total are guarded the same way', () => {
+    // Each entry folds to a finite MAX_VALUE; the report total is the
+    // accumulation that overflows, so the guard must live at the public
+    // boundary too, not only inside one entry.
+    const entries = [
+      entryOf(1, { usage: usageOf(100, 0) }),
+      entryOf(2, { usage: usageOf(100, 0) }),
+    ];
+    expect(() => costReportFromJournal(entries, () => Number.MAX_VALUE)).toThrow(/finite/);
+    // One huge but finite entry stays representable and allowed.
+    const single = costReportFromJournal([entries[0]], () => Number.MAX_VALUE);
+    expect(Number.isFinite(single.totalUsd)).toBe(true);
   });
 });

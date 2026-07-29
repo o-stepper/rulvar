@@ -10,7 +10,7 @@
 function sectionCitationsValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:603](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L603)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:642](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L642)
 
 Requires at least `min` matches of `pattern` INSIDE every named
 section (the v1.71 experiment review, P1.2: a total citation count

@@ -16,6 +16,6 @@ type ResolutionBy =
   | "engine_fallback";
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L56)
+Defined in: [packages/core/src/l0/entries.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L57)
 
 The journaled by-source of a resolution.

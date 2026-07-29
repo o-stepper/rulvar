@@ -13,8 +13,9 @@ function costReportFromJournal(entries, priceUsd): CostReport;
 Defined in: `packages/core/dist/index.d.ts`
 
 The pure journal fold: the complete CostReport from terminal entries,
-the same summation the kernel ledger uses (terminal usage exactly
-once, priced per servedBy slice, abandoned subtrees contribute zero).
+the same summation the kernel ledger uses (each terminal entry's
+usage enters the sum once, priced per servedBy slice, abandoned
+subtrees contribute zero).
 The orchestrator block folds too: spend attributed to the
 orchestrator sub-account, the reserve-funded share of it, the armed
 wake count, and the at-cap freeze flag from the journaled cap

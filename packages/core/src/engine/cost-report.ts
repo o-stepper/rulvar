@@ -26,6 +26,7 @@
  */
 import { buildAbandonFold } from '../journal/disposition.js';
 import { priceEntryBilling, type JournalEntry } from '../l0/entries.js';
+import { requireFiniteNumbersDeep } from '../l0/validate-numbers.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import type { CostAttribution } from './ctx.js';
 import type { CostReport } from './run-handle.js';
@@ -90,8 +91,9 @@ export function buildCostReport(
 
 /**
  * The pure journal fold: the complete CostReport from terminal entries,
- * the same summation the kernel ledger uses (terminal usage exactly
- * once, priced per servedBy slice, abandoned subtrees contribute zero).
+ * the same summation the kernel ledger uses (each terminal entry's
+ * usage enters the sum once, priced per servedBy slice, abandoned
+ * subtrees contribute zero).
  * The orchestrator block folds too: spend attributed to the
  * orchestrator sub-account, the reserve-funded share of it, the armed
  * wake count, and the at-cap freeze flag from the journaled cap
@@ -201,7 +203,7 @@ export function costReportFromJournal(
       }
     }
   }
-  return {
+  const report: CostReport = {
     totalUsd,
     grossUsd: totalUsd + abandonedUsd,
     abandoned: {
@@ -226,4 +228,9 @@ export function costReportFromJournal(
     // exact usage report stays byte for byte what it was.
     ...(usageApprox ? { usageApprox: true } : {}),
   };
+  // The public boundary (RV610): per-entry folds are guarded, but the
+  // CROSS-entry accumulation can still overflow finite fold sums, and a
+  // published report must never carry Infinity or NaN.
+  requireFiniteNumbersDeep(report, 'costReport');
+  return report;
 }

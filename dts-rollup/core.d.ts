@@ -5978,8 +5978,9 @@ declare class AdmissionController {
 declare function buildCostReport(attribution: CostAttribution, totalUsd: number, abandoned?: CostReport["abandoned"]): CostReport;
 /**
 * The pure journal fold: the complete CostReport from terminal entries,
-* the same summation the kernel ledger uses (terminal usage exactly
-* once, priced per servedBy slice, abandoned subtrees contribute zero).
+* the same summation the kernel ledger uses (each terminal entry's
+* usage enters the sum once, priced per servedBy slice, abandoned
+* subtrees contribute zero).
 * The orchestrator block folds too: spend attributed to the
 * orchestrator sub-account, the reserve-funded share of it, the armed
 * wake count, and the at-cap freeze flag from the journaled cap
@@ -6873,7 +6874,14 @@ declare const DEFAULT_EVIDENCE_MIN_SHARE = .95;
 * list the missing (and unknown) citations, capped at 20, so the repair
 * turn can restore them. Purely textual and deterministic; checking
 * that cited targets EXIST on disk is host territory (a custom
-* validator), not this contract. Default name 'evidence-preserved'.
+* validator), not this contract. Intake is fail closed (RV610): a
+* pattern that can match the empty string is refused typed (an empty
+* match would enter the pool as fabricated evidence and defeat
+* `requireNonEmptyPool`), zero-length matches never enter the pool
+* even when a lookaround produces them in context, and the strict-mode
+* booleans must be real booleans, so a stray `'true'` can never
+* silently disable the mode it names. Default name
+* 'evidence-preserved'.
 */
 declare function evidencePreservedValidator(options?: {
   pattern?: string;
