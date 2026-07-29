@@ -1,5 +1,12 @@
 # @rulvar/anthropic
 
+## 1.107.0
+
+### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+
 ## 1.106.0
 
 ### Patch Changes

@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+
 ### 1.106.0
 
 #### Patch Changes
@@ -1181,6 +1188,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+
 ### 1.106.0
 
 #### Patch Changes
@@ -2199,6 +2213,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
 
 ### 1.106.0
 
@@ -3568,6 +3589,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.107.0
+
+#### Minor Changes
+
+- 9f5f6f6: Fail the evidence-preservation contract closed at intake and refuse non-finite accounting anywhere in a public report (RV610); the exactly-once claim sentinel now judges normalized prose blocks and the guarantee matrix states the two-phase row shape honestly (RV612).
+
+  `evidencePreservedValidator` intake is fail closed: a pattern that can match the empty string is refused with a typed `ConfigError` at construction (an empty match would enter the citation pool as fabricated evidence, trivially "preserved" by every result and defeating `requireNonEmptyPool`), zero-length matches never enter the pool even when a lookaround produces them in context past the construction probe, and `requireKnown` and `requireNonEmptyPool` must be real booleans, so a stray `'true'` or `1` can never silently disable the strict mode it names.
+
+  Accounting refuses non-finite numbers at every layer: the per-entry price folds (`priceEntryUsage`, `priceEntryBilling`) throw a typed `ConfigError` the moment individually finite prices overflow the running sum, and `costReportFromJournal` and `invoiceFromJournal` walk their finished public objects and refuse any `Infinity` or `NaN` before returning, because JSON serializes both as `null` and a published report that quietly carries `null` where dollars belong is silent telemetry corruption. Previously two individually valid `Number.MAX_VALUE` prices produced `totalUsd: Infinity` and `allocatedUsd: NaN`.
+
+  The docs claim sentinel (RV508) now normalizes contiguous markdown prose and source comment blocks before matching, so a forbidden claim wrapped across a line break or spaced with double whitespace is caught at the block's first line, and the prior shipped recurrence "each ran once" is recognized as the same claim; the (file, anchor) allowlist is unchanged. The widened rule immediately caught one live wrapped occurrence in a core comment, which is rewritten with the precise guarantee. The guarantee matrix's effect-accounting cell no longer contradicts the ledger format: a completed two-phase attempt has TWO rows (intent and outcome, one `attemptId`), a crash between the phases leaves the intent row alone as the orphan, and the legacy no-intent ledger keeps its one-outcome-row contract.
 
 ### 1.106.0
 
@@ -5290,6 +5323,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.107.0
+
 ### 1.106.0
 
 ### 1.105.0
@@ -5606,6 +5641,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+  - @rulvar/testing@1.107.0
 
 ### 1.106.0
 
@@ -6843,6 +6886,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+
 ### 1.106.0
 
 #### Patch Changes
@@ -7264,6 +7314,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
 
 ### 1.106.0
 
@@ -8440,6 +8497,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+
 ### 1.106.0
 
 #### Patch Changes
@@ -9572,6 +9636,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+  - eslint-plugin-rulvar@1.107.0
 
 ### 1.106.0
 
@@ -10773,6 +10845,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+  - @rulvar/anthropic@1.107.0
+  - @rulvar/openai@1.107.0
 
 ### 1.106.0
 
@@ -12163,6 +12244,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+
 ### 1.106.0
 
 #### Patch Changes
@@ -13287,6 +13375,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
+
 ### 1.106.0
 
 #### Patch Changes
@@ -13726,6 +13821,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
 
 ### 1.106.0
 
@@ -14797,6 +14899,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.107.0
+
+#### Patch Changes
+
+- Updated dependencies [9f5f6f6]
+  - @rulvar/core@1.107.0
 
 ### 1.106.0
 
