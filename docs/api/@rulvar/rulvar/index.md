@@ -390,6 +390,7 @@ const engine = createEngine({
 | [ClaimOp](/api/@rulvar/rulvar/type-aliases/ClaimOp.md) | - |
 | [ClaimStatus](/api/@rulvar/rulvar/type-aliases/ClaimStatus.md) | - |
 | [CoreEvents](/api/@rulvar/rulvar/type-aliases/CoreEvents.md) | Run lifecycle and core telemetry (M1 subset). |
+| [CostBasis](/api/@rulvar/rulvar/type-aliases/CostBasis.md) | How an event's `costUsd` was folded (RV702). `'per-call'`: the sum of each provider request priced individually, the same basis the settled CostReport and invoice use (RV504), so a nonlinear long-context tier fires per REQUEST. `'aggregate-estimate'`: the aggregate usage priced in one call, which a tier can inflate past what any single request cost; emitted only when per-request records cannot cover the number (a checkpoint written before the reconciliation ledger shipped, or a terminal entry whose records do not cover its usage). An absent field on an event stream recorded before RV702 means the aggregate basis. |
 | [DebitResult](/api/@rulvar/rulvar/type-aliases/DebitResult.md) | - |
 | [DerivedKey](/api/@rulvar/rulvar/type-aliases/DerivedKey.md) | A derived key, or the guaranteed non-match marker. |
 | [DeriverRegistry](/api/@rulvar/rulvar/type-aliases/DeriverRegistry.md) | - |

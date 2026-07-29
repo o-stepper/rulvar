@@ -20,6 +20,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | ------ | ------ | ------ | ------ |
 | <a id="property-abortclass"></a> `abortClass?` | [`AbortClass`](/api/@rulvar/rulvar/type-aliases/AbortClass.md) | The dedicated first-class abort class (M3-T08): present on the engine-decided no-progress abort (status 'limit'), never on user cancellation or ordinary cap hits. | `packages/core/dist/index.d.ts` |
 | <a id="property-artifacts"></a> `artifacts?` | [`Artifact`](/api/@rulvar/rulvar/interfaces/Artifact.md)[] | - | `packages/core/dist/index.d.ts` |
+| <a id="property-costbasis"></a> `costBasis` | [`CostBasis`](/api/@rulvar/rulvar/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702): 'per-call' when every usage slice (restored included) is covered by per-request records priced individually, exactly the settled fold's basis; 'aggregate-estimate' when a restored checkpoint left usage no record backs, in which case the aggregate-priced number is kept (never silently dropped) and labeled. | `packages/core/dist/index.d.ts` |
 | <a id="property-costusd"></a> `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-error"></a> `error?` | [`AgentError`](/api/@rulvar/rulvar/type-aliases/AgentError.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-errormessage"></a> `errorMessage?` | `string` | Human-readable detail behind `error` (provider message, first schema issue): feeds the journaled WireError message. An additive field; never part of identity. | `packages/core/dist/index.d.ts` |

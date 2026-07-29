@@ -14,7 +14,7 @@
  * end never arrived stay `open: true` instead of being guessed at).
  */
 import type { Usage } from './messages.js';
-import type { ToolBudgetSummary, WorkflowEvent } from './events.js';
+import type { CostBasis, ToolBudgetSummary, WorkflowEvent } from './events.js';
 
 const ZERO: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
@@ -41,6 +41,12 @@ export interface PhaseRow {
   durationMs: number;
   usage: Usage;
   costUsd: number;
+  /**
+   * The fold behind `costUsd` (RV702). An event stream recorded before
+   * the field shipped priced aggregates, so an absent field reduces to
+   * 'aggregate-estimate', never to a per-call claim it cannot back.
+   */
+  costBasis: CostBasis;
   outcome?: 'ok' | 'error';
   retries: number;
   replayed: boolean;
@@ -59,6 +65,12 @@ export interface AgentInvocationRow {
   status?: string;
   usage: Usage;
   costUsd: number;
+  /**
+   * The fold behind `costUsd` (RV702), from the span's agent:end; an
+   * absent field (a pre-RV702 stream, or a span still open) reduces to
+   * 'aggregate-estimate', never to a per-call claim it cannot back.
+   */
+  costBasis: CostBasis;
   usageApprox: boolean;
   retryCount: number;
   /**
@@ -75,8 +87,12 @@ export interface AgentInvocationRow {
 /** The reduced table plus the per-role aggregate across every span. */
 export interface InvocationTable {
   agents: AgentInvocationRow[];
-  /** Aggregated over COMPLETED phase pairs, keyed by role. */
-  byRole: Record<string, { usage: Usage; costUsd: number }>;
+  /**
+   * Aggregated over COMPLETED phase pairs, keyed by role. The bucket's
+   * `costBasis` is 'per-call' only while EVERY folded pair carried the
+   * per-call basis; one aggregate-estimate pair degrades the bucket.
+   */
+  byRole: Record<string, { usage: Usage; costUsd: number; costBasis: CostBasis }>;
   /** Sum of agent:end costUsd over settled spans. */
   totalCostUsd: number;
 }
@@ -90,7 +106,7 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
   const rows = new Map<string, AgentInvocationRow>();
   const order: AgentInvocationRow[] = [];
   const openPhases = new Map<string, PhaseRow>();
-  const byRole: Record<string, { usage: Usage; costUsd: number }> = {};
+  const byRole: Record<string, { usage: Usage; costUsd: number; costBasis: CostBasis }> = {};
   let totalCostUsd = 0;
 
   const rowFor = (
@@ -104,6 +120,7 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
         ...(event.label === undefined ? {} : { label: event.label }),
         usage: ZERO,
         costUsd: 0,
+        costBasis: 'aggregate-estimate',
         usageApprox: false,
         retryCount: 0,
         replayed: event.replayed === true,
@@ -132,6 +149,7 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
           durationMs: 0,
           usage: ZERO,
           costUsd: 0,
+          costBasis: 'aggregate-estimate',
           retries: 0,
           replayed: event.replayed === true,
           open: true,
@@ -153,6 +171,7 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
             durationMs: 0,
             usage: ZERO,
             costUsd: 0,
+            costBasis: 'aggregate-estimate',
             retries: 0,
             replayed: event.replayed === true,
             open: true,
@@ -166,11 +185,21 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
         phase.durationMs = event.durationMs;
         phase.usage = event.usage;
         phase.costUsd = event.costUsd;
+        // The honest default (RV702): a stream recorded before the field
+        // shipped priced aggregates, so absent means aggregate-estimate.
+        phase.costBasis = event.costBasis ?? 'aggregate-estimate';
         phase.outcome = event.outcome;
         phase.retries = event.retries ?? 0;
-        const bucket = (byRole[event.role] ??= { usage: ZERO, costUsd: 0 });
+        const bucket = (byRole[event.role] ??= {
+          usage: ZERO,
+          costUsd: 0,
+          costBasis: 'per-call',
+        });
         bucket.usage = addUsage(bucket.usage, event.usage);
         bucket.costUsd += event.costUsd;
+        if (phase.costBasis === 'aggregate-estimate') {
+          bucket.costBasis = 'aggregate-estimate';
+        }
         break;
       }
       case 'agent:end': {
@@ -179,6 +208,7 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
         row.status = event.status;
         row.usage = event.usage;
         row.costUsd = event.costUsd;
+        row.costBasis = event.costBasis ?? 'aggregate-estimate';
         row.usageApprox = event.usageApprox === true;
         row.retryCount = event.retryCount ?? 0;
         if (event.toolBudget !== undefined) {

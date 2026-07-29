@@ -443,6 +443,43 @@ const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/engine/cost-report.test.ts',
   },
+  {
+    id: 'percall-accumulator',
+    doctrine:
+      'live telemetry dollars accumulate per priced provider call, so a nonlinear tier fires per request, never on the phase aggregate (RV702)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          // The money twin of the record (RV702): this call priced\n          // individually, at the same chokepoint that minted it, so the\n          // phase deltas and the invocation total fold per request.\n          addCallUsd(site.role, target.resolved.ref, accounted);\n',
+    replace: '',
+    test: 'packages/core/src/engine/invocation-events.test.ts',
+  },
+  {
+    id: 'percall-coverage-fallback',
+    doctrine:
+      'an invocation whose restored usage lacks call records falls back to the labeled aggregate estimate instead of silently dropping restored spend (RV702)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "    if (!perCallCoverage) {\n      return { usd: priceRecordedUsage(), basis: 'aggregate-estimate' };\n    }",
+    replace:
+      "    if (false) {\n      return { usd: priceRecordedUsage(), basis: 'aggregate-estimate' };\n    }",
+    test: 'packages/core/src/engine/invocation-events.test.ts',
+  },
+  {
+    id: 'replay-phase-percall',
+    doctrine:
+      'replayed phase pairs carry the billing-fold dollars of their (role, model) key, identical to the live per-call stream (RV702)',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '              costUsd: usdByRoleModel.get(`${slice.role ?? primaryRole} ${slice.servedBy}`) ?? 0,',
+    replace: '              costUsd: 0,',
+    test: 'packages/core/src/engine/invocation-events.test.ts',
+  },
+  {
+    id: 'reducer-basis-default',
+    doctrine:
+      'the reducer defaults an absent cost basis to aggregate-estimate, never to a per-call claim it cannot back (RV702)',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: "        phase.costBasis = event.costBasis ?? 'aggregate-estimate';",
+    replace: "        phase.costBasis = event.costBasis ?? 'per-call';",
+    test: 'packages/core/src/engine/invocation-events.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

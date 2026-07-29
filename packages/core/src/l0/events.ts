@@ -159,6 +159,19 @@ export interface ToolBudgetSummary {
 }
 
 /**
+ * How an event's `costUsd` was folded (RV702). `'per-call'`: the sum of
+ * each provider request priced individually, the same basis the settled
+ * CostReport and invoice use (RV504), so a nonlinear long-context tier
+ * fires per REQUEST. `'aggregate-estimate'`: the aggregate usage priced
+ * in one call, which a tier can inflate past what any single request
+ * cost; emitted only when per-request records cannot cover the number
+ * (a checkpoint written before the reconciliation ledger shipped, or a
+ * terminal entry whose records do not cover its usage). An absent field
+ * on an event stream recorded before RV702 means the aggregate basis.
+ */
+export type CostBasis = 'per-call' | 'aggregate-estimate';
+
+/**
  * Agent lifecycle. One logical agent dispatch emits EXACTLY ONE
  * `agent:start`/`agent:end` pair on its span (the start carries the
  * primary role), and each model invocation phase inside the span
@@ -207,6 +220,14 @@ export type AgentEvents =
       usage: Usage;
       /** That usage priced at each serving model's own rate. */
       costUsd: number;
+      /**
+       * The fold behind `costUsd` (RV702). Live phase deltas are always
+       * per-call (every slice a live activation adds is backed by a
+       * recorded provider call); a replayed pair says 'aggregate-estimate'
+       * exactly when its model's records do not cover its usage. Absent
+       * on streams recorded before RV702, which priced the aggregate.
+       */
+      costBasis?: CostBasis;
       outcome: 'ok' | 'error';
       /**
        * Transport retries inside this activation. Present only when
@@ -221,6 +242,16 @@ export type AgentEvents =
       status: string;
       usage: Usage;
       costUsd: number;
+      /**
+       * The fold behind `costUsd` (RV702): 'per-call' when every usage
+       * slice of the invocation (restored included) is covered by
+       * per-request records priced individually, the settled fold's own
+       * basis; 'aggregate-estimate' when it is not (the aggregate number
+       * is kept so restored spend is never silently dropped, and labeled
+       * so it is never mistaken for the per-request fold). Absent on
+       * streams recorded before RV702, which priced the aggregate.
+       */
+      costBasis?: CostBasis;
       entryRef: number;
       /**
        * Present and true when this agent's usage is approximate rather

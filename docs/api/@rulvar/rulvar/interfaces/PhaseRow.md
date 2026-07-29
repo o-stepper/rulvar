@@ -14,6 +14,7 @@ One phase activation of one agent span.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-costbasis"></a> `costBasis` | [`CostBasis`](/api/@rulvar/rulvar/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702). An event stream recorded before the field shipped priced aggregates, so an absent field reduces to 'aggregate-estimate', never to a per-call claim it cannot back. | `packages/core/dist/index.d.ts` |
 | <a id="property-costusd"></a> `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-durationms"></a> `durationMs` | `number` | 0 until the end event arrives, and on replayed rows. | `packages/core/dist/index.d.ts` |
 | <a id="property-invocation"></a> `invocation` | `number` | - | `packages/core/dist/index.d.ts` |

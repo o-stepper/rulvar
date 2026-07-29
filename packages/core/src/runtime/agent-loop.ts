@@ -70,7 +70,7 @@ import {
   type ExplorationSummary,
   type FinalizationWindowBudget,
 } from './exploration.js';
-import type { ToolBudgetSummary } from '../l0/events.js';
+import type { CostBasis, ToolBudgetSummary } from '../l0/events.js';
 import { NoProgressDetector, type AbortClass } from './no-progress.js';
 import { latestProgressReport, type ProgressReport } from '../tools/progress.js';
 import {
@@ -119,6 +119,15 @@ export interface AgentResult<T> {
   output: T | null;
   usage: Usage;
   costUsd: number;
+  /**
+   * The fold behind `costUsd` (RV702): 'per-call' when every usage
+   * slice (restored included) is covered by per-request records priced
+   * individually, exactly the settled fold's basis; 'aggregate-estimate'
+   * when a restored checkpoint left usage no record backs, in which case
+   * the aggregate-priced number is kept (never silently dropped) and
+   * labeled.
+   */
+  costBasis: CostBasis;
   turns: number;
   /**
    * The model that actually served the loop phase at the end (M4-T04):
@@ -1360,6 +1369,30 @@ export async function runAgent<S extends SchemaSpec>(
   // sanitized usage the phase slices accumulate. Restored checkpoint
   // records are pushed first, so ordinals continue across a resume.
   const providerCalls: ProviderCallRecord[] = [];
+  // The per-request money twin of usageByPhaseModel (RV702): every
+  // recorded provider call's usage priced INDIVIDUALLY at its own
+  // model's rate, accumulated under the same (role, model) key. Phase
+  // deltas and the invocation total read from here, so a nonlinear
+  // long-context tier fires per request in the live telemetry exactly
+  // as it does in the settled fold (RV504), never on an aggregate no
+  // single request crossed.
+  const usdByPhaseModel = new Map<string, { role: InvocationRole; usd: number }>();
+  const addCallUsd = (role: InvocationRole, ref: ModelRef, usage: Usage): void => {
+    const priced = options.priceUsd?.(ref, usage) ?? 0;
+    // The same guard as priceRecordedUsage: a broken price row (NaN or
+    // negative) contributes zero and surfaces through the unpriced fold.
+    const usd = Number.isFinite(priced) && priced > 0 ? priced : 0;
+    const key = `${role}\u0000${ref}`;
+    const prior = usdByPhaseModel.get(key);
+    usdByPhaseModel.set(key, { role, usd: (prior?.usd ?? 0) + usd });
+  };
+  // False exactly when a restored checkpoint carried usage its restored
+  // records do not cover counter for counter: the per-call sum then
+  // cannot speak for the invocation, and the total falls back to the
+  // labeled aggregate estimate instead of silently dropping the
+  // restored spend. Live slices are always covered by construction
+  // (recordUsage and the record mint share one chokepoint).
+  let perCallCoverage = true;
 
   // Phase activation telemetry (the RV-207 event-model contract): one
   // agent:phase:start/end pair per activation, its usage measured as
@@ -1377,6 +1410,7 @@ export async function runAgent<S extends SchemaSpec>(
     role: InvocationRole;
     model: ModelRef;
     before: Map<string, Usage>;
+    beforeUsd: Map<string, number>;
     startedAtMs: number;
     retriesBefore: number;
   };
@@ -1385,6 +1419,15 @@ export async function runAgent<S extends SchemaSpec>(
     for (const [key, slice] of usageByPhaseModel) {
       if (slice.role === role) {
         snapshot.set(key, slice.usage);
+      }
+    }
+    return snapshot;
+  };
+  const roleUsdSnapshot = (role: InvocationRole): Map<string, number> => {
+    const snapshot = new Map<string, number>();
+    for (const [key, cell] of usdByPhaseModel) {
+      if (cell.role === role) {
+        snapshot.set(key, cell.usd);
       }
     }
     return snapshot;
@@ -1418,25 +1461,34 @@ export async function runAgent<S extends SchemaSpec>(
       role,
       model,
       before: roleUsageSnapshot(role),
+      beforeUsd: roleUsdSnapshot(role),
       startedAtMs: now(),
       retriesBefore: transportRetries,
     };
   };
   const endPhase = (phase: OpenPhase, outcome: 'ok' | 'error', servedModel?: ModelRef): void => {
     let phaseUsage: Usage = ZERO_USAGE;
-    let phaseUsd = 0;
     for (const [key, slice] of usageByPhaseModel) {
       if (slice.role !== phase.role) {
         continue;
       }
       const delta = usageDelta(slice.usage, phase.before.get(key));
       phaseUsage = addUsage(phaseUsage, delta);
-      const priced = options.priceUsd?.(slice.servedBy, delta) ?? 0;
-      // The same guard as priceRecordedUsage: a broken price row must
-      // not poison the phase's costUsd.
-      if (Number.isFinite(priced) && priced > 0) {
-        phaseUsd += priced;
+    }
+    // The phase's dollars are the delta of the PER-CALL accumulator
+    // (RV702), never the aggregate delta priced in one call: a
+    // nonlinear tier fires per request here exactly as in the settled
+    // fold. Every slice a live activation adds is backed by a recorded
+    // call at the same chokepoint, so a live phase delta is always
+    // fully per-call, even when a pre-ledger restore left the
+    // INVOCATION total uncovered (the gap predates every live phase and
+    // cancels out of the before/after difference).
+    let phaseUsd = 0;
+    for (const [key, cell] of usdByPhaseModel) {
+      if (cell.role !== phase.role) {
+        continue;
       }
+      phaseUsd += cell.usd - (phase.beforeUsd.get(key) ?? 0);
     }
     const retries = transportRetries - phase.retriesBefore;
     events?.emit({
@@ -1449,6 +1501,7 @@ export async function runAgent<S extends SchemaSpec>(
       durationMs: Math.max(0, now() - phase.startedAtMs),
       usage: phaseUsage,
       costUsd: phaseUsd,
+      costBasis: 'per-call',
       outcome,
       ...(retries > 0 ? { retries } : {}),
     });
@@ -1774,11 +1827,14 @@ export async function runAgent<S extends SchemaSpec>(
     // slice written before ROLES shipped falls back to the primary
     // role, the same documented fallback the journal fold applies.
     const restoredSlices = restored.usageByModel ?? [{ servedBy, usage: totalUsage }];
+    const restoredSliceSums = new Map<string, Usage>();
     for (const slice of restoredSlices) {
       const sliceUsage =
         usageViolations(slice.usage).length === 0 ? slice.usage : sanitizeUsage(slice.usage);
       addPhaseUsage(slice.role ?? primaryRole, slice.servedBy, sliceUsage);
       options.budget?.onUsage(sliceUsage, slice.servedBy);
+      const key = `${slice.role ?? primaryRole} ${slice.servedBy}`;
+      restoredSliceSums.set(key, addUsage(restoredSliceSums.get(key) ?? ZERO_USAGE, sliceUsage));
     }
     // The reconciliation ledger restores like the slices (a persisted
     // inlet: sanitize each record's usage on the way in), so ordinals
@@ -1787,12 +1843,39 @@ export async function runAgent<S extends SchemaSpec>(
     // the ledger shipped restores none; the invoice fold then surfaces
     // the restored spend as an unattributed remainder instead of
     // losing it.
+    const restoredRecordSums = new Map<string, Usage>();
     for (const record of restored.providerCalls ?? []) {
-      providerCalls.push(
+      const sane =
         usageViolations(record.usage).length === 0
           ? record
-          : { ...record, usage: sanitizeUsage(record.usage) },
-      );
+          : { ...record, usage: sanitizeUsage(record.usage) };
+      providerCalls.push(sane);
+      // The restored money twin (RV702): each restored call priced
+      // individually, so a covered resume keeps the per-call basis.
+      addCallUsd(sane.role ?? primaryRole, sane.servedBy, sane.usage);
+      const key = `${sane.role ?? primaryRole} ${sane.servedBy}`;
+      restoredRecordSums.set(key, addUsage(restoredRecordSums.get(key) ?? ZERO_USAGE, sane.usage));
+    }
+    // Coverage, counter for counter per (role, model) key (RV702): a
+    // checkpoint whose records do not reproduce its slices exactly (a
+    // pre-ledger checkpoint restores none at all) leaves usage the
+    // per-call sum cannot speak for, so the invocation total falls back
+    // to the labeled aggregate estimate.
+    const usageEquals = (a: Usage, b: Usage): boolean =>
+      a.inputTokens === b.inputTokens &&
+      a.outputTokens === b.outputTokens &&
+      a.cacheReadTokens === b.cacheReadTokens &&
+      a.cacheWriteTokens === b.cacheWriteTokens &&
+      (a.reasoningTokens ?? 0) === (b.reasoningTokens ?? 0);
+    for (const [key, sliceSum] of restoredSliceSums) {
+      if (!usageEquals(sliceSum, restoredRecordSums.get(key) ?? ZERO_USAGE)) {
+        perCallCoverage = false;
+      }
+    }
+    for (const key of restoredRecordSums.keys()) {
+      if (!restoredSliceSums.has(key)) {
+        perCallCoverage = false;
+      }
     }
     // The exploration guard rebuilds from the restored history (the same
     // window the model sees), and thresholds the restored count already
@@ -1908,6 +1991,24 @@ export async function runAgent<S extends SchemaSpec>(
       }
     }
     return usd;
+  };
+
+  /**
+   * The invocation's recorded spend (RV702): the per-call accumulator
+   * when every slice is covered by records, the settled fold's own
+   * basis; the labeled aggregate estimate when a restored checkpoint
+   * left usage no record backs, so restored spend is never silently
+   * dropped and an estimate never poses as the per-request fold.
+   */
+  const recordedSpend = (): { usd: number; basis: CostBasis } => {
+    if (!perCallCoverage) {
+      return { usd: priceRecordedUsage(), basis: 'aggregate-estimate' };
+    }
+    let usd = 0;
+    for (const cell of usdByPhaseModel.values()) {
+      usd += cell.usd;
+    }
+    return { usd, basis: 'per-call' };
   };
 
   const saveBoundary = async (pending?: PendingToolTurn): Promise<void> => {
@@ -2157,7 +2258,7 @@ export async function runAgent<S extends SchemaSpec>(
           continue;
         }
         const request = validation.value as EscalationRequest;
-        const spentSoFar = priceRecordedUsage();
+        const spentSoFar = recordedSpend().usd;
         if (countsAgainstLimit(request.kind) && spentSoFar < options.escalation.minSpendUsd) {
           // Early scope_bigger escalation below minSpend: a bounded
           // "keep working" re-prompt; exempt kinds pass through
@@ -2814,6 +2915,10 @@ export async function runAgent<S extends SchemaSpec>(
             record.errorCode = outcome.wireError.code;
           }
           providerCalls.push(record);
+          // The money twin of the record (RV702): this call priced
+          // individually, at the same chokepoint that minted it, so the
+          // phase deltas and the invocation total fold per request.
+          addCallUsd(site.role, target.resolved.ref, accounted);
           // Drift telemetry raw material (the v1.71 experiment review,
           // P0.5): a real provider 429 that carries adapter-normalized
           // reported limits is remembered per (provider, model), the
@@ -3918,12 +4023,13 @@ export async function runAgent<S extends SchemaSpec>(
     await options.transcript.put(transcriptRef, blob);
   }
 
-  const costUsd = priceRecordedUsage();
+  const spend = recordedSpend();
   const result: AgentResult<Out<S>> = {
     status,
     output: status === 'ok' ? output : (output ?? null),
     usage: totalUsage,
-    costUsd,
+    costUsd: spend.usd,
+    costBasis: spend.basis,
     turns,
     servedBy,
     transcriptRef,
