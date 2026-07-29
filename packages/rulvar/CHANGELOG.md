@@ -1,5 +1,14 @@
 # @rulvar/rulvar
 
+## 1.109.0
+
+### Patch Changes
+
+- Updated dependencies [85b1d39]
+  - @rulvar/core@1.109.0
+  - @rulvar/anthropic@1.109.0
+  - @rulvar/openai@1.109.0
+
 ## 1.108.0
 
 ### Patch Changes
