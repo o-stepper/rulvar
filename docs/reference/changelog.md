@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+
 ### 1.107.0
 
 #### Patch Changes
@@ -1188,6 +1195,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+
 ### 1.107.0
 
 #### Patch Changes
@@ -2213,6 +2227,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.108.0
+
+#### Minor Changes
+
+- affa3d4: Stored consumers compose the pricing pins exactly like the engine, and the invoice provenance declares every pinned version (RV611).
+
+  `JournalPricingSnapshot` exports the composition the engine's outcome mirror applies at settle: `composedPriceUsd(current)` prices pin-covered rows at the rates their own settle recorded and everything past the last pin (a segment journaled but never settled) at the caller's current table. The engine now consumes the same method, and the three stored consumers (`rulvar inspect`, `rulvar invoice`, the server's stored-run cost endpoint) fold through it instead of passing the raw snapshot, which silently priced the tail at the last pin's rates and folded never-pinned models as unpriced even when the current table knows them. Two fallbacks stay deliberate and documented: a covered model its covering pin missed back-reprices at the last pin when that pin names it, and a model no pin resolves falls to the current table.
+
+  The snapshot also carries `segments` (every pin's seq boundaries, `pricingVersion`, and rows in journal order), and `InvoicePricingProvenance` gains the `'composed'` source plus `segments` and `pinnedThroughSeq`, so an invoice folded across a price-table rotation names every version that priced it instead of hiding the rotation behind the last one. The CLI exports that priced through a pin now declare `source: 'composed'` (previously `'snapshot'`), and the `pricing rates:`/`pricing:` text lines name the composition and every pinned version.
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
 
 ### 1.107.0
 
@@ -3589,6 +3618,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.108.0
+
+#### Minor Changes
+
+- affa3d4: Stored consumers compose the pricing pins exactly like the engine, and the invoice provenance declares every pinned version (RV611).
+
+  `JournalPricingSnapshot` exports the composition the engine's outcome mirror applies at settle: `composedPriceUsd(current)` prices pin-covered rows at the rates their own settle recorded and everything past the last pin (a segment journaled but never settled) at the caller's current table. The engine now consumes the same method, and the three stored consumers (`rulvar inspect`, `rulvar invoice`, the server's stored-run cost endpoint) fold through it instead of passing the raw snapshot, which silently priced the tail at the last pin's rates and folded never-pinned models as unpriced even when the current table knows them. Two fallbacks stay deliberate and documented: a covered model its covering pin missed back-reprices at the last pin when that pin names it, and a model no pin resolves falls to the current table.
+
+  The snapshot also carries `segments` (every pin's seq boundaries, `pricingVersion`, and rows in journal order), and `InvoicePricingProvenance` gains the `'composed'` source plus `segments` and `pinnedThroughSeq`, so an invoice folded across a price-table rotation names every version that priced it instead of hiding the rotation behind the last one. The CLI exports that priced through a pin now declare `source: 'composed'` (previously `'snapshot'`), and the `pricing rates:`/`pricing:` text lines name the composition and every pinned version.
 
 ### 1.107.0
 
@@ -5323,6 +5362,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.108.0
+
 ### 1.107.0
 
 ### 1.106.0
@@ -5641,6 +5682,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+  - @rulvar/testing@1.108.0
 
 ### 1.107.0
 
@@ -6886,6 +6935,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+
 ### 1.107.0
 
 #### Patch Changes
@@ -7314,6 +7370,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
 
 ### 1.107.0
 
@@ -8497,6 +8560,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+
 ### 1.107.0
 
 #### Patch Changes
@@ -9636,6 +9706,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+  - eslint-plugin-rulvar@1.108.0
 
 ### 1.107.0
 
@@ -10845,6 +10923,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+  - @rulvar/anthropic@1.108.0
+  - @rulvar/openai@1.108.0
 
 ### 1.107.0
 
@@ -12244,6 +12331,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+
 ### 1.107.0
 
 #### Patch Changes
@@ -13375,6 +13469,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+
 ### 1.107.0
 
 #### Patch Changes
@@ -13821,6 +13922,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
 
 ### 1.107.0
 
@@ -14899,6 +15007,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.108.0
+
+#### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
 
 ### 1.107.0
 

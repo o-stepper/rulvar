@@ -1,5 +1,14 @@
 # @rulvar/rulvar
 
+## 1.108.0
+
+### Patch Changes
+
+- Updated dependencies [affa3d4]
+  - @rulvar/core@1.108.0
+  - @rulvar/anthropic@1.108.0
+  - @rulvar/openai@1.108.0
+
 ## 1.107.0
 
 ### Patch Changes
