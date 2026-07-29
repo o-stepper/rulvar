@@ -14,13 +14,14 @@ import { z } from 'zod';
 
 import { checkpointRefFor, encodeCheckpoint, type CheckpointState } from '../journal/checkpoint.js';
 import { deriveContentKey, type IdentityInput } from '../journal/identity.js';
+import type { JournalEntry } from '../l0/entries.js';
 import { EMPTY_SCHEMA_HASH } from '../l0/schema.js';
 import type { WorkflowEvent } from '../l0/events.js';
 import type { Msg } from '../l0/messages.js';
 import { reduceInvocationTable } from '../l0/telemetry-reduce.js';
 import type { AgentResult } from '../runtime/agent-loop.js';
 import { toolBudgetExtensionNoticeText } from '../runtime/exploration.js';
-import { InMemoryTranscriptStore } from '../stores/inmemory.js';
+import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { tool } from '../tools/tool.js';
 import { resolveToolset } from '../tools/toolset-hash.js';
 import { createCtx } from './ctx.js';
@@ -338,6 +339,165 @@ describe('the durable tool budget summary (RV509)', () => {
     // The journal-backed fields restore; the cap is configuration
     // derived and stays live-only fidelity when no grant journaled it.
     expect(replayed.toolBudget).toEqual({ used: 1, finalizationWindowEntered: true });
+  });
+
+  it('a rejected grant append fails the dispatch instead of running under an unrecorded grant', async () => {
+    // A store that accepts everything except the grant decision: the
+    // authorization never lands, so nothing it would authorize may run.
+    class RejectingStore extends InMemoryStore {
+      override append(runId: string, entry: JournalEntry): Promise<void> {
+        const value = entry.value as { decisionType?: string } | undefined;
+        if (value?.decisionType === 'tool_budget_extension') {
+          return Promise.reject(new Error('journal append refused'));
+        }
+        return super.append(runId, entry);
+      }
+    }
+    const executions: unknown[] = [];
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? {
+            toolCalls: [
+              { name: 'read', args: { page: 1 } },
+              { name: 'read', args: { page: 2 } },
+              { name: 'read', args: { page: 3 } },
+            ],
+          }
+        : { text: 'done' },
+    );
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      store: new RejectingStore(),
+    });
+    await expect(
+      createCtx(internals).agent('research the repo', {
+        limits: {
+          maxToolCalls: 2,
+          toolBudgetExtension: { increment: 2, maxExtensions: 1 },
+        },
+        tools: [pager(executions)],
+        result: 'full',
+      }),
+    ).rejects.toThrow(/journal append refused/);
+    // The two calls the base cap funded stand; the third never ran.
+    expect(executions).toHaveLength(2);
+  });
+
+  it('the live resume and the pure replay of one journaled grant report the same cap (RV602)', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const PROMPT = 'research the repo';
+    const pagerTool = pager([]);
+    const toolset = await resolveToolset([pagerTool], { runId: 'test-run' }, undefined, new Set());
+    const identity: IdentityInput = {
+      kind: 'agent',
+      agentType: '',
+      modelSpec: { kind: 'model', model: 'fake:model' },
+      prompt: PROMPT,
+      schemaHash: EMPTY_SCHEMA_HASH,
+      toolsetHash: toolset.hash,
+      isolation: 'none',
+    };
+    // The crash journal: a dangling dispatch, a grant promising cap 4,
+    // and a checkpoint sitting exactly at the base cap.
+    const seed = makeInternals({ adapters: [], transcripts });
+    const running = await seed.internals.replayer.appendRunning({
+      scope: '',
+      key: deriveContentKey(identity),
+      kind: 'agent',
+      spanId: 's0',
+    });
+    await seed.internals.replayer.appendSinglePhase({
+      scope: '',
+      key: '',
+      kind: 'decision',
+      status: 'ok',
+      spanId: 's0',
+      value: {
+        decisionType: 'tool_budget_extension',
+        targetRef: running.seq,
+        grant: 1,
+        maxExtensions: 1,
+        toolCallsUsed: 2,
+        cap: 4,
+      },
+    });
+    const checkpoint: CheckpointState = {
+      v: 1,
+      messages: [
+        { role: 'user', parts: [{ type: 'text', text: PROMPT }] },
+        {
+          role: 'assistant',
+          parts: [
+            { type: 'tool-call', id: 'a', name: 'read', args: { page: 1 } },
+            { type: 'tool-call', id: 'b', name: 'read', args: { page: 2 } },
+          ],
+        },
+        {
+          role: 'tool',
+          parts: [
+            { type: 'tool-result', id: 'a', name: 'read', result: { content: 'page 1' } },
+            { type: 'tool-result', id: 'b', name: 'read', result: { content: 'page 2' } },
+          ],
+        },
+        {
+          role: 'user',
+          parts: [{ type: 'text', text: toolBudgetExtensionNoticeText(1, 1, 2, 4) }],
+        },
+      ],
+      turns: 1,
+      usage: { inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      toolCallsUsed: 2,
+      schemaAttempts: 0,
+      compaction: [],
+    };
+    await transcripts.put(checkpointRefFor('test-run', running.seq), encodeCheckpoint(checkpoint));
+    const crashed = await seed.store.load('test-run');
+
+    // Both recoveries read that one journal under DRIFTED live limits
+    // (the increment fell from 2 to 1); the limits are not part of the
+    // dispatch identity, so a host may legitimately change them.
+    const opts = {
+      limits: {
+        maxToolCalls: 2,
+        toolBudgetExtension: { increment: 1, maxExtensions: 1 },
+      },
+      memoizeOutcome: true,
+      result: 'full',
+    } as const;
+    const resumeAdapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCalls: [{ name: 'read', args: { page: 3 } }] } : { text: 'done' },
+    );
+    const { internals: live } = makeInternals({
+      adapters: [resumeAdapter],
+      routing: { loop: 'fake:model' },
+      priorEntries: crashed,
+      transcripts,
+      // The same store the crash left behind: the resumed segment
+      // appends onto it, exactly as a real resume does.
+      store: seed.store,
+    });
+    const resumed = fullResult(
+      await createCtx(live).agent(PROMPT, { ...opts, tools: [pagerTool] }),
+    );
+    expect(resumed.status).toBe('ok');
+    expect(resumed.toolBudget?.cap).toBe(4);
+    await live.replayer.flush();
+
+    const replayAdapter = scriptedAdapter(() => ({ text: 'never' }));
+    const { internals: replayed } = makeInternals({
+      adapters: [replayAdapter],
+      routing: { loop: 'fake:model' },
+      priorEntries: await seed.store.load('test-run'),
+      transcripts,
+    });
+    const pure = fullResult(
+      await createCtx(replayed).agent(PROMPT, { ...opts, tools: [pagerTool] }),
+    );
+    expect(replayAdapter.calls).toHaveLength(0);
+    // The convergence obligation: one journal, two recovery paths, the
+    // same observable budget.
+    expect(pure.toolBudget).toEqual(resumed.toolBudget);
   });
 
   it('a grant-free capped run journals no decision entries at all', async () => {

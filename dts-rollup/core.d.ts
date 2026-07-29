@@ -4719,26 +4719,47 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   * already promised the raised cap), never re-admitted or re-announced,
   * and a restored window entry keeps the summary's
   * finalizationWindowEntered truthful even when a later grant moved the
-  * counts back out of the window. The hooks are fire-and-forget from
-  * the loop's view; pressure notices stay events and are never
-  * journaled. Absent, the loop is byte-identical to before.
+  * counts back out of the window.
+  *
+  * Both hooks are AWAITED before the thing they authorize becomes
+  * observable (RV601): a grant lifts no expiry and queues no notice
+  * until its decision is durable, and the window regime binds no call
+  * until its entry is. A rejected append therefore leaves the grant
+  * unissued and the entry unrecorded, and the rejection propagates
+  * exactly like a failed boundary checkpoint rather than being
+  * swallowed. Pressure notices stay events and are never journaled.
+  * Absent, the loop is byte-identical to before.
   */
   toolBudgetDurability?: {
     restored?: {
       extensionsGranted: number;
       finalizationWindowEntered: boolean;
+      /**
+      * The effective cap the journaled grant announced (RV602). It
+      * anchors the resumed ceiling, because the live `maxToolCalls`
+      * and `increment` are not part of the dispatch identity and may
+      * legitimately drift between segments: without the anchor the two
+      * recovery paths (pure replay, which reads the journal, and live
+      * resume, which recomputed) disagreed, and a promise already made
+      * to the model could be silently revoked. Validated as a
+      * persistent inlet: a non-integer, or one below the base cap, is
+      * ignored with a warning, leaving the count derivation as the
+      * floor. Grants taken AFTER the restore point still measure the
+      * current increment from this anchor.
+      */
+      cap?: number;
     };
     onExtensionGrant?: (grant: {
       grant: number;
       maxExtensions: number;
       toolCallsUsed: number;
       cap: number;
-    }) => void;
+    }) => Promise<void>;
     onWindowEntry?: (entry: {
       remaining: number;
       reserveCalls: number;
       budget: FinalizationWindowBudget;
-    }) => void;
+    }) => Promise<void>;
   };
   /** Emits agent:stream deltas when true (telemetry only). */
   stream?: boolean;

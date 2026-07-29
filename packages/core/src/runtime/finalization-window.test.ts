@@ -447,7 +447,12 @@ describe('the durable window-entry decision (RV509)', () => {
       }),
       tools: runtimeOf([readTool(executions), finishTool()]),
       terminalTool: { name: 'finish' },
-      toolBudgetDurability: { onWindowEntry: (entry) => entries.push(entry) },
+      toolBudgetDurability: {
+        onWindowEntry: (entry) => {
+          entries.push(entry);
+          return Promise.resolve();
+        },
+      },
     });
     expect(result.status).toBe('ok');
     expect(entries).toEqual([{ remaining: 2, reserveCalls: 2, budget: 'tool calls' }]);
@@ -511,7 +516,10 @@ describe('the durable window-entry decision (RV509)', () => {
       },
       toolBudgetDurability: {
         restored: { extensionsGranted: 1, finalizationWindowEntered: true },
-        onWindowEntry: (entry) => entries.push(entry),
+        onWindowEntry: (entry) => {
+          entries.push(entry);
+          return Promise.resolve();
+        },
       },
     });
     expect(result.status).toBe('ok');
@@ -524,6 +532,83 @@ describe('the durable window-entry decision (RV509)', () => {
     // The entry restored from the journal: the hook stays silent and no
     // fresh notice enters the conversation.
     expect(entries).toEqual([]);
+    for (const call of adapter.calls) {
+      expect(windowNotices(call as { messages: Msg[] })).toHaveLength(0);
+    }
+  });
+});
+
+describe('durable window entry before the gated call (RV601)', () => {
+  const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 1));
+
+  it('no call inside the window executes until the entry decision is durable', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(1) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    let reached = false;
+    let release: (() => void) | undefined;
+    const durable = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const pending = runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 4,
+        // The reserve spans the whole budget, so the batch's FIRST call
+        // is already inside the window: the entry has to be durable
+        // before that call, not after it.
+        maxToolCalls: 3,
+        finalizationWindow: { reserveCalls: 3, allow: ['read'] },
+      }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      toolBudgetDurability: {
+        onWindowEntry: () => {
+          reached = true;
+          return durable;
+        },
+      },
+    });
+    for (let attempt = 0; attempt < 200 && !reached; attempt += 1) {
+      await tick();
+    }
+    expect(reached).toBe(true);
+    // The window regime is not durable yet: the call it gates waits with
+    // it, so no execution can outrun the record of the entry.
+    await tick();
+    expect(executions.count).toBe(0);
+    release?.();
+    const result = await pending;
+    expect(result.status).toBe('ok');
+    expect(executions.count).toBe(1);
+  });
+
+  it('a rejected entry append records no window entry and fails the segment', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(1) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const rejection = Promise.reject(new Error('journal store unavailable'));
+    rejection.catch(() => undefined);
+    await expect(
+      runAgent({
+        prompt: 'go',
+        adapter,
+        resolved,
+        limits: mergeUsageLimits({
+          maxTurns: 4,
+          maxToolCalls: 3,
+          finalizationWindow: { reserveCalls: 3, allow: ['read'] },
+        }),
+        tools: runtimeOf([readTool(executions), finishTool()]),
+        terminalTool: { name: 'finish' },
+        toolBudgetDurability: { onWindowEntry: () => rejection },
+      }),
+    ).rejects.toThrow('journal store unavailable');
+    expect(executions.count).toBe(0);
     for (const call of adapter.calls) {
       expect(windowNotices(call as { messages: Msg[] })).toHaveLength(0);
     }

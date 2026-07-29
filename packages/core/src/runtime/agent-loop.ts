@@ -493,23 +493,47 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * already promised the raised cap), never re-admitted or re-announced,
    * and a restored window entry keeps the summary's
    * finalizationWindowEntered truthful even when a later grant moved the
-   * counts back out of the window. The hooks are fire-and-forget from
-   * the loop's view; pressure notices stay events and are never
-   * journaled. Absent, the loop is byte-identical to before.
+   * counts back out of the window.
+   *
+   * Both hooks are AWAITED before the thing they authorize becomes
+   * observable (RV601): a grant lifts no expiry and queues no notice
+   * until its decision is durable, and the window regime binds no call
+   * until its entry is. A rejected append therefore leaves the grant
+   * unissued and the entry unrecorded, and the rejection propagates
+   * exactly like a failed boundary checkpoint rather than being
+   * swallowed. Pressure notices stay events and are never journaled.
+   * Absent, the loop is byte-identical to before.
    */
   toolBudgetDurability?: {
-    restored?: { extensionsGranted: number; finalizationWindowEntered: boolean };
+    restored?: {
+      extensionsGranted: number;
+      finalizationWindowEntered: boolean;
+      /**
+       * The effective cap the journaled grant announced (RV602). It
+       * anchors the resumed ceiling, because the live `maxToolCalls`
+       * and `increment` are not part of the dispatch identity and may
+       * legitimately drift between segments: without the anchor the two
+       * recovery paths (pure replay, which reads the journal, and live
+       * resume, which recomputed) disagreed, and a promise already made
+       * to the model could be silently revoked. Validated as a
+       * persistent inlet: a non-integer, or one below the base cap, is
+       * ignored with a warning, leaving the count derivation as the
+       * floor. Grants taken AFTER the restore point still measure the
+       * current increment from this anchor.
+       */
+      cap?: number;
+    };
     onExtensionGrant?: (grant: {
       grant: number;
       maxExtensions: number;
       toolCallsUsed: number;
       cap: number;
-    }) => void;
+    }) => Promise<void>;
     onWindowEntry?: (entry: {
       remaining: number;
       reserveCalls: number;
       budget: FinalizationWindowBudget;
-    }) => void;
+    }) => Promise<void>;
   };
   /** Emits agent:stream deltas when true (telemetry only). */
   stream?: boolean;
@@ -1474,12 +1498,22 @@ export async function runAgent<S extends SchemaSpec>(
   let extensionGrants = 0;
   let extensionEvidenceAtLastGrant = 0;
   const pendingExtensionNotices: string[] = [];
+  /**
+   * The ceiling the effective cap is measured from (RV602). The base cap
+   * normally, so a fresh loop is byte-identical arithmetic; the journaled
+   * cap of the restored grant when a resume carried one, so drifting live
+   * limits cannot revoke a raise the journal already recorded. Grants
+   * taken after the restore point count from here at the CURRENT
+   * increment, which is the live policy doing what it should.
+   */
+  let capBase = limits.maxToolCalls;
+  let grantsOverCapBase = 0;
   const effectiveMaxToolCalls = (): number | undefined =>
-    limits.maxToolCalls === undefined
+    capBase === undefined
       ? undefined
       : extension === undefined
-        ? limits.maxToolCalls
-        : limits.maxToolCalls + extensionGrants * extension.increment;
+        ? capBase
+        : capBase + grantsOverCapBase * extension.increment;
   /** The limiter that ended the loop; rides the RV304 pressure snapshot. */
   let limitLimiter: 'maxToolCalls' | 'toolUnits' | undefined;
   /** True once the finalization reserve summary turn actually ran. */
@@ -1539,8 +1573,8 @@ export async function runAgent<S extends SchemaSpec>(
    * queue flushes with the budget notices after the batch's results
    * join the history.
    */
-  const tryToolBudgetGrant = (): boolean => {
-    if (extension === undefined || limits.maxToolCalls === undefined) {
+  const tryToolBudgetGrant = (): boolean | Promise<boolean> => {
+    if (extension === undefined || limits.maxToolCalls === undefined || capBase === undefined) {
       return false;
     }
     if (extensionGrants >= extension.maxExtensions) {
@@ -1562,30 +1596,39 @@ export async function runAgent<S extends SchemaSpec>(
         return false;
       }
     }
-    extensionGrants += 1;
-    extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
-    const cap = limits.maxToolCalls + extensionGrants * extension.increment;
-    // The durable decision (RV509): the caller journals the grant with
-    // these exact counts, so a crash between the announcement and the
-    // granted calls restores the raised cap instead of breaking the
-    // promise the notice below just made.
-    options.toolBudgetDurability?.onExtensionGrant?.({
-      grant: extensionGrants,
-      maxExtensions: extension.maxExtensions,
-      toolCallsUsed,
-      cap,
-    });
-    pendingExtensionNotices.push(
-      toolBudgetExtensionNoticeText(extensionGrants, extension.maxExtensions, toolCallsUsed, cap),
+    const grant = extensionGrants + 1;
+    const cap = capBase + (grantsOverCapBase + 1) * extension.increment;
+    const commit = (): true => {
+      extensionGrants = grant;
+      grantsOverCapBase += 1;
+      extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
+      pendingExtensionNotices.push(
+        toolBudgetExtensionNoticeText(grant, extension.maxExtensions, toolCallsUsed, cap),
+      );
+      events?.emit({
+        type: 'log',
+        level: 'info',
+        msg:
+          `tool budget extended (grant ${String(grant)}/` +
+          `${String(extension.maxExtensions)}): maxToolCalls now ${String(cap)}`,
+      });
+      return true;
+    };
+    const durable = options.toolBudgetDurability?.onExtensionGrant;
+    if (durable === undefined) {
+      // No journal to wait for: the dispatch keeps its synchronous
+      // shape, so a loop without the durability hook interleaves
+      // concurrent work exactly as it did before RV601.
+      return commit();
+    }
+    // The durable decision (RV509), landed before the grant takes effect
+    // (RV601): the authorization has to be in the store before the calls
+    // it authorizes run, because those calls reach the world. Nothing
+    // above has been mutated yet, so a rejected append leaves the expiry
+    // standing and propagates like a failed boundary write.
+    return durable({ grant, maxExtensions: extension.maxExtensions, toolCallsUsed, cap }).then(
+      commit,
     );
-    events?.emit({
-      type: 'log',
-      level: 'info',
-      msg:
-        `tool budget extended (grant ${String(extensionGrants)}/` +
-        `${String(extension.maxExtensions)}): maxToolCalls now ${String(cap)}`,
-    });
-    return true;
   };
   const flushExtensionNotices = (): void => {
     for (const text of pendingExtensionNotices.splice(0)) {
@@ -1634,7 +1677,7 @@ export async function runAgent<S extends SchemaSpec>(
    * history. On resume the flags re-derive from the restored counts and
    * the notice (already in the restored messages) never re-fires.
    */
-  const maybeMarkWindowEntry = (): void => {
+  const maybeMarkWindowEntry = (): void | Promise<void> => {
     if (finalizationWindow === undefined || windowNoticeFired) {
       return;
     }
@@ -1642,27 +1685,40 @@ export async function runAgent<S extends SchemaSpec>(
     if (state === undefined) {
       return;
     }
-    windowEntered = true;
-    windowNoticeFired = true;
+    const commit = (): void => {
+      windowEntered = true;
+      windowNoticeFired = true;
+      pendingWindowNotices.push(
+        finalizationWindowNoticeText(
+          state.remaining,
+          finalizationWindow.reserveCalls,
+          state.budget,
+        ),
+      );
+      events?.emit({
+        type: 'log',
+        level: 'info',
+        msg:
+          `finalization window entered: ${String(state.remaining)} of the reserved final ` +
+          `${String(finalizationWindow.reserveCalls)} ${state.budget} remain`,
+      });
+    };
+    const durable = options.toolBudgetDurability?.onWindowEntry;
+    if (durable === undefined) {
+      commit();
+      return;
+    }
     // The durable decision (RV509): the entry is a fact about THIS
     // invocation the counts cannot always re-derive (a later grant can
     // move the remaining budget back out of the window), so the caller
-    // journals it the moment it happens.
-    options.toolBudgetDurability?.onWindowEntry?.({
+    // journals it the moment it happens. Landed before the regime binds
+    // (RV601): the refusals it authorizes are observable to the model,
+    // and a rejected append must leave nothing marked.
+    return durable({
       remaining: state.remaining,
       reserveCalls: finalizationWindow.reserveCalls,
       budget: state.budget,
-    });
-    pendingWindowNotices.push(
-      finalizationWindowNoticeText(state.remaining, finalizationWindow.reserveCalls, state.budget),
-    );
-    events?.emit({
-      type: 'log',
-      level: 'info',
-      msg:
-        `finalization window entered: ${String(state.remaining)} of the reserved final ` +
-        `${String(finalizationWindow.reserveCalls)} ${state.budget} remain`,
-    });
+    }).then(commit);
   };
   const flushWindowNotices = (): void => {
     for (const text of pendingWindowNotices.splice(0)) {
@@ -1767,6 +1823,12 @@ export async function runAgent<S extends SchemaSpec>(
       );
       extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
     }
+    // The cap the count derivation alone can prove, kept as the floor
+    // beneath the journaled one (RV602).
+    const derivedCap =
+      limits.maxToolCalls === undefined || extension === undefined
+        ? undefined
+        : limits.maxToolCalls + extensionGrants * extension.increment;
     const durableRestored = options.toolBudgetDurability?.restored;
     if (extension !== undefined && durableRestored !== undefined) {
       // The journaled grants are honored as granted (RV509): the model
@@ -1777,6 +1839,31 @@ export async function runAgent<S extends SchemaSpec>(
       if (journaled > extensionGrants) {
         extensionGrants = journaled;
         extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
+      }
+    }
+    // The journaled cap anchors the resumed ceiling (RV602), so the two
+    // recovery paths agree and a raise the model was promised survives
+    // a live limits change. Validated like every persistent inlet: a
+    // non-integer or one under the base cap is a corrupt reading, not a
+    // promise, and the derivation stays the floor either way.
+    grantsOverCapBase = extensionGrants;
+    const journaledCap = durableRestored?.cap;
+    if (
+      journaledCap !== undefined &&
+      limits.maxToolCalls !== undefined &&
+      derivedCap !== undefined
+    ) {
+      if (Number.isSafeInteger(journaledCap) && journaledCap >= limits.maxToolCalls) {
+        capBase = Math.max(journaledCap, derivedCap);
+        grantsOverCapBase = 0;
+      } else {
+        events?.emit({
+          type: 'log',
+          level: 'warn',
+          msg:
+            `restored tool budget cap ${String(journaledCap)} is not an integer at or above the ` +
+            `base cap ${String(limits.maxToolCalls)}; ignoring it and deriving from the counts`,
+        });
       }
     }
     // A segment restored inside the window re-arms silently (RV302):
@@ -1929,16 +2016,18 @@ export async function runAgent<S extends SchemaSpec>(
             : undefined;
       };
       let expiredLimiter = expiryOf();
-      if (
-        expiredLimiter === 'maxToolCalls' &&
-        call.name !== options.terminalTool?.name &&
-        tryToolBudgetGrant()
-      ) {
-        // The grant lifted the call cap (RV301); only an independently
-        // exhausted unit budget can still close this call. A terminal
-        // call never spends a grant: it already rides the budget
-        // exemption below.
-        expiredLimiter = expiryOf();
+      if (expiredLimiter === 'maxToolCalls' && call.name !== options.terminalTool?.name) {
+        // Awaited exactly when a grant decision is in flight (RV601);
+        // a plain boolean means nothing had to be journaled, and the
+        // walk stays synchronous to the microtask.
+        const attempt = tryToolBudgetGrant();
+        if (typeof attempt === 'boolean' ? attempt : await attempt) {
+          // The grant lifted the call cap (RV301); only an independently
+          // exhausted unit budget can still close this call. A terminal
+          // call never spends a grant: it already rides the budget
+          // exemption below.
+          expiredLimiter = expiryOf();
+        }
       }
       if (expiredLimiter !== undefined) {
         // Expiry of a tool budget is terminal 'limit': paid partial
@@ -2186,16 +2275,21 @@ export async function runAgent<S extends SchemaSpec>(
       // window binds only when the grant would not clear it or is
       // denied.
       if (finalizationWindow !== undefined) {
-        maybeMarkWindowEntry();
+        const entry = maybeMarkWindowEntry();
+        if (entry !== undefined) {
+          await entry;
+        }
         let windowState = windowActive();
         if (windowState !== undefined && !windowAllows(gatedCall.name)) {
           if (
             windowState.budget === 'tool calls' &&
             extension !== undefined &&
-            windowState.remaining + extension.increment > finalizationWindow.reserveCalls &&
-            tryToolBudgetGrant()
+            windowState.remaining + extension.increment > finalizationWindow.reserveCalls
           ) {
-            windowState = windowActive();
+            const attempt = tryToolBudgetGrant();
+            if (typeof attempt === 'boolean' ? attempt : await attempt) {
+              windowState = windowActive();
+            }
           }
           if (windowState !== undefined && !windowAllows(gatedCall.name)) {
             events?.emit({
@@ -2295,7 +2389,10 @@ export async function runAgent<S extends SchemaSpec>(
     }
     // A batch whose LAST execution crossed into the window still
     // announces the entry before the next model turn (RV302).
-    maybeMarkWindowEntry();
+    const lastEntry = maybeMarkWindowEntry();
+    if (lastEntry !== undefined) {
+      await lastEntry;
+    }
     return { parts, limitHit: false };
   };
 

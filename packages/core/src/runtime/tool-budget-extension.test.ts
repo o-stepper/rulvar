@@ -459,7 +459,12 @@ describe('the durable grant decisions (RV509)', () => {
       }),
       tools: runtimeOf([readTool(executions), finishTool()]),
       terminalTool: { name: 'finish' },
-      toolBudgetDurability: { onExtensionGrant: (grant) => grants.push(grant) },
+      toolBudgetDurability: {
+        onExtensionGrant: (grant) => {
+          grants.push(grant);
+          return Promise.resolve();
+        },
+      },
     });
     expect(result.status).toBe('ok');
     expect(grants).toEqual([{ grant: 1, maxExtensions: 1, toolCallsUsed: 2, cap: 4 }]);
@@ -521,7 +526,10 @@ describe('the durable grant decisions (RV509)', () => {
       },
       toolBudgetDurability: {
         restored: { extensionsGranted: 1, finalizationWindowEntered: false },
-        onExtensionGrant: (grant) => grants.push(grant),
+        onExtensionGrant: (grant) => {
+          grants.push(grant);
+          return Promise.resolve();
+        },
       },
     });
     expect(result.status).toBe('ok');
@@ -532,6 +540,217 @@ describe('the durable grant decisions (RV509)', () => {
     expect(grants).toEqual([]);
     for (const call of adapter.calls) {
       expect(extensionNotices(call as { messages: Msg[] })).toHaveLength(1);
+    }
+  });
+});
+
+/** The pre-crash segment a RV602 resume restores: two reads at the base cap. */
+const restoredAtBaseCap = (): CheckpointState => ({
+  v: 1,
+  messages: [
+    { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+    {
+      role: 'assistant',
+      parts: [
+        { type: 'tool-call', id: 'a', name: 'read', args: {} },
+        { type: 'tool-call', id: 'b', name: 'read', args: {} },
+      ],
+    },
+    {
+      role: 'tool',
+      parts: [
+        { type: 'tool-result', id: 'a', name: 'read', result: { page: 1 } },
+        { type: 'tool-result', id: 'b', name: 'read', result: { page: 2 } },
+      ],
+    },
+    { role: 'user', parts: [{ type: 'text', text: toolBudgetExtensionNoticeText(1, 2, 2, 4) }] },
+  ],
+  turns: 1,
+  usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  toolCallsUsed: 2,
+  schemaAttempts: 0,
+  compaction: [],
+});
+
+describe('durable authorization before the granted call (RV601)', () => {
+  const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 1));
+
+  it('no call the grant would fund executes until the grant decision is durable', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(4) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    let reached = false;
+    let release: (() => void) | undefined;
+    const durable = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const pending = runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 4,
+        maxToolCalls: 2,
+        toolBudgetExtension: { increment: 2, maxExtensions: 1 },
+      }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      toolBudgetDurability: {
+        onExtensionGrant: () => {
+          reached = true;
+          return durable;
+        },
+      },
+    });
+    for (let attempt = 0; attempt < 200 && !reached; attempt += 1) {
+      await tick();
+    }
+    expect(reached).toBe(true);
+    // The authorization is not durable yet: only the two calls the BASE
+    // cap funded have run, and nothing the grant would fund may follow
+    // an authorization the store has not accepted.
+    await tick();
+    expect(executions.count).toBe(2);
+    release?.();
+    const result = await pending;
+    expect(result.status).toBe('ok');
+    expect(executions.count).toBe(4);
+  });
+
+  it('a rejected grant append issues no grant and runs none of the calls it would fund', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(4) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    // Pre-created so the red run cannot trip the unhandled-rejection
+    // guard while the loop still discards the hook's promise.
+    const rejection = Promise.reject(new Error('journal store unavailable'));
+    rejection.catch(() => undefined);
+    await expect(
+      runAgent({
+        prompt: 'go',
+        adapter,
+        resolved,
+        limits: mergeUsageLimits({
+          maxTurns: 4,
+          maxToolCalls: 2,
+          toolBudgetExtension: { increment: 2, maxExtensions: 1 },
+        }),
+        tools: runtimeOf([readTool(executions), finishTool()]),
+        terminalTool: { name: 'finish' },
+        toolBudgetDurability: { onExtensionGrant: () => rejection },
+      }),
+    ).rejects.toThrow('journal store unavailable');
+    expect(executions.count).toBe(2);
+  });
+});
+
+describe('the journaled cap wins over drifted limits (RV602)', () => {
+  it('a resumed segment honors the journaled cap when the live increment shrank', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(2) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 4,
+        maxToolCalls: 2,
+        // Drifted since the grant: the live arithmetic would derive a
+        // cap of 3 and silently revoke the 4 the model was promised.
+        toolBudgetExtension: { increment: 1, maxExtensions: 1 },
+      }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      checkpoint: {
+        load: () => Promise.resolve(restoredAtBaseCap()),
+        save: () => Promise.resolve(),
+      },
+      toolBudgetDurability: {
+        restored: { extensionsGranted: 1, finalizationWindowEntered: false, cap: 4 },
+      },
+    });
+    expect(result.status).toBe('ok');
+    expect(executions.count).toBe(2);
+    expect(result.toolBudget).toEqual({ used: 4, cap: 4, extensionsGranted: 1 });
+  });
+
+  it('a live grant after the restore point measures from the journaled cap with the current increment', async () => {
+    // Seeded past the restored pages so every live read is new evidence:
+    // a grant beyond the restore point still has to earn it.
+    const executions = { count: 2 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(3) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 4,
+        maxToolCalls: 2,
+        // A grown increment must not inflate the journaled cap either:
+        // 4 is the anchor, and only the NEW grant spends the live 5.
+        toolBudgetExtension: { increment: 5, maxExtensions: 2 },
+      }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      checkpoint: {
+        load: () => Promise.resolve(restoredAtBaseCap()),
+        save: () => Promise.resolve(),
+      },
+      toolBudgetDurability: {
+        restored: { extensionsGranted: 1, finalizationWindowEntered: false, cap: 4 },
+      },
+    });
+    expect(result.status).toBe('ok');
+    expect(executions.count).toBe(5);
+    expect(result.toolBudget).toEqual({ used: 5, cap: 9, extensionsGranted: 2 });
+  });
+
+  it('a malformed journaled cap is ignored with a warning; the count derivation stays the floor', async () => {
+    const runWith = async (cap: number) => {
+      const executions = { count: 0 };
+      const events = recordingSink();
+      const adapter = scriptedAdapter((_req, call) =>
+        call === 0 ? reads(2) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+      );
+      const result = await runAgent({
+        prompt: 'go',
+        adapter,
+        resolved,
+        limits: mergeUsageLimits({
+          maxTurns: 4,
+          maxToolCalls: 2,
+          toolBudgetExtension: { increment: 2, maxExtensions: 1 },
+        }),
+        tools: runtimeOf([readTool(executions), finishTool()]),
+        terminalTool: { name: 'finish' },
+        events,
+        checkpoint: {
+          load: () => Promise.resolve(restoredAtBaseCap()),
+          save: () => Promise.resolve(),
+        },
+        toolBudgetDurability: {
+          restored: { extensionsGranted: 1, finalizationWindowEntered: false, cap },
+        },
+      });
+      const warnings = (events.ofType('log') as Array<{ level?: string; msg: string }>).filter(
+        (entry) => entry.level === 'warn' && entry.msg.includes('cap'),
+      );
+      return { result, warnings, executions };
+    };
+    // Not an integer, and below the base cap: both fall back to the
+    // live derivation (2 + 1 * 2), which stays exactly as before.
+    for (const cap of [3.5, 1]) {
+      const { result, warnings, executions } = await runWith(cap);
+      expect(result.status).toBe('ok');
+      expect(executions.count).toBe(2);
+      expect(result.toolBudget).toEqual({ used: 4, cap: 4, extensionsGranted: 1 });
+      expect(warnings).toHaveLength(1);
     }
   });
 });

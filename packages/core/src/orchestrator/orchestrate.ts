@@ -16,7 +16,9 @@
  * cap, maxDepth, and the budget layers apply; no termination.init is
  * written; escalated children simply settle into their digests.
  */
+import { createHash } from 'node:crypto';
 import { AdmissionRejectedError, ConfigError, FailRunError } from '../l0/errors.js';
+import { jcsSerialize } from '../l0/jcs.js';
 import {
   requireFraction,
   requireNonNegativeInteger,
@@ -2723,7 +2725,7 @@ export function makeOrchestratorWorkflow(
      * superseding bundle descriptor, because a single descriptor means
      * every decision was necessarily rendered under it.
      */
-    const contractGenerationCurrent = (decision: FinishValidationDecision): boolean => {
+    const contractGenerationCurrent = (decision: { contractHash?: string }): boolean => {
       const hash = validationSpec?.contract?.hash;
       if (hash === undefined) {
         return true;
@@ -3458,20 +3460,51 @@ export function makeOrchestratorWorkflow(
             callingState.spanId,
           );
         };
+        const draftValue = (draft ?? null) as Json | null;
+        const draftHash = createHash('sha256')
+          .update(jcsSerialize(draftValue), 'utf8')
+          .digest('hex');
+        const validatorNames = validationSpec.validators.map((validator) => validator.name);
+        /**
+         * A journaled skip is the authority only for the generation and
+         * the draft it judged (RV603). The documented remedy for a
+         * broken contract is to fix it and resume, and a verdict that
+         * outlives its contract defeats exactly that: the run would
+         * settle ok carrying output the CURRENT contract rejects.
+         * Bound by three facts, in descending strength: the contract
+         * identity (the same `contractGenerationCurrent` test the
+         * finish-validation decisions already use), the draft the
+         * verdict actually judged, and the validator names that
+         * rendered it. Entries written before this field existed carry
+         * no draftHash and stay reusable, so journals in flight roll
+         * forward byte for byte.
+         */
+        const applies = (value: {
+          contractHash?: string;
+          draftHash?: string;
+          validators?: unknown;
+        }): boolean =>
+          contractGenerationCurrent(value) &&
+          (value.draftHash === undefined || value.draftHash === draftHash) &&
+          (!Array.isArray(value.validators) ||
+            JSON.stringify(value.validators) === JSON.stringify(validatorNames));
+        // The LAST matching entry, not the first: a superseded skip
+        // stays in the journal as the historical fact it is, and the
+        // re-derived one after it is what a later resume reads.
         const prior = internals.replayer
           .snapshot()
-          .find(
+          .filter(
             (entry) =>
               entry.kind === 'decision' &&
               entry.scope === callingState.scope &&
               entry.key === skipKey,
-          );
-        if (prior !== undefined) {
+          )
+          .at(-1);
+        if (prior !== undefined && applies(prior.value as Parameters<typeof applies>[0])) {
           synthesisSkippedByValidDraft = true;
           announceSkip(prior.seq);
           return draft;
         }
-        const draftValue = (draft ?? null) as Json | null;
         const input: FinishValidationInput = {
           result: draftValue,
           text: typeof draftValue === 'string' ? draftValue : JSON.stringify(draftValue),
@@ -3505,7 +3538,16 @@ export function makeOrchestratorWorkflow(
             value: {
               decisionType: 'orchestrator_synthesis_skip',
               reason: 'synthesis_skipped_by_valid_draft',
-              validators: validationSpec.validators.map((validator) => validator.name),
+              validators: validatorNames,
+              // What the verdict is bound to (RV603): the contract
+              // generation when one is declared, and the draft it
+              // actually judged. Without a contract descriptor the pair
+              // is honestly weaker (a same-name validator can change
+              // behavior underneath it), and that is documented.
+              ...(validationSpec.contract === undefined
+                ? {}
+                : { contractHash: validationSpec.contract.hash }),
+              draftHash,
             },
           });
           if (orchestratorAccount !== undefined && (opts?.budget?.synthesisReserveUsd ?? 0) > 0) {

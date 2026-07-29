@@ -266,6 +266,34 @@ const MUTATIONS = [
       '    if (seq === undefined || seq >= 0) {\n      return lastByModel.get(servedBy);\n    }',
     test: 'packages/core/src/engine/pricing-snapshot.test.ts',
   },
+  {
+    id: 'tool-budget-grant-durability',
+    doctrine:
+      'an authorization is durable BEFORE the work it authorizes: a grant awaits its decision append, so no tool call runs under a raise the store never accepted (RV601)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    return durable({ grant, maxExtensions: extension.maxExtensions, toolCallsUsed, cap }).then(\n      commit,\n    );',
+    replace:
+      '    void durable({ grant, maxExtensions: extension.maxExtensions, toolCallsUsed, cap });\n    return commit();',
+    test: 'packages/core/src/runtime/tool-budget-extension.test.ts',
+  },
+  {
+    id: 'restored-cap-anchor',
+    doctrine:
+      'the journaled cap anchors a resumed ceiling, so drifting live limits cannot revoke a raise the model was promised and the two recovery paths agree (RV602)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '        capBase = Math.max(journaledCap, derivedCap);',
+    replace: '        capBase = Math.max(limits.maxToolCalls, derivedCap);',
+    test: 'packages/core/src/runtime/tool-budget-extension.test.ts',
+  },
+  {
+    id: 'synthesis-skip-generation',
+    doctrine:
+      'a journaled skip is the authority only for the contract generation and the draft it judged (RV603)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          contractGenerationCurrent(value) &&',
+    replace: '          true &&',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
