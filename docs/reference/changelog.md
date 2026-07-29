@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+
 ### 1.101.0
 
 #### Patch Changes
@@ -1147,6 +1154,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+
 ### 1.101.0
 
 #### Patch Changes
@@ -2131,6 +2145,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
 
 ### 1.101.0
 
@@ -3466,6 +3487,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.102.0
+
+#### Minor Changes
+
+- 3eb6515: Durable authorization before the authorized effect (RV601, RV602, RV603: the round-52 review of the ninth plan's own surface).
+
+  **A tool budget grant is durable before it takes effect (RV601).** The grant and finalization-window decision entries introduced by RV509 were journaled fire-and-forget, so a tool call could run under a raised cap whose authorizing decision never reached the store, and a rejected append left the run settling with the decision silently absent. Both hooks on `RunAgentOptions.toolBudgetDurability` now return `Promise<void>` and the loop awaits them before the grant lifts an expiry, before the window binds a call, and before either announcement is queued. A refused append issues no grant and marks no entry, and the failure propagates exactly like a failed boundary checkpoint instead of being swallowed. Migration: a host wiring these hooks directly must return a promise, and a grant can now fail when the journal store is unavailable rather than proceeding unrecorded.
+
+  **The journaled cap anchors a resumed ceiling (RV602).** `maxToolCalls` and `increment` are not part of the dispatch identity, so a host may legitimately change them between segments; recomputing the resumed cap from live limits revoked a raise the model had already been promised on the live-resume path while a pure replay honored it from the journal. `toolBudgetDurability.restored` now carries the journaled `cap`, the loop measures from it, and grants taken after the restore point apply the current `increment` to that anchor. A restored cap that is not an integer at or above the base cap is ignored with a warning, leaving the executed-call derivation as the floor.
+
+  **A synthesis skip is bound to its contract generation and draft (RV603).** The `orchestrator_synthesis_skip` decision written by RV510 was looked up by scope and key alone, so the documented fix-and-resume remedy was defeated: a crash between the skip and the run settle, followed by a contract fix, resumed with the stale skip and settled `ok` carrying output the current contract rejects. The entry now records the contract hash (when a `finishValidation.contract` is declared) and the hash of the draft it judged, and is reused only when the contract generation, the draft, and the validator names all still match; otherwise the gate re-runs on the current contract. Without a contract descriptor the binding falls back to draft plus validator names, which is honestly weaker and documented as such. Entries journaled before this field existed stay reusable, so runs in flight roll forward unchanged.
 
 ### 1.101.0
 
@@ -5136,6 +5169,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.102.0
+
 ### 1.101.0
 
 ### 1.100.0
@@ -5442,6 +5477,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+  - @rulvar/testing@1.102.0
 
 ### 1.101.0
 
@@ -6640,6 +6683,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+
 ### 1.101.0
 
 #### Patch Changes
@@ -7017,6 +7067,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
 
 ### 1.101.0
 
@@ -8159,6 +8216,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+
 ### 1.101.0
 
 #### Patch Changes
@@ -9257,6 +9321,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+  - eslint-plugin-rulvar@1.102.0
 
 ### 1.101.0
 
@@ -10419,6 +10491,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+  - @rulvar/anthropic@1.102.0
+  - @rulvar/openai@1.102.0
 
 ### 1.101.0
 
@@ -11765,6 +11846,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+
 ### 1.101.0
 
 #### Patch Changes
@@ -12855,6 +12943,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
+
 ### 1.101.0
 
 #### Patch Changes
@@ -13246,6 +13341,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
 
 ### 1.101.0
 
@@ -14269,6 +14371,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.102.0
+
+#### Patch Changes
+
+- Updated dependencies [3eb6515]
+  - @rulvar/core@1.102.0
 
 ### 1.101.0
 
