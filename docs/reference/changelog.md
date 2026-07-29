@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
+
 ### 1.103.0
 
 #### Patch Changes
@@ -1161,6 +1167,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
+
 ### 1.103.0
 
 #### Patch Changes
@@ -2159,6 +2171,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
 
 ### 1.103.0
 
@@ -3508,6 +3526,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.104.0
 
 ### 1.103.0
 
@@ -5200,6 +5220,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.104.0
+
 ### 1.103.0
 
 ### 1.102.0
@@ -5510,6 +5532,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
+- @rulvar/testing@1.104.0
 
 ### 1.103.0
 
@@ -6724,6 +6753,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.104.0
+
+#### Minor Changes
+
+- 3edecd8: Make the effect ledger's tail repair mutually exclusive across processes and its scan fail closed on every malformed line (RV606, RV607).
+
+  Repair exclusion (RV606): the destructive half of the torn-tail repair (truncate plus quarantine) now runs under a sidecar `<path>.repair-lock` taken with `O_EXCL`, and the ledger file is re-read AFTER the lock is held, so a writer never truncates by a boundary computed from a stale read. A waiter polls; a lock whose mtime is further than ten seconds from now (either direction, so a skewed clock cannot pin the file) is presumed abandoned by a crashed holder and stolen, and ownership is re-verified immediately before the truncate. Two writer processes meeting on one torn file previously could erase each other's confirmed intents: the slower instance truncated at its stale boundary, cutting away the faster instance's quarantine and any rows appended after it. A clean file is still returned untouched, byte for byte, without the lock ever existing. The considered alternative, an append-only repair that terminates the fragment in place and quarantines it without truncating, was rejected because it turns the fragment into an unparseable interior line: a repaired file must stay readable by EVERY reader version, and pre-1.104 scans fail closed on exactly that construction. The writer contract is now stated publicly on `jsonlEffectLedger` and in the guide: prefer one writer per path (an `effects.<worker>.jsonl` per worker process, merged at reconciliation), and when writers do meet on one local path, the repair lock makes the meeting cost duplicated effort at worst, never a truncated confirmed row.
+
+  Fail-closed scan (RV607): `loadEffectLedger` now decodes every physical line with `TextDecoder('utf-8', { fatal: true })` and validates the shape before anything dereferences it: the phase must be exactly `intent`, `outcome`, or `torn`, and every required field of that phase must carry its type (extra fields still pass through). Invalid UTF-8, non-object JSON (`null`, `42`, `"str"`, arrays), a missing or mistyped required field, and an unknown phase are all `CorruptLedgerLine`s: the default scan throws the typed `LedgerCorruptionError`, and `{ tolerateCorrupt: true }` returns the same lines as data and never leaks a raw `TypeError` (a `null` line used to pierce both modes as one). An unterminated tail that fails to decode or parse remains the tolerated, named `tornTail`; an unterminated line that PARSES but fails the shape is corruption, because a torn prefix of the writer's own flat record can never parse, so such a line is foreign, not a crash artifact.
+
+  Migration note: scans that previously resolved while silently skipping malformed rows (a replacement-character key entering reconciliation as genuine, an unknown phase erasing an orphan, primitives vanishing) now surface them: the default mode throws `LedgerCorruptionError` where it previously returned a partial result or leaked a `TypeError`. Hosts that hit the new refusal on an existing file should triage with `{ tolerateCorrupt: true }`, which reports each offending line's number, byte offset, and sha256. Rows written by `jsonlEffectLedger` itself are unaffected: every line the writer emits passes the validation it now demands.
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
+
 ### 1.103.0
 
 #### Patch Changes
@@ -7115,6 +7160,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
 
 ### 1.103.0
 
@@ -8271,6 +8322,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
+
 ### 1.103.0
 
 #### Patch Changes
@@ -9383,6 +9440,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
+- eslint-plugin-rulvar@1.104.0
 
 ### 1.103.0
 
@@ -10561,6 +10625,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.104.0
+- @rulvar/core@1.104.0
+- @rulvar/openai@1.104.0
 
 ### 1.103.0
 
@@ -11925,6 +11997,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
+
 ### 1.103.0
 
 #### Patch Changes
@@ -13029,6 +13107,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
+
 ### 1.103.0
 
 #### Patch Changes
@@ -13434,6 +13518,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
 
 ### 1.103.0
 
@@ -14471,6 +14561,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.104.0
+
+#### Patch Changes
+
+- @rulvar/core@1.104.0
 
 ### 1.103.0
 
