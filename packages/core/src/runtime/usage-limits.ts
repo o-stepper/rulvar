@@ -119,8 +119,11 @@ export interface UsageLimits {
    * set to false, only when at least one novel tool result digest arrived
    * since the previous grant (the exploration guard's evidence chain).
    * Each grant is announced to the model as a plain user message with the
-   * exact new counts, so pacing stays possible; on resume the grants
-   * re-derive conservatively from the restored executed-call count.
+   * exact new counts, so pacing stays possible. Under the engine, each
+   * grant also journals a decision entry the moment it fires (RV509), so
+   * a resume restores granted-but-unspent extensions from the journal
+   * (the conservative executed-call derivation remains the floor beneath
+   * a lost journal tail) and a replayed result reports the grants.
    * Extends maxToolCalls only, never toolUnits. Off by default: the
    * grant notices enter the conversation, so enabling it changes
    * recorded model requests.
@@ -148,9 +151,12 @@ export interface UsageLimits {
    * free bookkeeping tools); the engine terminal tool is always
    * admitted regardless. With toolBudgetExtension configured, remaining
    * money converts into a grant BEFORE any window refusal, so the
-   * window binds only when the extension is exhausted or denied. Off by
-   * default: the refusals and the notice enter the conversation, so
-   * enabling it changes recorded model requests.
+   * window binds only when the extension is exhausted or denied. Under
+   * the engine, the entry journals a decision entry the moment it fires
+   * (RV509), so the summary's finalizationWindowEntered survives resume
+   * and replay even when a later grant moved the counts back out of the
+   * window. Off by default: the refusals and the notice enter the
+   * conversation, so enabling it changes recorded model requests.
    */
   finalizationWindow?: {
     /** How many trailing executed calls (or units) the window reserves. */

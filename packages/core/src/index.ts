@@ -87,6 +87,7 @@ export * from './runtime/no-progress.js';
 export * from './runtime/permission-chain.js';
 export * from './runtime/structured-output.js';
 export * from './runtime/agent-loop.js';
+export type { FinalizationWindowBudget } from './runtime/exploration.js';
 export * from './engine/budget.js';
 export * from './engine/scheduler.js';
 export * from './orchestrator/admission.js';

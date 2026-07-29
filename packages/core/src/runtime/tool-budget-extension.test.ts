@@ -9,6 +9,7 @@ import type { ResolvedInvocation } from '../model/router.js';
 import { tool, toolContract } from '../tools/tool.js';
 import { recordingSink, scriptedAdapter } from '../engine/test-harness.js';
 import { runAgent, type BudgetHooks, type ToolRuntime } from './agent-loop.js';
+import { toolBudgetExtensionNoticeText } from './exploration.js';
 import { mergeUsageLimits, validateUsageLimits } from './usage-limits.js';
 
 const resolved: ResolvedInvocation = {
@@ -437,5 +438,100 @@ describe('toolBudgetExtension validation', () => {
         'x',
       ),
     ).not.toThrow();
+  });
+});
+
+describe('the durable grant decisions (RV509)', () => {
+  it('a live grant reports through the decision hook with its exact counts', async () => {
+    const executions = { count: 0 };
+    const grants: unknown[] = [];
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(4) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 4,
+        maxToolCalls: 2,
+        toolBudgetExtension: { increment: 2, maxExtensions: 1 },
+      }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      toolBudgetDurability: { onExtensionGrant: (grant) => grants.push(grant) },
+    });
+    expect(result.status).toBe('ok');
+    expect(grants).toEqual([{ grant: 1, maxExtensions: 1, toolCallsUsed: 2, cap: 4 }]);
+  });
+
+  it('a restored grant is honored without a fresh live grant or a second notice', async () => {
+    const executions = { count: 0 };
+    const grants: unknown[] = [];
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(2) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    // The pre-crash segment: two executed reads at the base cap of 2,
+    // then the grant, announced to the model, whose calls never ran
+    // before the kill. The restored count alone cannot prove that grant
+    // (2 is not beyond the base cap); only the journaled decision can.
+    const restored: CheckpointState = {
+      v: 1,
+      messages: [
+        { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+        {
+          role: 'assistant',
+          parts: [
+            { type: 'tool-call', id: 'a', name: 'read', args: {} },
+            { type: 'tool-call', id: 'b', name: 'read', args: {} },
+          ],
+        },
+        {
+          role: 'tool',
+          parts: [
+            { type: 'tool-result', id: 'a', name: 'read', result: { page: 1 } },
+            { type: 'tool-result', id: 'b', name: 'read', result: { page: 2 } },
+          ],
+        },
+        {
+          role: 'user',
+          parts: [{ type: 'text', text: toolBudgetExtensionNoticeText(1, 1, 2, 4) }],
+        },
+      ],
+      turns: 1,
+      usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      toolCallsUsed: 2,
+      schemaAttempts: 0,
+      compaction: [],
+    };
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 4,
+        maxToolCalls: 2,
+        toolBudgetExtension: { increment: 2, maxExtensions: 1 },
+      }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      checkpoint: {
+        load: () => Promise.resolve(restored),
+        save: () => Promise.resolve(),
+      },
+      toolBudgetDurability: {
+        restored: { extensionsGranted: 1, finalizationWindowEntered: false },
+        onExtensionGrant: (grant) => grants.push(grant),
+      },
+    });
+    expect(result.status).toBe('ok');
+    expect(executions.count).toBe(2);
+    expect(result.toolBudget).toEqual({ used: 4, cap: 4, extensionsGranted: 1 });
+    // The journaled grant restores; nothing is re-granted, so the hook
+    // stays silent and the model never sees a second announcement.
+    expect(grants).toEqual([]);
+    for (const call of adapter.calls) {
+      expect(extensionNotices(call as { messages: Msg[] })).toHaveLength(1);
+    }
   });
 });

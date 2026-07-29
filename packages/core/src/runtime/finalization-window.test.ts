@@ -428,3 +428,104 @@ describe('finalizationWindow validation', () => {
     ).not.toThrow();
   });
 });
+
+describe('the durable window-entry decision (RV509)', () => {
+  it('the window entry reports once through the decision hook with its exact state', async () => {
+    const executions = { count: 0 };
+    const entries: unknown[] = [];
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(1) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 4,
+        maxToolCalls: 3,
+        finalizationWindow: { reserveCalls: 2, allow: ['read'] },
+      }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      toolBudgetDurability: { onWindowEntry: (entry) => entries.push(entry) },
+    });
+    expect(result.status).toBe('ok');
+    expect(entries).toEqual([{ remaining: 2, reserveCalls: 2, budget: 'tool calls' }]);
+  });
+
+  it('a restored entry keeps the summary honest after a grant raised the cap away from the window', async () => {
+    const executions = { count: 0 };
+    const entries: unknown[] = [];
+    const adapter = scriptedAdapter(() => ({
+      toolCall: { name: 'finish', args: { result: 'done' } },
+    }));
+    // The pre-crash segment entered the window at the base cap of 3,
+    // then a grant raised the effective cap to 7: the restored counts
+    // re-derive the grant (4 executed calls sit beyond the base cap)
+    // but place the loop OUTSIDE the window, so only the journaled
+    // entry decision can keep finalizationWindowEntered truthful.
+    const restored: CheckpointState = {
+      v: 1,
+      messages: [
+        { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+        {
+          role: 'assistant',
+          parts: Array.from({ length: 4 }, (_, index) => ({
+            type: 'tool-call' as const,
+            id: `call-${String(index)}`,
+            name: 'read',
+            args: {},
+          })),
+        },
+        {
+          role: 'tool',
+          parts: Array.from({ length: 4 }, (_, index) => ({
+            type: 'tool-result' as const,
+            id: `call-${String(index)}`,
+            name: 'read',
+            result: { page: index + 1 },
+          })),
+        },
+      ],
+      turns: 1,
+      usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      toolCallsUsed: 4,
+      schemaAttempts: 0,
+      compaction: [],
+    };
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 4,
+        maxToolCalls: 3,
+        toolBudgetExtension: { increment: 4, maxExtensions: 1 },
+        finalizationWindow: { reserveCalls: 2, allow: ['read'] },
+      }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      checkpoint: {
+        load: () => Promise.resolve(restored),
+        save: () => Promise.resolve(),
+      },
+      toolBudgetDurability: {
+        restored: { extensionsGranted: 1, finalizationWindowEntered: true },
+        onWindowEntry: (entry) => entries.push(entry),
+      },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.toolBudget).toEqual({
+      used: 4,
+      cap: 7,
+      extensionsGranted: 1,
+      finalizationWindowEntered: true,
+    });
+    // The entry restored from the journal: the hook stays silent and no
+    // fresh notice enters the conversation.
+    expect(entries).toEqual([]);
+    for (const call of adapter.calls) {
+      expect(windowNotices(call as { messages: Msg[] })).toHaveLength(0);
+    }
+  });
+});

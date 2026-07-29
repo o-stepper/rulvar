@@ -1793,6 +1793,10 @@
             "link": "/api/@rulvar/core/type-aliases/FencedCodeMode.md"
           },
           {
+            "text": "FinalizationWindowBudget",
+            "link": "/api/@rulvar/core/type-aliases/FinalizationWindowBudget.md"
+          },
+          {
             "text": "FinishInfo",
             "link": "/api/@rulvar/core/type-aliases/FinishInfo.md"
           },
@@ -6213,6 +6217,10 @@
           {
             "text": "FencedCodeMode",
             "link": "/api/@rulvar/rulvar/type-aliases/FencedCodeMode.md"
+          },
+          {
+            "text": "FinalizationWindowBudget",
+            "link": "/api/@rulvar/rulvar/type-aliases/FinalizationWindowBudget.md"
           },
           {
             "text": "FinishInfo",
