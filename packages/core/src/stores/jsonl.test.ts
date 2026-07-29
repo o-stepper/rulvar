@@ -75,6 +75,87 @@ describe('JsonlFileStore (M2-T01; docs/03 section 12)', () => {
     await expect(store.load('r1')).rejects.toThrow(JournalOrderViolation);
   });
 
+  it('RV701: an accepted entry whose trailing newline a crash cut survives the next append', async () => {
+    // The eleventh experiment's live reproduction: every JSON byte of the
+    // append persisted, only the '\n' was lost. load() rightly serves the
+    // entry; the next append MUST NOT glue onto it and the load after
+    // that MUST NOT repair both records away to a zero-byte file.
+    const { store, dir } = makeStore();
+    await store.append('r1', entry(0));
+    const path = join(dir, 'r1.jsonl');
+    const bytes = readFileSync(path);
+    writeFileSync(path, bytes.subarray(0, bytes.length - 1));
+    const survivor = new JsonlFileStore({ dir });
+    expect((await survivor.load('r1')).map((e) => e.seq)).toEqual([0]);
+    await survivor.append('r1', entry(1));
+    // A SECOND append before any load: were the tail left unterminated,
+    // the glued line would now sit mid-file, where repair never looks,
+    // and the whole journal would become unreadable.
+    await survivor.append('r1', entry(2));
+    expect((await survivor.load('r1')).map((e) => e.seq)).toEqual([0, 1, 2]);
+    // A fresh instance (the next process) sees the same journal, and the
+    // file is newline-terminated again.
+    expect((await new JsonlFileStore({ dir }).load('r1')).map((e) => e.seq)).toEqual([0, 1, 2]);
+    expect(readFileSync(path, 'utf8').endsWith('\n')).toBe(true);
+  });
+
+  it('RV701: every byte-length crash prefix of a two-entry journal survives load, append, load', async () => {
+    const { store, dir } = makeStore();
+    await store.append('r1', entry(0));
+    await store.append('r1', entry(1));
+    const whole = readFileSync(join(dir, 'r1.jsonl'));
+    for (let cut = 0; cut <= whole.length; cut += 1) {
+      const caseDir = mkdtempSync(join(tmpdir(), `rulvar-jsonl-cut-${cut}-`));
+      writeFileSync(join(caseDir, 'r1.jsonl'), whole.subarray(0, cut));
+      const revived = new JsonlFileStore({ dir: caseDir });
+      const before = (await revived.load('r1')).map((e) => e.seq);
+      await revived.append('r1', entry(2));
+      await revived.append('r1', entry(3));
+      const after = (await revived.load('r1')).map((e) => e.seq);
+      // Whatever load served before the appends stays visible after
+      // them, and both appends landed: no cut position may lose an
+      // already-served entry (the valid-tail cut used to wipe the file)
+      // or leave the journal unreadable (an unterminated tail glued and
+      // then buried mid-file by the second append used to).
+      expect({ cut, after }).toEqual({ cut, after: [...before, 2, 3] });
+      const fresh = (await new JsonlFileStore({ dir: caseDir }).load('r1')).map((e) => e.seq);
+      expect({ cut, fresh }).toEqual({ cut, fresh: after });
+    }
+  });
+
+  it('RV701: repair salvages whole records glued on the torn last line instead of discarding them', async () => {
+    // The pre-fix append bug (and any legacy journal it corrupted) left
+    // two complete objects concatenated on one unterminated line. Repair
+    // must keep every whole record and drop nothing.
+    const { store, dir } = makeStore();
+    const path = join(dir, 'r1.jsonl');
+    writeFileSync(path, JSON.stringify(entry(0)) + JSON.stringify(entry(1)), 'utf8');
+    expect((await store.load('r1')).map((e) => e.seq)).toEqual([0, 1]);
+    await store.append('r1', entry(2));
+    expect((await store.load('r1')).map((e) => e.seq)).toEqual([0, 1, 2]);
+    expect(readFileSync(path, 'utf8').endsWith('\n')).toBe(true);
+  });
+
+  it('RV701: repair keeps the whole prefix records and drops only the trailing torn fragment', async () => {
+    const { store, dir } = makeStore();
+    const path = join(dir, 'r1.jsonl');
+    // A whole record, glued to a mid-write torn fragment of the next one:
+    // the record was accepted, the fragment never was.
+    writeFileSync(path, `${JSON.stringify(entry(0))}{"hashVersion":2,"seq":1,"sco`, 'utf8');
+    expect((await store.load('r1')).map((e) => e.seq)).toEqual([0]);
+    await store.append('r1', entry(1));
+    expect((await store.load('r1')).map((e) => e.seq)).toEqual([0, 1]);
+  });
+
+  it('RV701: a brace inside a string never splits a glued line into false records', async () => {
+    const { store, dir } = makeStore();
+    const tricky = entry(0, { value: { note: 'closing } brace and a quote " inside' } });
+    writeFileSync(join(dir, 'r1.jsonl'), JSON.stringify(tricky) + JSON.stringify(entry(1)), 'utf8');
+    const loaded = await store.load('r1');
+    expect(loaded.map((e) => e.seq)).toEqual([0, 1]);
+    expect(loaded[0]?.value).toEqual(tricky.value);
+  });
+
   it('meta is replaced atomically and listed without touching journals', async () => {
     const { store } = makeStore();
     await store.putMeta({ runId: 'r1', status: 'running', name: 'n', tags: ['t'], updatedAt: 'x' });

@@ -375,8 +375,8 @@ const MUTATIONS = [
     doctrine:
       'no public cost report may carry a non-finite number: the cross-entry accumulation is guarded at the boundary (RV610)',
     file: 'packages/core/src/engine/cost-report.ts',
-    find: "  requireFiniteNumbersDeep(report, 'costReport');",
-    replace: '  void report;',
+    find: "  // published report must never carry Infinity or NaN.\n  requireFiniteNumbersDeep(report, 'costReport');",
+    replace: '  // published report must never carry Infinity or NaN.\n  void report;',
     test: 'packages/core/src/engine/cost-report.test.ts',
   },
   {
@@ -415,6 +415,33 @@ const MUTATIONS = [
     find: '              segments: snapshot.segments,\n              pinnedThroughSeq: snapshot.pinnedThroughSeq,\n',
     replace: '',
     test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'jsonl-valid-tail-terminate',
+    doctrine:
+      'append terminates a parseable unterminated tail before writing, so it never glues two accepted records into one disposable line (RV701)',
+    file: 'packages/core/src/stores/jsonl.ts',
+    find: '      this.terminateUnterminatedTail(runId);\n',
+    replace: '',
+    test: 'packages/core/src/stores/jsonl.test.ts',
+  },
+  {
+    id: 'jsonl-repair-salvage',
+    doctrine:
+      'torn-tail repair salvages whole records glued on the last line instead of discarding them with the fragment (RV701)',
+    file: 'packages/core/src/stores/jsonl.ts',
+    find: '          for (const value of splitConcatenatedJson(line).whole) {\n            entries.push(value as JournalEntry);\n          }\n',
+    replace: '',
+    test: 'packages/core/src/stores/jsonl.test.ts',
+  },
+  {
+    id: 'cost-report-public-guard',
+    doctrine:
+      'the exported live builder refuses non-finite reports exactly like the journal fold (RV705)',
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: "  // The public boundary (RV610, completed by RV705): the journal fold\n  // refuses non-finite reports, and the live builder a host feeds its\n  // own accumulation must refuse them identically.\n  requireFiniteNumbersDeep(report, 'costReport');\n",
+    replace: '',
+    test: 'packages/core/src/engine/cost-report.test.ts',
   },
 ];
 

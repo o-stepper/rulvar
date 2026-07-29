@@ -6,7 +6,13 @@
  *
  * Contract (DEF-4 tightening):
  * - A1 atomicity: a torn trailing line (crash mid-append) is never
- *   visible in load; it is dropped and overwritten by the next append.
+ *   visible in load; the incomplete fragment is dropped and overwritten
+ *   by the next append. Whole records on that line are data, never
+ *   fragment (RV701): a crash that persisted every JSON byte but not
+ *   the '\n' leaves a parseable tail that load serves and append
+ *   terminates before writing, and repair salvages complete records a
+ *   glued line carries instead of discarding the line, so an entry a
+ *   load has served can never be un-served by a later repair.
  * - A2 total per-run order: load returns append order, stable across
  *   calls (the kernel's per-run queue serializes appends).
  * - A3 read-your-writes: append resolves after the line is written.
@@ -19,9 +25,13 @@
  */
 import {
   appendFileSync,
+  closeSync,
+  fstatSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
   renameSync,
   rmSync,
   statSync,
@@ -45,6 +55,60 @@ function safeName(runId: string): string {
     );
   }
   return runId;
+}
+
+/**
+ * Whole JSON values glued on one line, split apart without parser
+ * ambiguity (RV701): depth is tracked outside string literals only, and
+ * every candidate must still round-trip JSON.parse. A line that is not a
+ * clean concatenation from its first byte salvages its whole prefix
+ * values and returns everything after them as the torn fragment, so the
+ * caller keeps accepted records and drops exactly the unacknowledged
+ * tail a crash tore.
+ */
+function splitConcatenatedJson(line: string): { whole: unknown[]; fragment: string } {
+  const whole: unknown[] = [];
+  let start = 0;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{' || ch === '[') {
+      depth += 1;
+      continue;
+    }
+    if (ch === '}' || ch === ']') {
+      depth -= 1;
+      if (depth < 0) {
+        return { whole, fragment: line.slice(start) };
+      }
+      if (depth === 0) {
+        const candidate = line.slice(start, i + 1);
+        try {
+          whole.push(JSON.parse(candidate));
+        } catch {
+          return { whole, fragment: line.slice(start) };
+        }
+        start = i + 1;
+      }
+    }
+  }
+  return { whole, fragment: line.slice(start) };
 }
 
 export class JsonlFileStore implements MetaLookupStore {
@@ -78,6 +142,13 @@ export class JsonlFileStore implements MetaLookupStore {
     let tail = this.lastSeq.get(runId);
     if (tail === undefined) {
       const existing = await this.load(runId);
+      // A crash can persist every JSON byte of an append but not its
+      // '\n' (RV701): load serves that tail, and appending onto it would
+      // glue two records into one line a later load calls torn and
+      // repairs away, losing BOTH. The missing delimiter is restored
+      // before this instance's first append; load's own repair already
+      // rewrote every other malformed tail newline-terminated.
+      this.terminateUnterminatedTail(runId);
       const last = existing[existing.length - 1];
       tail = last !== undefined && Number.isFinite(last.seq) ? last.seq : Number.NEGATIVE_INFINITY;
       this.lastSeq.set(runId, tail);
@@ -120,8 +191,15 @@ export class JsonlFileStore implements MetaLookupStore {
       } catch (thrown) {
         const isLastContent = lines.slice(i + 1).every((rest) => rest === '');
         if (isLastContent) {
-          // Torn trailing write from a crash: invisible per A1. The next
-          // append will start a fresh line after repair.
+          // Torn trailing write from a crash: the incomplete fragment is
+          // invisible per A1. Whole records glued on the line (a legacy
+          // pre-RV701 append onto an unterminated tail, or a tear right
+          // after a complete record) are accepted data and are salvaged,
+          // never discarded with the fragment. The next append starts a
+          // fresh line after repair.
+          for (const value of splitConcatenatedJson(line).whole) {
+            entries.push(value as JournalEntry);
+          }
           this.repairTornTail(runId, entries);
           break;
         }
@@ -133,6 +211,39 @@ export class JsonlFileStore implements MetaLookupStore {
       }
     }
     return entries;
+  }
+
+  /**
+   * Restores the trailing '\n' of a parseable-but-unterminated tail
+   * (RV701). One byte appended in place terminates the record exactly
+   * where the crash left it; the file's bytes before it stay untouched.
+   * No-op on a missing, empty, or already-terminated journal.
+   */
+  private terminateUnterminatedTail(runId: string): void {
+    const path = this.journalPath(runId);
+    let fd: number;
+    try {
+      fd = openSync(path, 'r');
+    } catch (thrown) {
+      if ((thrown as NodeJS.ErrnoException).code === 'ENOENT') {
+        return;
+      }
+      throw thrown;
+    }
+    let needsNewline = false;
+    try {
+      const size = fstatSync(fd).size;
+      if (size > 0) {
+        const lastByte = new Uint8Array(1);
+        readSync(fd, lastByte, 0, 1, size - 1);
+        needsNewline = lastByte[0] !== 0x0a;
+      }
+    } finally {
+      closeSync(fd);
+    }
+    if (needsNewline) {
+      appendFileSync(path, '\n', 'utf8');
+    }
   }
 
   private repairTornTail(runId: string, whole: JournalEntry[]): void {

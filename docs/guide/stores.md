@@ -194,7 +194,7 @@ const engine = createEngine({
 });
 ```
 
-Because entries are appended as JSON lines in append order, the journal doubles as a human-readable event log: `tail -f` a live run, `git diff` two runs, grep for an entry kind. A crash in the middle of an append leaves at most a torn final line, which the store detects and repairs at load, so atomicity holds. `FileTranscriptStore` keeps blobs as one file per ref beside the journal; pair the two whenever you pair them at all, since a durable journal with in-memory transcripts loses agent checkpoints on crash and cannot resume compiled runs across processes.
+Because entries are appended as JSON lines in append order, the journal doubles as a human-readable event log: `tail -f` a live run, `git diff` two runs, grep for an entry kind. A crash in the middle of an append leaves at most a torn final line, which the store detects and repairs at load, so atomicity holds. The repair honors every crash boundary of the final line, including the two subtle ones (RV701, the eleventh comparison experiment's live reproduction): a crash that persisted every JSON byte of an append but not its `\n` leaves a parseable unterminated tail, which `load` serves and the next `append` first terminates in place rather than gluing onto; and a torn last line that carries complete records ahead of its fragment has those records salvaged, never discarded with the fragment. An entry `load` has served once can therefore not be un-served by a later repair. `FileTranscriptStore` keeps blobs as one file per ref beside the journal; pair the two whenever you pair them at all, since a durable journal with in-memory transcripts loses agent checkpoints on crash and cannot resume compiled runs across processes.
 
 `JsonlFileStore` has no lease capability. It is single-writer by contract: one writing process per store directory.
 
@@ -318,7 +318,7 @@ What "durable" means, per store:
 | Store | Survives a process crash | Concurrent writers |
 |---|---|---|
 | `InMemoryStore` | Nothing; no resume from another process | Not applicable |
-| `JsonlFileStore` | Everything appended; a torn tail line from a mid-append crash is repaired at load | One writing process per directory; no lease capability |
+| `JsonlFileStore` | Everything appended; a torn tail line from a mid-append crash is repaired at load, whole records on it salvaged and a parseable unterminated tail terminated before the next append (RV701) | One writing process per directory; no lease capability |
 | `SqliteStore` | Everything appended, in one database file | Safe under leases; stale epochs are fenced out |
 | `PostgresStore` | Everything appended, in the database (its durability is your postgres durability settings) | Safe under leases across processes AND hosts; stale epochs are fenced out |
 

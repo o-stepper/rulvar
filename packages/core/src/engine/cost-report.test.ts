@@ -15,12 +15,13 @@ import { InMemoryStore } from '../stores/inmemory.js';
 import { tool } from '../tools/tool.js';
 import { Replayer } from '../journal/replayer.js';
 import { parseModelRef } from '../model/router.js';
-import { defineWorkflow } from './ctx.js';
+import { defineWorkflow, type CostAttribution } from './ctx.js';
+import { ConfigError } from '../l0/errors.js';
 import type { JournalEntry, ProviderCallRecord } from '../l0/entries.js';
-import type { ModelRef, Usage } from '../l0/messages.js';
+import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import { makeOrchestratorWorkflow } from '../orchestrator/orchestrate.js';
 import { createEngine } from './engine.js';
-import { costReportFromJournal } from './cost-report.js';
+import { buildCostReport, costReportFromJournal } from './cost-report.js';
 import { priceEntryBilling } from '../l0/entries.js';
 import { scriptedAdapter, testCaps, type ScriptedTurn } from './test-harness.js';
 
@@ -912,5 +913,44 @@ describe('non-finite accounting is refused typed (RV610)', () => {
     // One huge but finite entry stays representable and allowed.
     const single = costReportFromJournal([entries[0]], () => Number.MAX_VALUE);
     expect(Number.isFinite(single.totalUsd)).toBe(true);
+  });
+});
+
+describe('the exported live builder refuses non-finite numbers (RV705)', () => {
+  const liveAttribution = (): CostAttribution => ({
+    byModel: new Map([['fake:m', 1.5]]),
+    byPhase: new Map([['', 1.5]]),
+    byAgentType: new Map([['worker', 1.5]]),
+    byRole: new Map<InvocationRole, number>([['loop', 1.5]]),
+    unpriced: [],
+    orchestrator: { spentUsd: 0.5, wakes: 1, forcedFinish: false, reserveUsedUsd: 0 },
+  });
+
+  it('a finite report is returned byte for byte as before', () => {
+    const report = buildCostReport(liveAttribution(), 1.5);
+    expect(report.totalUsd).toBe(1.5);
+    expect(report.grossUsd).toBe(1.5);
+    expect(report.byRole.loop).toBe(1.5);
+    expect(report.orchestrator.share).toBeCloseTo(0.5 / 1.5, 12);
+  });
+
+  it('an Infinity or NaN total is a typed refusal, never a null in JSON', () => {
+    // costReportFromJournal refuses non-finite reports (RV610); the
+    // exported live builder is the same public surface and must hold the
+    // same doctrine instead of serializing Infinity into null.
+    expect(() => buildCostReport(liveAttribution(), Number.POSITIVE_INFINITY)).toThrow(ConfigError);
+    expect(() => buildCostReport(liveAttribution(), Number.POSITIVE_INFINITY)).toThrow(
+      /costReport/,
+    );
+    expect(() => buildCostReport(liveAttribution(), Number.NaN)).toThrow(ConfigError);
+  });
+
+  it('a poisoned attribution bucket or abandoned ledger is refused the same way', () => {
+    const poisonedBucket = liveAttribution();
+    poisonedBucket.byModel.set('fake:overflow', Number.POSITIVE_INFINITY);
+    expect(() => buildCostReport(poisonedBucket, 1.5)).toThrow(ConfigError);
+    expect(() =>
+      buildCostReport(liveAttribution(), 1.5, { usd: Number.NaN, unpriced: [] }),
+    ).toThrow(ConfigError);
   });
 });
