@@ -6,15 +6,15 @@
 
 # Interface: CorruptLedgerLine
 
-Defined in: [packages/executor/src/ledger.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L106)
+Defined in: [packages/executor/src/ledger.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L201)
 
-One unparseable interior line of the ledger file, surfaced for triage.
+One malformed line of the ledger file, surfaced for triage.
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-line"></a> `line` | `number` | 1-based physical line number in the file. | [packages/executor/src/ledger.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L108) |
-| <a id="property-offset"></a> `offset` | `number` | Byte offset of the line's first byte within the file. | [packages/executor/src/ledger.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L110) |
-| <a id="property-preview"></a> `preview` | `string` | The first 120 characters of the line. | [packages/executor/src/ledger.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L114) |
-| <a id="property-sha256"></a> `sha256` | `string` | sha256 (hex) of the raw line bytes: forensics without re-reading. | [packages/executor/src/ledger.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L112) |
+| <a id="property-line"></a> `line` | `number` | 1-based physical line number in the file. | [packages/executor/src/ledger.ts:203](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L203) |
+| <a id="property-offset"></a> `offset` | `number` | Byte offset of the line's first byte within the file. | [packages/executor/src/ledger.ts:205](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L205) |
+| <a id="property-preview"></a> `preview` | `string` | The first 120 characters of the line (lossy-decoded when the bytes are not valid UTF-8; the hash pins the exact bytes). | [packages/executor/src/ledger.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L210) |
+| <a id="property-sha256"></a> `sha256` | `string` | sha256 (hex) of the raw line bytes: forensics without re-reading. | [packages/executor/src/ledger.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L207) |

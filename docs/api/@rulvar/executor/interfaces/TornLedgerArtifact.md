@@ -6,7 +6,7 @@
 
 # Interface: TornLedgerArtifact
 
-Defined in: [packages/executor/src/ledger.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L118)
+Defined in: [packages/executor/src/ledger.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L214)
 
 A torn fragment the writer quarantined while repairing a tail (RV502).
 
@@ -14,5 +14,5 @@ A torn fragment the writer quarantined while repairing a tail (RV502).
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-bytes"></a> `bytes` | `string` | The raw torn bytes, preserved verbatim. | [packages/executor/src/ledger.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L120) |
-| <a id="property-recoveredat"></a> `recoveredAt` | `number` | Wall-clock ms when the writer quarantined the fragment. | [packages/executor/src/ledger.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L122) |
+| <a id="property-bytes"></a> `bytes` | `string` | The raw torn bytes, preserved verbatim. | [packages/executor/src/ledger.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L216) |
+| <a id="property-recoveredat"></a> `recoveredAt` | `number` | Wall-clock ms when the writer quarantined the fragment. | [packages/executor/src/ledger.ts:218](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L218) |
