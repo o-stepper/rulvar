@@ -273,7 +273,7 @@ ledger(): Ledger;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-The budget ledger fold: usage sums over terminal entries exactly once; agentsSpawned
+The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
 counts agent dispatches.
 
 #### Returns

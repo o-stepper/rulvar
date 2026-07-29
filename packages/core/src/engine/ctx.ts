@@ -1467,7 +1467,7 @@ export function createCtx(
       if (result.status === 'escalated' && result.escalation !== undefined) {
         // The owner's decision is read from the decision entry, never
         // re-evaluated; a crash between the report and the decision pays
-        // for the decision live exactly once.
+        // for the decision live a single time.
         const priorDecision = internals.replayer
           .snapshot()
           .find(

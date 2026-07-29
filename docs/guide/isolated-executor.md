@@ -128,7 +128,7 @@ const executor = subprocessExecutor({ ledger });
 // After a run, ledger.entries() is the audit of what actually executed.
 ```
 
-Binding an approval to the effect it authorized is then a lookup: an [ask-approval](/guide/tools#ask-approvals-surface-to-the-host) entry and its effect share `(runId, tool, argsHash)`, and the idempotency key is stable across a rerun of the same call. Pair a side-effecting tool's `needsApproval: true` with the ledger to prove that only approved calls ran, and each ran once.
+Binding an approval to the effect it authorized is then a lookup: an [ask-approval](/guide/tools#ask-approvals-surface-to-the-host) entry and its effect share `(runId, tool, argsHash)`, and the idempotency key is stable across a rerun of the same call. Pair a side-effecting tool's `needsApproval: true` with the ledger to prove that only approved calls ran, and to COUNT the attempts each approved call took: execution is at-least-once (a crash between the effect and the checkpoint re-runs the tool, the [security policy](https://github.com/o-stepper/rulvar/blob/main/SECURITY.md)'s documented non-guarantee), and the honest audit is one ledger row per attempt under one stable idempotency key, not an assumed single execution.
 
 ### The two-phase intent contract and the crash window
 
@@ -151,6 +151,21 @@ for (const orphan of scan.orphanedIntents) {
 The file itself is defended at both ends. Before its first append, `jsonlEffectLedger` repairs a torn tail left by a crashed predecessor: a complete record missing only its newline is terminated in place, and an unparseable fragment is truncated and quarantined verbatim as a `{"phase":"torn"}` line (surfaced by the scan as `tornArtifacts`), so a new append can never glue onto torn bytes and hide a valid record. The scan tolerates and names a LIVE unterminated trailing fragment (`tornTail`), but an unparseable interior line is real damage the repair can never produce, so `loadEffectLedger` fails closed with a typed `LedgerCorruptionError` carrying line numbers, byte offsets, and sha256 hashes; pass `{ tolerateCorrupt: true }` to receive the same lines as data for triage instead. Reconciling from a partial scan would silently drop intents, which is exactly the failure the ledger exists to prevent.
 
 The boundary stays honest in both directions. An awaited JSONL append survives a process crash, not necessarily a power loss before the OS flushes; a host that needs power-loss durability implements the same two-method seam over its own fsync or transactional store. And the library deliberately stops at the strict interface plus this checkable contract (the conformance kit's e13 kills a simulated host between the phases and demands the orphan, and a SIGKILL test drives the real crash window against the built package): a full transactional outbox, business authorization, and monetary reconciliation remain host obligations, built ON the ledger, not inside it.
+
+### The guarantee matrix
+
+Who provides what, stated once and flatly (RV508, the ninth comparison experiment's review). The library's layers give **at-least-once execution with attempt binding and intent-before-effect**; exactly-once effect execution is promised by NO layer of the library, and any doc sentence that says otherwise is a bug (a lint rule enforces exactly that, with this section as the vetted place to talk about it). What IS exactly-once in Rulvar is pay and replay: a completed journal entry is never re-paid, which is the [never-pay-twice invariant](/guide/durability#at-least-once-dispatch-exactly-once-pay), a statement about money and journal folds, not about external side effects.
+
+| Concern | The library provides | The host must provide | The effect provider must provide |
+|---|---|---|---|
+| Dispatch | At-least-once: a crash between execution and the checkpoint re-runs the tool ([security policy](https://github.com/o-stepper/rulvar/blob/main/SECURITY.md)) | Idempotent tool programs, or reconciliation before retry | Tolerance of repeated identical requests |
+| Effect accounting | One ledger row per attempt: intent awaited BEFORE the effect, outcome after, both carrying the same `attemptId` | A durable ledger implementation (the JSONL reference, or its own transactional store) | Nothing |
+| Approval binding | `(runId, tool, argsHash)` joins an ask-approval entry to its effect rows; only approved calls can dispatch | IAM around who may resolve (`ResolutionBy` is a channel, not a verified principal) | Nothing |
+| Attempt identity | A unique `attemptId` per dispatch; an outcome resolves only its own attempt; orphaned intents are surfaced, never auto-closed | The reconciliation procedure: look the idempotency key up with the provider before retrying or compensating | A receipt correlated by the forwarded idempotency key |
+| Business idempotency | A stable idempotency key per logical invocation, forwarded to the tool program | A `domainEffectId` outbox keyed by BUSINESS identity: the V2 executor key is provenance and deliberately changes when a run is deleted and recreated | Effect deduplication by the business key, where the domain supports it |
+| Receipts and settlement | The journal and the ledger: which attempts ran, when, and what they reported | Monetary and domain reconciliation against provider receipts | The receipts themselves |
+
+Read the rows bottom-up when something external went wrong: the receipt says what happened, the ledger says what was attempted, the journal says what was paid, and no layer above pretends to close a gap a lower layer left open.
 
 ## Conformance
 

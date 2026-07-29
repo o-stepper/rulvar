@@ -16,6 +16,7 @@ import test from 'node:test';
 import {
   check8Violations,
   checkOrchestrateFence,
+  exactlyOnceHits,
   hasArgsHashOverclaim,
   hasAuthRetryOverclaim,
   hasReplayOrderOverclaim,
@@ -334,4 +335,74 @@ test('overclaimSentences accepts a qualifier on the next line of the same senten
   ].join('\n');
   assert.deepEqual(overclaimSentences(scoped), []);
   assert.deepEqual(overclaimSentences('Nothing about ordering or credentials here.'), []);
+});
+
+// The exactly-once claim sentinel (RV508, the ninth-experiment review):
+// SECURITY.md declares tool execution at-least-once (a crash between a
+// tool's execution and the turn-boundary checkpoint re-runs it), and
+// the isolated-executor guide shipped "each ran once" while the tools
+// guide shipped "executes exactly once" beside it: two contracts for
+// one runtime. The seeded fixtures below are the red-first proof the
+// rule catches the exact shipped shapes; the allowlist is by file plus
+// heading anchor, so an existing exemption cannot silently legitimize a
+// new claim in another section.
+test('a doc claiming exactly-once is flagged with its line, in every casing and hyphenation', () => {
+  const doc = ['# Tools', '', 'The approved tool executes exactly once, and nothing re-runs.'].join(
+    '\n',
+  );
+  const hits = exactlyOnceHits(doc, 'guide/tools.md');
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].line, 3);
+  assert.match(hits[0].message, /exactly-once claim/);
+  assert.equal(exactlyOnceHits('Promises exactly-once delivery.', 'guide/x.md').length, 1);
+  assert.equal(exactlyOnceHits('EXACTLY ONCE, shouted.', 'guide/x.md').length, 1);
+  assert.equal(exactlyOnceHits('Runs once and replays afterward.', 'guide/x.md').length, 0);
+});
+
+test('the durability pay doctrine and the guarantee matrix anchors stay legal; other sections do not', () => {
+  const durability = [
+    '## At-least-once dispatch, exactly-once pay',
+    '',
+    'A completed pair replays exactly once.',
+    '',
+    '## Moving a run between machines',
+    '',
+    'Also exactly once here.',
+  ].join('\n');
+  const hits = exactlyOnceHits(durability, 'guide/durability.md');
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].line, 7);
+
+  const executor = [
+    '### The guarantee matrix',
+    '',
+    'Exactly-once effect execution is promised by NO library layer.',
+    '',
+    '### Something else',
+    '',
+    'An exactly-once claim outside the matrix.',
+  ].join('\n');
+  const executorHits = exactlyOnceHits(executor, 'guide/isolated-executor.md');
+  assert.equal(executorHits.length, 1);
+  assert.equal(executorHits[0].line, 7);
+
+  // The same anchors in a DIFFERENT file stay forbidden: the allowlist
+  // binds (file, anchor) pairs, not anchors globally.
+  const elsewhere = ['### The guarantee matrix', '', 'exactly once'].join('\n');
+  assert.equal(exactlyOnceHits(elsewhere, 'guide/tools.md').length, 1);
+});
+
+test('source scanning judges comment lines only, never string literals or code', () => {
+  const src = [
+    "const CLAIM = 'executes exactly once';",
+    '// the ledger folds usage exactly once',
+    ' * applies exactly once per resume.',
+    'run(); // a trailing comment is code territory, exactly once here is unseen',
+  ].join('\n');
+  const hits = exactlyOnceHits(src, 'packages/core/src/x.ts');
+  assert.deepEqual(
+    hits.map((hit) => hit.line),
+    [2, 3],
+  );
+  assert.match(hits[0].message, /exactly-once claim/);
 });

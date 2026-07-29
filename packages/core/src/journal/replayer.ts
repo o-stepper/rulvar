@@ -534,7 +534,7 @@ export class Replayer {
   }
 
   /**
-   * The budget ledger fold: usage sums over terminal entries exactly once; agentsSpawned
+   * The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
    * counts agent dispatches.
    */
   ledger(): Ledger {

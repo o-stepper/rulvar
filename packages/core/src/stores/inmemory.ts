@@ -2,7 +2,7 @@
  * InMemoryStore (M1-T04): the default journal store. Process-local, so
  * nothing survives a process exit and cross-process resume is
  * impossible (same-process resume of a kept instance works); the store
- * warns loudly exactly once per instance unless constructed with
+ * warns loudly once per instance unless constructed with
  * `quiet: true` (the deliberate choice of a test tier).
  * An in-memory TranscriptStore ships alongside for the same default.
  */

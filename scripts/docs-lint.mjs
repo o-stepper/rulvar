@@ -199,6 +199,87 @@ export function overclaimSentences(content) {
   return hits;
 }
 
+/**
+ * The exactly-once claim sentinel (RV508, the ninth-experiment
+ * review). SECURITY.md declares tool execution at-least-once: a crash
+ * between a tool's execution and the turn-boundary checkpoint re-runs
+ * the tool, and idempotency is the tool author's responsibility. The
+ * isolated-executor guide nevertheless shipped "each ran once" and the
+ * tools guide "executes exactly once": two contracts for one runtime,
+ * found by the ninth comparison experiment's judge. So the phrase
+ * "exactly once" (or "exactly-once") is forbidden in the hand-written
+ * docs and in package source COMMENTS unless the hit sits in a vetted
+ * registry section: the durability guide's pay doctrine (exactly-once
+ * PAY is true and is the never-pay-twice invariant) and the guarantee
+ * matrix (which exists to say which layer provides what). The
+ * allowlist binds (file, heading anchor) pairs, so an exemption cannot
+ * silently legitimize a new claim in another section or file. Sources
+ * are judged on comment lines only (line-leading `//`, `*`, or `/*`):
+ * string literals stay untouched because tool descriptions enter the
+ * toolset hash and assertion messages are runtime text, not claims.
+ */
+const EXACTLY_ONCE = /\bexactly[ -]once\b/iu;
+const EXACTLY_ONCE_MESSAGE =
+  'exactly-once claim (RV508, the ninth-experiment review): tool execution is at-least-once ' +
+  '(SECURITY.md: a crash between execution and the turn-boundary checkpoint re-runs the tool), ' +
+  'and no doc or source comment may claim exactly-once semantics outside the vetted registry ' +
+  '(the durability pay doctrine and the guarantee matrix). State the precise guarantee instead: ' +
+  'the single continuation of a settled run, never-pay-twice, or at-least-once with attempt ' +
+  'binding; extend the allowlist only for a claim that is literally true';
+/** @type {Map<string, Set<string>>} */
+const EXACTLY_ONCE_ALLOWLIST = new Map([
+  ['guide/durability.md', new Set(['at-least-once-dispatch-exactly-once-pay'])],
+  ['guide/isolated-executor.md', new Set(['the-guarantee-matrix'])],
+]);
+const COMMENT_LINE = /^\s*(?:\/\/|\/?\*)/u;
+
+/** The vitepress heading slug: lowercase, punctuation dropped, spaces to hyphens. */
+/** @param {string} heading @returns {string} */
+function headingSlug(heading) {
+  return heading
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .trim()
+    .replace(/\s+/gu, '-');
+}
+
+/**
+ * Scans one file for forbidden exactly-once claims. Markdown files
+ * track the current heading so the (file, anchor) allowlist can admit
+ * the vetted sections (the heading line itself sits under its own
+ * anchor); `.ts` files are judged on comment lines only.
+ * @param {string} content
+ * @param {string} relPath POSIX-style path relative to docs/ (markdown) or the repo root (sources)
+ * @returns {Array<{ line: number, message: string }>}
+ */
+export function exactlyOnceHits(content, relPath) {
+  /** @type {Array<{ line: number, message: string }>} */
+  const hits = [];
+  const lines = content.split('\n');
+  const isSource = relPath.endsWith('.ts');
+  const allowedAnchors = EXACTLY_ONCE_ALLOWLIST.get(relPath);
+  let currentAnchor = '';
+  lines.forEach((text, index) => {
+    if (!isSource) {
+      const heading = /^#{1,6}\s+(.*)$/u.exec(text);
+      if (heading?.[1] !== undefined) {
+        currentAnchor = headingSlug(heading[1]);
+      }
+    }
+    if (!EXACTLY_ONCE.test(text)) {
+      return;
+    }
+    if (isSource && !COMMENT_LINE.test(text)) {
+      return;
+    }
+    if (!isSource && allowedAnchors?.has(currentAnchor) === true) {
+      return;
+    }
+    hits.push({ line: index + 1, message: EXACTLY_ONCE_MESSAGE });
+  });
+  return hits;
+}
+
 const EXCLUDED_DIRS = new Set(['api', 'node_modules', '.vitepress']);
 const EXCLUDED_FILES = new Set(
   ['contributing/index.md', 'reference/changelog.md'].map((p) => p.split('/').join(sep)),
@@ -702,6 +783,59 @@ function main() {
           1,
           `the cookbook page links ${name}, which does not exist in examples/src`,
         );
+      }
+    }
+  }
+
+  // Check 12: the exactly-once claim sentinel (RV508); the rule lives
+  // in exactlyOnceHits above so the regression tests can import it.
+  // Hand-written docs (the same walk every sentinel uses: docs/api and
+  // the aggregated changelog are already excluded) plus the COMMENT
+  // lines of every package's non-test sources, the check 9 shape
+  // widened to all packages.
+  {
+    const docsRoot = join(ROOT, 'docs');
+    for (const file of collectFiles()) {
+      const rel = relative(docsRoot, file).split(sep).join('/');
+      for (const hit of exactlyOnceHits(readFileSync(file, 'utf8'), rel)) {
+        fail(file, hit.line, hit.message);
+      }
+    }
+    /** @param {string} dir @returns {string[]} */
+    const walkTs = (dir) => {
+      /** @type {string[]} */
+      const out = [];
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          out.push(...walkTs(full));
+        } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+          out.push(full);
+        }
+      }
+      return out;
+    };
+    const packagesDir = join(ROOT, 'packages');
+    for (const pkg of readdirSync(packagesDir, { withFileTypes: true })) {
+      if (!pkg.isDirectory()) {
+        continue;
+      }
+      const srcDir = join(packagesDir, pkg.name, 'src');
+      /** @type {string[]} */
+      let sources;
+      try {
+        sources = walkTs(srcDir);
+      } catch {
+        continue;
+      }
+      for (const file of sources) {
+        if (file.endsWith('.test.ts')) {
+          continue;
+        }
+        const rel = relative(ROOT, file).split(sep).join('/');
+        for (const hit of exactlyOnceHits(readFileSync(file, 'utf8'), rel)) {
+          fail(file, hit.line, hit.message);
+        }
       }
     }
   }

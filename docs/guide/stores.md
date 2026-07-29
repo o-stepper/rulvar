@@ -175,7 +175,7 @@ The seam is optional and off by default: an engine without a configured `ModelKn
 
 ### In-memory (tests)
 
-`createEngine` without a `stores` block gives you `InMemoryStore` and an in-memory transcript store. Runs execute normally, budgets and journaling all work, and a kept engine instance can even resume its own runs within the same process, but nothing survives a process exit, so a run can never be resumed from another process; a one-time loud warning makes sure the misconfiguration cannot hide in production logs. This is the right default exactly once: in tests, where you want zero filesystem residue.
+`createEngine` without a `stores` block gives you `InMemoryStore` and an in-memory transcript store. Runs execute normally, budgets and journaling all work, and a kept engine instance can even resume its own runs within the same process, but nothing survives a process exit, so a run can never be resumed from another process; a one-time loud warning makes sure the misconfiguration cannot hide in production logs. This is the right default in one place only: tests, where you want zero filesystem residue.
 
 ### The JSONL file store
 

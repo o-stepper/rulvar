@@ -246,7 +246,7 @@ The RunLedger is the orchestrator's working memory: run-scoped, single-writer (o
 
 | Section | Authorship | Cap |
 |---|---|---|
-| Mission brief | `brief_set`, exactly once | 1 |
+| Mission brief | `brief_set`, once per mission | 1 |
 | Facts with provenance and confidence | `fact_add` / `fact_supersede` | 64 |
 | Lessons keyed by (logical task, approach signature) | `lesson_add` | 32 |
 | Model observations (knowledge phase only) | `observation_add` | 16 |

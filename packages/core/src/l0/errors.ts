@@ -4,7 +4,7 @@
  * Registry contract: https://docs.rulvar.com/guide/architecture. The
  * string-code registry below is CLOSED: adding a code requires an amendment
  * to that contract. Classes whose producers ship in later milestones are
- * still defined here so the registry closes exactly once.
+ * still defined here so the registry closes once.
  */
 import type { Json } from './json.js';
 

@@ -12,7 +12,7 @@
  * agent type, role 'loop').
  *
  * Inclusion policy, applied to the total and EVERY breakdown alike:
- * terminal usage exactly once, priced per serving slice, entries under
+ * terminal usage once, priced per serving slice, entries under
  * abandoned subtrees contribute zero (their spend is tracked separately
  * in the abandoned-spend ledger the orchestrator sees). Attempts that
  * were paid but never abandoned (a cancelled root attempt, a dangling

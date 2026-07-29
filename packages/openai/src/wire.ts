@@ -445,7 +445,7 @@ export async function* mapResponsesStream(
         // failed response object retains usage, and dropping it
         // understated cost and weakened the budget guard (v1.18.0 review
         // P1-3). Emit it BEFORE the error termination so the debit lands
-        // exactly once; a retried attempt debits its own usage again.
+        // once, never twice; a retried attempt debits its own usage again.
         const rawUsage = response?.usage as Record<string, unknown> | undefined;
         if (rawUsage !== undefined) {
           yield { type: 'usage', usage: normalizeOpenAiUsage(rawUsage) };

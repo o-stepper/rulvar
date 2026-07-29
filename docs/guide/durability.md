@@ -122,7 +122,7 @@ seq  scope    kind   key      status   notes
 Now `engine.resume('review-pr-4242', review, { args: 4242 })` replays it:
 
 1. `ctx.step('fetch-diff', ...)` derives the same content key, matches the completed pair (0, 1), and returns the journaled diff. The function body is not executed.
-2. `ctx.parallel` allocates the same parallel site deterministically. Branch 0's agent call matches the completed pair (2, 4): the `AgentResult` is synthesized entirely from the payload, with zero adapter calls, and its usage folds into the budget ledger exactly once.
+2. `ctx.parallel` allocates the same parallel site deterministically. Branch 0's agent call matches the completed pair (2, 4): the `AgentResult` is synthesized entirely from the payload, with zero adapter calls, and its usage folds into the budget ledger once, never twice.
 3. Branch 1's agent call matches the hanging `running` entry 3. There is no terminal entry, so the work is redispatched live. If the agent had completed turns before the crash, it boots from its last turn-boundary checkpoint instead of starting over (next section).
 4. The merge agent finds no candidate in its scope: an ordinary miss. It runs live and is journaled as a new entry pair.
 5. The run settles; `await resumed.preview` reports:

@@ -10,7 +10,7 @@ Defined in: [packages/core/src/journal/resolution.ts:301](https://github.com/o-s
 
 Per-run, per-target FIFO serializer of resolution/abandon attempts:
 classification against the in-memory fold ->
-durable append -> settle exactly once; losing attempts are ALSO
+durable append -> a single settle; losing attempts are ALSO
 appended and become journaled noops by fold classification. Winner
 effects run strictly after the critical section (the caller's job).
 Cross-process protection remains the LeasableStore fencing epoch.

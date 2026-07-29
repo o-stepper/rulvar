@@ -15,7 +15,7 @@ Defined in: [packages/plan/src/m9-cassettes.ts:898](https://github.com/o-stepper
 oscillation-bounded (DEF-2): an escalated branch is cancelled and
 re-added byte-identically twice; every plan_revise call debits one
 revisionUnit (including the drop on the linked done node), each link
-debits one spawnUnit, the worker is paid exactly once, and the
+debits one spawnUnit, the worker is paid once and only once, and the
 lineage counters never reset.
 
 ## Returns
