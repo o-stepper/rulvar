@@ -59,7 +59,7 @@ import {
 import type { Replayer } from '../journal/replayer.js';
 import {
   entryUsageSlices,
-  priceEntryUsage,
+  priceEntryBilling,
   type JournalEntry,
   type UsageSlice,
 } from '../l0/entries.js';
@@ -84,7 +84,7 @@ import {
   type PhaseTarget,
   type ToolRuntime,
 } from '../runtime/agent-loop.js';
-import type { ExplorationSummary, ToolBudgetSummary } from '../l0/events.js';
+import type { CostBasis, ExplorationSummary, ToolBudgetSummary } from '../l0/events.js';
 import type { AbortClass } from '../runtime/no-progress.js';
 import {
   countsAgainstLimit,
@@ -1343,14 +1343,21 @@ export function createCtx(
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
       };
-      // The same pricing fold the kernel ledger runs: each serving
-      // model's slice at its own rate, so a replayed multi-model call
-      // reports exactly what the live one did.
+      // The same pricing fold the kernel ledger and the settled report
+      // run (RV504, applied to replay telemetry by RV702): a model whose
+      // per-dispatch records cover its usage prices per REQUEST, so a
+      // nonlinear tier fires exactly where the live stream and the
+      // invoice say it did; an uncovered model keeps the aggregate slice
+      // basis, labeled below.
       const replayPriced =
         terminal === undefined
           ? undefined
-          : priceEntryUsage(terminal, (ref, sliceUsage) => internals.priceUsd(ref, sliceUsage));
+          : priceEntryBilling(terminal, (ref, sliceUsage) => internals.priceUsd(ref, sliceUsage));
       const costUsd = replayPriced?.usd ?? 0;
+      const replayBasis: CostBasis =
+        replayPriced === undefined || replayPriced.fullyAttributed
+          ? 'per-call'
+          : 'aggregate-estimate';
       const result: AgentResult<unknown> = {
         status:
           matched.kind === 'skip'
@@ -1359,6 +1366,7 @@ export function createCtx(
         output: matched.kind === 'skip' ? null : (terminal?.value ?? null),
         usage,
         costUsd,
+        costBasis: replayBasis,
         servedBy: terminal?.servedBy ?? loopResolved.ref,
         // Best-effort recovery below: turns are not journaled; the last
         // turn-boundary checkpoint carries the paid-turn count.
@@ -1478,12 +1486,23 @@ export function createCtx(
       }
       // One replayed phase pair per recorded (role, model) slice: the
       // official reducer builds IDENTICAL usage and cost tables from a
-      // live and a replayed stream. Durations and retries are live-only
-      // fidelity, so replayed pairs carry durationMs 0 and no retries.
+      // live and a replayed stream. Each pair's dollars are the billing
+      // fold's units for its (role, model) key (RV702): per-request for
+      // a covered model, the aggregate slice otherwise, each pair
+      // labeled with the basis that priced it. Durations and retries
+      // are live-only fidelity, so replayed pairs carry durationMs 0
+      // and no retries.
       if (terminal !== undefined) {
+        const usdByRoleModel = new Map<string, number>();
+        const perCallModels = new Set<string>();
+        for (const unit of replayPriced?.units ?? []) {
+          const key = `${unit.role ?? primaryRole} ${unit.servedBy}`;
+          usdByRoleModel.set(key, (usdByRoleModel.get(key) ?? 0) + unit.usd);
+          if (unit.source === 'call') {
+            perCallModels.add(unit.servedBy);
+          }
+        }
         entryUsageSlices(terminal).forEach((slice, index) => {
-          const priced = internals.priceUsd(slice.servedBy, slice.usage) ?? 0;
-          const sliceUsd = Number.isFinite(priced) && priced > 0 ? priced : 0;
           const common = {
             agentType,
             label: opts.label,
@@ -1498,7 +1517,8 @@ export function createCtx(
               ...common,
               durationMs: 0,
               usage: slice.usage,
-              costUsd: sliceUsd,
+              costUsd: usdByRoleModel.get(`${slice.role ?? primaryRole} ${slice.servedBy}`) ?? 0,
+              costBasis: perCallModels.has(slice.servedBy) ? 'per-call' : 'aggregate-estimate',
               outcome:
                 terminal.status === 'error' || terminal.status === 'cancelled' ? 'error' : 'ok',
             },
@@ -1515,6 +1535,7 @@ export function createCtx(
           status: result.status,
           usage,
           costUsd,
+          costBasis: replayBasis,
           entryRef: terminal?.seq ?? matched.running.seq,
           ...(terminal?.usageApprox === true ? { usageApprox: true } : {}),
           // Present only when the guard abort journaled it (RV-210).
@@ -1527,9 +1548,10 @@ export function createCtx(
         true,
       );
       // Replayed spend is already inside the seeded budget fold; only the
-      // cost-report buckets accumulate here.
-      for (const slice of replayPriced?.priced ?? []) {
-        bump(internals.cost.byModel, slice.servedBy, slice.usd);
+      // cost-report buckets accumulate here (per billing unit since
+      // RV702, so byModel matches the settled fold under a tier).
+      for (const unit of replayPriced?.units ?? []) {
+        bump(internals.cost.byModel, unit.servedBy, unit.usd);
       }
       for (const slice of replayPriced?.unpriced ?? []) {
         internals.cost.unpriced.push({ model: slice.servedBy, usage: slice.usage });
@@ -2617,6 +2639,7 @@ export function createCtx(
         status: result.status,
         usage: result.usage,
         costUsd: result.costUsd,
+        costBasis: result.costBasis,
         entryRef: terminal.seq,
         ...(resultUsageApprox ? { usageApprox: true } : {}),
         // Live telemetry only, never journaled: a replayed agent:end

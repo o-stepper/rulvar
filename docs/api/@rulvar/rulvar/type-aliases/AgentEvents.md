@@ -30,6 +30,7 @@ type AgentEvents =
 }
   | {
   agentType: string;
+  costBasis?: CostBasis;
   costUsd: number;
   durationMs: number;
   invocation: number;
@@ -43,6 +44,7 @@ type AgentEvents =
 }
   | {
   agentType: string;
+  costBasis?: CostBasis;
   costUsd: number;
   entryRef: number;
   exploration?: ExplorationSummary;
@@ -144,6 +146,7 @@ vocabulary.
 ```ts
 {
   agentType: string;
+  costBasis?: CostBasis;
   costUsd: number;
   durationMs: number;
   invocation: number;
@@ -160,6 +163,7 @@ vocabulary.
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | `agentType` | `string` | - | `packages/core/dist/index.d.ts` |
+| `costBasis?` | [`CostBasis`](/api/@rulvar/rulvar/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702). Live phase deltas are always per-call (every slice a live activation adds is backed by a recorded provider call); a replayed pair says 'aggregate-estimate' exactly when its model's records do not cover its usage. Absent on streams recorded before RV702, which priced the aggregate. | `packages/core/dist/index.d.ts` |
 | `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `durationMs` | `number` | Wall-clock activation duration. Live telemetry only: replayed phase pairs (reconstructed from the terminal entry's usage slices) carry 0. | `packages/core/dist/index.d.ts` |
 | `invocation` | `number` | - | `packages/core/dist/index.d.ts` |
@@ -178,6 +182,7 @@ vocabulary.
 ```ts
 {
   agentType: string;
+  costBasis?: CostBasis;
   costUsd: number;
   entryRef: number;
   exploration?: ExplorationSummary;
@@ -194,6 +199,7 @@ vocabulary.
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | `agentType` | `string` | - | `packages/core/dist/index.d.ts` |
+| `costBasis?` | [`CostBasis`](/api/@rulvar/rulvar/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702): 'per-call' when every usage slice of the invocation (restored included) is covered by per-request records priced individually, the settled fold's own basis; 'aggregate-estimate' when it is not (the aggregate number is kept so restored spend is never silently dropped, and labeled so it is never mistaken for the per-request fold). Absent on streams recorded before RV702, which priced the aggregate. | `packages/core/dist/index.d.ts` |
 | `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `entryRef` | `number` | - | `packages/core/dist/index.d.ts` |
 | `exploration?` | [`ExplorationSummary`](/api/@rulvar/rulvar/interfaces/ExplorationSummary.md) | The exploration guard counters (RV-210). Present live whenever any exploration guard limit was configured for the invocation; on replay present only when the guard abort journaled it in the terminal error payload. | `packages/core/dist/index.d.ts` |

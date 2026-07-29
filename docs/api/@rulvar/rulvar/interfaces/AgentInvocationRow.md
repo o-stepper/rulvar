@@ -15,6 +15,7 @@ One logical agent span.
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-agenttype"></a> `agentType` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-costbasis"></a> `costBasis` | [`CostBasis`](/api/@rulvar/rulvar/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702), from the span's agent:end; an absent field (a pre-RV702 stream, or a span still open) reduces to 'aggregate-estimate', never to a per-call claim it cannot back. | `packages/core/dist/index.d.ts` |
 | <a id="property-costusd"></a> `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-label"></a> `label?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-open"></a> `open` | `boolean` | True when the span's agent:end never arrived. | `packages/core/dist/index.d.ts` |
