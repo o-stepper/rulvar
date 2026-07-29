@@ -1460,6 +1460,12 @@ export function makeOrchestratorWorkflow(
       }
     }
 
+    // `records` is the HANDLE lookup: several handles can map to one
+    // record once recovery aliases prior attempts to their reborn
+    // dispatch (RV609). Every roster-shaped walk (digests, quiescence,
+    // validation children, acceptance) therefore iterates `byOrdinal`,
+    // exactly one record per admitted spawn, so an aliased child can
+    // never be counted twice.
     const records = new Map<number, SpawnRecord>();
     const byOrdinal = new Map<number, SpawnRecord>();
     const rejectedByOrdinal = new Map<number, { decision: AdmissionDecision; entrySeq: number }>();
@@ -1850,14 +1856,24 @@ export function makeOrchestratorWorkflow(
           },
           { childScope },
         );
-        // Handle stability across attempts: a restored transcript holds
-        // the handles its turns saw (running-entry seqs). A replayed
-        // child keeps its seq, but a cancelled child RERUNS under a new
-        // one, so prior attempts of the SAME call, the running entries
-        // sharing the dispatched entry's (scope, key, ordinal) triple,
-        // alias to the recovered record and await_all / cancel_agent
-        // keep working on the old numbers. Identical siblings differ by
-        // ordinal and never cross-link.
+        // Handle stability across attempts (RV609): a restored
+        // transcript holds the handles its turns saw, and every handle
+        // is a RUNNING row's seq, so the claimable set is exactly the
+        // prior running rows of this admission's (scope, key) (the
+        // cancelled or errored attempt keeps its running row; its
+        // terminal is a separate row and never a handle). A replayed or
+        // re-attached child keeps its seq, but a cancelled or
+        // unmemoized-terminal child RERUNS under a new one, and a rerun
+        // takes the NEXT occurrence ordinal (ordinals are strictly
+        // monotonic per (scope, key)), so the old ordinal-equality
+        // condition could never link attempts: the alias was
+        // unreachable for ANY rerun and the old handle exhausted the
+        // coordinator on "unknown handle" repair turns. Same (scope,
+        // key) under the pinned child scope means a prior attempt of a
+        // same-content spawn; a transiently mis-claimed same-key
+        // sibling is content-interchangeable and is rebound the moment
+        // its own redispatch lands (dispatchChild's records.set
+        // overwrites the alias with the direct binding).
         const dispatched = internals.replayer
           .snapshot()
           .find((entry) => entry.seq === record.handle);
@@ -1869,7 +1885,6 @@ export function makeOrchestratorWorkflow(
               prior.seq !== record.handle &&
               prior.scope === dispatched.scope &&
               prior.key === dispatched.key &&
-              prior.ordinal === dispatched.ordinal &&
               !records.has(prior.seq)
             ) {
               records.set(prior.seq, record);
@@ -2012,7 +2027,7 @@ export function makeOrchestratorWorkflow(
     };
 
     const buildDigest = (ordinal: number): WakeDigest => {
-      const undelivered = [...records.values()]
+      const undelivered = [...byOrdinal.values()]
         .filter((record) => record.settled !== undefined && !deliveredNodeIds.has(record.nodeId))
         .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
       const escalations: EscalationDigest[] = [];
@@ -2308,7 +2323,7 @@ export function makeOrchestratorWorkflow(
             }
           }
           if (trigger.kind === 'escalation') {
-            const possible = [...records.values()].some(
+            const possible = [...byOrdinal.values()].some(
               (record) =>
                 record.settled === undefined ||
                 (record.settled.status === 'escalated' && !deliveredNodeIds.has(record.nodeId)),
@@ -2337,7 +2352,7 @@ export function makeOrchestratorWorkflow(
           .pending()
           .find((item) => item.key === wakeKey && item.scope === wakeScope)?.entryRef;
         const isReady = (trigger: WakeTrigger): boolean => {
-          const undelivered = [...records.values()].filter(
+          const undelivered = [...byOrdinal.values()].filter(
             (record) => record.settled !== undefined && !deliveredNodeIds.has(record.nodeId),
           );
           switch (trigger.kind) {
@@ -2345,7 +2360,7 @@ export function makeOrchestratorWorkflow(
               // Nothing running AND nothing ready: the extension owns the
               // "nothing ready" half (M7-T05).
               return (
-                [...records.values()].every((record) => record.settled !== undefined) &&
+                [...byOrdinal.values()].every((record) => record.settled !== undefined) &&
                 (extension?.quiescent?.() ?? true)
               );
             case 'child_terminal':
@@ -2755,7 +2770,7 @@ export function makeOrchestratorWorkflow(
      */
     const validationChildren = (): FinishValidationInput['children'] => {
       const salvageOutputOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
-      return [...records.values()]
+      return [...byOrdinal.values()]
         .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
         .map((record) => ({
           handle: record.handle,
@@ -3186,7 +3201,7 @@ export function makeOrchestratorWorkflow(
       return {
         forcedFinishFallback: true,
         planHash: capValue?.snapshot?.planHash ?? '',
-        completed: [...records.values()]
+        completed: [...byOrdinal.values()]
           .filter((record) => record.settled !== undefined)
           .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
           .map((record) => digestOf(record, record.settled as AgentResult<unknown>)),
@@ -3286,7 +3301,7 @@ export function makeOrchestratorWorkflow(
       spec: OrchestrateSynthesis,
     ): Promise<IncrementalSynthesisResult> => {
       synthesisSettleFrozen = true;
-      const settledRecords = [...records.values()]
+      const settledRecords = [...byOrdinal.values()]
         .filter((record) => record.settled !== undefined)
         .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
       const sections: IncrementalSynthesisResult['sections'] = [];
@@ -3575,10 +3590,15 @@ export function makeOrchestratorWorkflow(
       }).filter((tool) => synthesisToolNames.has(tool.name));
       // ALL settled children in spawn order (the finalize-fallback fold),
       // not the wake digest: at synthesis time every settlement has been
-      // delivered, so an undelivered-only view would be empty.
-      const settledEntries = [...records.entries()]
-        .filter((entry) => entry[1].settled !== undefined)
-        .sort((a, b) => a[1].spawnOrdinal - b[1].spawnOrdinal);
+      // delivered, so an undelivered-only view would be empty. One row
+      // per SPAWN under its current handle (RV609): several handles can
+      // alias one reborn child, and per-handle rows would double its
+      // evidence; without aliases this is byte-identical to the
+      // per-handle walk, so existing journals roll forward unchanged.
+      const settledEntries = [...byOrdinal.values()]
+        .filter((record) => record.settled !== undefined)
+        .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
+        .map((record) => [record.handle, record] as const);
       const settledDigests = settledEntries.map(([handle, record]) => ({
         // The handle rides the digest rows ONLY when the read tools are
         // exposed: it is what get_child_result takes, and prompt bytes
@@ -4124,7 +4144,7 @@ export function makeOrchestratorWorkflow(
       let hardDegraded = 0;
       const acceptPartial = opts.acceptance.acceptPartialChildren === true;
       const acceptOutput = opts.acceptance.acceptValidatedTerminalOutputOnLimit === true;
-      const sortedRecords = [...records.values()].sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
+      const sortedRecords = [...byOrdinal.values()].sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
       for (const record of sortedRecords) {
         const status = record.settled?.status ?? 'running';
         childStatusCounts[status] = (childStatusCounts[status] ?? 0) + 1;

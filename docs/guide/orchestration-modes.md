@@ -540,6 +540,8 @@ await worker.resume(runId).result;
 
 The options must be the original ones: tools, schemas, profiles, and the extension are live values the journal cannot reconstruct, and a resume under different options is a different workflow that misses its own history. `ctx.orchestrate` needs none of this: resuming the PARENT workflow replays the nested orchestration with it.
 
+Handle stability holds across attempt kinds. A settled child is found by content key and keeps its handle; a dangling child re-attaches under the same one. A child that must RERUN, cancelled before the crash, or settled in an unmemoized terminal like `error` or `limit`, comes back under a fresh dispatch, and recovery aliases every prior attempt's handle of that admission to the reborn one, so a restored transcript that keeps calling the handle it saw awaits the rerun instead of exhausting on unknown-handle repair turns, and acceptance floors like `minSpawnedChildren` are evaluated over the real roster, one entry per admitted spawn however many handles alias to it.
+
 ## Comparison
 
 | | (a) Human scripts | (b) Flagship hybrid | (c) Dynamic orchestrator |

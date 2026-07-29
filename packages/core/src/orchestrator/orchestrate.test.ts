@@ -3702,3 +3702,225 @@ describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
     ).not.toThrow();
   });
 });
+
+describe('recovered attempts alias by admission identity (RV609)', () => {
+  /** Runs phase 1 (spawn one child, make it terminal per the script,
+   * crash the coordinator), returns the truncated journal and the old
+   * handle the restored transcript will keep calling. */
+  async function crashAfterChild(
+    childTurn: (req: ChatRequest) => ScriptedTurn,
+    coordinatorSecondMove: (req: ChatRequest) => ScriptedTurn,
+    transcripts: InMemoryTranscriptStore,
+    opts?: Parameters<typeof makeOrchestratorWorkflow>[1],
+  ): Promise<{ priorEntries: JournalEntry[]; truncatedStore: InMemoryStore; oldHandle: number }> {
+    let phase1Turn = 0;
+    const adapter1 = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return childTurn(req);
+      }
+      phase1Turn += 1;
+      if (phase1Turn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'doomed task' } },
+        };
+      }
+      if (phase1Turn === 2) {
+        return coordinatorSecondMove(req);
+      }
+      return { error: { code: 'agent', message: 'simulated crash', retryable: false } };
+    });
+    const phase1 = makeInternals({
+      adapters: [adapter1],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+      transcripts,
+    });
+    const wf = makeOrchestratorWorkflow('rebirth goal', opts);
+    await expect(executeWorkflow(phase1.internals, wf, undefined)).rejects.toThrow(
+      /terminated with status 'error'/,
+    );
+    const phase1Entries = await phase1.store.load('test-run');
+    const oldHandle = phase1Entries.find(
+      (e) => e.kind === 'agent' && e.scope.startsWith('agent:') && e.status === 'running',
+    )?.seq;
+    expect(oldHandle).toBeDefined();
+    const orchestratorTerminal = phase1Entries.find(
+      (e) =>
+        e.kind === 'agent' &&
+        !e.scope.startsWith('agent:') &&
+        e.status !== 'running' &&
+        e.status !== 'suspended',
+    );
+    expect(orchestratorTerminal?.status).toBe('error');
+    const priorEntries = phase1Entries.filter((e) => e.seq < (orchestratorTerminal?.seq ?? 0));
+    const truncatedStore = new InMemoryStore({ quiet: true });
+    for (const entry of priorEntries) {
+      await truncatedStore.append('test-run', entry);
+    }
+    return { priorEntries, truncatedStore, oldHandle: oldHandle ?? -1 };
+  }
+
+  /** The phase 2 coordinator: awaits the transcript's handles once,
+   * then finishes naming exactly what it saw. */
+  function resumingCoordinator(): (req: ChatRequest) => ScriptedTurn {
+    let awaited = false;
+    return (req: ChatRequest): ScriptedTurn => {
+      const last = JSON.stringify(req.messages.at(-1)?.parts ?? []);
+      if (last.includes('unknown handle')) {
+        return { toolCall: { name: 'finish', args: { result: 'saw unknown handle' } } };
+      }
+      if (!awaited) {
+        awaited = true;
+        const handles = [...new Set(handlesIn(req))];
+        return { toolCall: { name: 'await_all', args: { handles } } };
+      }
+      return {
+        toolCall: {
+          name: 'finish',
+          args: {
+            result: last.includes('reborn result') ? 'reborn digest delivered' : 'no digest',
+          },
+        },
+      };
+    };
+  }
+
+  it('a cancelled child reruns on resume and the OLD handle awaits the reborn attempt', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const { priorEntries, truncatedStore, oldHandle } = await crashAfterChild(
+      () => ({ text: 'too late', hangMs: 30_000 }),
+      (req) => ({
+        toolCall: { name: 'cancel_agent', args: { handle: handlesIn(req)[0] } },
+      }),
+      transcripts,
+    );
+    // The cancelled terminal survived the crash: the rerun is the
+    // unmemoized-redispatch path, not the dangling re-attach path.
+    expect(
+      priorEntries.some(
+        (e) => e.kind === 'agent' && e.scope.startsWith('agent:') && e.status === 'cancelled',
+      ),
+    ).toBe(true);
+
+    const orchestrate2 = resumingCoordinator();
+    const adapter2 = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'reborn result' };
+      }
+      return orchestrate2(req);
+    });
+    const phase2 = makeInternals({
+      adapters: [adapter2],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+      priorEntries,
+      store: truncatedStore,
+      transcripts,
+    });
+    const wf = makeOrchestratorWorkflow('rebirth goal', undefined);
+    const outcome = await executeWorkflow(phase2.internals, wf, undefined);
+    // The restored transcript kept calling the OLD handle; the alias
+    // by admission identity routes it to the reborn attempt.
+    expect(outcome).toBe('reborn digest delivered');
+    // Zero unknown-handle repair turns reached the model.
+    for (const call of adapter2.calls) {
+      expect(JSON.stringify(call.messages)).not.toContain('unknown handle');
+    }
+    // The rerun re-paid exactly once (a cancelled child is unmemoized).
+    expect(adapter2.calls.filter((r) => agentTypeOf(r) === 'worker')).toHaveLength(1);
+    // The old handle maps to the rerun: the new running entry exists
+    // beside the old cancelled one, same scope and key, higher seq.
+    const finalEntries = await truncatedStore.load('test-run');
+    const childRunning = finalEntries.filter(
+      (e) => e.kind === 'agent' && e.scope.startsWith('agent:') && e.status === 'running',
+    );
+    expect(childRunning.map((e) => e.seq)).toContain(oldHandle);
+    expect(childRunning.length).toBe(2);
+  });
+
+  it('an unmemoized error child reruns on resume under the same alias', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const { priorEntries, truncatedStore } = await crashAfterChild(
+      () => ({ error: { code: 'agent', message: 'first attempt dies', retryable: false } }),
+      (req) => ({ toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } }),
+      transcripts,
+    );
+    expect(
+      priorEntries.some(
+        (e) => e.kind === 'agent' && e.scope.startsWith('agent:') && e.status === 'error',
+      ),
+    ).toBe(true);
+
+    const orchestrate2 = resumingCoordinator();
+    const adapter2 = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'reborn result' };
+      }
+      return orchestrate2(req);
+    });
+    const phase2 = makeInternals({
+      adapters: [adapter2],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+      priorEntries,
+      store: truncatedStore,
+      transcripts,
+    });
+    const wf = makeOrchestratorWorkflow('rebirth goal', undefined);
+    const outcome = await executeWorkflow(phase2.internals, wf, undefined);
+    expect(outcome).toBe('reborn digest delivered');
+    for (const call of adapter2.calls) {
+      expect(JSON.stringify(call.messages)).not.toContain('unknown handle');
+    }
+  });
+
+  it('the minSpawnedChildren floor is reached and journaled on the restored run, once per child', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const acceptance = {
+      acceptance: { childPolicy: 'all-ok' as const, minSpawnedChildren: 1 },
+    };
+    const { priorEntries, truncatedStore } = await crashAfterChild(
+      () => ({ text: 'too late', hangMs: 30_000 }),
+      (req) => ({
+        toolCall: { name: 'cancel_agent', args: { handle: handlesIn(req)[0] } },
+      }),
+      transcripts,
+      acceptance,
+    );
+    const orchestrate2 = resumingCoordinator();
+    const adapter2 = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'reborn result' };
+      }
+      return orchestrate2(req);
+    });
+    const phase2 = makeInternals({
+      adapters: [adapter2],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+      priorEntries,
+      store: truncatedStore,
+      transcripts,
+    });
+    const wf = makeOrchestratorWorkflow('rebirth goal', acceptance);
+    const outcome = await executeWorkflow(phase2.internals, wf, undefined);
+    expect(JSON.stringify(outcome)).toContain('reborn digest delivered');
+    // The acceptance decision is journaled, the floor is met by the
+    // reborn attempt, and the aliased handle never double-counts the
+    // child in the roster.
+    const decisions = (await truncatedStore.load('test-run')).filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    );
+    expect(decisions).toHaveLength(1);
+    const value = decisions[0]?.value as {
+      verdict?: string;
+      spawnedChildren?: number;
+      childStatusCounts?: Record<string, number>;
+    };
+    expect(value.verdict).toBe('accepted');
+    expect(value.spawnedChildren).toBe(1);
+    expect(value.childStatusCounts).toEqual({ ok: 1 });
+  });
+});
