@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+
 ### 1.100.0
 
 #### Patch Changes
@@ -1140,6 +1147,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+
 ### 1.100.0
 
 #### Patch Changes
@@ -2117,6 +2131,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
 
 ### 1.100.0
 
@@ -3445,6 +3466,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.101.0
+
+#### Minor Changes
+
+- 51b215c: Conditional synthesis (RV510, the ninth-experiment review): the opt-in `synthesis.skipWhenDraftValid: true` runs the coordination draft through the FULL declared finish contract before the synthesis span starts. A draft that passes every validator becomes the final result without the synthesis invocation ever dispatching, under a journaled `orchestrator_synthesis_skip` decision with the new machine-readable reason `synthesis_skipped_by_valid_draft` (the existing `OrchestrateSynthesisSkipReason` vocabulary, additively extended); the info log and the acceptance envelope carry the same reason, and a resume rolls the journaled skip forward with zero paid calls. A draft that fails any validator goes to synthesis exactly as before, with the repair budget untouched. Deterministic by construction (only the declared contract judges, no semantic-delta heuristic); requires `finishValidation` at intake; default off, byte-identical journals and cassettes.
 
 ### 1.100.0
 
@@ -5109,6 +5136,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.101.0
+
 ### 1.100.0
 
 ### 1.99.1
@@ -5413,6 +5442,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+  - @rulvar/testing@1.101.0
 
 ### 1.100.0
 
@@ -6603,6 +6640,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+
 ### 1.100.0
 
 #### Patch Changes
@@ -6973,6 +7017,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
 
 ### 1.100.0
 
@@ -8108,6 +8159,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+
 ### 1.100.0
 
 #### Patch Changes
@@ -9199,6 +9257,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+  - eslint-plugin-rulvar@1.101.0
 
 ### 1.100.0
 
@@ -10353,6 +10419,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+  - @rulvar/anthropic@1.101.0
+  - @rulvar/openai@1.101.0
 
 ### 1.100.0
 
@@ -11690,6 +11765,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+
 ### 1.100.0
 
 #### Patch Changes
@@ -12773,6 +12855,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
+
 ### 1.100.0
 
 #### Patch Changes
@@ -13157,6 +13246,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
 
 ### 1.100.0
 
@@ -14173,6 +14269,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.101.0
+
+#### Patch Changes
+
+- Updated dependencies [51b215c]
+  - @rulvar/core@1.101.0
 
 ### 1.100.0
 
