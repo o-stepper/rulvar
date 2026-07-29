@@ -6,7 +6,7 @@
 
 # Interface: RunEventSink
 
-Defined in: [packages/core/src/engine/ctx.ts:627](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L627)
+Defined in: [packages/core/src/engine/ctx.ts:645](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L645)
 
 Span-aware event sink: bodies are stamped into the WorkflowEvent
 envelope by the per-run EventBus (M1-T10); spanId defaults to the run
@@ -23,7 +23,7 @@ emit(
    replayed?): void;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:628](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L628)
+Defined in: [packages/core/src/engine/ctx.ts:646](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L646)
 
 #### Parameters
 

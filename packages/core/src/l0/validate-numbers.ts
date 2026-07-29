@@ -66,21 +66,23 @@ export function requireTimerDelayMs(value: number, site: string): void {
 }
 
 /**
- * A declared evidence contract (RV303): minEntries and
- * estCallsPerEntry positive integers, overheadCalls a nonnegative
- * integer. Shared by the profile intake and the preflight spawn spec so
- * both boundaries refuse the same shapes with the same wording.
+ * A declared evidence contract (RV303, enforcement RV507): minEntries
+ * and estCallsPerEntry positive integers, overheadCalls a nonnegative
+ * integer, enforce one of 'warn' | 'refuse'. Shared by the profile
+ * intake and the preflight spawn spec so both boundaries refuse the
+ * same shapes with the same wording.
  */
 export function validateEvidenceContract(value: unknown, site: string): void {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new ConfigError(
-      `${site} must be { minEntries, estCallsPerEntry?, overheadCalls? }; got ${typeof value}`,
+      `${site} must be { minEntries, estCallsPerEntry?, overheadCalls?, enforce? }; got ${typeof value}`,
     );
   }
-  const { minEntries, estCallsPerEntry, overheadCalls } = value as {
+  const { minEntries, estCallsPerEntry, overheadCalls, enforce } = value as {
     minEntries?: unknown;
     estCallsPerEntry?: unknown;
     overheadCalls?: unknown;
+    enforce?: unknown;
   };
   requirePositiveInteger(minEntries as number, `${site}.minEntries`);
   if (estCallsPerEntry !== undefined) {
@@ -88,5 +90,10 @@ export function validateEvidenceContract(value: unknown, site: string): void {
   }
   if (overheadCalls !== undefined) {
     requireNonNegativeInteger(overheadCalls as number, `${site}.overheadCalls`);
+  }
+  if (enforce !== undefined && enforce !== 'warn' && enforce !== 'refuse') {
+    throw new ConfigError(
+      `${site}.enforce must be 'warn' or 'refuse'; got ${JSON.stringify(enforce)}`,
+    );
   }
 }

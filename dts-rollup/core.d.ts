@@ -4440,6 +4440,17 @@ interface AgentResult<T> {
   * recoveries; absent when zero.
   */
   schemaRecoveredTerminalExchanges?: number;
+  /**
+  * The evidence floor refusal detail (RV507): present ONLY when an
+  * enforced contract refused an otherwise-ok settle. The ctx layer
+  * folds it into the journaled terminal error data and memoizes the
+  * outcome (the refusal is deterministic from the paid transcript, so
+  * a rerun would only re-pay the same bounded failure).
+  */
+  evidenceFloor?: {
+    recordedEntries: number;
+    minEntries: number;
+  };
 }
 /** One 429's provider-normalized limits, per (provider, model). */
 interface RateLimitObservation {
@@ -4667,6 +4678,20 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     save(state: CheckpointState): Promise<void>;
   };
   limits: EffectiveUsageLimits;
+  /**
+  * The resolved evidence contract of the invocation (RV507): under
+  * enforce 'refuse' an ok settle whose message window carries fewer
+  * successful `record_evidence` executions (result `recorded: true`)
+  * than `minEntries` is refused as a typed 'terminal' error carrying
+  * the machine-readable counter and threshold. Window-derived exactly
+  * like the terminal partial, so live and resumed segments count the
+  * same total. Absent, and under 'warn', the loop is byte-identical to
+  * before.
+  */
+  evidenceContract?: {
+    minEntries: number;
+    enforce?: "warn" | "refuse";
+  };
   /** Emits agent:stream deltas when true (telemetry only). */
   stream?: boolean;
   /** Host or sibling cancellation. */
@@ -6736,7 +6761,10 @@ declare const DEFAULT_EVIDENCE_MIN_SHARE = .95;
 * {@link DEFAULT_EVIDENCE_MIN_SHARE}, the plan's 95 percent gate,
 * compared as a ceiling on the required count so an exact boundary like
 * 19 of 20 passes) must appear literally in the result text. Zero child
-* citations pass vacuously. With `requireKnown: true` the contract also
+* citations pass vacuously UNLESS `requireNonEmptyPool: true` (RV507):
+* for an evidence-critical run the empty pool IS the failure, so that
+* mode refuses it with an `empty child citation pool` reason instead of
+* the vacuous pass. With `requireKnown: true` the contract also
 * runs in reverse: every citation in the RESULT must appear in some
 * child's output, so a fabricated but pattern valid citation is
 * rejected instead of silently counting as evidence. Rejection reasons
@@ -6750,6 +6778,7 @@ declare function evidencePreservedValidator(options?: {
   flags?: string;
   minShare?: number;
   requireKnown?: boolean;
+  requireNonEmptyPool?: boolean;
   name?: string;
 }): FinishValidator;
 /**
@@ -7500,6 +7529,19 @@ interface OrchestrateAcceptance {
   */
   acceptPartialChildren?: boolean;
   /**
+  * The spawned-roster floor (RV507): finish is rejected when FEWER
+  * than this many children were spawned, under BOTH child policies.
+  * 'all-ok' alone treats zero spawned children as vacuously complete
+  * (spawn nothing you do not need to succeed), which lets a
+  * fan-out-shaped task settle ok without ever fanning out; the floor
+  * makes the intended decomposition binding. The journaled decision
+  * (and a rejection's error data) carries the actual
+  * `spawnedChildren` beside the configured floor, so a resume rolls
+  * the same verdict forward. Positive integer; policy only, never
+  * part of any identity.
+  */
+  minSpawnedChildren?: number;
+  /**
   * The terminal-output salvage switch (the 1.64.0 experiment review,
   * P0.4 + P1.1; default false). When true, a child that settled
   * 'limit' CARRYING a terminal output counts as a successful child for
@@ -8129,21 +8171,26 @@ interface AgentProfile {
   estCost?: number;
   /**
   * The declared evidence contract of the profile's task (RV303, the
-  * seventh comparison experiment): how many evidence entries the
-  * spawned agent MUST record, and the declared call estimates behind
-  * them. Purely declarative, like estCost: the runtime never enforces
-  * it; {@link preflightEstimate} compares the resulting call floor
+  * seventh comparison experiment; runtime enforcement RV507): how many
+  * evidence entries the spawned agent MUST record, and the declared
+  * call estimates behind them. Under the default `enforce: 'warn'` it
+  * is purely declarative, like estCost: {@link preflightEstimate}
+  * compares the resulting call floor
   * (`minEntries * estCallsPerEntry + overheadCalls`, defaults 3 and 8)
   * against the spawn's effective executed-call ceiling and warns
   * `tool-cap-below-evidence-floor` when the cap cannot fit the
-  * contract. The experiment shape: 14 mandatory entries against an
-  * 84-call cap that two workers exhausted at 10 recorded entries.
+  * contract. Under `enforce: 'refuse'` the floor additionally binds at
+  * the terminal: an ok settle with fewer successful `record_evidence`
+  * executions than `minEntries` becomes a typed error terminal. The
+  * experiment shape: 14 mandatory entries against an 84-call cap that
+  * two workers exhausted at 10 recorded entries.
   */
   evidenceContract?: EvidenceContract;
 }
 /**
-* A declared evidence floor for preflight to judge tool caps against
-* (RV303). Declarative only; see {@link AgentProfile.evidenceContract}.
+* A declared evidence floor (RV303): preflight judges tool caps
+* against it, and under `enforce: 'refuse'` the runtime refuses an ok
+* settle below it (RV507); see {@link AgentProfile.evidenceContract}.
 */
 interface EvidenceContract {
   /** Evidence entries the task must record; positive integer. */
@@ -8152,6 +8199,19 @@ interface EvidenceContract {
   estCallsPerEntry?: number;
   /** Estimated non-evidence overhead calls; default 8. */
   overheadCalls?: number;
+  /**
+  * What the floor does at the child's terminal settle (RV507). The
+  * default 'warn' keeps the historical behavior: the contract is a
+  * preflight signal only. 'refuse' turns an ok finish whose message
+  * window carries fewer successful `record_evidence` executions
+  * (result `recorded: true`; duplicates and verification errors never
+  * count) than `minEntries` into a typed error terminal (kind
+  * 'terminal') whose journaled error data carries the machine-readable
+  * `evidenceFloor: { recordedEntries, minEntries }`; the outcome is
+  * memoized, so a resume rolls the refusal forward instead of
+  * re-paying the invocation. Non-ok terminals are never re-judged.
+  */
+  enforce?: "warn" | "refuse";
 }
 /**
 * Per-spawn options. The

@@ -234,6 +234,14 @@ export interface AgentResult<T> {
    * recoveries; absent when zero.
    */
   schemaRecoveredTerminalExchanges?: number;
+  /**
+   * The evidence floor refusal detail (RV507): present ONLY when an
+   * enforced contract refused an otherwise-ok settle. The ctx layer
+   * folds it into the journaled terminal error data and memoizes the
+   * outcome (the refusal is deterministic from the paid transcript, so
+   * a rerun would only re-pay the same bounded failure).
+   */
+  evidenceFloor?: { recordedEntries: number; minEntries: number };
 }
 
 /** One 429's provider-normalized limits, per (provider, model). */
@@ -465,6 +473,17 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     save(state: CheckpointState): Promise<void>;
   };
   limits: EffectiveUsageLimits;
+  /**
+   * The resolved evidence contract of the invocation (RV507): under
+   * enforce 'refuse' an ok settle whose message window carries fewer
+   * successful `record_evidence` executions (result `recorded: true`)
+   * than `minEntries` is refused as a typed 'terminal' error carrying
+   * the machine-readable counter and threshold. Window-derived exactly
+   * like the terminal partial, so live and resumed segments count the
+   * same total. Absent, and under 'warn', the loop is byte-identical to
+   * before.
+   */
+  evidenceContract?: { minEntries: number; enforce?: 'warn' | 'refuse' };
   /** Emits agent:stream deltas when true (telemetry only). */
   stream?: boolean;
   /** Host or sibling cancellation. */
@@ -3682,6 +3701,40 @@ export async function runAgent<S extends SchemaSpec>(
     endPhase(extractPhase, phaseOutcome(), extractServed);
   }
 
+  // The evidence floor becomes binding at the terminal under
+  // enforce: 'refuse' (RV507): an ok settle short of the declared floor
+  // is refused as a typed terminal error. The count is window-derived
+  // exactly like the terminal partial below (successful record_evidence
+  // executions: result `recorded: true`, so duplicates and verification
+  // errors never satisfy the floor), which makes live and resumed
+  // segments count the same total; the refusal detail rides the result
+  // for the ctx layer to journal and memoize. Non-ok terminals are
+  // never re-judged, and 'warn' keeps the preflight-only behavior.
+  const evidenceFloor = options.evidenceContract;
+  let evidenceRefusal: { recordedEntries: number; minEntries: number } | undefined;
+  if (evidenceFloor?.enforce === 'refuse' && status === 'ok') {
+    const recordedEntries = messages.reduce(
+      (count, message) =>
+        count +
+        message.parts.filter(
+          (part) =>
+            part.type === 'tool-result' &&
+            part.name === 'record_evidence' &&
+            (part.result as { recorded?: unknown } | undefined)?.recorded === true,
+        ).length,
+      0,
+    );
+    if (recordedEntries < evidenceFloor.minEntries) {
+      status = 'error';
+      output = null;
+      evidenceRefusal = { recordedEntries, minEntries: evidenceFloor.minEntries };
+      agentError = { kind: 'terminal', retryable: false };
+      errorMessage =
+        `evidence contract unmet: ${String(recordedEntries)} of ` +
+        `${String(evidenceFloor.minEntries)} required evidence entries recorded`;
+    }
+  }
+
   // The structured terminal partial (RV-210 close-out): a 'limit'
   // terminal keeps the last successful progress report. The extra final
   // boundary checkpoint (written ONLY when a report exists, so runs
@@ -3800,6 +3853,9 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (schemaRecoveredTerminalExchanges > 0) {
     result.schemaRecoveredTerminalExchanges = schemaRecoveredTerminalExchanges;
+  }
+  if (evidenceRefusal !== undefined) {
+    result.evidenceFloor = evidenceRefusal;
   }
   if (usageApprox) {
     (result as { usageApprox?: boolean }).usageApprox = true;

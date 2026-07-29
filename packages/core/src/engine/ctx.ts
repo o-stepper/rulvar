@@ -168,22 +168,27 @@ export interface AgentProfile {
   estCost?: number;
   /**
    * The declared evidence contract of the profile's task (RV303, the
-   * seventh comparison experiment): how many evidence entries the
-   * spawned agent MUST record, and the declared call estimates behind
-   * them. Purely declarative, like estCost: the runtime never enforces
-   * it; {@link preflightEstimate} compares the resulting call floor
+   * seventh comparison experiment; runtime enforcement RV507): how many
+   * evidence entries the spawned agent MUST record, and the declared
+   * call estimates behind them. Under the default `enforce: 'warn'` it
+   * is purely declarative, like estCost: {@link preflightEstimate}
+   * compares the resulting call floor
    * (`minEntries * estCallsPerEntry + overheadCalls`, defaults 3 and 8)
    * against the spawn's effective executed-call ceiling and warns
    * `tool-cap-below-evidence-floor` when the cap cannot fit the
-   * contract. The experiment shape: 14 mandatory entries against an
-   * 84-call cap that two workers exhausted at 10 recorded entries.
+   * contract. Under `enforce: 'refuse'` the floor additionally binds at
+   * the terminal: an ok settle with fewer successful `record_evidence`
+   * executions than `minEntries` becomes a typed error terminal. The
+   * experiment shape: 14 mandatory entries against an 84-call cap that
+   * two workers exhausted at 10 recorded entries.
    */
   evidenceContract?: EvidenceContract;
 }
 
 /**
- * A declared evidence floor for preflight to judge tool caps against
- * (RV303). Declarative only; see {@link AgentProfile.evidenceContract}.
+ * A declared evidence floor (RV303): preflight judges tool caps
+ * against it, and under `enforce: 'refuse'` the runtime refuses an ok
+ * settle below it (RV507); see {@link AgentProfile.evidenceContract}.
  */
 export interface EvidenceContract {
   /** Evidence entries the task must record; positive integer. */
@@ -192,6 +197,19 @@ export interface EvidenceContract {
   estCallsPerEntry?: number;
   /** Estimated non-evidence overhead calls; default 8. */
   overheadCalls?: number;
+  /**
+   * What the floor does at the child's terminal settle (RV507). The
+   * default 'warn' keeps the historical behavior: the contract is a
+   * preflight signal only. 'refuse' turns an ok finish whose message
+   * window carries fewer successful `record_evidence` executions
+   * (result `recorded: true`; duplicates and verification errors never
+   * count) than `minEntries` into a typed error terminal (kind
+   * 'terminal') whose journaled error data carries the machine-readable
+   * `evidenceFloor: { recordedEntries, minEntries }`; the outcome is
+   * memoized, so a resume rolls the refusal forward instead of
+   * re-paying the invocation. Non-ok terminals are never re-judged.
+   */
+  enforce?: 'warn' | 'refuse';
 }
 
 /**
@@ -2020,6 +2038,12 @@ export function createCtx(
     if (profile?.compaction !== undefined) {
       runAgentOptions.compaction = profile.compaction;
     }
+    if (profile?.evidenceContract !== undefined) {
+      // The declared floor reaches the loop (RV507); the loop acts on
+      // it only under enforce: 'refuse', so 'warn' and absence keep the
+      // historical preflight-only behavior byte for byte.
+      runAgentOptions.evidenceContract = profile.evidenceContract;
+    }
     if (loopFallbacks.length > 0) {
       runAgentOptions.fallbacks = loopFallbacks;
     }
@@ -2431,6 +2455,22 @@ export function createCtx(
           },
         };
       }
+    }
+    if (result.evidenceFloor !== undefined && terminalPatch.error !== undefined) {
+      // The evidence floor refusal (RV507) journals its machine-readable
+      // verdict and replays memoized, the abortClass pattern: the work
+      // is paid and the refusal is deterministic from the transcript, so
+      // a rerun would only re-pay the same bounded failure.
+      terminalPatch.memoizeOutcome = true;
+      const priorData = terminalPatch.error.data;
+      const dataRecord =
+        typeof priorData === 'object' && priorData !== null && !Array.isArray(priorData)
+          ? priorData
+          : {};
+      terminalPatch.error = {
+        ...terminalPatch.error,
+        data: { ...dataRecord, evidenceFloor: result.evidenceFloor },
+      };
     }
     if (checkpointWritten) {
       terminalPatch.checkpointRef = ckptRef;

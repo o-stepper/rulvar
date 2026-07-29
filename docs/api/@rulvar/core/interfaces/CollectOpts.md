@@ -6,10 +6,10 @@
 
 # Interface: CollectOpts
 
-Defined in: [packages/core/src/engine/ctx.ts:512](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L512)
+Defined in: [packages/core/src/engine/ctx.ts:530](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L530)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-onitemerror"></a> `onItemError` | `"collect"` | [packages/core/src/engine/ctx.ts:513](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L513) |
+| <a id="property-onitemerror"></a> `onItemError` | `"collect"` | [packages/core/src/engine/ctx.ts:531](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L531) |

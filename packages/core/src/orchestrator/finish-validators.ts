@@ -492,7 +492,10 @@ function listCitations(values: string[]): string {
  * {@link DEFAULT_EVIDENCE_MIN_SHARE}, the plan's 95 percent gate,
  * compared as a ceiling on the required count so an exact boundary like
  * 19 of 20 passes) must appear literally in the result text. Zero child
- * citations pass vacuously. With `requireKnown: true` the contract also
+ * citations pass vacuously UNLESS `requireNonEmptyPool: true` (RV507):
+ * for an evidence-critical run the empty pool IS the failure, so that
+ * mode refuses it with an `empty child citation pool` reason instead of
+ * the vacuous pass. With `requireKnown: true` the contract also
  * runs in reverse: every citation in the RESULT must appear in some
  * child's output, so a fabricated but pattern valid citation is
  * rejected instead of silently counting as evidence. Rejection reasons
@@ -506,6 +509,7 @@ export function evidencePreservedValidator(options?: {
   flags?: string;
   minShare?: number;
   requireKnown?: boolean;
+  requireNonEmptyPool?: boolean;
   name?: string;
 }): FinishValidator {
   const pattern = options?.pattern ?? DEFAULT_CITATION_PATTERN;
@@ -546,6 +550,14 @@ export function evidencePreservedValidator(options?: {
         }
       }
       const reasons: string[] = [];
+      if (cited.size === 0 && options?.requireNonEmptyPool === true) {
+        // The vacuous pass inverted (RV507): when the run exists to
+        // produce evidence, zero collected citations is the defect the
+        // contract must name, not a reason to stand down.
+        reasons.push(
+          'empty child citation pool: no ok child output contains a citation matching the pattern',
+        );
+      }
       if (cited.size > 0) {
         const missing = [...cited].filter((citation) => !input.text.includes(citation));
         const preserved = cited.size - missing.length;

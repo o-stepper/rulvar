@@ -19,7 +19,10 @@ settled 'ok' (spawn order); at least `minShare` of them (default
 [DEFAULT\_EVIDENCE\_MIN\_SHARE](/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_MIN_SHARE.md), the plan's 95 percent gate,
 compared as a ceiling on the required count so an exact boundary like
 19 of 20 passes) must appear literally in the result text. Zero child
-citations pass vacuously. With `requireKnown: true` the contract also
+citations pass vacuously UNLESS `requireNonEmptyPool: true` (RV507):
+for an evidence-critical run the empty pool IS the failure, so that
+mode refuses it with an `empty child citation pool` reason instead of
+the vacuous pass. With `requireKnown: true` the contract also
 runs in reverse: every citation in the RESULT must appear in some
 child's output, so a fabricated but pattern valid citation is
 rejected instead of silently counting as evidence. Rejection reasons
@@ -32,12 +35,13 @@ validator), not this contract. Default name 'evidence-preserved'.
 
 | Parameter | Type |
 | ------ | ------ |
-| `options?` | \{ `flags?`: `string`; `minShare?`: `number`; `name?`: `string`; `pattern?`: `string`; `requireKnown?`: `boolean`; \} |
+| `options?` | \{ `flags?`: `string`; `minShare?`: `number`; `name?`: `string`; `pattern?`: `string`; `requireKnown?`: `boolean`; `requireNonEmptyPool?`: `boolean`; \} |
 | `options.flags?` | `string` |
 | `options.minShare?` | `number` |
 | `options.name?` | `string` |
 | `options.pattern?` | `string` |
 | `options.requireKnown?` | `boolean` |
+| `options.requireNonEmptyPool?` | `boolean` |
 
 ## Returns
 

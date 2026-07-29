@@ -1147,6 +1147,185 @@ describe('acceptance: the child completion policy (v1.40.0 improvement plan)', (
   });
 });
 
+describe('acceptance: the spawned-roster floor (RV507)', () => {
+  /** The orchestrator finishes IMMEDIATELY: nothing is ever spawned. */
+  const zeroSpawnAdapter = () =>
+    scriptedAdapter((): ScriptedTurn => ({
+      toolCall: { name: 'finish', args: { result: { answer: 'solo' } } },
+    }));
+
+  /** Spawns two ok workers, awaits them, finishes. */
+  function twoOkAdapter() {
+    let orchTurn = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'did it' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: { answer: 42 } } } };
+    });
+  }
+
+  it('rejects the empty roster even under all-ok, carrying the actual roster in the decision', async () => {
+    const adapter = zeroSpawnAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 1 },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain('spawned');
+    const data = (thrown as FailRunError).data as {
+      source?: string;
+      spawnedChildren?: number;
+      minSpawnedChildren?: number;
+    };
+    expect(data.source).toBe('orchestrator_acceptance');
+    expect(data.spawnedChildren).toBe(0);
+    expect(data.minSpawnedChildren).toBe(1);
+    const decisions = (await store.load('test-run')).filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    );
+    expect(decisions).toHaveLength(1);
+    const value = decisions[0]?.value as {
+      verdict?: string;
+      spawnedChildren?: number;
+      minSpawnedChildren?: number;
+      degradedReasons?: string[];
+    };
+    expect(value.verdict).toBe('rejected');
+    expect(value.spawnedChildren).toBe(0);
+    expect(value.minSpawnedChildren).toBe(1);
+    expect(value.degradedReasons?.some((reason) => reason.includes('spawned'))).toBe(true);
+  });
+
+  it('rejects an under-provisioned roster even when minSuccessful is satisfied', async () => {
+    const adapter = twoOkAdapter();
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: { childPolicy: { minSuccessful: 1 }, minSpawnedChildren: 3 },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as {
+      spawnedChildren?: number;
+      minSpawnedChildren?: number;
+      childStatusCounts?: Record<string, number>;
+    };
+    expect(data.spawnedChildren).toBe(2);
+    expect(data.minSpawnedChildren).toBe(3);
+    expect(data.childStatusCounts).toEqual({ ok: 2 });
+  });
+
+  it('a roster at the floor accepts, and the decision carries both counts', async () => {
+    const adapter = twoOkAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 2 },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      completion: string;
+    };
+    expect(outcome.completion).toBe('complete');
+    const decisions = (await store.load('test-run')).filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    );
+    const value = decisions[0]?.value as {
+      verdict?: string;
+      spawnedChildren?: number;
+      minSpawnedChildren?: number;
+    };
+    expect(value.verdict).toBe('accepted');
+    expect(value.spawnedChildren).toBe(2);
+    expect(value.minSpawnedChildren).toBe(2);
+  });
+
+  it('the journaled roster rejection rolls forward on resume, immune to a drifted floor', async () => {
+    const store = new InMemoryStore();
+    const engineA = createEngine({
+      adapters: [zeroSpawnAdapter()],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model', orchestrate: 'fake:model' }, profiles: PROFILES },
+    });
+    const first = await engineA.run(
+      makeOrchestratorWorkflow('collect', {
+        acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 1 },
+      }),
+      undefined,
+      { runId: 'ROSTER-DRIFT' },
+    ).result;
+    expect(first.status).toBe('error');
+
+    // The resume host DROPS the floor, which would accept the empty
+    // roster if re-evaluated; the journaled rejected verdict wins and
+    // no live orchestrator call is paid.
+    const replayAdapter = zeroSpawnAdapter();
+    const engineB = createEngine({
+      adapters: [replayAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model', orchestrate: 'fake:model' }, profiles: PROFILES },
+    });
+    const resumed = await engineB.resume(
+      'ROSTER-DRIFT',
+      makeOrchestratorWorkflow('collect', { acceptance: { childPolicy: 'all-ok' } }),
+    ).result;
+    expect(resumed.status).toBe('error');
+    expect(replayAdapter.calls).toHaveLength(0);
+  });
+
+  it('validates minSpawnedChildren as a positive integer at construction', () => {
+    for (const bad of [0, -1, 1.5, Number.NaN]) {
+      expect(() =>
+        makeOrchestratorWorkflow('g', {
+          acceptance: { childPolicy: 'all-ok', minSpawnedChildren: bad },
+        }),
+      ).toThrow(/minSpawnedChildren/);
+    }
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 2 },
+      }),
+    ).not.toThrow();
+  });
+});
+
 describe('finish validation: deterministic host validators with bounded repair (RV-204)', () => {
   const GOAL = 'audit the module and cite evidence';
   const GOOD = 'FINDINGS: two bugs. EVIDENCE: src/a.ts:10 src/b.ts:22 src/c.ts:31.';
