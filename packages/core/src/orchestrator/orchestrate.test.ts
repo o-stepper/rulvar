@@ -3506,6 +3506,65 @@ describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
     expect(resumed.value).toBe(COMPLETE);
   });
 
+  it('a re-derived skip supersedes the stale one and later resumes read the newest (RV603)', async () => {
+    const store = new InMemoryStore();
+    const contractA = finishContract({ sections: ['## Findings'] });
+    const contractB = finishContract({ sections: ['## Findings', '## Evidence'] });
+    const optionsFor = (contract: ReturnType<typeof finishContract>) => ({
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: { validators: [...contract.validators], contract, maxRepairs: 3 },
+    });
+    const COMPLETE = '## Findings\nthe draft.\n## Evidence\ndocs/a.md:1';
+    const crashAfter = (options: ReturnType<typeof optionsFor>) => {
+      const inner = makeOrchestratorWorkflow('assess', options);
+      return defineWorkflow({ name: inner.name }, async (ctx) => {
+        await inner.body(ctx, undefined);
+        throw new Error('killed after the synthesis skip');
+      });
+    };
+    const engineA = createEngine({
+      adapters: [draftThenSynthesis(SECTIONED, 'NEVER')],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    expect(
+      (
+        await engineA.run(crashAfter(optionsFor(contractA)), undefined, { runId: 'SKIP-NEWEST' })
+          .result
+      ).status,
+    ).toBe('error');
+
+    // The fixed contract, and a rerun coordination whose draft satisfies
+    // it: the gate re-derives and journals a SECOND skip. The stale one
+    // stays in the journal as the historical fact it is.
+    const engineB = createEngine({
+      adapters: [draftThenSynthesis(COMPLETE, 'NEVER')],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    expect(
+      (await engineB.resume('SKIP-NEWEST', crashAfter(optionsFor(contractB))).result).status,
+    ).toBe('error');
+    expect(skipDecisions(await store.load('SKIP-NEWEST'))).toHaveLength(2);
+
+    // A third segment reads the NEWEST entry, so the gate converges
+    // instead of re-deriving (and re-journaling) on every resume.
+    const thirdAdapter = draftThenSynthesis(COMPLETE, 'NEVER');
+    const engineC = createEngine({
+      adapters: [thirdAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const settled = await engineC.resume(
+      'SKIP-NEWEST',
+      makeOrchestratorWorkflow('assess', optionsFor(contractB)),
+    ).result;
+    expect(settled.status).toBe('ok');
+    expect(settled.value).toBe(COMPLETE);
+    expect(thirdAdapter.calls).toHaveLength(0);
+    expect(skipDecisions(await store.load('SKIP-NEWEST'))).toHaveLength(2);
+  });
+
   it('an unchanged contract and draft roll the journaled skip forward across a crash (RV603)', async () => {
     const store = new InMemoryStore();
     const options = {
