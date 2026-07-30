@@ -4123,3 +4123,327 @@ describe('the post-fan-in double rework (RV808a)', () => {
     ).toThrow(/draftPolicy requires synthesis/);
   });
 });
+
+describe('the sectional repair and the evidence index (RV808b)', () => {
+  // The second half of the twelfth run's post-fan-in closure: repair
+  // exchanges used to resend the WHOLE document for one violated
+  // section (406 s of coordination model work), and synthesis re-read
+  // the full evidence pool to satisfy validators it could not see
+  // (357 s more). Sectional repair lets a rejected finish resubmit
+  // ONLY the repaired sections, spliced by the host into the retained
+  // attempt; the evidence index hands synthesis a deterministic
+  // per-child citation map on the existing pagination vocabulary.
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const SECTIONS = ['## Findings', '## Risks'];
+  const FULL_BUT_RISKLESS = ['## Findings', 'finding body'].join('\n');
+  const RISKS_BODY = 'risk body';
+  const SPLICED = ['## Findings', 'finding body', '## Risks', 'risk body'].join('\n');
+  const CONTRACT = () => ({
+    validators: [requiredSectionsValidator({ sections: SECTIONS, match: 'line' as const })],
+    maxRepairs: 2,
+    sectionalRepair: { sections: SECTIONS },
+  });
+  const validationDecisionsOf = (entries: readonly JournalEntry[]) =>
+    entries.filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation',
+    );
+
+  it('a rejected finish repairs by resubmitting only the violated section, and the host splices', async () => {
+    let call = 0;
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      return call === 1
+        ? { toolCall: { name: 'finish', args: { result: FULL_BUT_RISKLESS } } }
+        : { toolCall: { name: 'finish', args: { sections: { '## Risks': RISKS_BODY } } } };
+    });
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', { finishValidation: CONTRACT() });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    // The run result is the FULL spliced document, not the patch.
+    expect(outcome).toBe(SPLICED);
+    expect(adapter.calls).toHaveLength(2);
+    // The rejection taught the sectional vocabulary: the declared
+    // markers and the splice instruction rode the error feedback.
+    const repairReq = JSON.stringify(adapter.calls[1]);
+    expect(repairReq).toContain('declaredSections');
+    expect(repairReq).toContain('resubmit ONLY the repaired sections');
+    // Exactly the two real verdicts journaled: the repair and the
+    // acceptance of the SPLICED document.
+    const verdicts = validationDecisionsOf(await store.load('test-run')).map(
+      (e) => (e.value as { verdict: string }).verdict,
+    );
+    expect(verdicts).toEqual(['repair', 'accepted']);
+  });
+
+  it('sectional mechanics refusals are typed, spend no repair, and journal nothing', async () => {
+    let call = 0;
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      if (call === 1) {
+        // No rejected attempt is retained yet: refused typed.
+        return { toolCall: { name: 'finish', args: { sections: { '## Risks': 'x' } } } };
+      }
+      if (call === 2) {
+        // A real attempt, rejected by the validators (repair 1 of 2).
+        return { toolCall: { name: 'finish', args: { result: FULL_BUT_RISKLESS } } };
+      }
+      if (call === 3) {
+        // Both result and sections: refused typed.
+        return {
+          toolCall: {
+            name: 'finish',
+            args: { result: 'whole', sections: { '## Risks': 'x' } },
+          },
+        };
+      }
+      if (call === 4) {
+        // An undeclared marker: refused typed, naming the declared set.
+        return { toolCall: { name: 'finish', args: { sections: { '## Nope': 'x' } } } };
+      }
+      return { toolCall: { name: 'finish', args: { sections: { '## Risks': RISKS_BODY } } } };
+    });
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      finishValidation: { ...CONTRACT(), maxRepairs: 1 },
+      limits: { maxTurns: 8 },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    // The run SURVIVED with maxRepairs 1: three refused exchanges spent
+    // no repair; only the rejected full attempt did.
+    expect(outcome).toBe(SPLICED);
+    const first = JSON.stringify(adapter.calls[1]);
+    expect(first).toContain('no rejected attempt is retained');
+    const both = JSON.stringify(adapter.calls[3]);
+    expect(both).toContain('never both');
+    const unknown = JSON.stringify(adapter.calls[4]);
+    expect(unknown).toContain('undeclared section');
+    expect(unknown).toContain('## Findings');
+    const verdicts = validationDecisionsOf(await store.load('test-run')).map(
+      (e) => (e.value as { verdict: string }).verdict,
+    );
+    expect(verdicts).toEqual(['repair', 'accepted']);
+  });
+
+  it('the draft gate repairs sectionally too, and the spliced draft skips synthesis (the RV808 composition)', async () => {
+    let call = 0;
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      return call === 1
+        ? { toolCall: { name: 'finish', args: { result: FULL_BUT_RISKLESS } } }
+        : { toolCall: { name: 'finish', args: { sections: { '## Risks': RISKS_BODY } } } };
+    });
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: { ...CONTRACT(), draftPolicy: 'contract' },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SPLICED);
+    // Two COORDINATION exchanges, zero synthesis dispatches: the
+    // sectional repair drove the draft to contract-valid and the skip
+    // retired the whole post-fan-in window.
+    expect(adapter.calls).toHaveLength(2);
+    const skips = (await store.load('test-run')).filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_skip',
+    );
+    expect(skips).toHaveLength(1);
+  });
+
+  it('the synthesis invocation is seeded with the draft as its retained base', async () => {
+    const coordination = scriptedAdapter((): ScriptedTurn => ({
+      toolCall: { name: 'finish', args: { result: FULL_BUT_RISKLESS } },
+    }));
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({
+        toolCall: { name: 'finish', args: { sections: { '## Risks': RISKS_BODY } } },
+      }),
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [coordination, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 } },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    // The synthesis model patched ONLY the gap section; the host
+    // spliced it onto the coordination draft without a resend.
+    expect(outcome).toBe(SPLICED);
+    expect(synthesis.calls).toHaveLength(1);
+    const synthesisReq = JSON.stringify(synthesis.calls[0]);
+    expect(synthesisReq).toContain('coordination draft is the retained base');
+    // The coordination toolset kept the PLAIN finish schema (no draft
+    // gate exists to reject a draft, so sections would be dead
+    // vocabulary there); the synthesis toolset carries the sectional
+    // one.
+    const coordFinish = coordination.calls[0]?.tools?.find((t) => t.name === 'finish');
+    expect((coordFinish?.parameters as { required?: string[] } | undefined)?.required).toContain(
+      'result',
+    );
+    const synthFinish = synthesis.calls[0]?.tools?.find((t) => t.name === 'finish');
+    const synthParams = synthFinish?.parameters as
+      { required?: string[]; properties?: Record<string, unknown> } | undefined;
+    expect(synthParams?.required ?? []).not.toContain('result');
+    expect(Object.keys(synthParams?.properties ?? {})).toContain('sections');
+  });
+
+  it('the evidence index rides the synthesis prompt with pool-eligible citations only', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      const agentType = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)
+        ?.rulvar?.agentType;
+      if (agentType === 'worker') {
+        const prompt = req.messages[0]?.parts.find((p) => p.type === 'text') as { text: string };
+        if (prompt.text.includes('doomed')) {
+          return {
+            error: {
+              code: 'agent',
+              message: 'exploded at src/evil.ts:99',
+              retryable: false,
+            },
+          };
+        }
+        return { text: 'evidence src/a.ts:1 and src/b.ts:2 and src/a.ts:1 again' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'gather' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'doomed run' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        const handles: number[] = [];
+        for (const msg of req.messages) {
+          for (const part of msg.parts) {
+            if (part.type === 'tool-result') {
+              const result = part.result as { handle?: number };
+              if (typeof result?.handle === 'number') {
+                handles.push(result.handle);
+              }
+            }
+          }
+        }
+        return { toolCall: { name: 'await_all', args: { handles } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'draft with src/a.ts:1' } } };
+    });
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({
+        toolCall: { name: 'finish', args: { result: 'final with src/a.ts:1 src/b.ts:2' } },
+      }),
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [adapter, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('gather evidence', {
+      synthesis: { limits: { maxTurns: 3 }, evidenceIndex: true },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('final with src/a.ts:1 src/b.ts:2');
+    const prompt = synthesis.calls[0]?.messages
+      .flatMap((m) => m.parts)
+      .filter((p) => p.type === 'text')
+      .map((p) => (p as { text: string }).text)
+      .join('\n');
+    expect(prompt).toContain('EVIDENCE INDEX:');
+    const indexLine = (prompt ?? '').split('\n').find((l) => l.startsWith('EVIDENCE INDEX:'));
+    const rows = JSON.parse((indexLine ?? '').slice('EVIDENCE INDEX:'.length)) as {
+      nodeId: string;
+      status: string;
+      citations: string[];
+      artifacts: unknown[];
+      chars: number;
+    }[];
+    expect(rows).toHaveLength(2);
+    // The ok child's distinct citations in text order; the failed
+    // child's text (which CARRIES a citation shaped string) donates
+    // nothing, because the validators would reject a citation from
+    // outside the evidence pool.
+    expect(rows[0]?.citations).toEqual(['src/a.ts:1', 'src/b.ts:2']);
+    expect(rows[0]?.status).toBe('ok');
+    expect(rows[0]?.chars).toBeGreaterThan(0);
+    expect(rows[1]?.status).toBe('error');
+    expect(rows[1]?.citations).toEqual([]);
+    expect(prompt).toContain('An EVIDENCE INDEX below lists');
+  });
+
+  it('stays byte silent without the opt-ins: plain finish schema, no index line, sections schema-rejected', async () => {
+    let call = 0;
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      return call === 1
+        ? { toolCall: { name: 'finish', args: { sections: { '## Risks': 'x' } } } }
+        : { toolCall: { name: 'finish', args: { result: 'plain' } } };
+    });
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['plain'] })],
+      },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('plain');
+    // Without sectionalRepair the finish schema still REQUIRES result:
+    // the sections call died at the schema gate, not at a host refusal.
+    const finishDef = adapter.calls[0]?.tools?.find((t) => t.name === 'finish');
+    expect((finishDef?.parameters as { required?: string[] } | undefined)?.required).toContain(
+      'result',
+    );
+    const feedback = JSON.stringify(adapter.calls[1]);
+    expect(feedback).not.toContain('declaredSections');
+    // And no validation decision journaled for the schema-dead call.
+    expect(validationDecisionsOf(await store.load('test-run'))).toHaveLength(1);
+  });
+
+  it('intake refuses malformed sectional and index options typed', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['x'] })],
+          sectionalRepair: { sections: [] },
+        },
+      }),
+    ).toThrow(/sectionalRepair.sections must be a non empty array/);
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['x'] })],
+          sectionalRepair: { sections: ['## A', '## A'] },
+        },
+      }),
+    ).toThrow(/repeats/);
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        synthesis: { evidenceIndex: 'yes' as never },
+      }),
+    ).toThrow(/evidenceIndex/);
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        synthesis: { evidenceIndex: { pattern: 'a*' } },
+      }),
+    ).toThrow(/must not be able to match the empty string/);
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        synthesis: { mode: 'incremental', evidenceIndex: true },
+      }),
+    ).toThrow(/incremental/);
+  });
+});

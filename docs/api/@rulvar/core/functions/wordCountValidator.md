@@ -10,7 +10,7 @@
 function wordCountValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:424](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L424)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:505](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L505)
 
 Requires the result text's word count (whitespace separated tokens;
 an empty text counts zero) to sit inside the configured bounds (the

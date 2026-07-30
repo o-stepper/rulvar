@@ -8,6 +8,7 @@ import {
   requiredFieldsValidator,
   requiredSectionsValidator,
   sectionCitationsValidator,
+  spliceSections,
   stripFencedBlocks,
   wordCountValidator,
   type FinishValidationChild,
@@ -555,5 +556,85 @@ describe('evidencePreservedValidator fail-closed intake and pool (RV610)', () =>
     expect(verdict.ok).toBe(false);
     const reason = verdict.ok ? '' : (verdict.reasons[0] ?? '');
     expect(reason).toContain('empty child citation pool');
+  });
+});
+
+describe('spliceSections (RV808b)', () => {
+  // The sectional bounded repair: a repair exchange used to resend the
+  // WHOLE document for one violated section, and the twelfth comparison
+  // run paid 406 s of coordination draft plus repair exactly that way.
+  // The splice is the deterministic host half: the model resubmits only
+  // the repaired sections and this function reconstructs the full
+  // document from the retained prior attempt.
+  const PRIOR = [
+    'preamble line',
+    '## Alpha',
+    'alpha body one',
+    'alpha body two',
+    '## Beta',
+    'beta body',
+  ].join('\n');
+  const DECLARED = ['## Alpha', '## Beta', '## Gamma'];
+
+  it('replaces exactly the patched section, preserving preamble and siblings byte for byte', () => {
+    const out = spliceSections(PRIOR, DECLARED, { '## Alpha': 'repaired alpha' });
+    expect(out).toBe(
+      ['preamble line', '## Alpha', 'repaired alpha', '## Beta', 'beta body'].join('\n'),
+    );
+  });
+
+  it('replaces the last section, running its slice to the end of the text', () => {
+    const out = spliceSections(PRIOR, DECLARED, { '## Beta': 'repaired beta' });
+    expect(out).toBe(
+      [
+        'preamble line',
+        '## Alpha',
+        'alpha body one',
+        'alpha body two',
+        '## Beta',
+        'repaired beta',
+      ].join('\n'),
+    );
+  });
+
+  it('appends missing declared sections at the end, in declared order', () => {
+    const out = spliceSections(PRIOR, DECLARED, {
+      '## Gamma': 'gamma body',
+      '## Beta': 'repaired beta',
+    });
+    expect(out).toBe(
+      [
+        'preamble line',
+        '## Alpha',
+        'alpha body one',
+        'alpha body two',
+        '## Beta',
+        'repaired beta',
+        '## Gamma',
+        'gamma body',
+      ].join('\n'),
+    );
+  });
+
+  it('anchors at marker LINES only: a mid sentence mention never anchors a splice', () => {
+    const tricky = ['the words ## Alpha mid sentence do not anchor', '## Alpha', 'real body'].join(
+      '\n',
+    );
+    const out = spliceSections(tricky, ['## Alpha'], { '## Alpha': 'patched' });
+    expect(out).toBe(
+      ['the words ## Alpha mid sentence do not anchor', '## Alpha', 'patched'].join('\n'),
+    );
+  });
+
+  it('refuses an undeclared patch marker and prototype keyed patches typed', () => {
+    expect(() => spliceSections(PRIOR, DECLARED, { '## Nope': 'x' })).toThrow(ConfigError);
+    expect(() => spliceSections(PRIOR, DECLARED, { '## Nope': 'x' })).toThrow(/undeclared section/);
+    expect(() => spliceSections(PRIOR, ['## Alpha'], { constructor: 'x' })).toThrow(
+      /undeclared section/,
+    );
+  });
+
+  it('refuses an empty declared set typed', () => {
+    expect(() => spliceSections(PRIOR, [], { '## Alpha': 'x' })).toThrow(ConfigError);
   });
 });

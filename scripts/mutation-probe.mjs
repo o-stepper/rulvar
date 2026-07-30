@@ -744,6 +744,33 @@ const MUTATIONS = [
     replace: '      if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'sectional-splice-anchor',
+    doctrine:
+      'spliceSections replaces a patched section IN PLACE at its line anchor; without the anchor every patch would silently append and the reconstructed document would duplicate instead of repair (RV808b)',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '    if (at >= 0) {\n      anchors.push({ marker, at });\n    }',
+    replace: '    if (false) {\n      anchors.push({ marker, at });\n    }',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'sectional-retained-gate',
+    doctrine:
+      'a sections-only finish with no retained rejected attempt is refused typed with the full-resubmission remedy; splicing into nothing must never reach spliceSections (RV808b)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          if (retained === undefined) {',
+    replace: '          if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'evidence-index-pool',
+    doctrine:
+      'the EVIDENCE INDEX extracts citations ONLY from evidence-pool children (ok and salvage-accepted): an indexed citation from a failed child is one the validators would reject as fabricated (RV808b)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "                const eligible =\n                  settled.status === 'ok' ||",
+    replace: '                const eligible =\n                  true ||',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

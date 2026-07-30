@@ -10,7 +10,7 @@
 function evidencePreservedValidator(options?): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:514](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L514)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L595)
 
 The RV-202 evidence preservation contract: the finish result must
 PRESERVE the citations the children actually produced. Distinct

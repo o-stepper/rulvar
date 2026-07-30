@@ -25,8 +25,9 @@ vocabulary (M6-T04).
 | ------ | ------ |
 | `runtime` | [`OrchestratorRuntime`](/api/@rulvar/rulvar/interfaces/OrchestratorRuntime.md) |
 | `profileCardText` | `string` |
-| `options?` | \{ `childResultTools?`: `boolean`; \} |
+| `options?` | \{ `childResultTools?`: `boolean`; `sectionalFinish?`: `boolean`; \} |
 | `options.childResultTools?` | `boolean` |
+| `options.sectionalFinish?` | `boolean` |
 
 ## Returns
 

@@ -147,6 +147,37 @@ export const FINISH_SCHEMA: SchemaSpec = {
 
 export const FINISH_TOOL_NAME = 'finish';
 
+/**
+ * The finish schema under sectional repair (RV808b): `result` OR
+ * `sections`, host-enforced as exactly one (a JSON schema union would
+ * cost the model a worse error surface than the typed host refusal).
+ * `sections` maps a DECLARED marker line to the new section body; the
+ * host splices it into the retained rejected attempt and validates the
+ * reconstructed document whole. Swapped in only under the
+ * `finishValidation.sectionalRepair` opt-in, so the default toolset
+ * hash never moves.
+ */
+export const FINISH_SECTIONAL_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    result: {
+      $comment:
+        'validated against the declared output SchemaSpec of the orchestrate call; ' +
+        'free-form JSON when none is declared',
+    },
+    summary: { type: 'string' },
+    sections: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+      $comment:
+        'sectional resubmission of a REJECTED attempt: declared section marker line -> the ' +
+        'new section body; the host splices into the retained attempt (a marker absent ' +
+        'from it is appended) and validates the whole reconstructed document',
+    },
+  },
+};
+
 /** The spawn parameters as validated JSON (a TaskSpec subset). */
 export interface SpawnAgentParams {
   agentType: string;
@@ -168,7 +199,7 @@ export interface SpawnAgentParams {
 export function buildOrchestratorTools(
   runtime: OrchestratorRuntime,
   profileCardText: string,
-  options?: { childResultTools?: boolean },
+  options?: { childResultTools?: boolean; sectionalFinish?: boolean },
 ): ToolDef[] {
   const spawnAgent = tool({
     name: 'spawn_agent',
@@ -244,10 +275,18 @@ export function buildOrchestratorTools(
     parameters: WAIT_FOR_EVENTS_SCHEMA,
     execute: (input) => runtime.waitForEvents((input as { triggers: unknown }).triggers),
   });
+  // The sectional vocabulary exists only under the opt-in (RV808b):
+  // the description enters the toolset hash exactly like the schema,
+  // so both move together and never for a run that stays plain.
+  const sectional = options?.sectionalFinish === true;
   const finish = tool({
     name: FINISH_TOOL_NAME,
-    description: 'Terminate the orchestration with a result (run outcome ok).',
-    parameters: FINISH_SCHEMA,
+    description: sectional
+      ? 'Terminate the orchestration with a result (run outcome ok). After a REJECTED ' +
+        'attempt, sections may resubmit only the repaired sections; the host splices them ' +
+        'into the retained attempt and validates the whole document.'
+      : 'Terminate the orchestration with a result (run outcome ok).',
+    parameters: sectional ? FINISH_SECTIONAL_SCHEMA : FINISH_SCHEMA,
     execute: () => {
       throw new Error('finish is intercepted by the agent runtime, never executed');
     },
