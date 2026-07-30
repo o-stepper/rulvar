@@ -445,6 +445,7 @@ export default {
       pricing?: {
         source?: string;
         pricingVersion?: string;
+        currentPricingVersion?: string;
         pinnedThroughSeq?: number;
         segments?: Array<{ fromSeq: number; settleSeq: number; pricingVersion?: string }>;
       };
@@ -452,6 +453,11 @@ export default {
     expect(parsed.totalUsd).toBe(1110);
     expect(parsed.pricing?.source).toBe('composed');
     expect(parsed.pricing?.pricingVersion).toBe('v-b');
+    // The composition's second half is named too (RV706): the tail past
+    // the last pin priced at the CLI's own configured table, and the
+    // export says which version that is instead of leaving the current
+    // table anonymous while every pin declares itself.
+    expect(parsed.pricing?.currentPricingVersion).toBe('v-live');
     expect(parsed.pricing?.pinnedThroughSeq).toBe(3);
     expect(parsed.pricing?.segments?.map((segment) => segment.pricingVersion)).toEqual([
       'v-a',
@@ -467,14 +473,14 @@ export default {
     const text = scriptedIo();
     expect(await runCli(['invoice', runId], { cwd, io: text })).toBe(0);
     expect(text.outLines).toContain(
-      'pricing rates: run-settle pins composed with the current table (v-a, v-b)',
+      'pricing rates: run-settle pins composed with the current table (v-a, v-b; current v-live)',
     );
 
     const inspected = scriptedIo();
     expect(await runCli(['inspect', runId], { cwd, io: inspected })).toBe(0);
     expect(inspected.outLines).toContain('cost: $1110.0000');
     expect(inspected.outLines).toContain(
-      'pricing: run-settle pins composed with the current table (v-a, v-b)',
+      'pricing: run-settle pins composed with the current table (v-a, v-b; current v-live)',
     );
   });
 

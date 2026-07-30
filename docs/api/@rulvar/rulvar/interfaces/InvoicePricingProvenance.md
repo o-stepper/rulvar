@@ -21,6 +21,7 @@ the caller, who is the one that chose.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-currentpricingversion"></a> `currentPricingVersion?` | `string` | The version of the caller's CURRENT table (RV706): on `composed` exports, the table that priced everything past `pinnedThroughSeq`; on `current-table` exports, the whole fold's table. The pinned segments each name their own version, and without this field the composition's second half stayed anonymous. Absent when the caller's table declares no version. | `packages/core/dist/index.d.ts` |
 | <a id="property-pinnedthroughseq"></a> `pinnedThroughSeq?` | `number` | On `composed` exports: the last pin's settle seq. Rows at or past it (a segment journaled but not yet settled) priced at the current table, not any pin; each row's `entrySeq` locates it against this bound. | `packages/core/dist/index.d.ts` |
 | <a id="property-pricingversion"></a> `pricingVersion?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-rows"></a> `rows?` | [`AppliedPricingRow`](/api/@rulvar/rulvar/interfaces/AppliedPricingRow.md)[] | The pinned rows the fold used; present on snapshot-priced exports. | `packages/core/dist/index.d.ts` |

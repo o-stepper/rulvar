@@ -273,8 +273,17 @@ interface CorruptLedgerLine {
 }
 /** A torn fragment the writer quarantined while repairing a tail (RV502). */
 interface TornLedgerArtifact {
-  /** The raw torn bytes, preserved verbatim. */
+  /**
+  * The torn fragment as a LOSSY string: invalid UTF-8 bytes decode to
+  * U+FFFD, so two different byte tails can read identically here.
+  * Kept for compatibility with rows written before RV707; use
+  * `bytesBase64` for the exact bytes.
+  */
   bytes: string;
+  /** The exact torn bytes, base64 (RV707); absent on rows written before it. */
+  bytesBase64?: string;
+  /** sha256 (hex) of the exact torn bytes (RV707); absent on legacy rows. */
+  sha256?: string;
   /** Wall-clock ms when the writer quarantined the fragment. */
   recoveredAt: number;
 }

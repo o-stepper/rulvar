@@ -10,7 +10,7 @@
 function assembleEngine(options): AssembledCli;
 ```
 
-Defined in: [packages/cli/src/engine-assembly.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/engine-assembly.ts#L49)
+Defined in: [packages/cli/src/engine-assembly.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/engine-assembly.ts#L56)
 
 ## Parameters
 

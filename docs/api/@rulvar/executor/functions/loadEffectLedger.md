@@ -10,7 +10,7 @@
 function loadEffectLedger(path, options?): Promise<EffectLedgerScan>;
 ```
 
-Defined in: [packages/executor/src/ledger.ts:349](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L349)
+Defined in: [packages/executor/src/ledger.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L376)
 
 Scans a JSONL ledger file into intents, outcomes, and the orphaned
 intents a host must reconcile, pairing attempts exactly (RV501). A

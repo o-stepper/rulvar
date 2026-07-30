@@ -44,6 +44,13 @@ export interface AssembledCli {
    * same way the engine hashed the genesis args.
    */
   argsHashSalt?: string;
+  /**
+   * The configured price table's version (RV706), surfaced so the
+   * invoice and inspect surfaces can name the CURRENT table in a
+   * composed provenance instead of leaving the tail's rates anonymous.
+   * Absent when the config declares no table.
+   */
+  currentPricingVersion?: string;
 }
 
 export function assembleEngine(options: {
@@ -95,12 +102,14 @@ export function assembleEngine(options: {
     return pricing === undefined ? undefined : priceUsdOf(pricing, usage);
   };
   const argsHashSalt = engineOptions.security?.argsHashSalt;
+  const currentPricingVersion = engineOptions.pricing?.pricingVersion;
   return {
     engine,
     store,
     workflows,
     priceUsd,
     ...(argsHashSalt === undefined ? {} : { argsHashSalt }),
+    ...(currentPricingVersion === undefined ? {} : { currentPricingVersion }),
   };
 }
 
