@@ -3169,6 +3169,15 @@ declare function quotaRuleKey(rule: QuotaRule): string;
 * so ordinary JavaScript after the constructor (a pushed rule, a
 * reassigned cap) can no longer change a decision, a bucket key, or a
 * recorded fingerprint.
+*
+* A set containing two rules with the same canonical content key is
+* refused typed (RV704): the memory reference buckets by rule INDEX
+* (each copy counts independently, the full cap admits) while the
+* store references bucket by rule KEY (one shared bucket is debited
+* once per matching copy, half the cap admits), so the same duplicated
+* configuration admitted differently per storage. Refusing it at the
+* shared construction chokepoint is what keeps equal configurations
+* equal on every storage.
 */
 declare function snapshotQuotaRules(rules: readonly QuotaRule[], site?: string): readonly QuotaRule[];
 /** True when every dimension the rule pins matches the request. */

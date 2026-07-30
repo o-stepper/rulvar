@@ -269,3 +269,58 @@ describe('immutable rules snapshot and canonical denial order (RV608)', () => {
     expect(JSON.stringify(two)).toBe(JSON.stringify(one));
   });
 });
+
+describe('duplicate rules are refused at construction (RV704)', () => {
+  const dup: QuotaRule = { provider: 'fake', model: 'fake:model', requestsPerMinute: 4 };
+
+  it('snapshotQuotaRules names both indexes, the canonical key, and the remedy, exactly', () => {
+    // The parity defect the refusal closes: index-keyed memory buckets
+    // count each copy independently (the full cap admits), key-keyed
+    // store buckets are debited once per matching copy (half the cap
+    // admits). Nothing refused the configuration that split them.
+    let thrown: unknown;
+    try {
+      snapshotQuotaRules(
+        [dup, { provider: 'fake', tokensPerMinute: 1000 }, { ...dup }],
+        'test rules',
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(ConfigError);
+    expect((thrown as Error).message).toBe(
+      `test rules[2] duplicates test rules[0] (rule key ${quotaRuleKey(dup)}): identical rules ` +
+        'occupy independent buckets in memory but share one key-debited bucket on keyed ' +
+        'storage, so one configuration would admit differently per store; delete the duplicate',
+    );
+  });
+
+  it('the duplicate is detected by canonical content, not by object identity or field order', () => {
+    // A permuted literal and an extra unknown field still produce the
+    // same canonical key, so they are the same rule.
+    const permuted = { requestsPerMinute: 4, model: 'fake:model', provider: 'fake', extra: 1 };
+    expect(() => snapshotQuotaRules([dup, permuted as QuotaRule], 'test rules')).toThrow(
+      /test rules\[1\] duplicates test rules\[0\]/,
+    );
+  });
+
+  it('memoryQuotaLimiter refuses the divergence reproduction at construction', () => {
+    // The cap-4 reproduction: this exact set granted 4 on memory and 2
+    // on sqlite before any admission could be compared. It is now a
+    // construction error at the shared snapshot chokepoint.
+    expect(() => memoryQuotaLimiter([dup, { ...dup }])).toThrow(
+      /memoryQuotaLimiter rules\[1\] duplicates memoryQuotaLimiter rules\[0\]/,
+    );
+  });
+
+  it('near-duplicates differing in any dimension or cap still construct', () => {
+    expect(() =>
+      memoryQuotaLimiter([
+        dup,
+        { ...dup, model: 'fake:other' },
+        { ...dup, requestsPerMinute: 5 },
+        { provider: 'fake', model: 'fake:model', tokensPerMinute: 1000 },
+      ]),
+    ).not.toThrow();
+  });
+});
