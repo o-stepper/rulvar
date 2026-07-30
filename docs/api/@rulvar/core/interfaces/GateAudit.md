@@ -6,7 +6,7 @@
 
 # Interface: GateAudit
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:334](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L334)
+Defined in: [packages/core/src/runtime/agent-loop.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L352)
 
 The ctx-side verdict for one dispatch, produced by the permission
 chain (M3-T03). For 'ask' the loop writes the turn checkpoint with the
@@ -17,7 +17,7 @@ re-matches an existing one) and parks until a resolution closes it.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-advisory"></a> `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/runtime/agent-loop.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L338) |
-| <a id="property-decidedby"></a> `decidedBy` | `string` | [packages/core/src/runtime/agent-loop.ts:336](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L336) |
-| <a id="property-rule"></a> `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/runtime/agent-loop.ts:337](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L337) |
-| <a id="property-verdict"></a> `verdict` | `"allow"` \| `"ask"` \| `"deny"` | [packages/core/src/runtime/agent-loop.ts:335](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L335) |
+| <a id="property-advisory"></a> `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/runtime/agent-loop.ts:356](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L356) |
+| <a id="property-decidedby"></a> `decidedBy` | `string` | [packages/core/src/runtime/agent-loop.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L354) |
+| <a id="property-rule"></a> `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/runtime/agent-loop.ts:355](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L355) |
+| <a id="property-verdict"></a> `verdict` | `"allow"` \| `"ask"` \| `"deny"` | [packages/core/src/runtime/agent-loop.ts:353](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L353) |

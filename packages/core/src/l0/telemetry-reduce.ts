@@ -250,6 +250,80 @@ export interface CriticalPath {
   synthesisShare?: number;
   /** Settled non-coordination agent spans that anchored the fan-in. */
   workerSpans: number;
+  /** The RV710 decomposition of the window; present with postFanInMs. */
+  postFanIn?: PostFanInBreakdown;
+}
+
+/**
+ * Where the post-fan-in interval actually went (RV710): the eleventh
+ * comparison experiment measured 45.5 percent of wall sitting after
+ * fan-in with zero synthesis share and nothing to name it. The
+ * decomposition is a pure fold over the SAME vocabulary, no new event
+ * types: model activations and tool executions of coordination spans
+ * (spans whose agent:start role is 'orchestrate') are reconstructed
+ * from their end events' (ts, durationMs) and clipped to the
+ * [last worker settle, run:end] window, and completed 'synthesize'
+ * spans are clipped the same way. The coordinator's draft and repair
+ * thinking lands in the model bucket; child-result pagination and the
+ * finish exchanges (host validators run inside the finish tool's
+ * measured window) land in the tool buckets under their own names; the
+ * residue is what no recorded interval covers: scheduling gaps,
+ * journal writes, park-to-wake latency. Live fidelity only, exactly
+ * like the wall numbers around it: a replayed stream re-stamps
+ * emission times and carries durationMs 0, so its decomposition is
+ * degenerate. Buckets are clipped SUMS (two concurrent coordination
+ * spans, or duration-clock skew against emission stamps, can
+ * overlap-count); coveredMs is the exact interval union, so residueMs
+ * is never understated by an overlap. End events whose span never
+ * started in the stream (a consumer attached mid-stream) cannot be
+ * attributed and are skipped, never guessed at.
+ */
+export interface PostFanInBreakdown {
+  /** Model activations of coordination spans inside the window. */
+  coordinationModelMs: number;
+  /** Tool executions of coordination spans inside the window, summed. */
+  coordinationToolMs: number;
+  /**
+   * The same tool time keyed by tool name. A zero-duration execution
+   * inside the window still registers its name: sub-millisecond tools
+   * round to 0 on the wall clock but did run here.
+   */
+  coordinationToolMsByName: Record<string, number>;
+  /** Completed 'synthesize' span wall clipped to the window. */
+  synthesisMs: number;
+  /** Union length of every covered interval above. */
+  coveredMs: number;
+  /** postFanInMs minus coveredMs, floored at zero. */
+  residueMs: number;
+  /** residueMs / postFanInMs when the window is longer than zero. */
+  residueShare?: number;
+}
+
+interface Interval {
+  from: number;
+  to: number;
+}
+
+/** Total length of the union of possibly overlapping intervals. */
+function unionLength(intervals: Interval[]): number {
+  const positive = intervals.filter((interval) => interval.to > interval.from);
+  if (positive.length === 0) {
+    return 0;
+  }
+  const sorted = [...positive].sort((a, b) => a.from - b.from);
+  let total = 0;
+  let from = sorted[0]?.from ?? 0;
+  let to = sorted[0]?.to ?? 0;
+  for (const interval of sorted.slice(1)) {
+    if (interval.from > to) {
+      total += to - from;
+      from = interval.from;
+      to = interval.to;
+    } else if (interval.to > to) {
+      to = interval.to;
+    }
+  }
+  return total + (to - from);
 }
 
 export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPath {
@@ -259,6 +333,16 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   let lastWorkerEnd: number | undefined;
   let workerSpans = 0;
   let synthesisMs = 0;
+  // Raw material of the RV710 decomposition, folded after the pass
+  // (the window is known only once run:end and the last worker settle
+  // are). An end event's interval is reconstructed as
+  // [ts - durationMs, ts]: durations are differences on the loop's own
+  // clock, so the reconstruction holds whatever epoch that clock uses.
+  const coordinationModel: Interval[] = [];
+  const coordinationTools: Array<Interval & { name: string }> = [];
+  const synthesisSpans: Interval[] = [];
+  const spanOf = (durationMs: number): number =>
+    Number.isFinite(durationMs) && durationMs > 0 ? durationMs : 0;
   for (const event of events) {
     const at = Date.parse(event.ts);
     if (!Number.isFinite(at)) {
@@ -274,6 +358,22 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
       case 'agent:start':
         startBySpan.set(event.spanId, { role: event.role, at });
         break;
+      case 'agent:phase:end': {
+        if (startBySpan.get(event.spanId)?.role === 'orchestrate') {
+          coordinationModel.push({ from: at - spanOf(event.durationMs), to: at });
+        }
+        break;
+      }
+      case 'tool:end': {
+        if (startBySpan.get(event.spanId)?.role === 'orchestrate') {
+          coordinationTools.push({
+            name: event.toolName,
+            from: at - spanOf(event.durationMs),
+            to: at,
+          });
+        }
+        break;
+      }
       case 'agent:end': {
         const started = startBySpan.get(event.spanId);
         if (started === undefined) {
@@ -281,6 +381,7 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         }
         if (started.role === 'synthesize') {
           synthesisMs += Math.max(0, at - started.at);
+          synthesisSpans.push({ from: started.at, to: at });
         } else if (started.role !== 'orchestrate') {
           workerSpans += 1;
           lastWorkerEnd = lastWorkerEnd === undefined ? at : Math.max(lastWorkerEnd, at);
@@ -297,6 +398,50 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   }
   if (runEnd !== undefined && lastWorkerEnd !== undefined) {
     path.postFanInMs = Math.max(0, runEnd - lastWorkerEnd);
+    const windowFrom = Math.min(lastWorkerEnd, runEnd);
+    const windowTo = runEnd;
+    // An interval participates when it touches the window at all; a
+    // zero-length clip keeps registering the tool's name.
+    const clip = (interval: Interval): Interval | undefined => {
+      if (interval.to < windowFrom || interval.from > windowTo) {
+        return undefined;
+      }
+      return {
+        from: Math.max(interval.from, windowFrom),
+        to: Math.min(interval.to, windowTo),
+      };
+    };
+    const modelClipped = coordinationModel
+      .map(clip)
+      .filter((interval): interval is Interval => interval !== undefined);
+    const synthesisClipped = synthesisSpans
+      .map(clip)
+      .filter((interval): interval is Interval => interval !== undefined);
+    const byName: Record<string, number> = {};
+    const toolsClipped: Interval[] = [];
+    for (const interval of coordinationTools) {
+      const clipped = clip(interval);
+      if (clipped === undefined) {
+        continue;
+      }
+      byName[interval.name] = (byName[interval.name] ?? 0) + (clipped.to - clipped.from);
+      toolsClipped.push(clipped);
+    }
+    const lengthOf = (intervals: Interval[]): number =>
+      intervals.reduce((sum, interval) => sum + (interval.to - interval.from), 0);
+    const coveredMs = unionLength([...modelClipped, ...toolsClipped, ...synthesisClipped]);
+    const breakdown: PostFanInBreakdown = {
+      coordinationModelMs: lengthOf(modelClipped),
+      coordinationToolMs: lengthOf(toolsClipped),
+      coordinationToolMsByName: byName,
+      synthesisMs: lengthOf(synthesisClipped),
+      coveredMs,
+      residueMs: Math.max(0, path.postFanInMs - coveredMs),
+    };
+    if (path.postFanInMs > 0) {
+      breakdown.residueShare = breakdown.residueMs / path.postFanInMs;
+    }
+    path.postFanIn = breakdown;
   }
   if (path.runWallMs !== undefined && path.runWallMs > 0) {
     if (path.postFanInMs !== undefined) {

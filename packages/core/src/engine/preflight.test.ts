@@ -321,6 +321,37 @@ describe('preflightEstimate (P2.2)', () => {
     const overshoot = report.findings.find((f) => f.code === 'overshoot-exposure');
     expect(overshoot?.severity).toBe('info');
     expect(overshoot?.message).toContain('growing with prompt size');
+    // Without the cap the report never claims one is on.
+    expect(report.findings.some((f) => f.code === 'in-flight-exposure-cap')).toBe(false);
+  });
+
+  it('reports the configured in-flight exposure cap beside the overshoot (RV711)', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'x', finish: 'stop' }), {
+      caps: testCaps(),
+    });
+    const report = preflightEstimate({
+      engine: {
+        adapters: [adapter],
+        defaults: { routing: { loop: SERVED } },
+        concurrency: { perRun: 3 },
+      },
+      run: { budgetUsd: 5, maxInFlightExposureUsd: 0.5 },
+      spawns: [
+        {
+          label: 'fleet',
+          count: 5,
+          estInputTokens: 1_000,
+          limits: { maxOutputTokensPerTurn: 1_000 },
+        },
+      ],
+    });
+    const capFinding = report.findings.find((f) => f.code === 'in-flight-exposure-cap');
+    expect(capFinding?.severity).toBe('info');
+    expect(capFinding?.message).toContain('0.5000 USD');
+    expect(capFinding?.message).toContain('refused typed');
+    // The layer-3 overshoot statement stays: severed streams still run
+    // past a crossing; the cap bounds admissions, not live cuts.
+    expect(report.findings.some((f) => f.code === 'overshoot-exposure')).toBe(true);
   });
 
   it('compares the declared wave against the quota rule windows', () => {

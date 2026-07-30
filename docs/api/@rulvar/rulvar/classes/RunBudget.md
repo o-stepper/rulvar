@@ -27,10 +27,11 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; \} | - |
+| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; \} | - |
 | `options.ceilingUsd?` | `number` | - |
 | `options.events?` | [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md) | - |
 | `options.lifetimeSpawnCap?` | `number` | - |
+| `options.maxInFlightExposureUsd?` | `number` | - |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |
 | `options.pricingOf?` | (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined` | - |
 | `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume ledger fold: spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
@@ -47,6 +48,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable after start. Undefined means no USD ceiling. | `packages/core/dist/index.d.ts` |
+| <a id="property-maxinflightexposureusd"></a> `maxInFlightExposureUsd?` | `readonly` | `number` | The opt-in in-flight exposure cap (RV711). Undefined means the reservation surface is inert and reserveTurnExposure never binds. | `packages/core/dist/index.d.ts` |
 
 ## Accessors
 
@@ -577,6 +579,55 @@ this number.
 #### Returns
 
 `number` \| `undefined`
+
+***
+
+### reserveTurnExposure()
+
+```ts
+reserveTurnExposure(
+   servedBy, 
+   estimatedInputTokens, 
+   plannedOutputTokens): (() => void) | undefined;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The in-flight exposure reservation (RV711). The per-turn guard
+below checks money already SPENT, so N concurrent turns each pass
+it before any settles and together can cross the ceiling by up to
+one whole turn each; this is the opt-in bound on that hole. The
+caller reserves the attempt's own worst-case estimate (the prompt
+estimate plus the planned output allowance, priced by the SAME
+price rows as the layer-2b clamp) right before the wire call and
+releases at the attempt's settle, so the reservation lives exactly
+as long as the exposure it covers. The admission refuses, typed
+and without waiting, when spent + the named reserves (finalize and
+synthesis money is promised elsewhere) + live reservations + this
+estimate does not fit the cap; an exact fill admits, mirroring
+admitSpawn, and a full cap refuses even a zero estimate. A refusal
+is TRANSIENT (in-flight money returns at settle), so it never
+marks the run exhausted and never severs a stream. A model without
+a price row reserves zero, exactly as it debits zero (the
+once-per-model unpriced warning covers that hole). While an
+attempt streams, its usage debits spentUsd with the reservation
+still live, briefly counting the same money twice: conservative in
+the safe direction, gone at release. Returns undefined (fully
+inert) when the cap is not configured; layer-1 spawn reserves
+(committedReserveUsd) stay out of the formula, because a child's
+lifetime reserve and its own turn exposure would double-count.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `servedBy` | `` `${string}:${string}` `` |
+| `estimatedInputTokens` | `number` |
+| `plannedOutputTokens` | `number` |
+
+#### Returns
+
+(() => `void`) \| `undefined`
 
 ***
 

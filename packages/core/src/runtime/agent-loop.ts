@@ -309,6 +309,24 @@ export interface BudgetHooks {
    * grant against it.
    */
   remainingUsd?: () => number | undefined;
+  /**
+   * The in-flight exposure admission (RV711), wired only when the cap
+   * is configured. Called synchronously right before each provider
+   * dispatch attempt with the attempt's own request estimate: the
+   * serving model, the estimated prompt tokens, and the planned
+   * worst-case output tokens (the request's effective maxOutputTokens,
+   * else the model's declared output cap). Throws BudgetExhaustedError
+   * (data.reason 'in-flight-exposure') to refuse the dispatch typed,
+   * on the same surface as the layer-2b output bound; returns the
+   * release closure the loop calls once the attempt settles, so the
+   * reservation lives exactly as long as the wire call it covers.
+   * Undefined result = nothing reserved (the cap resolved inert).
+   */
+  admitTurnExposure?: (
+    servedBy: ModelRef,
+    estimatedInputTokens: number,
+    plannedOutputTokens: number,
+  ) => (() => void) | undefined;
   /** Live usage accounting; layer 3 may respond by aborting `signal`. */
   onUsage(usage: Usage, servedBy: ModelRef): void;
   /** Layer 3: the ceiling AbortSignal. */
@@ -2784,6 +2802,32 @@ export async function runAgent<S extends SchemaSpec>(
         // failover takeover) reserves anew, exactly as each wire call
         // consumes provider capacity anew.
         let reservationId: string | undefined;
+        // The in-flight exposure hold of THIS attempt (RV711): taken
+        // synchronously with the attempt's own request right before
+        // the wire call, released once the attempt settles (its usage
+        // is debited by then), so a backoff sleep or a queue wait
+        // never holds exposure. A refusal throws typed out of the
+        // dispatch and rides the same BudgetExhaustedError surface as
+        // the layer-2b output bound.
+        let releaseExposure: (() => void) | undefined;
+        const admitExposure = (req: ChatRequest): void => {
+          const admit = options.budget?.admitTurnExposure;
+          if (admit === undefined) {
+            return;
+          }
+          let planned = req.maxOutputTokens;
+          if (planned === undefined) {
+            // Defensive caps() lookup, the outputFloorOf posture: an
+            // adapter throw must not fail a turn the estimate merely
+            // wanted to bound.
+            try {
+              planned = target.adapter.caps(target.resolved.model).maxOutputTokens;
+            } catch {
+              planned = 0;
+            }
+          }
+          releaseExposure = admit(target.resolved.ref, estimateInputTokens(req.messages), planned);
+        };
         const quotaDeniedOutcome = (denial: {
           retryAfterMs?: number;
           reason?: string;
@@ -2821,6 +2865,10 @@ export async function runAgent<S extends SchemaSpec>(
           quota: NonNullable<typeof options.quota>,
         ): Promise<TurnOutcome> => {
           const req = site.requestFor(target);
+          // Exposure admission BEFORE the quota reservation: a refusal
+          // here costs nothing external, while the reverse order would
+          // leak a granted quota slot to the window.
+          admitExposure(req);
           let decision: QuotaDecision;
           try {
             decision = await quota.reserve({
@@ -2863,18 +2911,29 @@ export async function runAgent<S extends SchemaSpec>(
           if (aborted !== undefined) {
             return Promise.resolve(abortedOutcome(aborted));
           }
-          return options.quota === undefined
-            ? streamTurn(target.adapter, site.requestFor(target), site.streamOptionsFor(target))
-            : dispatchWithQuota(options.quota);
+          if (options.quota === undefined) {
+            const req = site.requestFor(target);
+            admitExposure(req);
+            return streamTurn(target.adapter, req, site.streamOptionsFor(target));
+          }
+          return dispatchWithQuota(options.quota);
         };
         // The keyed limiter gates the wire call itself; retries and
         // failover each re-acquire, so a stalled provider never holds
         // its slot through a backoff sleep (M4-T07). The agent signal
         // rides along so an aborted caller leaves the queue (v1.34.0
         // review P2-4).
-        const outcome = await (options.providerSlot === undefined
-          ? dispatch()
-          : options.providerSlot(target.adapter.id, dispatch, options.signal));
+        let outcome: TurnOutcome;
+        try {
+          outcome = await (options.providerSlot === undefined
+            ? dispatch()
+            : options.providerSlot(target.adapter.id, dispatch, options.signal));
+        } finally {
+          // The attempt is settled either way (its usage, if any, is
+          // already debited by the stream's onUsage deltas); a thrown
+          // refusal reserved nothing and releases nothing.
+          releaseExposure?.();
+        }
         if (reservationId !== undefined && options.quota !== undefined) {
           // Settle the reservation against what the attempt actually
           // consumed (an aborted or failed attempt settles too; its
