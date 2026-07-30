@@ -18,6 +18,22 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.125.0
+
+#### Minor Changes
+
+- 109e9fa: Pricing-table truth: the Anthropic 1h cache-write premium is seeded, the rates audit fails closed on documented rates the seed never declared, and the OpenAI Terra/Luna price cut ships as a versioned revision (RV901, RV902, RV911; the thirteenth experiment's underpricing probes).
+
+  `@rulvar/anthropic` seeds now carry all five published pricing columns: `cacheWrite1hUsdPerMTok` lands on every priced row at the documented 2x base input (Fable 5 $20, Opus 4.8/4.7/4.6 $10, Sonnet 5 $4 under the introductory price, Sonnet 4.6 $6, Haiku 4.5 $2), under the new `pricingVersion` `anthropic-2026-07-31`. v1.124.0 taught the wire to fill the canonical 5m/1h split and `priceUsdOf` to bill the 1h share at the premium, but the seed never declared the rate, so a million Sonnet 5 1h write tokens priced at the 5m $2.50 instead of the documented $4.00: an underpricing a budget ceiling then failed to bound. A usage with no split still folds the whole write count at the 5m rate, byte for byte as before; the stale caps comment claiming the canonical Usage cannot distinguish 1h writes is retired.
+
+  `scripts/rates-audit.mjs` (the weekly documented-rates drift audit) now compares seed and page in BOTH directions: a billable page rate the seed never declared is a finding, not a silent skip. The old one-directional rule rested on the 1h premium being unbillable; that rationale died with the Usage split, and the audit printing `match` for Sonnet 5 while the page showed a 1h column the seed lacked is exactly how the underpricing hid. The pinning test is flipped to the fail-closed behavior.
+
+  `@rulvar/openai` picks up the provider's 2026-07-30 price cut, docs-verified per model page on 2026-07-31 after the live audit caught the drift: Terra to $2 input / $12 output / $0.20 cached input / $2.50 cache write (0.8x across the board) and Luna to $0.20 / $1.20 / $0.02 / $0.25 (0.2x), both keeping the family's long-context tier, under the new `pricingVersion` `openai-2026-07-31`. Sol is unchanged and additionally remains billing-confirmed by the 2026-07-30 statement reconciliation; the new Terra and Luna rates are docs-verified only until the next reconciliation over a saved export. Runs recorded under `openai-2026-07-18-r2` overstated Terra/Luna spend relative to the cut, never under, and a resumed run surfaces the rotation as explicit pricing drift instead of silently reinterpreting recorded spend. Every re-verified row now stamps `ratesVerifiedAt: '2026-07-31'`.
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
+
 ### 1.124.0
 
 #### Minor Changes
@@ -1314,6 +1330,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
+
 ### 1.124.0
 
 #### Patch Changes
@@ -2457,6 +2479,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
 
 ### 1.124.0
 
@@ -3975,6 +4003,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.125.0
 
 ### 1.124.0
 
@@ -5819,6 +5849,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.125.0
+
 ### 1.124.0
 
 ### 1.123.0
@@ -6171,6 +6203,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
+- @rulvar/testing@1.125.0
 
 ### 1.124.0
 
@@ -7555,6 +7594,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
+
 ### 1.124.0
 
 #### Patch Changes
@@ -8105,6 +8150,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.125.0
+
+#### Minor Changes
+
+- 109e9fa: Pricing-table truth: the Anthropic 1h cache-write premium is seeded, the rates audit fails closed on documented rates the seed never declared, and the OpenAI Terra/Luna price cut ships as a versioned revision (RV901, RV902, RV911; the thirteenth experiment's underpricing probes).
+
+  `@rulvar/anthropic` seeds now carry all five published pricing columns: `cacheWrite1hUsdPerMTok` lands on every priced row at the documented 2x base input (Fable 5 $20, Opus 4.8/4.7/4.6 $10, Sonnet 5 $4 under the introductory price, Sonnet 4.6 $6, Haiku 4.5 $2), under the new `pricingVersion` `anthropic-2026-07-31`. v1.124.0 taught the wire to fill the canonical 5m/1h split and `priceUsdOf` to bill the 1h share at the premium, but the seed never declared the rate, so a million Sonnet 5 1h write tokens priced at the 5m $2.50 instead of the documented $4.00: an underpricing a budget ceiling then failed to bound. A usage with no split still folds the whole write count at the 5m rate, byte for byte as before; the stale caps comment claiming the canonical Usage cannot distinguish 1h writes is retired.
+
+  `scripts/rates-audit.mjs` (the weekly documented-rates drift audit) now compares seed and page in BOTH directions: a billable page rate the seed never declared is a finding, not a silent skip. The old one-directional rule rested on the 1h premium being unbillable; that rationale died with the Usage split, and the audit printing `match` for Sonnet 5 while the page showed a 1h column the seed lacked is exactly how the underpricing hid. The pinning test is flipped to the fail-closed behavior.
+
+  `@rulvar/openai` picks up the provider's 2026-07-30 price cut, docs-verified per model page on 2026-07-31 after the live audit caught the drift: Terra to $2 input / $12 output / $0.20 cached input / $2.50 cache write (0.8x across the board) and Luna to $0.20 / $1.20 / $0.02 / $0.25 (0.2x), both keeping the family's long-context tier, under the new `pricingVersion` `openai-2026-07-31`. Sol is unchanged and additionally remains billing-confirmed by the 2026-07-30 statement reconciliation; the new Terra and Luna rates are docs-verified only until the next reconciliation over a saved export. Runs recorded under `openai-2026-07-18-r2` overstated Terra/Luna spend relative to the cut, never under, and a resumed run surfaces the rotation as explicit pricing drift instead of silently reinterpreting recorded spend. Every re-verified row now stamps `ratesVerifiedAt: '2026-07-31'`.
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
 
 ### 1.124.0
 
@@ -9414,6 +9475,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
+
 ### 1.124.0
 
 #### Patch Changes
@@ -10671,6 +10738,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
+- eslint-plugin-rulvar@1.125.0
 
 ### 1.124.0
 
@@ -12015,6 +12089,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.125.0
+
+#### Patch Changes
+
+- Updated dependencies [109e9fa]
+  - @rulvar/anthropic@1.125.0
+  - @rulvar/openai@1.125.0
+  - @rulvar/core@1.125.0
 
 ### 1.124.0
 
@@ -13566,6 +13649,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
+
 ### 1.124.0
 
 #### Patch Changes
@@ -14819,6 +14908,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
+
 ### 1.124.0
 
 #### Patch Changes
@@ -15383,6 +15478,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
 
 ### 1.124.0
 
@@ -16579,6 +16680,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.125.0
+
+#### Patch Changes
+
+- @rulvar/core@1.125.0
 
 ### 1.124.0
 

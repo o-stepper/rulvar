@@ -1,5 +1,7 @@
 # @rulvar/core
 
+## 1.125.0
+
 ## 1.124.0
 
 ### Minor Changes
