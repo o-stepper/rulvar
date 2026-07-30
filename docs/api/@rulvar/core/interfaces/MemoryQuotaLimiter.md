@@ -6,7 +6,7 @@
 
 # Interface: MemoryQuotaLimiter
 
-Defined in: [packages/core/src/model/quota.ts:248](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L248)
+Defined in: [packages/core/src/model/quota.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L271)
 
 The in-process reference QuotaLimiter returned by memoryQuotaLimiter.
 
@@ -71,7 +71,7 @@ Defined in: [packages/core/src/l0/spi/quota.ts:86](https://github.com/o-stepper/
 snapshot(): QuotaWindowSnapshot[];
 ```
 
-Defined in: [packages/core/src/model/quota.ts:250](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L250)
+Defined in: [packages/core/src/model/quota.ts:273](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L273)
 
 Current-window counters per rule; rolled-over windows read as zero.
 

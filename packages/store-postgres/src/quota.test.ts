@@ -28,6 +28,8 @@ import {
   type QuotaRule,
 } from '@rulvar/core';
 
+import { quotaRulesConformance, registerConformance } from '@rulvar/store-conformance';
+
 import {
   PostgresQuotaLimiter,
   QUOTA_LOCK_TIMEOUT_MS,
@@ -84,7 +86,31 @@ const request = (over: Partial<QuotaReservationRequest> = {}): QuotaReservationR
   ...over,
 });
 
+// The shared construction contract (RV704): duplicated rules are
+// refused before any connection, byte for byte like every other
+// reference limiter; validation precedes the pool, so no database is
+// needed and the negative control's pool closes without connecting.
+registerConformance(
+  quotaRulesConformance(
+    (rules) => new PostgresQuotaLimiter({ url: 'postgres://nobody@localhost:1/none', rules }),
+  ),
+  { describe, it },
+);
+
 describe('PostgresQuotaLimiter construction refusals (no database needed)', () => {
+  it('refuses a duplicated rule under its own construction site (RV704)', () => {
+    const rule: QuotaRule = { provider: 'fake', requestsPerMinute: 4 };
+    expect(
+      () =>
+        new PostgresQuotaLimiter({
+          url: 'postgres://nobody@localhost:1/none',
+          rules: [rule, { ...rule }],
+        }),
+    ).toThrow(
+      /PostgresQuotaLimiterOptions\.rules\[1\] duplicates PostgresQuotaLimiterOptions\.rules\[0\]/,
+    );
+  });
+
   it('refuses out-of-domain options with a typed ConfigError before any connection', () => {
     expect(() => new PostgresQuotaLimiter({ url: '', rules: [{ requestsPerMinute: 1 }] })).toThrow(
       ConfigError,

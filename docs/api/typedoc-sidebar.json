@@ -7930,6 +7930,10 @@
             "link": "/api/@rulvar/store-conformance/type-aliases/KillPointWorkflowKind.md"
           },
           {
+            "text": "QuotaLimiterConstructor",
+            "link": "/api/@rulvar/store-conformance/type-aliases/QuotaLimiterConstructor.md"
+          },
+          {
             "text": "SoakAcceptSurface",
             "link": "/api/@rulvar/store-conformance/type-aliases/SoakAcceptSurface.md"
           },
@@ -8020,6 +8024,10 @@
           {
             "text": "parseSoakReport",
             "link": "/api/@rulvar/store-conformance/functions/parseSoakReport.md"
+          },
+          {
+            "text": "quotaRulesConformance",
+            "link": "/api/@rulvar/store-conformance/functions/quotaRulesConformance.md"
           },
           {
             "text": "registerConformance",

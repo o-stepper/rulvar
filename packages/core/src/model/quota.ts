@@ -116,12 +116,35 @@ export function quotaRuleKey(rule: QuotaRule): string {
  * so ordinary JavaScript after the constructor (a pushed rule, a
  * reassigned cap) can no longer change a decision, a bucket key, or a
  * recorded fingerprint.
+ *
+ * A set containing two rules with the same canonical content key is
+ * refused typed (RV704): the memory reference buckets by rule INDEX
+ * (each copy counts independently, the full cap admits) while the
+ * store references bucket by rule KEY (one shared bucket is debited
+ * once per matching copy, half the cap admits), so the same duplicated
+ * configuration admitted differently per storage. Refusing it at the
+ * shared construction chokepoint is what keeps equal configurations
+ * equal on every storage.
  */
 export function snapshotQuotaRules(
   rules: readonly QuotaRule[],
   site = 'quota rules',
 ): readonly QuotaRule[] {
   validateQuotaRules(rules, site);
+  const firstIndexByKey = new Map<string, number>();
+  rules.forEach((rule, index) => {
+    const key = quotaRuleKey(rule);
+    const first = firstIndexByKey.get(key);
+    if (first !== undefined) {
+      throw new ConfigError(
+        `${site}[${String(index)}] duplicates ${site}[${String(first)}] (rule key ${key}): ` +
+          'identical rules occupy independent buckets in memory but share one key-debited ' +
+          'bucket on keyed storage, so one configuration would admit differently per store; ' +
+          'delete the duplicate',
+      );
+    }
+    firstIndexByKey.set(key, index);
+  });
   return Object.freeze(
     rules.map((rule) =>
       Object.freeze({

@@ -23,10 +23,20 @@ import {
   type QuotaReservationRequest,
   type QuotaRule,
 } from '@rulvar/core';
+import { quotaRulesConformance, registerConformance } from '@rulvar/store-conformance';
 
 import { SqliteQuotaLimiter } from './quota.js';
 
 const freshPath = (): string => join(mkdtempSync(join(tmpdir(), 'rulvar-quota-')), 'quota.db');
+
+// The shared construction contract (RV704): duplicated rules are
+// refused before the database opens, byte for byte like every other
+// reference limiter, because index-keyed memory buckets and this
+// store's key-keyed buckets admit the SAME duplicated set differently.
+registerConformance(
+  quotaRulesConformance((rules) => new SqliteQuotaLimiter({ path: freshPath(), rules })),
+  { describe, it },
+);
 
 const request = (over: Partial<QuotaReservationRequest> = {}): QuotaReservationRequest => ({
   provider: 'fake',
@@ -42,6 +52,16 @@ describe('SqliteQuotaLimiter semantics', () => {
     );
     expect(() => new SqliteQuotaLimiter({ path: freshPath(), rules: [] })).toThrow(
       /at least one rule/,
+    );
+  });
+
+  it('refuses a duplicated rule under its own construction site (RV704)', () => {
+    // The divergence this closes: cap 4 duplicated granted 4 on memory
+    // (index-keyed buckets) and 2 here (the shared rule_key bucket is
+    // debited once per matching copy on every admission).
+    const rule: QuotaRule = { provider: 'fake', requestsPerMinute: 4 };
+    expect(() => new SqliteQuotaLimiter({ path: freshPath(), rules: [rule, { ...rule }] })).toThrow(
+      /SqliteQuotaLimiterOptions\.rules\[1\] duplicates SqliteQuotaLimiterOptions\.rules\[0\]/,
     );
   });
 

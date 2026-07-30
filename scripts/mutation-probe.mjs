@@ -327,9 +327,9 @@ const MUTATIONS = [
     doctrine:
       'a limiter admits under the immutable snapshot taken at construction, never the caller’s live rule graph (RV608)',
     file: 'packages/core/src/model/quota.ts',
-    find: '): readonly QuotaRule[] {\n  validateQuotaRules(rules, site);\n  return Object.freeze(',
+    find: '    firstIndexByKey.set(key, index);\n  });\n  return Object.freeze(',
     replace:
-      '): readonly QuotaRule[] {\n  validateQuotaRules(rules, site);\n  if (rules.length > -1) return rules;\n  return Object.freeze(',
+      '    firstIndexByKey.set(key, index);\n  });\n  if (rules.length > -1) return rules;\n  return Object.freeze(',
     test: 'packages/core/src/model/quota.test.ts',
   },
   {
@@ -488,6 +488,15 @@ const MUTATIONS = [
     find: '      if (billing.coveredModels.has(slice.servedBy)) {\n        continue;\n      }\n',
     replace: '',
     test: 'packages/core/src/engine/invoice.test.ts',
+  },
+  {
+    id: 'quota-duplicate-refused',
+    doctrine:
+      'a rule set with two identical rules is refused at the shared construction chokepoint, never admitted into storage-divergent buckets (RV704)',
+    file: 'packages/core/src/model/quota.ts',
+    find: '    const first = firstIndexByKey.get(key);\n    if (first !== undefined) {',
+    replace: '    const first = firstIndexByKey.get(key);\n    if (false) {',
+    test: 'packages/core/src/model/quota.test.ts',
   },
 ];
 
