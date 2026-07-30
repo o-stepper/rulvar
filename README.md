@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred four rounds, verbatim in this repository's history:
+The one hundred five rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -318,6 +318,7 @@ The one hundred four rounds, verbatim in this repository's history:
 | v1.120.0      | 3d67d41 (#548): pricing rows carry their verification date through preflight, pins, and the invoice, the documented rates audited weekly, README release SHAs gated reachable             | v1.121.0   |
 | v1.121.0      | 8cf45c5 (#551): the coordination draft can be gated by the full contract and a failed skip pre-pass rides the synthesis prompt as named gaps instead of silence                           | v1.122.0   |
 | v1.122.0      | 5c46468 (#554): a rejected finish repairs only its violated sections through a host splice, and synthesis reads a deterministic per-child evidence index instead of the whole pool        | v1.123.0   |
+| v1.123.0      | 37fd1f2 (#557): the extension covers the declared evidence deficit before the cap, cache writes price by TTL, and a fault kit drives the never-observed fail-closed branches              | v1.124.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
