@@ -190,7 +190,7 @@ Rulvar predates Build Week; everything from v1.4.0 through v1.37.0 shipped insid
 submission window (July 13-21, 2026), the releases since then keep the same cadence,
 and the collaboration below is the part of that work done with Codex.
 
-**Codex was the project's independent QA engineer.** Sixty four times, the
+**Codex was the project's independent QA engineer.** Sixty five times, the
 freshly shipped release was handed to Codex (session
 `019f65d7-4599-7d93-97dc-9dd4a5dc66f9`). Each round, Codex ran the full offline matrix
 plus live end-to-end orchestrations against real GPT-5.6 (Sol orchestrating; Luna,
@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The ninety five rounds, verbatim in this repository's history:
+The ninety six rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -309,6 +309,7 @@ The ninety five rounds, verbatim in this repository's history:
 | v1.111.0      | 00ae55b (#520): duplicate quota rules refused at construction in every reference limiter, one configuration can no longer admit differently per storage                                   | v1.112.0   |
 | v1.112.0      | a60807a (#523): the composed pricing provenance names the current table that priced the tail, and the effect-ledger quarantine keeps the exact torn bytes                                 | v1.113.0   |
 | v1.113.0      | 5759731 (#526): the fixed-window quota boundary pinned as a named compromise, and the final model can opt into a digest of the run's own observed policy facts                            | v1.114.0   |
+| v1.114.0      | 63642ae (#530): the post-fan-in window decomposes by named phase in reduceCriticalPath, and an opt-in cap bounds concurrent dispatch exposure with a typed refusal                        | v1.115.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
