@@ -280,9 +280,9 @@ const MUTATIONS = [
     doctrine:
       'an authorization is durable BEFORE the work it authorizes: a grant awaits its decision append, so no tool call runs under a raise the store never accepted (RV601)',
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: '    return durable({ grant, maxExtensions: extension.maxExtensions, toolCallsUsed, cap }).then(\n      commit,\n    );',
+    find: '    return durable({\n      grant,\n      maxExtensions: extension.maxExtensions,\n      toolCallsUsed,\n      cap,\n      ...(trigger === undefined ? {} : { trigger }),\n    }).then(commit);',
     replace:
-      '    void durable({ grant, maxExtensions: extension.maxExtensions, toolCallsUsed, cap });\n    return commit();',
+      '    void durable({\n      grant,\n      maxExtensions: extension.maxExtensions,\n      toolCallsUsed,\n      cap,\n      ...(trigger === undefined ? {} : { trigger }),\n    });\n    return commit();',
     test: 'packages/core/src/runtime/tool-budget-extension.test.ts',
   },
   {
@@ -770,6 +770,33 @@ const MUTATIONS = [
     find: "                const eligible =\n                  settled.status === 'ok' ||",
     replace: '                const eligible =\n                  true ||',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'deficit-boundary-trigger',
+    doctrine:
+      'the RV809 proactive grant fires at a tool-turn boundary whose remaining calls cannot cover the declared evidence deficit; without the trigger the child slams into the cap and dumps evidence through the reserved tail',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    if (deficit <= 0 || cap - toolCallsUsed >= deficit) {\n      return undefined;\n    }',
+    replace: '    if (true) {\n      return undefined;\n    }',
+    test: 'packages/core/src/runtime/tool-budget-extension.test.ts',
+  },
+  {
+    id: 'cache-write-ttl-rate',
+    doctrine:
+      'the 1h cache-write share prices at its own premium rate when the usage carries the TTL split (RV810); folding it at the 5m rate underbills exactly the premium the provider charges',
+    file: 'packages/core/src/model/pricing.ts',
+    find: '  const write1hRate = pricing.cacheWrite1hUsdPerMTok ?? writeRate;',
+    replace: '  const write1hRate = writeRate;',
+    test: 'packages/core/src/model/pricing.test.ts',
+  },
+  {
+    id: 'fault-kit-exposure-drive',
+    doctrine:
+      'the fault-injection kit actually DRIVES the in-flight-exposure branch (RV811): a cap too high to fire must make the scenario report matched false, fail closed, instead of the kit vouching for a branch it never entered',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '      maxInFlightExposureUsd: 0.0001,',
+    replace: '      maxInFlightExposureUsd: 1e9,',
+    test: 'packages/evals/src/fault-injection.test.ts',
   },
 ];
 

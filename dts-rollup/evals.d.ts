@@ -785,4 +785,47 @@ declare function runValueCheckpoint(checkpointPool: CheckpointPool, options: Run
 /** The deterministic render for the M12 gate docs amendment. */
 declare function renderCheckpointReport(report: CheckpointReport): string;
 //#endregion
-export { type BenchmarkFingerprint, type BenchmarkMetricExtractor, type BenchmarkPercentiles, type BenchmarkReport, type BenchmarkRunRecord, type BenchmarkSpec, type BenchmarkVerification, type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunBenchmarkOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runBenchmark, runCanary, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix, runValueCheckpoint, rungRuleHolds };
+//#region src/fault-injection.d.ts
+/** One machine-checkable observation of a driven branch. */
+interface FaultScenarioObservation {
+  /** The documented typed observable was produced exactly. */
+  matched: boolean;
+  /** What was actually observed, quoting the typed surfaces. */
+  detail: string;
+}
+/** One artifact a scenario leaves, JSON or raw text. */
+interface FaultScenarioArtifact {
+  name: string;
+  content: string;
+}
+interface FaultScenarioReport {
+  scenario: string;
+  /** The never-observed-live branch this scenario exists to drive. */
+  doctrine: string;
+  observation: FaultScenarioObservation;
+  artifacts: FaultScenarioArtifact[];
+}
+interface FaultInjectionReport {
+  scenarios: FaultScenarioReport[];
+  /** Every scenario matched its documented observable. */
+  allMatched: boolean;
+  /** The artifact files written, when `artifactsDir` was given. */
+  artifactFiles?: string[];
+}
+interface RunFaultInjectionOptions {
+  /** Write one `<scenario>.json` artifact bundle per scenario here. */
+  artifactsDir?: string;
+  /** Run only these scenarios; an unknown name is a typed ConfigError. */
+  only?: readonly string[];
+}
+/** The scenario names in run order. */
+declare const FAULT_SCENARIO_NAMES: readonly string[];
+/**
+* Runs the fault-injection scenarios sequentially and reports each
+* driven branch's observation; with `artifactsDir`, writes one
+* `<scenario>.json` bundle per scenario (the observation plus every
+* artifact), the experiment-grade trace a review can cite.
+*/
+declare function runFaultInjection(options?: RunFaultInjectionOptions): Promise<FaultInjectionReport>;
+//#endregion
+export { type BenchmarkFingerprint, type BenchmarkMetricExtractor, type BenchmarkPercentiles, type BenchmarkReport, type BenchmarkRunRecord, type BenchmarkSpec, type BenchmarkVerification, type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, FAULT_SCENARIO_NAMES, type FaultInjectionReport, type FaultScenarioArtifact, type FaultScenarioObservation, type FaultScenarioReport, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunBenchmarkOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunFaultInjectionOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runBenchmark, runCanary, runEvalCase, runEvalMatrix, runEvalSuite, runFaultInjection, runSweepMatrix, runValueCheckpoint, rungRuleHolds };

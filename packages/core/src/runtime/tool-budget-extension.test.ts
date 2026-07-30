@@ -754,3 +754,135 @@ describe('the journaled cap wins over drifted limits (RV602)', () => {
     }
   });
 });
+
+describe('the evidence-deficit proactive grant (RV809)', () => {
+  // The twelfth plan's live shape: a limited child at 7 of 11 declared
+  // evidence entries should convert remaining money into calls BEFORE
+  // the cap forces a partial dump through the finalization machinery.
+  // The policy: at each tool-turn boundary, when the remaining call
+  // budget cannot cover the declared floor's outstanding deficit, the
+  // extension grants proactively; the expiry site stays the backstop.
+  const recordTool = () =>
+    tool({
+      name: 'record_evidence',
+      description: 'records one evidence entry',
+      parameters: z.strictObject({}),
+      execute: () => Promise.resolve({ recorded: true }),
+    });
+  const records = (n: number) => ({
+    toolCalls: Array.from({ length: n }, () => ({ name: 'record_evidence', args: {} })),
+  });
+
+  it('grants at the boundary when remaining calls cannot cover the declared deficit', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) => {
+      if (call === 0) return records(3);
+      if (call === 1) return reads(2);
+      if (call === 2) return records(2);
+      return { toolCall: { name: 'finish', args: { result: 'done' } } };
+    });
+    const events = recordingSink();
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 6,
+        maxToolCalls: 6,
+        toolBudgetExtension: { increment: 4, maxExtensions: 2, coverEvidenceDeficit: true },
+      }),
+      evidenceContract: { minEntries: 5, enforce: 'refuse' },
+      tools: runtimeOf([recordTool(), readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      budget: budgetOf(5),
+      events,
+    });
+    expect(result.status).toBe('ok');
+    expect(result.evidence).toEqual({ recordedEntries: 5, minEntries: 5, met: true });
+    expect(result.toolBudget?.extensionsGranted).toBe(1);
+    // The grant fired at the boundary AFTER turn 1 (5 calls used, 1
+    // remaining, deficit 2), BEFORE any expiry: the notice carries the
+    // pre-expiry count and the deficit sentence.
+    const notice = adapter.calls
+      .flatMap((req) => extensionNotices(req as { messages: Msg[] }))
+      .join('\n');
+    expect(notice).toContain('5 of 10 tool calls used');
+    expect(notice).toContain('covers the declared evidence floor');
+    expect(notice).toContain('3 of 5');
+    const logs = events.ofType('log') as Array<{ msg: string; data?: { trigger?: string } }>;
+    const grantLog = logs.find((entry) => entry.msg.includes('tool budget extended'));
+    expect(grantLog?.data?.trigger).toBe('evidence-deficit');
+  });
+
+  it('the deficit grant stays money-gated: no headroom, no early grant', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) => {
+      if (call === 0) return records(3);
+      return reads(4);
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 6,
+        maxToolCalls: 6,
+        toolBudgetExtension: { increment: 4, maxExtensions: 2, coverEvidenceDeficit: true },
+      }),
+      evidenceContract: { minEntries: 5, enforce: 'refuse' },
+      tools: runtimeOf([recordTool(), readTool(executions)]),
+      budget: budgetOf(0),
+    });
+    expect(result.status).toBe('limit');
+    expect(result.toolBudget?.extensionsGranted).toBe(0);
+  });
+
+  it('without the opt-in the same run grants only at the expiry', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) => {
+      if (call === 0) return records(3);
+      if (call === 1) return reads(2);
+      if (call === 2) return records(2);
+      return { toolCall: { name: 'finish', args: { result: 'done' } } };
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 6,
+        maxToolCalls: 6,
+        toolBudgetExtension: { increment: 4, maxExtensions: 2 },
+      }),
+      evidenceContract: { minEntries: 5, enforce: 'refuse' },
+      tools: runtimeOf([recordTool(), readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      budget: budgetOf(5),
+    });
+    // The run still completes through the at-expiry backstop, but the
+    // grant waited for the cap: the notice carries the expiry count and
+    // no deficit sentence.
+    expect(result.status).toBe('ok');
+    const notice = adapter.calls
+      .flatMap((req) => extensionNotices(req as { messages: Msg[] }))
+      .join('\n');
+    expect(notice).toContain('6 of 10 tool calls used');
+    expect(notice).not.toContain('covers the declared evidence floor');
+  });
+
+  it('intake refuses a non-boolean coverEvidenceDeficit typed', () => {
+    expect(() =>
+      validateUsageLimits(
+        {
+          maxToolCalls: 4,
+          toolBudgetExtension: {
+            increment: 1,
+            maxExtensions: 1,
+            coverEvidenceDeficit: 'yes' as never,
+          },
+        },
+        'limits',
+      ),
+    ).toThrow(ConfigError);
+  });
+});

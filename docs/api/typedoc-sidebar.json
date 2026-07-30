@@ -3492,6 +3492,22 @@
             "link": "/api/@rulvar/evals/interfaces/EvalSuiteResult.md"
           },
           {
+            "text": "FaultInjectionReport",
+            "link": "/api/@rulvar/evals/interfaces/FaultInjectionReport.md"
+          },
+          {
+            "text": "FaultScenarioArtifact",
+            "link": "/api/@rulvar/evals/interfaces/FaultScenarioArtifact.md"
+          },
+          {
+            "text": "FaultScenarioObservation",
+            "link": "/api/@rulvar/evals/interfaces/FaultScenarioObservation.md"
+          },
+          {
+            "text": "FaultScenarioReport",
+            "link": "/api/@rulvar/evals/interfaces/FaultScenarioReport.md"
+          },
+          {
             "text": "GoldenGraderOptions",
             "link": "/api/@rulvar/evals/interfaces/GoldenGraderOptions.md"
           },
@@ -3556,6 +3572,10 @@
             "link": "/api/@rulvar/evals/interfaces/RunEvalSuiteOptions.md"
           },
           {
+            "text": "RunFaultInjectionOptions",
+            "link": "/api/@rulvar/evals/interfaces/RunFaultInjectionOptions.md"
+          },
+          {
             "text": "RunSweepOptions",
             "link": "/api/@rulvar/evals/interfaces/RunSweepOptions.md"
           },
@@ -3599,6 +3619,10 @@
         "text": "Variables",
         "collapsed": true,
         "items": [
+          {
+            "text": "FAULT_SCENARIO_NAMES",
+            "link": "/api/@rulvar/evals/variables/FAULT_SCENARIO_NAMES.md"
+          },
           {
             "text": "JUDGE_VERDICT_SCHEMA",
             "link": "/api/@rulvar/evals/variables/JUDGE_VERDICT_SCHEMA.md"
@@ -3672,6 +3696,10 @@
           {
             "text": "runEvalSuite",
             "link": "/api/@rulvar/evals/functions/runEvalSuite.md"
+          },
+          {
+            "text": "runFaultInjection",
+            "link": "/api/@rulvar/evals/functions/runFaultInjection.md"
           },
           {
             "text": "rungRuleHolds",

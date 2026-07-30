@@ -13,7 +13,7 @@ function mapAnthropicStream(
 options?): AsyncGenerator<ChatEvent, TurnMapping>;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:437](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L437)
+Defined in: [packages/anthropic/src/wire.ts:460](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L460)
 
 Maps one Messages API stream into ChatEvents, yielding each canonical
 event AS the corresponding provider event is consumed: the consumer's

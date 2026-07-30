@@ -66,6 +66,10 @@ pnpm add -D @rulvar/evals
 | [EvalCommitterOptions](/api/@rulvar/evals/interfaces/EvalCommitterOptions.md) | - |
 | [EvalMatrixReport](/api/@rulvar/evals/interfaces/EvalMatrixReport.md) | - |
 | [EvalSuiteResult](/api/@rulvar/evals/interfaces/EvalSuiteResult.md) | Aggregate view of a suite run. |
+| [FaultInjectionReport](/api/@rulvar/evals/interfaces/FaultInjectionReport.md) | - |
+| [FaultScenarioArtifact](/api/@rulvar/evals/interfaces/FaultScenarioArtifact.md) | One artifact a scenario leaves, JSON or raw text. |
+| [FaultScenarioObservation](/api/@rulvar/evals/interfaces/FaultScenarioObservation.md) | One machine-checkable observation of a driven branch. |
+| [FaultScenarioReport](/api/@rulvar/evals/interfaces/FaultScenarioReport.md) | - |
 | [GoldenGraderOptions](/api/@rulvar/evals/interfaces/GoldenGraderOptions.md) | - |
 | [Grader](/api/@rulvar/evals/interfaces/Grader.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
 | [GraderContext](/api/@rulvar/evals/interfaces/GraderContext.md) | What a grader sees; judge() is the only channel back into the engine. |
@@ -82,6 +86,7 @@ pnpm add -D @rulvar/evals
 | [RunCheckpointOptions](/api/@rulvar/evals/interfaces/RunCheckpointOptions.md) | - |
 | [RunEvalCaseOptions](/api/@rulvar/evals/interfaces/RunEvalCaseOptions.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
 | [RunEvalSuiteOptions](/api/@rulvar/evals/interfaces/RunEvalSuiteOptions.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
+| [RunFaultInjectionOptions](/api/@rulvar/evals/interfaces/RunFaultInjectionOptions.md) | - |
 | [RunSweepOptions](/api/@rulvar/evals/interfaces/RunSweepOptions.md) | - |
 | [SweepCase](/api/@rulvar/evals/interfaces/SweepCase.md) | An eval case bound to the taskClass axis of the matrix. |
 | [SweepCellReport](/api/@rulvar/evals/interfaces/SweepCellReport.md) | - |
@@ -100,6 +105,7 @@ pnpm add -D @rulvar/evals
 
 | Variable | Description |
 | ------ | ------ |
+| [FAULT\_SCENARIO\_NAMES](/api/@rulvar/evals/variables/FAULT_SCENARIO_NAMES.md) | The scenario names in run order. |
 | [JUDGE\_VERDICT\_SCHEMA](/api/@rulvar/evals/variables/JUDGE_VERDICT_SCHEMA.md) | The default judge verdict shape. |
 | [SWEEP\_THRESHOLD\_DEFAULTS](/api/@rulvar/evals/variables/SWEEP_THRESHOLD_DEFAULTS.md) | - |
 
@@ -122,6 +128,7 @@ pnpm add -D @rulvar/evals
 | [runEvalCase](/api/@rulvar/evals/functions/runEvalCase.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
 | [runEvalMatrix](/api/@rulvar/evals/functions/runEvalMatrix.md) | Runs the same case list against every cell's engine, sequentially and in declaration order (deterministic cassette consumption), and reports per-cell aggregates for side-by-side comparison. |
 | [runEvalSuite](/api/@rulvar/evals/functions/runEvalSuite.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
+| [runFaultInjection](/api/@rulvar/evals/functions/runFaultInjection.md) | Runs the fault-injection scenarios sequentially and reports each driven branch's observation; with `artifactsDir`, writes one `<scenario>.json` bundle per scenario (the observation plus every artifact), the experiment-grade trace a review can cite. |
 | [rungRuleHolds](/api/@rulvar/evals/functions/rungRuleHolds.md) | The OQ-09 cell rule (shared by the per-cell and pooled verdicts). |
 | [runSweepMatrix](/api/@rulvar/evals/functions/runSweepMatrix.md) | Runs the fixed matrix sequentially in declaration order (deterministic cassette consumption), aggregates per (model, taskClass) cell, emits threshold-crossing claims, and commits them through the eval-committer identity when a store is given. |
 | [runValueCheckpoint](/api/@rulvar/evals/functions/runValueCheckpoint.md) | Runs the checkpoint over the fixed pool. Sequential in declaration order (deterministic cassette consumption when recorded); every cell runs baseline then treatment. |

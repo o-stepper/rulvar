@@ -10,7 +10,7 @@
 function sanitizeUsageDelta(delta): Usage;
 ```
 
-Defined in: [packages/core/src/l0/usage.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L113)
+Defined in: [packages/core/src/l0/usage.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L144)
 
 The per-field repair for DELTAS (mid-stream usage reports and other
 partial increments): each count is repaired like `sanitizeTokenCount`,
