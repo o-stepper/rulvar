@@ -18,6 +18,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.121.0
+
+#### Minor Changes
+
+- 3d67d41: Rate provenance made checkable (RV807, RV813, RV814). The pricing row grows `ratesVerifiedAt` (SPI), the ISO date it was last verified against the provider's documented rates or, stronger, its billing categories: the shipped seeds stamp it (the GPT-5.6 family reads `2026-07-30`, the day the statement reconciliation confirmed those rates against the provider's own per-component billing categories to the cent; the pre-5.6 OpenAI rows keep their `2026-07-18` docs verification; every Anthropic row was re-verified against the documented table on `2026-07-30`). The date is surfaced wherever a dollar is consumed: `preflightEstimate` copies it onto each spawn report and `rulvar preflight` renders `ratesVerified=<date>` with its age on the spawn line; the settle pin journals it with the rest of the applied row so it survives any later table rewrite; and `rulvar invoice` prints a `rates verified:` line naming each priced model's date and age, pinned rows first, current table past them; the twelfth run's founder read the invoice doubting the rates and nothing said the seed was 12 days stale. The doctrine ships with the mechanism: seeds bound ceilings conservatively, billing truth is established only by `reconcileStatement` over saved exports, and a confirmed divergence corrects the seed in its own release with a changeset, never a silent rewrite. Enforcement rides two new gates: a weekly documented-rates audit (`scripts/rates-audit.mjs` in the live contract workflow) re-fetches exactly the pages the seed comments cite, compares every rate, write premium, and long-context tier, and opens an issue on drift or on a page that stops extracting, and a README release-table gate (`scripts/readme-release-shas.mjs`, in CI) requires every cited squash SHA to be an ancestor of HEAD, catching the v1.109.0 row that pointed at an object no branch contained for eleven releases (now corrected to the real squash `58afdb5`).
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+
 ### 1.120.0
 
 #### Patch Changes
@@ -1278,6 +1289,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+
 ### 1.120.0
 
 #### Patch Changes
@@ -2393,6 +2411,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.121.0
+
+#### Minor Changes
+
+- 3d67d41: Rate provenance made checkable (RV807, RV813, RV814). The pricing row grows `ratesVerifiedAt` (SPI), the ISO date it was last verified against the provider's documented rates or, stronger, its billing categories: the shipped seeds stamp it (the GPT-5.6 family reads `2026-07-30`, the day the statement reconciliation confirmed those rates against the provider's own per-component billing categories to the cent; the pre-5.6 OpenAI rows keep their `2026-07-18` docs verification; every Anthropic row was re-verified against the documented table on `2026-07-30`). The date is surfaced wherever a dollar is consumed: `preflightEstimate` copies it onto each spawn report and `rulvar preflight` renders `ratesVerified=<date>` with its age on the spawn line; the settle pin journals it with the rest of the applied row so it survives any later table rewrite; and `rulvar invoice` prints a `rates verified:` line naming each priced model's date and age, pinned rows first, current table past them; the twelfth run's founder read the invoice doubting the rates and nothing said the seed was 12 days stale. The doctrine ships with the mechanism: seeds bound ceilings conservatively, billing truth is established only by `reconcileStatement` over saved exports, and a confirmed divergence corrects the seed in its own release with a changeset, never a silent rewrite. Enforcement rides two new gates: a weekly documented-rates audit (`scripts/rates-audit.mjs` in the live contract workflow) re-fetches exactly the pages the seed comments cite, compares every rate, write premium, and long-context tier, and opens an issue on drift or on a page that stops extracting, and a README release-table gate (`scripts/readme-release-shas.mjs`, in CI) requires every cited squash SHA to be an ancestor of HEAD, catching the v1.109.0 row that pointed at an object no branch contained for eleven releases (now corrected to the real squash `58afdb5`).
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
 
 ### 1.120.0
 
@@ -3879,6 +3908,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.121.0
+
+#### Minor Changes
+
+- 3d67d41: Rate provenance made checkable (RV807, RV813, RV814). The pricing row grows `ratesVerifiedAt` (SPI), the ISO date it was last verified against the provider's documented rates or, stronger, its billing categories: the shipped seeds stamp it (the GPT-5.6 family reads `2026-07-30`, the day the statement reconciliation confirmed those rates against the provider's own per-component billing categories to the cent; the pre-5.6 OpenAI rows keep their `2026-07-18` docs verification; every Anthropic row was re-verified against the documented table on `2026-07-30`). The date is surfaced wherever a dollar is consumed: `preflightEstimate` copies it onto each spawn report and `rulvar preflight` renders `ratesVerified=<date>` with its age on the spawn line; the settle pin journals it with the rest of the applied row so it survives any later table rewrite; and `rulvar invoice` prints a `rates verified:` line naming each priced model's date and age, pinned rows first, current table past them; the twelfth run's founder read the invoice doubting the rates and nothing said the seed was 12 days stale. The doctrine ships with the mechanism: seeds bound ceilings conservatively, billing truth is established only by `reconcileStatement` over saved exports, and a confirmed divergence corrects the seed in its own release with a changeset, never a silent rewrite. Enforcement rides two new gates: a weekly documented-rates audit (`scripts/rates-audit.mjs` in the live contract workflow) re-fetches exactly the pages the seed comments cite, compares every rate, write premium, and long-context tier, and opens an issue on drift or on a page that stops extracting, and a README release-table gate (`scripts/readme-release-shas.mjs`, in CI) requires every cited squash SHA to be an ancestor of HEAD, catching the v1.109.0 row that pointed at an object no branch contained for eleven releases (now corrected to the real squash `58afdb5`).
 
 ### 1.120.0
 
@@ -5699,6 +5734,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.121.0
+
 ### 1.120.0
 
 ### 1.119.0
@@ -6043,6 +6080,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+  - @rulvar/testing@1.121.0
 
 ### 1.120.0
 
@@ -7391,6 +7436,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+
 ### 1.120.0
 
 #### Patch Changes
@@ -7913,6 +7965,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.121.0
+
+#### Minor Changes
+
+- 3d67d41: Rate provenance made checkable (RV807, RV813, RV814). The pricing row grows `ratesVerifiedAt` (SPI), the ISO date it was last verified against the provider's documented rates or, stronger, its billing categories: the shipped seeds stamp it (the GPT-5.6 family reads `2026-07-30`, the day the statement reconciliation confirmed those rates against the provider's own per-component billing categories to the cent; the pre-5.6 OpenAI rows keep their `2026-07-18` docs verification; every Anthropic row was re-verified against the documented table on `2026-07-30`). The date is surfaced wherever a dollar is consumed: `preflightEstimate` copies it onto each spawn report and `rulvar preflight` renders `ratesVerified=<date>` with its age on the spawn line; the settle pin journals it with the rest of the applied row so it survives any later table rewrite; and `rulvar invoice` prints a `rates verified:` line naming each priced model's date and age, pinned rows first, current table past them; the twelfth run's founder read the invoice doubting the rates and nothing said the seed was 12 days stale. The doctrine ships with the mechanism: seeds bound ceilings conservatively, billing truth is established only by `reconcileStatement` over saved exports, and a confirmed divergence corrects the seed in its own release with a changeset, never a silent rewrite. Enforcement rides two new gates: a weekly documented-rates audit (`scripts/rates-audit.mjs` in the live contract workflow) re-fetches exactly the pages the seed comments cite, compares every rate, write premium, and long-context tier, and opens an issue on drift or on a page that stops extracting, and a README release-table gate (`scripts/readme-release-shas.mjs`, in CI) requires every cited squash SHA to be an ancestor of HEAD, catching the v1.109.0 row that pointed at an object no branch contained for eleven releases (now corrected to the real squash `58afdb5`).
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
 
 ### 1.120.0
 
@@ -9190,6 +9253,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+
 ### 1.120.0
 
 #### Patch Changes
@@ -10419,6 +10489,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+  - eslint-plugin-rulvar@1.121.0
 
 ### 1.120.0
 
@@ -11731,6 +11809,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+  - @rulvar/anthropic@1.121.0
+  - @rulvar/openai@1.121.0
 
 ### 1.120.0
 
@@ -13246,6 +13333,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+
 ### 1.120.0
 
 #### Patch Changes
@@ -14471,6 +14565,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
+
 ### 1.120.0
 
 #### Patch Changes
@@ -15007,6 +15108,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
 
 ### 1.120.0
 
@@ -16175,6 +16283,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.121.0
+
+#### Patch Changes
+
+- Updated dependencies [3d67d41]
+  - @rulvar/core@1.121.0
 
 ### 1.120.0
 
