@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.114.0
+
+### Minor Changes
+
+- 5759731: The fixed-window quota boundary is pinned as a named compromise, and the final model can opt into the run's own observed evidence (RV708, RV709). `QuotaRule` and the model-routing guide now name the window semantics exactly: every PerMinute cap counts over fixed epoch-aligned 60 s windows, each window enforces its cap exactly, and a burst placed astride a boundary can consume up to two caps inside one sliding 60 s, the bounded price of cross-process parity, pinned by test as intended behavior with no semantics change. `runAgent` gains the opt-in `policyFacts`: the finalize synthesis request carries ONE additional request-only message digesting what the loop observed (quota denials and recoveries, tool budget pressure and extension grants, the finalization window, recorded spend with its cost basis), never touching the durable transcript or spawn identity; `orchestrate` gains the symmetric `synthesis.policyFacts`, a deterministic `POLICY FACTS:` prompt line folded only from replay-stable settled child facts (statuses, extension grants, finalization windows and reserves), so a resumed synthesis re-derives identical prompt bytes. Both are off by default and every request and prompt stays byte identical when unset.
+
 ## 1.113.0
 
 ### Minor Changes

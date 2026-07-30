@@ -1,5 +1,12 @@
 # @rulvar/testing
 
+## 1.114.0
+
+### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+
 ## 1.113.0
 
 ### Patch Changes
