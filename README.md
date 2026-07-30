@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred one rounds, verbatim in this repository's history:
+The one hundred two rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -315,6 +315,7 @@ The one hundred one rounds, verbatim in this repository's history:
 | v1.117.0      | f8341a3 (#539): provider statement reconciliation by machine: response-id coverage, per-component deltas, and implied rates naming the divergent rate-card line                           | v1.118.0   |
 | v1.118.0      | 1e4ff3c (#542): the preflight run ceiling refuses NaN typed like the runtime, and a malformed checkpoint decodes to undefined instead of a TypeError mid-resume                           | v1.119.0   |
 | v1.119.0      | d630c9e (#545): a refused fan-out returns the started handles typed, and the acceptance decision carries a per-child roster with evidence verdicts and waived-by-salvage                  | v1.120.0   |
+| v1.120.0      | 3d67d41 (#548): pricing rows carry their verification date through preflight, pins, and the invoice, the documented rates audited weekly, README release SHAs gated reachable             | v1.121.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
