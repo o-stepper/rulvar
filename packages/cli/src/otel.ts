@@ -5,11 +5,15 @@
  * agent > tool > child), with start/end timestamps from the lifecycle
  * events; each agent:phase pair additionally becomes a child span of
  * its agent span keyed (spanId, invocation), carrying the phase's role,
- * model, usage, and cost. Events without an own span (log,
- * budget:update) attach as span events on their enclosing span. An
- * opener for an already-open span never duplicates it (replayed
- * re-emissions mark the original; a pre-RV-207 stream's extra per-phase
- * agent:start cannot leak the agent span unended).
+ * model, usage, and cost, and each tool execution becomes a child span
+ * of its agent span under a synthetic FIFO pair key (RV802: tool events
+ * ride the agent's spanId and carry no per-call id), so the agent span
+ * lives to agent:end and keeps its closing usage, cost, and exploration
+ * attributes. Events without an own span (log, budget:update) attach as
+ * span events on their enclosing span. An opener for an already-open
+ * span never duplicates it (replayed re-emissions mark the original; a
+ * pre-RV-207 stream's extra per-phase agent:start cannot leak the agent
+ * span unended).
  *
  * `@opentelemetry/api` ^1.9 is an OPTIONAL peer: the CLI has no OTel
  * dependency, and the exporter is typed against a minimal structural
@@ -63,13 +67,7 @@ export interface ToOtelOptions {
   patterns?: ReadonlyArray<RegExp | string>;
 }
 
-const SPAN_OPENERS = new Set([
-  'run:start',
-  'phase:start',
-  'agent:start',
-  'tool:start',
-  'child:start',
-]);
+const SPAN_OPENERS = new Set(['run:start', 'phase:start', 'agent:start', 'child:start']);
 
 function msOf(ts: string): number {
   return Date.parse(ts);
@@ -192,6 +190,22 @@ export async function toOtel(
   const openBySpanId = new Map<string, OpenSpan>();
   const stack: OpenSpan[] = [];
   let created = 0;
+  // Tool executions are child spans of their agent span (RV802). Tool
+  // events ride the AGENT's spanId and the vocabulary carries no
+  // per-call id, so the pair key is synthetic: every tool:start mints a
+  // fresh key and queues it per (spanId, toolName); the matching
+  // tool:end pops the oldest open key of that pair, FIFO. Concurrent
+  // same-name calls on one agent may therefore swap attribution among
+  // identically named spans; counts, parentage, and the duration
+  // multiset are exact. Before RV802, tool:start was swallowed as a
+  // duplicate opener of the agent span and the FIRST tool:end closed
+  // the agent span itself, so agent:end attached usage, cost, and
+  // exploration to nothing and later tool events played whack-a-mole
+  // with agent-keyed spans (the twelfth comparison experiment's P0 #2:
+  // 569 tool events on 12 agent spans, none with a span of its own).
+  let toolMint = 0;
+  const openToolPairs = new Map<string, string[]>();
+  const toolPairOf = (spanId: string, toolName: string): string => `${spanId} ${toolName}`;
 
   const { contextApi, setSpan } = options;
   // Compiled once, typed failure before anything exports (RV-217).
@@ -353,12 +367,35 @@ export async function toOtel(
         endSpan(event.spanId, event.ts, event.status);
         break;
       }
-      case 'tool:end':
-        if (event.guard !== undefined) {
-          openBySpanId.get(event.spanId)?.span.setAttribute('rulvar.tool.guard', event.guard);
+      case 'tool:start': {
+        const key = `${event.spanId}#tool${String(toolMint)}`;
+        toolMint += 1;
+        const pair = toolPairOf(event.spanId, event.toolName);
+        const fifo = openToolPairs.get(pair);
+        if (fifo === undefined) {
+          openToolPairs.set(pair, [key]);
+        } else {
+          fifo.push(key);
         }
-        endSpan(event.spanId, event.ts, event.outcome);
+        startSpan(event, key, event.spanId);
         break;
+      }
+      case 'tool:end': {
+        const key = openToolPairs.get(toolPairOf(event.spanId, event.toolName))?.shift();
+        if (key === undefined) {
+          // A closer with no open start (a foreign or truncated
+          // stream): the exporter's tolerance posture is a span event
+          // on the enclosing span, never a closed agent span.
+          const host = openBySpanId.get(event.spanId) ?? stack[stack.length - 1];
+          host?.span.addEvent(event.type, { 'rulvar.entry_seq': event.seq });
+          break;
+        }
+        if (event.guard !== undefined) {
+          openBySpanId.get(key)?.span.setAttribute('rulvar.tool.guard', event.guard);
+        }
+        endSpan(key, event.ts, event.outcome);
+        break;
+      }
       case 'child:end':
         endSpan(event.spanId, event.ts, event.status);
         break;

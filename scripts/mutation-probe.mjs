@@ -609,6 +609,15 @@ const MUTATIONS = [
     test: 'packages/core/src/journal/replayer.test.ts',
   },
   {
+    id: 'tool-span-pairing',
+    doctrine:
+      'a tool:end closes its own synthetic pair span, never the agent span it rides: the agent span must live to agent:end with its usage, cost, and exploration attributes (RV802)',
+    file: 'packages/cli/src/otel.ts',
+    find: '        const key = openToolPairs.get(toolPairOf(event.spanId, event.toolName))?.shift();',
+    replace: '        const key = event.spanId;',
+    test: 'packages/cli/src/otel.test.ts',
+  },
+  {
     id: 'run-end-settled-total',
     doctrine:
       "run:end's dollars are asserted against the settled report: before RV801 no test pinned the event's totalUsd to outcome.cost.totalUsd, which is exactly how the terminal event lied by 42.573% while every other surface agreed (RV801)",

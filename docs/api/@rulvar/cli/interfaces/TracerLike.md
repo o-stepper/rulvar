@@ -6,7 +6,7 @@
 
 # Interface: TracerLike
 
-Defined in: [packages/cli/src/otel.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L38)
+Defined in: [packages/cli/src/otel.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L42)
 
 ## Methods
 
@@ -19,7 +19,7 @@ startSpan(
    context?): SpanLike;
 ```
 
-Defined in: [packages/cli/src/otel.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L39)
+Defined in: [packages/cli/src/otel.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L43)
 
 #### Parameters
 
