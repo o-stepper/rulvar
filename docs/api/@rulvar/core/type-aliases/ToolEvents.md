@@ -26,7 +26,7 @@ type ToolEvents =
 };
 ```
 
-Defined in: [packages/core/src/l0/events.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L291)
+Defined in: [packages/core/src/l0/events.ts:307](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L307)
 
 Tool lifecycle (emitters arrive with the tool system, M3).
 
@@ -62,12 +62,12 @@ Tool lifecycle (emitters arrive with the tool system, M3).
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:307](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L307) |
-| `decidedBy?` | `string` | - | [packages/core/src/l0/events.ts:305](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L305) |
-| `durationMs` | `number` | - | [packages/core/src/l0/events.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L297) |
-| `guard?` | `"repeated-signature"` \| `"per-tool-cap"` \| `"finalization-window"` | Present when an engine guard, not the permission chain, denied the call: the exploration guards (RV-210) or the finalization window (RV302). The outcome is 'denied' and the call was never dispatched. | [packages/core/src/l0/events.ts:314](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L314) |
-| `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | [packages/core/src/l0/events.ts:296](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L296) |
-| `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:306](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L306) |
-| `toolName` | `string` | - | [packages/core/src/l0/events.ts:295](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L295) |
-| `type` | `"tool:end"` | - | [packages/core/src/l0/events.ts:294](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L294) |
-| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/src/l0/events.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L304) |
+| `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:323](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L323) |
+| `decidedBy?` | `string` | - | [packages/core/src/l0/events.ts:321](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L321) |
+| `durationMs` | `number` | - | [packages/core/src/l0/events.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L313) |
+| `guard?` | `"repeated-signature"` \| `"per-tool-cap"` \| `"finalization-window"` | Present when an engine guard, not the permission chain, denied the call: the exploration guards (RV-210) or the finalization window (RV302). The outcome is 'denied' and the call was never dispatched. | [packages/core/src/l0/events.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L330) |
+| `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | [packages/core/src/l0/events.ts:312](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L312) |
+| `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L322) |
+| `toolName` | `string` | - | [packages/core/src/l0/events.ts:311](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L311) |
+| `type` | `"tool:end"` | - | [packages/core/src/l0/events.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L310) |
+| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/src/l0/events.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L320) |

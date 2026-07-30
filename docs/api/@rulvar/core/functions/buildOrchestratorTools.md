@@ -13,7 +13,7 @@ function buildOrchestratorTools(
    options?): ToolDef<SchemaSpec>[];
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L167)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:168](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L168)
 
 Builds the mode (c) toolset over the per-call runtime. profileCardText
 rides the spawn tools' descriptions so both modes speak one agent

@@ -14,6 +14,17 @@ type CoreEvents =
   workflow: string;
 }
   | {
+  acceptanceChildren?: {
+     child: string;
+     evidence?: {
+        met: boolean;
+        minEntries: number;
+        recordedEntries: number;
+        waivedBySalvage?: true;
+     };
+     salvage?: "partial" | "terminal-output";
+     status: string;
+  }[];
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   degradedReasons?: string[];
@@ -88,6 +99,17 @@ Run lifecycle and core telemetry (M1 subset).
 
 ```ts
 {
+  acceptanceChildren?: {
+     child: string;
+     evidence?: {
+        met: boolean;
+        minEntries: number;
+        recordedEntries: number;
+        waivedBySalvage?: true;
+     };
+     salvage?: "partial" | "terminal-output";
+     status: string;
+  }[];
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   degradedReasons?: string[];
@@ -102,6 +124,7 @@ Run lifecycle and core telemetry (M1 subset).
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| `acceptanceChildren?` | \{ `child`: `string`; `evidence?`: \{ `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \}; `salvage?`: `"partial"` \| `"terminal-output"`; `status`: `string`; \}[] | The per-child acceptance roster (RV806): status, salvage arm, and the evidence verdict where the child declared a contract; same lift and posture as the fields above. | [packages/core/src/l0/events.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L69) |
 | `childStatusCounts?` | `Record`\&lt;`string`, `number`\&gt; | Settled child statuses by status name, lifted from the same envelope (or typed error data) when it carries a valid record of nonnegative integers. Absent otherwise. | [packages/core/src/l0/events.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L51) |
 | `completion?` | `"complete"` \| `"partial"` \| `"rejected"` | The semantic completion lift (RV-207 tail): present when the workflow reported semantic completion through the completion envelope contract: an `ok`/`exhausted` run whose result value is an object carrying a valid `completion` literal, or an `error` run whose typed error data carries one (the orchestrator acceptance path emits both). Transport status says whether the run ran; completion says whether the work is COMPLETE: an accepted degraded run is `status: 'ok'` with `completion: 'partial'`. Replay recomputes the same value from the re-executed workflow, so the field is identical live and replayed. Absent when the workflow makes no completion claim. | [packages/core/src/l0/events.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L45) |
 | `degradedReasons?` | `string`[] | Per-child degradation notes, lifted from the same envelope (or typed error data) when it carries a valid string array (the fifth experiment, cycle 75). An empty array is the workflow's claim of zero degradation; absence means no claim. The outcome mirror spreads the SAME lift, so the surfaces cannot disagree. | [packages/core/src/l0/events.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L59) |

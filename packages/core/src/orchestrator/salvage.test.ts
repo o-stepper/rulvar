@@ -293,6 +293,108 @@ describe('partial-child salvage (RV-210 close-out)', () => {
     ).toThrow(ConfigError);
   });
 
+  it('the acceptance children summary carries the per-child evidence verdict (RV806)', async () => {
+    // The twelfth experiment's red observable: two children below their
+    // declared evidence floor were accepted through salvage, and the
+    // outcome showed it only as name lists; no machine verdict of the
+    // evidence contract existed anywhere. The journaled acceptance
+    // decision now carries the per-child roster: status, salvage arm,
+    // and the evidence verdict with waivedBySalvage on the salvaged
+    // below-floor children.
+    const evidenceRecorder = () =>
+      tool({
+        name: 'record_evidence',
+        description: 'records one evidence entry',
+        parameters: z.strictObject({}),
+        execute: () => Promise.resolve({ recorded: true }),
+      });
+    const profiles = {
+      solid: { description: 'settles ok' },
+      digger: {
+        description: 'records one entry, reports, then burns out',
+        tools: [progressReportTool(), evidenceRecorder(), noop()],
+        limits: { maxTurns: 8, maxToolCalls: 2 },
+        evidenceContract: { minEntries: 2, enforce: 'warn' as const },
+      },
+    };
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      const agentType = agentTypeOf(req);
+      if (agentType === 'solid') {
+        return { text: 'solid evidence' };
+      }
+      if (agentType === 'digger') {
+        const turn = req.messages.filter((msg) => msg.role === 'tool').length;
+        if (turn === 0) {
+          return { toolCall: { name: 'record_evidence', args: {} } };
+        }
+        if (turn === 1) {
+          return { toolCall: { name: 'report_progress', args: REPORT } };
+        }
+        return { toolCall: { name: 'noop', args: {} } };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'solid', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'digger', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'the merged report' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: { childPolicy: 'all-ok', acceptPartialChildren: true },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as Envelope & {
+      acceptanceChildren?: Array<{
+        child: string;
+        status: string;
+        salvage?: string;
+        evidence?: {
+          recordedEntries: number;
+          minEntries: number;
+          met: boolean;
+          waivedBySalvage?: true;
+        };
+      }>;
+    };
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.acceptanceChildren).toBeDefined();
+    expect(outcome.acceptanceChildren).toHaveLength(2);
+    const solid = outcome.acceptanceChildren?.find((child) => child.status === 'ok');
+    const digger = outcome.acceptanceChildren?.find((child) => child.status === 'limit');
+    expect(solid?.salvage).toBeUndefined();
+    expect(solid?.evidence).toBeUndefined();
+    expect(digger?.salvage).toBe('partial');
+    expect(digger?.evidence).toEqual({
+      recordedEntries: 1,
+      minEntries: 2,
+      met: false,
+      waivedBySalvage: true,
+    });
+    // The ONE journaled decision carries the same roster: the summary
+    // is replay-stable by construction.
+    const decisions = (await store.load('test-run')).filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    );
+    expect(decisions).toHaveLength(1);
+    expect((decisions[0]?.value as { children?: unknown }).children).toEqual(
+      outcome.acceptanceChildren,
+    );
+  });
+
   it('an engine-level resume replays the identical salvage envelope from the journaled decision', async () => {
     const store = new InMemoryStore();
     const transcripts = new InMemoryTranscriptStore();

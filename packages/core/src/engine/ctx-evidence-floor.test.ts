@@ -268,3 +268,46 @@ describe('the evidence floor enforcement (RV507)', () => {
     ).not.toThrow();
   });
 });
+
+describe('the evidence verdict on the settled result (RV806)', () => {
+  it('a declared contract stamps the settled result with the count and the met verdict', async () => {
+    const short = recordThenFinish(2);
+    const { internals } = diggerInternals(
+      ['recorded', 'recorded'],
+      { minEntries: 3, enforce: 'warn' },
+      short,
+    );
+    const result = fullResult(
+      await createCtx(internals).agent('dig', { agentType: 'digger', result: 'full' }),
+    );
+    expect(result.status).toBe('ok');
+    expect(result.evidence).toEqual({ recordedEntries: 2, minEntries: 3, met: false });
+  });
+
+  it('a met floor reads met true, and only SUCCESSFUL records count', async () => {
+    const adapter = recordThenFinish(3);
+    const { internals } = diggerInternals(
+      ['recorded', 'duplicate', 'recorded'],
+      { minEntries: 2, enforce: 'warn' },
+      adapter,
+    );
+    const result = fullResult(
+      await createCtx(internals).agent('dig', { agentType: 'digger', result: 'full' }),
+    );
+    expect(result.evidence).toEqual({ recordedEntries: 2, minEntries: 2, met: true });
+  });
+
+  it('without a declared contract the field is absent, byte for byte', async () => {
+    const adapter = recordThenFinish(1);
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      profiles: { digger: { description: 'records evidence', tools: [recorder(['recorded'])] } },
+    });
+    const result = fullResult(
+      await createCtx(internals).agent('dig', { agentType: 'digger', result: 'full' }),
+    );
+    expect(result.status).toBe('ok');
+    expect(result.evidence).toBeUndefined();
+  });
+});

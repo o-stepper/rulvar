@@ -28,10 +28,10 @@ type PermissionGate =
 };
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:359](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L359)
+Defined in: [packages/core/src/runtime/agent-loop.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L371)
 
 ## Type Declaration
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `audit?` | [`GateAudit`](/api/@rulvar/core/interfaces/GateAudit.md) | Chain audit payload ridden into tool:end telemetry. | [packages/core/src/runtime/agent-loop.ts:369](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L369) |
+| `audit?` | [`GateAudit`](/api/@rulvar/core/interfaces/GateAudit.md) | Chain audit payload ridden into tool:end telemetry. | [packages/core/src/runtime/agent-loop.ts:381](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L381) |

@@ -10,7 +10,7 @@
 type CostBasis = "per-call" | "aggregate-estimate";
 ```
 
-Defined in: [packages/core/src/l0/events.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L172)
+Defined in: [packages/core/src/l0/events.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L188)
 
 How an event's `costUsd` was folded (RV702). `'per-call'`: the sum of
 each provider request priced individually, the same basis the settled

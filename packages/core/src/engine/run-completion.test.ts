@@ -310,3 +310,48 @@ describe('the degradation mirror (cycle 75)', () => {
     expect(outcome.salvagedTerminalOutputChildren).toBeUndefined();
   });
 });
+
+describe('the acceptance children lift (RV806)', () => {
+  const CHILDREN = [
+    { child: 'w1', status: 'ok' },
+    {
+      child: 'w2',
+      status: 'limit',
+      salvage: 'partial',
+      evidence: { recordedEntries: 1, minEntries: 2, met: false, waivedBySalvage: true },
+    },
+  ];
+
+  it('lifts a valid per-child summary onto the outcome and run:end', async () => {
+    const engine = createEngine({ adapters: [] });
+    const wf = defineWorkflow({ name: 'summary' }, () =>
+      Promise.resolve({
+        result: 'the merged report',
+        completion: 'partial' as const,
+        acceptanceChildren: CHILDREN,
+      }),
+    );
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect((outcome as { acceptanceChildren?: unknown }).acceptanceChildren).toEqual(CHILDREN);
+    expect((runEnd as { acceptanceChildren?: unknown } | undefined)?.acceptanceChildren).toEqual(
+      CHILDREN,
+    );
+  });
+
+  it('drops a malformed summary silently while keeping the valid completion', async () => {
+    const engine = createEngine({ adapters: [] });
+    const wf = defineWorkflow({ name: 'malformed' }, () =>
+      Promise.resolve({
+        result: 'x',
+        completion: 'complete' as const,
+        acceptanceChildren: [{ child: 5, status: 'ok' }],
+      }),
+    );
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect(runEnd?.completion).toBe('complete');
+    expect((outcome as { acceptanceChildren?: unknown }).acceptanceChildren).toBeUndefined();
+    expect(
+      (runEnd as { acceptanceChildren?: unknown } | undefined)?.acceptanceChildren,
+    ).toBeUndefined();
+  });
+});

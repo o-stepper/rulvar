@@ -609,6 +609,33 @@ const MUTATIONS = [
     test: 'packages/core/src/journal/replayer.test.ts',
   },
   {
+    id: 'parallel-fanout-partial',
+    doctrine:
+      'a mid-loop admission refusal in parallel_agents returns the started handles as a typed result: a throw loses the wave while the children keep spending (RV805)',
+    file: 'packages/core/src/orchestrator/spawn-tools.ts',
+    find: '        } catch (thrown) {\n          return {',
+    replace: '        } catch (thrown) {\n          throw thrown;\n          return {',
+    test: 'packages/core/src/orchestrator/spawn-tools.test.ts',
+  },
+  {
+    id: 'acceptance-children-roster',
+    doctrine:
+      'the journaled acceptance decision carries the per-child machine roster with the evidence verdicts; name lists alone hid the twelfth experiment salvaged below-floor children (RV806)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        children: childrenSummary,',
+    replace: '',
+    test: 'packages/core/src/orchestrator/salvage.test.ts',
+  },
+  {
+    id: 'evidence-verdict-stamp',
+    doctrine:
+      'a declared evidence contract stamps every settled result with the count and the met verdict, the field the acceptance roster reads (RV806)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '  if (evidenceFloor !== undefined && recordedEvidenceEntries !== undefined) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/ctx-evidence-floor.test.ts',
+  },
+  {
     id: 'checkpoint-structural-decode',
     doctrine:
       'a parseable checkpoint with malformed nested messages decodes to undefined and the dispatch reruns; it never throws a raw TypeError out of the undefined-on-unparseable contract (RV804)',

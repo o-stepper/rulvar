@@ -6,7 +6,7 @@
 
 # Interface: RunHandle\&lt;R\&gt;
 
-Defined in: [packages/core/src/engine/run-handle.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L146)
+Defined in: [packages/core/src/engine/run-handle.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L179)
 
 ## Extended by
 
@@ -22,9 +22,9 @@ Defined in: [packages/core/src/engine/run-handle.ts:146](https://github.com/o-st
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | [packages/core/src/engine/run-handle.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L149) |
-| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | [packages/core/src/engine/run-handle.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L148) |
-| <a id="property-runid"></a> `runId` | `string` | [packages/core/src/engine/run-handle.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L147) |
+| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | [packages/core/src/engine/run-handle.ts:182](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L182) |
+| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | [packages/core/src/engine/run-handle.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L181) |
+| <a id="property-runid"></a> `runId` | `string` | [packages/core/src/engine/run-handle.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L180) |
 
 ## Methods
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:146](https://github.com/o-st
 cancel(reason?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L162)
+Defined in: [packages/core/src/engine/run-handle.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L195)
 
 Cooperative cancellation; the run settles 'cancelled' with a complete CostReport.
 
@@ -56,7 +56,7 @@ Cooperative cancellation; the run settles 'cancelled' with a complete CostReport
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L150)
+Defined in: [packages/core/src/engine/run-handle.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L183)
 
 #### Type Parameters
 
@@ -83,7 +83,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:150](https://github.com/o-st
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L160)
+Defined in: [packages/core/src/engine/run-handle.ts:193](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L193)
 
 Resolves an open awaitExternal suspension (DEF-4 signature): applied
 when this attempt wins the first-closing-wins fold; repeated

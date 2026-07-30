@@ -958,6 +958,12 @@ describe('acceptance: the child completion policy (v1.40.0 improvement plan)', (
       completion: 'complete',
       childStatusCounts: { ok: 2 },
       degradedReasons: [],
+      // The per-child machine roster (RV806): both children ok, no
+      // salvage, no declared evidence contract.
+      acceptanceChildren: [
+        expect.objectContaining({ status: 'ok' }),
+        expect.objectContaining({ status: 'ok' }),
+      ],
     });
     // ONE journaled acceptance decision carries the verdict.
     const decisions = (await store.load('test-run')).filter(

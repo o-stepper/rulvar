@@ -667,6 +667,10 @@
             "link": "/api/@rulvar/core/interfaces/AbandonFold.md"
           },
           {
+            "text": "AcceptanceChildSummary",
+            "link": "/api/@rulvar/core/interfaces/AcceptanceChildSummary.md"
+          },
+          {
             "text": "AdmissionDecision",
             "link": "/api/@rulvar/core/interfaces/AdmissionDecision.md"
           },
@@ -5139,6 +5143,10 @@
           {
             "text": "AbandonFold",
             "link": "/api/@rulvar/rulvar/interfaces/AbandonFold.md"
+          },
+          {
+            "text": "AcceptanceChildSummary",
+            "link": "/api/@rulvar/rulvar/interfaces/AcceptanceChildSummary.md"
           },
           {
             "text": "AdmissionDecision",

@@ -322,6 +322,14 @@ export async function toOtel(
             JSON.stringify(event.salvagedTerminalOutputChildren),
           );
         }
+        // The per-child acceptance roster (RV806): identifiers,
+        // statuses, and evidence counters only, JSON like its siblings.
+        if (runOpen !== undefined && event.acceptanceChildren !== undefined) {
+          runOpen.span.setAttribute(
+            'rulvar.run.acceptanceChildren',
+            JSON.stringify(event.acceptanceChildren),
+          );
+        }
         endSpan(event.spanId, event.ts, event.status);
         break;
       }

@@ -55,7 +55,7 @@ import { lastRunSettle } from '../stores/reconcile.js';
 import type { AgentOpts, AgentProfile, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
-import type { RunHandle } from '../engine/run-handle.js';
+import type { AcceptanceChildSummary, RunHandle } from '../engine/run-handle.js';
 import type { AdmissionDecision } from './admission.js';
 import { dedupeRepeatedClaims, type RepeatedClaim } from './claims.js';
 import {
@@ -4173,6 +4173,16 @@ export function makeOrchestratorWorkflow(
        * synthesis, and on decisions written before this shipped.
        */
       synthesisSkipped?: OrchestrateSynthesisSkipReason;
+      /**
+       * The per-child machine roster (RV806): status, salvage arm, and
+       * the evidence verdict where the child declared a contract,
+       * `waivedBySalvage` marking a below-floor child a salvage arm
+       * accepted. Journaled with the decision so the envelope and every
+       * resume read the same roster; absent on decisions written before
+       * this shipped. Children restored from a journal without live
+       * settled results may lack the evidence verdict, honestly.
+       */
+      children?: AcceptanceChildSummary[];
     }
     const acceptanceKey = 'acceptance';
     const priorAcceptance = internals.replayer
@@ -4203,10 +4213,37 @@ export function makeOrchestratorWorkflow(
       const acceptPartial = opts.acceptance.acceptPartialChildren === true;
       const acceptOutput = opts.acceptance.acceptValidatedTerminalOutputOnLimit === true;
       const sortedRecords = [...byOrdinal.values()].sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
+      // The per-child machine roster (RV806): one row per spawned
+      // child, in spawn order, carrying what the name lists above
+      // cannot: the evidence verdict of each child that declared a
+      // contract, with waivedBySalvage on a below-floor child a
+      // salvage arm accepted anyway.
+      const childrenSummary: AcceptanceChildSummary[] = [];
+      const noteChild = (
+        record: (typeof sortedRecords)[number],
+        status: string,
+        salvage?: 'partial' | 'terminal-output',
+      ): void => {
+        const evidence = record.settled?.evidence;
+        childrenSummary.push({
+          child: record.nodeId,
+          status,
+          ...(salvage === undefined ? {} : { salvage }),
+          ...(evidence === undefined
+            ? {}
+            : {
+                evidence: {
+                  ...evidence,
+                  ...(salvage !== undefined && !evidence.met ? { waivedBySalvage: true } : {}),
+                },
+              }),
+        });
+      };
       for (const record of sortedRecords) {
         const status = record.settled?.status ?? 'running';
         childStatusCounts[status] = (childStatusCounts[status] ?? 0) + 1;
         if (status === 'ok') {
+          noteChild(record, status);
           continue;
         }
         if (
@@ -4216,6 +4253,7 @@ export function makeOrchestratorWorkflow(
           record.settled?.output !== undefined
         ) {
           salvagedOutput.push(record.nodeId);
+          noteChild(record, status, 'terminal-output');
           degradedReasons.push(
             `child ${record.nodeId} accepted with its validated terminal output ` +
               `(settled 'limit' after the finalization reserve summary)`,
@@ -4224,12 +4262,14 @@ export function makeOrchestratorWorkflow(
         }
         if (acceptPartial && status === 'limit' && record.settled?.partial !== undefined) {
           salvaged.push(record.nodeId);
+          noteChild(record, status, 'partial');
           degradedReasons.push(
             `child ${record.nodeId} accepted as partial (settled 'limit' with a structured partial)`,
           );
           continue;
         }
         hardDegraded += 1;
+        noteChild(record, status);
         degradedReasons.push(
           status === 'running'
             ? `child ${record.nodeId} was still running when finish validated`
@@ -4267,6 +4307,7 @@ export function makeOrchestratorWorkflow(
           : { minSpawnedChildren: minSpawned, spawnedChildren: sortedRecords.length }),
         ...(salvaged.length === 0 ? {} : { salvagedPartialChildren: salvaged }),
         ...(salvagedOutput.length === 0 ? {} : { salvagedTerminalOutputChildren: salvagedOutput }),
+        children: childrenSummary,
         // A rejected verdict skips a configured synthesis step by design
         // (RV-211): the machine reason rides the decision (11.4), so the
         // journal, not the live options, is the authority on resume.
@@ -4331,6 +4372,9 @@ export function makeOrchestratorWorkflow(
             ...(decision.salvagedTerminalOutputChildren === undefined
               ? {}
               : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+            ...(decision.children === undefined
+              ? {}
+              : { acceptanceChildren: decision.children as unknown as Json }),
             ...(decision.synthesisSkipped === undefined
               ? {}
               : { synthesisSkipped: decision.synthesisSkipped }),
@@ -4357,6 +4401,9 @@ export function makeOrchestratorWorkflow(
         ...(decision.salvagedTerminalOutputChildren === undefined
           ? {}
           : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+        ...(decision.children === undefined
+          ? {}
+          : { acceptanceChildren: decision.children as unknown as Json }),
       });
     }
     const envelopeSchemaRecovered =
@@ -4372,6 +4419,10 @@ export function makeOrchestratorWorkflow(
       ...(decision.salvagedTerminalOutputChildren === undefined
         ? {}
         : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+      // The per-child machine roster (RV806): absent on decisions
+      // journaled before it shipped, so those envelopes stay byte
+      // identical.
+      ...(decision.children === undefined ? {} : { acceptanceChildren: decision.children }),
       // The recovery trace (cycle 77): absent when zero, so every
       // pre-existing envelope stays byte identical.
       ...(envelopeSchemaRecovered === 0

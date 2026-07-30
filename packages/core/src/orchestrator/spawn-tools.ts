@@ -13,6 +13,7 @@
  * toolsetRef are accepted by schema but their registries land in M7;
  * using them today is a typed tool error, never a run failure.
  */
+import { RulvarError } from '../l0/errors.js';
 import type { SchemaSpec } from '../l0/schema.js';
 import { tool } from '../tools/tool.js';
 import type { ToolDef } from '../l0/spi/toolsource.js';
@@ -182,8 +183,30 @@ export function buildOrchestratorTools(
     execute: async (input) => {
       const tasks = (input as { tasks: SpawnAgentParams[] }).tasks;
       const handles: number[] = [];
-      for (const task of tasks) {
-        const spawned = await runtime.spawn(task);
+      // Sequential in submission order by design, and a refusal
+      // mid-loop is part of the TYPED result, never a throw (RV805): a
+      // thrown admission refusal used to swallow the whole tool call,
+      // so the model never saw the handles of the children already
+      // started, they kept running and spending invisibly, and the
+      // natural reaction was to spawn the wave again. The partial shape
+      // keeps every started handle awaitable and cancellable and names
+      // the refused index, the typed code, and the reason; tasks after
+      // the refusal are not attempted. The clean-wave result is byte
+      // for byte the historical { handles } shape.
+      for (const [index, task] of tasks.entries()) {
+        let spawned: { handle: number };
+        try {
+          spawned = await runtime.spawn(task);
+        } catch (thrown) {
+          return {
+            handles,
+            refused: {
+              index,
+              ...(thrown instanceof RulvarError ? { code: thrown.code } : {}),
+              reason: thrown instanceof Error ? thrown.message : String(thrown),
+            },
+          };
+        }
         handles.push(spawned.handle);
       }
       return { handles };
