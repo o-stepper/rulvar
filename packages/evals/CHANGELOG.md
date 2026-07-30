@@ -1,5 +1,13 @@
 # @rulvar/evals
 
+## 1.112.0
+
+### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+  - @rulvar/testing@1.112.0
+
 ## 1.111.0
 
 ### Patch Changes
