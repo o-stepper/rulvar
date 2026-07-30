@@ -519,6 +519,187 @@ describe('toOtel invocation spans (RV-207)', () => {
   });
 });
 
+describe('toOtel tool spans (RV802)', () => {
+  const okResult = Promise.resolve({
+    status: 'ok',
+    dropped: [],
+    pending: [],
+    usage: { inputTokens: 0, outputTokens: 0 },
+    cost: { totalUsd: 0, byModel: {}, byPhase: {}, byAgentType: {}, byRole: {}, unpriced: [] },
+  } as unknown as import('@rulvar/core').RunOutcome<unknown>);
+  const at = (ms: number): string => new Date(1_700_000_000_000 + ms).toISOString();
+  const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const toStream = (events: WorkflowEvent[]): AsyncIterable<WorkflowEvent> =>
+    (async function* () {
+      for (const event of events) {
+        yield await Promise.resolve(event);
+      }
+    })();
+
+  it('tools are child spans and the agent span survives to agent:end with its attributes', async () => {
+    // The twelfth experiment's P0 #2, in miniature: all 569 tool events
+    // of the live stream rode the 12 agent spanIds; tool:start was
+    // swallowed as a duplicate opener, the FIRST tool:end closed the
+    // agent span with the tool's outcome and timestamp, and the late
+    // agent:end attached usage, cost, and exploration to nothing.
+    const base = { runId: 'rt', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(1),
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'researcher',
+        model: 'fake:model',
+        role: 'loop',
+      },
+      { ...base, ts: at(2), spanId: 's1', type: 'tool:start', toolName: 'search' },
+      {
+        ...base,
+        ts: at(20),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'search',
+        outcome: 'ok',
+        durationMs: 18,
+      },
+      // Two tools in flight at once, one of them a same-name repeat:
+      // the synthetic pair key must keep all three executions distinct.
+      { ...base, ts: at(21), spanId: 's1', type: 'tool:start', toolName: 'search' },
+      { ...base, ts: at(22), spanId: 's1', type: 'tool:start', toolName: 'fetch' },
+      {
+        ...base,
+        ts: at(40),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'search',
+        outcome: 'ok',
+        durationMs: 19,
+      },
+      {
+        ...base,
+        ts: at(45),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'fetch',
+        outcome: 'denied',
+        durationMs: 0,
+        guard: 'per-tool-cap',
+      },
+      {
+        ...base,
+        ts: at(70),
+        spanId: 's1',
+        type: 'agent:end',
+        agentType: 'researcher',
+        status: 'ok',
+        usage,
+        costUsd: 0.012,
+        entryRef: 2,
+        exploration: {
+          toolCallsUsed: 3,
+          distinctSignatures: 2,
+          repeatedCalls: 1,
+          duplicateResultCalls: 0,
+          deniedRepeats: 0,
+        },
+      },
+      { ...base, ts: at(72), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.012 },
+    ] as unknown as WorkflowEvent[];
+    const { tracer, spans } = inMemoryTracer();
+    const created = await toOtel(
+      { runId: 'rt', events: toStream(events), result: okResult },
+      tracer,
+    );
+
+    // run + agent + three tool executions: full event-to-span parity.
+    expect(created).toBe(5);
+    expect(spans.every((span) => span.ended)).toBe(true);
+    // Every span closed by its own closer, none by the settle sweep
+    // (the sweep ends without a timestamp).
+    expect(spans.every((span) => typeof span.endTime === 'number')).toBe(true);
+
+    // The agent span covers the whole dispatch and keeps its closing
+    // attributes.
+    const agent = spans.find((span) => span.name.startsWith('agent '));
+    expect(agent?.startTime).toBe(Date.parse(at(1)));
+    expect(agent?.endTime).toBe(Date.parse(at(70)));
+    expect(agent?.attributes['gen_ai.usage.input_tokens']).toBe(10);
+    expect(agent?.attributes['rulvar.cost_usd']).toBe(0.012);
+    expect(agent?.attributes['rulvar.exploration.tool_calls_used']).toBe(3);
+    expect(agent?.attributes['rulvar.status']).toBe('ok');
+
+    // Three tool spans, FIFO-paired per (agent span, tool name).
+    const tools = spans.filter((span) => span.name.startsWith('tool '));
+    expect(tools.map((span) => span.name)).toEqual(['tool search', 'tool search', 'tool fetch']);
+    expect(tools[0]?.startTime).toBe(Date.parse(at(2)));
+    expect(tools[0]?.endTime).toBe(Date.parse(at(20)));
+    expect(tools[1]?.startTime).toBe(Date.parse(at(21)));
+    expect(tools[1]?.endTime).toBe(Date.parse(at(40)));
+    expect(tools[2]?.startTime).toBe(Date.parse(at(22)));
+    expect(tools[2]?.endTime).toBe(Date.parse(at(45)));
+    // The guard marker lands on the denied TOOL span, and the denial is
+    // an error status on that span alone.
+    expect(tools[2]?.attributes['rulvar.tool.guard']).toBe('per-tool-cap');
+    expect(tools[2]?.attributes['rulvar.status']).toBe('denied');
+    expect(tools[2]?.status?.code).toBe(2);
+    expect(agent?.status?.code).toBe(1);
+    expect(tools.every((span) => span.attributes['rulvar.tool_name'] !== undefined)).toBe(true);
+  });
+
+  it('a tool:end with no matching start attaches as a span event, never closes the agent', async () => {
+    // Foreign or truncated streams stay tolerated: the exporter's
+    // standing posture, now explicit for the unpaired closer.
+    const base = { runId: 'rt2', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(1),
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'researcher',
+        model: 'fake:model',
+        role: 'loop',
+      },
+      {
+        ...base,
+        ts: at(9),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'search',
+        outcome: 'ok',
+        durationMs: 3,
+      },
+      {
+        ...base,
+        ts: at(30),
+        spanId: 's1',
+        type: 'agent:end',
+        agentType: 'researcher',
+        status: 'ok',
+        usage,
+        costUsd: 0.001,
+        entryRef: 2,
+      },
+      { ...base, ts: at(31), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.001 },
+    ] as unknown as WorkflowEvent[];
+    const { tracer, spans } = inMemoryTracer();
+    const created = await toOtel(
+      { runId: 'rt2', events: toStream(events), result: okResult },
+      tracer,
+    );
+    expect(created).toBe(2);
+    const agent = spans.find((span) => span.name.startsWith('agent '));
+    expect(agent?.endTime).toBe(Date.parse(at(30)));
+    expect(agent?.attributes['rulvar.cost_usd']).toBe(0.001);
+    expect(agent?.events).toContain('tool:end');
+  });
+});
+
 describe('toOtel determinism events (RV-209)', () => {
   it('attaches determinism:warning as a span event with classification and code location', async () => {
     const okResult = Promise.resolve({
