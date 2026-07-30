@@ -1,5 +1,12 @@
 # @rulvar/openai
 
+## 1.113.0
+
+### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+
 ## 1.112.0
 
 ### Patch Changes
