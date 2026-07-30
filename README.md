@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The ninety nine rounds, verbatim in this repository's history:
+The one hundred rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -313,6 +313,7 @@ The ninety nine rounds, verbatim in this repository's history:
 | v1.115.0      | a213878 (#533): run:end, the kernel ledger, and the resume budget seed settle on the per-call billing fold, so no public money surface re-tiers a phase aggregate                         | v1.116.0   |
 | v1.116.0      | c15b83a (#536): tool executions become real OTel child spans under a synthetic pair key, and the agent span survives to agent:end with its usage, cost, and exploration                   | v1.117.0   |
 | v1.117.0      | f8341a3 (#539): provider statement reconciliation by machine: response-id coverage, per-component deltas, and implied rates naming the divergent rate-card line                           | v1.118.0   |
+| v1.118.0      | 1e4ff3c (#542): the preflight run ceiling refuses NaN typed like the runtime, and a malformed checkpoint decodes to undefined instead of a TypeError mid-resume                           | v1.119.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
