@@ -24,33 +24,40 @@ import {
 } from '@rulvar/core';
 import { createTestEngine } from '@rulvar/testing';
 
-import { ANTHROPIC_PRICING, anthropicModelInfo } from './caps.js';
+import { ANTHROPIC_MODELS, ANTHROPIC_PRICING, anthropicModelInfo } from './caps.js';
 
-/** The official table (platform.claude.com pricing page, 2026-07-16). */
+/**
+ * The official table (platform.claude.com pricing page as published
+ * 2026-07-16, every row re-verified against the page 2026-07-30).
+ */
 const OFFICIAL: Record<string, Pricing> = {
   'claude-fable-5': {
     inputUsdPerMTok: 10,
     outputUsdPerMTok: 50,
     cacheReadUsdPerMTok: 1,
     cacheWriteUsdPerMTok: 12.5,
+    ratesVerifiedAt: '2026-07-30',
   },
   'claude-opus-4-8': {
     inputUsdPerMTok: 5,
     outputUsdPerMTok: 25,
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
+    ratesVerifiedAt: '2026-07-30',
   },
   'claude-opus-4-7': {
     inputUsdPerMTok: 5,
     outputUsdPerMTok: 25,
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
+    ratesVerifiedAt: '2026-07-30',
   },
   'claude-opus-4-6': {
     inputUsdPerMTok: 5,
     outputUsdPerMTok: 25,
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
+    ratesVerifiedAt: '2026-07-30',
   },
   // Introductory price through 2026-08-31; the standard 3/15 row ships
   // in a release after the promotion ends, never by wall clock.
@@ -59,18 +66,21 @@ const OFFICIAL: Record<string, Pricing> = {
     outputUsdPerMTok: 10,
     cacheReadUsdPerMTok: 0.2,
     cacheWriteUsdPerMTok: 2.5,
+    ratesVerifiedAt: '2026-07-30',
   },
   'claude-sonnet-4-6': {
     inputUsdPerMTok: 3,
     outputUsdPerMTok: 15,
     cacheReadUsdPerMTok: 0.3,
     cacheWriteUsdPerMTok: 3.75,
+    ratesVerifiedAt: '2026-07-30',
   },
   'claude-haiku-4-5': {
     inputUsdPerMTok: 1,
     outputUsdPerMTok: 5,
     cacheReadUsdPerMTok: 0.1,
     cacheWriteUsdPerMTok: 1.25,
+    ratesVerifiedAt: '2026-07-30',
   },
 };
 
@@ -82,6 +92,17 @@ describe('Anthropic fallback pricing matches the official table', () => {
       expect(anthropicModelInfo(model).caps.pricing).toEqual(row);
     });
   }
+
+  it('records the rates verification date on every priced seed row (RV814)', () => {
+    // Verified against the documented model pricing table on
+    // 2026-07-30 (every seeded rate matched the page); the weekly
+    // rates audit re-verifies the same page and pages on drift.
+    for (const [model, info] of Object.entries(ANTHROPIC_MODELS)) {
+      if (info.caps.pricing !== undefined) {
+        expect(info.caps.pricing.ratesVerifiedAt, model).toBe('2026-07-30');
+      }
+    }
+  });
 
   it('ANTHROPIC_PRICING exports exactly the priced seed rows under a dated version', () => {
     expect(ANTHROPIC_PRICING.pricingVersion).toBe('anthropic-2026-07-16');

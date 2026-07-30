@@ -272,6 +272,13 @@ export interface PreflightSpawnReport {
   servedBy?: ModelRef;
   /** True when the serving model has no price row: a USD ceiling cannot bound it. */
   unpriced?: true;
+  /**
+   * The serving row's last rates verification date (RV814), copied
+   * from the resolved pricing; absent when the row names none. Every
+   * dollar in this report is priced under that row, so its staleness
+   * is part of the projection's honesty.
+   */
+  ratesVerifiedAt?: string;
   /** The SAME merge the runtime applies: call over profile over engine defaults. */
   limits: EffectiveUsageLimits;
   /** The layer-1 admission reserve this spawn would be admitted under. */
@@ -1128,6 +1135,9 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       count,
       ...(servedBy === undefined ? {} : { servedBy }),
       ...(unpriced ? { unpriced: true as const } : {}),
+      ...(pricing?.ratesVerifiedAt === undefined
+        ? {}
+        : { ratesVerifiedAt: pricing.ratesVerifiedAt }),
       limits,
       admissionReserveUsd: reserveUsd,
       reserveSource,

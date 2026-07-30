@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import type { ModelRef } from '../l0/messages.js';
+import type { Pricing } from '../l0/spi/provider.js';
 import { dispatchProjectionReserveUsd } from '../orchestrator/admission.js';
 import {
   evidencePreservedValidator,
@@ -1905,5 +1906,32 @@ describe('run.budgetUsd validation symmetry (RV803)', () => {
   it('accepts zero and positive ceilings exactly like the runtime', () => {
     expect(() => preflightEstimate({ run: { budgetUsd: 0 } })).not.toThrow();
     expect(() => preflightEstimate({ run: { budgetUsd: 2.5 } })).not.toThrow();
+  });
+});
+
+describe('rates verification age on the spawn report (RV814)', () => {
+  it('stamps the serving row ratesVerifiedAt and omits the field when the row names none', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'done', finish: 'stop' }));
+    const reportOf = (row: Pricing) =>
+      preflightEstimate({
+        engine: {
+          adapters: [adapter],
+          defaults: { routing: { loop: SERVED } },
+          pricing: { pricingVersion: 'audit-v1', models: { [SERVED]: row } },
+        },
+        run: { budgetUsd: 1 },
+        spawns: [{ label: 'digger', estInputTokens: 1_000 }],
+      });
+
+    const dated = reportOf({
+      inputUsdPerMTok: 3,
+      outputUsdPerMTok: 15,
+      ratesVerifiedAt: '2026-07-18',
+    });
+    expect(dated.spawns[0]?.ratesVerifiedAt).toBe('2026-07-18');
+
+    const undated = reportOf({ inputUsdPerMTok: 3, outputUsdPerMTok: 15 });
+    expect(undated.spawns[0]?.ratesVerifiedAt).toBeUndefined();
+    expect('ratesVerifiedAt' in (undated.spawns[0] ?? {})).toBe(false);
   });
 });

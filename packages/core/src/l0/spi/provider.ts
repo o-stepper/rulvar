@@ -54,6 +54,19 @@ export interface Pricing {
   cacheWrite1hUsdPerMTok?: number;
   /** Long-context tiers; a row without them is one linear price. */
   tiers?: PricingTier[];
+  /**
+   * ISO date (YYYY-MM-DD) of the last verification of this row against
+   * the provider's documented rates or its billing categories (RV814).
+   * A recorded verification event, never a guess: seed rows exist to
+   * bound ceilings conservatively, actual billing truth is established
+   * only by statement reconciliation over saved exports, and a
+   * confirmed divergence corrects the row in its own release with a
+   * changeset, never by a silent rewrite. Preflight stamps it on the
+   * spawn report and the invoice text names it with its age, so the
+   * consumer of a dollar figure can see how stale the rates behind it
+   * are; the settle pin carries it with the rest of the row.
+   */
+  ratesVerifiedAt?: string;
 }
 
 /** Capability facts the router consumes for tier selection and scrubbing. */

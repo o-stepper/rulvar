@@ -315,7 +315,13 @@ jobs:
     name: Docs conventions
     runs-on: ubuntu-latest
     steps:
+      # Full history: the README release-table SHA gate below decides
+      # ancestry with merge-base, which a shallow checkout cannot answer
+      # (the gate refuses shallow repositories instead of reporting
+      # false negatives).
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -332,6 +338,11 @@ jobs:
           (cd "$RUNNER_TEMP/docs-lint-deps" && npm install --no-save --ignore-scripts "typescript@$pin")
           ln -s "$RUNNER_TEMP/docs-lint-deps/node_modules" node_modules
       - run: node scripts/docs-lint.mjs
+      # README release-table SHA reachability (RV807): every squash SHA
+      # the Build Week table cites must be an ancestor of HEAD. The
+      # v1.109.0 row cited an abbreviation contained by no branch for
+      # eleven releases; provenance the eye cannot check is a CI fact.
+      - run: node scripts/readme-release-shas.mjs
       # The linter's own regression tests (sentence sentinels, negation
       # handling). The glob is expanded by the Node test runner itself,
       # so every scripts/**/*.test.mjs joins CI by construction instead
