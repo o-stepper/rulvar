@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-A covered model's invoice rows are now exactly its recorded provider calls (RV703). Coverage is decided per model (RV604), but the remainder pass subtracted records per model AND role, so a covered model whose record roles differed from its slice roles (the schema-extract default splits one model's usage by role while the record carries one role, or none) fabricated a phantom `unattributed` remainder row: the export then carried more tokens than the run used, `sum(rows[].usd)` exceeded `totalUsd` under a `rowUsdNonAdditive: false` promise, and the allocation pass siphoned dollars from the real call's row onto the phantom. `invoiceFromJournal` now skips the per-slice remainder arithmetic entirely for models the billing fold covered; uncovered models keep the historical per-slice remainders byte for byte. `EntryBillingFold` publishes the fold's per-model coverage decision as `coveredModels`, so row builders honor the same decision instead of recomputing it under a different key.

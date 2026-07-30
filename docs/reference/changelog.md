@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+
 ### 1.110.0
 
 #### Patch Changes
@@ -1209,6 +1216,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+
 ### 1.110.0
 
 #### Patch Changes
@@ -2255,6 +2269,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
 
 ### 1.110.0
 
@@ -3660,6 +3681,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.111.0
+
+#### Minor Changes
+
+- fd25169: A covered model's invoice rows are now exactly its recorded provider calls (RV703). Coverage is decided per model (RV604), but the remainder pass subtracted records per model AND role, so a covered model whose record roles differed from its slice roles (the schema-extract default splits one model's usage by role while the record carries one role, or none) fabricated a phantom `unattributed` remainder row: the export then carried more tokens than the run used, `sum(rows[].usd)` exceeded `totalUsd` under a `rowUsdNonAdditive: false` promise, and the allocation pass siphoned dollars from the real call's row onto the phantom. `invoiceFromJournal` now skips the per-slice remainder arithmetic entirely for models the billing fold covered; uncovered models keep the historical per-slice remainders byte for byte. `EntryBillingFold` publishes the fold's per-model coverage decision as `coveredModels`, so row builders honor the same decision instead of recomputing it under a different key.
 
 ### 1.110.0
 
@@ -5424,6 +5451,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.111.0
+
 ### 1.110.0
 
 ### 1.109.0
@@ -5748,6 +5777,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+  - @rulvar/testing@1.111.0
 
 ### 1.110.0
 
@@ -7017,6 +7054,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+
 ### 1.110.0
 
 #### Patch Changes
@@ -7466,6 +7510,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
 
 ### 1.110.0
 
@@ -8670,6 +8721,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+
 ### 1.110.0
 
 #### Patch Changes
@@ -9830,6 +9888,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+  - eslint-plugin-rulvar@1.111.0
 
 ### 1.110.0
 
@@ -11063,6 +11129,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+  - @rulvar/anthropic@1.111.0
+  - @rulvar/openai@1.111.0
 
 ### 1.110.0
 
@@ -12489,6 +12564,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+
 ### 1.110.0
 
 #### Patch Changes
@@ -13641,6 +13723,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
+
 ### 1.110.0
 
 #### Patch Changes
@@ -14108,6 +14197,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
 
 ### 1.110.0
 
@@ -15207,6 +15303,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.111.0
+
+#### Patch Changes
+
+- Updated dependencies [fd25169]
+  - @rulvar/core@1.111.0
 
 ### 1.110.0
 
