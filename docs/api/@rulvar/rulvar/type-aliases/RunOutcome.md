@@ -8,6 +8,7 @@
 
 ```ts
 type RunOutcome<R> = {
+  acceptanceChildren?: AcceptanceChildSummary[];
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   cost: CostReport;
@@ -32,6 +33,27 @@ Defined in: `packages/core/dist/index.d.ts`
 | `R` |
 
 ## Properties
+
+### acceptanceChildren?
+
+```ts
+optional acceptanceChildren?: AcceptanceChildSummary[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The per-child machine roster of the acceptance fold (RV806), lifted
+from the same envelope (or typed error data) under the same
+posture: each spawned child with its settled status, the salvage
+arm that accepted it (when one did), and the evidence verdict where
+the child declared an evidence contract, `waivedBySalvage` marking
+a below-floor child a salvage arm accepted anyway. The twelfth
+comparison run accepted two below-floor children through salvage
+and the outcome showed it only as name lists; this is the machine
+verdict. Replay-stable: the roster is journaled inside the single
+acceptance decision.
+
+***
 
 ### childStatusCounts?
 

@@ -120,6 +120,7 @@ const engine = createEngine({
 | ------ | ------ |
 | [AbandonedSpendView](/api/@rulvar/rulvar/interfaces/AbandonedSpendView.md) | The abandoned-spend ledger fold. |
 | [AbandonFold](/api/@rulvar/rulvar/interfaces/AbandonFold.md) | - |
+| [AcceptanceChildSummary](/api/@rulvar/rulvar/interfaces/AcceptanceChildSummary.md) | One row of the acceptance fold's per-child roster (RV806): the settled status, the salvage arm that accepted the child (absent when none did), and the evidence verdict where the child declared an evidence contract. `waivedBySalvage: true` marks a child whose evidence floor was NOT met but which a salvage arm accepted anyway; gate on it where waived evidence must not pass silently. |
 | [AdmissionDecision](/api/@rulvar/rulvar/interfaces/AdmissionDecision.md) | The full admission decision embedded in the carrying entry. |
 | [AdmissionStatsBefore](/api/@rulvar/rulvar/interfaces/AdmissionStatsBefore.md) | Live pre-append snapshot embedded in the decision entry (DEF-2/DEF-3). |
 | [AdmitLineage](/api/@rulvar/rulvar/interfaces/AdmitLineage.md) | The lineage block every non-reject verdict carries (DEF-3). |

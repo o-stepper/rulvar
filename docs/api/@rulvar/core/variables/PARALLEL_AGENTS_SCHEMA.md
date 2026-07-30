@@ -10,6 +10,6 @@
 const PARALLEL_AGENTS_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L58)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L59)
 
 parallel_agents wraps the spawn_agent params.

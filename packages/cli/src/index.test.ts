@@ -1249,3 +1249,87 @@ describe('runs audit (fenced run state RFC, phase 3)', () => {
     expect((await store.getMeta('SUSPECT'))?.status).toBe('ok');
   });
 });
+
+describe('inspect acceptance and quota rendering (RV806)', () => {
+  it('prints the acceptance verdict, salvage, evidence verdicts, and window-labeled quota drift', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-inspect-'));
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), 'export default { workflows: {} };\n', 'utf8');
+    const storeDir = join(cwd, '.rulvar');
+    mkdirSync(storeDir, { recursive: true });
+    const entryBase = {
+      hashVersion: 2,
+      spanId: 's0',
+      startedAt: '2026-07-30T00:00:00.000Z',
+      scope: 'orchestrator',
+      ordinal: 0,
+      kind: 'decision',
+      status: 'ok',
+    };
+    const entries = [
+      {
+        ...entryBase,
+        seq: 0,
+        key: 'acceptance',
+        value: {
+          decisionType: 'orchestrator_acceptance',
+          verdict: 'accepted',
+          completion: 'partial',
+          childPolicy: 'all-ok',
+          childStatusCounts: { ok: 1, limit: 1 },
+          degradedReasons: ['child w2 accepted as partial'],
+          salvagedPartialChildren: ['w2'],
+          children: [
+            { child: 'w1', status: 'ok' },
+            {
+              child: 'w2',
+              status: 'limit',
+              salvage: 'partial',
+              evidence: { recordedEntries: 1, minEntries: 2, met: false, waivedBySalvage: true },
+            },
+          ],
+        },
+      },
+      {
+        ...entryBase,
+        seq: 1,
+        key: 'quota-drift:requests:openai:gpt-5.6-terra',
+        value: {
+          decisionType: 'quota_drift',
+          provider: 'openai',
+          model: 'gpt-5.6-terra',
+          dimension: 'requests',
+          declaredPerMinute: 500,
+          reportedPerMinute: 300,
+        },
+      },
+    ];
+    writeFileSync(
+      join(storeDir, 'ACC1.jsonl'),
+      entries.map((entry) => JSON.stringify(entry)).join('\n') + '\n',
+      'utf8',
+    );
+    writeFileSync(
+      join(storeDir, 'ACC1.meta.json'),
+      JSON.stringify({
+        runId: 'ACC1',
+        status: 'ok',
+        updatedAt: '2026-07-30T00:00:01.000Z',
+        workflowName: 'collect',
+      }),
+      'utf8',
+    );
+
+    const io = scriptedIo();
+    expect(await runCli(['inspect', 'ACC1', '--store', storeDir], { cwd, io })).toBe(0);
+    const text = io.outLines.join('\n');
+    expect(text).toContain(
+      'acceptance: accepted (completion partial; gate on the status and completion PAIR)',
+    );
+    expect(text).toContain('salvaged partial: w2');
+    expect(text).toContain('evidence w2: 1 of 2 (below floor, waived by salvage)');
+    expect(text).not.toContain('evidence w1');
+    expect(text).toContain(
+      'quota drift: openai:gpt-5.6-terra requests declared 500/min vs provider 300/min (per-minute window, not cumulative)',
+    );
+  });
+});

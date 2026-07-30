@@ -706,6 +706,77 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
       `  unpriced: ${item.model} (${item.usage.inputTokens + item.usage.outputTokens} tok)`,
     );
   }
+  // The acceptance verdict from its journaled decision (RV806):
+  // completion, salvage, and the per-child evidence verdicts. Transport
+  // status alone does not say the work is complete; gate on the
+  // (status, completion) pair.
+  for (const entry of entries) {
+    if (entry.kind !== 'decision') {
+      continue;
+    }
+    const value = entry.value as
+      | {
+          decisionType?: string;
+          verdict?: string;
+          completion?: string;
+          salvagedPartialChildren?: string[];
+          salvagedTerminalOutputChildren?: string[];
+          children?: Array<{
+            child: string;
+            status: string;
+            salvage?: string;
+            evidence?: {
+              recordedEntries: number;
+              minEntries: number;
+              met: boolean;
+              waivedBySalvage?: true;
+            };
+          }>;
+        }
+      | undefined;
+    if (value?.decisionType === 'orchestrator_acceptance') {
+      context.io.out(
+        `acceptance: ${value.verdict ?? 'unknown'} (completion ${value.completion ?? 'unknown'}; ` +
+          'gate on the status and completion PAIR)',
+      );
+      if ((value.salvagedPartialChildren?.length ?? 0) > 0) {
+        context.io.out(`  salvaged partial: ${(value.salvagedPartialChildren ?? []).join(', ')}`);
+      }
+      if ((value.salvagedTerminalOutputChildren?.length ?? 0) > 0) {
+        context.io.out(
+          `  salvaged terminal output: ${(value.salvagedTerminalOutputChildren ?? []).join(', ')}`,
+        );
+      }
+      for (const child of value.children ?? []) {
+        if (child.evidence === undefined) {
+          continue;
+        }
+        const marker = child.evidence.met
+          ? 'met'
+          : child.evidence.waivedBySalvage === true
+            ? 'below floor, waived by salvage'
+            : 'below floor';
+        context.io.out(
+          `  evidence ${child.child}: ${String(child.evidence.recordedEntries)} of ` +
+            `${String(child.evidence.minEntries)} (${marker})`,
+        );
+      }
+    }
+    if (value?.decisionType === 'quota_drift') {
+      const drift = entry.value as {
+        provider?: string;
+        model?: string;
+        dimension?: string;
+        declaredPerMinute?: number;
+        reportedPerMinute?: number;
+      };
+      context.io.out(
+        `quota drift: ${drift.provider ?? '?'}:${drift.model ?? '?'} ${drift.dimension ?? '?'} ` +
+          `declared ${String(drift.declaredPerMinute ?? '?')}/min vs provider ` +
+          `${String(drift.reportedPerMinute ?? '?')}/min (per-minute window, not cumulative)`,
+      );
+    }
+  }
   for (const entry of entries) {
     const status = entry.status === undefined ? '' : ` ${entry.status}`;
     const served = entry.servedBy === undefined ? '' : ` servedBy=${entry.servedBy}`;

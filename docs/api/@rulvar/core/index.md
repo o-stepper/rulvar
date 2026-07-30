@@ -108,6 +108,7 @@ exactly the pieces you need, for example
 | ------ | ------ |
 | [AbandonedSpendView](/api/@rulvar/core/interfaces/AbandonedSpendView.md) | The abandoned-spend ledger fold. |
 | [AbandonFold](/api/@rulvar/core/interfaces/AbandonFold.md) | - |
+| [AcceptanceChildSummary](/api/@rulvar/core/interfaces/AcceptanceChildSummary.md) | One row of the acceptance fold's per-child roster (RV806): the settled status, the salvage arm that accepted the child (absent when none did), and the evidence verdict where the child declared an evidence contract. `waivedBySalvage: true` marks a child whose evidence floor was NOT met but which a salvage arm accepted anyway; gate on it where waived evidence must not pass silently. |
 | [AdmissionDecision](/api/@rulvar/core/interfaces/AdmissionDecision.md) | The full admission decision embedded in the carrying entry. |
 | [AdmissionStatsBefore](/api/@rulvar/core/interfaces/AdmissionStatsBefore.md) | Live pre-append snapshot embedded in the decision entry (DEF-2/DEF-3). |
 | [AdmitLineage](/api/@rulvar/core/interfaces/AdmitLineage.md) | The lineage block every non-reject verdict carries (DEF-3). |

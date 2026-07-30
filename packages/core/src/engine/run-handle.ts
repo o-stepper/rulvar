@@ -87,6 +87,26 @@ export interface CostReport {
   usageApprox?: boolean;
 }
 
+/**
+ * One row of the acceptance fold's per-child roster (RV806): the
+ * settled status, the salvage arm that accepted the child (absent when
+ * none did), and the evidence verdict where the child declared an
+ * evidence contract. `waivedBySalvage: true` marks a child whose
+ * evidence floor was NOT met but which a salvage arm accepted anyway;
+ * gate on it where waived evidence must not pass silently.
+ */
+export interface AcceptanceChildSummary {
+  child: string;
+  status: string;
+  salvage?: 'partial' | 'terminal-output';
+  evidence?: {
+    recordedEntries: number;
+    minEntries: number;
+    met: boolean;
+    waivedBySalvage?: true;
+  };
+}
+
 export type RunOutcome<R> = {
   status: 'ok' | 'error' | 'cancelled' | 'exhausted' | 'suspended';
   value?: R;
@@ -132,6 +152,19 @@ export type RunOutcome<R> = {
    * 'limit'; same lift and posture.
    */
   salvagedTerminalOutputChildren?: string[];
+  /**
+   * The per-child machine roster of the acceptance fold (RV806), lifted
+   * from the same envelope (or typed error data) under the same
+   * posture: each spawned child with its settled status, the salvage
+   * arm that accepted it (when one did), and the evidence verdict where
+   * the child declared an evidence contract, `waivedBySalvage` marking
+   * a below-floor child a salvage arm accepted anyway. The twelfth
+   * comparison run accepted two below-floor children through salvage
+   * and the outcome showed it only as name lists; this is the machine
+   * verdict. Replay-stable: the roster is journaled inside the single
+   * acceptance decision.
+   */
+  acceptanceChildren?: AcceptanceChildSummary[];
   /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
   dropped: DroppedItem[];
   /** Suspensions open at settle time (M2). */

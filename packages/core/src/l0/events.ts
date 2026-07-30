@@ -61,6 +61,22 @@ export type CoreEvents =
       salvagedPartialChildren?: string[];
       /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
       salvagedTerminalOutputChildren?: string[];
+      /**
+       * The per-child acceptance roster (RV806): status, salvage arm,
+       * and the evidence verdict where the child declared a contract;
+       * same lift and posture as the fields above.
+       */
+      acceptanceChildren?: Array<{
+        child: string;
+        status: string;
+        salvage?: 'partial' | 'terminal-output';
+        evidence?: {
+          recordedEntries: number;
+          minEntries: number;
+          met: boolean;
+          waivedBySalvage?: true;
+        };
+      }>;
     }
   | { type: 'phase:start'; phase: string }
   | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; msg: string; data?: Json }

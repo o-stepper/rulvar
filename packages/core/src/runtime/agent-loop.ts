@@ -212,6 +212,18 @@ export interface AgentResult<T> {
    */
   toolBudget?: ToolBudgetSummary;
   /**
+   * The evidence verdict under a DECLARED evidence contract (RV806):
+   * the window-derived count of successful `record_evidence` executions
+   * (the same counting rule as the enforce-refuse floor), the declared
+   * floor, and whether the count met it, stamped on EVERY terminal
+   * status so the orchestrator's acceptance summary can report each
+   * child's evidence as met, unmet, or waived by salvage. Absent
+   * without a declared contract: those results stay byte-identical.
+   * Live-window derived like `partial`: a checkpointless restore that
+   * lost the window reports what the restored window shows.
+   */
+  evidence?: { recordedEntries: number; minEntries: number; met: boolean };
+  /**
    * The structured terminal partial (RV-210 close-out): the LAST
    * successful `report_progress` call of the invocation, present only on
    * a 'limit' terminal (cap expiry or an engine-decided abort) whose
@@ -4123,19 +4135,26 @@ export async function runAgent<S extends SchemaSpec>(
   // for the ctx layer to journal and memoize. Non-ok terminals are
   // never re-judged, and 'warn' keeps the preflight-only behavior.
   const evidenceFloor = options.evidenceContract;
+  // Counted once under a DECLARED contract, for every terminal status
+  // (RV806): the refusal below judges it, and the settled result
+  // carries it as the machine verdict the acceptance summary reads.
+  const recordedEvidenceEntries =
+    evidenceFloor === undefined
+      ? undefined
+      : messages.reduce(
+          (count, message) =>
+            count +
+            message.parts.filter(
+              (part) =>
+                part.type === 'tool-result' &&
+                part.name === 'record_evidence' &&
+                (part.result as { recorded?: unknown } | undefined)?.recorded === true,
+            ).length,
+          0,
+        );
   let evidenceRefusal: { recordedEntries: number; minEntries: number } | undefined;
   if (evidenceFloor?.enforce === 'refuse' && status === 'ok') {
-    const recordedEntries = messages.reduce(
-      (count, message) =>
-        count +
-        message.parts.filter(
-          (part) =>
-            part.type === 'tool-result' &&
-            part.name === 'record_evidence' &&
-            (part.result as { recorded?: unknown } | undefined)?.recorded === true,
-        ).length,
-      0,
-    );
+    const recordedEntries = recordedEvidenceEntries ?? 0;
     if (recordedEntries < evidenceFloor.minEntries) {
       status = 'error';
       output = null;
@@ -4182,6 +4201,15 @@ export async function runAgent<S extends SchemaSpec>(
   // absent leaves those journals byte-identical to before.
   if (usageByPhaseModel.size > 1) {
     result.usageByModel = usageSlices();
+  }
+  // The evidence verdict (RV806): present exactly when a contract was
+  // declared, on every terminal status.
+  if (evidenceFloor !== undefined && recordedEvidenceEntries !== undefined) {
+    result.evidence = {
+      recordedEntries: recordedEvidenceEntries,
+      minEntries: evidenceFloor.minEntries,
+      met: recordedEvidenceEntries >= evidenceFloor.minEntries,
+    };
   }
   // The reconciliation ledger (P1.3): present whenever the invocation
   // made (or restored) at least one wire call; a fully replayed

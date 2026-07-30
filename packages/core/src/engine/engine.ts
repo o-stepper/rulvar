@@ -78,6 +78,7 @@ import { journalPricingSnapshot, snapshotJournalPricing } from './pricing-snapsh
 import { EVENT_SEGMENT_STRIDE, EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
 import {
+  type AcceptanceChildSummary,
   type PendingExternal,
   type RunHandle,
   type RunOutcome,
@@ -556,6 +557,7 @@ function liftRunCompletion(candidate: unknown):
       degradedReasons?: string[];
       salvagedPartialChildren?: string[];
       salvagedTerminalOutputChildren?: string[];
+      acceptanceChildren?: AcceptanceChildSummary[];
     }
   | undefined {
   if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
@@ -571,6 +573,7 @@ function liftRunCompletion(candidate: unknown):
     degradedReasons?: string[];
     salvagedPartialChildren?: string[];
     salvagedTerminalOutputChildren?: string[];
+    acceptanceChildren?: AcceptanceChildSummary[];
   } = { completion };
   const counts = (candidate as { childStatusCounts?: unknown }).childStatusCounts;
   if (typeof counts === 'object' && counts !== null && !Array.isArray(counts)) {
@@ -607,6 +610,53 @@ function liftRunCompletion(candidate: unknown):
   const salvagedTerminalOutputChildren = liftStringList('salvagedTerminalOutputChildren');
   if (salvagedTerminalOutputChildren !== undefined) {
     lifted.salvagedTerminalOutputChildren = salvagedTerminalOutputChildren;
+  }
+  // The per-child acceptance roster (RV806), same posture: a valid
+  // array of child rows mirrors, anything malformed drops silently.
+  const rosterCandidate = (candidate as { acceptanceChildren?: unknown }).acceptanceChildren;
+  if (Array.isArray(rosterCandidate)) {
+    const validRow = (row: unknown): row is AcceptanceChildSummary => {
+      if (typeof row !== 'object' || row === null) {
+        return false;
+      }
+      const { child, status, salvage, evidence } = row as {
+        child?: unknown;
+        status?: unknown;
+        salvage?: unknown;
+        evidence?: unknown;
+      };
+      if (typeof child !== 'string' || typeof status !== 'string') {
+        return false;
+      }
+      if (salvage !== undefined && salvage !== 'partial' && salvage !== 'terminal-output') {
+        return false;
+      }
+      if (evidence === undefined) {
+        return true;
+      }
+      if (typeof evidence !== 'object' || evidence === null) {
+        return false;
+      }
+      const { recordedEntries, minEntries, met, waivedBySalvage } = evidence as {
+        recordedEntries?: unknown;
+        minEntries?: unknown;
+        met?: unknown;
+        waivedBySalvage?: unknown;
+      };
+      return (
+        typeof recordedEntries === 'number' &&
+        Number.isSafeInteger(recordedEntries) &&
+        recordedEntries >= 0 &&
+        typeof minEntries === 'number' &&
+        Number.isSafeInteger(minEntries) &&
+        minEntries >= 0 &&
+        typeof met === 'boolean' &&
+        (waivedBySalvage === undefined || waivedBySalvage === true)
+      );
+    };
+    if (rosterCandidate.every(validRow)) {
+      lifted.acceptanceChildren = rosterCandidate.map((row) => ({ ...row }));
+    }
   }
   return lifted;
 }
@@ -1648,6 +1698,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.salvagedTerminalOutputChildren !== undefined) {
           outcome.salvagedTerminalOutputChildren = lifted.salvagedTerminalOutputChildren;
+        }
+        if (lifted.acceptanceChildren !== undefined) {
+          outcome.acceptanceChildren = lifted.acceptanceChildren;
         }
       }
       // The journaled settle (fenced run state RFC, phase 3): the run's
