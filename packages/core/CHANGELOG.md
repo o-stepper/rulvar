@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.122.0
+
+### Minor Changes
+
+- 8cf45c5: The post-fan-in double rework closed at its cheapest point (RV808a, the first half of RV808). The twelfth comparison run paid 80.157% of wall time AFTER fan-in: the coordination draft was repaired only against the weak `draftPolicy` subset, the `skipWhenDraftValid` pre-pass then judged it by the FULL contract and failed, that verdict was silently discarded, and the synthesis invocation re-derived the whole document blind to the known defects and failed the same contract once more itself. Two opt-ins close the loop. `finishValidation.draftPolicy: 'contract'` gates the coordination draft by the full declared validator set (same validators, same children snapshot the synthesis-bound validation reads), with rejection feedback naming the failing validators, so the coordination repair loop drives the draft toward exactly what the pre-pass will judge and the skip becomes reachable; the preflight `draft-gate-below-contract` warning cannot fire under it, and the preflight input type accepts the sentinel. `synthesis.carryDraftGaps: true` (requires `skipWhenDraftValid`) journals a failing pre-pass as an `orchestrator_synthesis_draft_gaps` decision (failed validator names and reasons, bound to the contract generation and draft hash exactly like the skip decision) and feeds the synthesis prompt a `DRAFT CONTRACT GAPS:` line instructing it to repair the named gaps and preserve the draft otherwise; a resume reuses the journaled verdict without re-running a validator, so prompt bytes re-derive identically and the paid invocation replays. Both default off: journals and prompt bytes stay byte-identical without them. The sectional bounded repair and the structured evidence index (RV808b) follow separately, and the live acceptance measurement of the post-fan-in share stays gated on an explicit founder go.
+
 ## 1.121.0
 
 ### Minor Changes
