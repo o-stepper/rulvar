@@ -686,7 +686,8 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
   context.io.out(`cost: $${cost.totalUsd.toFixed(4)}`);
   if (inspectSnapshot !== undefined) {
     context.io.out(
-      `pricing: run-settle pins composed with the current table${pinVersionsSuffix(inspectSnapshot)}`,
+      'pricing: run-settle pins composed with the current table' +
+        pinVersionsSuffix(inspectSnapshot, assembled.currentPricingVersion),
     );
   }
   // The gross/net split surfaces only when the run actually abandoned
@@ -754,18 +755,27 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
   // fold. The export declares the rule, every pinned version with its
   // boundaries, and the composition bound.
   const snapshot = journalPricingSnapshot(entries);
+  // The current table names itself (RV706): the pinned segments each
+  // declare their version, and the version that priced the tail (or,
+  // without a snapshot, the whole fold) rides along instead of staying
+  // anonymous. Absent when the config declares no table.
+  const currentVersion =
+    assembled.currentPricingVersion === undefined
+      ? {}
+      : { currentPricingVersion: assembled.currentPricingVersion };
   const invoice = invoiceFromJournal(
     entries,
     snapshot === undefined ? assembled.priceUsd : snapshot.composedPriceUsd(assembled.priceUsd),
     {
       pricing:
         snapshot === undefined
-          ? { source: 'current-table' }
+          ? { source: 'current-table', ...currentVersion }
           : {
               source: 'composed',
               ...(snapshot.pricingVersion === undefined
                 ? {}
                 : { pricingVersion: snapshot.pricingVersion }),
+              ...currentVersion,
               rows: snapshot.rows,
               segments: snapshot.segments,
               pinnedThroughSeq: snapshot.pinnedThroughSeq,
@@ -796,7 +806,8 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
   context.io.out(
     snapshot === undefined
       ? 'pricing rates: current table (no snapshot in the journal)'
-      : `pricing rates: run-settle pins composed with the current table${pinVersionsSuffix(snapshot)}`,
+      : 'pricing rates: run-settle pins composed with the current table' +
+          pinVersionsSuffix(snapshot, assembled.currentPricingVersion),
   );
   for (const row of invoice.rows) {
     const usd = row.usd === undefined ? 'unpriced' : `$${row.usd.toFixed(4)}`;
@@ -827,12 +838,18 @@ function usdOf(value: number | undefined): string {
 }
 
 /**
- * ` (v-a, v-b)` across the pins in journal order, deduplicated (RV611):
- * one version per rotation, so the inspect and invoice text forms name
- * every table that priced the fold, not only the last. Empty when no
- * pin carried a version.
+ * ` (v-a, v-b; current v-live)` across the pins in journal order,
+ * deduplicated (RV611), plus the CLI's own current table version
+ * (RV706): the composed fold prices the tail past the last pin at the
+ * current table, so the text form names BOTH halves of the
+ * composition. Empty when no pin carried a version and the config
+ * declares no table; the pre-RV706 forms are preserved byte for byte
+ * in that case and when only the pins carry versions.
  */
-function pinVersionsSuffix(snapshot: JournalPricingSnapshot): string {
+function pinVersionsSuffix(
+  snapshot: JournalPricingSnapshot,
+  currentPricingVersion: string | undefined,
+): string {
   const versions = [
     ...new Set(
       snapshot.segments
@@ -840,7 +857,14 @@ function pinVersionsSuffix(snapshot: JournalPricingSnapshot): string {
         .filter((version): version is string => version !== undefined),
     ),
   ];
-  return versions.length === 0 ? '' : ` (${versions.join(', ')})`;
+  const parts: string[] = [];
+  if (versions.length > 0) {
+    parts.push(versions.join(', '));
+  }
+  if (currentPricingVersion !== undefined) {
+    parts.push(`current ${currentPricingVersion}`);
+  }
+  return parts.length === 0 ? '' : ` (${parts.join('; ')})`;
 }
 
 function renderPreflight(report: PreflightReport, io: CliIo): void {

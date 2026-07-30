@@ -9700,6 +9700,15 @@ interface InvoicePricingProvenance {
   * bound.
   */
   pinnedThroughSeq?: number | undefined;
+  /**
+  * The version of the caller's CURRENT table (RV706): on `composed`
+  * exports, the table that priced everything past `pinnedThroughSeq`;
+  * on `current-table` exports, the whole fold's table. The pinned
+  * segments each name their own version, and without this field the
+  * composition's second half stayed anonymous. Absent when the
+  * caller's table declares no version.
+  */
+  currentPricingVersion?: string | undefined;
 }
 /** The machine-readable invoice: rows plus the ledger totals. */
 interface InvoiceExport {

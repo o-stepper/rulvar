@@ -8,6 +8,7 @@
  * reports are the host's reconciliation signal after a crash between
  * the effect and the outcome write.
  */
+import { createHash } from 'node:crypto';
 import { appendFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -275,6 +276,78 @@ describe('torn tails and corruption (RV502)', () => {
     expect(scan.corrupt[0]?.line).toBe(2);
     expect(scan.corrupt[0]?.offset).toBe(Buffer.byteLength(valid, 'utf8') + 1);
     expect(scan.corrupt[0]?.preview).toBe('{malformed}');
+  });
+});
+
+describe('byte-true quarantine (RV707)', () => {
+  it('a torn fragment with invalid UTF-8 round-trips from quarantine byte for byte', async () => {
+    // The lossy string quarantine collapsed every invalid byte to
+    // U+FFFD: two different byte tails produced one quarantine row, and
+    // the exact bytes were unrecoverable, while the scan itself refuses
+    // U+FFFD as key forgery. The row now carries the exact bytes and
+    // their hash; the string field stays for old readers, marked lossy.
+    const path = freshPath();
+    const rawFragment = Buffer.concat([
+      Buffer.from('{"phase":"intent","idempotencyKey":"torn-', 'utf8'),
+      Buffer.from([0xff, 0xfe, 0x80]),
+    ]);
+    writeFileSync(
+      path,
+      Buffer.concat([
+        Buffer.from(
+          `${JSON.stringify({ phase: 'intent', ...intentOf('k-prior', 1, 'a-prior') })}\n`,
+          'utf8',
+        ),
+        rawFragment,
+      ]),
+    );
+    const ledger = jsonlEffectLedger(path, { now: () => 777 });
+    await ledger.intent?.(intentOf('k-next', 2, 'a-next'));
+    const scan = await loadEffectLedger(path);
+    expect(scan.corrupt).toHaveLength(0);
+    expect(scan.tornArtifacts).toHaveLength(1);
+    const artifact = scan.tornArtifacts[0];
+    expect(artifact?.bytesBase64).toBe(rawFragment.toString('base64'));
+    expect(Buffer.from(artifact?.bytesBase64 ?? '', 'base64').equals(rawFragment)).toBe(true);
+    expect(artifact?.sha256).toBe(createHash('sha256').update(rawFragment).digest('hex'));
+    expect(artifact?.bytes).toBe(rawFragment.toString('utf8'));
+    expect(artifact?.recoveredAt).toBe(777);
+  });
+
+  it('the parseable decision is made on bytes: a lossy-parseable fragment is quarantined, not terminated', async () => {
+    // The manufactured-corruption path: this fragment contains invalid
+    // UTF-8 INSIDE a JSON string literal, so the lossy decode produced
+    // '{"a":"�"}', which parses. The old repair then appended a
+    // newline, keeping a terminated line of invalid bytes, and the next
+    // scan failed closed on damage the repair itself created. Strict
+    // decoding first makes the fragment unparseable, so it quarantines.
+    const path = freshPath();
+    const rawFragment = Buffer.concat([
+      Buffer.from('{"a":"', 'utf8'),
+      Buffer.from([0xff]),
+      Buffer.from('"}', 'utf8'),
+    ]);
+    writeFileSync(path, rawFragment);
+    const ledger = jsonlEffectLedger(path);
+    await ledger.intent?.(intentOf('k-after', 1, 'a-after'));
+    const scan = await loadEffectLedger(path);
+    expect(scan.corrupt).toHaveLength(0);
+    expect(scan.intents.map((entry) => entry.idempotencyKey)).toEqual(['k-after']);
+    expect(scan.tornArtifacts).toHaveLength(1);
+    expect(
+      Buffer.from(scan.tornArtifacts[0]?.bytesBase64 ?? '', 'base64').equals(rawFragment),
+    ).toBe(true);
+  });
+
+  it('a legacy quarantine row without the byte fields still scans, fields absent', async () => {
+    const path = freshPath();
+    writeFileSync(
+      path,
+      `${JSON.stringify({ phase: 'torn', bytes: 'old-fragment', recoveredAt: 5 })}\n`,
+      'utf8',
+    );
+    const scan = await loadEffectLedger(path);
+    expect(scan.tornArtifacts).toEqual([{ bytes: 'old-fragment', recoveredAt: 5 }]);
   });
 });
 

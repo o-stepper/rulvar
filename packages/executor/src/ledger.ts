@@ -43,7 +43,12 @@ const wallClock: () => number = Date.now.bind(globalThis);
 type LedgerLine =
   | ({ phase: 'intent' } & ToolEffectIntent)
   | ({ phase: 'outcome' } & ToolEffectRecord)
-  | { phase: 'torn'; bytes: string; recoveredAt: number };
+  | { phase: 'torn'; bytes: string; bytesBase64?: string; sha256?: string; recoveredAt: number };
+
+/** Strict decode (RV607/RV707): invalid UTF-8 is damage, never a
+ * replacement character that forges a key or a parseable fragment. */
+const decodeStrict = (bytes: Buffer): string =>
+  new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 
 /** How stale a repair lock's mtime must be before a writer may presume
  * its holder crashed and steal it. Repairs take milliseconds; ten
@@ -110,10 +115,16 @@ async function repairUnderLock(path: string, now: () => number): Promise<void> {
       // repaired already, and then there is nothing to cut.
       if (raw.length === 0 || raw[raw.length - 1] === 0x0a) return;
       const boundary = raw.lastIndexOf(0x0a) + 1;
-      const fragment = raw.subarray(boundary).toString('utf8');
+      const fragment = raw.subarray(boundary);
+      // The parseable decision is made on the BYTES (RV707): strict
+      // UTF-8 first, JSON second. The lossy decode used to turn invalid
+      // bytes inside a string literal into U+FFFD, the result PARSED,
+      // and the repair terminated a line of invalid bytes in place,
+      // manufacturing exactly the corruption the fail-closed scan
+      // refuses.
       let parseable = true;
       try {
-        JSON.parse(fragment);
+        JSON.parse(decodeStrict(fragment));
       } catch {
         parseable = false;
       }
@@ -125,9 +136,18 @@ async function repairUnderLock(path: string, now: () => number): Promise<void> {
       const owner = await readFile(lockPath, 'utf8').catch(() => '');
       if (owner !== token) continue; // stolen mid-repair: reacquire and re-read
       await truncate(path, boundary);
+      // The quarantine keeps the EXACT bytes (RV707): base64 plus their
+      // hash for round-trip forensics; the lossy string stays for old
+      // readers of the row.
       await appendFile(
         path,
-        `${JSON.stringify({ phase: 'torn', bytes: fragment, recoveredAt: now() })}\n`,
+        `${JSON.stringify({
+          phase: 'torn',
+          bytes: fragment.toString('utf8'),
+          bytesBase64: fragment.toString('base64'),
+          sha256: createHash('sha256').update(fragment).digest('hex'),
+          recoveredAt: now(),
+        })}\n`,
         'utf8',
       );
       return;
@@ -212,8 +232,17 @@ export interface CorruptLedgerLine {
 
 /** A torn fragment the writer quarantined while repairing a tail (RV502). */
 export interface TornLedgerArtifact {
-  /** The raw torn bytes, preserved verbatim. */
+  /**
+   * The torn fragment as a LOSSY string: invalid UTF-8 bytes decode to
+   * U+FFFD, so two different byte tails can read identically here.
+   * Kept for compatibility with rows written before RV707; use
+   * `bytesBase64` for the exact bytes.
+   */
   bytes: string;
+  /** The exact torn bytes, base64 (RV707); absent on rows written before it. */
+  bytesBase64?: string;
+  /** sha256 (hex) of the exact torn bytes (RV707); absent on legacy rows. */
+  sha256?: string;
   /** Wall-clock ms when the writer quarantined the fragment. */
   recoveredAt: number;
 }
@@ -283,11 +312,6 @@ export interface EffectLedgerScan {
   tornTail?: { preview: string };
 }
 
-/** Strict per-line decode (RV607): invalid UTF-8 is damage, never a
- * replacement character that forges a key. */
-const decodeStrict = (bytes: Buffer): string =>
-  new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-
 const isRecordObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -328,7 +352,10 @@ function asLedgerLine(parsed: unknown): LedgerLine | undefined {
       : undefined;
   }
   if (parsed.phase === 'torn') {
-    return typeof parsed.bytes === 'string' && typeof parsed.recoveredAt === 'number'
+    return typeof parsed.bytes === 'string' &&
+      typeof parsed.recoveredAt === 'number' &&
+      (parsed.bytesBase64 === undefined || typeof parsed.bytesBase64 === 'string') &&
+      (parsed.sha256 === undefined || typeof parsed.sha256 === 'string')
       ? (parsed as unknown as LedgerLine)
       : undefined;
   }
@@ -404,7 +431,12 @@ export async function loadEffectLedger(
       const { phase: _phase, ...rest } = entry;
       outcomes.push(rest);
     } else {
-      tornArtifacts.push({ bytes: entry.bytes, recoveredAt: entry.recoveredAt });
+      tornArtifacts.push({
+        bytes: entry.bytes,
+        ...(entry.bytesBase64 === undefined ? {} : { bytesBase64: entry.bytesBase64 }),
+        ...(entry.sha256 === undefined ? {} : { sha256: entry.sha256 }),
+        recoveredAt: entry.recoveredAt,
+      });
     }
   }
   if (corrupt.length > 0 && options?.tolerateCorrupt !== true) {

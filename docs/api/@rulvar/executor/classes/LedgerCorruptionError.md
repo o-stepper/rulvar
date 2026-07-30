@@ -6,7 +6,7 @@
 
 # Class: LedgerCorruptionError
 
-Defined in: [packages/executor/src/ledger.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L232)
+Defined in: [packages/executor/src/ledger.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L261)
 
 The fail-closed refusal of [loadEffectLedger](/api/@rulvar/executor/functions/loadEffectLedger.md) (RV502, widened
 by RV607): the file holds at least one line the scan cannot admit,
@@ -30,7 +30,7 @@ surfaces them as data).
 new LedgerCorruptionError(path, lines): LedgerCorruptionError;
 ```
 
-Defined in: [packages/executor/src/ledger.ts:234](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L234)
+Defined in: [packages/executor/src/ledger.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L263)
 
 #### Parameters
 
@@ -54,7 +54,7 @@ Error.constructor
 | Property | Modifier | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | `Error.cause` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-lines"></a> `lines` | `readonly` | [`CorruptLedgerLine`](/api/@rulvar/executor/interfaces/CorruptLedgerLine.md)[] | - | - | [packages/executor/src/ledger.ts:233](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L233) |
+| <a id="property-lines"></a> `lines` | `readonly` | [`CorruptLedgerLine`](/api/@rulvar/executor/interfaces/CorruptLedgerLine.md)[] | - | - | [packages/executor/src/ledger.ts:262](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/ledger.ts#L262) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | `Error.message` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | `Error.name` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |
 | <a id="property-stack"></a> `stack?` | `public` | `string` | - | `Error.stack` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1076](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1076) |

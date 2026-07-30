@@ -498,6 +498,43 @@ const MUTATIONS = [
     replace: '    const first = firstIndexByKey.get(key);\n    if (false) {',
     test: 'packages/core/src/model/quota.test.ts',
   },
+  {
+    id: 'invoice-current-version-json',
+    doctrine:
+      'a composed invoice provenance names the current table version that priced the tail, never leaving it anonymous (RV706)',
+    file: 'packages/cli/src/commands.ts',
+    find: '    assembled.currentPricingVersion === undefined\n      ? {}\n      : { currentPricingVersion: assembled.currentPricingVersion };',
+    replace: '    assembled.currentPricingVersion === undefined\n      ? {}\n      : {};',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'invoice-current-version-text',
+    doctrine:
+      'the invoice and inspect text forms name both halves of the composition: the pinned versions and the current table (RV706)',
+    file: 'packages/cli/src/commands.ts',
+    find: '  if (currentPricingVersion !== undefined) {\n    parts.push(`current ${currentPricingVersion}`);\n  }',
+    replace: '',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'ledger-quarantine-bytes',
+    doctrine:
+      'the ledger quarantine preserves the exact torn bytes with their hash, never only a lossy string two byte tails can share (RV707)',
+    file: 'packages/executor/src/ledger.ts',
+    find: "          phase: 'torn',\n          bytes: fragment.toString('utf8'),\n          bytesBase64: fragment.toString('base64'),\n          sha256: createHash('sha256').update(fragment).digest('hex'),\n          recoveredAt: now(),",
+    replace:
+      "          phase: 'torn',\n          bytes: fragment.toString('utf8'),\n          recoveredAt: now(),",
+    test: 'packages/executor/src/ledger.test.ts',
+  },
+  {
+    id: 'ledger-parseable-on-bytes',
+    doctrine:
+      'the tail-repair parseable decision is made on the exact bytes, so a lossy-parseable invalid-UTF-8 fragment quarantines instead of becoming manufactured corruption (RV707)',
+    file: 'packages/executor/src/ledger.ts',
+    find: '        JSON.parse(decodeStrict(fragment));',
+    replace: "        JSON.parse(fragment.toString('utf8'));",
+    test: 'packages/executor/src/ledger.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
