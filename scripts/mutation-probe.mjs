@@ -553,6 +553,52 @@ const MUTATIONS = [
     replace: '        ...(true',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'critical-path-clip',
+    doctrine:
+      'a post-fan-in bucket counts only the part of an interval inside the window: a straddling coordination activation must not smuggle pre-fan-in time into the decomposition (RV710)',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '        from: Math.max(interval.from, windowFrom),',
+    replace: '        from: interval.from,',
+    test: 'packages/core/src/orchestrator/synthesis.test.ts',
+  },
+  {
+    id: 'critical-path-union',
+    doctrine:
+      'coveredMs is the exact interval union, so an overlap between buckets can never shrink the residue the fold reports (RV710)',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '    if (interval.from > to) {',
+    replace: '    if (true) {',
+    test: 'packages/core/src/orchestrator/synthesis.test.ts',
+  },
+  {
+    id: 'exposure-admission',
+    doctrine:
+      'a dispatch whose estimate does not fit spent plus reserves plus live reservations is refused typed at the exposure cap, never admitted on the argument that the money is merely not spent yet (RV711)',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    if (committed >= cap || committed + estimateUsd > cap) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'exposure-release',
+    doctrine:
+      'a settled attempt returns exactly its estimate to the exposure pool: a leak would starve every later dispatch under the cap (RV711)',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '      released = true;\n      this.inFlightExposureUsd = Math.max(0, this.inFlightExposureUsd - estimateUsd);',
+    replace: '      released = true;',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'exposure-loop-seam',
+    doctrine:
+      'the loop admits every attempt against the exposure cap before the wire call: an unwired hook is a cap that binds nothing (RV711)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          if (options.quota === undefined) {\n            const req = site.requestFor(target);\n            admitExposure(req);',
+    replace:
+      '          if (options.quota === undefined) {\n            const req = site.requestFor(target);',
+    test: 'packages/core/src/runtime/turn-exposure.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -1223,6 +1223,10 @@
             "link": "/api/@rulvar/core/interfaces/PipelineOpts.md"
           },
           {
+            "text": "PostFanInBreakdown",
+            "link": "/api/@rulvar/core/interfaces/PostFanInBreakdown.md"
+          },
+          {
             "text": "PreflightAdmissionRow",
             "link": "/api/@rulvar/core/interfaces/PreflightAdmissionRow.md"
           },
@@ -2357,6 +2361,10 @@
           {
             "text": "IMPLEMENTATION_PROFILE_LIMITS",
             "link": "/api/@rulvar/core/variables/IMPLEMENTATION_PROFILE_LIMITS.md"
+          },
+          {
+            "text": "IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX",
+            "link": "/api/@rulvar/core/variables/IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX.md"
           },
           {
             "text": "INBOX_PROPOSAL_TTL_DAYS",
@@ -5649,6 +5657,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/PipelineOpts.md"
           },
           {
+            "text": "PostFanInBreakdown",
+            "link": "/api/@rulvar/rulvar/interfaces/PostFanInBreakdown.md"
+          },
+          {
             "text": "PreflightAdmissionRow",
             "link": "/api/@rulvar/rulvar/interfaces/PreflightAdmissionRow.md"
           },
@@ -6815,6 +6827,10 @@
           {
             "text": "IMPLEMENTATION_PROFILE_LIMITS",
             "link": "/api/@rulvar/rulvar/variables/IMPLEMENTATION_PROFILE_LIMITS.md"
+          },
+          {
+            "text": "IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX",
+            "link": "/api/@rulvar/rulvar/variables/IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX.md"
           },
           {
             "text": "INBOX_PROPOSAL_TTL_DAYS",

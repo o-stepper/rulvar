@@ -303,6 +303,28 @@ export interface RunOptions {
    * concurrent agent. Contract: https://docs.rulvar.com/guide/budgets.
    */
   budgetUsd?: number;
+  /**
+   * The opt-in in-flight exposure cap (RV711): bounds spent money plus
+   * the summed worst-case estimates of live dispatches. The per-turn
+   * guard checks money already SPENT, so under `budgetUsd` alone N
+   * concurrent turns each pass it before any settles and together can
+   * cross the ceiling by up to one whole turn each (preflight's
+   * 'overshoot-exposure' finding prices that hole). With the cap, the
+   * admission holds each turn's own estimate (the prompt estimate plus
+   * the request's output allowance, priced by the same rows as
+   * settlement) from right before the provider call until the attempt
+   * settles, and the dispatch whose estimate does not fit
+   * spent + finalize/synthesis reserves + live estimates is refused
+   * with a typed BudgetExhaustedError (data.reason
+   * 'in-flight-exposure') instead of waiting; the refused agent
+   * settles as a budget error. Worst concurrent overshoot past the cap
+   * is thereby the estimate error of the in-flight turns, not one
+   * whole turn per agent. Absent by default: wire traffic, journals,
+   * and hooks stay byte-identical. Operational and per-invocation like
+   * `limits`: not recorded in RunMeta, so a resumed segment runs
+   * without it.
+   */
+  maxInFlightExposureUsd?: number;
   /** Run-level defaults merged over engine defaults. */
   limits?: UsageLimits;
   /**
@@ -941,6 +963,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
     if (opts?.budgetUsd !== undefined) {
       requireNonNegativeNumber(opts.budgetUsd, 'RunOptions.budgetUsd');
     }
+    if (opts?.maxInFlightExposureUsd !== undefined) {
+      requireNonNegativeNumber(opts.maxInFlightExposureUsd, 'RunOptions.maxInFlightExposureUsd');
+    }
     if (opts?.limits !== undefined) {
       validateUsageLimits(opts.limits, 'RunOptions.limits');
     }
@@ -1006,6 +1031,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
     const makeBudget = (): RunBudget =>
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
+        ...(opts?.maxInFlightExposureUsd === undefined
+          ? {}
+          : { maxInFlightExposureUsd: opts.maxInFlightExposureUsd }),
         lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
         events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
         priceUsd,

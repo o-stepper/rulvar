@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { BudgetExhaustedError } from '../l0/errors.js';
+import { BudgetExhaustedError, ConfigError } from '../l0/errors.js';
 import type { Pricing } from '../l0/spi/provider.js';
 import { affordableOutputTokens } from '../model/pricing.js';
 import { RunBudget } from './budget.js';
@@ -177,5 +177,103 @@ describe('exhaustionDiagnostics', () => {
     budget.openAccount('orchestrator', { ceilingUsd: 0.5, kind: 'orchestrator-cap' });
     budget.onUsage(usage, 'fake:model', 'orchestrator');
     expect(budget.exhaustionDiagnostics('orchestrator').crossed).toBeUndefined();
+  });
+});
+
+describe('the in-flight exposure reservation (RV711)', () => {
+  // 1 USD per MTok input, 10 USD per MTok output: a (1000 in, 400 out)
+  // turn estimate prices to exactly 0.001 + 0.004 = 0.005 USD.
+  const TEN: Pricing = { inputUsdPerMTok: 1, outputUsdPerMTok: 10 };
+  const exposureBudget = (capUsd: number): RunBudget =>
+    new RunBudget({
+      maxInFlightExposureUsd: capUsd,
+      pricingOf: (servedBy) => (servedBy === 'fake:model' ? TEN : undefined),
+      priceUsd: (servedBy, usage) =>
+        servedBy === 'fake:model'
+          ? usage.inputTokens * 1e-6 + usage.outputTokens * 1e-5
+          : undefined,
+    });
+
+  it('admits to an exact fill, refuses the estimate past it, and frees on release', () => {
+    const budget = exposureBudget(0.01);
+    const first = budget.reserveTurnExposure('fake:model', 1000, 400);
+    expect(first).toBeDefined();
+    // Exact fill: 0.005 + 0.005 = the 0.01 cap.
+    const second = budget.reserveTurnExposure('fake:model', 1000, 400);
+    expect(second).toBeDefined();
+    // One more estimate does not fit and refuses TYPED, without waiting.
+    let thrown: unknown;
+    try {
+      budget.reserveTurnExposure('fake:model', 1000, 400);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(BudgetExhaustedError);
+    const data = (thrown as BudgetExhaustedError).data as Record<string, unknown>;
+    expect(data.reason).toBe('in-flight-exposure');
+    expect(data.capUsd).toBe(0.01);
+    expect((thrown as Error).message).toContain('maxInFlightExposureUsd');
+    // A transient refusal never marks the run exhausted and never severs.
+    expect(budget.exhausted).toBe(false);
+    expect(budget.signal.aborted).toBe(false);
+    // Settling one attempt frees exactly its estimate.
+    second?.();
+    expect(budget.reserveTurnExposure('fake:model', 1000, 400)).toBeDefined();
+    void first;
+  });
+
+  it('release is idempotent: a double release frees nothing twice', () => {
+    const budget = exposureBudget(0.01);
+    const first = budget.reserveTurnExposure('fake:model', 1000, 400);
+    budget.reserveTurnExposure('fake:model', 1000, 400);
+    first?.();
+    first?.();
+    // Only 0.005 came back: one estimate fits, a second refuses.
+    budget.reserveTurnExposure('fake:model', 1000, 400);
+    expect(() => budget.reserveTurnExposure('fake:model', 1000, 400)).toThrow(BudgetExhaustedError);
+  });
+
+  it('spent money and the named reserves shrink the admissible exposure', () => {
+    const budget = exposureBudget(0.01);
+    // 0.006 spent: one 0.005 estimate would need 0.011.
+    budget.onUsage(
+      { inputTokens: 1000, outputTokens: 500, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      'fake:model',
+    );
+    expect(() => budget.reserveTurnExposure('fake:model', 1000, 400)).toThrow(BudgetExhaustedError);
+    const withReserves = exposureBudget(0.01);
+    withReserves.commitFinalizeReserve('run', 0.004);
+    // 0.004 finalize reserve + 0.005 estimate fits the 0.01 cap.
+    const release = withReserves.reserveTurnExposure('fake:model', 1000, 400);
+    expect(release).toBeDefined();
+    release?.();
+    withReserves.commitSynthesisReserve('run', 0.002);
+    // 0.004 + 0.002 + 0.005 = 0.011 does not.
+    expect(() => withReserves.reserveTurnExposure('fake:model', 1000, 400)).toThrow(
+      BudgetExhaustedError,
+    );
+  });
+
+  it('an unpriced model reserves zero exposure but a full cap still refuses it', () => {
+    const budget = exposureBudget(0.005);
+    // No price row: the estimate is zero and admits without exposure.
+    expect(budget.reserveTurnExposure('free:local', 1_000_000, 1_000_000)).toBeDefined();
+    // A full cap refuses even a zero estimate, mirroring admitSpawn.
+    budget.onUsage(
+      { inputTokens: 1000, outputTokens: 500, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      'fake:model',
+    );
+    expect(() => budget.reserveTurnExposure('free:local', 1, 1)).toThrow(BudgetExhaustedError);
+  });
+
+  it('without the option the reservation surface is inert', () => {
+    const budget = new RunBudget({ pricingOf: () => TEN });
+    expect(budget.maxInFlightExposureUsd).toBeUndefined();
+    expect(budget.reserveTurnExposure('fake:model', 1_000_000, 1_000_000)).toBeUndefined();
+  });
+
+  it('validates the cap at construction exactly like the ceiling', () => {
+    expect(() => new RunBudget({ maxInFlightExposureUsd: -1 })).toThrow(ConfigError);
+    expect(() => new RunBudget({ maxInFlightExposureUsd: Number.NaN })).toThrow(ConfigError);
   });
 });

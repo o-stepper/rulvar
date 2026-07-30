@@ -24,6 +24,7 @@ rather than guessed at.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-postfanin"></a> `postFanIn?` | [`PostFanInBreakdown`](/api/@rulvar/core/interfaces/PostFanInBreakdown.md) | The RV710 decomposition of the window; present with postFanInMs. | [packages/core/src/l0/telemetry-reduce.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L254) |
 | <a id="property-postfaninms"></a> `postFanInMs?` | `number` | Last non-coordination agent:end to run:end; absent without both. | [packages/core/src/l0/telemetry-reduce.ts:244](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L244) |
 | <a id="property-postfaninshare"></a> `postFanInShare?` | `number` | postFanInMs / runWallMs when both are defined and the wall is > 0. | [packages/core/src/l0/telemetry-reduce.ts:248](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L248) |
 | <a id="property-runwallms"></a> `runWallMs?` | `number` | run:start to run:end; absent while the run is open. | [packages/core/src/l0/telemetry-reduce.ts:242](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L242) |

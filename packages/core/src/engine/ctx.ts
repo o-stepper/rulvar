@@ -118,7 +118,13 @@ import {
 import { AdmissionController, type AdmitVerdict } from '../orchestrator/admission.js';
 import { makeOrchestratorWorkflow, type OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import { toJournalValue } from '../journal/serializable.js';
-import { admissionReserveUsd, ROOT_ACCOUNT, type RunBudget, type Spend } from './budget.js';
+import {
+  admissionReserveUsd,
+  IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX,
+  ROOT_ACCOUNT,
+  type RunBudget,
+  type Spend,
+} from './budget.js';
 import { emitSpawnAdmitted, emitSpawnRejected } from './spawn-events.js';
 import {
   ctxRuntimes,
@@ -2092,6 +2098,23 @@ export function createCtx(
         // The extension's grant admission (RV301): the same chain
         // headroom the clamp above prices.
         remainingUsd: () => internals.budget.remainingUsd(budgetAccount),
+        // The in-flight exposure admission (RV711): wired ONLY when the
+        // cap is configured, so the default hooks object stays
+        // byte-identical in shape and the loop's default path inert.
+        ...(internals.budget.maxInFlightExposureUsd === undefined
+          ? {}
+          : {
+              admitTurnExposure: (
+                servedBy: ModelRef,
+                estimatedInputTokens: number,
+                plannedOutputTokens: number,
+              ) =>
+                internals.budget.reserveTurnExposure(
+                  servedBy,
+                  estimatedInputTokens,
+                  plannedOutputTokens,
+                ),
+            }),
         onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy, budgetAccount),
         // Layer 3 severs through the whole account chain: the account's
         // own subtree signal composed with the run root (M6-T06).
@@ -2723,6 +2746,25 @@ export function createCtx(
     // an orchestrator cap had crossed misled the v1.6.0 follow-up
     // review's live probe.
     if (result.error?.kind === 'budget' || (internals.budget.exhausted && result.status !== 'ok')) {
+      // A transient in-flight exposure refusal (RV711) is typed like
+      // every budget stop but must not claim a ceiling crossed: no
+      // account closed, the run continues, and the loop-carried
+      // message already names the cap and the exact arithmetic. The
+      // prefix is a single-producer contract with reserveTurnExposure.
+      if (
+        !internals.budget.exhausted &&
+        result.errorMessage !== undefined &&
+        result.errorMessage.startsWith(IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX)
+      ) {
+        throw new BudgetExhaustedError(result.errorMessage, {
+          data: {
+            scope: state.scope,
+            entryRef: terminal.seq,
+            source: 'in-flight-exposure',
+            reason: 'in-flight-exposure',
+          },
+        });
+      }
       const diagnostics = internals.budget.exhaustionDiagnostics(state.budgetScope ?? ROOT_ACCOUNT);
       const crossed = diagnostics.crossed;
       const rootSuffix =

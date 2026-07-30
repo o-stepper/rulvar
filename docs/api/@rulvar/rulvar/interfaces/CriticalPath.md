@@ -24,6 +24,7 @@ rather than guessed at.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-postfanin"></a> `postFanIn?` | [`PostFanInBreakdown`](/api/@rulvar/rulvar/interfaces/PostFanInBreakdown.md) | The RV710 decomposition of the window; present with postFanInMs. | `packages/core/dist/index.d.ts` |
 | <a id="property-postfaninms"></a> `postFanInMs?` | `number` | Last non-coordination agent:end to run:end; absent without both. | `packages/core/dist/index.d.ts` |
 | <a id="property-postfaninshare"></a> `postFanInShare?` | `number` | postFanInMs / runWallMs when both are defined and the wall is > 0. | `packages/core/dist/index.d.ts` |
 | <a id="property-runwallms"></a> `runWallMs?` | `number` | run:start to run:end; absent while the run is open. | `packages/core/dist/index.d.ts` |

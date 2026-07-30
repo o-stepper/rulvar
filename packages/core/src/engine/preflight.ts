@@ -183,8 +183,8 @@ export interface PreflightInput {
       'adapters' | 'defaults' | 'budgetDefaults' | 'concurrency' | 'quota' | 'pricing'
     >
   >;
-  /** The RunOptions slice: the run ceiling and run-level limits. */
-  run?: Pick<RunOptions, 'budgetUsd' | 'limits'>;
+  /** The RunOptions slice: the ceiling, run-level limits, and the RV711 exposure cap. */
+  run?: Pick<RunOptions, 'budgetUsd' | 'limits' | 'maxInFlightExposureUsd'>;
   /** Present when the run is a dynamic orchestration. */
   orchestrator?: PreflightOrchestratorSpec;
   /** The declared first spawn wave, in admission order. */
@@ -576,6 +576,12 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   }
   if (input.run?.limits !== undefined) {
     validateUsageLimits(input.run.limits, 'preflight.run.limits');
+  }
+  if (input.run?.maxInFlightExposureUsd !== undefined) {
+    requireNonNegativeNumber(
+      input.run.maxInFlightExposureUsd,
+      'preflight.run.maxInFlightExposureUsd',
+    );
   }
   if (input.orchestrator?.limits !== undefined) {
     validateUsageLimits(input.orchestrator.limits, 'preflight.orchestrator.limits');
@@ -1674,6 +1680,22 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         `past a ceiling crossing, up to ${String(Math.min(maxInFlight, units.length))} in-flight ` +
         `turns may still complete: at least ${overshootOneTurnFloorUsd.toFixed(4)} USD past the ` +
         `${ceilingUsd.toFixed(4)} USD ceiling at the declared estimates, growing with prompt size`,
+    });
+  }
+  // The RV711 admission-side bound, reported beside the layer-3
+  // statement above: the cap bounds what concurrent admissions can
+  // expose, while severed streams past a crossing still run to their
+  // cut, so both findings stand together.
+  const exposureCapUsd = input.run?.maxInFlightExposureUsd;
+  if (exposureCapUsd !== undefined) {
+    say({
+      severity: 'info',
+      code: 'in-flight-exposure-cap',
+      message:
+        `RunOptions.maxInFlightExposureUsd ${exposureCapUsd.toFixed(4)} USD bounds spent money ` +
+        'plus live dispatch estimates: a dispatch whose estimate does not fit is refused typed ' +
+        'before the provider call, so the worst concurrent overshoot past the cap is the ' +
+        'estimate error of the in-flight turns, not one whole turn per agent',
     });
   }
 

@@ -111,6 +111,7 @@ export {
   type CriticalPath,
   type InvocationTable,
   type PhaseRow,
+  type PostFanInBreakdown,
 } from './l0/telemetry-reduce.js';
 export * from './engine/run-handle.js';
 export * from './engine/engine.js';

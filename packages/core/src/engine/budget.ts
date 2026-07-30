@@ -36,6 +36,15 @@ export type Spend = { usd: number; usage: Usage; agentsSpawned: number };
 /** Last resort of the admission reserve formula. */
 export const DEFAULT_FLAT_RESERVE_USD = 0.5;
 
+/**
+ * The message prefix of an in-flight exposure refusal (RV711): the
+ * single producer is reserveTurnExposure below, and the ctx layer's
+ * uniform budget rethrow keys on it to carry the refusal through with
+ * its own honest arithmetic instead of claiming a ceiling crossed
+ * (no account closes on a transient refusal).
+ */
+export const IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX = 'in flight exposure cap reached';
+
 /** The run-root account scope. */
 export const ROOT_ACCOUNT = 'run';
 
@@ -158,6 +167,11 @@ interface AccountState {
 export class RunBudget {
   /** B0; immutable after start. Undefined means no USD ceiling. */
   readonly ceilingUsd?: number;
+  /**
+   * The opt-in in-flight exposure cap (RV711). Undefined means the
+   * reservation surface is inert and reserveTurnExposure never binds.
+   */
+  readonly maxInFlightExposureUsd?: number;
   private readonly lifetimeSpawnCap: number;
   private readonly events?: RuntimeEventSink;
   private readonly priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
@@ -166,6 +180,8 @@ export class RunBudget {
   private usageInternal: Usage = { ...ZERO_USAGE };
   private agentsSpawnedInternal = 0;
   private exhaustedInternal = false;
+  /** Live dispatch estimates held by reserveTurnExposure (RV711). */
+  private inFlightExposureUsd = 0;
   /** Models already warned about; the warning fires once per model per run. */
   private readonly unpricedWarned = new Set<ModelRef>();
   /** Models whose price function already returned an invalid USD once. */
@@ -173,6 +189,8 @@ export class RunBudget {
 
   constructor(options: {
     ceilingUsd?: number;
+    /** The opt-in in-flight exposure cap (RV711); see reserveTurnExposure. */
+    maxInFlightExposureUsd?: number;
     lifetimeSpawnCap?: number;
     events?: RuntimeEventSink;
     priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
@@ -188,6 +206,10 @@ export class RunBudget {
     if (options.ceilingUsd !== undefined) {
       requireValidCeiling(options.ceilingUsd, 'budget ceiling');
       this.ceilingUsd = options.ceilingUsd;
+    }
+    if (options.maxInFlightExposureUsd !== undefined) {
+      requireValidCeiling(options.maxInFlightExposureUsd, 'maxInFlightExposureUsd');
+      this.maxInFlightExposureUsd = options.maxInFlightExposureUsd;
     }
     this.lifetimeSpawnCap = options.lifetimeSpawnCap ?? 500;
     if (options.events !== undefined) {
@@ -615,6 +637,85 @@ export class RunBudget {
       account.committedReserveUsd = Math.max(0, account.committedReserveUsd - reserveUsd);
     }
     this.emitUpdate();
+  }
+
+  /**
+   * The in-flight exposure reservation (RV711). The per-turn guard
+   * below checks money already SPENT, so N concurrent turns each pass
+   * it before any settles and together can cross the ceiling by up to
+   * one whole turn each; this is the opt-in bound on that hole. The
+   * caller reserves the attempt's own worst-case estimate (the prompt
+   * estimate plus the planned output allowance, priced by the SAME
+   * price rows as the layer-2b clamp) right before the wire call and
+   * releases at the attempt's settle, so the reservation lives exactly
+   * as long as the exposure it covers. The admission refuses, typed
+   * and without waiting, when spent + the named reserves (finalize and
+   * synthesis money is promised elsewhere) + live reservations + this
+   * estimate does not fit the cap; an exact fill admits, mirroring
+   * admitSpawn, and a full cap refuses even a zero estimate. A refusal
+   * is TRANSIENT (in-flight money returns at settle), so it never
+   * marks the run exhausted and never severs a stream. A model without
+   * a price row reserves zero, exactly as it debits zero (the
+   * once-per-model unpriced warning covers that hole). While an
+   * attempt streams, its usage debits spentUsd with the reservation
+   * still live, briefly counting the same money twice: conservative in
+   * the safe direction, gone at release. Returns undefined (fully
+   * inert) when the cap is not configured; layer-1 spawn reserves
+   * (committedReserveUsd) stay out of the formula, because a child's
+   * lifetime reserve and its own turn exposure would double-count.
+   */
+  reserveTurnExposure(
+    servedBy: ModelRef,
+    estimatedInputTokens: number,
+    plannedOutputTokens: number,
+  ): (() => void) | undefined {
+    const cap = this.maxInFlightExposureUsd;
+    if (cap === undefined) {
+      return undefined;
+    }
+    const pricing = this.pricingOf?.(servedBy);
+    const rawEstimate =
+      pricing === undefined
+        ? 0
+        : priceUsdOf(pricing, {
+            inputTokens: Math.max(0, estimatedInputTokens),
+            outputTokens: Math.max(0, plannedOutputTokens),
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+          });
+    // Backstop mirroring onUsage: a price row that yields NaN or a
+    // negative would poison the running total on every admission.
+    const estimateUsd = Number.isFinite(rawEstimate) && rawEstimate > 0 ? rawEstimate : 0;
+    const root = this.root;
+    const committed =
+      root.spentUsd + root.finalizeReserveUsd + root.synthesisReserveUsd + this.inFlightExposureUsd;
+    if (committed >= cap || committed + estimateUsd > cap) {
+      throw new BudgetExhaustedError(
+        `${IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX}: spent ${root.spentUsd.toFixed(4)} USD plus reserves ` +
+          `${(root.finalizeReserveUsd + root.synthesisReserveUsd).toFixed(4)} USD plus live ` +
+          `dispatch estimates ${this.inFlightExposureUsd.toFixed(4)} USD plus this turn's ` +
+          `estimate ${estimateUsd.toFixed(4)} USD does not fit maxInFlightExposureUsd ` +
+          `${cap.toFixed(4)} USD; the dispatch was refused before any provider call`,
+        {
+          data: {
+            reason: 'in-flight-exposure',
+            capUsd: cap,
+            spentUsd: root.spentUsd,
+            inFlightUsd: this.inFlightExposureUsd,
+            estimateUsd,
+          },
+        },
+      );
+    }
+    this.inFlightExposureUsd += estimateUsd;
+    let released = false;
+    return () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      this.inFlightExposureUsd = Math.max(0, this.inFlightExposureUsd - estimateUsd);
+    };
   }
 
   /** Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched. */

@@ -508,6 +508,136 @@ describe('reduceCriticalPath (RV-211)', () => {
       postFanInShare: 0.4,
       synthesisShare: 0.2,
       workerSpans: 2,
+      postFanIn: {
+        coordinationModelMs: 0,
+        coordinationToolMs: 0,
+        coordinationToolMsByName: {},
+        synthesisMs: 20,
+        coveredMs: 20,
+        residueMs: 20,
+        residueShare: 0.5,
+      },
+    });
+  });
+
+  it('decomposes the post-fan-in window by phase with the straddling intervals clipped (RV710)', () => {
+    const events = [
+      ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
+      ev({ type: 'agent:start', ts: at(0), spanId: 'root', role: 'orchestrate' }),
+      ev({ type: 'agent:start', ts: at(5), spanId: 'w1', role: 'loop' }),
+      ev({ type: 'agent:end', ts: at(100), spanId: 'w1', role: 'loop' }),
+      // A coordination activation straddling the fan-in boundary: only
+      // the part inside the window counts. [70, 132] clips to [100, 132].
+      ev({
+        type: 'agent:phase:end',
+        ts: at(132),
+        spanId: 'root',
+        role: 'orchestrate',
+        durationMs: 62,
+      }),
+      // Child-result pagination under its own tool name: [132, 150].
+      ev({
+        type: 'tool:end',
+        ts: at(150),
+        spanId: 'root',
+        toolName: 'get_child_result',
+        durationMs: 18,
+      }),
+      // A zero-duration execution inside the window still registers its
+      // name (sub-millisecond tools round to 0 on the wall clock).
+      ev({
+        type: 'tool:end',
+        ts: at(152),
+        spanId: 'root',
+        toolName: 'get_child_result',
+        durationMs: 0,
+      }),
+      // The finish-composition activation: [151, 170].
+      ev({
+        type: 'agent:phase:end',
+        ts: at(170),
+        spanId: 'root',
+        role: 'orchestrate',
+        durationMs: 19,
+      }),
+      // The finish exchange (schema plus host validators): [171, 180].
+      ev({ type: 'tool:end', ts: at(180), spanId: 'root', toolName: 'finish', durationMs: 9 }),
+      // A tool end on an unknown span (a consumer attached mid-stream)
+      // cannot be attributed and is skipped, never guessed at.
+      ev({ type: 'tool:end', ts: at(180), spanId: 'ghost', toolName: 'finish', durationMs: 500 }),
+      ev({ type: 'agent:end', ts: at(180), spanId: 'root' }),
+      ev({ type: 'agent:start', ts: at(181), spanId: 'synth', role: 'synthesize' }),
+      ev({ type: 'agent:end', ts: at(199), spanId: 'synth' }),
+      ev({ type: 'run:end', ts: at(200), spanId: 'run' }),
+    ];
+    const path = reduceCriticalPath(events);
+    expect(path.postFanInMs).toBe(100);
+    // 32 (clipped straddle) + 19 = model; 18 + 0 + 9 = tools; 18 synthesis.
+    expect(path.postFanIn).toEqual({
+      coordinationModelMs: 51,
+      coordinationToolMs: 27,
+      coordinationToolMsByName: { get_child_result: 18, finish: 9 },
+      synthesisMs: 18,
+      coveredMs: 96,
+      residueMs: 4,
+      residueShare: 0.04,
+    });
+  });
+
+  it('coveredMs is the interval union, never the overlap-counting sum (RV710)', () => {
+    const events = [
+      ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
+      ev({ type: 'agent:start', ts: at(0), spanId: 'root', role: 'orchestrate' }),
+      ev({ type: 'agent:start', ts: at(5), spanId: 'w1', role: 'loop' }),
+      ev({ type: 'agent:end', ts: at(100), spanId: 'w1', role: 'loop' }),
+      // Model [110, 140] and tool [130, 150] overlap by 10ms (clock skew
+      // between the duration clock and emission stamps): the buckets sum
+      // their own clipped intervals, the union refuses the double count.
+      ev({
+        type: 'agent:phase:end',
+        ts: at(140),
+        spanId: 'root',
+        role: 'orchestrate',
+        durationMs: 30,
+      }),
+      ev({
+        type: 'tool:end',
+        ts: at(150),
+        spanId: 'root',
+        toolName: 'get_child_result',
+        durationMs: 20,
+      }),
+      ev({ type: 'agent:end', ts: at(150), spanId: 'root' }),
+      ev({ type: 'run:end', ts: at(200), spanId: 'run' }),
+    ];
+    const path = reduceCriticalPath(events);
+    expect(path.postFanIn).toEqual({
+      coordinationModelMs: 30,
+      coordinationToolMs: 20,
+      coordinationToolMsByName: { get_child_result: 20 },
+      synthesisMs: 0,
+      coveredMs: 40,
+      residueMs: 60,
+      residueShare: 0.6,
+    });
+  });
+
+  it('a zero-length window carries the breakdown with zero buckets and no share (RV710)', () => {
+    const events = [
+      ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
+      ev({ type: 'agent:start', ts: at(5), spanId: 'w1', role: 'loop' }),
+      ev({ type: 'agent:end', ts: at(100), spanId: 'w1', role: 'loop' }),
+      ev({ type: 'run:end', ts: at(100), spanId: 'run' }),
+    ];
+    const path = reduceCriticalPath(events);
+    expect(path.postFanInMs).toBe(0);
+    expect(path.postFanIn).toEqual({
+      coordinationModelMs: 0,
+      coordinationToolMs: 0,
+      coordinationToolMsByName: {},
+      synthesisMs: 0,
+      coveredMs: 0,
+      residueMs: 0,
     });
   });
 
