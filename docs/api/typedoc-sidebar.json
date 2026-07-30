@@ -1259,6 +1259,14 @@
             "link": "/api/@rulvar/core/interfaces/PreflightToolCeiling.md"
           },
           {
+            "text": "PricedComponent",
+            "link": "/api/@rulvar/core/interfaces/PricedComponent.md"
+          },
+          {
+            "text": "PricedComponents",
+            "link": "/api/@rulvar/core/interfaces/PricedComponents.md"
+          },
+          {
             "text": "PricedUsage",
             "link": "/api/@rulvar/core/interfaces/PricedUsage.md"
           },
@@ -3029,6 +3037,10 @@
             "link": "/api/@rulvar/core/functions/preflightEstimate.md"
           },
           {
+            "text": "priceComponentsOf",
+            "link": "/api/@rulvar/core/functions/priceComponentsOf.md"
+          },
+          {
             "text": "priceEntryBilling",
             "link": "/api/@rulvar/core/functions/priceEntryBilling.md"
           },
@@ -3844,6 +3856,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "ComponentDelta",
+            "link": "/api/@rulvar/openai/interfaces/ComponentDelta.md"
+          },
+          {
             "text": "OpenAiAdapterOptions",
             "link": "/api/@rulvar/openai/interfaces/OpenAiAdapterOptions.md"
           },
@@ -3860,6 +3876,26 @@
             "link": "/api/@rulvar/openai/interfaces/OpenAiModelInfo.md"
           },
           {
+            "text": "ReconcileStatementOptions",
+            "link": "/api/@rulvar/openai/interfaces/ReconcileStatementOptions.md"
+          },
+          {
+            "text": "StatementCategoryRow",
+            "link": "/api/@rulvar/openai/interfaces/StatementCategoryRow.md"
+          },
+          {
+            "text": "StatementCoverage",
+            "link": "/api/@rulvar/openai/interfaces/StatementCoverage.md"
+          },
+          {
+            "text": "StatementReconciliation",
+            "link": "/api/@rulvar/openai/interfaces/StatementReconciliation.md"
+          },
+          {
+            "text": "StatementRequestRow",
+            "link": "/api/@rulvar/openai/interfaces/StatementRequestRow.md"
+          },
+          {
             "text": "V1190CacheAudit",
             "link": "/api/@rulvar/openai/interfaces/V1190CacheAudit.md"
           }
@@ -3870,8 +3906,16 @@
         "collapsed": true,
         "items": [
           {
+            "text": "BillingComponent",
+            "link": "/api/@rulvar/openai/type-aliases/BillingComponent.md"
+          },
+          {
             "text": "OpenAiSdkOptions",
             "link": "/api/@rulvar/openai/type-aliases/OpenAiSdkOptions.md"
+          },
+          {
+            "text": "ProviderStatement",
+            "link": "/api/@rulvar/openai/type-aliases/ProviderStatement.md"
           },
           {
             "text": "ResponsesStreamEvent",
@@ -3944,6 +3988,10 @@
           {
             "text": "openAiModelInfo",
             "link": "/api/@rulvar/openai/functions/openAiModelInfo.md"
+          },
+          {
+            "text": "reconcileStatement",
+            "link": "/api/@rulvar/openai/functions/reconcileStatement.md"
           },
           {
             "text": "undoV1190CacheDoubleCount",
@@ -5691,6 +5739,14 @@
           {
             "text": "PreflightToolCeiling",
             "link": "/api/@rulvar/rulvar/interfaces/PreflightToolCeiling.md"
+          },
+          {
+            "text": "PricedComponent",
+            "link": "/api/@rulvar/rulvar/interfaces/PricedComponent.md"
+          },
+          {
+            "text": "PricedComponents",
+            "link": "/api/@rulvar/rulvar/interfaces/PricedComponents.md"
           },
           {
             "text": "PricedUsage",
@@ -7509,6 +7565,10 @@
           {
             "text": "preflightEstimate",
             "link": "/api/@rulvar/rulvar/functions/preflightEstimate.md"
+          },
+          {
+            "text": "priceComponentsOf",
+            "link": "/api/@rulvar/rulvar/functions/priceComponentsOf.md"
           },
           {
             "text": "priceEntryBilling",

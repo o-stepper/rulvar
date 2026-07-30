@@ -43,20 +43,43 @@ function tierFor(pricing: Pricing, inputTokens: number): PricingTier | undefined
   return tier;
 }
 
+/** One billing component of a priced usage: its token base and dollars. */
+export interface PricedComponent {
+  tokens: number;
+  usd: number;
+}
+
 /**
- * Dollars from normalized usage against one pricing row. Under the Usage
- * invariant inputTokens is the FULL prompt including cache reads and
- * writes, so the input rate bills only the uncached remainder and cache
- * tokens bill at their own rates, never twice; a row that omits a cache
- * rate bills those tokens at the plain input rate rather than silently
- * for free. A row may carry long-context tiers: the highest threshold
- * strictly below the full prompt re-prices the ENTIRE request
- * (input-side rates scale by inputMultiplier, the output rate by
- * outputMultiplier). Cache writes price at the 5m premium rate; the 1h
- * rate applies where a provider distinguishes it in usage, which the
- * canonical Usage does not yet carry.
+ * The four components a provider statement itemizes (RV812): uncached
+ * input, output, cached input, cache writes, each with its token base
+ * and dollars. Decomposed with EXACTLY the arithmetic of
+ * {@link priceUsdOf}, which is defined as the sum of these four terms
+ * in this order, so a statement reconciliation and the settled fold
+ * can never disagree about what a usage costs.
  */
-export function priceUsdOf(pricing: Pricing, usage: Usage): number {
+export interface PricedComponents {
+  /** The uncached prompt remainder: inputTokens minus both cache subsets, clamped at zero. */
+  input: PricedComponent;
+  output: PricedComponent;
+  cachedInput: PricedComponent;
+  cacheWrite: PricedComponent;
+}
+
+/**
+ * Decomposes one usage against one pricing row into the four billing
+ * components. Under the Usage invariant inputTokens is the FULL prompt
+ * including cache reads and writes, so the input rate bills only the
+ * uncached remainder and cache tokens bill at their own rates, never
+ * twice; a row that omits a cache rate bills those tokens at the plain
+ * input rate rather than silently for free. A row may carry
+ * long-context tiers: the highest threshold strictly below the full
+ * prompt re-prices the ENTIRE request (input-side rates scale by
+ * inputMultiplier, the output rate by outputMultiplier). Cache writes
+ * price at the 5m premium rate; the 1h rate applies where a provider
+ * distinguishes it in usage, which the canonical Usage does not yet
+ * carry.
+ */
+export function priceComponentsOf(pricing: Pricing, usage: Usage): PricedComponents {
   const tier = tierFor(pricing, usage.inputTokens);
   const inputMul = tier?.inputMultiplier ?? 1;
   const outputMul = tier?.outputMultiplier ?? 1;
@@ -64,16 +87,41 @@ export function priceUsdOf(pricing: Pricing, usage: Usage): number {
     0,
     usage.inputTokens - usage.cacheReadTokens - usage.cacheWriteTokens,
   );
-  return (
-    (uncachedInputTokens / 1_000_000) * pricing.inputUsdPerMTok * inputMul +
-    (usage.outputTokens / 1_000_000) * pricing.outputUsdPerMTok * outputMul +
-    (usage.cacheReadTokens / 1_000_000) *
-      (pricing.cacheReadUsdPerMTok ?? pricing.inputUsdPerMTok) *
-      inputMul +
-    (usage.cacheWriteTokens / 1_000_000) *
-      (pricing.cacheWriteUsdPerMTok ?? pricing.inputUsdPerMTok) *
-      inputMul
-  );
+  return {
+    input: {
+      tokens: uncachedInputTokens,
+      usd: (uncachedInputTokens / 1_000_000) * pricing.inputUsdPerMTok * inputMul,
+    },
+    output: {
+      tokens: usage.outputTokens,
+      usd: (usage.outputTokens / 1_000_000) * pricing.outputUsdPerMTok * outputMul,
+    },
+    cachedInput: {
+      tokens: usage.cacheReadTokens,
+      usd:
+        (usage.cacheReadTokens / 1_000_000) *
+        (pricing.cacheReadUsdPerMTok ?? pricing.inputUsdPerMTok) *
+        inputMul,
+    },
+    cacheWrite: {
+      tokens: usage.cacheWriteTokens,
+      usd:
+        (usage.cacheWriteTokens / 1_000_000) *
+        (pricing.cacheWriteUsdPerMTok ?? pricing.inputUsdPerMTok) *
+        inputMul,
+    },
+  };
+}
+
+/**
+ * Dollars from normalized usage against one pricing row: the sum of the
+ * {@link priceComponentsOf} terms in their declared order, byte for
+ * byte the historical expression (uncached input, output, cached input,
+ * cache writes).
+ */
+export function priceUsdOf(pricing: Pricing, usage: Usage): number {
+  const parts = priceComponentsOf(pricing, usage);
+  return parts.input.usd + parts.output.usd + parts.cachedInput.usd + parts.cacheWrite.usd;
 }
 
 /**

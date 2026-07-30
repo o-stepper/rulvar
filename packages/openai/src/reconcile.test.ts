@@ -1,0 +1,347 @@
+/**
+ * Provider statement reconciliation (RV812). The twelfth comparison
+ * run's billing question (a dashboard headline of 4.45 then 4.77 USD
+ * against the settled 7.304885) was closed by hand with screenshots:
+ * the per-component Spend categories confirmed the invoice to the cent
+ * and the headline turned out to be the dashboard's own unconverged
+ * aggregate. This module is that investigation as a machine: a
+ * normalized export (per-request rows with response ids, or per-model
+ * per-component category totals; headline aggregates refused typed)
+ * joined against the invoice, with response-id coverage, per-component
+ * deltas, and implied actual rates that NAME the divergent rate-card
+ * line. A partially delivered export must read as partial coverage,
+ * never as false divergence. Sidecar only: the journal is not touched.
+ */
+import { describe, expect, it } from 'vitest';
+
+import type { InvoiceRow, ModelRef, Pricing, Usage } from '@rulvar/core';
+import { ConfigError, priceComponentsOf, priceUsdOf } from '@rulvar/core';
+
+import { reconcileStatement } from './reconcile.js';
+
+const SOL: Pricing = {
+  inputUsdPerMTok: 5,
+  outputUsdPerMTok: 30,
+  cacheReadUsdPerMTok: 0.5,
+  cacheWriteUsdPerMTok: 6.25,
+  tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+};
+const TERRA: Pricing = {
+  inputUsdPerMTok: 2.5,
+  outputUsdPerMTok: 15,
+  cacheReadUsdPerMTok: 0.25,
+  cacheWriteUsdPerMTok: 3.125,
+  tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+};
+const PRICING_OF = (servedBy: ModelRef): Pricing | undefined =>
+  servedBy === 'openai:gpt-5.6-sol' ? SOL : servedBy === 'openai:gpt-5.6-terra' ? TERRA : undefined;
+
+const usageOf = (
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens: number,
+  cacheWriteTokens: number,
+): Usage => ({ inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens });
+
+interface RowSpec {
+  servedBy: ModelRef;
+  responseId?: string;
+  usage: Usage;
+  usageUnknown?: true;
+}
+
+function rowsOf(specs: RowSpec[]): InvoiceRow[] {
+  return specs.map((spec, index) => {
+    const pricing = PRICING_OF(spec.servedBy);
+    const usd = pricing === undefined ? undefined : priceUsdOf(pricing, spec.usage);
+    return {
+      entrySeq: index + 1,
+      scope: '',
+      key: `k${String(index + 1)}`,
+      ordinal: index + 1,
+      servedBy: spec.servedBy,
+      role: 'loop',
+      attempt: 1,
+      outcome: spec.usageUnknown === undefined ? 'ok' : 'error',
+      ...(spec.responseId === undefined ? {} : { responseId: spec.responseId }),
+      usage: spec.usage,
+      ...(spec.usageUnknown === undefined ? {} : { usageUnknown: true }),
+      ...(usd === undefined ? {} : { usd }),
+      allocatedUsd: usd ?? 0,
+      reconciliation:
+        spec.responseId === undefined
+          ? spec.usageUnknown === undefined
+            ? 'missing-provider-id'
+            : 'unconfirmed'
+          : 'provider-id-present',
+    } satisfies InvoiceRow;
+  });
+}
+
+// Two sol rows (one above the 272k tier), two terra rows: every
+// component populated on both models.
+const SPECS: RowSpec[] = [
+  {
+    servedBy: 'openai:gpt-5.6-sol',
+    responseId: 'resp-1',
+    usage: usageOf(250_000, 40_000, 100_000, 50_000),
+  },
+  {
+    servedBy: 'openai:gpt-5.6-sol',
+    responseId: 'resp-2',
+    usage: usageOf(400_000, 60_000, 200_000, 100_000),
+  },
+  {
+    servedBy: 'openai:gpt-5.6-terra',
+    responseId: 'resp-3',
+    usage: usageOf(200_000, 30_000, 80_000, 40_000),
+  },
+  { servedBy: 'openai:gpt-5.6-terra', responseId: 'resp-4', usage: usageOf(100_000, 10_000, 0, 0) },
+];
+const INVOICE = { rows: rowsOf(SPECS) };
+
+/** The true per-model per-component dollars of the fixture, from the shared decomposition. */
+function trueCategories(round3: boolean): Array<{
+  model: string;
+  component: 'input' | 'cached-input' | 'cache-write' | 'output';
+  usd: number;
+}> {
+  const sums = new Map<
+    string,
+    { input: number; 'cached-input': number; 'cache-write': number; output: number }
+  >();
+  for (const spec of SPECS) {
+    const pricing = PRICING_OF(spec.servedBy);
+    if (pricing === undefined) continue;
+    const model = spec.servedBy.slice(spec.servedBy.indexOf(':') + 1);
+    const parts = priceComponentsOf(pricing, spec.usage);
+    const sum = sums.get(model) ?? { input: 0, 'cached-input': 0, 'cache-write': 0, output: 0 };
+    sum.input += parts.input.usd;
+    sum['cached-input'] += parts.cachedInput.usd;
+    sum['cache-write'] += parts.cacheWrite.usd;
+    sum.output += parts.output.usd;
+    sums.set(model, sum);
+  }
+  const out: Array<{
+    model: string;
+    component: 'input' | 'cached-input' | 'cache-write' | 'output';
+    usd: number;
+  }> = [];
+  for (const [model, sum] of sums) {
+    for (const component of ['input', 'cached-input', 'cache-write', 'output'] as const) {
+      const usd = round3 ? Math.round(sum[component] * 1000) / 1000 : sum[component];
+      out.push({ model, component, usd });
+    }
+  }
+  return out;
+}
+
+describe('reconcileStatement: categories mode (the founder case)', () => {
+  it('dashboard-rounded categories reconcile to zero divergence on all eight components', () => {
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'categories', rows: trueCategories(true) },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.mode).toBe('categories');
+    expect(report.verdict).toBe('match');
+    expect(report.components).toHaveLength(8);
+    expect(report.divergent).toHaveLength(0);
+    expect(report.components.every((c) => c.statementUsd !== undefined)).toBe(true);
+    expect(report.components.every((c) => Math.abs(c.deltaUsd ?? Infinity) < 0.005)).toBe(true);
+    expect(report.totals.statementUsd).toBeDefined();
+  });
+
+  it('a distorted write rate names exactly the cache-write component and its implied rate', () => {
+    const rows = trueCategories(false).map((row) =>
+      row.model === 'gpt-5.6-terra' && row.component === 'cache-write'
+        ? // Billed at the base input rate: the 1.25x premium missing.
+          { ...row, usd: (row.usd / 3.125) * 2.5 }
+        : row,
+    );
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'categories', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('divergence');
+    expect(report.divergent).toHaveLength(1);
+    const named = report.divergent[0];
+    expect(named?.model).toBe('gpt-5.6-terra');
+    expect(named?.component).toBe('cache-write');
+    // The fixture's terra rows sit below the tier, so the implied and
+    // effective rates read directly as rate-card lines.
+    expect(named?.impliedUsdPerMTok).toBeCloseTo(2.5, 9);
+    expect(named?.effectiveUsdPerMTok).toBeCloseTo(3.125, 9);
+  });
+
+  it('categories missing one of our models read as partial coverage, never divergence', () => {
+    const rows = trueCategories(false).filter((row) => row.model !== 'gpt-5.6-terra');
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'categories', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('partial-coverage');
+    expect(report.divergent).toHaveLength(0);
+    const terra = report.components.filter((c) => c.model === 'gpt-5.6-terra');
+    expect(terra.every((c) => c.statementUsd === undefined)).toBe(true);
+  });
+});
+
+describe('reconcileStatement: per-request mode', () => {
+  const fullRequestRows = SPECS.map((spec) => ({
+    responseId: spec.responseId ?? '',
+    model: spec.servedBy.slice(spec.servedBy.indexOf(':') + 1),
+    usd: priceUsdOf(PRICING_OF(spec.servedBy) ?? SOL, spec.usage),
+  }));
+
+  it('a complete export matches with 4 of 4 response-id coverage', () => {
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows: fullRequestRows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.mode).toBe('requests');
+    expect(report.verdict).toBe('match');
+    expect(report.coverage.billableRows).toBe(4);
+    expect(report.coverage.rowsWithResponseId).toBe(4);
+    expect(report.coverage.matchedRows).toBe(4);
+    expect(report.coverage.complete).toBe(true);
+    expect(report.totals.deltaUsd).toBeCloseTo(0, 9);
+  });
+
+  it('a truncated export is partial coverage with the unmatched ids named, never false divergence', () => {
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows: fullRequestRows.slice(0, 2) },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('partial-coverage');
+    expect(report.coverage.matchedRows).toBe(2);
+    expect(report.coverage.unmatchedRows).toBe(2);
+    expect(report.coverage.unmatchedIdSample).toEqual(['resp-3', 'resp-4']);
+    expect(report.divergent).toHaveLength(0);
+    // The matched subset still reconciles: totals cover it alone.
+    expect(report.totals.deltaUsd).toBeCloseTo(0, 9);
+  });
+
+  it('divergence on the covered subset wins over incomplete coverage', () => {
+    const rows = fullRequestRows
+      .slice(0, 2)
+      .map((row, i) => (i === 0 ? { ...row, usd: (row.usd ?? 0) * 2 } : row));
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('divergence');
+    expect(report.coverage.matchedRows).toBe(2);
+  });
+
+  it('statement-only ids are named and demote a clean match to partial coverage', () => {
+    const rows = [...fullRequestRows, { responseId: 'resp-x', model: 'gpt-5.6-sol', usd: 1 }];
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('partial-coverage');
+    expect(report.coverage.statementOnlyRows).toBe(1);
+    expect(report.coverage.statementOnlyIdSample).toEqual(['resp-x']);
+  });
+
+  it('provider-reported token counts are compared against ours where the export carries them', () => {
+    const rows = fullRequestRows.map((row) =>
+      row.responseId === 'resp-4'
+        ? {
+            ...row,
+            usage: {
+              inputTokens: 999,
+              outputTokens: 10_000,
+              cachedInputTokens: 0,
+              cacheWriteTokens: 0,
+            },
+          }
+        : row,
+    );
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.tokenMismatches).toBe(1);
+    expect(report.tokenMismatchSample[0]?.responseId).toBe('resp-4');
+  });
+});
+
+describe('reconcileStatement: refusals and declared gaps', () => {
+  it('refuses a headline aggregate: a statement with no rows is not evidence', () => {
+    expect(() =>
+      reconcileStatement(INVOICE, { kind: 'categories', rows: [] }, { pricingOf: PRICING_OF }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      reconcileStatement(INVOICE, { kind: 'requests', rows: [] }, { pricingOf: PRICING_OF }),
+    ).toThrow(ConfigError);
+  });
+
+  it('refuses request rows without a response id and duplicate response ids, typed', () => {
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        { kind: 'requests', rows: [{ responseId: '', usd: 1 }] },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(ConfigError);
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        {
+          kind: 'requests',
+          rows: [
+            { responseId: 'resp-1', usd: 1 },
+            { responseId: 'resp-1', usd: 2 },
+          ],
+        },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(ConfigError);
+  });
+
+  it('refuses an export that carries nothing to reconcile', () => {
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        { kind: 'requests', rows: [{ responseId: 'resp-1' }, { responseId: 'resp-2' }] },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(ConfigError);
+  });
+
+  it('an unpriced model is a declared gap, not silence and not divergence', () => {
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'categories', rows: trueCategories(false) },
+      { pricingOf: (servedBy) => (servedBy === 'openai:gpt-5.6-sol' ? SOL : undefined) },
+    );
+    expect(report.unpricedModels).toEqual(['gpt-5.6-terra']);
+    expect(report.verdict).toBe('partial-coverage');
+    expect(report.divergent).toHaveLength(0);
+  });
+
+  it('usage-unknown rows are counted apart and never fold into component sums', () => {
+    const invoice = {
+      rows: rowsOf([
+        ...SPECS,
+        { servedBy: 'openai:gpt-5.6-terra', usage: usageOf(0, 0, 0, 0), usageUnknown: true },
+      ]),
+    };
+    const report = reconcileStatement(
+      invoice,
+      { kind: 'categories', rows: trueCategories(true) },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.usageUnknownRows).toBe(1);
+    expect(report.verdict).toBe('match');
+  });
+});

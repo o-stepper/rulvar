@@ -45,17 +45,25 @@ The umbrella package `@rulvar/rulvar` already bundles this adapter.
 
 | Interface | Description |
 | ------ | ------ |
+| [ComponentDelta](/api/@rulvar/openai/interfaces/ComponentDelta.md) | One (model, component) line of the reconciliation. |
 | [OpenAiAdapterOptions](/api/@rulvar/openai/interfaces/OpenAiAdapterOptions.md) | - |
 | [OpenAiClientLike](/api/@rulvar/openai/interfaces/OpenAiClientLike.md) | The client sub-surface the adapter consumes; injectable for tests. |
 | [OpenAiCompatibleConfig](/api/@rulvar/openai/interfaces/OpenAiCompatibleConfig.md) | - |
 | [OpenAiModelInfo](/api/@rulvar/openai/interfaces/OpenAiModelInfo.md) | - |
+| [ReconcileStatementOptions](/api/@rulvar/openai/interfaces/ReconcileStatementOptions.md) | - |
+| [StatementCategoryRow](/api/@rulvar/openai/interfaces/StatementCategoryRow.md) | One per-model per-component total: the Spend categories shape. |
+| [StatementCoverage](/api/@rulvar/openai/interfaces/StatementCoverage.md) | - |
+| [StatementReconciliation](/api/@rulvar/openai/interfaces/StatementReconciliation.md) | - |
+| [StatementRequestRow](/api/@rulvar/openai/interfaces/StatementRequestRow.md) | One normalized per-request row of a usage/billing export. `usd` is the row's billed dollars where the export carries amounts; `componentsUsd` its per-component split where it carries one; `usage` the provider-reported token counts where it carries those. A row must carry at least one of the three, and every row needs the provider's response id, the join key. |
 | [V1190CacheAudit](/api/@rulvar/openai/interfaces/V1190CacheAudit.md) | One journal's sidecar reconciliation; see auditV1190CacheJournal. |
 
 ## Type Aliases
 
 | Type Alias | Description |
 | ------ | ------ |
+| [BillingComponent](/api/@rulvar/openai/type-aliases/BillingComponent.md) | The four billing components a provider statement itemizes. |
 | [OpenAiSdkOptions](/api/@rulvar/openai/type-aliases/OpenAiSdkOptions.md) | Official SDK construction options forwarded verbatim to `new OpenAI(...)`, minus `maxRetries`: Rulvar owns retries and wall-clock, so SDK autoretries stay disabled no matter what is passed here. This is the production surface for auth beyond a plain API key, `workloadIdentity` federation included, plus `fetch`, `timeout`, and `defaultHeaders`. The SDK's own rules still apply inside it, e.g. `sdkOptions.apiKey` and `sdkOptions.workloadIdentity` are mutually exclusive and rejected typed at construction. |
+| [ProviderStatement](/api/@rulvar/openai/type-aliases/ProviderStatement.md) | A normalized provider export: never a headline total. |
 | [ResponsesStreamEvent](/api/@rulvar/openai/type-aliases/ResponsesStreamEvent.md) | Raw Responses SSE events, structurally typed. |
 
 ## Variables
@@ -81,4 +89,5 @@ The umbrella package `@rulvar/rulvar` already bundles this adapter.
 | [openaiCompatible](/api/@rulvar/openai/functions/openaiCompatible.md) | Creates a Chat Completions dialect adapter for a compatible endpoint. |
 | [openAiErrorToWire](/api/@rulvar/openai/functions/openAiErrorToWire.md) | Projects SDK/API errors into the retryable WireError vocabulary. |
 | [openAiModelInfo](/api/@rulvar/openai/functions/openAiModelInfo.md) | - |
+| [reconcileStatement](/api/@rulvar/openai/functions/reconcileStatement.md) | Reconciles the invoice against a normalized provider export. Pure and journal-free; see the module doc for the contract. Throws a typed ConfigError on inputs that cannot be evidence: an empty statement (a headline total with no rows), a request row without a response id, a duplicate response id (an ambiguous join), or a request export whose rows carry neither dollars, components, nor usage. |
 | [undoV1190CacheDoubleCount](/api/@rulvar/openai/functions/undoV1190CacheDoubleCount.md) | The exact inverse of the v1.19.0 double count for one usage: subtracts `cacheWriteTokens` back out of `inputTokens` and leaves every other field untouched. A usage without cache writes is returned unchanged (v1.19.0 recorded those correctly). Throws a typed ConfigError when the arithmetic cannot be the v1.19.0 shape (the recorded input has no room for the subtraction), which means the usage was NOT recorded by the affected adapter; do not guess. |
