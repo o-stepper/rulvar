@@ -235,12 +235,17 @@ export interface PreflightInput {
      * experiment gated drafts at 3200 words under a 4500 word contract,
      * so the gate admitted a draft the final validators had to reject
      * and the synthesis started from an underlength base; the
-     * draft-gate-below-contract warning names exactly that shape.
+     * draft-gate-below-contract warning names exactly that shape. The
+     * sentinel `'contract'` (RV808a) gates the draft by the full
+     * validator set, so the below-contract shape cannot exist and the
+     * warning never fires.
      */
-    draftPolicy?: {
-      minWords?: number;
-      requireSections?: string[];
-    };
+    draftPolicy?:
+      | {
+          minWords?: number;
+          requireSections?: string[];
+        }
+      | 'contract';
   };
 }
 
@@ -1933,7 +1938,8 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     // experiment gated 3984 word drafts at 3200 under a 4500 minimum,
     // and the synthesis copied the draft nearly verbatim).
     {
-      const draftMinWords = fv.draftPolicy?.minWords;
+      const draftMinWords =
+        typeof fv.draftPolicy === 'object' ? fv.draftPolicy.minWords : undefined;
       if (draftMinWords !== undefined) {
         requireNonNegativeInteger(draftMinWords, 'preflight finishValidation.draftPolicy.minWords');
       }

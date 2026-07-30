@@ -325,13 +325,32 @@ export interface FinishValidationSpec {
    * consumed (it belongs to the synthesis-bound validators). Absent =
    * byte identical pre 1.76 behavior; configured without `synthesis` =
    * ConfigError.
+   *
+   * The sentinel `'contract'` (RV808a) gates the draft by the FULL
+   * declared validator set instead of a hand-written subset, with the
+   * same children snapshot the synthesis-bound validation reads. The
+   * twelfth comparison run showed why the subset starves the
+   * `skipWhenDraftValid` gate: the coordination repair loop drove the
+   * draft only to the weak policy, the pre-pass then judged it by the
+   * full contract and failed, and the run paid the whole synthesis
+   * plus its own repair for defects a coordination exchange could
+   * have fixed. Under `'contract'` the rejection feedback names the
+   * failing validators, so coordination repairs drive the draft
+   * toward exactly what the pre-pass will judge, making the skip
+   * reachable. Same posture otherwise: nothing journals, the durable
+   * exchange recounts identically, `maxRepairs` untouched. Honest
+   * bound: validators that fold the children snapshot (the evidence
+   * share) can still fail the pre-pass when a child settles between
+   * the draft finish and synthesis; the pre-pass stays the authority.
    */
-  draftPolicy?: {
-    /** Minimum whitespace-separated words the draft must carry. */
-    minWords?: number;
-    /** Literal markers the draft text must contain. */
-    requireSections?: string[];
-  };
+  draftPolicy?:
+    | {
+        /** Minimum whitespace-separated words the draft must carry. */
+        minWords?: number;
+        /** Literal markers the draft text must contain. */
+        requireSections?: string[];
+      }
+    | 'contract';
   /**
    * The unified output contract this validator set enforces (the v1.71
    * experiment review, P0.1/P0.2). Construction then runs the golden
@@ -576,6 +595,26 @@ export interface OrchestrateSynthesis {
    * byte.
    */
   skipWhenDraftValid?: boolean;
+  /**
+   * Carry a FAILED skip pre-pass into the synthesis prompt (RV808a).
+   * The pre-pass verdict used to be discarded on failure, and the
+   * twelfth comparison run paid for exactly that: synthesis re-derived
+   * the whole document blind to which validators the draft had already
+   * failed, then failed the same contract once more itself. With
+   * `true`, a failing pre-pass journals its verdict (decisionType
+   * 'orchestrator_synthesis_draft_gaps': the failed validator names
+   * with their reasons, bound to the contract generation and the
+   * draft hash exactly like the skip decision), and the synthesis
+   * prompt gains a `DRAFT CONTRACT GAPS:` line naming those failures
+   * with the instruction to repair the named gaps and preserve the
+   * draft otherwise. A resume reuses the journaled verdict without
+   * re-running a validator, so the prompt bytes re-derive identically
+   * and the paid invocation replays. Requires `skipWhenDraftValid`
+   * (the gaps ARE the pre-pass verdict; there is nothing to carry
+   * without it). Default false: no decision entry, prompt bytes
+   * identical.
+   */
+  carryDraftGaps?: boolean;
 }
 
 /**
@@ -786,8 +825,10 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     const draftPolicy = (fv as { draftPolicy?: unknown }).draftPolicy;
     if (draftPolicy !== undefined) {
-      if (typeof draftPolicy !== 'object' || draftPolicy === null) {
-        throw new ConfigError('orchestrate finishValidation.draftPolicy must be an object');
+      if (draftPolicy !== 'contract' && (typeof draftPolicy !== 'object' || draftPolicy === null)) {
+        throw new ConfigError(
+          "orchestrate finishValidation.draftPolicy must be an object or the sentinel 'contract'",
+        );
       }
       if (opts.synthesis === undefined) {
         throw new ConfigError(
@@ -796,37 +837,42 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
             'unvalidated draft to gate',
         );
       }
-      const policy = draftPolicy as { minWords?: unknown; requireSections?: unknown };
-      if (policy.minWords === undefined && policy.requireSections === undefined) {
-        throw new ConfigError(
-          'orchestrate finishValidation.draftPolicy must declare minWords, requireSections, ' +
-            'or both',
-        );
-      }
-      if (policy.minWords !== undefined) {
-        if (
-          typeof policy.minWords !== 'number' ||
-          !Number.isInteger(policy.minWords) ||
-          policy.minWords < 1
-        ) {
+      const policy =
+        draftPolicy === 'contract'
+          ? undefined
+          : (draftPolicy as { minWords?: unknown; requireSections?: unknown });
+      if (policy !== undefined) {
+        if (policy.minWords === undefined && policy.requireSections === undefined) {
           throw new ConfigError(
-            'orchestrate finishValidation.draftPolicy.minWords must be a positive integer; ' +
-              `got ${JSON.stringify(policy.minWords)}`,
+            'orchestrate finishValidation.draftPolicy must declare minWords, requireSections, ' +
+              'or both',
           );
         }
-      }
-      if (policy.requireSections !== undefined) {
-        if (
-          !Array.isArray(policy.requireSections) ||
-          policy.requireSections.length === 0 ||
-          policy.requireSections.some(
-            (section) => typeof section !== 'string' || section.length === 0,
-          )
-        ) {
-          throw new ConfigError(
-            'orchestrate finishValidation.draftPolicy.requireSections must be a non empty ' +
-              'array of non empty strings',
-          );
+        if (policy.minWords !== undefined) {
+          if (
+            typeof policy.minWords !== 'number' ||
+            !Number.isInteger(policy.minWords) ||
+            policy.minWords < 1
+          ) {
+            throw new ConfigError(
+              'orchestrate finishValidation.draftPolicy.minWords must be a positive integer; ' +
+                `got ${JSON.stringify(policy.minWords)}`,
+            );
+          }
+        }
+        if (policy.requireSections !== undefined) {
+          if (
+            !Array.isArray(policy.requireSections) ||
+            policy.requireSections.length === 0 ||
+            policy.requireSections.some(
+              (section) => typeof section !== 'string' || section.length === 0,
+            )
+          ) {
+            throw new ConfigError(
+              'orchestrate finishValidation.draftPolicy.requireSections must be a non empty ' +
+                'array of non empty strings',
+            );
+          }
         }
       }
     }
@@ -949,7 +995,7 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
           typeof symmetry.exposeChildResultTools,
       );
     }
-    const conditional = synthesis as { skipWhenDraftValid?: unknown };
+    const conditional = synthesis as { skipWhenDraftValid?: unknown; carryDraftGaps?: unknown };
     if (conditional.skipWhenDraftValid !== undefined) {
       if (typeof conditional.skipWhenDraftValid !== 'boolean') {
         throw new ConfigError(
@@ -961,6 +1007,20 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         throw new ConfigError(
           'orchestrate synthesis.skipWhenDraftValid requires finishValidation: without a ' +
             'declared finish contract there is nothing to judge the draft valid by',
+        );
+      }
+    }
+    if (conditional.carryDraftGaps !== undefined) {
+      if (typeof conditional.carryDraftGaps !== 'boolean') {
+        throw new ConfigError(
+          'orchestrate synthesis.carryDraftGaps must be a boolean; got ' +
+            typeof conditional.carryDraftGaps,
+        );
+      }
+      if (conditional.carryDraftGaps && conditional.skipWhenDraftValid !== true) {
+        throw new ConfigError(
+          'orchestrate synthesis.carryDraftGaps requires skipWhenDraftValid: the gaps ARE the ' +
+            'failed pre-pass verdict, and without the pre-pass there is nothing to carry',
         );
       }
     }
@@ -2928,6 +2988,51 @@ export function makeOrchestratorWorkflow(
       }
       const result = (call.result ?? null) as Json | null;
       const text = typeof result === 'string' ? result : JSON.stringify(result);
+      if (policy === 'contract') {
+        // The full-contract draft gate (RV808a): the SAME validators
+        // and children snapshot the synthesis-bound validation reads,
+        // run as a pure per-exchange check. The rejection names the
+        // failing validators so the coordination repair loop drives
+        // the draft toward exactly what the skip pre-pass will judge.
+        // Same posture as the literal policy: nothing journals, the
+        // durable exchange recounts identically, maxRepairs untouched.
+        // A throwing validator is the same host defect it is in
+        // validateFinish and fails the run typed.
+        const failed: { name: string; reasons: string[] }[] = [];
+        const input: FinishValidationInput = {
+          result,
+          text,
+          children: validationChildren(),
+        };
+        for (const validator of validationSpec?.validators ?? []) {
+          let verdict: FinishValidationVerdict;
+          try {
+            verdict = validator.validate(input);
+          } catch (thrown) {
+            throw new ConfigError(
+              `finish validator '${validator.name}' threw instead of returning a verdict ` +
+                'during the contract draft gate: ' +
+                (thrown instanceof Error ? thrown.message : String(thrown)),
+            );
+          }
+          if (!verdict.ok) {
+            failed.push({ name: validator.name, reasons: verdict.reasons });
+          }
+        }
+        if (failed.length === 0) {
+          return Promise.resolve({ ok: true });
+        }
+        return Promise.resolve({
+          ok: false,
+          feedback: {
+            error:
+              'the coordination draft failed the declared finish contract; repair the draft ' +
+              'and call finish again: a contract-valid draft skips the synthesis invocation ' +
+              'entirely, and every gap left here is paid for again downstream',
+            failed,
+          },
+        });
+      }
       const reasons: string[] = [];
       if (policy.minWords !== undefined) {
         const trimmed = text.trim();
@@ -3473,14 +3578,25 @@ export function makeOrchestratorWorkflow(
         // no model call composes the final result.
         return await reconcileIncremental(draft, spec);
       }
+      /**
+       * The failed pre-pass verdict carried to synthesis (RV808a),
+       * set only under `carryDraftGaps`: the failed validator names
+       * with their reasons, journaled or reused below, folded into
+       * the prompt as the DRAFT CONTRACT GAPS line.
+       */
+      let draftGaps: { name: string; reasons: string[] }[] | undefined;
       if (spec.skipWhenDraftValid === true && validationSpec !== undefined) {
         // The conditional synthesis gate (RV510): the draft is judged by
         // the FULL declared finish contract before the span starts. The
         // journaled skip is the authority on resume (the acceptance and
         // cap precedents); a failed pre-pass journals nothing (a pure
         // function of the draft re-derives identically) and spends no
-        // repair budget.
+        // repair budget, UNLESS `carryDraftGaps` opted in (RV808a):
+        // the failure is then journaled as the draft-gaps decision and
+        // carried into the synthesis prompt instead of discarded.
         const skipKey = 'synthesis-draft-valid-skip';
+        const gapsKey = 'synthesis-draft-gaps';
+        const carryGaps = spec.carryDraftGaps === true;
         const announceSkip = (entryRef: number): void => {
           internals.events.emit(
             {
@@ -3540,60 +3656,157 @@ export function makeOrchestratorWorkflow(
           announceSkip(prior.seq);
           return draft;
         }
-        const input: FinishValidationInput = {
-          result: draftValue,
-          text: typeof draftValue === 'string' ? draftValue : JSON.stringify(draftValue),
-          children: validationChildren(),
+        const announceGaps = (entryRef: number, failedNames: string[]): void => {
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'info',
+              msg: 'orchestrator synthesis draft gaps carried',
+              data: { failed: failedNames, gapsDecisionRef: entryRef },
+            },
+            callingState.spanId,
+          );
         };
-        let allPassed = true;
-        for (const validator of validationSpec.validators) {
-          let verdict: FinishValidationVerdict;
-          try {
-            verdict = validator.validate(input);
-          } catch (thrown) {
-            throw new ConfigError(
-              `finish validator '${validator.name}' threw instead of returning a verdict ` +
-                'during the skipWhenDraftValid pre-pass: ' +
-                (thrown instanceof Error ? thrown.message : String(thrown)),
-            );
+        /**
+         * The journaled failure rows, validated shape by shape; a
+         * malformed entry re-derives instead of poisoning the prompt
+         * (the lift posture).
+         */
+        const journaledFailed = (
+          value: unknown,
+        ): { name: string; reasons: string[] }[] | undefined => {
+          const failed = (value as { failed?: unknown } | undefined)?.failed;
+          if (!Array.isArray(failed) || failed.length === 0) {
+            return undefined;
           }
-          if (!verdict.ok) {
-            allPassed = false;
-            break;
+          const rows: { name: string; reasons: string[] }[] = [];
+          for (const row of failed) {
+            const candidate = row as { name?: unknown; reasons?: unknown };
+            if (
+              typeof candidate.name !== 'string' ||
+              !Array.isArray(candidate.reasons) ||
+              candidate.reasons.some((reason) => typeof reason !== 'string')
+            ) {
+              return undefined;
+            }
+            rows.push({ name: candidate.name, reasons: candidate.reasons as string[] });
+          }
+          return rows;
+        };
+        if (carryGaps) {
+          // The journaled gaps verdict is the authority exactly like
+          // the skip decision: same binding (generation, draft hash,
+          // validator names), so a resume folds the identical prompt
+          // line without re-running a validator.
+          const priorGaps = internals.replayer
+            .snapshot()
+            .filter(
+              (entry) =>
+                entry.kind === 'decision' &&
+                entry.scope === callingState.scope &&
+                entry.key === gapsKey,
+            )
+            .at(-1);
+          if (
+            priorGaps !== undefined &&
+            applies(priorGaps.value as Parameters<typeof applies>[0])
+          ) {
+            const rows = journaledFailed(priorGaps.value);
+            if (rows !== undefined) {
+              draftGaps = rows;
+              announceGaps(
+                priorGaps.seq,
+                rows.map((row) => row.name),
+              );
+            }
           }
         }
-        if (allPassed) {
-          const skipEntry = await internals.replayer.appendSinglePhase({
-            scope: callingState.scope,
-            key: skipKey,
-            kind: 'decision',
-            status: 'ok',
-            spanId: internals.spans.mint(callingState.spanId),
-            site: 'orchestrator-synthesis-skip',
-            value: {
-              decisionType: 'orchestrator_synthesis_skip',
-              reason: 'synthesis_skipped_by_valid_draft',
-              validators: validatorNames,
-              // What the verdict is bound to (RV603): the contract
-              // generation when one is declared, and the draft it
-              // actually judged. Without a contract descriptor the pair
-              // is honestly weaker (a same-name validator can change
-              // behavior underneath it), and that is documented.
-              ...(validationSpec.contract === undefined
-                ? {}
-                : { contractHash: validationSpec.contract.hash }),
-              draftHash,
-            },
-          });
-          if (orchestratorAccount !== undefined && (opts?.budget?.synthesisReserveUsd ?? 0) > 0) {
-            // A held reserve is released unconsumed: there is no
-            // synthesis invocation to fund, and no lifecycle decision
-            // journals because there is no invocation to account.
-            internals.budget.releaseSynthesisReserve(orchestratorAccount);
+        if (draftGaps === undefined) {
+          const input: FinishValidationInput = {
+            result: draftValue,
+            text: typeof draftValue === 'string' ? draftValue : JSON.stringify(draftValue),
+            children: validationChildren(),
+          };
+          const failed: { name: string; reasons: string[] }[] = [];
+          for (const validator of validationSpec.validators) {
+            let verdict: FinishValidationVerdict;
+            try {
+              verdict = validator.validate(input);
+            } catch (thrown) {
+              throw new ConfigError(
+                `finish validator '${validator.name}' threw instead of returning a verdict ` +
+                  'during the skipWhenDraftValid pre-pass: ' +
+                  (thrown instanceof Error ? thrown.message : String(thrown)),
+              );
+            }
+            if (!verdict.ok) {
+              failed.push({ name: validator.name, reasons: verdict.reasons });
+              if (!carryGaps) {
+                // The historical pre-pass short-circuits at the first
+                // failure; only the gaps opt-in pays for the full list.
+                break;
+              }
+            }
           }
-          synthesisSkippedByValidDraft = true;
-          announceSkip(skipEntry.seq);
-          return draft;
+          if (failed.length > 0 && carryGaps) {
+            const gapsEntry = await internals.replayer.appendSinglePhase({
+              scope: callingState.scope,
+              key: gapsKey,
+              kind: 'decision',
+              status: 'ok',
+              spanId: internals.spans.mint(callingState.spanId),
+              site: 'orchestrator-synthesis-draft-gaps',
+              value: {
+                decisionType: 'orchestrator_synthesis_draft_gaps',
+                failed: failed as unknown as Json,
+                validators: validatorNames,
+                // The same binding the skip decision carries (RV603):
+                // the contract generation and the judged draft.
+                ...(validationSpec.contract === undefined
+                  ? {}
+                  : { contractHash: validationSpec.contract.hash }),
+                draftHash,
+              },
+            });
+            draftGaps = failed;
+            announceGaps(
+              gapsEntry.seq,
+              failed.map((row) => row.name),
+            );
+          }
+          if (failed.length === 0) {
+            const skipEntry = await internals.replayer.appendSinglePhase({
+              scope: callingState.scope,
+              key: skipKey,
+              kind: 'decision',
+              status: 'ok',
+              spanId: internals.spans.mint(callingState.spanId),
+              site: 'orchestrator-synthesis-skip',
+              value: {
+                decisionType: 'orchestrator_synthesis_skip',
+                reason: 'synthesis_skipped_by_valid_draft',
+                validators: validatorNames,
+                // What the verdict is bound to (RV603): the contract
+                // generation when one is declared, and the draft it
+                // actually judged. Without a contract descriptor the pair
+                // is honestly weaker (a same-name validator can change
+                // behavior underneath it), and that is documented.
+                ...(validationSpec.contract === undefined
+                  ? {}
+                  : { contractHash: validationSpec.contract.hash }),
+                draftHash,
+              },
+            });
+            if (orchestratorAccount !== undefined && (opts?.budget?.synthesisReserveUsd ?? 0) > 0) {
+              // A held reserve is released unconsumed: there is no
+              // synthesis invocation to fund, and no lifecycle decision
+              // journals because there is no invocation to account.
+              internals.budget.releaseSynthesisReserve(orchestratorAccount);
+            }
+            synthesisSkippedByValidDraft = true;
+            announceSkip(skipEntry.seq);
+            return draft;
+          }
         }
       }
       // The evidence symmetry options (the v1.74 experiment review,
@@ -3664,6 +3877,17 @@ export function makeOrchestratorWorkflow(
             ]),
         ...(spec.instructions === undefined ? [] : [spec.instructions]),
         ...finishValidationPromptLines(validationSpec),
+        // The carried pre-pass verdict (RV808a): derived from the
+        // journaled gaps decision, so a resumed synthesis re-derives
+        // the identical bytes. Absent without the opt-in, byte for
+        // byte.
+        ...(draftGaps === undefined
+          ? []
+          : [
+              'DRAFT CONTRACT GAPS: the coordination draft failed exactly these declared ' +
+                'validators; repair the named gaps and preserve the draft otherwise. ' +
+                JSON.stringify(draftGaps),
+            ]),
         // The opt-in policy-facts line (RV709): folded ONLY from
         // replay-stable material (the settled child results' durable
         // tool-budget subsets, which the journal replays verbatim), so
