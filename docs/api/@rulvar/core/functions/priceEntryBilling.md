@@ -10,7 +10,7 @@
 function priceEntryBilling(entry, priceUsd): EntryBillingFold;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:346](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L346)
+Defined in: [packages/core/src/l0/entries.ts:355](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L355)
 
 The billing fold over one terminal entry (RV504), shared by the
 CostReport and invoice folds so the total, every breakdown, and the

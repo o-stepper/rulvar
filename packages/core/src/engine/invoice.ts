@@ -15,16 +15,22 @@
  * and per-row `allocatedUsd` is the additive column whose flat sum
  * reproduces `totalUsd` exactly in every case.
  *
- * Coverage is loss-free by construction: an entry whose records do not
- * cover its usage total (a resume restored from a checkpoint written
- * before the ledger shipped) contributes an `unattributed` remainder
- * row, and an entry with no records at all (written before the ledger
- * shipped, or a fully replayed invocation) contributes one
- * `unattributed` row per usage slice. Missing provider ids are marked,
- * never dropped: a finished call without one reconciles as
- * `missing-provider-id`, a failed or severed call without one as
- * `unconfirmed` (the provider may or may not have billed it; there is
- * no id to match).
+ * Coverage is loss-free by construction: a model whose records do not
+ * cover its usage (a resume restored from a checkpoint written before
+ * the ledger shipped) contributes an `unattributed` remainder row per
+ * slice, and an entry with no records at all (written before the
+ * ledger shipped, or a fully replayed invocation) contributes one
+ * `unattributed` row per usage slice. A COVERED model contributes no
+ * remainder rows at all (RV703): its rows are exactly its records, the
+ * same per-model decision the billing fold makes, so a role mismatch
+ * between records and slices (the schema-extract default splits one
+ * model's usage by role while the record carries one role, or none)
+ * can no longer fabricate a phantom row that breaks the
+ * `rowUsdNonAdditive: false` promise and siphons allocation from the
+ * real call. Missing provider ids are marked, never dropped: a
+ * finished call without one reconciles as `missing-provider-id`, a
+ * failed or severed call without one as `unconfirmed` (the provider
+ * may or may not have billed it; there is no id to match).
  *
  * Pricing happens at fold time from the table you pass, exactly like
  * CostReport. For historical stability against price-table updates,
@@ -200,6 +206,12 @@ const USAGE_FIELDS = [
  * model: the whole-entry remainder was published under `entry.servedBy`,
  * so a slice with no records left its allocation pool rowless and the
  * dust pass moved its dollars onto another model's row.
+ *
+ * Consulted only for UNCOVERED models (RV703): coverage is a per-model
+ * decision, so a covered model's slices never reach this arithmetic.
+ * The per-role subtraction here against the per-model coverage key was
+ * exactly the mismatch that fabricated a phantom remainder whenever a
+ * covered model's record roles differed from its slice roles.
  */
 function sliceRemainder(
   slice: UsageSlice,
@@ -378,7 +390,8 @@ export function invoiceFromJournal(
     if (entry.status === 'running' || entry.usage === undefined) {
       continue;
     }
-    if (!priceEntryBilling(entry, priceUsd).fullyAttributed) {
+    const billing = priceEntryBilling(entry, priceUsd);
+    if (!billing.fullyAttributed) {
       everyEntryFullyAttributed = false;
     }
     const abandoned =
@@ -448,8 +461,14 @@ export function invoiceFromJournal(
     // ledger): the difference is real billed usage, surfaced as one
     // unattributed remainder row PER SLICE under the slice's own
     // serving model and role (RV605), never pooled onto entry.servedBy.
+    // A covered model is exempt (RV703): the billing fold already
+    // decided its records account for every counter, so its rows are
+    // its records and any per-role residue would double-count.
     let remainderOrdinal = records.length + 1;
     for (const slice of entryUsageSlices(entry)) {
+      if (billing.coveredModels.has(slice.servedBy)) {
+        continue;
+      }
       const remainder = sliceRemainder(slice, records);
       if (remainder === undefined) {
         continue;
