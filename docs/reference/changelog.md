@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+
 ### 1.115.0
 
 #### Patch Changes
@@ -1244,6 +1251,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+
 ### 1.115.0
 
 #### Patch Changes
@@ -2325,6 +2339,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
 
 ### 1.115.0
 
@@ -3769,6 +3790,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.116.0
+
+#### Minor Changes
+
+- a213878: One settled number on every public money surface (RV801, the twelfth experiment's P0). `run:end` now spreads `outcome.cost.totalUsd` itself, so the terminal event and the settled report cannot disagree under any pricing table; live in the twelfth comparison run the event said 10.4148235 USD against 7.304885 USD on every other surface, because the kernel ledger re-priced per-phase usage aggregates through the 272k long-context tier no single request crossed. `Replayer.ledger()` folds dollars on the settled billing basis (RV504): per provider call where an entry's dispatch records cover its usage, the per-slice aggregate otherwise; usage sums and the spawn count are unchanged. The resume budget seed is the settled fold too, per-call basis composed with the per-segment pricing pins (RV505), so resuming a tier-heavy run no longer inherits aggregate-priced dollars and falsely exhausts a ceiling the real spend never crossed (the escalation on the experiment's finding: that exact journal would have resumed with 10.41 of a 10.00 ceiling already counted as spent), and a resume across a price-table rotation starts from the figure the prior segment actually reported instead of re-pricing settled history at the rotated rates.
 
 ### 1.115.0
 
@@ -5563,6 +5590,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.116.0
+
 ### 1.115.0
 
 ### 1.114.0
@@ -5897,6 +5926,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+  - @rulvar/testing@1.116.0
 
 ### 1.115.0
 
@@ -7206,6 +7243,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+
 ### 1.115.0
 
 #### Patch Changes
@@ -7694,6 +7738,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
 
 ### 1.115.0
 
@@ -8933,6 +8984,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+
 ### 1.115.0
 
 #### Patch Changes
@@ -10128,6 +10186,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+  - eslint-plugin-rulvar@1.116.0
 
 ### 1.115.0
 
@@ -11401,6 +11467,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+  - @rulvar/anthropic@1.116.0
+  - @rulvar/openai@1.116.0
 
 ### 1.115.0
 
@@ -12872,6 +12947,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+
 ### 1.115.0
 
 #### Patch Changes
@@ -14063,6 +14145,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
+
 ### 1.115.0
 
 #### Patch Changes
@@ -14565,6 +14654,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
 
 ### 1.115.0
 
@@ -15699,6 +15795,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.116.0
+
+#### Patch Changes
+
+- Updated dependencies [a213878]
+  - @rulvar/core@1.116.0
 
 ### 1.115.0
 
