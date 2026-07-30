@@ -77,10 +77,12 @@ import {
   READ_CHILD_ARTIFACT_TOOL_NAME,
   type SpawnAgentParams,
 } from './spawn-tools.js';
-import type {
-  FinishValidationInput,
-  FinishValidationVerdict,
-  FinishValidator,
+import {
+  DEFAULT_CITATION_PATTERN,
+  spliceSections,
+  type FinishValidationInput,
+  type FinishValidationVerdict,
+  type FinishValidator,
 } from './finish-validators.js';
 import {
   selfTestFinishValidation,
@@ -352,6 +354,48 @@ export interface FinishValidationSpec {
       }
     | 'contract';
   /**
+   * Sectional bounded repair (RV808b). A rejected finish used to
+   * resend the WHOLE document to fix one violated section: on the
+   * twelfth comparison run the coordination draft plus its repairs
+   * alone cost 406 s of model output. With this declared, every
+   * rejection feedback of a gated finish teaches the sectional
+   * vocabulary, and the model may repair by calling
+   * `finish({ sections: { '<declared marker>': '<new body>' } })`
+   * instead of resending the document: the host splices the patch
+   * into the RETAINED rejected attempt (line-anchored, the exported
+   * {@link spliceSections} semantics: a marker absent from the
+   * attempt is appended in declared order) and validates the
+   * reconstructed document whole. The vocabulary rides every finish
+   * the host actually gates: the validator-bound finish (the
+   * synthesis invocation when `synthesis` is configured, the
+   * coordination loop otherwise) and, when a `draftPolicy` is
+   * declared, the coordination draft gate; the synthesis invocation
+   * is additionally SEEDED with the coordination draft as its
+   * retained base, so a synthesis that agrees with the draft repairs
+   * only the named gaps without ever resending it (the carryDraftGaps
+   * pairing). Mechanics refusals (sections beside result, an
+   * undeclared marker, no retained attempt to splice into) are typed
+   * error results, the moral twin of a schema rejection: they journal
+   * nothing, spend no `maxRepairs`, and stay bounded by the turn
+   * budget; only the verdict over the SPLICED document spends the
+   * repair bound. Nothing new journals anywhere: the exchange is
+   * durable in the transcript, the splice is a pure function of it,
+   * and the accepted invocation output IS the reconstructed
+   * document. Honest bound: the retained attempt lives in the
+   * invocation; a segment resumed from a mid-invocation checkpoint
+   * retains nothing yet and refuses the first sectional call with the
+   * full-resubmission remedy (the synthesis seed re-derives from the
+   * journaled draft and never has this window). Declaring the option
+   * swaps the finish tool schema and description for the gated
+   * invocations, so their toolset hash moves BY DESIGN (the
+   * exposeChildResultTools precedent); absent = every byte
+   * identical.
+   */
+  sectionalRepair?: {
+    /** The marker lines that partition the document, unique, in document order. */
+    sections: string[];
+  };
+  /**
    * The unified output contract this validator set enforces (the v1.71
    * experiment review, P0.1/P0.2). Construction then runs the golden
    * self test with the contract's fixtures as defaults, the contract's
@@ -615,6 +659,33 @@ export interface OrchestrateSynthesis {
    * identical.
    */
   carryDraftGaps?: boolean;
+  /**
+   * The structured evidence index (RV808b): a deterministic per-child
+   * citation map in the 'single' synthesis prompt, so the composing
+   * model can target its reads instead of re-reading the whole
+   * evidence pool (`context: 'full'` re-pays every child output as
+   * input tokens; the twelfth comparison run spent 357 s of synthesis
+   * on exactly that re-derivation). One `EVIDENCE INDEX:` line rides
+   * the prompt after the digest rows: per SETTLED child in spawn
+   * order, its nodeId, terminal status, the DISTINCT citations its
+   * output actually carries (matches of `pattern`, default
+   * {@link DEFAULT_CITATION_PATTERN}; extracted ONLY from
+   * evidence-pool children, ok and salvage-accepted, exactly the pool
+   * evidencePreservedValidator judges, so an indexed citation is
+   * never one the validators would reject as fabricated), its
+   * artifact descriptors (the read_child_artifact vocabulary), and
+   * its output size in chars. With `exposeChildResultTools` the rows
+   * carry the child handle, so the index and the pagination tools
+   * compose: read exactly the child whose citation you need. Folded
+   * ONLY from replay-stable settled results (the policyFacts
+   * precedent), so a resumed synthesis re-derives identical prompt
+   * bytes; `true` uses the default pattern, an object overrides it
+   * (fail-closed: a pattern that can match the empty string is
+   * refused at intake, the RV610 posture). Meaningless in
+   * 'incremental' mode (no single synthesis prompt exists): a
+   * ConfigError. Absent = the prompt stays byte identical.
+   */
+  evidenceIndex?: true | { pattern?: string; flags?: string };
 }
 
 /**
@@ -876,6 +947,35 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         }
       }
     }
+    const sectionalRepair = (fv as { sectionalRepair?: unknown }).sectionalRepair;
+    if (sectionalRepair !== undefined) {
+      if (typeof sectionalRepair !== 'object' || sectionalRepair === null) {
+        throw new ConfigError(
+          'orchestrate finishValidation.sectionalRepair must be an object with sections',
+        );
+      }
+      const declared = (sectionalRepair as { sections?: unknown }).sections;
+      if (
+        !Array.isArray(declared) ||
+        declared.length === 0 ||
+        declared.some((section) => typeof section !== 'string' || section.length === 0)
+      ) {
+        throw new ConfigError(
+          'orchestrate finishValidation.sectionalRepair.sections must be a non empty array ' +
+            'of non empty marker strings',
+        );
+      }
+      const uniqueSections = new Set<string>();
+      for (const section of declared as string[]) {
+        if (uniqueSections.has(section)) {
+          throw new ConfigError(
+            'orchestrate finishValidation.sectionalRepair.sections must be unique; ' +
+              `'${section}' repeats`,
+          );
+        }
+        uniqueSections.add(section);
+      }
+    }
     // The output contract wiring (the v1.71 experiment review): the
     // containment check and the golden self test run HERE, at
     // construction, before any journal entry, dispatch, or provider
@@ -1034,6 +1134,56 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
           JSON.stringify(symmetry.context),
       );
     }
+    const index = (synthesis as { evidenceIndex?: unknown }).evidenceIndex;
+    if (index !== undefined) {
+      if (index !== true && (typeof index !== 'object' || index === null)) {
+        throw new ConfigError(
+          'orchestrate synthesis.evidenceIndex must be true or an object with pattern and ' +
+            `flags; got ${JSON.stringify(index)}`,
+        );
+      }
+      if (synthesis.mode === 'incremental') {
+        throw new ConfigError(
+          "orchestrate synthesis.evidenceIndex is meaningless in mode 'incremental': " +
+            'there is no single synthesis prompt for the index to ride',
+        );
+      }
+      if (index !== true) {
+        const shape = index as { pattern?: unknown; flags?: unknown };
+        if (shape.pattern !== undefined && typeof shape.pattern !== 'string') {
+          throw new ConfigError(
+            'orchestrate synthesis.evidenceIndex.pattern must be a string; got ' +
+              typeof shape.pattern,
+          );
+        }
+        if (shape.flags !== undefined && typeof shape.flags !== 'string') {
+          throw new ConfigError(
+            'orchestrate synthesis.evidenceIndex.flags must be a string; got ' + typeof shape.flags,
+          );
+        }
+        const pattern = shape.pattern ?? DEFAULT_CITATION_PATTERN;
+        const flags = typeof shape.flags === 'string' ? shape.flags : '';
+        let probe: RegExp;
+        try {
+          probe = new RegExp(pattern, flags.replace('g', ''));
+        } catch (thrown) {
+          throw new ConfigError(
+            'orchestrate synthesis.evidenceIndex.pattern does not compile: ' +
+              (thrown instanceof Error ? thrown.message : String(thrown)),
+          );
+        }
+        // The RV610 posture: an empty match would enter the index as
+        // fabricated evidence, so the pattern is refused fail closed
+        // exactly like evidencePreservedValidator's intake.
+        if (probe.test('')) {
+          throw new ConfigError(
+            'orchestrate synthesis.evidenceIndex.pattern must not be able to match the ' +
+              `empty string (an empty match would index fabricated evidence); got ` +
+              JSON.stringify(pattern),
+          );
+        }
+      }
+    }
     if (synthesis.noteLimits !== undefined) {
       validateUsageLimits(synthesis.noteLimits as UsageLimits, 'orchestrate synthesis.noteLimits');
     }
@@ -1133,7 +1283,10 @@ function orchestratorPrompt(
  * configuration, so the orchestrator toolset hash never moves (stricter
  * than the evidence tools opt in, which changes it by design).
  */
-function finishValidationPromptLines(spec: FinishValidationSpec | undefined): string[] {
+function finishValidationPromptLines(
+  spec: FinishValidationSpec | undefined,
+  sectionalBase?: 'rejected-attempt' | 'draft-base',
+): string[] {
   if (spec === undefined) {
     return [];
   }
@@ -1154,6 +1307,24 @@ function finishValidationPromptLines(spec: FinishValidationSpec | undefined): st
         : repairs === 1
           ? 'At most one repair attempt is granted before the run fails.'
           : `At most ${String(repairs)} repair attempts are granted before the run fails.`),
+    // The sectional repair vocabulary (RV808b): present exactly for
+    // the invocations whose finish tool actually carries the sectional
+    // schema, so the prompt never advertises an argument the schema
+    // would reject. Prompt bytes are journal identity: absent opt-in
+    // keeps every prompt byte identical.
+    ...(spec.sectionalRepair === undefined || sectionalBase === undefined
+      ? []
+      : [
+          'Sectional repair is on: after a rejected attempt you may resubmit ONLY the ' +
+            'repaired sections as finish({ sections: { "<marker>": "<new body>" } }); ' +
+            'unchanged sections are retained from the rejected attempt, a declared marker ' +
+            'absent from it is appended at the end, and the spliced document is validated ' +
+            `whole. Declared markers: ${JSON.stringify(spec.sectionalRepair.sections)}.` +
+            (sectionalBase === 'draft-base'
+              ? ' The coordination draft is the retained base: finish({ sections }) may ' +
+                'patch only its gap sections without resending the document.'
+              : ''),
+        ]),
   ];
 }
 
@@ -2726,9 +2897,25 @@ export function makeOrchestratorWorkflow(
         },
       });
     }
+    /**
+     * Where the sectional finish vocabulary rides (RV808b): only the
+     * invocations whose finish is actually GATED, so the schema never
+     * advertises an argument nothing would splice. The coordination
+     * finish is gated when the validators bind it (no synthesis) or a
+     * draftPolicy is declared; the synthesis finish is gated whenever
+     * the validators exist (sectionalRepair rides finishValidation, so
+     * they do). The finalize-reserve and note toolsets stay plain: the
+     * reserved dispatch is never validated, and incremental notes
+     * cannot coexist with finishValidation at intake.
+     */
+    const coordSectionalFinish =
+      opts?.finishValidation?.sectionalRepair !== undefined &&
+      (opts.synthesis === undefined || opts.finishValidation.draftPolicy !== undefined);
+    const synthSectionalFinish = opts?.finishValidation?.sectionalRepair !== undefined;
     const tools = [
       ...buildOrchestratorTools(orchestratorRuntime, fullCardText, {
         childResultTools: opts?.exposeChildResultTools === true,
+        sectionalFinish: coordSectionalFinish,
       }),
       ...(extension?.tools(io) ?? []),
     ];
@@ -2868,18 +3055,159 @@ export function makeOrchestratorWorkflow(
             : {}),
         }));
     };
+    /**
+     * The sectional repair state of ONE gated invocation (RV808b): the
+     * last rejected attempt's text, spliced into by a sections-only
+     * resubmission. Two independent instances exist (the draft gate
+     * and the validator-bound finish), because a draft attempt must
+     * never splice into a synthesis attempt. In-memory by design: the
+     * exchange is durable in the transcript and the splice is a pure
+     * function of it, so nothing new journals; a segment resumed from
+     * a mid-invocation checkpoint retains nothing yet and refuses the
+     * first sectional call with the full-resubmission remedy (the
+     * synthesis seed below re-derives from the journaled draft and
+     * never has this window).
+     */
+    const makeSectionalRepair = (): {
+      resolve(call: {
+        result: unknown;
+        args?: unknown;
+      }):
+        | { kind: 'plain'; result: unknown }
+        | { kind: 'spliced'; result: string }
+        | { kind: 'refused'; feedback: Record<string, unknown> };
+      retain(result: unknown): void;
+      guidance(): Record<string, unknown>;
+    } => {
+      const spec = validationSpec?.sectionalRepair;
+      if (spec === undefined) {
+        throw new ConfigError('makeSectionalRepair without sectionalRepair configured');
+      }
+      const declared = spec.sections;
+      let retained: string | undefined;
+      const guidance = (): Record<string, unknown> => ({
+        declaredSections: declared,
+        instruction:
+          'you may resubmit ONLY the repaired sections: call finish({ sections: ' +
+          '{ "<declared marker>": "<new section body>" } }); unchanged sections are ' +
+          'retained from the rejected attempt, a declared marker absent from it is ' +
+          'appended at the end, and the spliced document is validated whole',
+      });
+      return {
+        guidance,
+        retain(result: unknown): void {
+          // Only a text document is spliceable; a JSON object attempt
+          // clears the base, so a later sectional call is refused with
+          // the full-resubmission remedy instead of splicing into a
+          // serialization the output schema would reject.
+          retained = typeof result === 'string' ? result : undefined;
+        },
+        resolve(call) {
+          const args = (call.args ?? {}) as Record<string, unknown>;
+          const hasSections = Object.hasOwn(args, 'sections');
+          const hasResult = Object.hasOwn(args, 'result');
+          if (!hasSections && !hasResult) {
+            return {
+              kind: 'refused',
+              feedback: {
+                error:
+                  'the finish call must carry result (the full document) or sections ' +
+                  '(a sectional resubmission of a rejected attempt)',
+                ...guidance(),
+              },
+            };
+          }
+          if (hasSections && hasResult) {
+            return {
+              kind: 'refused',
+              feedback: {
+                error:
+                  'pass either result (the full document) or sections (a sectional ' +
+                  'resubmission), never both',
+                ...guidance(),
+              },
+            };
+          }
+          if (!hasSections) {
+            return { kind: 'plain', result: call.result };
+          }
+          const patch = args.sections as Record<string, string>;
+          const markers = Object.keys(patch);
+          if (markers.length === 0) {
+            return {
+              kind: 'refused',
+              feedback: {
+                error: 'sections must name at least one declared section marker',
+                ...guidance(),
+              },
+            };
+          }
+          const unknown = markers.filter((marker) => !declared.includes(marker));
+          if (unknown.length > 0) {
+            return {
+              kind: 'refused',
+              feedback: {
+                error: `sections names an undeclared section ${unknown
+                  .map((marker) => `'${marker}'`)
+                  .join(', ')}; only declared markers splice`,
+                ...guidance(),
+              },
+            };
+          }
+          if (retained === undefined) {
+            return {
+              kind: 'refused',
+              feedback: {
+                error:
+                  'no rejected attempt is retained to splice into; resubmit the full ' +
+                  'document as result',
+                ...guidance(),
+              },
+            };
+          }
+          return { kind: 'spliced', result: spliceSections(retained, declared, patch) };
+        },
+      };
+    };
+    const finishSectional =
+      validationSpec?.sectionalRepair === undefined ? undefined : makeSectionalRepair();
+    const draftSectional =
+      validationSpec?.sectionalRepair !== undefined &&
+      validationSpec.draftPolicy !== undefined &&
+      opts?.synthesis !== undefined
+        ? makeSectionalRepair()
+        : undefined;
     const validateFinish = async (call: {
       id: string;
       result: unknown;
-    }): Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }> => {
+      args?: unknown;
+    }): Promise<
+      | { ok: true; resolved?: { result: unknown } }
+      | { ok: false; feedback: Record<string, unknown> }
+    > => {
       if (validationSpec === undefined) {
         return { ok: true };
+      }
+      // The sectional resolve precedes every verdict (RV808b): a
+      // mechanics refusal is the moral twin of a schema rejection
+      // (typed feedback, nothing journals, no repair spent, bounded by
+      // the turn budget); only the verdict over the resolved document
+      // spends the repair bound.
+      let effective = (call.result ?? null) as Json | null;
+      let spliced = false;
+      if (finishSectional !== undefined) {
+        const resolution = finishSectional.resolve(call);
+        if (resolution.kind === 'refused') {
+          return { ok: false, feedback: resolution.feedback };
+        }
+        effective = (resolution.result ?? null) as Json | null;
+        spliced = resolution.kind === 'spliced';
       }
       const maxRepairs = validationSpec.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS;
       const known = validationDecisions();
       let decision = known.find((candidate) => candidate.callId === call.id);
       if (decision === undefined) {
-        const result = (call.result ?? null) as Json | null;
+        const result = effective;
         const input: FinishValidationInput = {
           result,
           text: typeof result === 'string' ? result : JSON.stringify(result),
@@ -2935,8 +3263,17 @@ export function makeOrchestratorWorkflow(
         });
       }
       if (decision.verdict === 'accepted') {
-        return { ok: true };
+        // An accepted SPLICED call resolves the invocation output to
+        // the reconstructed full document (RV808b). Unreachable on a
+        // re-executed exchange: an accepted finish terminates its
+        // invocation, so checkpoint boots (which re-execute only the
+        // pending calls of a cancelled root) never replay one.
+        return spliced ? { ok: true, resolved: { result: effective } } : { ok: true };
       }
+      // Every rejection retains the resolved attempt as the sectional
+      // base (RV808b): the newest full document is what a sections-only
+      // repair splices into.
+      finishSectional?.retain(effective);
       if (decision.verdict === 'rejected') {
         // A STALE final rejection (a fixed contract superseded its
         // generation, cycle 73) replays its exact feedback bytes so the
@@ -2965,6 +3302,10 @@ export function makeOrchestratorWorkflow(
             'the finish result failed host validation; repair the result and call finish again',
           failed: decision.failed,
           repairsRemaining: decision.maxRepairs - decision.repairsUsed - 1,
+          // The sectional vocabulary rides every repairable rejection
+          // (RV808b), derived from configuration alone so a replayed
+          // exchange re-renders identical feedback bytes.
+          ...(finishSectional === undefined ? {} : { sectionalRepair: finishSectional.guidance() }),
         },
       };
     };
@@ -2981,13 +3322,45 @@ export function makeOrchestratorWorkflow(
     const validateDraft = (call: {
       id: string;
       result: unknown;
-    }): Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }> => {
+      args?: unknown;
+    }): Promise<
+      | { ok: true; resolved?: { result: unknown } }
+      | { ok: false; feedback: Record<string, unknown> }
+    > => {
       const policy = validationSpec?.draftPolicy;
       if (policy === undefined) {
         return Promise.resolve({ ok: true });
       }
-      const result = (call.result ?? null) as Json | null;
+      // The sectional resolve mirrors validateFinish exactly (RV808b):
+      // a mechanics refusal is typed feedback, nothing journals, and
+      // only the resolved document is judged; a rejected resolved
+      // attempt becomes the retained base of the next sectional call.
+      let effective = (call.result ?? null) as Json | null;
+      let spliced = false;
+      if (draftSectional !== undefined) {
+        const resolution = draftSectional.resolve(call);
+        if (resolution.kind === 'refused') {
+          return Promise.resolve({ ok: false, feedback: resolution.feedback });
+        }
+        effective = (resolution.result ?? null) as Json | null;
+        spliced = resolution.kind === 'spliced';
+      }
+      const result = effective;
       const text = typeof result === 'string' ? result : JSON.stringify(result);
+      const accept = (): Promise<{ ok: true; resolved?: { result: unknown } }> =>
+        Promise.resolve(spliced ? { ok: true, resolved: { result } } : { ok: true });
+      const reject = (
+        feedback: Record<string, unknown>,
+      ): Promise<{ ok: false; feedback: Record<string, unknown> }> => {
+        draftSectional?.retain(result);
+        return Promise.resolve({
+          ok: false,
+          feedback: {
+            ...feedback,
+            ...(draftSectional === undefined ? {} : { sectionalRepair: draftSectional.guidance() }),
+          },
+        });
+      };
       if (policy === 'contract') {
         // The full-contract draft gate (RV808a): the SAME validators
         // and children snapshot the synthesis-bound validation reads,
@@ -3020,17 +3393,14 @@ export function makeOrchestratorWorkflow(
           }
         }
         if (failed.length === 0) {
-          return Promise.resolve({ ok: true });
+          return accept();
         }
-        return Promise.resolve({
-          ok: false,
-          feedback: {
-            error:
-              'the coordination draft failed the declared finish contract; repair the draft ' +
-              'and call finish again: a contract-valid draft skips the synthesis invocation ' +
-              'entirely, and every gap left here is paid for again downstream',
-            failed,
-          },
+        return reject({
+          error:
+            'the coordination draft failed the declared finish contract; repair the draft ' +
+            'and call finish again: a contract-valid draft skips the synthesis invocation ' +
+            'entirely, and every gap left here is paid for again downstream',
+          failed,
         });
       }
       const reasons: string[] = [];
@@ -3049,17 +3419,14 @@ export function makeOrchestratorWorkflow(
         }
       }
       if (reasons.length === 0) {
-        return Promise.resolve({ ok: true });
+        return accept();
       }
-      return Promise.resolve({
-        ok: false,
-        feedback: {
-          error:
-            'the coordination draft failed the draft policy; repair the draft and call finish ' +
-            'again: the synthesis invocation composes the FINAL result from this draft, and a ' +
-            'collapsed draft starves it of the evidence the validators demand',
-          reasons,
-        },
+      return reject({
+        error:
+          'the coordination draft failed the draft policy; repair the draft and call finish ' +
+          'again: the synthesis invocation composes the FINAL result from this draft, and a ' +
+          'collapsed draft starves it of the evidence the validators demand',
+        reasons,
       });
     };
     /**
@@ -3820,7 +4187,18 @@ export function makeOrchestratorWorkflow(
       ]);
       const synthesisTools = buildOrchestratorTools(orchestratorRuntime, fullCardText, {
         childResultTools: exposeTools,
+        sectionalFinish: synthSectionalFinish,
       }).filter((tool) => synthesisToolNames.has(tool.name));
+      if (finishSectional !== undefined && synthSectionalFinish) {
+        // The synthesis invocation is SEEDED with the coordination
+        // draft as its retained sectional base (RV808b): the draft is
+        // journaled and rides the prompt, so a synthesis that agrees
+        // with it repairs only the named gaps (the carryDraftGaps
+        // pairing) without ever resending the document. Re-derives on
+        // every path, live or resumed: runSynthesis always holds the
+        // draft.
+        finishSectional.retain(draft);
+      }
       // ALL settled children in spawn order (the finalize-fallback fold),
       // not the wake digest: at synthesis time every settlement has been
       // delivered, so an undelivered-only view would be empty. One row
@@ -3858,6 +4236,63 @@ export function makeOrchestratorWorkflow(
       }
       const draftJson = JSON.stringify(draft ?? null);
       const digestJson = JSON.stringify(digestRows);
+      /**
+       * The structured evidence index rows (RV808b): deterministic
+       * per-child citation extraction over the SAME serialized outputs
+       * the validators judge, citations taken only from the evidence
+       * pool (ok and salvage-accepted children, the exact
+       * evidencePreservedValidator eligibility), so nothing indexed is
+       * a citation the validators would reject as fabricated. Folded
+       * only from replay-stable settled results (the policyFacts
+       * precedent).
+       */
+      const indexSpec = spec.evidenceIndex;
+      const evidenceIndexRows =
+        indexSpec === undefined
+          ? undefined
+          : ((): Json => {
+              const pattern =
+                indexSpec === true
+                  ? DEFAULT_CITATION_PATTERN
+                  : (indexSpec.pattern ?? DEFAULT_CITATION_PATTERN);
+              const flags = indexSpec === true ? '' : (indexSpec.flags ?? '');
+              const globalFlags = flags.includes('g') ? flags : `${flags}g`;
+              const salvageOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
+              return settledEntries.map(([handle, record]) => {
+                const settled = record.settled as AgentResult<unknown>;
+                const text = serializeChildOutput(settled);
+                const eligible =
+                  settled.status === 'ok' ||
+                  (salvageOn &&
+                    settled.status === 'limit' &&
+                    settled.output !== null &&
+                    settled.output !== undefined);
+                const citations: string[] = [];
+                if (eligible) {
+                  const distinct = new Set<string>();
+                  // Fresh RegExp per child: the 'g' flag makes matching
+                  // stateful; zero-length matches never index (RV610).
+                  for (const match of text.match(new RegExp(pattern, globalFlags)) ?? []) {
+                    if (match.length > 0 && !distinct.has(match)) {
+                      distinct.add(match);
+                      citations.push(match);
+                    }
+                  }
+                }
+                return {
+                  ...(exposeTools ? { handle } : {}),
+                  nodeId: record.nodeId,
+                  status: settled.status,
+                  citations,
+                  artifacts: (settled.artifacts ?? []).map((artifact) => ({
+                    id: artifact.id,
+                    kind: artifact.kind,
+                    ...(artifact.label === undefined ? {} : { label: artifact.label }),
+                  })),
+                  chars: text.length,
+                };
+              });
+            })();
       const promptLines = [
         'You are the synthesis invocation of an orchestrated run. Compose the FINAL ' +
           'result of the run from the goal, the coordination draft, and the settled child ' +
@@ -3875,8 +4310,22 @@ export function makeOrchestratorWorkflow(
                 'the first occurrence of each repeated line remains in the digest, and the ' +
                 'REPEATED CLAIMS index below lists each one with its reporters.',
             ]),
+        ...(evidenceIndexRows === undefined
+          ? []
+          : [
+              'An EVIDENCE INDEX below lists, per settled child, the citations its output ' +
+                'actually carries (evidence-pool children only: ok and salvage-accepted), ' +
+                'its artifacts, and its output size in chars' +
+                (exposeTools
+                  ? '; page only what you need with get_child_result and ' +
+                    'read_child_artifact instead of re-reading whole outputs.'
+                  : '.'),
+            ]),
         ...(spec.instructions === undefined ? [] : [spec.instructions]),
-        ...finishValidationPromptLines(validationSpec),
+        ...finishValidationPromptLines(
+          validationSpec,
+          synthSectionalFinish ? 'draft-base' : undefined,
+        ),
         // The carried pre-pass verdict (RV808a): derived from the
         // journaled gaps decision, so a resumed synthesis re-derives
         // the identical bytes. Absent without the opt-in, byte for
@@ -3929,6 +4378,11 @@ export function makeOrchestratorWorkflow(
         `GOAL: ${goal}`,
         `DRAFT: ${draftJson}`,
         `DIGEST: ${digestJson}`,
+        // The evidence index data line (RV808b), beside the digest it
+        // annotates; absent without the opt-in, byte for byte.
+        ...(evidenceIndexRows === undefined
+          ? []
+          : [`EVIDENCE INDEX: ${JSON.stringify(evidenceIndexRows)}`]),
         // The full evidence pool (the v1.74 experiment review, P0.2):
         // with context 'full' every settled child's serialized output
         // rides the prompt AFTER the digest rows, so the model sees
@@ -4246,7 +4700,13 @@ export function makeOrchestratorWorkflow(
     }
     const promptLines = [
       ...(extension?.promptLines?.() ?? []),
-      ...finishValidationPromptLines(validationSpec),
+      // The sectional line rides the coordination prompt only when the
+      // coordination finish actually carries the sectional schema
+      // (RV808b): the validator-bound loop or the draft gate.
+      ...finishValidationPromptLines(
+        validationSpec,
+        coordSectionalFinish ? 'rejected-attempt' : undefined,
+      ),
       ...acceptancePromptLines(opts?.acceptance),
     ];
     const result = await runtime.runInScope(orchestratorState, () =>

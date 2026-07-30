@@ -10,7 +10,7 @@
 function headingStructureValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L217)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:298](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L298)
 
 Judges the markdown HEADING STRUCTURE of the result (the sixth
 comparison experiment; the judge's P1.3): line presence proves each

@@ -2359,6 +2359,10 @@
             "link": "/api/@rulvar/core/variables/FINISH_SCHEMA.md"
           },
           {
+            "text": "FINISH_SECTIONAL_SCHEMA",
+            "link": "/api/@rulvar/core/variables/FINISH_SECTIONAL_SCHEMA.md"
+          },
+          {
             "text": "FINISH_TOOL_NAME",
             "link": "/api/@rulvar/core/variables/FINISH_TOOL_NAME.md"
           },
@@ -3255,6 +3259,10 @@
           {
             "text": "spawnDepthOf",
             "link": "/api/@rulvar/core/functions/spawnDepthOf.md"
+          },
+          {
+            "text": "spliceSections",
+            "link": "/api/@rulvar/core/functions/spliceSections.md"
           },
           {
             "text": "stripFencedBlocks",
@@ -6877,6 +6885,10 @@
             "link": "/api/@rulvar/rulvar/variables/FINISH_SCHEMA.md"
           },
           {
+            "text": "FINISH_SECTIONAL_SCHEMA",
+            "link": "/api/@rulvar/rulvar/variables/FINISH_SECTIONAL_SCHEMA.md"
+          },
+          {
             "text": "FINISH_TOOL_NAME",
             "link": "/api/@rulvar/rulvar/variables/FINISH_TOOL_NAME.md"
           },
@@ -7797,6 +7809,10 @@
           {
             "text": "spawnDepthOf",
             "link": "/api/@rulvar/rulvar/functions/spawnDepthOf.md"
+          },
+          {
+            "text": "spliceSections",
+            "link": "/api/@rulvar/rulvar/functions/spliceSections.md"
           },
           {
             "text": "stripFencedBlocks",

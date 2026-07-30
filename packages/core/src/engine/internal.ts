@@ -68,7 +68,16 @@ export interface InternalAgentHooks {
     validate?: (call: {
       id: string;
       result: unknown;
-    }) => Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }>;
+      /** The full schema-validated argument object (RV808b): sectional resubmissions ride beside result. */
+      args?: unknown;
+    }) => Promise<
+      | {
+          ok: true;
+          /** Overrides the finished value (RV808b): a sectional splice resolves to the full document. */
+          resolved?: { result: unknown };
+        }
+      | { ok: false; feedback: Record<string, unknown> }
+    >;
     /**
      * Max EXTRA turns the loop may grant past limits.maxTurns, one per
      * rejected terminal-tool exchange (schema-invalid arguments or a

@@ -622,7 +622,27 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     validate?: (call: {
       id: string;
       result: unknown;
-    }) => Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }>;
+      /**
+       * The full schema-validated argument object (RV808b): a sectional
+       * resubmission rides beside `result`, and only the hook knows the
+       * vocabulary. Absent semantics are the hook's business; the loop
+       * passes it verbatim.
+       */
+      args?: unknown;
+    }) => Promise<
+      | {
+          ok: true;
+          /**
+           * Overrides the finished value (RV808b): a sectional splice
+           * resolves the accepted call to the FULL reconstructed
+           * document, which is what the agent output must be. Absent =
+           * the call's own `result` argument, byte identical to the
+           * historical loop.
+           */
+          resolved?: { result: unknown };
+        }
+      | { ok: false; feedback: Record<string, unknown> }
+    >;
     /**
      * The repair reserve (the v1.71 experiment review, P0.4): max EXTRA
      * turns the loop may grant past limits.maxTurns, one per rejected
@@ -2390,6 +2410,7 @@ export async function runAgent<S extends SchemaSpec>(
             : await options.terminalTool.validate({
                 id: call.id,
                 result: finishArgs.result ?? null,
+                args: validation.value,
               });
         if (hostVerdict !== undefined && !hostVerdict.ok) {
           events?.emit({
@@ -2413,7 +2434,17 @@ export async function runAgent<S extends SchemaSpec>(
           name: call.name,
           result: { finished: true },
         });
-        return { parts, limitHit: false, finished: finishArgs.result ?? null };
+        return {
+          parts,
+          limitHit: false,
+          // The hook's resolved value wins (RV808b): an accepted
+          // sectional splice finishes with the reconstructed full
+          // document; absent stays the call's own result argument.
+          finished:
+            hostVerdict?.resolved !== undefined
+              ? hostVerdict.resolved.result
+              : (finishArgs.result ?? null),
+        };
       }
       // The finalization window (RV302), checked after the terminal and
       // escalate interceptions so control-flow tools are structurally

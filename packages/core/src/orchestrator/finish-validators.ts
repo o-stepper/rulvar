@@ -188,6 +188,87 @@ function sectionPosition(scope: string, section: string, match: SectionMatchMode
   return -1;
 }
 
+/**
+ * The deterministic host half of sectional bounded repair (RV808b): a
+ * rejected finish used to resend the WHOLE document to fix one violated
+ * section, and the twelfth comparison run paid its post-fan-in wall
+ * exactly that way. This function reconstructs the full document from
+ * the RETAINED prior attempt and a sectional resubmission. The grammar
+ * is line anchored on purpose (the {@link SectionMatchMode} 'line'
+ * semantics): a section starts at the first line whose trimmed content
+ * EQUALS a declared marker and runs to the next such marker line (any
+ * declared marker) or the end of the text; the preamble before the
+ * first marker is retained verbatim. A patched marker present in the
+ * prior text has its whole section replaced by the marker line plus the
+ * new body; a patched marker absent from the prior text is APPENDED at
+ * the end in declared order (that is how a repair ADDS a section a
+ * validator demanded). A patch naming an undeclared marker is a
+ * ConfigError: the caller owns turning that into repair feedback.
+ * Deterministic and pure, so a spliced exchange recounts identically on
+ * replay; exported so custom hosts can stay symmetric with the
+ * orchestrator runtime.
+ */
+export function spliceSections(
+  prior: string,
+  declared: readonly string[],
+  patch: Readonly<Record<string, string>>,
+): string {
+  const sections = requireNonEmptyStrings(declared, 'spliceSections declared sections');
+  // Own entries only: a JSON-parsed patch can carry prototype-shaped
+  // keys ('constructor', '__proto__'), and a bare index lookup would
+  // resolve them to inherited values instead of refusing them.
+  const bodies = new Map(Object.entries(patch));
+  for (const marker of bodies.keys()) {
+    if (!sections.includes(marker)) {
+      throw new ConfigError(
+        `spliceSections patch names an undeclared section '${marker}'; declared: ` +
+          sections.join(', '),
+      );
+    }
+  }
+  const anchors: { marker: string; at: number }[] = [];
+  for (const marker of sections) {
+    const at = sectionPosition(prior, marker, 'line');
+    if (at >= 0) {
+      anchors.push({ marker, at });
+    }
+  }
+  anchors.sort((a, b) => a.at - b.at);
+  let out = '';
+  let cursor = 0;
+  for (const [index, anchor] of anchors.entries()) {
+    const end =
+      index + 1 < anchors.length ? (anchors[index + 1]?.at ?? prior.length) : prior.length;
+    out += prior.slice(cursor, anchor.at);
+    const body = bodies.get(anchor.marker);
+    if (body === undefined) {
+      out += prior.slice(anchor.at, end);
+    } else {
+      out += `${anchor.marker}\n${body}`;
+      // The replaced slice carried the separator up to the next
+      // section; a body without a trailing newline must not glue the
+      // following marker onto its last line.
+      if (end < prior.length && !body.endsWith('\n')) {
+        out += '\n';
+      }
+    }
+    cursor = end;
+  }
+  out += prior.slice(cursor);
+  const anchored = new Set(anchors.map((anchor) => anchor.marker));
+  for (const marker of sections) {
+    const body = bodies.get(marker);
+    if (anchored.has(marker) || body === undefined) {
+      continue;
+    }
+    if (out.length > 0 && !out.endsWith('\n')) {
+      out += '\n';
+    }
+    out += `${marker}\n${body}`;
+  }
+  return out;
+}
+
 function missingSectionQualifier(match: SectionMatchMode, fencedCode: FencedCodeMode): string {
   const demands =
     (match === 'line' ? ' as its own line' : '') +
