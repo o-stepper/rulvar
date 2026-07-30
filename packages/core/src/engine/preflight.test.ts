@@ -1888,3 +1888,22 @@ describe('the evidence floor finding (RV303, the seventh comparison experiment)'
     ).toThrow(/evidenceContract\.overheadCalls/);
   });
 });
+
+describe('run.budgetUsd validation symmetry (RV803)', () => {
+  it('refuses NaN, negative, and infinite ceilings typed, like the runtime guard', () => {
+    // The twelfth experiment's finding: preflight validated run.limits,
+    // run.maxInFlightExposureUsd, and spawn budgets, but read the run
+    // ceiling raw, so a NaN ceiling flowed silently into every
+    // projection while the runtime's own guard would have refused it.
+    for (const bad of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
+      expect(() => preflightEstimate({ run: { budgetUsd: bad } })).toThrow(
+        /preflight\.run\.budgetUsd/,
+      );
+    }
+  });
+
+  it('accepts zero and positive ceilings exactly like the runtime', () => {
+    expect(() => preflightEstimate({ run: { budgetUsd: 0 } })).not.toThrow();
+    expect(() => preflightEstimate({ run: { budgetUsd: 2.5 } })).not.toThrow();
+  });
+});

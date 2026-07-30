@@ -87,3 +87,37 @@ describe('turn-boundary checkpoint blob (M3-T02)', () => {
     expect(checkpointRefFor('run-9', 4)).toBe(checkpointRefFor('run-9', 4));
   });
 });
+
+describe('structural decode validation (RV804)', () => {
+  const blobOf = (payload: unknown): Uint8Array => {
+    const json = Buffer.from(JSON.stringify(payload), 'utf8');
+    const blob = new Uint8Array(json.length + 1);
+    blob[0] = CHECKPOINT_FORMAT_V1;
+    blob.set(json, 1);
+    return blob;
+  };
+
+  it('a parseable blob with malformed nested messages decodes to undefined, never a raw TypeError', () => {
+    // The twelfth experiment's reproduction: {v:1,messages:[{}]} passed
+    // the top-level guard and the message map then died on
+    // msg.parts.map, a raw TypeError out of a function whose contract
+    // is "cannot parse means undefined and the dispatch reruns".
+    expect(decodeCheckpoint(blobOf({ v: 1, messages: [{}], turns: 0 }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ v: 1, messages: [null] }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ v: 1, messages: ['garbage'] }))).toBeUndefined();
+    expect(
+      decodeCheckpoint(blobOf({ v: 1, messages: [{ role: 'user', parts: 'not-an-array' }] })),
+    ).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ v: 1, messages: [{ parts: [] }] }))).toBeUndefined();
+    expect(
+      decodeCheckpoint(blobOf({ v: 1, messages: [{ role: 'user', parts: [null] }] })),
+    ).toBeUndefined();
+    expect(
+      decodeCheckpoint(blobOf({ v: 1, messages: [{ role: 'user', parts: [{}] }] })),
+    ).toBeUndefined();
+  });
+
+  it('a well-formed checkpoint still round-trips unchanged', () => {
+    expect(decodeCheckpoint(encodeCheckpoint(state()))).toEqual(state());
+  });
+});

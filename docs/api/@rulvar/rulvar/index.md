@@ -655,7 +655,7 @@ const engine = createEngine({
 | [createEnvelopeEncryption](/api/@rulvar/rulvar/functions/createEnvelopeEncryption.md) | Builds the envelope-encryption SerializationHook. All DataKeyProvider calls happen HERE (the hook itself is synchronous, on in-memory data keys): a fresh data key is minted and wrapped for this instance, and every historical wrapped key is unwrapped for the read path. |
 | [createSandboxBridge](/api/@rulvar/rulvar/functions/createSandboxBridge.md) | - |
 | [currentOnlyKeyRing](/api/@rulvar/rulvar/functions/currentOnlyKeyRing.md) | - |
-| [decodeCheckpoint](/api/@rulvar/rulvar/functions/decodeCheckpoint.md) | Decodes a checkpoint blob. Returns undefined for an empty blob or an unknown format byte: a resume never trusts a checkpoint it cannot parse; the dangling dispatch reruns from the top instead (at-least-once is the documented floor). |
+| [decodeCheckpoint](/api/@rulvar/rulvar/functions/decodeCheckpoint.md) | Decodes a checkpoint blob. Returns undefined for an empty blob, an unknown format byte, unparseable JSON, or a parseable payload whose nested message structure is malformed (RV804): a resume never trusts a checkpoint it cannot decode, and it never throws; the dangling dispatch reruns from the top instead (at-least-once is the documented floor). |
 | [dedupeRepeatedClaims](/api/@rulvar/rulvar/functions/dedupeRepeatedClaims.md) | Removes later occurrences of repeated claim lines across the rows and indexes each repeated claim with its reporters. Deterministic: output depends only on the input order and bytes. |
 | [defineWorkflow](/api/@rulvar/rulvar/functions/defineWorkflow.md) | - |
 | [deriveContentKey](/api/@rulvar/rulvar/functions/deriveContentKey.md) | key = sha256(JCS(IdentityInput)). |

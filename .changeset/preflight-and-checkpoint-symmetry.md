@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+Validation symmetry closes two crash-shaped gaps the twelfth experiment found (RV803, RV804). `preflightEstimate` now validates `run.budgetUsd` with the same typed guard the runtime applies to `RunOptions.budgetUsd`: a NaN, negative, or infinite ceiling refuses as a ConfigError naming `preflight.run.budgetUsd` instead of flowing silently into every projection the report is built from; preflight already validated `run.limits`, `run.maxInFlightExposureUsd`, and every spawn budget, and the run ceiling was the one raw read left. `decodeCheckpoint` now validates the nested message structure: a parseable blob whose messages are malformed (`{v:1,messages:[{}]}`, a message without a string role, a non-array `parts`, a garbage part) returns undefined per the function's own undefined-on-unparseable contract, so the dangling dispatch reruns from the top, instead of throwing a raw TypeError out of `msg.parts.map` mid-resume. Well-formed checkpoints round-trip byte for byte as before, and both refusal shapes carry mutation-probe entries.
