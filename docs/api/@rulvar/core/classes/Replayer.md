@@ -229,7 +229,7 @@ the pair shares one ordinal because it is one logical operation).
 flush(): Promise<void>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L595)
+Defined in: [packages/core/src/journal/replayer.ts:605](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L605)
 
 Resolves when every append enqueued so far has persisted. Deterministic
 shims journal fire-and-forget; the engine awaits this before settling a
@@ -271,10 +271,13 @@ safety boundary is an open question.
 ledger(): Ledger;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:540](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L540)
+Defined in: [packages/core/src/journal/replayer.ts:543](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L543)
 
 The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
-counts agent dispatches.
+counts agent dispatches. Dollars fold on the settled billing basis
+(RV801): per provider call where the entry's records cover its
+usage, the per-slice aggregate otherwise, the same basis as the
+CostReport and the invoice.
 
 #### Returns
 
@@ -424,7 +427,7 @@ Defined in: [packages/core/src/journal/replayer.ts:255](https://github.com/o-ste
 snapshot(): readonly JournalEntry[];
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:586](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L586)
+Defined in: [packages/core/src/journal/replayer.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L596)
 
 Read-only view of the appended entries, in per-run total order.
 

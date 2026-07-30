@@ -17,9 +17,11 @@
  * account and plan/NodeId accounts). A child's spend propagates to ALL
  * ancestors up to the run root; the root ceiling remains the true
  * invariant. Sub-account spend is per-process state: on resume the root
- * is seeded from the ledger fold while sub-accounts restart empty (their
- * reserves are recovered from spawn-admission decision entries); the
- * per-account historical fold completes with DEF-7 in M7.
+ * is seeded from the settled journal fold (the per-call billing basis
+ * and per-segment pricing pins of outcome.cost.totalUsd, RV801) while
+ * sub-accounts restart empty (their reserves are recovered from
+ * spawn-admission decision entries); the per-account historical fold
+ * completes with DEF-7 in M7.
  *
  * Full contract: https://docs.rulvar.com/guide/budgets
  */
@@ -197,7 +199,8 @@ export class RunBudget {
     /** Raw price-row resolution for the layer-2b output bound. */
     pricingOf?: (servedBy: ModelRef) => Pricing | undefined;
     /**
-     * The resume ledger fold: spend is never
+     * The resume seed, folded from the persisted journal (the settled
+     * per-call fold, RV801): spend is never
      * reset and never double-counted; replayed entries are already inside
      * this seed and add no increments.
      */
@@ -234,7 +237,7 @@ export class RunBudget {
     }
     this.accounts.set(ROOT_ACCOUNT, root);
     if (options.seed !== undefined) {
-      // The resume seed comes from a ledger fold over a persisted
+      // The resume seed comes from a settled fold over a persisted
       // journal; a journal poisoned before the telemetry invariant
       // shipped must fail loud here rather than seed a NaN that every
       // later ceiling comparison silently ignores (v1.20.0 review P1-1).

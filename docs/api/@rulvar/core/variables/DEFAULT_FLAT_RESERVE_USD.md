@@ -10,6 +10,6 @@
 const DEFAULT_FLAT_RESERVE_USD: 0.5 = 0.5;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L37)
+Defined in: [packages/core/src/engine/budget.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L39)
 
 Last resort of the admission reserve formula.

@@ -361,14 +361,16 @@ unchanged.
 
 The reserve decision also pins the `pricingVersion` in effect when the run
 started (`unpriced` when the run priced from the adapter caps fallback).
-Unlike the cap dollars, price interpretation is live by design: the journal
-stores usage, and dollars are re-derived from the current table, so a resumed
-run under a revised table recomputes spend at the new rates against the same
-frozen cap. That divergence is therefore **reported, never honored or
-refused**: a live table whose version differs from the journaled one emits
-`termination:config-drift` with field `pricingVersion`, and the replay itself
-stays byte-identical with zero repeated provider work. Decisions journaled
-before the field shipped resume quietly.
+Unlike the cap dollars, price interpretation of NEW work is live: dollars for
+work a resumed segment performs are priced at the current table against the
+same frozen cap. Settled history is not re-priced (RV505 and RV801): the
+resume seed and every reporting fold price already-settled segments under the
+pins their own settles recorded, so a table rotation changes what new work
+costs, never what the run already reported as spent. A live table whose
+version differs from the journaled one emits `termination:config-drift` with
+field `pricingVersion`, **reported, never honored or refused**, and the
+replay itself stays byte-identical with zero repeated provider work.
+Decisions journaled before the field shipped resume quietly.
 
 Usage SEMANTICS drift is handled the same visible-never-silent way: every
 new usage-bearing entry is stamped with the serving adapter's declared

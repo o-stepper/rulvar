@@ -274,7 +274,10 @@ ledger(): Ledger;
 Defined in: `packages/core/dist/index.d.ts`
 
 The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
-counts agent dispatches.
+counts agent dispatches. Dollars fold on the settled billing basis
+(RV801): per provider call where the entry's records cover its
+usage, the per-slice aggregate otherwise, the same basis as the
+CostReport and the invoice.
 
 #### Returns
 

@@ -34,7 +34,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | `options.maxInFlightExposureUsd?` | `number` | - |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |
 | `options.pricingOf?` | (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined` | - |
-| `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume ledger fold: spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
+| `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume seed, folded from the persisted journal (the settled per-call fold, RV801): spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
 | `options.seed.agentsSpawned` | `number` | - |
 | `options.seed.usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - |
 | `options.seed.usd` | `number` | - |
