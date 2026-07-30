@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+
 ### 1.117.0
 
 #### Patch Changes
@@ -1257,6 +1264,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+
 ### 1.117.0
 
 #### Patch Changes
@@ -2351,6 +2365,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
 
 ### 1.117.0
 
@@ -3812,6 +3833,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.118.0
+
+#### Minor Changes
+
+- f8341a3: Provider statement reconciliation as a machine (RV812, the twelfth experiment's billing lesson). The run's billing question (a dashboard headline of 4.45 then 4.77 USD against the settled 7.304885) was closed by hand with screenshots; nothing in the system could close it. Now `@rulvar/openai` exports `reconcileStatement(invoice, statement, { pricingOf })`: it joins the machine-readable invoice against a NORMALIZED provider export, per-request rows by response id or per-model per-component category totals (the Spend categories shape), and refuses a headline aggregate typed, because an eventually consistent dashboard total is not evidence. The report carries response-id coverage (a partially delivered export reads as `partial-coverage`, never as false divergence: component deltas fold over the covered subset only), per-component deltas per serving model, and the implied actual rate of every component beside our effective rate over the same token base, so a real divergence NAMES the rate-card line that moved with the rate the provider actually applied. Unpriced models and usage-unknown rows are declared apart, never folded or silent; verdicts are `match`, `divergence`, `partial-coverage`, `no-overlap`. Backing it, `@rulvar/core` exports `priceComponentsOf(pricing, usage)`: the four billing components (uncached input, output, cached input, cache writes) with token bases and dollars, decomposed with exactly the settled fold's arithmetic; `priceUsdOf` is now defined as the sum of those four terms in the historical order, byte for byte the same number, so the reconciliation and the settled fold can never disagree about what a usage costs. Validated against the real twelfth-run artifacts offline: the founder's eight dashboard categories reconcile to `match` with every delta under 0.0005 (3-decimal rounding), response-id coverage reads 120 of 120, a 100-row truncation reads partial coverage with zero divergence, and a synthetically distorted write rate names `gpt-5.6-terra cache-write` with implied 2.5 USD/MTok against effective 3.125.
 
 ### 1.117.0
 
@@ -5614,6 +5641,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.118.0
+
 ### 1.117.0
 
 ### 1.116.0
@@ -5952,6 +5981,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+  - @rulvar/testing@1.118.0
 
 ### 1.117.0
 
@@ -7276,6 +7313,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+
 ### 1.117.0
 
 #### Patch Changes
@@ -7777,6 +7821,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.118.0
+
+#### Minor Changes
+
+- f8341a3: Provider statement reconciliation as a machine (RV812, the twelfth experiment's billing lesson). The run's billing question (a dashboard headline of 4.45 then 4.77 USD against the settled 7.304885) was closed by hand with screenshots; nothing in the system could close it. Now `@rulvar/openai` exports `reconcileStatement(invoice, statement, { pricingOf })`: it joins the machine-readable invoice against a NORMALIZED provider export, per-request rows by response id or per-model per-component category totals (the Spend categories shape), and refuses a headline aggregate typed, because an eventually consistent dashboard total is not evidence. The report carries response-id coverage (a partially delivered export reads as `partial-coverage`, never as false divergence: component deltas fold over the covered subset only), per-component deltas per serving model, and the implied actual rate of every component beside our effective rate over the same token base, so a real divergence NAMES the rate-card line that moved with the rate the provider actually applied. Unpriced models and usage-unknown rows are declared apart, never folded or silent; verdicts are `match`, `divergence`, `partial-coverage`, `no-overlap`. Backing it, `@rulvar/core` exports `priceComponentsOf(pricing, usage)`: the four billing components (uncached input, output, cached input, cache writes) with token bases and dollars, decomposed with exactly the settled fold's arithmetic; `priceUsdOf` is now defined as the sum of those four terms in the historical order, byte for byte the same number, so the reconciliation and the settled fold can never disagree about what a usage costs. Validated against the real twelfth-run artifacts offline: the founder's eight dashboard categories reconcile to `match` with every delta under 0.0005 (3-decimal rounding), response-id coverage reads 120 of 120, a 100-row truncation reads partial coverage with zero divergence, and a synthetically distorted write rate names `gpt-5.6-terra cache-write` with implied 2.5 USD/MTok against effective 3.125.
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
 
 ### 1.117.0
 
@@ -9029,6 +9084,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+
 ### 1.117.0
 
 #### Patch Changes
@@ -10237,6 +10299,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+  - eslint-plugin-rulvar@1.118.0
 
 ### 1.117.0
 
@@ -11525,6 +11595,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+  - @rulvar/openai@1.118.0
+  - @rulvar/anthropic@1.118.0
 
 ### 1.117.0
 
@@ -13013,6 +13092,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+
 ### 1.117.0
 
 #### Patch Changes
@@ -14217,6 +14303,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
+
 ### 1.117.0
 
 #### Patch Changes
@@ -14732,6 +14825,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
 
 ### 1.117.0
 
@@ -15879,6 +15979,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.118.0
+
+#### Patch Changes
+
+- Updated dependencies [f8341a3]
+  - @rulvar/core@1.118.0
 
 ### 1.117.0
 
