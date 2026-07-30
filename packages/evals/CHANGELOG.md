@@ -1,5 +1,12 @@
 # @rulvar/evals
 
+## 1.117.0
+
+### Patch Changes
+
+- @rulvar/core@1.117.0
+- @rulvar/testing@1.117.0
+
 ## 1.116.0
 
 ### Patch Changes

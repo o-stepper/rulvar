@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
+
 ### 1.116.0
 
 #### Patch Changes
@@ -1251,6 +1257,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
+
 ### 1.116.0
 
 #### Patch Changes
@@ -2339,6 +2351,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.117.0
+
+#### Minor Changes
+
+- c15b83a: Tool executions become real OTel child spans and the agent span survives to its end (RV802, the twelfth experiment's P0 #2). Tool events ride the agent's `spanId` and carry no per-call id, so `toOtel` previously swallowed every `tool:start` as a duplicate opener of the agent span and let the FIRST `tool:end` close the agent span itself: `agent:end` then attached usage, cost, and the exploration counters to nothing, later tool events reopened and reclosed agent-keyed spans, and in the twelfth comparison run all 569 tool events of the live stream produced zero tool spans while every agent span carried a tool's duration and outcome. The exporter now pairs each `tool:start` with its `tool:end` under a synthetic FIFO key per `(agent span, tool name)` and starts a `tool <name>` child span of the agent span: the agent span closes only at `agent:end` with the whole dispatch's usage, cost, `rulvar.retry_count`, and `rulvar.exploration.*`; a denied call closes its own span with `rulvar.status: 'denied'` and the `rulvar.tool.guard` marker on the tool span; concurrent same-name calls keep exact counts, parentage, and durations (attribution may swap among identically named spans, the best the id-less vocabulary allows); and a `tool:end` with no matching start, the foreign or truncated stream shape, attaches as a span event instead of closing anything.
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
 
 ### 1.116.0
 
@@ -3790,6 +3812,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.117.0
 
 ### 1.116.0
 
@@ -5590,6 +5614,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.117.0
+
 ### 1.116.0
 
 ### 1.115.0
@@ -5926,6 +5952,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
+- @rulvar/testing@1.117.0
 
 ### 1.116.0
 
@@ -7243,6 +7276,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
+
 ### 1.116.0
 
 #### Patch Changes
@@ -7738,6 +7777,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
 
 ### 1.116.0
 
@@ -8984,6 +9029,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
+
 ### 1.116.0
 
 #### Patch Changes
@@ -10186,6 +10237,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
+- eslint-plugin-rulvar@1.117.0
 
 ### 1.116.0
 
@@ -11467,6 +11525,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.117.0
+- @rulvar/core@1.117.0
+- @rulvar/openai@1.117.0
 
 ### 1.116.0
 
@@ -12947,6 +13013,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
+
 ### 1.116.0
 
 #### Patch Changes
@@ -14145,6 +14217,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
+
 ### 1.116.0
 
 #### Patch Changes
@@ -14654,6 +14732,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
 
 ### 1.116.0
 
@@ -15795,6 +15879,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.117.0
+
+#### Patch Changes
+
+- @rulvar/core@1.117.0
 
 ### 1.116.0
 
