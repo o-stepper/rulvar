@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+
 ### 1.113.0
 
 #### Patch Changes
@@ -1230,6 +1237,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+
 ### 1.113.0
 
 #### Patch Changes
@@ -2297,6 +2311,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
 
 ### 1.113.0
 
@@ -3727,6 +3748,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.114.0
+
+#### Minor Changes
+
+- 5759731: The fixed-window quota boundary is pinned as a named compromise, and the final model can opt into the run's own observed evidence (RV708, RV709). `QuotaRule` and the model-routing guide now name the window semantics exactly: every PerMinute cap counts over fixed epoch-aligned 60 s windows, each window enforces its cap exactly, and a burst placed astride a boundary can consume up to two caps inside one sliding 60 s, the bounded price of cross-process parity, pinned by test as intended behavior with no semantics change. `runAgent` gains the opt-in `policyFacts`: the finalize synthesis request carries ONE additional request-only message digesting what the loop observed (quota denials and recoveries, tool budget pressure and extension grants, the finalization window, recorded spend with its cost basis), never touching the durable transcript or spawn identity; `orchestrate` gains the symmetric `synthesis.policyFacts`, a deterministic `POLICY FACTS:` prompt line folded only from replay-stable settled child facts (statuses, extension grants, finalization windows and reserves), so a resumed synthesis re-derives identical prompt bytes. Both are off by default and every request and prompt stays byte identical when unset.
 
 ### 1.113.0
 
@@ -5509,6 +5536,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.114.0
+
 ### 1.113.0
 
 ### 1.112.0
@@ -5839,6 +5868,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+  - @rulvar/testing@1.114.0
 
 ### 1.113.0
 
@@ -7132,6 +7169,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+
 ### 1.113.0
 
 #### Minor Changes
@@ -7606,6 +7650,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
 
 ### 1.113.0
 
@@ -8831,6 +8882,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+
 ### 1.113.0
 
 #### Patch Changes
@@ -10012,6 +10070,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+  - eslint-plugin-rulvar@1.114.0
 
 ### 1.113.0
 
@@ -11269,6 +11335,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+  - @rulvar/anthropic@1.114.0
+  - @rulvar/openai@1.114.0
 
 ### 1.113.0
 
@@ -12722,6 +12797,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+
 ### 1.113.0
 
 #### Patch Changes
@@ -13899,6 +13981,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
+
 ### 1.113.0
 
 #### Patch Changes
@@ -14387,6 +14476,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
 
 ### 1.113.0
 
@@ -15507,6 +15603,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.114.0
+
+#### Patch Changes
+
+- Updated dependencies [5759731]
+  - @rulvar/core@1.114.0
 
 ### 1.113.0
 
