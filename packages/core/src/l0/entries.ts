@@ -260,6 +260,15 @@ export interface EntryBillingFold {
    * semantics. False folds the aggregate slices, the historical basis.
    */
   fullyAttributed: boolean;
+  /**
+   * The models this fold priced per call: record sums equal slice sums
+   * counter for counter under the symmetric per-model key (RV604).
+   * Published so a row builder can honor the same decision (RV703): a
+   * covered model's rows are exactly its records, so no per-slice
+   * remainder may be fabricated for it; recomputing coverage elsewhere
+   * is how the phantom-remainder skew was born.
+   */
+  coveredModels: ReadonlySet<ModelRef>;
 }
 
 const BILLING_FIELDS = [
@@ -434,6 +443,7 @@ export function priceEntryBilling(
     usd,
     unpriced: [...unpricedByModel].map(([servedBy, usage]) => ({ servedBy, usage })),
     fullyAttributed,
+    coveredModels: covered,
   };
 }
 

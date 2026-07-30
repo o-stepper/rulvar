@@ -480,6 +480,15 @@ const MUTATIONS = [
     replace: "        phase.costBasis = event.costBasis ?? 'per-call';",
     test: 'packages/core/src/engine/invocation-events.test.ts',
   },
+  {
+    id: 'invoice-covered-remainder',
+    doctrine:
+      "a covered model's invoice rows are exactly its records; fabricating a per-slice remainder for it double-counts tokens and skews allocation (RV703)",
+    file: 'packages/core/src/engine/invoice.ts',
+    find: '      if (billing.coveredModels.has(slice.servedBy)) {\n        continue;\n      }\n',
+    replace: '',
+    test: 'packages/core/src/engine/invoice.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -395,6 +395,139 @@ describe('the per-slice residual (RV605, the round-52 accounting P1)', () => {
   });
 });
 
+describe("a covered model's rows are exactly its calls (RV703, the eleventh-experiment allocation skew)", () => {
+  it('a role mismatch between records and slices breeds no phantom remainder', () => {
+    // The eleventh-experiment strengthening of the dossier's RV605
+    // review: coverage is decided per MODEL (RV604), but the remainder
+    // pass subtracted records per model AND role, so a covered model
+    // whose record roles differ from its slice roles grew a phantom
+    // row. Repro: the schema-extract default splits one model's usage
+    // into loop 600 and extract 100 while the single record carries
+    // role loop with the model's full 700. Before the fix the export
+    // carried 800 tokens across two rows, sum(usd) 0.008 against
+    // totalUsd 0.007 under rowUsdNonAdditive false (the promise
+    // broken), and allocation siphoned 0.000875 from the real call
+    // onto the phantom.
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(700, 0),
+        usageByModel: [
+          { servedBy: 'fake:model', role: 'loop', usage: usageOf(600, 0) },
+          { servedBy: 'fake:model', role: 'extract', usage: usageOf(100, 0) },
+        ],
+        providerCalls: [record(1, usageOf(700, 0), { responseId: 'resp_L' })],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    expect(invoice.rows).toHaveLength(1);
+    expect(invoice.rows.filter((row) => row.reconciliation === 'unattributed')).toHaveLength(0);
+    const tokens = invoice.rows.reduce((acc, row) => acc + row.usage.inputTokens, 0);
+    expect(tokens).toBe(700);
+    const usdSum = invoice.rows.reduce((acc, row) => acc + (row.usd ?? 0), 0);
+    expect(usdSum).toBeCloseTo(invoice.totalUsd, 12);
+    expect(invoice.totalUsd).toBeCloseTo(0.007, 12);
+    expect(invoice.rowUsdNonAdditive).toBe(false);
+    // The real call keeps its whole allocation; nothing siphons off.
+    expect(invoice.rows[0]?.allocatedUsd).toBe(invoice.totalUsd);
+  });
+
+  it('a legacy record without a role covers its model the same way', () => {
+    // Journals written before records carried roles parse to records
+    // with no role field; the model totals still match, so the model
+    // is covered and its single record row carries all the spend.
+    const legacyRecord = {
+      ordinal: 1,
+      servedBy: 'fake:model',
+      attempt: 1,
+      outcome: 'ok',
+      usage: usageOf(700, 0),
+      responseId: 'resp_L',
+    } as unknown as ProviderCallRecord;
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(700, 0),
+        usageByModel: [
+          { servedBy: 'fake:model', role: 'loop', usage: usageOf(600, 0) },
+          { servedBy: 'fake:model', role: 'extract', usage: usageOf(100, 0) },
+        ],
+        providerCalls: [legacyRecord],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    expect(invoice.rows).toHaveLength(1);
+    const usdSum = invoice.rows.reduce((acc, row) => acc + (row.usd ?? 0), 0);
+    expect(usdSum).toBeCloseTo(invoice.totalUsd, 12);
+    expect(invoice.rowUsdNonAdditive).toBe(false);
+  });
+
+  it('the rule is per model: a covered model sheds its phantom while an uncovered one keeps its remainder', () => {
+    // fake:model is covered with a role mismatch (record loop 600
+    // against slices loop 400 plus extract 200); exec:model's record
+    // covers only a quarter of its slice. The covered model's rows are
+    // exactly its records; the uncovered model keeps the historical
+    // per-slice remainder, and the export honestly stays non-additive.
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(2600, 0),
+        usageByModel: [
+          { servedBy: 'fake:model', role: 'loop', usage: usageOf(400, 0) },
+          { servedBy: 'fake:model', role: 'extract', usage: usageOf(200, 0) },
+          { servedBy: 'exec:model', role: 'extract', usage: usageOf(2000, 0) },
+        ],
+        providerCalls: [
+          record(1, usageOf(600, 0), { responseId: 'resp_F' }),
+          record(2, usageOf(500, 0), {
+            servedBy: 'exec:model',
+            role: 'extract',
+            responseId: 'resp_E',
+          }),
+        ],
+      }),
+    ];
+    const flat = (ref: ModelRef, usage: Usage): number | undefined =>
+      ref.startsWith('fake:') || ref.startsWith('exec:')
+        ? (usage.inputTokens * 10 + usage.outputTokens * 30) / 1e6
+        : undefined;
+    const invoice = invoiceFromJournal(entries, flat);
+    const fakeRows = invoice.rows.filter((row) => row.servedBy === 'fake:model');
+    expect(fakeRows).toHaveLength(1);
+    expect(fakeRows[0]?.reconciliation).toBe('provider-id-present');
+    const execRemainders = invoice.rows.filter(
+      (row) => row.servedBy === 'exec:model' && row.reconciliation === 'unattributed',
+    );
+    expect(execRemainders).toHaveLength(1);
+    expect(execRemainders[0]?.usage).toEqual(usageOf(1500, 0));
+    expect(invoice.rowUsdNonAdditive).toBe(true);
+    const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
+    expect(allocated).toBe(invoice.totalUsd);
+  });
+
+  it('an uncovered model keeps its per-slice remainders byte for byte', () => {
+    // The same split with a record that does NOT cover the model total
+    // folds exactly as before RV703: one remainder per slice, the
+    // aggregate basis declared.
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(700, 0),
+        usageByModel: [
+          { servedBy: 'fake:model', role: 'loop', usage: usageOf(600, 0) },
+          { servedBy: 'fake:model', role: 'extract', usage: usageOf(100, 0) },
+        ],
+        providerCalls: [record(1, usageOf(500, 0), { responseId: 'resp_L' })],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    const remainders = invoice.rows.filter((row) => row.reconciliation === 'unattributed');
+    expect(remainders.map((row) => [row.role, row.usage.inputTokens])).toEqual([
+      ['loop', 100],
+      ['extract', 100],
+    ]);
+    expect(invoice.rowUsdNonAdditive).toBe(true);
+    const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
+    expect(allocated).toBe(invoice.totalUsd);
+  });
+});
+
 describe('usageUnknown on unconfirmed zero rows (the v1.71 experiment review, P1.4)', () => {
   it('marks only the unconfirmed rows that recorded nothing, and counts them', () => {
     const entry = terminalEntry(9, {
