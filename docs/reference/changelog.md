@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+
 ### 1.114.0
 
 #### Patch Changes
@@ -1237,6 +1244,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+
 ### 1.114.0
 
 #### Patch Changes
@@ -2311,6 +2325,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
 
 ### 1.114.0
 
@@ -3748,6 +3769,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.115.0
+
+#### Minor Changes
+
+- 63642ae: Post-fan-in attribution and the opt-in in-flight exposure cap (RV710, RV711). `reduceCriticalPath` now decomposes the post-fan-in window whenever it exists: `CriticalPath.postFanIn` folds the coordination spans' model activations and tool executions (by tool name, so child-result pagination and the finish exchanges show up under their own names) and the `synthesize` span wall, each clipped to the window, with `coveredMs` as the exact interval union and `residueMs`/`residueShare` naming what no recorded interval covers, from the same event vocabulary with no new types. `RunOptions.maxInFlightExposureUsd` bounds spent money plus the summed worst-case estimates of live dispatches: the admission holds each turn's own estimate from right before the provider call until the attempt settles, refuses the dispatch whose estimate does not fit with a typed `BudgetExhaustedError` (`data.reason 'in-flight-exposure'`) instead of waiting, and thereby bounds the worst concurrent overshoot to the estimate error of the in-flight turns instead of one whole turn per agent; off by default with byte-identical wire traffic, and preflight reports a configured cap as the `in-flight-exposure-cap` finding.
 
 ### 1.114.0
 
@@ -5536,6 +5563,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.115.0
+
 ### 1.114.0
 
 ### 1.113.0
@@ -5868,6 +5897,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+  - @rulvar/testing@1.115.0
 
 ### 1.114.0
 
@@ -7169,6 +7206,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+
 ### 1.114.0
 
 #### Patch Changes
@@ -7650,6 +7694,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
 
 ### 1.114.0
 
@@ -8882,6 +8933,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+
 ### 1.114.0
 
 #### Patch Changes
@@ -10070,6 +10128,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+  - eslint-plugin-rulvar@1.115.0
 
 ### 1.114.0
 
@@ -11335,6 +11401,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+  - @rulvar/anthropic@1.115.0
+  - @rulvar/openai@1.115.0
 
 ### 1.114.0
 
@@ -12797,6 +12872,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+
 ### 1.114.0
 
 #### Patch Changes
@@ -13981,6 +14063,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
+
 ### 1.114.0
 
 #### Patch Changes
@@ -14476,6 +14565,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
 
 ### 1.114.0
 
@@ -15603,6 +15699,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.115.0
+
+#### Patch Changes
+
+- Updated dependencies [63642ae]
+  - @rulvar/core@1.115.0
 
 ### 1.114.0
 
