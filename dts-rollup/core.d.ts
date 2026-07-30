@@ -1613,6 +1613,19 @@ interface Pricing {
   cacheWrite1hUsdPerMTok?: number;
   /** Long-context tiers; a row without them is one linear price. */
   tiers?: PricingTier[];
+  /**
+  * ISO date (YYYY-MM-DD) of the last verification of this row against
+  * the provider's documented rates or its billing categories (RV814).
+  * A recorded verification event, never a guess: seed rows exist to
+  * bound ceilings conservatively, actual billing truth is established
+  * only by statement reconciliation over saved exports, and a
+  * confirmed divergence corrects the row in its own release with a
+  * changeset, never by a silent rewrite. Preflight stamps it on the
+  * spawn report and the invoice text names it with its age, so the
+  * consumer of a dollar figure can see how stale the rates behind it
+  * are; the settle pin carries it with the rest of the row.
+  */
+  ratesVerifiedAt?: string;
 }
 /** Capability facts the router consumes for tier selection and scrubbing. */
 type ModelCaps = {
@@ -9895,7 +9908,12 @@ interface InvoiceRow {
 interface InvoicePricingProvenance {
   source: "snapshot" | "current-table" | "composed";
   pricingVersion?: string | undefined;
-  /** The pinned rows the fold used; present on snapshot-priced exports. */
+  /**
+  * The pinned rows the fold used; present on snapshot-priced exports.
+  * Each row's `rates` carries `ratesVerifiedAt` when the pinning
+  * table stamped one (RV814): the machine-readable answer to how
+  * fresh the rates that priced settled history were.
+  */
   rows?: AppliedPricingRow[] | undefined;
   /**
   * Per-pin coverage (RV611): every settled segment's version and rows
@@ -10192,6 +10210,13 @@ interface PreflightSpawnReport {
   servedBy?: ModelRef;
   /** True when the serving model has no price row: a USD ceiling cannot bound it. */
   unpriced?: true;
+  /**
+  * The serving row's last rates verification date (RV814), copied
+  * from the resolved pricing; absent when the row names none. Every
+  * dollar in this report is priced under that row, so its staleness
+  * is part of the projection's honesty.
+  */
+  ratesVerifiedAt?: string;
   /** The SAME merge the runtime applies: call over profile over engine defaults. */
   limits: EffectiveUsageLimits;
   /** The layer-1 admission reserve this spawn would be admitted under. */

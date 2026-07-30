@@ -121,7 +121,12 @@ export interface InvoiceRow {
 export interface InvoicePricingProvenance {
   source: 'snapshot' | 'current-table' | 'composed';
   pricingVersion?: string | undefined;
-  /** The pinned rows the fold used; present on snapshot-priced exports. */
+  /**
+   * The pinned rows the fold used; present on snapshot-priced exports.
+   * Each row's `rates` carries `ratesVerifiedAt` when the pinning
+   * table stamped one (RV814): the machine-readable answer to how
+   * fresh the rates that priced settled history were.
+   */
   rows?: AppliedPricingRow[] | undefined;
   /**
    * Per-pin coverage (RV611): every settled segment's version and rows

@@ -1,4 +1,4 @@
-import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, PreflightInput, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@rulvar/core";
+import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, PreflightInput, Pricing, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@rulvar/core";
 
 //#region src/io.d.ts
 interface CliIo {
@@ -165,6 +165,13 @@ interface AssembledCli {
   workflows: WorkflowRegistry;
   /** The journal-fold price function (table wins over caps). */
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  /**
+  * The resolved pricing row behind priceUsd (table wins over caps),
+  * surfaced for the provenance renderers (RV814): the invoice names
+  * each priced model's `ratesVerifiedAt` with its age, and the row is
+  * where the date lives.
+  */
+  pricingOf: (servedBy: ModelRef) => Pricing | undefined;
   /**
   * The deployment's argsHash salt (engineOptions.security, RV-217),
   * surfaced so the CLI resume args gate hashes supplied --args the

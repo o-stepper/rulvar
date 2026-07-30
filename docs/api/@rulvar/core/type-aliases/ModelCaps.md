@@ -19,7 +19,7 @@ type ModelCaps = {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L60)
+Defined in: [packages/core/src/l0/spi/provider.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L73)
 
 Capability facts the router consumes for tier selection and scrubbing.
 
@@ -31,7 +31,7 @@ Capability facts the router consumes for tier selection and scrubbing.
 contextWindow: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L66)
+Defined in: [packages/core/src/l0/spi/provider.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L79)
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:66](https://github.com/o-stepp
 maxOutputTokens: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L67)
+Defined in: [packages/core/src/l0/spi/provider.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L80)
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:67](https://github.com/o-stepp
 optional minOutputTokensPerTurn?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L77)
+Defined in: [packages/core/src/l0/spi/provider.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L90)
 
 The smallest request output cap the provider accepts (the v1.74
 experiment review, P0.1): OpenAI's Responses API rejects
@@ -69,7 +69,7 @@ the wire. Absent means one, the historical floor.
 optional pricing?: Pricing;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L79)
+Defined in: [packages/core/src/l0/spi/provider.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L92)
 
 Adapter-reported fallback only; the versioned price table wins.
 
@@ -81,7 +81,7 @@ Adapter-reported fallback only; the versioned price table wins.
 reasoningEfforts: Effort[];
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L65)
+Defined in: [packages/core/src/l0/spi/provider.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L78)
 
 Canonical efforts this model accepts after mapping.
 
@@ -93,7 +93,7 @@ Canonical efforts this model accepts after mapping.
 structuredOutput: "native" | "forced-tool" | "prompt";
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L61)
+Defined in: [packages/core/src/l0/spi/provider.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L74)
 
 ***
 
@@ -103,7 +103,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:61](https://github.com/o-stepp
 supportsParallelTools: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L63)
+Defined in: [packages/core/src/l0/spi/provider.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L76)
 
 ***
 
@@ -113,4 +113,4 @@ Defined in: [packages/core/src/l0/spi/provider.ts:63](https://github.com/o-stepp
 supportsTemperature: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L62)
+Defined in: [packages/core/src/l0/spi/provider.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L75)

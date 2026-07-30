@@ -40,9 +40,11 @@ import {
   type JournalPricingSnapshot,
   type LeasableStore,
   type Lease,
+  type InvoiceExport,
   type ModelClaim,
   type ModelRef,
   type PreflightInput,
+  type Pricing,
   type PreflightReport,
   type PreflightSpawnSpec,
   type RunMeta,
@@ -880,6 +882,10 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
       : 'pricing rates: run-settle pins composed with the current table' +
           pinVersionsSuffix(snapshot, assembled.currentPricingVersion),
   );
+  const verified = ratesVerifiedLine(invoice, snapshot, assembled.pricingOf, Date.now());
+  if (verified !== undefined) {
+    context.io.out(verified);
+  }
   for (const row of invoice.rows) {
     const usd = row.usd === undefined ? 'unpriced' : `$${row.usd.toFixed(4)}`;
     const tokens = row.usage.inputTokens + row.usage.outputTokens;
@@ -938,6 +944,51 @@ function pinVersionsSuffix(
   return parts.length === 0 ? '' : ` (${parts.join('; ')})`;
 }
 
+/**
+ * ` (age Nd)` for an ISO date against the wall clock; empty when the
+ * date does not parse or lies in the future (a malformed or clock-skewed
+ * stamp renders as the bare date, never as a negative age).
+ */
+function ageSuffixOf(date: string, nowMs: number): string {
+  const parsed = Date.parse(date);
+  if (!Number.isFinite(parsed) || parsed > nowMs) {
+    return '';
+  }
+  return ` (age ${String(Math.floor((nowMs - parsed) / 86_400_000))}d)`;
+}
+
+/**
+ * `rates verified: <model> <date> (age Nd), <model> no date` over the
+ * models the invoice rows name (RV814). Per model, the date is the
+ * LAST settle pin's row when the journal pins one, because those are
+ * the rates that priced settled history whatever today's table says; a
+ * model outside the pins reads the current table's row. A pinned row
+ * without a stamp is honestly `no date`, never today's table date.
+ * Undefined when no applicable row names a date: journals priced under
+ * pre-stamp tables keep their historical output byte for byte.
+ */
+function ratesVerifiedLine(
+  invoice: InvoiceExport,
+  snapshot: JournalPricingSnapshot | undefined,
+  pricingOf: (servedBy: ModelRef) => Pricing | undefined,
+  nowMs: number,
+): string | undefined {
+  const models = [...new Set(invoice.rows.map((row) => row.servedBy))].sort();
+  const dated = models.map((model) => {
+    const pinRow = snapshot?.rows.find((row) => row.model === model);
+    const date =
+      pinRow !== undefined ? pinRow.rates.ratesVerifiedAt : pricingOf(model)?.ratesVerifiedAt;
+    return { model, date };
+  });
+  if (!dated.some((entry) => entry.date !== undefined)) {
+    return undefined;
+  }
+  const parts = dated.map(({ model, date }) =>
+    date === undefined ? `${model} no date` : `${model} ${date}${ageSuffixOf(date, nowMs)}`,
+  );
+  return `rates verified: ${parts.join(', ')}`;
+}
+
 function renderPreflight(report: PreflightReport, io: CliIo): void {
   io.out('preflight: effective limits and admission projection (zero provider dispatches)');
   const perProvider = report.concurrency.perProvider;
@@ -979,6 +1030,9 @@ function renderPreflight(report: PreflightReport, io: CliIo): void {
     io.out(
       `spawn '${spawn.label}' role=${spawn.role} x${spawn.count}` +
         ` servedBy=${spawn.servedBy ?? 'UNROUTED'}${spawn.unpriced === true ? ' (unpriced)' : ''}` +
+        (spawn.ratesVerifiedAt === undefined
+          ? ''
+          : ` ratesVerified=${spawn.ratesVerifiedAt}${ageSuffixOf(spawn.ratesVerifiedAt, Date.now())}`) +
         ` reserve=${usdOf(spawn.admissionReserveUsd)} (${spawn.reserveSource})` +
         (spawn.maxOutputTokensPerTurn === undefined
           ? ''

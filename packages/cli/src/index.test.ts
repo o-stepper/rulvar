@@ -1333,3 +1333,66 @@ describe('inspect acceptance and quota rendering (RV806)', () => {
     );
   });
 });
+
+describe('rates verification age surfaces (RV814)', () => {
+  const configWithDate = (date: string | undefined): string =>
+    `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
+import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING_DIST)};
+
+const echo = defineWorkflow({ name: 'echo' }, async (ctx) => ctx.agent('echo'));
+
+export default {
+  engineOptions: {
+    adapters: [new FakeAdapter({ agents: { '*': 'echoed' } })],
+    defaults: { routing: { loop: FAKE_MODEL_REF } },
+    pricing: {
+      pricingVersion: 'v-dated',
+      models: { [FAKE_MODEL_REF]: { inputUsdPerMTok: 3, outputUsdPerMTok: 15${
+        date === undefined ? '' : `, ratesVerifiedAt: ${JSON.stringify(date)}`
+      } } },
+    },
+  },
+  workflows: { echo },
+  preflight: { spawns: [{ label: 'digger', estInputTokens: 1000 }] },
+};
+`;
+
+  it('invoice names the verification date and age of the rates that priced the run', async () => {
+    // The twelfth experiment's red observable: the founder read the
+    // invoice while doubting the rates and NOTHING said the seed was
+    // last verified 12 days earlier. The date rides the pinned row, so
+    // the age line survives any later table rewrite.
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-rates-age-'));
+    const date = new Date(Date.now() - 12 * 86_400_000).toISOString().slice(0, 10);
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configWithDate(date), 'utf8');
+    const io = scriptedIo();
+    await runCli(['run', 'echo'], { cwd, io });
+    const runId = runIdOf(io);
+
+    const text = scriptedIo();
+    expect(await runCli(['invoice', runId], { cwd, io: text })).toBe(0);
+    expect(text.outLines).toContain(`rates verified: fake:fake-model ${date} (age 12d)`);
+  });
+
+  it('invoice prints no verification line when no applicable row names a date', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-rates-undated-'));
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configWithDate(undefined), 'utf8');
+    const io = scriptedIo();
+    await runCli(['run', 'echo'], { cwd, io });
+    const runId = runIdOf(io);
+
+    const text = scriptedIo();
+    expect(await runCli(['invoice', runId], { cwd, io: text })).toBe(0);
+    expect(text.outLines.some((line) => line.startsWith('rates verified:'))).toBe(false);
+  });
+
+  it('preflight shows the serving row date and age on the spawn line', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-rates-preflight-'));
+    const date = new Date(Date.now() - 12 * 86_400_000).toISOString().slice(0, 10);
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configWithDate(date), 'utf8');
+    const io = scriptedIo();
+    expect(await runCli(['preflight', 'echo', '--budget-usd', '1'], { cwd, io })).toBe(0);
+    const spawnLine = io.outLines.find((line) => line.startsWith("spawn 'digger'"));
+    expect(spawnLine).toContain(`ratesVerified=${date} (age 12d)`);
+  });
+});

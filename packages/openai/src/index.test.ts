@@ -1370,6 +1370,9 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
         cacheReadUsdPerMTok: expected.cacheRead,
         cacheWriteUsdPerMTok: expected.cacheWrite,
         tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+        // Billing-confirmed by the 2026-07-30 statement reconciliation
+        // (all eight per-component categories to the cent, RV814).
+        ratesVerifiedAt: '2026-07-30',
       });
     }
   });
@@ -1420,20 +1423,24 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
       inputUsdPerMTok: 5,
       outputUsdPerMTok: 30,
       cacheReadUsdPerMTok: 0.5,
+      ratesVerifiedAt: '2026-07-18',
     });
     expect(OPENAI_MODELS['gpt-5.5-pro']?.caps.pricing).toEqual({
       inputUsdPerMTok: 30,
       outputUsdPerMTok: 180,
+      ratesVerifiedAt: '2026-07-18',
     });
     expect(OPENAI_MODELS['gpt-5.4']?.caps.pricing).toEqual({
       inputUsdPerMTok: 2.5,
       outputUsdPerMTok: 15,
       cacheReadUsdPerMTok: 0.25,
+      ratesVerifiedAt: '2026-07-18',
     });
     expect(OPENAI_MODELS['gpt-5.4-mini']?.caps.pricing).toEqual({
       inputUsdPerMTok: 0.75,
       outputUsdPerMTok: 4.5,
       cacheReadUsdPerMTok: 0.075,
+      ratesVerifiedAt: '2026-07-18',
     });
   });
 

@@ -488,3 +488,25 @@ describe('stored consumers compose the pins like the engine (RV611)', () => {
     expect(snapshot?.pinnedThroughSeq).toBe(3);
   });
 });
+
+describe('rates verification date through the pin (RV814)', () => {
+  it('a row ratesVerifiedAt survives the settle pin and the snapshot rebuild', async () => {
+    // The verification date is part of the row the settle pins, so an
+    // invoice folded years later can still say how fresh the rates
+    // that PRICED the run were, whatever today's table claims.
+    const table: PriceTable = {
+      pricingVersion: 'v-dated',
+      models: {
+        'fake:model': {
+          inputUsdPerMTok: 3,
+          outputUsdPerMTok: 15,
+          ratesVerifiedAt: '2026-07-18',
+        },
+      },
+    };
+    const entries = await settledEntries(table);
+    const snapshot = journalPricingSnapshot(entries);
+    expect(snapshot?.rows).toHaveLength(1);
+    expect(snapshot?.rows[0]?.rates.ratesVerifiedAt).toBe('2026-07-18');
+  });
+});

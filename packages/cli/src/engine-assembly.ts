@@ -20,6 +20,7 @@ import {
   type JournalStore,
   type ModelRef,
   type ModelSpec,
+  type Pricing,
   type ProviderAdapter,
   type RunProfile,
   type Usage,
@@ -38,6 +39,13 @@ export interface AssembledCli {
   workflows: WorkflowRegistry;
   /** The journal-fold price function (table wins over caps). */
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  /**
+   * The resolved pricing row behind priceUsd (table wins over caps),
+   * surfaced for the provenance renderers (RV814): the invoice names
+   * each priced model's `ratesVerifiedAt` with its age, and the row is
+   * where the date lives.
+   */
+  pricingOf: (servedBy: ModelRef) => Pricing | undefined;
   /**
    * The deployment's argsHash salt (engineOptions.security, RV-217),
    * surfaced so the CLI resume args gate hashes supplied --args the
@@ -92,13 +100,16 @@ export function assembleEngine(options: {
     defaults: { ...engineOptions.defaults, workflows },
   });
   const byId = new Map(adapters.map((adapter) => [adapter.id, adapter]));
-  const priceUsd = (servedBy: ModelRef, usage: Usage): number | undefined => {
+  const pricingOf = (servedBy: ModelRef): Pricing | undefined => {
     const { adapterId, model } = parseModelRef(servedBy);
-    const pricing = resolvePricing(
+    return resolvePricing(
       servedBy,
       engineOptions.pricing,
       byId.get(adapterId)?.caps(model).pricing,
     );
+  };
+  const priceUsd = (servedBy: ModelRef, usage: Usage): number | undefined => {
+    const pricing = pricingOf(servedBy);
     return pricing === undefined ? undefined : priceUsdOf(pricing, usage);
   };
   const argsHashSalt = engineOptions.security?.argsHashSalt;
@@ -108,6 +119,7 @@ export function assembleEngine(options: {
     store,
     workflows,
     priceUsd,
+    pricingOf,
     ...(argsHashSalt === undefined ? {} : { argsHashSalt }),
     ...(currentPricingVersion === undefined ? {} : { currentPricingVersion }),
   };

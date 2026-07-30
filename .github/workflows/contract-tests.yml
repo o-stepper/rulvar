@@ -48,6 +48,16 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RULVAR_LIVE_TESTS: '1'
         run: corepack pnpm exec vitest run --project @rulvar/anthropic -t 'live caps audit'
+      # Documented-rates drift audit (RV813): the pricing seeds against
+      # the provider docs pages the caps comments cite. Documentation
+      # only, never billing (billing truth is reconcileStatement over
+      # saved exports); a divergence or a failed extraction fails this
+      # run and pages via the drift issue below, and the seed is
+      # corrected only by a deliberate release with a changeset. No
+      # provider keys and no completion spend: the pages are public.
+      - name: Audit the pricing seeds against the documented rate pages
+        if: ${{ !cancelled() }}
+        run: node scripts/rates-audit.mjs
       - name: Page on drift (issue, never a silent rerecord)
         if: failure()
         uses: actions/github-script@v7

@@ -22,6 +22,24 @@ describe('OPENAI_PRICING', () => {
     }
   });
 
+  it('records the rates verification date on every priced seed row (RV814)', () => {
+    // The 5.6 family rows are billing-confirmed: the 2026-07-30
+    // statement reconciliation matched all eight per-component
+    // categories to the cent. The pre-5.6 rows keep their last docs
+    // verification date. A date is a recorded verification event,
+    // never a guess: correcting a rate is a separate release with a
+    // changeset, and this test pins that the stamp exists at all.
+    for (const name of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.6']) {
+      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-07-30');
+    }
+    for (const name of ['gpt-5.5', 'gpt-5.5-pro', 'gpt-5.4', 'gpt-5.4-mini']) {
+      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-07-18');
+    }
+    for (const [ref, row] of Object.entries(OPENAI_PRICING.models)) {
+      expect(row.ratesVerifiedAt, ref).toBeDefined();
+    }
+  });
+
   it('carries the long-context tiers on every gpt-5.6 family row and the alias', () => {
     for (const ref of [
       'openai:gpt-5.6-sol',

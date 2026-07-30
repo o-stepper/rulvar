@@ -57,7 +57,13 @@ const GPT_56_TIERS = [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMul
 /**
  * GPT-5.6 Sol, Terra, and Luna are three sibling models, not snapshots
  * of one model (developers.openai.com/api/docs/models/gpt-5.6-sol,
- * .../gpt-5.6-terra, .../gpt-5.6-luna; rates verified 2026-07-18). All
+ * .../gpt-5.6-terra, .../gpt-5.6-luna; rates verified 2026-07-18
+ * against those pages, and CONFIRMED against the provider's own
+ * billing categories on 2026-07-30, when the twelfth-experiment
+ * statement reconciliation matched all eight per-model per-component
+ * dashboard categories to the cent, which is why the family rows carry
+ * ratesVerifiedAt '2026-07-30' (RV814); the weekly rates audit
+ * re-verifies the three pages). All
  * three: prompts strictly above 272K input tokens price the FULL
  * request at 2x input and 1.5x output; cache writes bill at 1.25x
  * uncached input. All three accept wire reasoning effort `max`
@@ -77,6 +83,7 @@ const GPT_56_SOL: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
     tiers: GPT_56_TIERS,
+    ratesVerifiedAt: '2026-07-30',
   },
   { wireMaxEffort: true },
 );
@@ -90,6 +97,7 @@ const GPT_56_TERRA: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.25,
     cacheWriteUsdPerMTok: 3.125,
     tiers: GPT_56_TIERS,
+    ratesVerifiedAt: '2026-07-30',
   },
   { wireMaxEffort: true },
 );
@@ -103,6 +111,7 @@ const GPT_56_LUNA: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.1,
     cacheWriteUsdPerMTok: 1.25,
     tiers: GPT_56_TIERS,
+    ratesVerifiedAt: '2026-07-30',
   },
   { wireMaxEffort: true },
 );
@@ -128,20 +137,24 @@ export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
     inputUsdPerMTok: 5,
     outputUsdPerMTok: 30,
     cacheReadUsdPerMTok: 0.5,
+    ratesVerifiedAt: '2026-07-18',
   }),
   'gpt-5.5-pro': responses(400_000, 128_000, {
     inputUsdPerMTok: 30,
     outputUsdPerMTok: 180,
+    ratesVerifiedAt: '2026-07-18',
   }),
   'gpt-5.4': responses(272_000, 100_000, {
     inputUsdPerMTok: 2.5,
     outputUsdPerMTok: 15,
     cacheReadUsdPerMTok: 0.25,
+    ratesVerifiedAt: '2026-07-18',
   }),
   'gpt-5.4-mini': responses(272_000, 100_000, {
     inputUsdPerMTok: 0.75,
     outputUsdPerMTok: 4.5,
     cacheReadUsdPerMTok: 0.075,
+    ratesVerifiedAt: '2026-07-18',
   }),
 };
 

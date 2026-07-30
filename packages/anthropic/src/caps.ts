@@ -11,7 +11,11 @@
  * platform.claude.com/docs/en/about-claude/pricing as published on
  * 2026-07-16: base input, output, cache read (0.1x input), and the
  * 5-minute cache write (1.25x input; the canonical Usage does not
- * distinguish 1h writes, so the 5m rate is the seed). A price revision
+ * distinguish 1h writes, so the 5m rate is the seed). Every row was
+ * re-verified against that page on 2026-07-30 (RATES_VERIFIED_AT
+ * below, RV814), and the weekly rates audit
+ * (scripts/rates-audit.mjs) re-checks the same page so the next
+ * verification is a schedule, not a hand note. A price revision
  * is a new release with a new pricingVersion, never a wall-clock switch
  * inside a run.
  *
@@ -26,6 +30,14 @@
 import type { Effort, ModelCaps, ModelRef, PriceTable, Pricing } from '@rulvar/core';
 
 const ALL_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
+
+/**
+ * The date every seed row was last verified against the documented
+ * pricing table (RV814): one constant because the whole table mirrors
+ * one page snapshot. A later re-verification bumps it table-wide; a
+ * rate CHANGE is a new release with a new pricingVersion.
+ */
+const RATES_VERIFIED_AT = '2026-07-30';
 
 export interface AnthropicModelInfo {
   caps: ModelCaps;
@@ -62,6 +74,7 @@ function current(
               outputUsdPerMTok: pricing.out,
               cacheReadUsdPerMTok: pricing.cacheRead,
               cacheWriteUsdPerMTok: pricing.cacheWrite,
+              ratesVerifiedAt: RATES_VERIFIED_AT,
             },
           }),
     },
