@@ -13,7 +13,7 @@ function affordableOutputTokens(
    estimatedInputTokens): number | undefined;
 ```
 
-Defined in: [packages/core/src/model/pricing.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/pricing.ts#L88)
+Defined in: [packages/core/src/model/pricing.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/pricing.ts#L136)
 
 The output tokens `remainingUsd` still buys from one pricing row after
 paying for an estimated prompt of `estimatedInputTokens`, priced with

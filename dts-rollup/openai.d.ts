@@ -1,5 +1,5 @@
 import OpenAI, { ClientOptions } from "openai";
-import { CanonicalId, ChatEvent, ChatRequest, Effort, JournalEntry, ModelCaps, ModelRef, PriceTable, ProviderAdapter, Usage, WireError } from "@rulvar/core";
+import { CanonicalId, ChatEvent, ChatRequest, Effort, InvoiceRow, JournalEntry, ModelCaps, ModelRef, PriceTable, Pricing, ProviderAdapter, Usage, WireError } from "@rulvar/core";
 
 //#region src/caps.d.ts
 interface OpenAiModelInfo {
@@ -145,6 +145,132 @@ interface V1190CacheAudit {
 */
 declare function auditV1190CacheJournal(entries: readonly JournalEntry[], priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined): V1190CacheAudit;
 //#endregion
+//#region src/reconcile.d.ts
+/** The four billing components a provider statement itemizes. */
+type BillingComponent = "input" | "cached-input" | "cache-write" | "output";
+/**
+* One normalized per-request row of a usage/billing export. `usd` is
+* the row's billed dollars where the export carries amounts;
+* `componentsUsd` its per-component split where it carries one; `usage`
+* the provider-reported token counts where it carries those. A row must
+* carry at least one of the three, and every row needs the provider's
+* response id, the join key.
+*/
+interface StatementRequestRow {
+  responseId: string;
+  /** Provider-side model name (without the adapter prefix); optional. */
+  model?: string;
+  usd?: number;
+  componentsUsd?: Partial<Record<BillingComponent, number>>;
+  usage?: {
+    inputTokens?: number;
+    cachedInputTokens?: number;
+    cacheWriteTokens?: number;
+    outputTokens?: number;
+  };
+}
+/** One per-model per-component total: the Spend categories shape. */
+interface StatementCategoryRow {
+  model: string;
+  component: BillingComponent;
+  usd: number;
+}
+/** A normalized provider export: never a headline total. */
+type ProviderStatement = {
+  kind: "requests";
+  rows: readonly StatementRequestRow[];
+} | {
+  kind: "categories";
+  rows: readonly StatementCategoryRow[];
+};
+interface ReconcileStatementOptions {
+  /** Our rate card, the same resolution the engine prices with. */
+  pricingOf: (servedBy: ModelRef) => Pricing | undefined;
+  /**
+  * Per-component divergence threshold in USD. The default 0.005
+  * absorbs the dashboard's 3-decimal rounding (at most 0.0005 per
+  * figure) with an order of margin, while any real rate-card
+  * divergence on a run worth reconciling sits orders above it.
+  */
+  componentToleranceUsd?: number;
+  /**
+  * Totals threshold for a per-request export that carries row dollars
+  * but no per-component split; default 0.01.
+  */
+  totalToleranceUsd?: number;
+  /** Provider-side model name of a served ref; default strips the adapter prefix. */
+  modelOf?: (servedBy: ModelRef) => string;
+}
+/** One (model, component) line of the reconciliation. */
+interface ComponentDelta {
+  model: string;
+  component: BillingComponent;
+  /** Our token base for the component, from the invoice rows' usage. */
+  ourTokens: number;
+  /** Our dollars, from the shared price decomposition (priceComponentsOf). */
+  ourUsd: number;
+  /** The statement's dollars; absent when the export does not carry this line. */
+  statementUsd?: number;
+  deltaUsd?: number;
+  /** statementUsd over ourTokens, per MTok: the rate the provider ACTUALLY applied. */
+  impliedUsdPerMTok?: number;
+  /** ourUsd over ourTokens, per MTok: our effective rate over the same base, tier mix included. */
+  effectiveUsdPerMTok?: number;
+  divergent: boolean;
+}
+interface StatementCoverage {
+  /** Invoice rows carrying usage or dollars: the billable set. */
+  billableRows: number;
+  rowsWithResponseId: number;
+  /** Requests mode: rows the export covered. Categories mode: equals billableRows (totals claim the set). */
+  matchedRows: number;
+  unmatchedRows: number;
+  /** First unmatched response ids (at most 20), requests mode. */
+  unmatchedIdSample: string[];
+  /** Statement rows matching nothing of ours: ids (requests) or model names (categories). */
+  statementOnlyRows: number;
+  statementOnlyIdSample: string[];
+  complete: boolean;
+}
+interface StatementReconciliation {
+  mode: "requests" | "categories";
+  coverage: StatementCoverage;
+  totals: {
+    ourUsd: number;
+    statementUsd?: number;
+    deltaUsd?: number;
+  };
+  /** Every (model, component) line, models sorted, components in canonical order. */
+  components: ComponentDelta[];
+  /** The lines beyond tolerance, largest |delta| first: the named divergences. */
+  divergent: ComponentDelta[];
+  /** Sample of token disagreements between the export and our recorded usage (requests mode). */
+  tokenMismatches: number;
+  tokenMismatchSample: Array<{
+    responseId: string;
+    field: string;
+    ours: number;
+    statement: number;
+  }>;
+  /** Models the rate card does not cover: declared, excluded from divergence. */
+  unpricedModels: string[];
+  /** Rows whose usage the ledger never saw (usageUnknown): counted apart, never folded. */
+  usageUnknownRows: number;
+  componentToleranceUsd: number;
+  verdict: "match" | "divergence" | "partial-coverage" | "no-overlap";
+}
+/**
+* Reconciles the invoice against a normalized provider export. Pure and
+* journal-free; see the module doc for the contract. Throws a typed
+* ConfigError on inputs that cannot be evidence: an empty statement (a
+* headline total with no rows), a request row without a response id, a
+* duplicate response id (an ambiguous join), or a request export whose
+* rows carry neither dollars, components, nor usage.
+*/
+declare function reconcileStatement(invoice: {
+  rows: readonly InvoiceRow[];
+}, statement: ProviderStatement, options: ReconcileStatementOptions): StatementReconciliation;
+//#endregion
 //#region src/wire.d.ts
 /** Bijective canonical-to-wire (call_*) id map. */
 declare class OpenAiIdMap {
@@ -260,4 +386,4 @@ declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, u
   signal?: AbortSignal;
 }): AsyncGenerator<ChatEvent, void>;
 //#endregion
-export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, OPENAI_PRICING, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type OpenAiSdkOptions, type ResponsesStreamEvent, type V1190CacheAudit, auditV1190CacheJournal, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible, undoV1190CacheDoubleCount };
+export { type BillingComponent, CONSERVATIVE_COMPATIBLE_CAPS, type ComponentDelta, OPENAI_MODELS, OPENAI_PRICING, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type OpenAiSdkOptions, type ProviderStatement, type ReconcileStatementOptions, type ResponsesStreamEvent, type StatementCategoryRow, type StatementCoverage, type StatementReconciliation, type StatementRequestRow, type V1190CacheAudit, auditV1190CacheJournal, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible, reconcileStatement, undoV1190CacheDoubleCount };

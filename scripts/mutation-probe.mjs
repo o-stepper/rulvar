@@ -609,6 +609,24 @@ const MUTATIONS = [
     test: 'packages/core/src/journal/replayer.test.ts',
   },
   {
+    id: 'partial-export-coverage',
+    doctrine:
+      'a partially delivered provider export folds component deltas over the COVERED subset only: comparing a subset against the whole manufactures false divergence (RV812)',
+    file: 'packages/openai/src/reconcile.ts',
+    find: '    covered = matched;\n    matchedRows = matched.length;',
+    replace: '    covered = billable;\n    matchedRows = matched.length;',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
+  {
+    id: 'headline-aggregate-refusal',
+    doctrine:
+      'a statement with no rows (a headline total) is refused typed: eventually consistent dashboard aggregates are not reconciliation evidence (RV812, the 4.45-vs-7.30 lesson)',
+    file: 'packages/openai/src/reconcile.ts',
+    find: '  if (statement.rows.length === 0) {',
+    replace: '  if (false) {',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
+  {
     id: 'tool-span-pairing',
     doctrine:
       'a tool:end closes its own synthetic pair span, never the agent span it rides: the agent span must live to agent:end with its usage, cost, and exploration attributes (RV802)',
