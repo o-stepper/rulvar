@@ -10,7 +10,7 @@
 function priceUsdOf(pricing, usage): number;
 ```
 
-Defined in: [packages/core/src/model/pricing.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/pricing.ts#L122)
+Defined in: [packages/core/src/model/pricing.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/pricing.ts#L134)
 
 Dollars from normalized usage against one pricing row: the sum of the
 [priceComponentsOf](/api/@rulvar/core/functions/priceComponentsOf.md) terms in their declared order, byte for

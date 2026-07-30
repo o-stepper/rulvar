@@ -951,3 +951,52 @@ describe('safe rate limit values (the v1.74 experiment review)', () => {
     });
   });
 });
+
+describe('the cache-write TTL split (RV810)', () => {
+  it('fills the split from the cache_creation breakdown when it sums to the total', () => {
+    expect(
+      normalizeAnthropicUsage({
+        input_tokens: 10,
+        output_tokens: 3,
+        cache_read_input_tokens: 5,
+        cache_creation_input_tokens: 7,
+        cache_creation: { ephemeral_5m_input_tokens: 4, ephemeral_1h_input_tokens: 3 },
+      }),
+    ).toEqual({
+      inputTokens: 22,
+      outputTokens: 3,
+      cacheReadTokens: 5,
+      cacheWriteTokens: 7,
+      cacheWrite5mTokens: 4,
+      cacheWrite1hTokens: 3,
+    });
+  });
+
+  it('derives the total from the breakdown when the flat field is absent', () => {
+    expect(
+      normalizeAnthropicUsage({
+        input_tokens: 10,
+        output_tokens: 3,
+        cache_creation: { ephemeral_5m_input_tokens: 2, ephemeral_1h_input_tokens: 6 },
+      }),
+    ).toEqual({
+      inputTokens: 18,
+      outputTokens: 3,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 8,
+      cacheWrite5mTokens: 2,
+      cacheWrite1hTokens: 6,
+    });
+  });
+
+  it('omits a breakdown that contradicts the flat total instead of shipping a broken invariant', () => {
+    expect(
+      normalizeAnthropicUsage({
+        input_tokens: 10,
+        output_tokens: 3,
+        cache_creation_input_tokens: 7,
+        cache_creation: { ephemeral_5m_input_tokens: 9, ephemeral_1h_input_tokens: 9 },
+      }),
+    ).toEqual({ inputTokens: 17, outputTokens: 3, cacheReadTokens: 0, cacheWriteTokens: 7 });
+  });
+});

@@ -10,7 +10,7 @@
 function usageViolations(usage): string[];
 ```
 
-Defined in: [packages/core/src/l0/usage.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L39)
+Defined in: [packages/core/src/l0/usage.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L48)
 
 Names every rule the given usage violates; an empty array means the
 usage satisfies the full canonical invariant: each present count is a

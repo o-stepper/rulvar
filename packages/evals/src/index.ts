@@ -83,3 +83,12 @@ export {
   type SweepReport,
   type SweepThresholds,
 } from './sweeps.js';
+export {
+  FAULT_SCENARIO_NAMES,
+  runFaultInjection,
+  type FaultInjectionReport,
+  type FaultScenarioArtifact,
+  type FaultScenarioObservation,
+  type FaultScenarioReport,
+  type RunFaultInjectionOptions,
+} from './fault-injection.js';

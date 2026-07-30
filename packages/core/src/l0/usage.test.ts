@@ -141,3 +141,79 @@ describe('sanitizeUsage', () => {
     }
   });
 });
+
+describe('the cache-write TTL split (RV810)', () => {
+  const base: Usage = {
+    inputTokens: 100,
+    outputTokens: 5,
+    cacheReadTokens: 20,
+    cacheWriteTokens: 30,
+  };
+
+  it('accepts a split that sums to cacheWriteTokens and rejects one that does not', () => {
+    expect(usageViolations({ ...base, cacheWrite5mTokens: 10, cacheWrite1hTokens: 20 })).toEqual(
+      [],
+    );
+    const short = usageViolations({ ...base, cacheWrite5mTokens: 10, cacheWrite1hTokens: 5 });
+    expect(short.join(' ')).toContain('cacheWrite5mTokens + cacheWrite1hTokens');
+    expect(short.join(' ')).toContain('30');
+  });
+
+  it('a single present split field must equal the whole cacheWriteTokens', () => {
+    expect(usageViolations({ ...base, cacheWrite1hTokens: 30 })).toEqual([]);
+    expect(usageViolations({ ...base, cacheWrite1hTokens: 29 }).join(' ')).toContain(
+      'cacheWrite5mTokens + cacheWrite1hTokens',
+    );
+  });
+
+  it('split fields obey the count rules: fractional and negative are violations', () => {
+    expect(
+      usageViolations({ ...base, cacheWrite5mTokens: 10.5, cacheWrite1hTokens: 19.5 }).join(' '),
+    ).toContain('cacheWrite5mTokens is fractional');
+    expect(
+      usageViolations({ ...base, cacheWrite5mTokens: -1, cacheWrite1hTokens: 31 }).join(' '),
+    ).toContain('cacheWrite5mTokens is negative');
+  });
+
+  it('sanitizeUsage is the identity on a valid split and repairs garbage with 1h priority', () => {
+    const valid: Usage = { ...base, cacheWrite5mTokens: 10, cacheWrite1hTokens: 20 };
+    expect(sanitizeUsage(valid)).toEqual(valid);
+    // Garbage split: the repair keeps the priciest attribution first
+    // (1h clamps into the write total, 5m into the remainder), so a
+    // repaired charge is never an undercharge.
+    const repaired = sanitizeUsage({
+      ...base,
+      cacheWrite5mTokens: Number.NaN,
+      cacheWrite1hTokens: 99,
+    });
+    expect(repaired.cacheWrite1hTokens).toBe(30);
+    expect(repaired.cacheWrite5mTokens).toBe(0);
+    expect(usageViolations(repaired)).toEqual([]);
+  });
+
+  it('sanitized hostile splits always satisfy the whole invariant', () => {
+    let seed = 41;
+    const next = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    const hostile = (): number => {
+      const roll = next();
+      if (roll < 0.2) return Number.NaN;
+      if (roll < 0.4) return -Math.floor(next() * 1e6);
+      if (roll < 0.6) return next() * 1000;
+      return Math.floor(next() * 1e9);
+    };
+    for (let i = 0; i < 300; i += 1) {
+      const usage: Usage = {
+        inputTokens: hostile(),
+        outputTokens: hostile(),
+        cacheReadTokens: hostile(),
+        cacheWriteTokens: hostile(),
+        cacheWrite5mTokens: hostile(),
+        cacheWrite1hTokens: hostile(),
+      };
+      expect(usageViolations(sanitizeUsage(usage))).toEqual([]);
+    }
+  });
+});

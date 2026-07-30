@@ -249,6 +249,19 @@ const ci = createEngine({
 
 Suite, matrix, and sweep runners all execute sequentially in declaration order precisely so that cassette consumption is deterministic, and that determinism extends to identical requests: rows sharing one canonical request hash replay one per call, in recorded call order (file order only for groups recorded before v1.32.0, whose rows carry no occurrence numbers), so a recorded retry or a repeated case replays exactly as it ran. `onMiss: 'throw'` raises a typed `VcrMissError` on any unrecorded request (or one whose recorded occurrences are exhausted), so a changed prompt or a new case fails CI loudly instead of quietly going live.
 
+## The fault-injection kit
+
+The comparison experiments left a standing list of fail-closed branches never observed live, and a branch nobody has ever driven is a claim, not a guarantee. `runFaultInjection(options?)` (RV811) closes the list by construction: each named scenario DELIBERATELY drives one such branch on the real engine with scripted adapters, zero provider calls and zero keys, verifies the documented typed observable, and leaves experiment-grade artifacts. The scenarios, in run order (`FAULT_SCENARIO_NAMES`):
+
+- `in-flight-exposure-refusal`: a dispatch whose worst-case estimate does not fit `maxInFlightExposureUsd` is refused typed BEFORE any provider call, never a claimed budget-ceiling crossing.
+- `duplicate-quota-rule`: two quota rules with one canonical content key are refused typed at construction, because one configuration must never admit differently per storage backend.
+- `torn-jsonl-tail` and `glued-jsonl-tail`: a crash-torn trailing journal fragment is discarded with every whole record salvaged and the file repaired in place; whole records glued onto one trailing line are accepted data, both salvaged, never discarded with the fragment.
+- `crash-resume-settle-boundary`: a journal cut immediately after an agent terminal entry resumes to `ok` with the settled step replayed free and only the unsettled remainder re-run.
+- `pricing-rotation-uncovered-tail`: after a price-table rotation that drops the model, the pinned segment still prices under its own pin while the uncovered tail folds unpriced (`undefined`), surfaced, never a silent zero at stale rates.
+- `unknown-provider-id`: routing to an unregistered provider id fails typed naming the id; nothing dispatches.
+
+The report is fail closed: a scenario whose branch stops producing its documented observable reports `matched: false` with the observed detail quoted, and `allMatched` says so, instead of the list quietly becoming untested again. With `artifactsDir` each scenario writes one `<scenario>.json` bundle (its doctrine, the observation, and every artifact: outcomes, journals, and the raw pre-repair bytes for the byte faults), the trace a review can cite exactly like an experiment's; `only: [...]` runs a named subset and an unknown name is a typed `ConfigError`.
+
 ## Matrix sweeps across models
 
 `runSweepMatrix` measures a fixed pool of models against a fixed pool of cases, one cell per `(model, taskClass)` pair, and turns threshold-crossing cells into eval-measured claims for [ModelKnowledge](/guide/model-knowledge):

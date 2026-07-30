@@ -10,7 +10,7 @@
 function snapshotUsage(usage): Usage;
 ```
 
-Defined in: [packages/core/src/l0/usage.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L90)
+Defined in: [packages/core/src/l0/usage.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L113)
 
 One field read per property, returning a detached plain copy. Both
 accounting boundaries validate and consume THIS snapshot, never the

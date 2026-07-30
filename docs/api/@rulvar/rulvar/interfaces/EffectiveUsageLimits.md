@@ -27,7 +27,8 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-noprogressturns"></a> `noProgressTurns?` | `number` | Default DEFAULT_NO_PROGRESS_TURNS. | `packages/core/dist/index.d.ts` |
 | <a id="property-streamidletimeoutms"></a> `streamIdleTimeoutMs` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-timeoutms"></a> `timeoutMs?` | `number` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-toolbudgetextension"></a> `toolBudgetExtension?` | \{ `increment`: `number`; `maxExtensions`: `number`; `minHeadroomUsd?`: `number`; `requireNewEvidence?`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |
+| <a id="property-toolbudgetextension"></a> `toolBudgetExtension?` | \{ `coverEvidenceDeficit?`: `boolean`; `increment`: `number`; `maxExtensions`: `number`; `minHeadroomUsd?`: `number`; `requireNewEvidence?`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |
+| `toolBudgetExtension.coverEvidenceDeficit?` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `toolBudgetExtension.increment` | `number` | - | `packages/core/dist/index.d.ts` |
 | `toolBudgetExtension.maxExtensions` | `number` | - | `packages/core/dist/index.d.ts` |
 | `toolBudgetExtension.minHeadroomUsd?` | `number` | - | `packages/core/dist/index.d.ts` |

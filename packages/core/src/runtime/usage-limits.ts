@@ -137,6 +137,22 @@ export interface UsageLimits {
     minHeadroomUsd?: number;
     /** Default true: a grant needs new evidence since the last one. */
     requireNewEvidence?: boolean;
+    /**
+     * The evidence-deficit proactive trigger (RV809, the twelfth
+     * comparison run: a limited child at 7 of 11 declared evidence
+     * entries should convert remaining money into calls BEFORE the cap
+     * forces a partial dump through the finalization machinery). With
+     * this true AND an evidence contract declared on the invocation,
+     * the extension also grants at a tool-turn boundary whenever the
+     * remaining call budget cannot cover the declared floor's
+     * outstanding deficit (recorded `record_evidence` entries short of
+     * `minEntries`), under exactly the same admission gates as the
+     * at-expiry grant: bounded by maxExtensions, money-gated by
+     * minHeadroomUsd, and evidence-gated by requireNewEvidence. The
+     * at-expiry site stays the backstop. Off by default: the earlier
+     * grant notice changes recorded model requests.
+     */
+    coverEvidenceDeficit?: boolean;
   };
   /**
    * The finalization window (RV302, the seventh comparison experiment):
@@ -191,6 +207,8 @@ export interface EffectiveUsageLimits {
     maxExtensions: number;
     minHeadroomUsd?: number;
     requireNewEvidence?: boolean;
+    /** RV809: grant at the boundary when remaining calls cannot cover the evidence deficit. */
+    coverEvidenceDeficit?: boolean;
   };
   finalizationWindow?: {
     reserveCalls: number;
@@ -359,12 +377,14 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
           `{ increment, maxExtensions, minHeadroomUsd?, requireNewEvidence? }`,
       );
     }
-    const { increment, maxExtensions, minHeadroomUsd, requireNewEvidence } = extension as {
-      increment?: unknown;
-      maxExtensions?: unknown;
-      minHeadroomUsd?: unknown;
-      requireNewEvidence?: unknown;
-    };
+    const { increment, maxExtensions, minHeadroomUsd, requireNewEvidence, coverEvidenceDeficit } =
+      extension as {
+        increment?: unknown;
+        maxExtensions?: unknown;
+        minHeadroomUsd?: unknown;
+        requireNewEvidence?: unknown;
+        coverEvidenceDeficit?: unknown;
+      };
     requirePositiveInteger(increment as number, `${site}.toolBudgetExtension.increment`);
     requirePositiveInteger(maxExtensions as number, `${site}.toolBudgetExtension.maxExtensions`);
     if (
@@ -380,6 +400,12 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
       throw new ConfigError(
         `${site}.toolBudgetExtension.requireNewEvidence must be a boolean; ` +
           `got ${typeof requireNewEvidence}`,
+      );
+    }
+    if (coverEvidenceDeficit !== undefined && typeof coverEvidenceDeficit !== 'boolean') {
+      throw new ConfigError(
+        `${site}.toolBudgetExtension.coverEvidenceDeficit must be a boolean; ` +
+          `got ${typeof coverEvidenceDeficit}`,
       );
     }
   }

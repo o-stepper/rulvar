@@ -10,7 +10,7 @@
 function sanitizeTokenCount(value): number;
 ```
 
-Defined in: [packages/core/src/l0/usage.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L74)
+Defined in: [packages/core/src/l0/usage.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L97)
 
 One count, repaired in the conservative direction: non-numbers and
 non-finite values floor to zero (no evidence, no charge and no

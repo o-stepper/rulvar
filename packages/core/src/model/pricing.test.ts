@@ -72,3 +72,56 @@ describe('priceComponentsOf (RV812)', () => {
     );
   });
 });
+
+describe('the cache-write TTL split pricing (RV810)', () => {
+  const pricing = {
+    inputUsdPerMTok: 3,
+    outputUsdPerMTok: 15,
+    cacheReadUsdPerMTok: 0.3,
+    cacheWriteUsdPerMTok: 3.75,
+    cacheWrite1hUsdPerMTok: 6,
+  };
+  const split: Usage = {
+    inputTokens: 3_000_000,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 3_000_000,
+    cacheWrite5mTokens: 1_000_000,
+    cacheWrite1hTokens: 2_000_000,
+  };
+
+  it('prices the 1h share at the 1h premium and the 5m share at the write rate', () => {
+    // 1M at 3.75 plus 2M at 6: the undifferentiated fold would say
+    // 3M at 3.75 = 11.25 and underbill the 1h premium.
+    expect(priceUsdOf(pricing, split)).toBeCloseTo(1 * 3.75 + 2 * 6, 10);
+    expect(priceComponentsOf(pricing, split).cacheWrite.usd).toBeCloseTo(15.75, 10);
+    expect(priceComponentsOf(pricing, split).cacheWrite.tokens).toBe(3_000_000);
+  });
+
+  it('a missing 1h rate falls back to the write rate, and no split keeps the historical fold', () => {
+    const { cacheWrite1hUsdPerMTok: _unused, ...withoutRate } = pricing;
+    expect(priceUsdOf(withoutRate, split)).toBeCloseTo(3 * 3.75, 10);
+    const noSplit: Usage = {
+      inputTokens: 3_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 3_000_000,
+    };
+    expect(priceUsdOf(pricing, noSplit)).toBeCloseTo(3 * 3.75, 10);
+  });
+
+  it('an invariant-short split bills the unattributed remainder at the write rate', () => {
+    const short: Usage = { ...split, cacheWrite1hTokens: 1_000_000 };
+    // 1M at 5m rate + 1M at 1h rate + 1M unattributed remainder at the
+    // 5m default: never silently free.
+    expect(priceUsdOf(pricing, short)).toBeCloseTo(1 * 3.75 + 1 * 6 + 1 * 3.75, 10);
+  });
+
+  it('long-context tiers scale both shares by the input multiplier', () => {
+    const tiered = {
+      ...pricing,
+      tiers: [{ aboveInputTokens: 1_000_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+    };
+    expect(priceUsdOf(tiered, split)).toBeCloseTo((1 * 3.75 + 2 * 6) * 2, 10);
+  });
+});

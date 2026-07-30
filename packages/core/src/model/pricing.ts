@@ -75,9 +75,16 @@ export interface PricedComponents {
  * long-context tiers: the highest threshold strictly below the full
  * prompt re-prices the ENTIRE request (input-side rates scale by
  * inputMultiplier, the output rate by outputMultiplier). Cache writes
- * price at the 5m premium rate; the 1h rate applies where a provider
- * distinguishes it in usage, which the canonical Usage does not yet
- * carry.
+ * price at the 5m premium rate by default; when the usage carries the
+ * TTL split (RV810: `cacheWrite5mTokens` and `cacheWrite1hTokens`,
+ * filled by adapters whose provider distinguishes write TTLs), the 1h
+ * share prices at `cacheWrite1hUsdPerMTok` (falling back to the plain
+ * write rate when the row lacks it) and everything the 1h share does
+ * not claim, the 5m share plus any unattributed remainder an upstream
+ * invariant violation left, bills at the write rate, never silently
+ * for free. The component's `tokens` stays the WHOLE
+ * `cacheWriteTokens` either way, so statement reconciliation keys are
+ * unchanged.
  */
 export function priceComponentsOf(pricing: Pricing, usage: Usage): PricedComponents {
   const tier = tierFor(pricing, usage.inputTokens);
@@ -87,6 +94,12 @@ export function priceComponentsOf(pricing: Pricing, usage: Usage): PricedCompone
     0,
     usage.inputTokens - usage.cacheReadTokens - usage.cacheWriteTokens,
   );
+  const writeRate = pricing.cacheWriteUsdPerMTok ?? pricing.inputUsdPerMTok;
+  const write1hRate = pricing.cacheWrite1hUsdPerMTok ?? writeRate;
+  const splitPresent =
+    usage.cacheWrite5mTokens !== undefined || usage.cacheWrite1hTokens !== undefined;
+  const write1hTokens = splitPresent ? (usage.cacheWrite1hTokens ?? 0) : 0;
+  const writeDefaultTokens = Math.max(0, usage.cacheWriteTokens - write1hTokens);
   return {
     input: {
       tokens: uncachedInputTokens,
@@ -106,8 +119,7 @@ export function priceComponentsOf(pricing: Pricing, usage: Usage): PricedCompone
     cacheWrite: {
       tokens: usage.cacheWriteTokens,
       usd:
-        (usage.cacheWriteTokens / 1_000_000) *
-        (pricing.cacheWriteUsdPerMTok ?? pricing.inputUsdPerMTok) *
+        ((writeDefaultTokens / 1_000_000) * writeRate + (write1hTokens / 1_000_000) * write1hRate) *
         inputMul,
     },
   };

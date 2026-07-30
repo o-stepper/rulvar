@@ -48,7 +48,7 @@ type ChatEvent =
 };
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:168](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L168)
+Defined in: [packages/core/src/l0/messages.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L180)
 
 The single canonical stream-event vocabulary yielded by
 ProviderAdapter.stream. Adapters MUST emit exactly one terminal event per
@@ -150,6 +150,6 @@ stream (finish or error).
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `error` | [`WireError`](/api/@rulvar/core/type-aliases/WireError.md) | - | [packages/core/src/l0/messages.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L178) |
-| `providerMetadata?` | `Record`\&lt;`string`, `unknown`\&gt; | Provenance the adapter already holds when the stream dies (RV401, the eighth comparison experiment): a failed generation is still a billable provider call, and its response id is what joins the reconciliation record to the provider's own statement. Same namespaced shape as the finish event's; absent when the failure predates any provider response. | [packages/core/src/l0/messages.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L187) |
-| `type` | `"error"` | - | [packages/core/src/l0/messages.ts:177](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L177) |
+| `error` | [`WireError`](/api/@rulvar/core/type-aliases/WireError.md) | - | [packages/core/src/l0/messages.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L190) |
+| `providerMetadata?` | `Record`\&lt;`string`, `unknown`\&gt; | Provenance the adapter already holds when the stream dies (RV401, the eighth comparison experiment): a failed generation is still a billable provider call, and its response id is what joins the reconciliation record to the provider's own statement. Same namespaced shape as the finish event's; absent when the failure predates any provider response. | [packages/core/src/l0/messages.ts:199](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L199) |
+| `type` | `"error"` | - | [packages/core/src/l0/messages.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L189) |

@@ -348,6 +348,27 @@ export interface BudgetHooks {
 /** Reason marker distinguishing a budget-ceiling abort from host cancellation. */
 export const BUDGET_ABORT_REASON = 'rulvar:budget-ceiling';
 
+/**
+ * Successful record_evidence executions in a message window (result
+ * `recorded: true`, so duplicates and verification errors never count):
+ * the ONE counter behind the RV507 evidence-floor refusal and the RV809
+ * deficit trigger, window-derived so live and resumed segments count
+ * the same total.
+ */
+function countRecordedEvidence(messages: readonly Msg[]): number {
+  return messages.reduce(
+    (count, message) =>
+      count +
+      message.parts.filter(
+        (part) =>
+          part.type === 'tool-result' &&
+          part.name === 'record_evidence' &&
+          (part.result as { recorded?: unknown } | undefined)?.recorded === true,
+      ).length,
+    0,
+  );
+}
+
 /** One model-issued tool call as the loop dispatches it. */
 export interface ToolCallRequest {
   id: string;
@@ -579,6 +600,8 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
       maxExtensions: number;
       toolCallsUsed: number;
       cap: number;
+      /** Present exactly for the RV809 proactive grants: what fired them. */
+      trigger?: 'evidence-deficit';
     }) => Promise<void>;
     onWindowEntry?: (entry: {
       remaining: number;
@@ -1689,12 +1712,17 @@ export async function runAgent<S extends SchemaSpec>(
   };
   /**
    * One extension grant (RV301), attempted exactly at a maxToolCalls
-   * expiry inside the dispatch walk. The notice text is queued rather
+   * expiry inside the dispatch walk, and, under the RV809 opt-in, at a
+   * tool-turn boundary whose remaining calls cannot cover the declared
+   * evidence deficit (the `trigger`). The notice text is queued rather
    * than pushed: a user message may not interleave a tool batch, so the
    * queue flushes with the budget notices after the batch's results
    * join the history.
    */
-  const tryToolBudgetGrant = (): boolean | Promise<boolean> => {
+  const tryToolBudgetGrant = (
+    trigger?: 'evidence-deficit',
+    deficitDetail?: { recorded: number; minEntries: number },
+  ): boolean | Promise<boolean> => {
     if (extension === undefined || limits.maxToolCalls === undefined || capBase === undefined) {
       return false;
     }
@@ -1724,7 +1752,14 @@ export async function runAgent<S extends SchemaSpec>(
       grantsOverCapBase += 1;
       extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
       pendingExtensionNotices.push(
-        toolBudgetExtensionNoticeText(grant, extension.maxExtensions, toolCallsUsed, cap),
+        toolBudgetExtensionNoticeText(grant, extension.maxExtensions, toolCallsUsed, cap) +
+          // The deficit sentence exists only on the RV809 trigger, so
+          // every at-expiry notice keeps its historical bytes.
+          (trigger === 'evidence-deficit' && deficitDetail !== undefined
+            ? ` The grant covers the declared evidence floor: ${String(deficitDetail.recorded)} ` +
+              `of ${String(deficitDetail.minEntries)} evidence entries recorded; record the ` +
+              'missing evidence before finishing.'
+            : ''),
       );
       events?.emit({
         type: 'log',
@@ -1732,6 +1767,7 @@ export async function runAgent<S extends SchemaSpec>(
         msg:
           `tool budget extended (grant ${String(grant)}/` +
           `${String(extension.maxExtensions)}): maxToolCalls now ${String(cap)}`,
+        ...(trigger === undefined ? {} : { data: { trigger } }),
       });
       return true;
     };
@@ -1747,9 +1783,43 @@ export async function runAgent<S extends SchemaSpec>(
     // it authorizes run, because those calls reach the world. Nothing
     // above has been mutated yet, so a rejected append leaves the expiry
     // standing and propagates like a failed boundary write.
-    return durable({ grant, maxExtensions: extension.maxExtensions, toolCallsUsed, cap }).then(
-      commit,
-    );
+    return durable({
+      grant,
+      maxExtensions: extension.maxExtensions,
+      toolCallsUsed,
+      cap,
+      ...(trigger === undefined ? {} : { trigger }),
+    }).then(commit);
+  };
+  /**
+   * The evidence-deficit proactive grant (RV809): at a tool-turn
+   * boundary, when the invocation declares an evidence contract and the
+   * remaining call budget cannot cover its outstanding deficit, the
+   * extension converts headroom into calls NOW instead of at the
+   * expiry, where the finalization machinery would already be squeezing
+   * the missing entries into a reserved tail. Window-derived exactly
+   * like the RV507 refusal (successful record_evidence executions), so
+   * live and resumed segments count the same total; every admission
+   * gate of the ordinary grant applies unchanged, and the at-expiry
+   * site stays the backstop. Absent the opt-in (or the contract), the
+   * boundary is byte identical.
+   */
+  const maybeCoverEvidenceDeficit = (): undefined | Promise<unknown> => {
+    const minEntries = options.evidenceContract?.minEntries;
+    if (extension?.coverEvidenceDeficit !== true || minEntries === undefined) {
+      return undefined;
+    }
+    const cap = effectiveMaxToolCalls();
+    if (cap === undefined || extensionGrants >= extension.maxExtensions) {
+      return undefined;
+    }
+    const recorded = countRecordedEvidence(messages);
+    const deficit = minEntries - recorded;
+    if (deficit <= 0 || cap - toolCallsUsed >= deficit) {
+      return undefined;
+    }
+    const attempt = tryToolBudgetGrant('evidence-deficit', { recorded, minEntries });
+    return typeof attempt === 'boolean' ? undefined : attempt;
   };
   const flushExtensionNotices = (): void => {
     for (const text of pendingExtensionNotices.splice(0)) {
@@ -2626,6 +2696,12 @@ export async function runAgent<S extends SchemaSpec>(
         reserveRequest = { limiter, skipped: skipped ?? 0 };
       }
     } else {
+      // The RV809 proactive grant rides the same boundary as the
+      // notices, so its announcement flushes with them.
+      const deficitGrant = maybeCoverEvidenceDeficit();
+      if (deficitGrant !== undefined) {
+        await deficitGrant;
+      }
       flushExtensionNotices();
       flushWindowNotices();
       maybePushBudgetNotice();
@@ -3412,7 +3488,15 @@ export async function runAgent<S extends SchemaSpec>(
       }
       // Soft tool-budget visibility (RV-210/RV301): the grant and
       // budget notices join the conversation before the boundary
-      // checkpoint, so a resume rebuilds the same history.
+      // checkpoint, so a resume rebuilds the same history. The RV809
+      // proactive grant fires here first, so its notice rides the same
+      // flush.
+      {
+        const deficitGrant = maybeCoverEvidenceDeficit();
+        if (deficitGrant !== undefined) {
+          await deficitGrant;
+        }
+      }
       flushExtensionNotices();
       flushWindowNotices();
       maybePushBudgetNotice();
@@ -4169,20 +4253,9 @@ export async function runAgent<S extends SchemaSpec>(
   // Counted once under a DECLARED contract, for every terminal status
   // (RV806): the refusal below judges it, and the settled result
   // carries it as the machine verdict the acceptance summary reads.
+  // The same counter the RV809 deficit trigger reads at boundaries.
   const recordedEvidenceEntries =
-    evidenceFloor === undefined
-      ? undefined
-      : messages.reduce(
-          (count, message) =>
-            count +
-            message.parts.filter(
-              (part) =>
-                part.type === 'tool-result' &&
-                part.name === 'record_evidence' &&
-                (part.result as { recorded?: unknown } | undefined)?.recorded === true,
-            ).length,
-          0,
-        );
+    evidenceFloor === undefined ? undefined : countRecordedEvidence(messages);
   let evidenceRefusal: { recordedEntries: number; minEntries: number } | undefined;
   if (evidenceFloor?.enforce === 'refuse' && status === 'ok') {
     const recordedEntries = recordedEvidenceEntries ?? 0;

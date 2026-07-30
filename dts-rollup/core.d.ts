@@ -483,6 +483,18 @@ type Usage = {
   cacheReadTokens: number;
   cacheWriteTokens: number;
   reasoningTokens?: number;
+  /**
+  * The cache-write TTL split (RV810), filled by adapters whose
+  * provider distinguishes write TTLs in usage (the Anthropic
+  * cache_creation breakdown). Optional and additive: absent means
+  * undifferentiated writes, priced at the plain write rate exactly as
+  * before. When either field is present the split must SUM to
+  * `cacheWriteTokens` (absent counts zero); `usageViolations` enforces
+  * it and `priceUsdOf` prices each share at its own rate, so a 1h
+  * premium write is no longer billed at the 5m rate.
+  */
+  cacheWrite5mTokens?: number;
+  cacheWrite1hTokens?: number;
 };
 interface RefusalInfo {
   /** Adapter id. */
@@ -4354,6 +4366,22 @@ interface UsageLimits {
     maxExtensions: number; /** Grant only at or above this remaining chain headroom, in USD. */
     minHeadroomUsd?: number; /** Default true: a grant needs new evidence since the last one. */
     requireNewEvidence?: boolean;
+    /**
+    * The evidence-deficit proactive trigger (RV809, the twelfth
+    * comparison run: a limited child at 7 of 11 declared evidence
+    * entries should convert remaining money into calls BEFORE the cap
+    * forces a partial dump through the finalization machinery). With
+    * this true AND an evidence contract declared on the invocation,
+    * the extension also grants at a tool-turn boundary whenever the
+    * remaining call budget cannot cover the declared floor's
+    * outstanding deficit (recorded `record_evidence` entries short of
+    * `minEntries`), under exactly the same admission gates as the
+    * at-expiry grant: bounded by maxExtensions, money-gated by
+    * minHeadroomUsd, and evidence-gated by requireNewEvidence. The
+    * at-expiry site stays the backstop. Off by default: the earlier
+    * grant notice changes recorded model requests.
+    */
+    coverEvidenceDeficit?: boolean;
   };
   /**
   * The finalization window (RV302, the seventh comparison experiment):
@@ -4408,7 +4436,8 @@ interface EffectiveUsageLimits {
     increment: number;
     maxExtensions: number;
     minHeadroomUsd?: number;
-    requireNewEvidence?: boolean;
+    requireNewEvidence?: boolean; /** RV809: grant at the boundary when remaining calls cannot cover the evidence deficit. */
+    coverEvidenceDeficit?: boolean;
   };
   finalizationWindow?: {
     reserveCalls: number;
@@ -4930,7 +4959,8 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
       grant: number;
       maxExtensions: number;
       toolCallsUsed: number;
-      cap: number;
+      cap: number; /** Present exactly for the RV809 proactive grants: what fired them. */
+      trigger?: "evidence-deficit";
     }) => Promise<void>;
     onWindowEntry?: (entry: {
       remaining: number;
@@ -6494,9 +6524,16 @@ interface PricedComponents {
 * long-context tiers: the highest threshold strictly below the full
 * prompt re-prices the ENTIRE request (input-side rates scale by
 * inputMultiplier, the output rate by outputMultiplier). Cache writes
-* price at the 5m premium rate; the 1h rate applies where a provider
-* distinguishes it in usage, which the canonical Usage does not yet
-* carry.
+* price at the 5m premium rate by default; when the usage carries the
+* TTL split (RV810: `cacheWrite5mTokens` and `cacheWrite1hTokens`,
+* filled by adapters whose provider distinguishes write TTLs), the 1h
+* share prices at `cacheWrite1hUsdPerMTok` (falling back to the plain
+* write rate when the row lacks it) and everything the 1h share does
+* not claim, the 5m share plus any unattributed remainder an upstream
+* invariant violation left, bills at the write rate, never silently
+* for free. The component's `tokens` stays the WHOLE
+* `cacheWriteTokens` either way, so statement reconciliation keys are
+* unchanged.
 */
 declare function priceComponentsOf(pricing: Pricing, usage: Usage): PricedComponents;
 /**

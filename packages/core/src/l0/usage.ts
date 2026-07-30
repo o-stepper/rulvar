@@ -26,7 +26,16 @@ const COUNT_FIELDS = [
   'cacheReadTokens',
   'cacheWriteTokens',
   'reasoningTokens',
+  'cacheWrite5mTokens',
+  'cacheWrite1hTokens',
 ] as const;
+
+/** The optional count fields: absent is legal, present obeys the count rules. */
+const OPTIONAL_COUNT_FIELDS = new Set<string>([
+  'reasoningTokens',
+  'cacheWrite5mTokens',
+  'cacheWrite1hTokens',
+]);
 
 /**
  * Names every rule the given usage violates; an empty array means the
@@ -40,7 +49,7 @@ export function usageViolations(usage: Usage): string[] {
   const out: string[] = [];
   for (const field of COUNT_FIELDS) {
     const value = usage[field];
-    if (field === 'reasoningTokens' && value === undefined) {
+    if (OPTIONAL_COUNT_FIELDS.has(field) && value === undefined) {
       continue;
     }
     if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -60,6 +69,20 @@ export function usageViolations(usage: Usage): string[] {
       `inputTokens (${String(usage.inputTokens)}) < cacheReadTokens + cacheWriteTokens ` +
         `(${String(usage.cacheReadTokens)} + ${String(usage.cacheWriteTokens)})`,
     );
+  }
+  // The cache-write TTL split (RV810): when either share is present the
+  // split must sum to the write total (an absent share counts zero), so
+  // a differentiated bill can never cover more or fewer tokens than the
+  // undifferentiated one. The negated comparison makes NaN a violation.
+  if (usage.cacheWrite5mTokens !== undefined || usage.cacheWrite1hTokens !== undefined) {
+    const m5 = usage.cacheWrite5mTokens ?? 0;
+    const h1 = usage.cacheWrite1hTokens ?? 0;
+    if (!(m5 + h1 === usage.cacheWriteTokens)) {
+      out.push(
+        `cacheWrite5mTokens + cacheWrite1hTokens (${String(m5)} + ${String(h1)}) != ` +
+          `cacheWriteTokens (${String(usage.cacheWriteTokens)})`,
+      );
+    }
   }
   return out;
 }
@@ -98,6 +121,14 @@ export function snapshotUsage(usage: Usage): Usage {
   if (reasoning !== undefined) {
     out.reasoningTokens = reasoning;
   }
+  const write5m = usage.cacheWrite5mTokens;
+  if (write5m !== undefined) {
+    out.cacheWrite5mTokens = write5m;
+  }
+  const write1h = usage.cacheWrite1hTokens;
+  if (write1h !== undefined) {
+    out.cacheWrite1hTokens = write1h;
+  }
   return out;
 }
 
@@ -120,6 +151,12 @@ export function sanitizeUsageDelta(delta: Usage): Usage {
   };
   if (snapshot.reasoningTokens !== undefined) {
     out.reasoningTokens = sanitizeTokenCount(snapshot.reasoningTokens);
+  }
+  if (snapshot.cacheWrite5mTokens !== undefined) {
+    out.cacheWrite5mTokens = sanitizeTokenCount(snapshot.cacheWrite5mTokens);
+  }
+  if (snapshot.cacheWrite1hTokens !== undefined) {
+    out.cacheWrite1hTokens = sanitizeTokenCount(snapshot.cacheWrite1hTokens);
   }
   return out;
 }
@@ -147,6 +184,36 @@ export function sanitizeUsage(usage: Usage): Usage {
   };
   if (usage.reasoningTokens !== undefined) {
     out.reasoningTokens = sanitizeTokenCount(usage.reasoningTokens);
+  }
+  // The TTL split repair (RV810), conservative like everything here. A
+  // split already valid against the (possibly repaired) write total
+  // passes through structurally unchanged, absent fields staying
+  // absent. A broken split is rebuilt: the 1h share clamps into the
+  // write total FIRST because it carries the higher rate (a repaired
+  // attribution may overcharge, never undercharge), and the 5m share
+  // takes the whole remainder, so the repaired split always sums to the
+  // total and the remainder bills at the plain write rate, exactly the
+  // undifferentiated charge those tokens carried before the split
+  // existed.
+  if (usage.cacheWrite5mTokens !== undefined || usage.cacheWrite1hTokens !== undefined) {
+    const validShare = (value: number | undefined): boolean =>
+      value === undefined || (Number.isSafeInteger(value) && value >= 0);
+    const splitValid =
+      validShare(usage.cacheWrite5mTokens) &&
+      validShare(usage.cacheWrite1hTokens) &&
+      (usage.cacheWrite5mTokens ?? 0) + (usage.cacheWrite1hTokens ?? 0) === cacheWriteTokens;
+    if (splitValid) {
+      if (usage.cacheWrite5mTokens !== undefined) {
+        out.cacheWrite5mTokens = usage.cacheWrite5mTokens;
+      }
+      if (usage.cacheWrite1hTokens !== undefined) {
+        out.cacheWrite1hTokens = usage.cacheWrite1hTokens;
+      }
+    } else {
+      const write1h = Math.min(sanitizeTokenCount(usage.cacheWrite1hTokens), cacheWriteTokens);
+      out.cacheWrite1hTokens = write1h;
+      out.cacheWrite5mTokens = cacheWriteTokens - write1h;
+    }
   }
   return out;
 }

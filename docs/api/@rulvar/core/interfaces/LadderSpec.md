@@ -6,7 +6,7 @@
 
 # Interface: LadderSpec
 
-Defined in: [packages/core/src/l0/messages.ts:246](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L246)
+Defined in: [packages/core/src/l0/messages.ts:258](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L258)
 
 The author-facing ladder declaration. This is the SINGLE declaration of
 the ladder family: other layers reference it and never redeclare (runtime
@@ -16,7 +16,7 @@ semantics land in M7).
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-acceptance"></a> `acceptance?` | [`Gate`](/api/@rulvar/core/type-aliases/Gate.md)[] | [packages/core/src/l0/messages.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L261) |
-| <a id="property-escalateon"></a> `escalateOn` | [`TriggerClass`](/api/@rulvar/core/type-aliases/TriggerClass.md)[] | [packages/core/src/l0/messages.ts:260](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L260) |
-| <a id="property-rungs"></a> `rungs` | \{ `effort?`: [`Effort`](/api/@rulvar/core/type-aliases/Effort.md); `maxCostUsd?`: `number`; `maxTokens`: `number`; `maxTurns`: `number`; `memoizeOutcome?`: `boolean`; `model`: `` `${string}:${string}` ``; \}[] | [packages/core/src/l0/messages.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L247) |
-| <a id="property-starttier"></a> `startTier` | `number` | [packages/core/src/l0/messages.ts:259](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L259) |
+| <a id="property-acceptance"></a> `acceptance?` | [`Gate`](/api/@rulvar/core/type-aliases/Gate.md)[] | [packages/core/src/l0/messages.ts:273](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L273) |
+| <a id="property-escalateon"></a> `escalateOn` | [`TriggerClass`](/api/@rulvar/core/type-aliases/TriggerClass.md)[] | [packages/core/src/l0/messages.ts:272](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L272) |
+| <a id="property-rungs"></a> `rungs` | \{ `effort?`: [`Effort`](/api/@rulvar/core/type-aliases/Effort.md); `maxCostUsd?`: `number`; `maxTokens`: `number`; `maxTurns`: `number`; `memoizeOutcome?`: `boolean`; `model`: `` `${string}:${string}` ``; \}[] | [packages/core/src/l0/messages.ts:259](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L259) |
+| <a id="property-starttier"></a> `startTier` | `number` | [packages/core/src/l0/messages.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L271) |
