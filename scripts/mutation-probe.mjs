@@ -798,6 +798,33 @@ const MUTATIONS = [
     replace: '      maxInFlightExposureUsd: 1e9,',
     test: 'packages/evals/src/fault-injection.test.ts',
   },
+  {
+    id: 'audit-page-only-field',
+    doctrine:
+      'the rates audit fails closed on a billable page rate the seed never declared (RV902): the one-directional skip is exactly where the 1h underpricing hid behind a printed match',
+    file: 'scripts/rates-audit.mjs',
+    find: '    if (seedValue === undefined) {\n      if (pageValue !== undefined) {\n        findings.push(\n          `${field}: the page shows ${String(pageValue)} but the seed declares no such rate`,\n        );\n      }\n      continue;\n    }',
+    replace: '    if (seedValue === undefined) {\n      continue;\n    }',
+    test: 'scripts/rates-audit.test.mjs',
+  },
+  {
+    id: 'anthropic-1h-seed-rate',
+    doctrine:
+      'the Anthropic seed declares the documented 2x-input 1h cache-write premium (RV901): a seed that quietly reverts Sonnet 5 to the 5m rate underbills every 1h write token by $1.50/MTok',
+    file: 'packages/anthropic/src/caps.ts',
+    find: '    { in: 2, out: 10, cacheRead: 0.2, cacheWrite: 2.5, cacheWrite1h: 4 },',
+    replace: '    { in: 2, out: 10, cacheRead: 0.2, cacheWrite: 2.5, cacheWrite1h: 2.5 },',
+    test: 'packages/anthropic/src/pricing.test.ts',
+  },
+  {
+    id: 'openai-terra-cut',
+    doctrine:
+      "the Terra row carries the provider's 2026-07-30 documented price cut under a distinct pricingVersion (RV911): a seed that silently reverts to the pre-cut rate reprices recorded history without any declared drift",
+    file: 'packages/openai/src/caps.ts',
+    find: '    inputUsdPerMTok: 2,\n    outputUsdPerMTok: 12,',
+    replace: '    inputUsdPerMTok: 2.5,\n    outputUsdPerMTok: 12,',
+    test: 'packages/openai/src/index.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

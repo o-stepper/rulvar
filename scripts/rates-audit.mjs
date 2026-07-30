@@ -182,10 +182,13 @@ const RATE_FIELDS = [
 
 /**
  * Divergences between a seed pricing row and the page's extracted
- * rates, named field by field. Only fields THE SEED declares are
- * compared: the page showing a rate the seed never claimed (the 1h
- * write premium the canonical Usage cannot bill) is not drift, while a
- * seed field the page no longer shows is. Rates are exact published
+ * rates, named field by field, in BOTH directions (RV902): a seed field
+ * the page no longer shows is drift, and a billable page rate the seed
+ * never claimed is drift too. The old one-directional rule rested on
+ * the canonical Usage being unable to bill the 1h write premium; RV810
+ * made it billable, so a documented rate missing from the seed is a
+ * silent underpricing channel and the audit fails closed on it (the
+ * thirteenth experiment's blind-spot probe). Rates are exact published
  * decimals, so equality is exact up to float noise.
  * @param {Record<string, unknown>} seed @param {Record<string, unknown>} page
  * @returns {string[]}
@@ -194,10 +197,15 @@ export function compareRates(seed, page) {
   const findings = [];
   for (const field of RATE_FIELDS) {
     const seedValue = seed[field];
+    const pageValue = page[field];
     if (seedValue === undefined) {
+      if (pageValue !== undefined) {
+        findings.push(
+          `${field}: the page shows ${String(pageValue)} but the seed declares no such rate`,
+        );
+      }
       continue;
     }
-    const pageValue = page[field];
     if (pageValue === undefined) {
       findings.push(`${field}: seed ${String(seedValue)} but the page shows no such rate`);
     } else if (Math.abs(Number(seedValue) - Number(pageValue)) > 1e-9) {
