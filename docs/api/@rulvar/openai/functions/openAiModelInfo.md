@@ -10,7 +10,7 @@
 function openAiModelInfo(model): OpenAiModelInfo;
 ```
 
-Defined in: [packages/openai/src/caps.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/caps.ts#L208)
+Defined in: [packages/openai/src/caps.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/caps.ts#L217)
 
 ## Parameters
 

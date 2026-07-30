@@ -10,16 +10,26 @@ import {
   priceUsdOf,
   type JournalEntry,
   type ModelRef,
+  type Pricing,
   type Usage,
 } from '@rulvar/core';
 
 import { auditV1190CacheJournal, undoV1190CacheDoubleCount } from './audit.js';
-import { OPENAI_PRICING } from './caps.js';
 
-const priceUsd = (servedBy: ModelRef, usage: Usage): number | undefined => {
-  const row = OPENAI_PRICING.models[servedBy];
-  return row === undefined ? undefined : priceUsdOf(row, usage);
+// The review pair is FROZEN history: it was recorded under the Terra
+// row in force at v1.19.0 ('openai-2026-07-18-r2', before the
+// provider's 2026-07-30 price cut), so the reproduction prices under
+// that historical row, never the live seed table, which revises.
+const TERRA_AT_V1190: Pricing = {
+  inputUsdPerMTok: 2.5,
+  outputUsdPerMTok: 15,
+  cacheReadUsdPerMTok: 0.25,
+  cacheWriteUsdPerMTok: 3.125,
+  tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
 };
+
+const priceUsd = (servedBy: ModelRef, usage: Usage): number | undefined =>
+  servedBy === 'openai:gpt-5.6-terra' ? priceUsdOf(TERRA_AT_V1190, usage) : undefined;
 
 /** The frozen v1.19.0 journal shapes from the review. */
 const INFLATED_WRITE_LEG: Usage = {

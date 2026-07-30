@@ -8,12 +8,14 @@
  * pricingVersion for exactly that override slot.
  *
  * Pricing rows mirror the official table at
- * platform.claude.com/docs/en/about-claude/pricing as published on
- * 2026-07-16: base input, output, cache read (0.1x input), and the
- * 5-minute cache write (1.25x input; the canonical Usage does not
- * distinguish 1h writes, so the 5m rate is the seed). Every row was
- * re-verified against that page on 2026-07-30 (RATES_VERIFIED_AT
- * below, RV814), and the weekly rates audit
+ * platform.claude.com/docs/en/about-claude/pricing, all five published
+ * columns: base input, output, cache read (0.1x input), the 5-minute
+ * cache write (1.25x input), and the 1-hour cache write (2x input;
+ * RV901). The 1h premium bills through the canonical Usage TTL split
+ * the wire fills (RV810); when a usage carries no split, the whole
+ * write count folds at the conservative 5m rate exactly as before.
+ * Every row was re-verified against that page on 2026-07-31
+ * (RATES_VERIFIED_AT below, RV814), and the weekly rates audit
  * (scripts/rates-audit.mjs) re-checks the same page so the next
  * verification is a schedule, not a hand note. A price revision
  * is a new release with a new pricingVersion, never a wall-clock switch
@@ -37,7 +39,7 @@ const ALL_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
  * one page snapshot. A later re-verification bumps it table-wide; a
  * rate CHANGE is a new release with a new pricingVersion.
  */
-const RATES_VERIFIED_AT = '2026-07-30';
+const RATES_VERIFIED_AT = '2026-07-31';
 
 export interface AnthropicModelInfo {
   caps: ModelCaps;
@@ -54,7 +56,9 @@ export interface AnthropicModelInfo {
 function current(
   contextWindow: number,
   maxOutputTokens: number,
-  pricing: { in: number; out: number; cacheRead: number; cacheWrite: number } | undefined,
+  pricing:
+    | { in: number; out: number; cacheRead: number; cacheWrite: number; cacheWrite1h: number }
+    | undefined,
   cacheMinTokens: number,
 ): AnthropicModelInfo {
   return {
@@ -74,6 +78,7 @@ function current(
               outputUsdPerMTok: pricing.out,
               cacheReadUsdPerMTok: pricing.cacheRead,
               cacheWriteUsdPerMTok: pricing.cacheWrite,
+              cacheWrite1hUsdPerMTok: pricing.cacheWrite1h,
               ratesVerifiedAt: RATES_VERIFIED_AT,
             },
           }),
@@ -88,27 +93,27 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
   'claude-fable-5': current(
     1_000_000,
     128_000,
-    { in: 10, out: 50, cacheRead: 1, cacheWrite: 12.5 },
+    { in: 10, out: 50, cacheRead: 1, cacheWrite: 12.5, cacheWrite1h: 20 },
     2_048,
   ),
   'claude-opus-4-8': current(
     1_000_000,
     128_000,
-    { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+    { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25, cacheWrite1h: 10 },
     4_096,
   ),
   'claude-opus-4-7': current(
     1_000_000,
     128_000,
-    { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+    { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25, cacheWrite1h: 10 },
     4_096,
   ),
   // Introductory pricing in effect through 2026-08-31; the standard
-  // 3/15/0.3/3.75 row ships in a release after the promotion ends.
+  // 3/15/0.3/3.75/6 row ships in a release after the promotion ends.
   'claude-sonnet-5': current(
     1_000_000,
     128_000,
-    { in: 2, out: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+    { in: 2, out: 10, cacheRead: 0.2, cacheWrite: 2.5, cacheWrite1h: 4 },
     2_048,
   ),
   'claude-haiku-4-5': (() => {
@@ -122,7 +127,7 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
     const base = current(
       200_000,
       64_000,
-      { in: 1, out: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+      { in: 1, out: 5, cacheRead: 0.1, cacheWrite: 1.25, cacheWrite1h: 2 },
       2_048,
     );
     return {
@@ -132,11 +137,21 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
     };
   })(),
   'claude-opus-4-6': {
-    ...current(1_000_000, 128_000, { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 }, 4_096),
+    ...current(
+      1_000_000,
+      128_000,
+      { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25, cacheWrite1h: 10 },
+      4_096,
+    ),
     thinkingForm: 'enabled-budget',
   },
   'claude-sonnet-4-6': {
-    ...current(1_000_000, 128_000, { in: 3, out: 15, cacheRead: 0.3, cacheWrite: 3.75 }, 2_048),
+    ...current(
+      1_000_000,
+      128_000,
+      { in: 3, out: 15, cacheRead: 0.3, cacheWrite: 3.75, cacheWrite1h: 6 },
+      2_048,
+    ),
     thinkingForm: 'enabled-budget',
   },
 };
@@ -163,7 +178,12 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
  * Sonnet 5 promotion ending on 2026-08-31).
  */
 export const ANTHROPIC_PRICING: PriceTable = {
-  pricingVersion: 'anthropic-2026-07-16',
+  // The 2026-07-31 revision seeds the fifth published column, the 1h
+  // cache-write premium (RV901): the RATES did not move, but a table
+  // that starts billing a component it previously folded at the 5m rate
+  // is a pricing change, so a resumed run priced under the 2026-07-16
+  // table surfaces the drift instead of silently reinterpreting spend.
+  pricingVersion: 'anthropic-2026-07-31',
   models: ((): Record<ModelRef, Pricing> => {
     const models: Record<ModelRef, Pricing> = {};
     for (const [name, info] of Object.entries(ANTHROPIC_MODELS)) {

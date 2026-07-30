@@ -14,6 +14,7 @@ import {
   affordableOutputTokens,
   costReportFromJournal,
   defineWorkflow,
+  priceComponentsOf,
   priceUsdOf,
   resolvePricing,
   type CostAttributionFacts,
@@ -28,7 +29,9 @@ import { ANTHROPIC_MODELS, ANTHROPIC_PRICING, anthropicModelInfo } from './caps.
 
 /**
  * The official table (platform.claude.com pricing page as published
- * 2026-07-16, every row re-verified against the page 2026-07-30).
+ * 2026-07-16; every row re-verified against the page 2026-07-31 across
+ * all five published columns, the 1h cache-write premium included:
+ * RV901, the thirteenth experiment's underpricing probe).
  */
 const OFFICIAL: Record<string, Pricing> = {
   'claude-fable-5': {
@@ -36,28 +39,32 @@ const OFFICIAL: Record<string, Pricing> = {
     outputUsdPerMTok: 50,
     cacheReadUsdPerMTok: 1,
     cacheWriteUsdPerMTok: 12.5,
-    ratesVerifiedAt: '2026-07-30',
+    cacheWrite1hUsdPerMTok: 20,
+    ratesVerifiedAt: '2026-07-31',
   },
   'claude-opus-4-8': {
     inputUsdPerMTok: 5,
     outputUsdPerMTok: 25,
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
-    ratesVerifiedAt: '2026-07-30',
+    cacheWrite1hUsdPerMTok: 10,
+    ratesVerifiedAt: '2026-07-31',
   },
   'claude-opus-4-7': {
     inputUsdPerMTok: 5,
     outputUsdPerMTok: 25,
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
-    ratesVerifiedAt: '2026-07-30',
+    cacheWrite1hUsdPerMTok: 10,
+    ratesVerifiedAt: '2026-07-31',
   },
   'claude-opus-4-6': {
     inputUsdPerMTok: 5,
     outputUsdPerMTok: 25,
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
-    ratesVerifiedAt: '2026-07-30',
+    cacheWrite1hUsdPerMTok: 10,
+    ratesVerifiedAt: '2026-07-31',
   },
   // Introductory price through 2026-08-31; the standard 3/15 row ships
   // in a release after the promotion ends, never by wall clock.
@@ -66,21 +73,24 @@ const OFFICIAL: Record<string, Pricing> = {
     outputUsdPerMTok: 10,
     cacheReadUsdPerMTok: 0.2,
     cacheWriteUsdPerMTok: 2.5,
-    ratesVerifiedAt: '2026-07-30',
+    cacheWrite1hUsdPerMTok: 4,
+    ratesVerifiedAt: '2026-07-31',
   },
   'claude-sonnet-4-6': {
     inputUsdPerMTok: 3,
     outputUsdPerMTok: 15,
     cacheReadUsdPerMTok: 0.3,
     cacheWriteUsdPerMTok: 3.75,
-    ratesVerifiedAt: '2026-07-30',
+    cacheWrite1hUsdPerMTok: 6,
+    ratesVerifiedAt: '2026-07-31',
   },
   'claude-haiku-4-5': {
     inputUsdPerMTok: 1,
     outputUsdPerMTok: 5,
     cacheReadUsdPerMTok: 0.1,
     cacheWriteUsdPerMTok: 1.25,
-    ratesVerifiedAt: '2026-07-30',
+    cacheWrite1hUsdPerMTok: 2,
+    ratesVerifiedAt: '2026-07-31',
   },
 };
 
@@ -95,17 +105,18 @@ describe('Anthropic fallback pricing matches the official table', () => {
 
   it('records the rates verification date on every priced seed row (RV814)', () => {
     // Verified against the documented model pricing table on
-    // 2026-07-30 (every seeded rate matched the page); the weekly
-    // rates audit re-verifies the same page and pages on drift.
+    // 2026-07-31 (every seeded rate matched the page, all five columns
+    // including the 1h write premium); the weekly rates audit
+    // re-verifies the same page and pages on drift.
     for (const [model, info] of Object.entries(ANTHROPIC_MODELS)) {
       if (info.caps.pricing !== undefined) {
-        expect(info.caps.pricing.ratesVerifiedAt, model).toBe('2026-07-30');
+        expect(info.caps.pricing.ratesVerifiedAt, model).toBe('2026-07-31');
       }
     }
   });
 
   it('ANTHROPIC_PRICING exports exactly the priced seed rows under a dated version', () => {
-    expect(ANTHROPIC_PRICING.pricingVersion).toBe('anthropic-2026-07-16');
+    expect(ANTHROPIC_PRICING.pricingVersion).toBe('anthropic-2026-07-31');
     expect(Object.keys(ANTHROPIC_PRICING.models).sort()).toEqual(
       Object.keys(OFFICIAL)
         .map((model) => `anthropic:${model}`)
@@ -143,6 +154,64 @@ describe('corrected rates through the price function', () => {
       cacheWriteTokens: 1_000_000,
     });
     expect(write).toBeCloseTo(12.5, 10);
+  });
+});
+
+describe('the 1h cache write premium is seeded and priced (RV901)', () => {
+  // The thirteenth experiment's probe: v1.124.0 taught the wire to fill
+  // the TTL split and the price function to bill it, but the seed never
+  // declared the 1h rate, so a million Sonnet 5 1h write tokens priced
+  // at the 5m $2.50 instead of the documented $4.00. The premium is 2x
+  // base input on every published row.
+  it('declares the documented 2x-input 1h write rate on every priced seed row', () => {
+    for (const [model, info] of Object.entries(ANTHROPIC_MODELS)) {
+      const pricing = info.caps.pricing;
+      if (pricing !== undefined) {
+        expect(pricing.cacheWrite1hUsdPerMTok, model).toBe(pricing.inputUsdPerMTok * 2);
+      }
+    }
+  });
+
+  it('prices one MTok of Sonnet 5 1h cache writes at the documented $4, not the 5m $2.50', () => {
+    const sonnet = ANTHROPIC_PRICING.models['anthropic:claude-sonnet-5'];
+    const oneMTok1h: Usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 1_000_000,
+      cacheWrite5mTokens: 0,
+      cacheWrite1hTokens: 1_000_000,
+    };
+    expect(priceUsdOf(sonnet, oneMTok1h)).toBeCloseTo(4, 10);
+    const parts = priceComponentsOf(sonnet, oneMTok1h);
+    expect(parts.cacheWrite.usd).toBeCloseTo(4, 10);
+    // The component's token base stays the WHOLE write count: the RV812
+    // reconciliation keys are unchanged by the split.
+    expect(parts.cacheWrite.tokens).toBe(1_000_000);
+  });
+
+  it('decomposes a mixed 5m/1h split exactly and keeps the no-split fold byte-identical', () => {
+    const sonnet = ANTHROPIC_PRICING.models['anthropic:claude-sonnet-5'];
+    // 600k at the 5m $2.50 plus 400k at the 1h $4: $1.50 + $1.60.
+    expect(
+      priceUsdOf(sonnet, {
+        inputTokens: 1_000_000,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 1_000_000,
+        cacheWrite5mTokens: 600_000,
+        cacheWrite1hTokens: 400_000,
+      }),
+    ).toBeCloseTo(3.1, 10);
+    // No split declared: the historical conservative 5m fold, exactly.
+    expect(
+      priceUsdOf(sonnet, {
+        inputTokens: 1_000_000,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 1_000_000,
+      }),
+    ).toBe(2.5);
   });
 });
 

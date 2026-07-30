@@ -57,13 +57,19 @@ const GPT_56_TIERS = [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMul
 /**
  * GPT-5.6 Sol, Terra, and Luna are three sibling models, not snapshots
  * of one model (developers.openai.com/api/docs/models/gpt-5.6-sol,
- * .../gpt-5.6-terra, .../gpt-5.6-luna; rates verified 2026-07-18
- * against those pages, and CONFIRMED against the provider's own
- * billing categories on 2026-07-30, when the twelfth-experiment
- * statement reconciliation matched all eight per-model per-component
- * dashboard categories to the cent, which is why the family rows carry
- * ratesVerifiedAt '2026-07-30' (RV814); the weekly rates audit
- * re-verifies the three pages). All
+ * .../gpt-5.6-terra, .../gpt-5.6-luna; the weekly rates audit
+ * re-verifies the three pages). The family rows carry ratesVerifiedAt
+ * '2026-07-31' (RV814): on that date every row was re-verified against
+ * its documented model page, picking up the provider's 2026-07-30
+ * price cut on Terra (0.8x across input, cached input, cache write,
+ * and output) and Luna (0.2x across the same four) that the
+ * thirteenth-experiment live audit caught as drift (RV911). Sol's
+ * rates are unchanged and additionally remain billing-CONFIRMED by the
+ * 2026-07-30 twelfth-experiment statement reconciliation, which
+ * matched all eight per-model per-component dashboard categories to
+ * the cent; the new Terra and Luna rates are docs-verified only, and
+ * their billing truth is established by the next statement
+ * reconciliation over saved exports, never assumed. All
  * three: prompts strictly above 272K input tokens price the FULL
  * request at 2x input and 1.5x output; cache writes bill at 1.25x
  * uncached input. All three accept wire reasoning effort `max`
@@ -83,7 +89,7 @@ const GPT_56_SOL: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-07-30',
+    ratesVerifiedAt: '2026-07-31',
   },
   { wireMaxEffort: true },
 );
@@ -92,12 +98,12 @@ const GPT_56_TERRA: OpenAiModelInfo = responses(
   1_050_000,
   128_000,
   {
-    inputUsdPerMTok: 2.5,
-    outputUsdPerMTok: 15,
-    cacheReadUsdPerMTok: 0.25,
-    cacheWriteUsdPerMTok: 3.125,
+    inputUsdPerMTok: 2,
+    outputUsdPerMTok: 12,
+    cacheReadUsdPerMTok: 0.2,
+    cacheWriteUsdPerMTok: 2.5,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-07-30',
+    ratesVerifiedAt: '2026-07-31',
   },
   { wireMaxEffort: true },
 );
@@ -106,12 +112,12 @@ const GPT_56_LUNA: OpenAiModelInfo = responses(
   1_050_000,
   128_000,
   {
-    inputUsdPerMTok: 1,
-    outputUsdPerMTok: 6,
-    cacheReadUsdPerMTok: 0.1,
-    cacheWriteUsdPerMTok: 1.25,
+    inputUsdPerMTok: 0.2,
+    outputUsdPerMTok: 1.2,
+    cacheReadUsdPerMTok: 0.02,
+    cacheWriteUsdPerMTok: 0.25,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-07-30',
+    ratesVerifiedAt: '2026-07-31',
   },
   { wireMaxEffort: true },
 );
@@ -178,12 +184,15 @@ export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
  * silent reinterpretation.
  */
 export const OPENAI_PRICING: PriceTable = {
-  // The -r2 suffix is a same-day revision: the 2026-07-18 snapshot
-  // shipped with stale pre-5.6 rows (v1.18.0 review P1-6), and the
-  // corrected table needs a DISTINCT version string so a resumed run
-  // that priced under the stale rows surfaces the drift instead of
-  // silently reinterpreting past spend.
-  pricingVersion: 'openai-2026-07-18-r2',
+  // The 2026-07-31 revision carries the provider's 2026-07-30 Terra and
+  // Luna price cut, docs-verified per model page (RV911; the
+  // thirteenth-experiment live audit caught the drift against the
+  // previous 'openai-2026-07-18-r2' table). A DISTINCT version string
+  // means a resumed run that priced under the old rows surfaces the
+  // drift explicitly instead of silently reinterpreting past spend;
+  // runs recorded before this release overstated Terra/Luna spend
+  // relative to the cut, never under.
+  pricingVersion: 'openai-2026-07-31',
   models: ((): Record<ModelRef, Pricing> => {
     const models: Record<ModelRef, Pricing> = {};
     for (const [name, info] of Object.entries(OPENAI_MODELS)) {

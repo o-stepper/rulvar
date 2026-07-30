@@ -1349,10 +1349,13 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
   // wireMax true for the whole family (v1.20.0 review P2-3): each
   // sibling verified live 2026-07-18 with a max-effort Responses call
   // returning 200 and the effort echoed.
+  // Terra and Luna carry the provider's 2026-07-30 price cut (Terra at
+  // 0.8x across the board, Luna at 0.2x), re-verified against the
+  // documented model pages on 2026-07-31 (RV911); Sol is unchanged.
   const GPT_56_EXPECTED = {
     'gpt-5.6-sol': { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 6.25, wireMax: true },
-    'gpt-5.6-terra': { input: 2.5, output: 15, cacheRead: 0.25, cacheWrite: 3.125, wireMax: true },
-    'gpt-5.6-luna': { input: 1, output: 6, cacheRead: 0.1, cacheWrite: 1.25, wireMax: true },
+    'gpt-5.6-terra': { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5, wireMax: true },
+    'gpt-5.6-luna': { input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25, wireMax: true },
   } as const;
 
   it('seeds exact Sol, Terra, and Luna rows with the official rates', () => {
@@ -1370,9 +1373,10 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
         cacheReadUsdPerMTok: expected.cacheRead,
         cacheWriteUsdPerMTok: expected.cacheWrite,
         tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
-        // Billing-confirmed by the 2026-07-30 statement reconciliation
-        // (all eight per-component categories to the cent, RV814).
-        ratesVerifiedAt: '2026-07-30',
+        // Docs re-verification of the whole family on 2026-07-31
+        // (RV911); Sol's unchanged rates additionally remain
+        // billing-confirmed by the 2026-07-30 statement reconciliation.
+        ratesVerifiedAt: '2026-07-31',
       });
     }
   });
@@ -1382,7 +1386,7 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
   });
 
   it('every gpt-5.6 family member has its own versioned OPENAI_PRICING row', () => {
-    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-18-r2');
+    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-31');
     for (const [model, expected] of Object.entries(GPT_56_EXPECTED)) {
       expect(OPENAI_PRICING.models[`openai:${model}`]?.inputUsdPerMTok, model).toBe(expected.input);
       expect(OPENAI_PRICING.models[`openai:${model}`]?.outputUsdPerMTok, model).toBe(
@@ -1459,10 +1463,10 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     });
-    // At the boundary: 0.272M input at $1 + 1M output at $6.
-    expect(at).toBeCloseTo(0.272 + 6, 10);
+    // At the boundary: 0.272M input at $0.20 + 1M output at $1.20.
+    expect(at).toBeCloseTo(0.272 * 0.2 + 1.2, 10);
     // One token above: the FULL request reprices at 2x input, 1.5x output.
-    expect(above).toBeCloseTo(0.272001 * 2 + 6 * 1.5, 10);
+    expect(above).toBeCloseTo(0.272001 * 0.2 * 2 + 1.2 * 1.5, 10);
   });
 
   it('passes every gpt-5.6 wire id through the Responses params unchanged', () => {

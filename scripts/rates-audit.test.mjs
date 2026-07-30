@@ -157,7 +157,11 @@ test('compareRates flags tier drift field by field', () => {
   assert.match(findings[0], /outputMultiplier/);
 });
 
-test('compareRates ignores page rates the seed never claimed', () => {
+test('compareRates flags a billable page rate the seed never claimed (RV902)', () => {
+  // The pre-RV810 rationale for skipping page-only fields (the 1h write
+  // premium the canonical Usage could not bill) is retired: the Usage
+  // split CAN bill it now, so a documented rate missing from the seed
+  // is a silent underpricing channel, and the audit fails closed on it.
   const seed = {
     inputUsdPerMTok: 10,
     outputUsdPerMTok: 50,
@@ -165,5 +169,8 @@ test('compareRates ignores page rates the seed never claimed', () => {
     cacheWriteUsdPerMTok: 12.5,
   };
   const page = { ...seed, cacheWrite1hUsdPerMTok: 20 };
-  assert.deepEqual(compareRates(seed, page), []);
+  const findings = compareRates(seed, page);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0], /cacheWrite1hUsdPerMTok/);
+  assert.match(findings[0], /seed declares no such rate/);
 });
