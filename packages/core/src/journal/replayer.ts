@@ -13,7 +13,7 @@ import { realNow } from '../l0/real-clock.js';
 import type { WireError } from '../l0/errors.js';
 import {
   CURRENT_HASH_VERSION,
-  priceEntryUsage,
+  priceEntryBilling,
   type CostAttributionFacts,
   type EntryKind,
   type EntryStatus,
@@ -535,7 +535,10 @@ export class Replayer {
 
   /**
    * The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
-   * counts agent dispatches.
+   * counts agent dispatches. Dollars fold on the settled billing basis
+   * (RV801): per provider call where the entry's records cover its
+   * usage, the per-slice aggregate otherwise, the same basis as the
+   * CostReport and the invoice.
    */
   ledger(): Ledger {
     const usage: Usage = {
@@ -570,10 +573,17 @@ export class Replayer {
       usage.cacheReadTokens += entry.usage.cacheReadTokens;
       usage.cacheWriteTokens += entry.usage.cacheWriteTokens;
       reasoning += entry.usage.reasoningTokens ?? 0;
-      // Each serving model's slice priced at its own rate; an entry with
-      // no split prices its whole usage at servedBy, as before.
+      // The billing fold (RV504, adopted by the ledger in RV801): a
+      // model whose per-dispatch records cover its usage prices per
+      // provider call, so a nonlinear long-context tier fires per
+      // REQUEST, never on a phase aggregate no single request produced;
+      // an uncovered model keeps the per-slice aggregate basis, and an
+      // entry with no split prices its whole usage at servedBy, as
+      // before. The ledger is a public money surface (run:end, the
+      // resume budget seed), so it folds on the same basis as the
+      // settled CostReport and the invoice.
       if (this.priceUsd !== undefined) {
-        usd += priceEntryUsage(entry, this.priceUsd).usd;
+        usd += priceEntryBilling(entry, this.priceUsd).usd;
       }
     }
     if (reasoning > 0) {

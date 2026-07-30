@@ -1075,7 +1075,26 @@ export function createEngine(options: CreateEngineOptions): Engine {
     );
     if (resumeCtx !== undefined) {
       const prior = replayer.ledger();
-      budgetSeed = { usd: prior.usd, usage: prior.usage, agentsSpawned: prior.agentsSpawned };
+      // The seed's dollars are the SETTLED fold (RV801): the same
+      // per-call billing basis and the same per-segment pricing pins
+      // (RV505) as outcome.cost.totalUsd, so the spend a resume starts
+      // from is exactly the figure the prior segment reported. Seeding
+      // the aggregate-priced ledger here let a nonlinear long-context
+      // tier re-price whole phase sums no single request produced: the
+      // twelfth experiment's run would have resumed with 10.41 of a
+      // 10.00 ceiling already "spent" (real settled spend 7.30) and
+      // exhausted instantly, live. Usage sums and the spawn count are
+      // basis-independent and stay the ledger's.
+      const priorPinned = journalPricingSnapshot(replayer.snapshot());
+      const priorPriceUsd =
+        priorPinned === undefined
+          ? (servedBy: ModelRef, usage: Usage): number | undefined => priceUsd(servedBy, usage)
+          : priorPinned.composedPriceUsd((servedBy, usage) => priceUsd(servedBy, usage));
+      budgetSeed = {
+        usd: costReportFromJournal(replayer.snapshot(), priorPriceUsd).totalUsd,
+        usage: prior.usage,
+        agentsSpawned: prior.agentsSpawned,
+      };
     }
     const controller = new AbortController();
     let cancelReason: string | undefined;
@@ -1562,11 +1581,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
         await replayer.flush().catch(() => undefined);
       }
       // The COMPLETE report is the journal fold at settle, not the live
-      // buckets: the journal is the truth cost reconciles against, one
-      // summation order keeps totalUsd equal to the ledger fold exactly
-      // (M5-T03 acceptance), and a replay-only resume reproduces every
-      // breakdown byte for byte because it folds the same entries
-      // (v1.6.0 follow-up review).
+      // buckets: the journal is the truth cost reconciles against, and
+      // a replay-only resume reproduces every breakdown byte for byte
+      // because it folds the same entries (v1.6.0 follow-up review).
+      // The ledger supplies the usage sums; the dollars every public
+      // surface carries are the SETTLED fold below (RV801): run:end
+      // spreads outcome.cost.totalUsd itself, so the event and the
+      // outcome cannot disagree, under any pricing table.
       const ledger = replayer.ledger();
       // Historical segments fold under the pin of THEIR settle (RV505):
       // a resume across a price-table rotation reports history at the
@@ -1742,7 +1763,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         {
           type: 'run:end',
           status,
-          totalUsd: ledger.usd,
+          totalUsd: outcome.cost.totalUsd,
           ...(outcome.cost.usageApprox === true ? { usageApprox: true } : {}),
           ...(lifted === undefined ? {} : lifted),
         },

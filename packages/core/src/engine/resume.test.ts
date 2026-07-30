@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConfigError } from '../l0/errors.js';
 import { createEngine, hashRunArgs } from './engine.js';
 import { defineWorkflow } from './ctx.js';
-import { scriptedAdapter } from './test-harness.js';
+import { scriptedAdapter, testCaps } from './test-harness.js';
 import { JsonlFileStore } from '../stores/jsonl.js';
 import { tool } from '../tools/tool.js';
 import { Replayer } from '../journal/replayer.js';
@@ -153,6 +153,101 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
     expect(resumed.status).toBe('ok');
     expect(resumed.value).toBe('done');
     expect(resumeAdapter.calls).toHaveLength(1);
+  });
+
+  it('seeds the settled per-call spend on resume, never the tiered aggregate re-price (RV801)', async () => {
+    // The twelfth experiment's escalation: the resume seed folded the
+    // per-phase aggregates over the long-context tier, so resuming a
+    // run whose real per-call spend was under the ceiling seeded an
+    // inflated figure above it and exhausted instantly, with zero live
+    // calls. Here one agent phase makes two 600-input calls: settled
+    // spend $1.20, re-tiered aggregate $2.40, ceiling $2.
+    const clock = tool({
+      name: 'clock',
+      description: 'tells the time',
+      parameters: {},
+      execute: () => Promise.resolve('12:00'),
+    });
+    const tieredCaps = testCaps({
+      pricing: {
+        inputUsdPerMTok: 1000,
+        outputUsdPerMTok: 0,
+        tiers: [{ aboveInputTokens: 1000, inputMultiplier: 2, outputMultiplier: 1 }],
+      },
+      contextWindow: 1_000_000_000,
+    });
+    const usageOf = (inputTokens: number) => ({
+      inputTokens,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    const gated = defineWorkflow({ name: 'tiered-gate' }, async (ctx) => {
+      await ctx.agent('what time is it', { tools: [clock], estCost: 0.01 });
+      await ctx.awaitExternal<{ approved: boolean }>('gate', {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['approved'],
+          properties: { approved: { type: 'boolean' } },
+        },
+      });
+      await ctx.agent('one cheap follow-up', { estCost: 0.01 });
+      return 'done';
+    });
+
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const first = createEngine({
+      adapters: [
+        scriptedAdapter(
+          (_req, call) =>
+            call === 0
+              ? { toolCall: { name: 'clock', args: {} }, usage: usageOf(600) }
+              : { text: 'noon', usage: usageOf(600) },
+          { caps: tieredCaps },
+        ),
+      ],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const firstHandle = first.run(gated, undefined, { runId: 'TIER1', budgetUsd: 2 });
+    const firstEnds: Array<{ totalUsd: number }> = [];
+    firstHandle.on('run:end', (event) => firstEnds.push(event));
+    const firstOutcome = await firstHandle.result;
+    expect(firstOutcome.status).toBe('suspended');
+    expect(firstOutcome.cost.totalUsd).toBeCloseTo(1.2, 12);
+    // The suspended settle already reports the settled figure.
+    expect(firstEnds[0]?.totalUsd).toBeCloseTo(firstOutcome.cost.totalUsd, 12);
+
+    const prior = await store.load('TIER1');
+    const suspended = prior.find((e) => e.kind === 'external');
+    const offline = new Replayer({ runId: 'TIER1', store, priorEntries: prior });
+    await offline.resolveSuspended(suspended?.seq ?? -1, {
+      by: 'external',
+      value: { approved: true },
+    });
+
+    const resumeAdapter = scriptedAdapter(() => ({ text: 'cheap', usage: usageOf(100) }), {
+      caps: tieredCaps,
+    });
+    const second = createEngine({
+      adapters: [resumeAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const resumedHandle = second.resume('TIER1', gated);
+    const resumedEnds: Array<{ totalUsd: number }> = [];
+    resumedHandle.on('run:end', (event) => resumedEnds.push(event));
+    const resumed = await resumedHandle.result;
+    // Before RV801 the seed said 2.40 of a 2.00 ceiling: the follow-up
+    // admission refused and the run settled exhausted with zero live
+    // calls, despite 0.80 of real headroom.
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe('done');
+    expect(resumeAdapter.calls).toHaveLength(1);
+    expect(resumed.cost.totalUsd).toBeCloseTo(1.3, 12);
+    expect(resumedEnds[0]?.totalUsd).toBeCloseTo(resumed.cost.totalUsd, 12);
   });
 
   it('requires the workflow and rejects a name mismatch', async () => {

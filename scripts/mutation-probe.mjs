@@ -599,6 +599,24 @@ const MUTATIONS = [
       '          if (options.quota === undefined) {\n            const req = site.requestFor(target);',
     test: 'packages/core/src/runtime/turn-exposure.test.ts',
   },
+  {
+    id: 'ledger-settled-basis',
+    doctrine:
+      'the kernel ledger prices per provider call where the records cover the usage: an aggregate re-price lets a long-context tier fire on a phase sum no single request produced, 42.573% high live in the twelfth experiment (RV801)',
+    file: 'packages/core/src/journal/replayer.ts',
+    find: '        usd += priceEntryBilling(entry, this.priceUsd).usd;',
+    replace: '        usd += this.priceUsd(entry.servedBy, entry.usage) ?? 0;',
+    test: 'packages/core/src/journal/replayer.test.ts',
+  },
+  {
+    id: 'run-end-settled-total',
+    doctrine:
+      "run:end's dollars are asserted against the settled report: before RV801 no test pinned the event's totalUsd to outcome.cost.totalUsd, which is exactly how the terminal event lied by 42.573% while every other surface agreed (RV801)",
+    file: 'packages/core/src/engine/engine.ts',
+    find: '          totalUsd: outcome.cost.totalUsd,',
+    replace: '          totalUsd: 0,',
+    test: 'packages/core/src/engine/invocation-events.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

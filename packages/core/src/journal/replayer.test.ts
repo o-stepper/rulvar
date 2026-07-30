@@ -214,6 +214,56 @@ describe('journal write path (M1-T04; docs/03 sections 5, 7.2, 13)', () => {
     expect(ledger.usd).toBeCloseTo(0.006);
   });
 
+  it('prices the ledger per provider call when the records cover the usage (RV801)', async () => {
+    const store = new InMemoryStore();
+    // Above 500 input the WHOLE request re-prices 3x: the per-request
+    // tier semantics of the pricing contract. Two 300-input calls never
+    // crossed it; only the 600 aggregate does.
+    const replayer = new Replayer({
+      runId: 'run-2b',
+      store,
+      priceUsd: (_servedBy, usage) =>
+        (usage.inputTokens * (usage.inputTokens > 500 ? 30 : 10)) / 1e6,
+    });
+    const callUsage = {
+      inputTokens: 300,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    const a = await replayer.appendRunning({ scope: '', key: 'k1', kind: 'agent', spanId: 's' });
+    await replayer.appendTerminal(a.seq, {
+      status: 'ok',
+      servedBy: 'fake:model',
+      usage: { inputTokens: 600, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      providerCalls: [
+        {
+          ordinal: 1,
+          role: 'loop',
+          servedBy: 'fake:model',
+          attempt: 1,
+          outcome: 'ok',
+          usage: callUsage,
+        },
+        {
+          ordinal: 2,
+          role: 'loop',
+          servedBy: 'fake:model',
+          attempt: 1,
+          outcome: 'ok',
+          usage: callUsage,
+        },
+      ],
+    });
+    // The settled fold (RV504) says 0.006; the pre-RV801 aggregate
+    // basis re-tiered the 600 sum and said 0.018. The kernel ledger is
+    // a public money surface (run:end, the resume seed), so it folds on
+    // the same per-call basis.
+    expect(replayer.ledger().usd).toBeCloseTo(0.006, 15);
+    // Usage counters are basis-independent and unchanged.
+    expect(replayer.ledger().usage.inputTokens).toBe(600);
+  });
+
   it('appendTerminal on a non-running seq is a ConfigError', async () => {
     const { replayer } = makeReplayer();
     await expect(replayer.appendTerminal(99, { status: 'ok' })).rejects.toThrow(

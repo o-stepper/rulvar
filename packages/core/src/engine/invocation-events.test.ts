@@ -276,6 +276,28 @@ describe('per-call phase pricing under a nonlinear tier (RV702)', () => {
     expect(replay.byRole).toEqual(live.byRole);
   });
 
+  it('run:end and the budget debits carry the settled per-call total, never the tiered aggregate (RV801)', async () => {
+    // The twelfth experiment's terminal lie: every surface of the run
+    // said 7.30 (per-call, RV504) while run:end alone folded the
+    // per-phase aggregates over the 272k tier and said 10.41. In this
+    // rig the settled fold is $1.20 and the re-tiered aggregate $2.40.
+    const store = new InMemoryStore();
+    const handle = tieredEngine(store).run(wf2, {}, { budgetUsd: 10 });
+    const runEnds: Array<{ totalUsd: number }> = [];
+    const spentUpdates: number[] = [];
+    handle.on('run:end', (event) => runEnds.push(event));
+    handle.on('budget:update', (event) => spentUpdates.push(event.spentUsd));
+    const outcome = await handle.result;
+    expect(outcome.status, JSON.stringify(outcome.error ?? null)).toBe('ok');
+    expect(outcome.cost.totalUsd).toBeCloseTo(1.2, 12);
+    expect(runEnds).toHaveLength(1);
+    expect(runEnds[0]?.totalUsd).toBeCloseTo(outcome.cost.totalUsd, 12);
+    // The live ceiling debited per dispatch all along: the final spend
+    // agrees with the settled fold, and run:end agrees with both.
+    expect(spentUpdates.length).toBeGreaterThan(0);
+    expect(spentUpdates[spentUpdates.length - 1]).toBeCloseTo(outcome.cost.totalUsd, 12);
+  });
+
   it('a restored checkpoint without call records falls back to a labeled aggregate estimate', async () => {
     // A checkpoint written before the reconciliation ledger shipped
     // restores usage slices with NO provider-call records: the per-call

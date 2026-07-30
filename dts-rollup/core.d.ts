@@ -2973,7 +2973,10 @@ declare class Replayer {
   appendSuspended(input: SuspendedAppend): Promise<JournalEntry>;
   /**
   * The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
-  * counts agent dispatches.
+  * counts agent dispatches. Dollars fold on the settled billing basis
+  * (RV801): per provider call where the entry's records cover its
+  * usage, the per-slice aggregate otherwise, the same basis as the
+  * CostReport and the invoice.
   */
   ledger(): Ledger;
   /** Read-only view of the appended entries, in per-run total order. */
@@ -5459,7 +5462,8 @@ declare class RunBudget {
     priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined; /** Raw price-row resolution for the layer-2b output bound. */
     pricingOf?: (servedBy: ModelRef) => Pricing | undefined;
     /**
-    * The resume ledger fold: spend is never
+    * The resume seed, folded from the persisted journal (the settled
+    * per-call fold, RV801): spend is never
     * reset and never double-counted; replayed entries are already inside
     * this seed and add no increments.
     */
