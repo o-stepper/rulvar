@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+
 ### 1.122.0
 
 #### Patch Changes
@@ -1296,6 +1303,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+
 ### 1.122.0
 
 #### Patch Changes
@@ -2425,6 +2439,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
 
 ### 1.122.0
 
@@ -3929,6 +3950,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.123.0
+
+#### Minor Changes
+
+- 5c46468: Sectional bounded repair and the structured evidence index (RV808b, the second half of the split RV808). `finishValidation.sectionalRepair: { sections }` teaches every gated finish a second repair shape: after a rejection the model resubmits ONLY the repaired sections as `finish({ sections })`, and the host splices them into the retained rejected attempt (the exported `spliceSections`, line anchored, missing declared sections append) and validates the reconstructed document whole; the synthesis invocation is seeded with the coordination draft as its retained base, so with `carryDraftGaps` the post-fan-in window collapses to one small patch instead of a full re-derivation. Mechanics refusals are typed, journal nothing, and spend no repairs; the gated invocations' finish tool schema moves only under the opt-in. `synthesis.evidenceIndex` adds a deterministic `EVIDENCE INDEX:` prompt line (per settled child: the distinct citations its output carries, evidence-pool children only, artifacts, chars, the handle when the read tools are exposed), so the composing model pages exactly what it needs instead of re-reading the whole pool; replay-stable, fail-closed pattern intake, byte identical when unset.
 
 ### 1.122.0
 
@@ -5761,6 +5788,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.123.0
+
 ### 1.122.0
 
 ### 1.121.0
@@ -6109,6 +6138,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+  - @rulvar/testing@1.123.0
 
 ### 1.122.0
 
@@ -7473,6 +7510,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+
 ### 1.122.0
 
 #### Patch Changes
@@ -8009,6 +8053,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
 
 ### 1.122.0
 
@@ -9304,6 +9355,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+
 ### 1.122.0
 
 #### Patch Changes
@@ -10547,6 +10605,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+  - eslint-plugin-rulvar@1.123.0
 
 ### 1.122.0
 
@@ -11875,6 +11941,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+  - @rulvar/anthropic@1.123.0
+  - @rulvar/openai@1.123.0
 
 ### 1.122.0
 
@@ -13408,6 +13483,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+
 ### 1.122.0
 
 #### Patch Changes
@@ -14647,6 +14729,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
+
 ### 1.122.0
 
 #### Patch Changes
@@ -15197,6 +15286,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
 
 ### 1.122.0
 
@@ -16379,6 +16475,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.123.0
+
+#### Patch Changes
+
+- Updated dependencies [5c46468]
+  - @rulvar/core@1.123.0
 
 ### 1.122.0
 

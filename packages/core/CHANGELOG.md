@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.123.0
+
+### Minor Changes
+
+- 5c46468: Sectional bounded repair and the structured evidence index (RV808b, the second half of the split RV808). `finishValidation.sectionalRepair: { sections }` teaches every gated finish a second repair shape: after a rejection the model resubmits ONLY the repaired sections as `finish({ sections })`, and the host splices them into the retained rejected attempt (the exported `spliceSections`, line anchored, missing declared sections append) and validates the reconstructed document whole; the synthesis invocation is seeded with the coordination draft as its retained base, so with `carryDraftGaps` the post-fan-in window collapses to one small patch instead of a full re-derivation. Mechanics refusals are typed, journal nothing, and spend no repairs; the gated invocations' finish tool schema moves only under the opt-in. `synthesis.evidenceIndex` adds a deterministic `EVIDENCE INDEX:` prompt line (per settled child: the distinct citations its output carries, evidence-pool children only, artifacts, chars, the handle when the read tools are exposed), so the composing model pages exactly what it needs instead of re-reading the whole pool; replay-stable, fail-closed pattern intake, byte identical when unset.
+
 ## 1.122.0
 
 ### Minor Changes
