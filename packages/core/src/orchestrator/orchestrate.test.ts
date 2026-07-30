@@ -2316,6 +2316,40 @@ describe('synthesis evidence symmetry and the draft gate (the v1.74 experiment r
     expect((synthesisReq?.tools ?? []).map((contract) => contract.name)).toEqual(['finish']);
     expect(promptOf(synthesisReq)).toContain('No other tool exists.');
     expect(promptOf(synthesisReq)).not.toContain('"handle":');
+    // Prompt bytes are journal identity: without the opt-in no policy
+    // facts line exists either (RV709).
+    expect(promptOf(synthesisReq)).not.toContain('POLICY FACTS');
+  });
+
+  it('synthesis.policyFacts folds the durable child facts into the prompt (RV709)', async () => {
+    const adapter = symmetryAdapter({
+      draftTurns: [{ result: 'DRAFT' }],
+      synthesisTurns: [{ toolCall: { name: 'finish', args: { result: PRESERVING } } }],
+    });
+    const { internals } = makeInternals({ adapters: [adapter], ...SYMMETRY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      synthesis: { limits: { maxTurns: 2 }, policyFacts: true },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(PRESERVING);
+    const synthesisReq = adapter.calls.find((req) => /synthesis invocation/.test(promptOf(req)));
+    // The digest folds ONLY replay-stable material (the settled child
+    // results' durable tool-budget subsets), so a resumed synthesis
+    // re-derives the identical prompt bytes.
+    expect(promptOf(synthesisReq)).toContain(
+      'POLICY FACTS: {"children":2,"byStatus":{"ok":2},"extensionsGranted":0,' +
+        '"finalizationWindowsEntered":0,"finalizationReservesUsed":0}',
+    );
+  });
+
+  it('synthesis.policyFacts refuses a non-boolean typed at construction', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        maxSpawns: 2,
+        synthesis: { limits: { maxTurns: 2 }, policyFacts: 'yes' as unknown as boolean },
+      }),
+    ).toThrow(/synthesis\.policyFacts must be a boolean/);
   });
 
   it("synthesisContext 'full' embeds the full child outputs beside the digest", async () => {

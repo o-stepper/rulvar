@@ -10,7 +10,7 @@
 function memoryQuotaLimiter(rules, options?): MemoryQuotaLimiter;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:283](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L283)
+Defined in: [packages/core/src/model/quota.ts:294](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L294)
 
 The in-process reference QuotaLimiter: fixed epoch-aligned
 one-minute windows over the shared rule model. Coordinates every

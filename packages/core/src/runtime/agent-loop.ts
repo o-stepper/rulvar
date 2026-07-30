@@ -461,6 +461,18 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    */
   finalize?: PhaseTarget & { fallbacks?: PhaseTarget[] };
   /**
+   * Opt-in policy-facts digest (RV709): when true AND a finalize
+   * invocation fires, one additional REQUEST-ONLY user message
+   * precedes the synthesis instruction, carrying the deterministic
+   * runtime facts the loop observed (quota denials and recoveries,
+   * tool budget pressure, the finalization window, recorded spend with
+   * its cost basis), so the final model can cite the run's own live
+   * evidence instead of underclaiming it. Never touches the durable
+   * transcript, never enters spawn identity; unset keeps the finalize
+   * request byte identical.
+   */
+  policyFacts?: boolean;
+  /**
    * Summarize invocation target for compaction (M4-T03): resolved
    * through the chain with role 'summarize', falling back to the loop
    * model when routing resolves nothing. Compaction
@@ -1404,6 +1416,12 @@ export async function runAgent<S extends SchemaSpec>(
   let invocationCounter = 0;
   let transportRetries = 0;
   let schemaRecoveredTerminalExchanges = 0;
+  // Policy-facts raw material (RV709): denied reservations and the
+  // denial EPISODES that ended in a later grant of the same dispatch
+  // site. Live telemetry for the request-only finalize digest, never
+  // journal identity, exactly like transportRetries.
+  let quotaDenials = 0;
+  let quotaRecoveries = 0;
   const rateLimitObservations = new Map<string, RateLimitObservation>();
   type OpenPhase = {
     invocation: number;
@@ -2754,6 +2772,10 @@ export async function runAgent<S extends SchemaSpec>(
     requestFor: (target: PhaseTarget) => ChatRequest;
     streamOptionsFor: (target: PhaseTarget) => Parameters<typeof streamTurn>[2];
   }): Promise<{ outcome: TurnOutcome; target: PhaseTarget }> => {
+    // One denial EPISODE per dispatch site (RV709): consecutive quota
+    // denials count once toward recovery when a later attempt of this
+    // same dispatch (retry or failover alike) is granted.
+    let deniedEpisode = false;
     for (;;) {
       const target = site.chain[site.cursor.index] ?? site.chain[0];
       let tries = 0;
@@ -2869,6 +2891,15 @@ export async function runAgent<S extends SchemaSpec>(
               msg: `the shared quota limiter failed to reconcile a reservation: ${detail}`,
             });
           }
+        }
+        if (outcome.quotaDenied === true) {
+          quotaDenials += 1;
+          deniedEpisode = true;
+        } else if (deniedEpisode && outcome.neverDispatched !== true) {
+          // A granted attempt after a denied one, whatever the wire
+          // outcome: the quota episode recovered.
+          quotaRecoveries += 1;
+          deniedEpisode = false;
         }
         if (outcome.quotaDenied !== true && outcome.neverDispatched !== true) {
           const accounted = recordUsage(
@@ -3701,11 +3732,63 @@ export async function runAgent<S extends SchemaSpec>(
     }
     if (proceed) {
       turns += 1;
+      // The opt-in policy-facts digest (RV709): deterministic runtime
+      // facts the loop observed, request-only exactly like the
+      // instruction itself. Line inclusion follows CONFIGURATION (the
+      // quota line when a limiter is wired, the budget line when a cap
+      // or extension exists, the window line when one is configured),
+      // so the digest shape is stable per config and only the numbers
+      // move; the final model can cite the run's own live evidence
+      // instead of underclaiming it.
+      const policyFactsLines = (): string[] => {
+        const lines = [
+          'POLICY FACTS (request-only runtime digest): deterministic facts this run ' +
+            'observed; cite the ones your answer relies on.',
+        ];
+        if (options.quota !== undefined) {
+          lines.push(
+            `quota: ${String(quotaDenials)} denial(s), ${String(quotaRecoveries)} recovered`,
+          );
+        }
+        if (
+          limits.maxToolCalls !== undefined ||
+          limits.toolUnits !== undefined ||
+          extension !== undefined
+        ) {
+          const cap = effectiveMaxToolCalls();
+          let budgetLine =
+            `tool budget: ${String(toolCallsUsed)}` +
+            `${cap === undefined ? '' : ` of ${String(cap)}`} calls used`;
+          if (extension !== undefined) {
+            budgetLine += `; extensions granted: ${String(extensionGrants)}`;
+          }
+          lines.push(budgetLine);
+        }
+        if (finalizationWindow !== undefined) {
+          lines.push(`finalization window: ${windowEntered ? 'entered' : 'not entered'}`);
+        }
+        const spend = recordedSpend();
+        lines.push(
+          `recorded spend: $${spend.usd.toFixed(4)} (${spend.basis})` +
+            (spend.basis === 'aggregate-estimate'
+              ? '; per-call records did not cover all usage, treat the number as an estimate'
+              : ''),
+        );
+        return lines;
+      };
       // The request-only synthesis message list: the durable transcript
       // (`messages`) keeps the raw history, so the extract phase and the
-      // journal never see the instruction.
+      // journal never see the instruction (or the digest).
       const synthesisMessages: Msg[] = [
         ...messages,
+        ...(options.policyFacts === true
+          ? [
+              {
+                role: 'user',
+                parts: [{ type: 'text', text: policyFactsLines().join('\n') }],
+              } as Msg,
+            ]
+          : []),
         {
           role: 'user',
           parts: [{ type: 'text', text: FINALIZE_SYNTHESIS_INSTRUCTION }],

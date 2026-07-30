@@ -22,7 +22,7 @@ function quotaRuleAdmission(
 };
 ```
 
-Defined in: [packages/core/src/model/quota.ts:196](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L196)
+Defined in: [packages/core/src/model/quota.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L207)
 
 One rule's admission verdict against its current-window counters,
 the pure decision both reference implementations share. A denial

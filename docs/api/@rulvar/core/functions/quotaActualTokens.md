@@ -10,7 +10,7 @@
 function quotaActualTokens(usage): number;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L178)
+Defined in: [packages/core/src/model/quota.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L189)
 
 The tokens a settled attempt actually consumed.
 

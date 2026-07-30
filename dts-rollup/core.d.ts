@@ -3130,6 +3130,17 @@ declare const QUOTA_WINDOW_MS = 6e4;
 * from each of them. The counters are rule-scoped: one rule matching
 * two models pools them under one cap; write one rule per model for
 * per-model buckets.
+*
+* Window semantics, named as the deliberate compromise it is (RV708):
+* every PerMinute cap counts over FIXED epoch-aligned 60 s windows
+* ({@link QUOTA_WINDOW_MS}), not a sliding minute. Each fixed window
+* enforces its cap exactly, and a burst placed astride a boundary can
+* therefore consume up to TWO caps inside one sliding 60 s; that
+* bounded burst is the price of cross-process parity (every reference
+* limiter in every process computes the same window from the same
+* clock with no shared sliding state), and provider-side minute
+* windows are themselves fuzzy. Size caps with the boundary burst in
+* mind; the semantics are pinned as intended, not scheduled to change.
 */
 interface QuotaRule {
   /** Adapter id, as in `concurrency.perProvider` keys. */
@@ -4760,6 +4771,18 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   finalize?: PhaseTarget & {
     fallbacks?: PhaseTarget[];
   };
+  /**
+  * Opt-in policy-facts digest (RV709): when true AND a finalize
+  * invocation fires, one additional REQUEST-ONLY user message
+  * precedes the synthesis instruction, carrying the deterministic
+  * runtime facts the loop observed (quota denials and recoveries,
+  * tool budget pressure, the finalization window, recorded spend with
+  * its cost basis), so the final model can cite the run's own live
+  * evidence instead of underclaiming it. Never touches the durable
+  * transcript, never enters spawn identity; unset keeps the finalize
+  * request byte identical.
+  */
+  policyFacts?: boolean;
   /**
   * Summarize invocation target for compaction (M4-T03): resolved
   * through the chain with role 'summarize', falling back to the loop
@@ -7961,6 +7984,18 @@ interface OrchestrateSynthesis {
   limits?: UsageLimits;
   /** Extra deterministic instruction lines appended to the synthesis prompt. */
   instructions?: string;
+  /**
+  * Opt-in policy-facts line in the 'single' synthesis prompt (RV709):
+  * a deterministic digest of the settled children's durable
+  * tool-budget facts (statuses, extension grants, finalization
+  * windows and reserves), so the composing model can cite the run's
+  * own observed evidence instead of underclaiming it. Folded ONLY
+  * from replay-stable material (the settled results the journal
+  * replays verbatim), so a resumed synthesis re-derives identical
+  * prompt bytes; off by default, and the prompt stays byte identical
+  * when unset (prompt bytes are journal identity).
+  */
+  policyFacts?: boolean;
   /**
   * Admission estimate for the synthesize invocation, like
   * AgentOpts.estCost: under a tight orchestrator cap the default
