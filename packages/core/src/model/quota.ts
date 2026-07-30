@@ -37,6 +37,17 @@ export const QUOTA_WINDOW_MS = 60_000;
  * from each of them. The counters are rule-scoped: one rule matching
  * two models pools them under one cap; write one rule per model for
  * per-model buckets.
+ *
+ * Window semantics, named as the deliberate compromise it is (RV708):
+ * every PerMinute cap counts over FIXED epoch-aligned 60 s windows
+ * ({@link QUOTA_WINDOW_MS}), not a sliding minute. Each fixed window
+ * enforces its cap exactly, and a burst placed astride a boundary can
+ * therefore consume up to TWO caps inside one sliding 60 s; that
+ * bounded burst is the price of cross-process parity (every reference
+ * limiter in every process computes the same window from the same
+ * clock with no shared sliding state), and provider-side minute
+ * windows are themselves fuzzy. Size caps with the boundary burst in
+ * mind; the semantics are pinned as intended, not scheduled to change.
  */
 export interface QuotaRule {
   /** Adapter id, as in `concurrency.perProvider` keys. */

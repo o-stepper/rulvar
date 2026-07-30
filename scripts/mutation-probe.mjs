@@ -535,6 +535,24 @@ const MUTATIONS = [
     replace: "        JSON.parse(fragment.toString('utf8'));",
     test: 'packages/executor/src/ledger.test.ts',
   },
+  {
+    id: 'policy-facts-finalize',
+    doctrine:
+      'the opted-in finalize request carries the policy-facts digest so the final model sees the evidence the run observed (RV709)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "        ...(options.policyFacts === true\n          ? [\n              {\n                role: 'user',\n                parts: [{ type: 'text', text: policyFactsLines().join('\\n') }],\n              } as Msg,\n            ]\n          : []),\n",
+    replace: '',
+    test: 'packages/core/src/runtime/policy-facts.test.ts',
+  },
+  {
+    id: 'policy-facts-identity',
+    doctrine:
+      'the synthesis policy-facts line exists exactly under the opt-in: prompt bytes are journal identity, so an unconditional line would re-pay every existing synthesis on resume (RV709)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        ...(spec.policyFacts === true',
+    replace: '        ...(true',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -270,6 +270,34 @@ describe('immutable rules snapshot and canonical denial order (RV608)', () => {
   });
 });
 
+describe('the fixed-window boundary is a named compromise (RV708)', () => {
+  it('a sliding minute across a boundary admits up to two caps, each fixed window enforcing its own', async () => {
+    // INTENDED, not a defect: windows are fixed and epoch-aligned so
+    // every reference limiter in every process computes the same window
+    // from the same clock with no shared sliding state, which is the
+    // cross-process parity the limiter exists for; provider-side minute
+    // windows are themselves fuzzy. The price is bounded and named
+    // here: a burst placed astride a boundary can consume at most TWO
+    // caps inside one sliding 60 s, and each fixed window still
+    // enforces its own cap exactly.
+    let at = QUOTA_WINDOW_MS * 8 - 1_000;
+    const limiter = memoryQuotaLimiter([{ provider: 'fake', requestsPerMinute: 2 }], {
+      now: () => at,
+    });
+    expect((await limiter.reserve(request())).granted).toBe(true);
+    expect((await limiter.reserve(request())).granted).toBe(true);
+    // The old window's cap holds to its last millisecond.
+    expect((await limiter.reserve(request())).granted).toBe(false);
+    at = QUOTA_WINDOW_MS * 8 + 1_000;
+    expect((await limiter.reserve(request())).granted).toBe(true);
+    expect((await limiter.reserve(request())).granted).toBe(true);
+    // Four grants inside the sliding minute [end of 7, start of 8],
+    // and the new window's cap holds too: the burst is bounded at two
+    // caps, never unbounded.
+    expect((await limiter.reserve(request())).granted).toBe(false);
+  });
+});
+
 describe('duplicate rules are refused at construction (RV704)', () => {
   const dup: QuotaRule = { provider: 'fake', model: 'fake:model', requestsPerMinute: 4 };
 

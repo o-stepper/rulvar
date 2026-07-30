@@ -468,6 +468,18 @@ export interface OrchestrateSynthesis {
   /** Extra deterministic instruction lines appended to the synthesis prompt. */
   instructions?: string;
   /**
+   * Opt-in policy-facts line in the 'single' synthesis prompt (RV709):
+   * a deterministic digest of the settled children's durable
+   * tool-budget facts (statuses, extension grants, finalization
+   * windows and reserves), so the composing model can cite the run's
+   * own observed evidence instead of underclaiming it. Folded ONLY
+   * from replay-stable material (the settled results the journal
+   * replays verbatim), so a resumed synthesis re-derives identical
+   * prompt bytes; off by default, and the prompt stays byte identical
+   * when unset (prompt bytes are journal identity).
+   */
+  policyFacts?: boolean;
+  /**
    * Admission estimate for the synthesize invocation, like
    * AgentOpts.estCost: under a tight orchestrator cap the default
    * reserve (full maxOutputTokens pricing) can refuse the dispatch; an
@@ -980,6 +992,12 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     if (synthesis.instructions !== undefined && typeof synthesis.instructions !== 'string') {
       throw new ConfigError(
         `orchestrate synthesis.instructions must be a string; got ${typeof synthesis.instructions}`,
+      );
+    }
+    const facts = synthesis as { policyFacts?: unknown };
+    if (facts.policyFacts !== undefined && typeof facts.policyFacts !== 'boolean') {
+      throw new ConfigError(
+        `orchestrate synthesis.policyFacts must be a boolean; got ${typeof facts.policyFacts}`,
       );
     }
     if (synthesis.estCost !== undefined) {
@@ -3646,6 +3664,44 @@ export function makeOrchestratorWorkflow(
             ]),
         ...(spec.instructions === undefined ? [] : [spec.instructions]),
         ...finishValidationPromptLines(validationSpec),
+        // The opt-in policy-facts line (RV709): folded ONLY from
+        // replay-stable material (the settled child results' durable
+        // tool-budget subsets, which the journal replays verbatim), so
+        // a resumed synthesis re-derives the identical prompt bytes;
+        // prompt bytes are journal identity, so the line exists exactly
+        // under the opt-in.
+        ...(spec.policyFacts === true
+          ? [
+              ((): string => {
+                const byStatus: Record<string, number> = {};
+                let extensionsGranted = 0;
+                let windowsEntered = 0;
+                let reservesUsed = 0;
+                for (const [, record] of settledEntries) {
+                  const settled = record.settled as AgentResult<unknown>;
+                  byStatus[settled.status] = (byStatus[settled.status] ?? 0) + 1;
+                  extensionsGranted += settled.toolBudget?.extensionsGranted ?? 0;
+                  if (settled.toolBudget?.finalizationWindowEntered === true) {
+                    windowsEntered += 1;
+                  }
+                  if (settled.toolBudget?.finalizationReserveUsed === true) {
+                    reservesUsed += 1;
+                  }
+                }
+                return `POLICY FACTS: ${JSON.stringify({
+                  children: settledEntries.length,
+                  byStatus: Object.fromEntries(
+                    Object.keys(byStatus)
+                      .sort()
+                      .map((status) => [status, byStatus[status]]),
+                  ),
+                  extensionsGranted,
+                  finalizationWindowsEntered: windowsEntered,
+                  finalizationReservesUsed: reservesUsed,
+                })}`;
+              })(),
+            ]
+          : []),
         `GOAL: ${goal}`,
         `DRAFT: ${draftJson}`,
         `DIGEST: ${digestJson}`,

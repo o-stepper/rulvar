@@ -10,7 +10,7 @@
 function quotaRuleKey(rule): string;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L101)
+Defined in: [packages/core/src/model/quota.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L112)
 
 The canonical content key of one rule (RV608, promoted from the
 store limiters): a fixed-field-order JSON of the rule, identical
