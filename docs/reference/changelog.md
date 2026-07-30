@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+
 ### 1.111.0
 
 #### Patch Changes
@@ -1216,6 +1223,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+
 ### 1.111.0
 
 #### Patch Changes
@@ -2269,6 +2283,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
 
 ### 1.111.0
 
@@ -3681,6 +3702,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.112.0
+
+#### Minor Changes
+
+- 00ae55b: Duplicate quota rules are refused at construction in every reference limiter (RV704). `snapshotQuotaRules`, the shared construction chokepoint of `memoryQuotaLimiter`, `SqliteQuotaLimiter`, and `PostgresQuotaLimiter`, now throws a typed `ConfigError` naming both indexes and the canonical `quotaRuleKey` when a rule set contains two identical rules. Before the refusal, the same duplicated configuration admitted differently per storage: the memory reference buckets by rule index, so each copy counted independently and the full cap admitted, while the store references bucket by rule key, so one shared bucket was debited once per matching copy and half the cap admitted (a cap-4 set granted 4 in memory and 2 on sqlite), breaking storage parity with a configuration nothing had refused. `@rulvar/store-conformance` gains `quotaRulesConformance`, the executable construction contract any limiter implementation can register.
 
 ### 1.111.0
 
@@ -5451,6 +5478,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.112.0
+
 ### 1.111.0
 
 ### 1.110.0
@@ -5777,6 +5806,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+  - @rulvar/testing@1.112.0
 
 ### 1.111.0
 
@@ -7054,6 +7091,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+
 ### 1.111.0
 
 #### Patch Changes
@@ -7510,6 +7554,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
 
 ### 1.111.0
 
@@ -8721,6 +8772,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+
 ### 1.111.0
 
 #### Patch Changes
@@ -9888,6 +9946,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+  - eslint-plugin-rulvar@1.112.0
 
 ### 1.111.0
 
@@ -11129,6 +11195,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+  - @rulvar/anthropic@1.112.0
+  - @rulvar/openai@1.112.0
 
 ### 1.111.0
 
@@ -12564,6 +12639,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.112.0
+
+#### Minor Changes
+
+- 00ae55b: Duplicate quota rules are refused at construction in every reference limiter (RV704). `snapshotQuotaRules`, the shared construction chokepoint of `memoryQuotaLimiter`, `SqliteQuotaLimiter`, and `PostgresQuotaLimiter`, now throws a typed `ConfigError` naming both indexes and the canonical `quotaRuleKey` when a rule set contains two identical rules. Before the refusal, the same duplicated configuration admitted differently per storage: the memory reference buckets by rule index, so each copy counted independently and the full cap admitted, while the store references bucket by rule key, so one shared bucket was debited once per matching copy and half the cap admitted (a cap-4 set granted 4 in memory and 2 on sqlite), breaking storage parity with a configuration nothing had refused. `@rulvar/store-conformance` gains `quotaRulesConformance`, the executable construction contract any limiter implementation can register.
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+
 ### 1.111.0
 
 #### Patch Changes
@@ -13723,6 +13809,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
+
 ### 1.111.0
 
 #### Patch Changes
@@ -14197,6 +14290,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
 
 ### 1.111.0
 
@@ -15303,6 +15403,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.112.0
+
+#### Patch Changes
+
+- Updated dependencies [00ae55b]
+  - @rulvar/core@1.112.0
 
 ### 1.111.0
 
