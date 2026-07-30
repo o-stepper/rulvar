@@ -3964,3 +3964,162 @@ describe('recovered attempts alias by admission identity (RV609)', () => {
     expect(value.childStatusCounts).toEqual({ ok: 1 });
   });
 });
+
+describe('the post-fan-in double rework (RV808a)', () => {
+  // The twelfth comparison run paid 80.157% of wall AFTER fan-in: the
+  // coordination draft was repaired only against the weak draft policy,
+  // the skipWhenDraftValid pre-pass then judged it by the FULL contract
+  // and failed, its verdict was discarded, and synthesis re-derived the
+  // whole document and failed the same contract once more itself. These
+  // tests pin the two closures: a draft gate that judges by the full
+  // contract (so coordination repairs drive the draft to skippable),
+  // and the failed pre-pass carried into the synthesis prompt as named
+  // gaps instead of silence.
+  const SECTIONED = '## Findings\nEverything the contract demands.';
+  const SECTIONLESS = 'a schema-valid candidate without the required section';
+  const SYNTHESIZED = '## Findings\nThe synthesis rewrite.';
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const CONTRACT = () => ({
+    validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+    maxRepairs: 3,
+  });
+  function draftThenSynthesis(draft: string, final: string) {
+    let call = 0;
+    return scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      return call === 1
+        ? { toolCall: { name: 'finish', args: { result: draft } } }
+        : { toolCall: { name: 'finish', args: { result: final } } };
+    });
+  }
+  const gapsDecisions = (entries: readonly JournalEntry[]): JournalEntry[] =>
+    entries.filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_draft_gaps',
+    );
+
+  it("draftPolicy 'contract' rejects a draft the full contract rejects, and the repaired draft skips synthesis", async () => {
+    const adapter = draftThenSynthesis(SECTIONLESS, SECTIONED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: { ...CONTRACT(), draftPolicy: 'contract' },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SECTIONED);
+    // Two COORDINATION turns (the rejected draft exchange and the
+    // repaired one); the synthesis invocation never dispatched.
+    expect(adapter.calls).toHaveLength(2);
+    // The rejection the model saw names the contract validator, so the
+    // coordination repair is driven by the same demands the pre-pass
+    // will judge by.
+    expect(JSON.stringify(adapter.calls[1])).toContain('required-sections');
+    await internals.replayer.flush();
+    const skips = internals.replayer
+      .snapshot()
+      .filter(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_synthesis_skip',
+      );
+    expect(skips).toHaveLength(1);
+  });
+
+  it('carryDraftGaps journals the failed pre-pass and feeds the named gaps into the synthesis prompt', async () => {
+    const adapter = draftThenSynthesis(SECTIONLESS, SYNTHESIZED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true, carryDraftGaps: true },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SYNTHESIZED);
+    expect(adapter.calls).toHaveLength(2);
+    const synthesisRequest = JSON.stringify(adapter.calls[1]);
+    expect(synthesisRequest).toContain('DRAFT CONTRACT GAPS:');
+    expect(synthesisRequest).toContain('required-sections');
+    expect(synthesisRequest).toContain('repair the named gaps');
+    await internals.replayer.flush();
+    const gaps = gapsDecisions(internals.replayer.snapshot());
+    expect(gaps).toHaveLength(1);
+    const value = gaps[0]?.value as {
+      failed?: { name: string; reasons: string[] }[];
+      draftHash?: string;
+      validators?: string[];
+    };
+    expect(value.failed?.[0]?.name).toBe('required-sections');
+    expect(value.failed?.[0]?.reasons.join(' ')).toContain('## Findings');
+    expect(value.draftHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(value.validators).toEqual(['required-sections']);
+  });
+
+  it('without the opt-in the failed pre-pass stays silent: no gaps line, no gaps decision', async () => {
+    const adapter = draftThenSynthesis(SECTIONLESS, SYNTHESIZED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 }, skipWhenDraftValid: true },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SYNTHESIZED);
+    expect(JSON.stringify(adapter.calls[1])).not.toContain('DRAFT CONTRACT GAPS:');
+    await internals.replayer.flush();
+    expect(gapsDecisions(internals.replayer.snapshot())).toHaveLength(0);
+  });
+
+  it('resume reuses the journaled gaps decision: identical result, zero live calls', async () => {
+    const store = new InMemoryStore();
+    const options = {
+      synthesis: {
+        limits: { maxTurns: 3 },
+        skipWhenDraftValid: true,
+        carryDraftGaps: true,
+      },
+      finishValidation: CONTRACT(),
+    };
+    const liveAdapter = draftThenSynthesis(SECTIONLESS, SYNTHESIZED);
+    const engineA = createEngine({
+      adapters: [liveAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const first = await engineA.run(makeOrchestratorWorkflow('assess', options), undefined, {
+      runId: 'GAPS-RESUME',
+    }).result;
+    expect(first.status).toBe('ok');
+    expect(first.value).toBe(SYNTHESIZED);
+
+    const replayAdapter = draftThenSynthesis(SECTIONLESS, 'NEVER');
+    const engineB = createEngine({
+      adapters: [replayAdapter],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const resumed = await engineB.resume('GAPS-RESUME', makeOrchestratorWorkflow('assess', options))
+      .result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe(SYNTHESIZED);
+    expect(replayAdapter.calls).toHaveLength(0);
+    expect(gapsDecisions(await store.load('GAPS-RESUME'))).toHaveLength(1);
+  });
+
+  it('intake refuses carryDraftGaps without skipWhenDraftValid, and the contract draft gate without synthesis', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        synthesis: { limits: { maxTurns: 3 }, carryDraftGaps: true },
+        finishValidation: CONTRACT(),
+      }),
+    ).toThrow(/carryDraftGaps requires skipWhenDraftValid/);
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        finishValidation: { ...CONTRACT(), draftPolicy: 'contract' },
+      }),
+    ).toThrow(/draftPolicy requires synthesis/);
+  });
+});

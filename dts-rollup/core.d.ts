@@ -8035,11 +8035,28 @@ interface FinishValidationSpec {
   * consumed (it belongs to the synthesis-bound validators). Absent =
   * byte identical pre 1.76 behavior; configured without `synthesis` =
   * ConfigError.
+  *
+  * The sentinel `'contract'` (RV808a) gates the draft by the FULL
+  * declared validator set instead of a hand-written subset, with the
+  * same children snapshot the synthesis-bound validation reads. The
+  * twelfth comparison run showed why the subset starves the
+  * `skipWhenDraftValid` gate: the coordination repair loop drove the
+  * draft only to the weak policy, the pre-pass then judged it by the
+  * full contract and failed, and the run paid the whole synthesis
+  * plus its own repair for defects a coordination exchange could
+  * have fixed. Under `'contract'` the rejection feedback names the
+  * failing validators, so coordination repairs drive the draft
+  * toward exactly what the pre-pass will judge, making the skip
+  * reachable. Same posture otherwise: nothing journals, the durable
+  * exchange recounts identically, `maxRepairs` untouched. Honest
+  * bound: validators that fold the children snapshot (the evidence
+  * share) can still fail the pre-pass when a child settles between
+  * the draft finish and synthesis; the pre-pass stays the authority.
   */
   draftPolicy?: {
     /** Minimum whitespace-separated words the draft must carry. */minWords?: number; /** Literal markers the draft text must contain. */
     requireSections?: string[];
-  };
+  } | "contract";
   /**
   * The unified output contract this validator set enforces (the v1.71
   * experiment review, P0.1/P0.2). Construction then runs the golden
@@ -8282,6 +8299,26 @@ interface OrchestrateSynthesis {
   * byte.
   */
   skipWhenDraftValid?: boolean;
+  /**
+  * Carry a FAILED skip pre-pass into the synthesis prompt (RV808a).
+  * The pre-pass verdict used to be discarded on failure, and the
+  * twelfth comparison run paid for exactly that: synthesis re-derived
+  * the whole document blind to which validators the draft had already
+  * failed, then failed the same contract once more itself. With
+  * `true`, a failing pre-pass journals its verdict (decisionType
+  * 'orchestrator_synthesis_draft_gaps': the failed validator names
+  * with their reasons, bound to the contract generation and the
+  * draft hash exactly like the skip decision), and the synthesis
+  * prompt gains a `DRAFT CONTRACT GAPS:` line naming those failures
+  * with the instruction to repair the named gaps and preserve the
+  * draft otherwise. A resume reuses the journaled verdict without
+  * re-running a validator, so the prompt bytes re-derive identically
+  * and the paid invocation replays. Requires `skipWhenDraftValid`
+  * (the gaps ARE the pre-pass verdict; there is nothing to carry
+  * without it). Default false: no decision entry, prompt bytes
+  * identical.
+  */
+  carryDraftGaps?: boolean;
 }
 /**
 * The deterministic reconciliation envelope an 'incremental' synthesis
@@ -10176,12 +10213,15 @@ interface PreflightInput {
     * experiment gated drafts at 3200 words under a 4500 word contract,
     * so the gate admitted a draft the final validators had to reject
     * and the synthesis started from an underlength base; the
-    * draft-gate-below-contract warning names exactly that shape.
+    * draft-gate-below-contract warning names exactly that shape. The
+    * sentinel `'contract'` (RV808a) gates the draft by the full
+    * validator set, so the below-contract shape cannot exist and the
+    * warning never fires.
     */
     draftPolicy?: {
       minWords?: number;
       requireSections?: string[];
-    };
+    } | "contract";
   };
 }
 /** One linter verdict; `spawn` names the wave entry it is about. */

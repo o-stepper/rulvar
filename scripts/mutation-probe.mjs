@@ -717,6 +717,33 @@ const MUTATIONS = [
     replace: '      ...{},',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'draft-contract-gate',
+    doctrine:
+      "draftPolicy 'contract' judges the coordination draft by the FULL declared validator set, so the coordination repair loop drives the draft toward what the skip pre-pass will judge instead of a weak subset (RV808a)",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (policy === 'contract') {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'draft-gaps-carried',
+    doctrine:
+      'a failed skip pre-pass under carryDraftGaps rides the synthesis prompt as the named DRAFT CONTRACT GAPS line instead of being discarded, which is exactly the double rework the twelfth run paid for (RV808a)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        ...(draftGaps === undefined\n          ? []\n          : [',
+    replace: '        ...(true\n          ? []\n          : [',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'carry-gaps-intake-pair',
+    doctrine:
+      'carryDraftGaps without skipWhenDraftValid is refused typed at intake: the gaps ARE the pre-pass verdict and a silent no-op option is a lie (RV808a)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (conditional.carryDraftGaps && conditional.skipWhenDraftValid !== true) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

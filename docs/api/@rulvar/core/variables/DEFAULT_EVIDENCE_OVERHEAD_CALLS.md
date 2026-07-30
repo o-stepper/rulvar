@@ -10,6 +10,6 @@
 const DEFAULT_EVIDENCE_OVERHEAD_CALLS: 8 = 8;
 ```
 
-Defined in: [packages/core/src/engine/preflight.ts:487](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L487)
+Defined in: [packages/core/src/engine/preflight.ts:492](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L492)
 
 Default estimated non-evidence overhead calls of a research spawn (RV303).
