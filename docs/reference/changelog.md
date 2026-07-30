@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+
 ### 1.112.0
 
 #### Patch Changes
@@ -1223,6 +1230,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+
 ### 1.112.0
 
 #### Patch Changes
@@ -2283,6 +2297,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.113.0
+
+#### Minor Changes
+
+- a60807a: The pricing composition's second half names itself, and the effect-ledger quarantine is byte-true (RV706, RV707). `InvoicePricingProvenance` gains optional `currentPricingVersion`: on composed exports it is the version of the caller's current table, the one that priced everything past `pinnedThroughSeq` (on current-table exports, the whole fold), so an invoice folded across a rotation now names both halves of the composition where the pinned segments already declared theirs; `rulvar invoice` and `rulvar inspect` fill it from the configured table and extend their text suffix to `pins composed with the current table (v-a, v-b; current v-live)`, byte for byte unchanged when the config declares no version. The executor ledger's torn-tail quarantine row now carries `bytesBase64` and `sha256` of the exact torn bytes alongside the lossy `bytes` string kept for old readers (two different byte tails used to collapse into one indistinguishable row), and the repair's parseable decision is made on the bytes, strict UTF-8 before `JSON.parse`: the lossy decode could make a fragment with invalid bytes inside a string literal parse, and the repair then terminated a line of invalid bytes in place, manufacturing exactly the corruption the fail-closed scan refuses.
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
 
 ### 1.112.0
 
@@ -3702,6 +3727,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.113.0
+
+#### Minor Changes
+
+- a60807a: The pricing composition's second half names itself, and the effect-ledger quarantine is byte-true (RV706, RV707). `InvoicePricingProvenance` gains optional `currentPricingVersion`: on composed exports it is the version of the caller's current table, the one that priced everything past `pinnedThroughSeq` (on current-table exports, the whole fold), so an invoice folded across a rotation now names both halves of the composition where the pinned segments already declared theirs; `rulvar invoice` and `rulvar inspect` fill it from the configured table and extend their text suffix to `pins composed with the current table (v-a, v-b; current v-live)`, byte for byte unchanged when the config declares no version. The executor ledger's torn-tail quarantine row now carries `bytesBase64` and `sha256` of the exact torn bytes alongside the lossy `bytes` string kept for old readers (two different byte tails used to collapse into one indistinguishable row), and the repair's parseable decision is made on the bytes, strict UTF-8 before `JSON.parse`: the lossy decode could make a fragment with invalid bytes inside a string literal parse, and the repair then terminated a line of invalid bytes in place, manufacturing exactly the corruption the fail-closed scan refuses.
 
 ### 1.112.0
 
@@ -5478,6 +5509,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.113.0
+
 ### 1.112.0
 
 ### 1.111.0
@@ -5806,6 +5839,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+  - @rulvar/testing@1.113.0
 
 ### 1.112.0
 
@@ -7091,6 +7132,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.113.0
+
+#### Minor Changes
+
+- a60807a: The pricing composition's second half names itself, and the effect-ledger quarantine is byte-true (RV706, RV707). `InvoicePricingProvenance` gains optional `currentPricingVersion`: on composed exports it is the version of the caller's current table, the one that priced everything past `pinnedThroughSeq` (on current-table exports, the whole fold), so an invoice folded across a rotation now names both halves of the composition where the pinned segments already declared theirs; `rulvar invoice` and `rulvar inspect` fill it from the configured table and extend their text suffix to `pins composed with the current table (v-a, v-b; current v-live)`, byte for byte unchanged when the config declares no version. The executor ledger's torn-tail quarantine row now carries `bytesBase64` and `sha256` of the exact torn bytes alongside the lossy `bytes` string kept for old readers (two different byte tails used to collapse into one indistinguishable row), and the repair's parseable decision is made on the bytes, strict UTF-8 before `JSON.parse`: the lossy decode could make a fragment with invalid bytes inside a string literal parse, and the repair then terminated a line of invalid bytes in place, manufacturing exactly the corruption the fail-closed scan refuses.
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+
 ### 1.112.0
 
 #### Patch Changes
@@ -7554,6 +7606,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
 
 ### 1.112.0
 
@@ -8772,6 +8831,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+
 ### 1.112.0
 
 #### Patch Changes
@@ -9946,6 +10012,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+  - eslint-plugin-rulvar@1.113.0
 
 ### 1.112.0
 
@@ -11195,6 +11269,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+  - @rulvar/anthropic@1.113.0
+  - @rulvar/openai@1.113.0
 
 ### 1.112.0
 
@@ -12639,6 +12722,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+
 ### 1.112.0
 
 #### Minor Changes
@@ -13809,6 +13899,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
+
 ### 1.112.0
 
 #### Patch Changes
@@ -14290,6 +14387,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
 
 ### 1.112.0
 
@@ -15403,6 +15507,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.113.0
+
+#### Patch Changes
+
+- Updated dependencies [a60807a]
+  - @rulvar/core@1.113.0
 
 ### 1.112.0
 
