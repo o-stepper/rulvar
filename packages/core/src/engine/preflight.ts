@@ -583,6 +583,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       'preflight.run.maxInFlightExposureUsd',
     );
   }
+  // The same guard the runtime applies to RunOptions.budgetUsd (RV803):
+  // preflight validated the limits, the exposure cap, and every spawn
+  // budget, but read the run ceiling raw, so a NaN or negative ceiling
+  // flowed silently into every projection this report is built from.
+  if (input.run?.budgetUsd !== undefined) {
+    requireNonNegativeNumber(input.run.budgetUsd, 'preflight.run.budgetUsd');
+  }
   if (input.orchestrator?.limits !== undefined) {
     validateUsageLimits(input.orchestrator.limits, 'preflight.orchestrator.limits');
   }

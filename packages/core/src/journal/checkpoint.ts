@@ -107,10 +107,12 @@ export function encodeCheckpoint(state: CheckpointState): Uint8Array {
 }
 
 /**
- * Decodes a checkpoint blob. Returns undefined for an empty blob or an
- * unknown format byte: a resume never trusts a checkpoint it cannot
- * parse; the dangling dispatch reruns from the top instead (at-least-once
- * is the documented floor).
+ * Decodes a checkpoint blob. Returns undefined for an empty blob, an
+ * unknown format byte, unparseable JSON, or a parseable payload whose
+ * nested message structure is malformed (RV804): a resume never trusts
+ * a checkpoint it cannot decode, and it never throws; the dangling
+ * dispatch reruns from the top instead (at-least-once is the
+ * documented floor).
  */
 export function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined {
   if (blob.length < 2 || blob[0] !== CHECKPOINT_FORMAT_V1) {
@@ -124,6 +126,32 @@ export function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined 
   }
   if (parsed.v !== 1 || !Array.isArray(parsed.messages)) {
     return undefined;
+  }
+  // The structural half of the same contract (RV804): a parseable blob
+  // whose NESTED shape is malformed ({v:1,messages:[{}]}, a non-array
+  // parts, a garbage part) is just as untrustworthy as one that does
+  // not parse, so it returns undefined and the dispatch reruns from the
+  // top. Before this walk, such a blob passed the top-level guard and
+  // the message map below died on msg.parts.map, a raw TypeError out of
+  // a function whose contract is undefined-on-unparseable.
+  for (const msg of parsed.messages as unknown[]) {
+    if (
+      typeof msg !== 'object' ||
+      msg === null ||
+      typeof (msg as { role?: unknown }).role !== 'string' ||
+      !Array.isArray((msg as { parts?: unknown }).parts)
+    ) {
+      return undefined;
+    }
+    for (const part of (msg as { parts: unknown[] }).parts) {
+      if (
+        typeof part !== 'object' ||
+        part === null ||
+        typeof (part as { type?: unknown }).type !== 'string'
+      ) {
+        return undefined;
+      }
+    }
   }
   return {
     ...parsed,

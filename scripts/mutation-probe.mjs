@@ -609,6 +609,25 @@ const MUTATIONS = [
     test: 'packages/core/src/journal/replayer.test.ts',
   },
   {
+    id: 'checkpoint-structural-decode',
+    doctrine:
+      'a parseable checkpoint with malformed nested messages decodes to undefined and the dispatch reruns; it never throws a raw TypeError out of the undefined-on-unparseable contract (RV804)',
+    file: 'packages/core/src/journal/checkpoint.ts',
+    find: "    if (\n      typeof msg !== 'object' ||\n      msg === null ||\n      typeof (msg as { role?: unknown }).role !== 'string' ||\n      !Array.isArray((msg as { parts?: unknown }).parts)\n    ) {\n      return undefined;\n    }",
+    replace: '    if (false) {\n      return undefined;\n    }',
+    test: 'packages/core/src/journal/checkpoint.test.ts',
+  },
+  {
+    id: 'preflight-ceiling-guard',
+    doctrine:
+      'preflight refuses a NaN, negative, or infinite run ceiling with the same typed guard as the runtime, instead of folding it silently into every projection (RV803)',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "  if (input.run?.budgetUsd !== undefined) {\n    requireNonNegativeNumber(input.run.budgetUsd, 'preflight.run.budgetUsd');\n  }",
+    replace:
+      "  if (false) {\n    requireNonNegativeNumber(input.run.budgetUsd, 'preflight.run.budgetUsd');\n  }",
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'partial-export-coverage',
     doctrine:
       'a partially delivered provider export folds component deltas over the COVERED subset only: comparing a subset against the whole manufactures false divergence (RV812)',

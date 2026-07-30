@@ -3394,10 +3394,12 @@ declare function checkpointRefFor(runId: string, runningSeq: number): string;
 /** Serializes a checkpoint to its blob: format byte then UTF-8 JSON. */
 declare function encodeCheckpoint(state: CheckpointState): Uint8Array;
 /**
-* Decodes a checkpoint blob. Returns undefined for an empty blob or an
-* unknown format byte: a resume never trusts a checkpoint it cannot
-* parse; the dangling dispatch reruns from the top instead (at-least-once
-* is the documented floor).
+* Decodes a checkpoint blob. Returns undefined for an empty blob, an
+* unknown format byte, unparseable JSON, or a parseable payload whose
+* nested message structure is malformed (RV804): a resume never trusts
+* a checkpoint it cannot decode, and it never throws; the dangling
+* dispatch reruns from the top instead (at-least-once is the
+* documented floor).
 */
 declare function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined;
 //#endregion
