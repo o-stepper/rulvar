@@ -1,5 +1,12 @@
 # @rulvar/planner
 
+## 1.125.0
+
+### Patch Changes
+
+- @rulvar/core@1.125.0
+- eslint-plugin-rulvar@1.125.0
+
 ## 1.124.0
 
 ### Patch Changes
