@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The ninety eight rounds, verbatim in this repository's history:
+The ninety nine rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -312,6 +312,7 @@ The ninety eight rounds, verbatim in this repository's history:
 | v1.114.0      | 63642ae (#530): the post-fan-in window decomposes by named phase in reduceCriticalPath, and an opt-in cap bounds concurrent dispatch exposure with a typed refusal                        | v1.115.0   |
 | v1.115.0      | a213878 (#533): run:end, the kernel ledger, and the resume budget seed settle on the per-call billing fold, so no public money surface re-tiers a phase aggregate                         | v1.116.0   |
 | v1.116.0      | c15b83a (#536): tool executions become real OTel child spans under a synthetic pair key, and the agent span survives to agent:end with its usage, cost, and exploration                   | v1.117.0   |
+| v1.117.0      | f8341a3 (#539): provider statement reconciliation by machine: response-id coverage, per-component deltas, and implied rates naming the divergent rate-card line                           | v1.118.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
