@@ -13,6 +13,7 @@ import type { Json } from './json.js';
 import type { Usage } from './messages.js';
 import type { WireError } from './errors.js';
 import type { ResolutionBy } from './entries.js';
+import type { TerminalEnvelope } from './terminal-envelope.js';
 
 /** Run lifecycle and core telemetry (M1 subset). */
 export type CoreEvents =
@@ -102,6 +103,15 @@ export type CoreEvents =
           waivedBySalvage?: true;
         };
       }>;
+      /**
+       * The unified terminal envelope (RV1105): every terminal fact in
+       * ONE shape, the same object the resolved outcome carries, so an
+       * event-only consumer assembles nothing. On the settled paths the
+       * sibling fields above stay byte for byte; when settlement did
+       * not hold, `envelope.settled` mirrors the `settled: false` mark
+       * (with `settledReason` inside for the superseded arc, RV1009).
+       */
+      envelope: TerminalEnvelope;
     }
   | { type: 'phase:start'; phase: string }
   | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; msg: string; data?: Json }

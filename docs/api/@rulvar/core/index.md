@@ -326,6 +326,7 @@ exactly the pieces you need, for example
 | [StreamHooks](/api/@rulvar/core/interfaces/StreamHooks.md) | Live-only hooks the engine passes to a stream dispatch (RV1013). Never journaled, never part of request identity: like transport retries, they exist only on the live wire path. |
 | [SuspendedAppend](/api/@rulvar/core/interfaces/SuspendedAppend.md) | Fields common to every append through the kernel. |
 | [TaskDigest](/api/@rulvar/core/interfaces/TaskDigest.md) | The per-child digest handed to the orchestrator. |
+| [TerminalEnvelope](/api/@rulvar/core/interfaces/TerminalEnvelope.md) | One run terminal, the same on every surface (RV1105). |
 | [TerminalPatch](/api/@rulvar/core/interfaces/TerminalPatch.md) | - |
 | [TerminationAccountSnapshot](/api/@rulvar/core/interfaces/TerminationAccountSnapshot.md) | - |
 | [TerminationDeniedValue](/api/@rulvar/core/interfaces/TerminationDeniedValue.md) | The value payload of a termination.denied entry. |
@@ -477,6 +478,7 @@ exactly the pieces you need, for example
 | [SuspensionState](/api/@rulvar/core/type-aliases/SuspensionState.md) | - |
 | [TaskClass](/api/@rulvar/core/type-aliases/TaskClass.md) | Task-class vocabulary aligned with the role quality floors vocabulary (https://docs.rulvar.com/guide/model-routing). Scopeless global statements are inexpressible: every claim binds a taskClass. |
 | [TaskSpec](/api/@rulvar/core/type-aliases/TaskSpec.md) | Minimal TaskSpec stand-in: the full typed TaskSpec is owned by the PlanRunner surface and ships with M7; script modes carry proposals opaquely until then. |
+| [TerminalOutcomeFacts](/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md) | The outcome facts the assembler reads; a structural subset of RunOutcome. |
 | [TerminationDeniedWriter](/api/@rulvar/core/type-aliases/TerminationDeniedWriter.md) | Injected appender for termination.denied entries (engine-owned I/O). |
 | [TerminationResource](/api/@rulvar/core/type-aliases/TerminationResource.md) | The countable resource vocabulary. |
 | [ToolChoice](/api/@rulvar/core/type-aliases/ToolChoice.md) | - |
@@ -779,6 +781,7 @@ exactly the pieces you need, for example
 | [summarizeInstruction](/api/@rulvar/core/functions/summarizeInstruction.md) | The instruction message appended to the projected transcript for the summarize invocation. Deterministic wording; the response text becomes the summary message body. |
 | [summarizeOutput](/api/@rulvar/core/functions/summarizeOutput.md) | The M6 outputSummary: a deterministic truncation of the child's output (or error message), identical live and on replay (distillation lives with the child, ordered by spawn ordinal; the LLM distillation upgrade is M7 territory). |
 | [sumUsage](/api/@rulvar/core/functions/sumUsage.md) | Canonical usage addition for aggregates. The four required counts sum field by field and reasoning appears when the sum is positive, byte for byte the historical fold. The cache-write TTL split survives aggregation (RV1001): when either side differentiates its writes, an undifferentiated side's writes count as the 5m share, which is financially identical (both bill at the plain write rate) and keeps the sum canonical under the split-sum rule instead of dropping the 1h attribution the money was debited under. Sides carrying no split add exactly as before, so aggregates over undifferentiated usage stay byte stable. |
+| [terminalEnvelopeOf](/api/@rulvar/core/functions/terminalEnvelopeOf.md) | Assembles one terminal envelope (RV1105). `settlement` present means nothing durable records the terminal: `settled` reads false, and the optional `settledReason: 'superseded'` names the fenced-out segment (RV1009); absent means the settle held and `settled` reads true. The per-model split is detached, so a consumer mutating the envelope never reaches back into the cost report. |
 | [terminationConfigDrift](/api/@rulvar/core/functions/terminationConfigDrift.md) | Config-drift detection at resume: the journaled vector always wins; every differing field is reported for the `termination:config-drift` event. Dynamic budget top-up via restart is excluded by construction. |
 | [tierWithinCaps](/api/@rulvar/core/functions/tierWithinCaps.md) | True when `tier` is at or below the model's declared ceiling. |
 | [toApprovalDecision](/api/@rulvar/core/functions/toApprovalDecision.md) | Normalizes a resolution value into an ApprovalDecision. Anything that is not an explicit allow is a deny: an approval never fails open. |

@@ -531,6 +531,10 @@ export function createServer(options: CreateServerOptions): RulvarServer {
         pending: outcome.pending,
         dropped: outcome.dropped.length,
         usage: outcome.usage,
+        // The unified terminal envelope (RV1105): the same facts the
+        // SDK outcome resolves with, so an HTTP consumer assembles
+        // nothing from surface-specific fields.
+        envelope: outcome.envelope,
       });
     }
     const meta = await metaOf(runId);

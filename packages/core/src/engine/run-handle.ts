@@ -8,6 +8,7 @@ import type { Json } from '../l0/json.js';
 import type { ResolutionOutcome } from '../journal/resolution.js';
 import type { WorkflowEvent } from '../l0/events.js';
 import type { InvocationRole, Usage } from '../l0/messages.js';
+import type { TerminalEnvelope } from '../l0/terminal-envelope.js';
 import type { DroppedItem } from './ctx.js';
 
 /** Suspensions still open at settle time; producers arrive with M2. */
@@ -171,6 +172,16 @@ export type RunOutcome<R> = {
   pending: PendingExternal[];
   usage: Usage;
   cost: CostReport;
+  /**
+   * The unified terminal envelope (RV1105): every terminal fact in ONE
+   * shape, assembled once at the settlement chokepoint and shared with
+   * the `run:end` event, so the SDK and the event stream can never
+   * disagree. A RESOLVED outcome always carries `settled: true` inside
+   * it: an unsettled terminal rejects `handle.result` typed instead of
+   * resolving (RV907, RV1009), and its refusing envelope rides the
+   * event alone.
+   */
+  envelope: TerminalEnvelope;
 };
 
 /** Adds 'running' for in-flight inspection. */

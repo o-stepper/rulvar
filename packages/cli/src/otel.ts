@@ -352,6 +352,16 @@ export async function toOtel(
             runOpen.span.setAttribute('rulvar.run.settled_reason', event.settledReason);
           }
         }
+        // The envelope mirror (RV1105): the run span carries the money
+        // and agent facts from the SAME envelope the outcome resolves
+        // with, so the trace and the SDK cannot disagree. Widened at
+        // runtime: a persisted stream written by an older engine may
+        // replay a run:end without one.
+        const envelope = event.envelope as typeof event.envelope | undefined;
+        if (runOpen !== undefined && envelope !== undefined) {
+          runOpen.span.setAttribute('rulvar.run.total_usd', envelope.totalUsd);
+          runOpen.span.setAttribute('rulvar.run.agents_spawned', envelope.agentsSpawned);
+        }
         endSpan(
           event.spanId,
           event.ts,

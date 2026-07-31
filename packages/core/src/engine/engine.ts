@@ -88,6 +88,7 @@ import {
   type RunStatus,
 } from './run-handle.js';
 import { DEFAULT_PER_RUN_CONCURRENCY, Semaphore } from './scheduler.js';
+import { terminalEnvelopeOf } from './terminal-envelope.js';
 import { InProcessRunner, type CompiledWorkflow, type ScriptRunner } from '../runner/inprocess.js';
 import {
   validateDeterminismConfig,
@@ -1675,7 +1676,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         pinned === undefined
           ? (servedBy: ModelRef, usage: Usage): number | undefined => priceUsd(servedBy, usage)
           : pinned.composedPriceUsd((servedBy, usage) => priceUsd(servedBy, usage));
-      const outcome: RunOutcome<R> = {
+      // Assembled in two steps (RV1105): the facts here, the terminal
+      // envelope after the settlement verdict below names whether
+      // anything durable records them; the public RunOutcome then
+      // carries both, constructed once right before run:end.
+      const outcomeFacts: Omit<RunOutcome<R>, 'envelope'> = {
         status,
         dropped: internals.dropped,
         pending,
@@ -1685,10 +1690,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
       if (value !== undefined && (status === 'ok' || status === 'exhausted')) {
         // Exhaustion is never null when a value exists: the DEF-7
         // finalize fallback synthesizes the partial.
-        outcome.value = value;
+        outcomeFacts.value = value;
       }
       if (wireError !== undefined) {
-        outcome.error = wireError;
+        outcomeFacts.error = wireError;
       }
       // The semantic completion lift (RV-207 tail): an ok/exhausted run
       // reports through its result envelope, a typed failure through its
@@ -1702,27 +1707,27 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // identical live and replayed.
       const lifted = liftRunCompletion(
         status === 'ok' || status === 'exhausted'
-          ? outcome.value
+          ? outcomeFacts.value
           : status === 'error'
             ? wireError?.data
             : undefined,
       );
       if (lifted !== undefined) {
-        outcome.completion = lifted.completion;
+        outcomeFacts.completion = lifted.completion;
         if (lifted.childStatusCounts !== undefined) {
-          outcome.childStatusCounts = lifted.childStatusCounts;
+          outcomeFacts.childStatusCounts = lifted.childStatusCounts;
         }
         if (lifted.degradedReasons !== undefined) {
-          outcome.degradedReasons = lifted.degradedReasons;
+          outcomeFacts.degradedReasons = lifted.degradedReasons;
         }
         if (lifted.salvagedPartialChildren !== undefined) {
-          outcome.salvagedPartialChildren = lifted.salvagedPartialChildren;
+          outcomeFacts.salvagedPartialChildren = lifted.salvagedPartialChildren;
         }
         if (lifted.salvagedTerminalOutputChildren !== undefined) {
-          outcome.salvagedTerminalOutputChildren = lifted.salvagedTerminalOutputChildren;
+          outcomeFacts.salvagedTerminalOutputChildren = lifted.salvagedTerminalOutputChildren;
         }
         if (lifted.acceptanceChildren !== undefined) {
-          outcome.acceptanceChildren = lifted.acceptanceChildren;
+          outcomeFacts.acceptanceChildren = lifted.acceptanceChildren;
         }
       }
       // The journaled settle (fenced run state RFC, phase 3): the run's
@@ -1774,7 +1779,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           // replays append no settle, so a divergent replayed result can
           // never overwrite the live baseline), absent when the result
           // is undefined or not JCS-serializable.
-          const outputHash = hashRunOutput(outcome.value);
+          const outputHash = hashRunOutput(outcomeFacts.value);
           // The applied-pricing pin (RV407): the settle records the
           // resolved row of every model the journal used plus the table
           // version, so a later invoice fold can reproduce THESE numbers
@@ -1854,6 +1859,22 @@ export function createEngine(options: CreateEngineOptions): Engine {
           rootSpanId,
         );
       }
+      // The ONE envelope assembly (RV1105): the settlement verdict is
+      // known, so every terminal fact lands in one shape that the
+      // resolved outcome and run:end share verbatim; the surfaces
+      // cannot disagree by construction.
+      const envelope = terminalEnvelopeOf({
+        runId,
+        workflow: wf.name,
+        outcome: outcomeFacts,
+        agentsSpawned: budget.spent().agentsSpawned,
+        ...(settlementFailure !== undefined
+          ? { settlement: {} }
+          : supersededBy !== undefined
+            ? { settlement: { settledReason: 'superseded' as const } }
+            : {}),
+      });
+      const outcome: RunOutcome<R> = { ...outcomeFacts, envelope };
       // run:end spreads the SAME lift computed at outcome construction
       // above, so telemetry and handle.result can never disagree. A
       // failed settlement stamps `settled: false` (RV907), a superseded
@@ -1872,6 +1893,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
             : supersededBy !== undefined
               ? { settled: false as const, settledReason: 'superseded' as const }
               : {}),
+          envelope,
         },
         rootSpanId,
       );

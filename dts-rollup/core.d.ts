@@ -1452,347 +1452,39 @@ declare function sanitizeUsage(usage: Usage): Usage;
 */
 declare function sanitizeTerminalText(text: string): string;
 //#endregion
-//#region src/vendor/standard-schema.d.ts
-// Vendored from @standard-schema/spec@1.1.0 (MIT, Copyright (c) 2024 Colin
-// McDonnell), file dist/index.d.ts, byte-identical below this header.
-// Upstream: https://github.com/standard-schema/standard-schema
-// Types only, never a runtime dependency (docs/13-toolchain-repo.md,
-// section "Dependency baseline pins"; docs/08, section "SchemaSpec";
-// task M0-T08). StandardJSONSchemaV1 carries the JSON Schema projection
-// surface: ~standard.jsonSchema.input() with target draft-2020-12 and
-// fallback draft-07.
-/** The Standard Typed interface. This is a base type extended by other specs. */
-interface StandardTypedV1<Input = unknown, Output = Input> {
-  /** The Standard properties. */
-  readonly '~standard': StandardTypedV1.Props<Input, Output>;
-}
-declare namespace StandardTypedV1 {
-  /** The Standard Typed properties interface. */
-  interface Props<Input = unknown, Output = Input> {
-    /** The version number of the standard. */
-    readonly version: 1;
-    /** The vendor name of the schema library. */
-    readonly vendor: string;
-    /** Inferred types associated with the schema. */
-    readonly types?: Types<Input, Output> | undefined;
-  }
-  /** The Standard Typed types interface. */
-  interface Types<Input = unknown, Output = Input> {
-    /** The input type of the schema. */
-    readonly input: Input;
-    /** The output type of the schema. */
-    readonly output: Output;
-  }
-  /** Infers the input type of a Standard Typed. */
-  type InferInput<Schema extends StandardTypedV1> = NonNullable<Schema['~standard']['types']>['input'];
-  /** Infers the output type of a Standard Typed. */
-  type InferOutput<Schema extends StandardTypedV1> = NonNullable<Schema['~standard']['types']>['output'];
-}
-/** The Standard Schema interface. */
-interface StandardSchemaV1<Input = unknown, Output = Input> {
-  /** The Standard Schema properties. */
-  readonly '~standard': StandardSchemaV1.Props<Input, Output>;
-}
-declare namespace StandardSchemaV1 {
-  /** The Standard Schema properties interface. */
-  interface Props<Input = unknown, Output = Input> extends StandardTypedV1.Props<Input, Output> {
-    /** Validates unknown input values. */
-    readonly validate: (value: unknown, options?: StandardSchemaV1.Options | undefined) => Result<Output> | Promise<Result<Output>>;
-  }
-  /** The result interface of the validate function. */
-  type Result<Output> = SuccessResult<Output> | FailureResult;
-  /** The result interface if validation succeeds. */
-  interface SuccessResult<Output> {
-    /** The typed output value. */
-    readonly value: Output;
-    /** A falsy value for `issues` indicates success. */
-    readonly issues?: undefined;
-  }
-  interface Options {
-    /** Explicit support for additional vendor-specific parameters, if needed. */
-    readonly libraryOptions?: Record<string, unknown> | undefined;
-  }
-  /** The result interface if validation fails. */
-  interface FailureResult {
-    /** The issues of failed validation. */
-    readonly issues: ReadonlyArray<Issue>;
-  }
-  /** The issue interface of the failure output. */
-  interface Issue {
-    /** The error message of the issue. */
-    readonly message: string;
-    /** The path of the issue, if any. */
-    readonly path?: ReadonlyArray<PropertyKey | PathSegment> | undefined;
-  }
-  /** The path segment interface of the issue. */
-  interface PathSegment {
-    /** The key representing a path segment. */
-    readonly key: PropertyKey;
-  }
-  /** The Standard types interface. */
-  interface Types<Input = unknown, Output = Input> extends StandardTypedV1.Types<Input, Output> {}
-  /** Infers the input type of a Standard. */
-  type InferInput<Schema extends StandardTypedV1> = StandardTypedV1.InferInput<Schema>;
-  /** Infers the output type of a Standard. */
-  type InferOutput<Schema extends StandardTypedV1> = StandardTypedV1.InferOutput<Schema>;
-}
-/** The Standard JSON Schema interface. */
-interface StandardJSONSchemaV1<Input = unknown, Output = Input> {
-  /** The Standard JSON Schema properties. */
-  readonly '~standard': StandardJSONSchemaV1.Props<Input, Output>;
-}
-declare namespace StandardJSONSchemaV1 {
-  /** The Standard JSON Schema properties interface. */
-  interface Props<Input = unknown, Output = Input> extends StandardTypedV1.Props<Input, Output> {
-    /** Methods for generating the input/output JSON Schema. */
-    readonly jsonSchema: StandardJSONSchemaV1.Converter;
-  }
-  /** The Standard JSON Schema converter interface. */
-  interface Converter {
-    /** Converts the input type to JSON Schema. May throw if conversion is not supported. */
-    readonly input: (options: StandardJSONSchemaV1.Options) => Record<string, unknown>;
-    /** Converts the output type to JSON Schema. May throw if conversion is not supported. */
-    readonly output: (options: StandardJSONSchemaV1.Options) => Record<string, unknown>;
-  }
+//#region src/l0/terminal-envelope.d.ts
+/** One run terminal, the same on every surface (RV1105). */
+interface TerminalEnvelope {
+  /** The run this terminal speaks for. */
+  runId: string;
+  /** The workflow name the run was started (or resumed) under. */
+  workflow: string;
+  /** The computed transport status of the run. */
+  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  /** The typed error, exactly the outcome's, when status is 'error'. */
+  error?: WireError;
+  /** The semantic completion claim, when the workflow made one. */
+  completion?: "complete" | "partial" | "rejected";
   /**
-   * The target version of the generated JSON Schema.
-   *
-   * It is *strongly recommended* that implementers support `"draft-2020-12"` and `"draft-07"`, as they are both in wide use. All other targets can be implemented on a best-effort basis. Libraries should throw if they don't support a specified target.
-   *
-   * The `"openapi-3.0"` target is intended as a standardized specifier for OpenAPI 3.0 which is a superset of JSON Schema `"draft-04"`.
-   */
-  type Target = 'draft-2020-12' | 'draft-07' | 'openapi-3.0' | ({} & string);
-  /** The options for the input/output methods. */
-  interface Options {
-    /** Specifies the target version of the generated JSON Schema. Support for all versions is on a best-effort basis. If a given version is not supported, the library should throw. */
-    readonly target: Target;
-    /** Explicit support for additional vendor-specific parameters, if needed. */
-    readonly libraryOptions?: Record<string, unknown> | undefined;
-  }
-  /** The Standard types interface. */
-  interface Types<Input = unknown, Output = Input> extends StandardTypedV1.Types<Input, Output> {}
-  /** Infers the input type of a Standard. */
-  type InferInput<Schema extends StandardTypedV1> = StandardTypedV1.InferInput<Schema>;
-  /** Infers the output type of a Standard. */
-  type InferOutput<Schema extends StandardTypedV1> = StandardTypedV1.InferOutput<Schema>;
-}
-//#endregion
-//#region src/l0/schema.d.ts
-/** Form 2 of SchemaSpec: an explicit JSON Schema plus a runtime type guard. */
-type SchemaPair<T = unknown> = {
-  jsonSchema: JsonSchema;
-  validate: (value: unknown) => value is T;
-};
-/**
-* The L0 schema contract with exactly three accepted forms: a Standard
-* Schema (Zod, ArkType, Valibot, ...), a { jsonSchema, validate } pair, or
-* a bare JSON Schema literal.
-*/
-type SchemaSpec<T = unknown> = StandardSchemaV1<unknown, T> | SchemaPair<T> | JsonSchema;
-/**
-* Inferred output type per form: the Standard Schema output type; the
-* type-guard target of validate(); unknown for a bare JSON Schema.
-*/
-type Out<S> = S extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<S> : S extends {
-  validate: (value: unknown) => value is infer T;
-} ? T : unknown;
-/**
-* Form-1 guard: the value implements the Standard Schema interface. Some
-* libraries expose callable schemas (ArkType types are functions), so both
-* object- and function-typed values qualify.
-*/
-declare function isStandardSchemaSpec(spec: SchemaSpec): spec is StandardSchemaV1;
-/** Form-2 guard: an explicit { jsonSchema, validate } pair. */
-declare function isSchemaPairSpec(spec: SchemaSpec): spec is SchemaPair;
-/**
-* Derives the JSON Schema of a SchemaSpec. Form 1 projects via the
-* StandardJSONSchemaV1 input() converter, target draft 2020-12 with
-* draft-07 fallback; a library without the projection is a typed
-* ConfigError at definition time, never at first call. Transforming
-* schemas therefore project their INPUT type. Forms 2 and 3 are taken
-* verbatim.
-*/
-declare function projectToJsonSchema(spec: SchemaSpec): JsonSchema;
-/**
-* Canonical schema derivation: local fragment-only $ref inlined (recursion is
-* a ConfigError), remote and dynamic references forbidden, annotation
-* keywords stripped (format retained), reference infrastructure ($defs,
-* definitions, $anchor) removed once inlined. The result feeds JCS
-* serialization and sha256.
-*/
-declare function canonicalizeSchema(schema: JsonSchema): JsonSchema;
-/**
-* The schemaHash used when no structured-output schema is declared: the
-* hash of the canonical `true` schema.
-*/
-declare const EMPTY_SCHEMA_HASH: string;
-/** The toolsetHash of an empty toolset: the hash of the canonical empty contract array. */
-declare const EMPTY_TOOLSET_HASH: string;
-/**
-* schemaHash = sha256(JCS(canonicalize(schema))). Accepts the derived JSON
-* Schema (or a boolean schema); pass undefined for "no schema declared".
-*/
-declare function schemaHash(schema: JsonSchema | boolean | undefined): string;
-/** Derives and hashes a SchemaSpec in one step (identity path for spawns). */
-declare function schemaHashOfSpec(spec: SchemaSpec | undefined): string;
-/**
-* toolsetHash = sha256 over the JCS-canonical JSON array of per-tool
-* contract tuples (name, description, canonical parameters, version)
-* sorted by name. Tool description IS part of the contract; schema
-* annotations inside parameters are not. An absent version participates as
-* absent.
-*/
-declare function toolsetHash(contracts: ToolContract[]): string;
-/** Result of validating a value against a SchemaSpec. */
-type SchemaValidationResult<T = unknown> = {
-  valid: true;
-  value: T;
-} | {
-  valid: false;
-  issues: Issue$1[];
-};
-/**
-* Runtime validation per form:
-* form 1 via the Standard Schema's own validate, form 2 via the pair's
-* type guard, form 3 via the vendored draft 2020-12 validator. The same
-* machinery backs the structured-output tiers of the Agent Runtime.
-*/
-declare function validateSchemaSpec<S extends SchemaSpec>(spec: S, value: unknown): Promise<SchemaValidationResult<Out<S>>>;
-//#endregion
-//#region src/l0/spi/provider.d.ts
-/**
-* Live-only hooks the engine passes to a stream dispatch (RV1013).
-* Never journaled, never part of request identity: like transport
-* retries, they exist only on the live wire path.
-*/
-interface StreamHooks {
-  /**
-  * Called BEFORE each provider-side continuation wire beyond the
-  * first (a `pause_turn` absorption makes several wire requests
-  * inside one dispatch): under the engine's opt-in hard mode
-  * (`quota.reserveContinuations`) the engine reserves the segment in
-  * the configured limiter before its egress. A resolved `undefined`
-  * admits the wire; a resolved WireError DENIES it, and the adapter
-  * must yield exactly that error as its terminal event and stop, so
-  * the wire never leaves. `segment` is the ordinal of the wire about
-  * to be sent (2 for the first continuation). A multi-wire adapter
-  * that never calls the hook keeps the documented post-hoc
-  * settlement semantics.
+  * Whether anything durable records this terminal (RV907). False only
+  * on the event stream: `handle.result` rejects typed instead of
+  * resolving an unsettled outcome.
   */
-  onContinuationSegment?: (info: {
-    segment: number;
-  }) => Promise<WireError | undefined>;
-}
-/**
-* One long-context price tier. When the full prompt (canonical
-* inputTokens, cache included) is strictly above `aboveInputTokens`, the
-* ENTIRE request is re-priced with these multipliers, not only the tokens
-* past the threshold (how providers state their long-context rules).
-* `inputMultiplier` scales every input-side rate: input, cache read, and
-* cache write.
-* `outputMultiplier` scales the output rate. Provider pricing pages state
-* multipliers for "input" without saying whether cache rates scale;
-* scaling them with input is the conservative reading for budget
-* enforcement (it never underestimates spend). With several tiers, the
-* highest threshold below the prompt size wins, independent of array
-* order.
-*/
-interface PricingTier {
-  aboveInputTokens: number;
-  inputMultiplier: number;
-  outputMultiplier: number;
-}
-/**
-* Per-model pricing in USD per million tokens. The registry's
-* versioned price table wins over adapter-
-* reported caps.pricing, which is a fallback only.
-*/
-interface Pricing {
-  inputUsdPerMTok: number;
-  outputUsdPerMTok: number;
-  cacheReadUsdPerMTok?: number;
-  /** 5m write premium rate. */
-  cacheWriteUsdPerMTok?: number;
-  /** 1h write premium rate where the provider distinguishes. */
-  cacheWrite1hUsdPerMTok?: number;
-  /** Long-context tiers; a row without them is one linear price. */
-  tiers?: PricingTier[];
-  /**
-  * ISO date (YYYY-MM-DD) of the last verification of this row against
-  * the provider's documented rates or its billing categories (RV814).
-  * A recorded verification event, never a guess: seed rows exist to
-  * bound ceilings conservatively, actual billing truth is established
-  * only by statement reconciliation over saved exports, and a
-  * confirmed divergence corrects the row in its own release with a
-  * changeset, never by a silent rewrite. Preflight stamps it on the
-  * spawn report and the invoice text names it with its age, so the
-  * consumer of a dollar figure can see how stale the rates behind it
-  * are; the settle pin carries it with the rest of the row.
-  */
-  ratesVerifiedAt?: string;
-}
-/** Capability facts the router consumes for tier selection and scrubbing. */
-type ModelCaps = {
-  structuredOutput: "native" | "forced-tool" | "prompt";
-  supportsTemperature: boolean;
-  supportsParallelTools: boolean; /** Canonical efforts this model accepts after mapping. */
-  reasoningEfforts: Effort[];
-  contextWindow: number;
-  maxOutputTokens: number;
-  /**
-  * The smallest request output cap the provider accepts (the v1.74
-  * experiment review, P0.1): OpenAI's Responses API rejects
-  * max_output_tokens below 16, so a dispatch under this floor is a
-  * guaranteed 400. The runtime never sends a request output cap below
-  * it: a budget last gasp dispatches the floor instead of one token,
-  * and a remainder that cannot buy the floor is refused typed before
-  * the wire. Absent means one, the historical floor.
-  */
-  minOutputTokensPerTurn?: number; /** Adapter-reported fallback only; the versioned price table wins. */
-  pricing?: Pricing;
-};
-interface ProviderAdapter {
-  /** Stable adapter id; the left segment of ModelRef. */
-  id: string;
-  /**
-  * Provider family for provider-raw matching and retention (committed
-  * during M4-T02). Two adapters of the same
-  * family share retained blocks and projections; default = id.
-  */
-  provider?: string;
-  /**
-  * Declares WHICH reading of the provider's usage telemetry this
-  * adapter normalizes under; the engine stamps it on usage-bearing
-  * terminal entries so a journal records not only the numbers but the
-  * semantics they were produced under (v1.20.0 review P1/P2-2). Bump
-  * the string whenever the MEANING of a reported Usage field changes,
-  * even when no pricing rate moves; a rate change is a PriceTable
-  * pricingVersion bump instead. Entries persisted before this shipped
-  * carry no stamp, which is itself information: an unstamped OpenAI
-  * entry with cache writes may predate the v1.20.0 cache-subset
-  * correction. Optional; adapters that never changed semantics can
-  * omit it.
-  */
-  usageSemantics?: string;
-  caps(model: string): ModelCaps;
-  /** Refresh the capability table from live model lists. */
-  refreshCaps?(): Promise<void>;
-  stream(req: ChatRequest, signal?: AbortSignal, hooks?: StreamHooks): AsyncIterable<ChatEvent>;
-  /**
-  * Provider-side token count for the request, used to tighten the
-  * admission reserve before a spawn dispatches. The request carries
-  * the FULL prompt, so an implementation that goes over the network is
-  * egress exactly like stream and MUST honor `opts.signal` (RV904):
-  * the engine only calls this after a zero-egress admission
-  * feasibility check, passes the spawn's abort signal, and treats an
-  * abort as cancellation rather than falling back to the flat
-  * reserve. Hosts that must not send prompts before their own
-  * admission gates pass an explicit `estCost` instead, which skips
-  * this call entirely.
-  */
-  countTokens?(req: ChatRequest, opts?: {
-    signal?: AbortSignal;
-  }): Promise<number>;
+  settled: boolean;
+  /** Present only beside `settled: false` when a successor owns settlement (RV1009). */
+  settledReason?: "superseded";
+  /** The NET settled fold: what the run recorded as spent. */
+  totalUsd: number;
+  /** The gross figure with abandoned subtrees included (P1.3). */
+  grossUsd: number;
+  /** The per-model split of totalUsd, keyed by canonical ModelRef. */
+  costByModel: Record<string, number>;
+  /** The run's usage aggregate, TTL attribution included. */
+  usage: Usage;
+  /** True when any priced usage is approximate: totalUsd is a lower bound. */
+  usageApprox: boolean;
+  /** Agents admitted over the run's lifetime, resume seed included. */
+  agentsSpawned: number;
 }
 //#endregion
 //#region src/l0/spi/isolation.d.ts
@@ -1819,705 +1511,6 @@ interface IsolationProvider {
     }>;
     dispose(keep?: boolean): Promise<void>;
   }>;
-}
-//#endregion
-//#region src/l0/spi/toolsource.d.ts
-/**
-* Declarative risk metadata on the tool contract. Policy input, not
-* identity: it does NOT enter toolsetHash.
-*/
-type ToolRisk = "read" | "write" | "network" | "execute" | "destructive";
-/**
-* The context handed to execute (and to permission hooks and canUseTool).
-* Deliberately exposes NO spawn primitives: tools are leaves of the
-* call-and-return tree (invariant I3); all spawning flows through Ctx
-* primitives.
-*/
-interface ToolContext {
-  runId: string;
-  /** Tool span in the run > phase > agent > tool hierarchy. */
-  spanId: string;
-  agent: {
-    agentType: string;
-    label?: string;
-  };
-  /** Isolation working directory; host cwd under isolation 'none'. */
-  cwd: string;
-  /** The spawn's declared isolation. */
-  isolation: IsolationSpec;
-  /** Fires on cancellation, budget ceiling, UsageLimits expiry. */
-  signal: AbortSignal;
-  /** Emits telemetry log events; never writes journal entries. */
-  log(level: "debug" | "info" | "warn" | "error", msg: string, data?: Json): void;
-}
-/**
-* Where execute runs. A declared capability consumed by dispatch and
-* policy. 'inprocess' runs the tool's `execute` closure in the engine
-* process (full host capabilities, an execution convenience). A
-* non-inprocess tag routes dispatch through the engine's registered
-* ToolExecutorProvider (RV-216) instead, so the tool's work runs out of
-* process under host-owned isolation; the shipped reference adapters live
-* in `@rulvar/executor`. The tag never enters toolsetHash.
-*/
-type ToolExecutor = "inprocess" | "subprocess" | "container";
-/**
-* A defined tool. The identity projection is the ToolContract
-* { name, description, parameters, version }: exactly what the model sees
-* and exactly what toolsetHash hashes; execute and every other
-* non-contract field are excluded by construction.
-*/
-interface ToolDef<S extends SchemaSpec = SchemaSpec> {
-  readonly kind: "tool";
-  readonly name: string;
-  readonly description: string;
-  readonly parameters: S;
-  /** Opaque contract version; part of toolsetHash. */
-  readonly version?: string;
-  /** Default 'inprocess'. */
-  readonly executor: ToolExecutor;
-  /**
-  * Opaque policy data for a non-inprocess executor: what THIS tool's
-  * declared executor should run (for a subprocess adapter, the command
-  * and its argv). Never identity: excluded from toolsetHash exactly like
-  * `executor` and `risk`, and ignored for 'inprocess'. The engine passes
-  * it verbatim to the ToolExecutorProvider (RV-216).
-  */
-  readonly executorSpec?: Json;
-  /** Default false; the terminal permission default asks when true. */
-  readonly needsApproval: boolean;
-  readonly risk?: ToolRisk;
-  execute: (input: Out<S>, ctx: ToolContext) => Promise<unknown>;
-}
-/** Session handle passed to ToolSource.tools (minimal in v1; audited at M9). */
-interface ToolSourceSession {
-  runId: string;
-}
-/**
-* The ToolSource seam: tools() yields the source's current ToolDefs. The
-* toolset snapshot for a given agent spawn is captured at spawn time and
-* hashed into the spawn's identity via toolsetHash; a mid-run change MUST
-* NOT mutate an in-flight agent's toolset.
-*/
-interface ToolSource {
-  id: string;
-  tools(session: ToolSourceSession): Promise<ToolDef[]>;
-}
-//#endregion
-//#region src/l0/spi/knowledge.d.ts
-/**
-* Task-class vocabulary aligned with the role quality floors vocabulary
-* (https://docs.rulvar.com/guide/model-routing). Scopeless global statements
-* are inexpressible: every claim binds a taskClass.
-*/
-type TaskClass = "code-edit" | "investigation" | "synthesis" | "extraction" | "planning" | "judging" | (string & {});
-type ClaimClass = "eval-measured" | "human-editorial";
-type ClaimStatus = "active" | "stale" | "superseded" | "archived";
-/** entryRef is the journal entry seq (canonical EntryRef; XF ruling). */
-type EvidenceRef = {
-  kind: "journal";
-  runId: string;
-  entryRef: number;
-} | {
-  kind: "eval";
-  reportId: string;
-  caseIds: string[];
-};
-interface ModelClaim {
-  /** ULID. */
-  id: string;
-  /** effort is part of identity, as in the canonical modelSpec. */
-  subject: {
-    model: ModelRef;
-    effort?: Effort;
-  };
-  taskClass: TaskClass;
-  polarity: "strength" | "weakness";
-  /** <=200 chars; proposal-born claims use a typed template, never a quote from tool output. */
-  statement: string;
-  /** eval-measured is committable only through the eval-committer identity (M11). */
-  class: ClaimClass;
-  status: ClaimStatus;
-  /** Mandatory, >=1. */
-  evidence: EvidenceRef[];
-  /** Writable ONLY by the eval-committer identity (schema-enforced from M11). */
-  metrics?: {
-    passRate: number;
-    n: number;
-    graderId: string;
-    cost?: number;
-    baseline?: {
-      model: ModelRef;
-      passRate: number;
-    };
-  };
-  confidence: "high" | "medium" | "low";
-  /** ISO date. */
-  observedAt: string;
-  /** TTL by class and polarity (the grounding and decay rules). */
-  expiresAt: string;
-  /** Honestly best-effort drift signal. */
-  modelEpoch?: {
-    registryVersion?: string;
-    pricingVersion?: string;
-    capsHash?: string;
-    canaryFingerprint?: string;
-  };
-  author: {
-    kind: "eval-pipeline" | "human";
-    id: string;
-  };
-  /** Orchestrator proposal provenance (phase 3). */
-  origin?: {
-    kind: "kb-proposal";
-    runId: string;
-    entryRef: number;
-  };
-  /** Append-only: an edit is a new claim plus supersede. */
-  supersedes?: string;
-}
-interface KnowledgeSnapshot {
-  /** Monotonic; the CAS token of commit. */
-  version: number;
-  /** Deterministic content hash of the claims array. */
-  hash: string;
-  claims: ModelClaim[];
-}
-/**
-* The write gate. The human variant carries the MANDATORY attribution
-* attestation (ruledOut over the checklist prompt, tools, difficulty,
-* transient-provider; recommended contrast evidence): rubber-stamping
-* "evidence exists" is constructively impossible. The eval-confirmed
-* variant is reserved for v2, outside the committed roadmap.
-*/
-type GateRecord = {
-  kind: "human";
-  approver: string;
-  at: string;
-  attribution: {
-    ruledOut: Array<"prompt" | "tools" | "difficulty" | "transient-provider">;
-    contrastEvidence?: EvidenceRef;
-  };
-} | {
-  kind: "eval-committer";
-  committerId: string;
-  reportId: string;
-} | {
-  kind: "eval-confirmed";
-  reportId: string;
-  n: number;
-  passRate: number;
-};
-type ClaimOp = {
-  op: "add";
-  claim: ModelClaim;
-  gate: GateRecord;
-} | {
-  op: "supersede";
-  claimId: string;
-  by: ModelClaim;
-  gate: GateRecord;
-} | {
-  op: "archive";
-  claimId: string;
-  reason: "deprecated" | "stale" | "rejected" | "falsified";
-} | {
-  op: "mark_stale";
-  claimId: string;
-  reason: "canary-drift";
-};
-/**
-* The SPI seam. commit performs CAS on
-* the monotonic snapshot version, mirroring the fencing-epoch
-* discipline of LeasableStore; concurrent maintenance commits serialize
-* through CAS rejection and rebase. commit is UNREACHABLE from the
-* runtime: runs hold ModelKnowledgeHandle.
-*/
-interface ModelKnowledgeStore {
-  current(): Promise<KnowledgeSnapshot>;
-  commit(ops: ClaimOp[], expectedVersion: number): Promise<number>;
-}
-/**
-* The runtime handle: with propose() deleted from the design and
-* commit absent from this shape, a run has no write path into the
-* cross-run medium at all.
-*/
-type ModelKnowledgeHandle = Pick<ModelKnowledgeStore, "current">;
-/** The closed trigger vocabulary of kb_propose (phase 3). */
-type KbProposalTrigger = "error" | "limit" | "schema-exhausted" | "verify-failed" | "no-progress" | "escalation";
-/**
-* One orchestrator model-knowledge proposal (phase 3). A proposal is a
-* run-ledger record, NOT a claim: it lives ONLY in the RunLedger
-* section modelObservations, is never rendered into any prompt of any
-* run before the human gate (absolute quarantine, the note included),
-* and reaches the gate exclusively through LedgerExport. The engine
-* assembles it from the tier-relative kb_propose payload: the subject
-* model is resolved by the engine from the referenced lineage's
-* declared ladder, never named by the orchestrator; evidence must
-* resolve into the proposing run's own decision entries.
-*/
-interface KbProposal {
-  subject: {
-    model: ModelRef;
-    effort?: Effort;
-  };
-  taskClass: TaskClass;
-  polarity: "strength" | "weakness";
-  trigger: KbProposalTrigger;
-  evidence: Array<{
-    kind: "journal";
-    runId: string;
-    entryRef: number;
-  }>;
-  /** <=200 chars; not rendered into any prompt before the gate. */
-  note?: string;
-}
-//#endregion
-//#region src/l0/spi/quota.d.ts
-/**
-* The pre-dispatch estimate a reservation is admitted under. Token
-* estimates are heuristic (the engine uses its deterministic
-* four-characters-per-token prompt estimate plus the request's output
-* cap when one is set); reconcile() settles the difference against
-* actual usage inside the same accounting window.
-*/
-interface QuotaEstimate {
-  /** Wire calls this reservation admits; the engine always sends 1. */
-  requests: number;
-  /** Heuristic prompt estimate for the attempt. */
-  inputTokens: number;
-  /** The request's output token cap, when one is set. */
-  maxOutputTokens?: number;
-}
-/** One admission request, dimensioned for tenant/model/provider rules. */
-interface QuotaReservationRequest {
-  /**
-  * The adapter id (the left segment of ModelRef), matching the keys
-  * of `concurrency.perProvider`.
-  */
-  provider: string;
-  /** The serving model, re-reserved per failover target. */
-  model: string;
-  /** The engine's configured tenant; absent when the host set none. */
-  tenant?: string;
-  /** The run paying for the attempt; observability only. */
-  runId?: string;
-  estimate: QuotaEstimate;
-}
-/**
-* The admission verdict. `retryAfterMs` on a denial is the
-* provider-shaped hint the retry engine honors verbatim: the time
-* until the limiter expects capacity (0 = retry immediately, e.g. a
-* request whose estimate can never fit its cap, so exhaustion and
-* failover happen without waiting; absent = the caller's backoff
-* policy applies).
-*/
-type QuotaDecision = {
-  granted: true;
-  reservationId: string;
-} | {
-  granted: false;
-  retryAfterMs?: number;
-  reason?: string;
-};
-/** The shared rate/quota limiter seam; see the module contract above. */
-interface QuotaLimiter {
-  reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
-  /**
-  * Settles a reservation against the attempt's actual usage. The
-  * optional `actual.requests` is the TRUE number of wire requests the
-  * reservation ended up covering (RV905: an adapter absorbing
-  * provider-side continuations makes several wire calls inside one
-  * reserved dispatch); implementations add the difference over the
-  * single request the reservation admitted into the same window, so
-  * the request cap reflects what the provider actually metered. A
-  * settlement never denies retroactively: the wire calls already
-  * happened. Implementations written against the two-argument form
-  * remain valid; they merely keep the historical undercount.
-  */
-  reconcile(reservationId: string, usage: Usage, actual?: {
-    requests?: number;
-  }): Promise<void>;
-  /**
-  * Cancels an UNUSED admission (RV1013): the reserved wire never
-  * left, so the admitted request and its token estimate return to
-  * the window. This is NOT reconcile: a settlement only ever adds
-  * (the calls already happened), while a release gives back exactly
-  * what admission consumed for a wire that was never sent (the
-  * engine calls it for pre-wire continuation reservations whose
-  * segment never flew). MUST be idempotent and tolerate unknown or
-  * expired ids as no-ops, like reconcile; a released id settles
-  * nothing afterwards. Optional: implementations without it keep the
-  * conservative window age-out for unused admissions.
-  */
-  release?(reservationId: string): Promise<void>;
-}
-//#endregion
-//#region src/l0/spi/executor.d.ts
-/** The non-inprocess executor tags a provider can be registered under. */
-type IsolatedExecutorTag = Exclude<ToolExecutor, "inprocess">;
-/**
-* The per-call context handed to a ToolExecutorProvider. It carries the
-* tool span (so provider telemetry nests under the run tree), the
-* cancellation signal, and a stable idempotency key.
-*/
-interface IsolatedExecContext {
-  runId: string;
-  /** The tool span, minted under the agent span exactly like inprocess. */
-  spanId: string;
-  agentType: string;
-  /**
-  * Stable identity of THIS logical tool call within THIS run
-  * incarnation: a deterministic function of the run, the logical
-  * invocation (the containing agent's journal seq plus the call's
-  * ordinal in that agent's tool loop), the tool name, the canonical
-  * arguments, and, for runs stamped with derivation 2
-  * (RunMeta.execKeyDerivation; RV403), the run's generation token. A
-  * rerun of the same call after a mid-flight crash reuses the key, so
-  * a provider whose work has external side effects can fold an
-  * at-least-once retry into effectively-once; a different call, even
-  * with byte-identical arguments, never collides; and under
-  * derivation 2 a deleteRun-then-recreate of the same runId never
-  * reuses the deleted incarnation's keys.
-  */
-  idempotencyKey: string;
-  /** Fires on cancellation, a budget ceiling, or UsageLimits expiry. */
-  signal: AbortSignal;
-  /** Emits telemetry log events under the tool span; never journals. */
-  log(level: "debug" | "info" | "warn" | "error", msg: string, data?: Json): void;
-}
-/** One out-of-process tool dispatch. */
-interface IsolatedExecRequest {
-  /** The declared executor tag ('subprocess' | 'container'). */
-  executor: IsolatedExecutorTag;
-  /** The tool contract name. */
-  tool: string;
-  /** The validated arguments, after the permission chain rewrote them. */
-  args: Json;
-  /**
-  * The tool's `executorSpec`: opaque host data telling THIS provider
-  * what to run (for a subprocess adapter, the command and its argv).
-  * Never identity; the engine passes it through verbatim.
-  */
-  spec: Json;
-  ctx: IsolatedExecContext;
-}
-/**
-* The isolated tool executor seam. A provider runs one dispatch to its
-* JSON result. A thrown error becomes the call's error tool result, never
-* a run abort: an executor failure (non-zero exit, timeout kill,
-* unparseable output, infrastructure error) is surfaced to the model
-* exactly like any other tool error, so the loop can react and the run
-* stays durable.
-*/
-interface ToolExecutorProvider {
-  /** Runs one dispatch to its JSON result; throws to signal tool failure. */
-  run(request: IsolatedExecRequest): Promise<Json>;
-}
-/**
-* The engine's executor registry: at most one provider per non-inprocess
-* tag. A tool whose `executor` tag is absent here fails typed at spawn
-* time, before any provider or model call.
-*/
-type ExecutorRegistry = Partial<Record<IsolatedExecutorTag, ToolExecutorProvider>>;
-//#endregion
-//#region src/knowledge/decay.d.ts
-/**
-* The asymmetric TTL table:
-* a false negative is costlier through lock-in, so weaknesses expire
-* sooner than strengths.
-*/
-declare const CLAIM_TTL_DAYS: {
-  readonly "eval-measured": {
-    readonly strength: 90;
-    readonly weakness: 30;
-  };
-  readonly "human-editorial": {
-    readonly strength: 120;
-    readonly weakness: 45;
-  };
-};
-/** Inbox proposals expire after 14 days (reserved for M12 phase 3). */
-declare const INBOX_PROPOSAL_TTL_DAYS = 14;
-/** The asymmetric TTL applied to an observedAt ISO date. */
-declare function claimExpiry(claimClass: ModelClaim["class"], polarity: ModelClaim["polarity"], observedAt: string): string;
-/** True when the claim steers nothing at `at` (the read-path filter). */
-declare function claimExpired(claim: Pick<ModelClaim, "expiresAt">, at: string): boolean;
-/** The TTL state a maintenance view renders per claim. */
-type TtlState = "holds" | "expired";
-declare function ttlState(claim: Pick<ModelClaim, "expiresAt">, at: string): TtlState;
-/**
-* The re-measurement queue:
-* expired eval-measured claims that are still ACTIVE. Just a status
-* filter: the next sweep re-measures these subjects; nothing archives
-* them (archiving would empty the queue and hide the decay).
-*/
-declare function remeasureQueue(claims: readonly ModelClaim[], at: string): ModelClaim[];
-/**
-* Deprecation maintenance (deprecations archive claims, never delete
-* them, so historical runs keep their audit trail): archive ops for
-* every non-terminal claim of the deprecated
-* models. The caller commits them under its own gate-free archive ops.
-*/
-declare function archiveDeprecatedModelOps(claims: readonly ModelClaim[], deprecated: readonly ModelRef[]): ClaimOp[];
-//#endregion
-//#region src/knowledge/claims.d.ts
-/**
-* The typed statement template for a proposal-born claim (phase 3):
-* assembled over the closed enum vocabulary ONLY, so tool-output text
-* is unquotable into persistence, and model-free, because a claim
-* statement renders into the knowledge card's notes layer, which never
-* leaks model names to the orchestrator.
-*/
-declare function proposalStatement(proposal: Pick<KbProposal, "taskClass" | "polarity" | "trigger">): string;
-/** Appendix A: KB active-claims cap, default 8 per (model, taskClass). */
-declare const KB_ACTIVE_CLAIMS_CAP = 8;
-/** The committed data model bound: statement <= 200 chars. */
-declare const CLAIM_STATEMENT_MAX_CHARS = 200;
-interface ClaimValidationOptions {
-  /**
-  * True on the eval-committer path (the eval-committer gate).
-  * Editorial validation leaves it false and both eval-measured
-  * claims and metrics reject. At the op level the GATE decides this
-  * flag; the option exists for direct claim-level validation.
-  */
-  evalCommitter?: boolean;
-}
-/** Issues of one claim record (empty = valid). */
-declare function claimIssues(claim: ModelClaim, path: string, options?: ClaimValidationOptions): string[];
-/**
-* Issues of one op (empty = valid). GATE-DRIVEN (M11-T01): the gate on
-* the op decides which claim rules apply, so the identity is enforced
-* by shape alone. Referential integrity stays with apply.
-*/
-declare function claimOpIssues(op: ClaimOp, index: number): string[];
-/**
-* The commit-time cap (Appendix A): active claims per
-* (model, taskClass) after the batch applies. Supersede chains keep
-* only the head active by construction (applyClaimOps flips the prior
-* to 'superseded'), so a supersede never grows the count.
-*/
-declare function capIssues(claims: readonly ModelClaim[], cap?: number): string[];
-/**
-* The commit-batch validation: op shapes and gates first (GATE-DRIVEN
-* since M11-T01: the human gate carries editorial claims, the
-* eval-committer gate carries eval-measured claims with metrics), the
-* post-apply cap second. Throws one ConfigError carrying every issue,
-* so a maintenance caller fixes the batch in one round trip.
-*/
-declare function validateEditorialCommit(ops: readonly ClaimOp[], claimsAfter: readonly ModelClaim[], options?: ClaimValidationOptions & {
-  cap?: number;
-}): void;
-//#endregion
-//#region src/knowledge/epoch.d.ts
-/** Deterministic hash of a caps declaration (JCS + sha256). */
-declare function capsHashOf(caps: ModelCaps): string;
-interface ModelEpochInputs {
-  /** Profile-registry snapshot hash or any registry version marker. */
-  registryVersion?: string;
-  /** The configured PriceTable's pricingVersion. */
-  pricingVersion?: string;
-  /** The adapter's caps declaration for the subject model. */
-  caps?: ModelCaps;
-  /** The @rulvar/evals canary fingerprint, when probes ran. */
-  canaryFingerprint?: string;
-}
-/** Builds the optional modelEpoch block; empty inputs give undefined. */
-declare function modelEpochOf(inputs: ModelEpochInputs): ModelClaim["modelEpoch"];
-//#endregion
-//#region src/knowledge/file-store.d.ts
-/** Deterministic content hash of the claims array (JCS + sha256). */
-declare function knowledgeHash(claims: readonly ModelClaim[]): string;
-/**
-* Applies one op batch to a claims array, mechanically (M10-T01). The
-* editorial validators (attestation, caps, statement bounds) layer on
-* top in M10-T02; referential integrity is enforced here because a
-* dangling supersede or archive would corrupt the append-only chain.
-*/
-declare function applyClaimOps(claims: readonly ModelClaim[], ops: readonly ClaimOp[]): ModelClaim[];
-interface FileModelKnowledgeStoreOptions {
-  /** Default './rulvar.models.json'. */
-  path?: string;
-  /**
-  * Active claims per (model, taskClass); default 8. A nonnegative
-  * integer (zero refuses every active claim), validated at
-  * construction: the enforcement compares `count > cap`, and every
-  * comparison with NaN is false, so an unvalidated NaN or Infinity
-  * silently disabled the cap (v1.35.0 review P2-5).
-  */
-  activeClaimsCap?: number;
-}
-declare class FileModelKnowledgeStore implements ModelKnowledgeStore {
-  private readonly path;
-  private readonly activeClaimsCap;
-  /** In-process commit serialization; cross-process safety is CAS plus atomic rename. */
-  private queue;
-  constructor(options?: FileModelKnowledgeStoreOptions);
-  private read;
-  current(): Promise<KnowledgeSnapshot>;
-  commit(ops: ClaimOp[], expectedVersion: number): Promise<number>;
-}
-//#endregion
-//#region src/journal/lineage.d.ts
-/** Logical-task identity across rebirths (DEF-3); engine-minted ULID. */
-type LogicalTaskId = string;
-/** The closed relation vocabulary of the minting and inheritance table. */
-type LineageRelation = "first" | "respawn" | "rung-retry" | "decompose-child" | "unpark-restart";
-/** approachSig/approachSigCoarse derivation version. */
-declare const LINEAGE_SIG_VERSION: 1;
-/** Deterministic LTIDs canonized onto legacy journals. */
-declare const LEGACY_LTID_PREFIX = "legacy:";
-/** The computed lineage record of one spawn-authorizing decision entry. */
-interface LineageRef {
-  logicalTaskId: LogicalTaskId;
-  relation: LineageRelation;
-  /** 0-based, journal order among the LTID's attempts, never wall clock. */
-  attemptOrdinal: number;
-  /** Seq of the causing entry; mandatory for every relation except 'first'. */
-  causeRef?: EntryRef;
-  /** Decomposition chain of parent LTIDs, length <= maxDepth. */
-  ancestry: LogicalTaskId[];
-  approachSig: string;
-  approachSigCoarse: string;
-  sigVersion: typeof LINEAGE_SIG_VERSION;
-}
-/**
-* The value-part lineage block embedded in decision entries: the computed
-* LineageRef plus the normalized tag (the request part
-* holds the RAW proposal; the value part holds what was COMPUTED and is
-* reused byte-exact on replay).
-*/
-interface SpawnLineage extends LineageRef {
-  approachTag: string;
-}
-/** Attempt outcome classes entering LineageStats. */
-type AttemptOutcomeClass = "ok" | "escalated" | "task-error" | "transient-error" | "no-progress" | "verify-failed" | "limit" | "abandoned";
-/**
-* The pure lineage fold rendered in plan_view and WakeDigest, always
-* pinned to a snapshot (`uptoSeq`), never a live read inside a turn.
-* `approaches` groups settled history by approachSig; a group whose
-* attempts have not settled yet is omitted (there is no outcome to learn
-* from), while `attemptsUsed` still counts every authorized attempt.
-*/
-interface LineageStats {
-  attemptsUsed: number;
-  escalationsUsed: number;
-  stallStreak: number;
-  approaches: Array<{
-    approachSig: string;
-    approachTag: string;
-    attempts: number;
-    lastOutcome: AttemptOutcomeClass;
-  }>;
-}
-/** The spawn-options lineage block (ctx.agent, ctx.workflow, spawn_agent, add_task). */
-interface SpawnLineageOpt {
-  continues: LogicalTaskId;
-  /** Default 'respawn'. */
-  relation?: Exclude<LineageRelation, "first">;
-  /** Seq of the journal entry that caused the rebirth; mandatory. */
-  causeRef: EntryRef;
-}
-/** Lineage limits, monotonically consumed and never replenished (DEF-3). */
-interface EscalationLimits {
-  /** Default 2; the old name maxEscalationsPerNode is rejected (XF-10). */
-  maxEscalationsPerLogicalTask: number;
-  /** Default 8. */
-  maxAttemptsPerLogicalTask: number;
-}
-declare const DEFAULT_ESCALATION_LIMITS: EscalationLimits;
-/**
-* Validates a lineage-limits config record. The pre-rename knob name is
-* rejected with a migration hint (XF-10): silently honoring it would
-* change semantics (per logical task, not per node).
-*/
-declare function validateEscalationLimits(raw?: Partial<EscalationLimits> | Record<string, unknown>): EscalationLimits;
-/**
-* Approach-tag normalization: NFC, lowercase, runs of
-* non-alphanumerics collapse into a hyphen, truncate to 32 characters; an
-* empty value canonicalizes to 'default'. Prompt prose never enters any
-* signature: rephrasings collide by construction, not by heuristic.
-*/
-declare function normalizeApproachTag(raw?: string): string;
-/** The isolation string entering approachSigCoarse. */
-declare function canonicalIsolationTag(spec: IsolationSpec | undefined): string;
-/** The identity inputs of the coarse signature (prompt prose excluded). */
-interface ApproachSignatureInputs {
-  agentType: string;
-  toolsetHash: string;
-  schemaHash: string;
-  isolation: string;
-}
-/**
-* approachSigCoarse = sha256(JCS({ sigVersion, agentType, toolsetHash,
-* schemaHash, isolation })). Feeds the stall detector and the oscillation
-* guard, which keys ACROSS LTID boundaries.
-*/
-declare function approachSigCoarse(inputs: ApproachSignatureInputs): string;
-/** approachSig = sha256(JCS({ sigVersion, coarse, approachTag })); keys lessons. */
-declare function approachSigOf(coarse: string, tag?: string): string;
-/**
-* The deterministic signature inputs assigned to legacy spawns (journals
-* written before lineage existed) and to attempts whose producers did not
-* record signature inputs: stable constants, never wall-clock, so replay
-* canonizes identically on every engine.
-*/
-declare const LEGACY_SIGNATURE_INPUTS: ApproachSignatureInputs;
-/** Classifies one settled root terminal into its attempt outcome class. */
-declare function classifyAttemptOutcome(terminal: JournalEntry): AttemptOutcomeClass;
-/**
-* The incremental lineage fold: attempts, escalation debits, stall
-* streaks, single-live-attempt, and legacy canonization, computed from
-* journal entries only. `absorb` is idempotent by seq cursor; every read
-* accepts an optional `uptoSeq` pin so renders stay snapshot-stable.
-*/
-declare class LineageIndex {
-  private readonly attemptsByLtid;
-  private readonly escalationsByLtid;
-  /** Registration-order attempt queues per child (scope, key) slot. */
-  private readonly queueByScope;
-  private readonly recordByRootSeq;
-  /** First-closing-wins projection over resolution targets (DEF-4). */
-  private readonly closedTargets;
-  /** Live admits journaled a moment later (single-live-attempt window). */
-  private readonly pendingAdmits;
-  private cursor;
-  /** Registers a live admit strictly before its decision entry lands. */
-  noteAdmitted(logicalTaskId: LogicalTaskId): void;
-  /** Absorbs new entries (seq beyond the cursor); earlier ones are no-ops. */
-  absorb(entries: readonly JournalEntry[]): void;
-  private absorbEntry;
-  private absorbDecision;
-  private readEmbeddedAdmissions;
-  private registerAttempt;
-  private absorbResolution;
-  private absorbAbandon;
-  private absorbSpawnEntry;
-  /**
-  * Binds one dispatch entry to its attempt: the earliest registered
-  * attempt of the slot still waiting for its first dispatch; else the
-  * attempt whose bound key matches (an at-least-once redispatch of the
-  * same slot after cancelled/error/limit); else a legacy attempt is
-  * canonized with the deterministic 'legacy:' + contentHash LTID
-  * (random ULIDs on replay are forbidden).
-  */
-  private bindRoot;
-  private recordEscalation;
-  private attemptsOf;
-  attemptsUsed(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
-  escalationsUsed(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
-  /**
-  * True while the LTID has an unsettled attempt (admitted, dispatched, or
-  * redispatched without a terminal), including admits whose decision
-  * entries have not landed yet. Backs the single-live-attempt invariant:
-  * a competing admit gets `lineage_busy`.
-  */
-  hasLiveAttempt(logicalTaskId: LogicalTaskId): boolean;
-  /** The stall streak (pinnable to a snapshot seq). */
-  stallStreak(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
-  /** The pinned LineageStats render. */
-  statsOf(logicalTaskId: LogicalTaskId, uptoSeq?: number): LineageStats;
-  /** Every LTID the fold has seen (diagnostics and renders). */
-  knownLogicalTaskIds(): LogicalTaskId[];
 }
 //#endregion
 //#region src/journal/identity.d.ts
@@ -2948,6 +1941,1411 @@ declare class ResolutionArbiter {
   submitAbandon(targetScope: string, spanId: string, attempt: AbandonAttempt): Promise<ResolutionOutcome>;
 }
 //#endregion
+//#region src/l0/events.d.ts
+/** Run lifecycle and core telemetry (M1 subset). */
+type CoreEvents = {
+  type: "run:start";
+  workflow: string;
+  resumed: boolean;
+} | {
+  type: "run:end";
+  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  totalUsd: number;
+  /**
+  * Present and true when any priced usage folded into totalUsd is
+  * approximate (a transport cut, a stream the ceiling severed, or an
+  * abort left a turn's usage estimated rather than reported by the
+  * provider), so totalUsd is a lower bound estimate, never an exact
+  * charge. Absent means every contributing turn reported exact usage.
+  */
+  usageApprox?: boolean;
+  /**
+  * The semantic completion lift (RV-207 tail): present when the
+  * workflow reported semantic completion through the completion
+  * envelope contract: an `ok`/`exhausted` run whose result value is
+  * an object carrying a valid `completion` literal, or an `error`
+  * run whose typed error data carries one (the orchestrator
+  * acceptance path emits both). Transport status says whether the
+  * run ran; completion says whether the work is COMPLETE: an
+  * accepted degraded run is `status: 'ok'` with `completion:
+  * 'partial'`. Replay recomputes the same value from the re-executed
+  * workflow, so the field is identical live and replayed. Absent
+  * when the workflow makes no completion claim.
+  */
+  completion?: "complete" | "partial" | "rejected";
+  /**
+  * Settled child statuses by status name, lifted from the same
+  * envelope (or typed error data) when it carries a valid record of
+  * nonnegative integers. Absent otherwise.
+  */
+  childStatusCounts?: Record<string, number>;
+  /**
+  * Per-child degradation notes, lifted from the same envelope (or
+  * typed error data) when it carries a valid string array (the
+  * fifth experiment, cycle 75). An empty array is the workflow's
+  * claim of zero degradation; absence means no claim. The outcome
+  * mirror spreads the SAME lift, so the surfaces cannot disagree.
+  */
+  degradedReasons?: string[]; /** Children accepted by acceptPartialChildren; same lift. */
+  salvagedPartialChildren?: string[]; /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
+  salvagedTerminalOutputChildren?: string[];
+  /**
+  * Present and false ONLY when nothing durable records this
+  * terminal: a settlement write failed (the run_settle journal
+  * append or the terminal RunMeta projection, RV907), or the
+  * segment was superseded (`settledReason` names it, RV1009). The
+  * status above is true as computation, but `handle.result`
+  * rejects typed instead of resolving (SettlementError or
+  * SupersededError), and an event-only consumer must not treat
+  * this terminal as green. After a settlement failure, resuming
+  * the run re-settles by replay (no provider call) and the
+  * settled terminal carries no field, byte for byte like every
+  * ordinary run. Never emitted true.
+  */
+  settled?: false;
+  /**
+  * Present only beside `settled: false`, naming WHY the terminal
+  * refused green when the reason is not a settlement write
+  * fault: 'superseded' means the run_settle append bounced off
+  * the store's fence because a successor segment holds the lease
+  * and owns settlement (RV1009), and `handle.result` rejects
+  * with the typed SupersededError. A settlement WRITE failure
+  * keeps its historical shape (`settled: false` with no reason)
+  * byte for byte.
+  */
+  settledReason?: "superseded";
+  /**
+  * The per-child acceptance roster (RV806): status, salvage arm,
+  * and the evidence verdict where the child declared a contract;
+  * same lift and posture as the fields above.
+  */
+  acceptanceChildren?: Array<{
+    child: string;
+    status: string;
+    salvage?: "partial" | "terminal-output";
+    evidence?: {
+      recordedEntries: number;
+      minEntries: number;
+      met: boolean;
+      waivedBySalvage?: true;
+    };
+  }>;
+  /**
+  * The unified terminal envelope (RV1105): every terminal fact in
+  * ONE shape, the same object the resolved outcome carries, so an
+  * event-only consumer assembles nothing. On the settled paths the
+  * sibling fields above stay byte for byte; when settlement did
+  * not hold, `envelope.settled` mirrors the `settled: false` mark
+  * (with `settledReason` inside for the superseded arc, RV1009).
+  */
+  envelope: TerminalEnvelope;
+} | {
+  type: "phase:start";
+  phase: string;
+} | {
+  type: "log";
+  level: "debug" | "info" | "warn" | "error";
+  msg: string;
+  data?: Json;
+} | {
+  type: "budget:update";
+  spentUsd: number;
+  remainingUsd: number | null;
+  committedReserveUsd: number;
+} | {
+  type: "external:waiting";
+  key: string;
+  entryRef: number;
+  prompt?: string;
+  deadlineAt?: string;
+} | {
+  type: "approval:pending";
+  toolName: string;
+  entryRef: number;
+  deadlineAt?: string;
+} | {
+  type: "child:start";
+  workflow: string;
+  scope: string;
+} | {
+  type: "child:end";
+  workflow: string;
+  scope: string;
+  status: string;
+};
+/**
+* The structured exploration summary (RV-210): the engine-side tool
+* exploration counters for one agent invocation. Attached to the full
+* AgentResult and to the live `agent:end` event whenever any exploration
+* guard limit is configured; journaled inside the terminal error payload
+* (and therefore restored on replay) only when the guard itself ended
+* the invocation (abortClass 'exploration').
+*/
+interface ExplorationSummary {
+  /** Tool executions dispatched by the loop (the loop's own counter). */
+  toolCallsUsed: number;
+  /** Distinct (tool name, canonical args) signatures executed. */
+  distinctSignatures: number;
+  /** Executions of a signature that had already executed before. */
+  repeatedCalls: number;
+  /** Successful executions whose result digest was already seen. */
+  duplicateResultCalls: number;
+  /** Calls denied by the repeated-signature guard (never dispatched). */
+  deniedRepeats: number;
+  /** Executions per tool name. */
+  byTool: Record<string, number>;
+  /** Calls denied by maxCallsPerTool; present when that limit is configured. */
+  deniedToolCap?: number;
+  /** Weighted tool units spent; present when toolUnits is configured. */
+  toolUnitsUsed?: number;
+}
+/**
+* The tool budget pressure snapshot (RV304, the seventh comparison
+* experiment): how close one agent invocation came to its tool budget,
+* visible BEFORE the terminal 'limit' a starved worker would settle
+* with. Attached to the full AgentResult and to the live `agent:end`
+* event whenever maxToolCalls, toolUnits, or toolBudgetExtension is
+* configured. The snapshot itself never journals, but since RV509 it
+* has a durable subset: an extension grant and the finalization-window
+* entry journal as decision entries the moment they fire, a
+* crash-resume restores them from the journal, and a replayed result
+* carries `used` (from the terminal checkpoint), the granted `cap`,
+* `extensionsGranted`, and `finalizationWindowEntered` whenever the
+* invocation journaled at least one such decision. Every other field
+* (unitsUsed/unitsMax, noticesFired, finalizationReserveUsed, limiter,
+* and the cap of a grant-free run) is live-only fidelity, exactly like
+* transportRetries, and stays absent on replay.
+*/
+interface ToolBudgetSummary {
+  /** Executed tool calls (the loop's own counter). */
+  used: number;
+  /**
+  * The effective executed-call cap at the end: maxToolCalls plus every
+  * granted extension. Absent when only toolUnits bounds the loop.
+  */
+  cap?: number;
+  /** Weighted units spent; present when toolUnits is configured. */
+  unitsUsed?: number;
+  /** The weighted budget; present when toolUnits is configured. */
+  unitsMax?: number;
+  /**
+  * Extension grants used, restored grants included; present exactly
+  * when toolBudgetExtension is configured (RV301).
+  */
+  extensionsGranted?: number;
+  /**
+  * Notice thresholds (fractions of the cap) whose notices entered the
+  * conversation; present when at least one fired.
+  */
+  noticesFired?: number[];
+  /** Present and true when the finalization reserve summary turn ran. */
+  finalizationReserveUsed?: boolean;
+  /**
+  * Present and true when the finalization window activated at least
+  * once this invocation (RV302).
+  */
+  finalizationWindowEntered?: boolean;
+  /** The tool budget limiter that ended the loop, on that 'limit' only. */
+  limiter?: "maxToolCalls" | "toolUnits";
+}
+/**
+* How an event's `costUsd` was folded (RV702). `'per-call'`: the sum of
+* each provider request priced individually, the same basis the settled
+* CostReport and invoice use (RV504), so a nonlinear long-context tier
+* fires per REQUEST. `'aggregate-estimate'`: the aggregate usage priced
+* in one call, which a tier can inflate past what any single request
+* cost; emitted only when per-request records cannot cover the number
+* (a checkpoint written before the reconciliation ledger shipped, or a
+* terminal entry whose records do not cover its usage). An absent field
+* on an event stream recorded before RV702 means the aggregate basis.
+*/
+type CostBasis = "per-call" | "aggregate-estimate";
+/**
+* Agent lifecycle. One logical agent dispatch emits EXACTLY ONE
+* `agent:start`/`agent:end` pair on its span (the start carries the
+* primary role), and each model invocation phase inside the span
+* (`loop`, then possibly `summarize` activations, `finalize`,
+* `extract`) emits its own `agent:phase:start`/`agent:phase:end` pair,
+* so durations, per-phase usage, and attempts are derivable without
+* heuristics (the RV-207 event-model contract; before it, every phase
+* emitted an unpaired extra `agent:start` and consumers pairing starts
+* with the single end computed the LAST phase's duration as the
+* agent's). `reduceInvocationTable` is the official reducer over this
+* vocabulary.
+*/
+type AgentEvents = {
+  type: "agent:queued";
+  agentType: string;
+  label?: string;
+} | {
+  type: "agent:start";
+  agentType: string;
+  label?: string;
+  model: string;
+  role: string;
+} | {
+  type: "agent:phase:start";
+  agentType: string;
+  label?: string; /** The invocation role this phase activation runs as. */
+  role: string; /** The model the activation resolved to (fallbacks may serve another; the end event reports the server). */
+  model: string;
+  /**
+  * 1-based activation ordinal within the span, unique per
+  * activation (a summarize that fires three times gets three
+  * pairs). Key phases by (spanId, invocation).
+  */
+  invocation: number;
+} | {
+  type: "agent:phase:end";
+  agentType: string;
+  label?: string;
+  role: string; /** The model that actually served the activation's last attempt. */
+  model: string;
+  invocation: number;
+  /**
+  * Wall-clock activation duration. Live telemetry only: replayed
+  * phase pairs (reconstructed from the terminal entry's usage
+  * slices) carry 0.
+  */
+  durationMs: number; /** The usage this activation added to its (role, model) slices. */
+  usage: Usage; /** That usage priced at each serving model's own rate. */
+  costUsd: number;
+  /**
+  * The fold behind `costUsd` (RV702). Live phase deltas are always
+  * per-call (every slice a live activation adds is backed by a
+  * recorded provider call); a replayed pair says 'aggregate-estimate'
+  * exactly when its model's records do not cover its usage. Absent
+  * on streams recorded before RV702, which priced the aggregate.
+  */
+  costBasis?: CostBasis;
+  outcome: "ok" | "error";
+  /**
+  * Transport retries inside this activation. Present only when
+  * greater than zero; live telemetry only (absent on replay).
+  */
+  retries?: number;
+} | {
+  type: "agent:end";
+  agentType: string;
+  label?: string;
+  status: string;
+  usage: Usage;
+  costUsd: number;
+  /**
+  * The fold behind `costUsd` (RV702): 'per-call' when every usage
+  * slice of the invocation (restored included) is covered by
+  * per-request records priced individually, the settled fold's own
+  * basis; 'aggregate-estimate' when it is not (the aggregate number
+  * is kept so restored spend is never silently dropped, and labeled
+  * so it is never mistaken for the per-request fold). Absent on
+  * streams recorded before RV702, which priced the aggregate.
+  */
+  costBasis?: CostBasis;
+  entryRef: number;
+  /**
+  * Present and true when this agent's usage is approximate rather
+  * than reported by the provider (the turn was cut by a transport
+  * failure, a ceiling that severed the stream, or an abort). Absent
+  * means the provider reported the usage exactly. Mirrors the
+  * terminal journal entry's usageApprox.
+  */
+  usageApprox?: boolean;
+  /**
+  * Total transport retries across the span's activations. Present
+  * only when greater than zero; live telemetry only, never
+  * journaled, so a replayed agent:end omits it (absent means "zero
+  * or unknown").
+  */
+  retryCount?: number;
+  /**
+  * The exploration guard counters (RV-210). Present live whenever
+  * any exploration guard limit was configured for the invocation;
+  * on replay present only when the guard abort journaled it in the
+  * terminal error payload.
+  */
+  exploration?: ExplorationSummary;
+  /**
+  * The tool budget pressure snapshot (RV304). Present live whenever
+  * a tool budget limiter or the extension was configured; live
+  * telemetry only, absent on replay.
+  */
+  toolBudget?: ToolBudgetSummary;
+} | {
+  type: "agent:error";
+  agentType: string;
+  label?: string;
+  error: WireError;
+  willRetry: boolean;
+} | {
+  type: "agent:schema-retry";
+  agentType: string;
+  attempt: number;
+  maxAttempts: number;
+} | {
+  type: "agent:stream";
+  delta: string;
+};
+/** Tool lifecycle (emitters arrive with the tool system, M3). */
+type ToolEvents = {
+  type: "tool:start";
+  toolName: string;
+  /**
+  * The model-minted id of this tool call (RV908): the same id the
+  * journal's messages and tool-result parts carry, so a consumer
+  * pairs start and end EXACTLY even among concurrent same-name
+  * calls, instead of FIFO-guessing by (spanId, toolName). Present
+  * on every live event this engine emits, and on every replayed
+  * reconstruction (whose events exist only when the turn
+  * checkpoint blob is retrievable; the id rides the checkpoint's
+  * tool-result parts, so even journals written before RV908 name
+  * their calls there). Absent only on streams recorded before
+  * RV908 or written by foreign emitters, where consumers keep
+  * their historical pairing.
+  */
+  toolCallId?: string;
+  risk?: Json;
+} | {
+  type: "tool:end";
+  toolName: string; /** The same call id as the matching tool:start (RV908). */
+  toolCallId?: string;
+  outcome: "ok" | "error" | "denied";
+  durationMs: number;
+  /**
+  * Audit fields (M5-T05): the chain verdict,
+  * the deciding layer, the matched rule, and advisory domain-rule
+  * matches. Telemetry, never identity; ask verdicts additionally
+  * journal as suspended approvals.
+  */
+  verdict?: "allow" | "deny" | "ask";
+  decidedBy?: string;
+  rule?: Json;
+  advisory?: Json;
+  /**
+  * Present when an engine guard, not the permission chain, denied
+  * the call: the exploration guards (RV-210) or the finalization
+  * window (RV302). The outcome is 'denied' and the call was never
+  * dispatched.
+  */
+  guard?: "repeated-signature" | "per-tool-cap" | "finalization-window";
+};
+/**
+* Bare-nondeterminism detection (RV-209). Emitted LIVE by the segment
+* that observed the call, at most once per (category, provenance) per
+* execution segment; never journaled and never re-emitted with the
+* `replayed` flag. Because replay re-executes the workflow body, a
+* violation that survives in the code fires again on every replay of
+* the run, so the event appears organically in both live and replayed
+* streams. Exempt provenances (installed dependencies under
+* node_modules and Node runtime frames) never emit: they are
+* classified and silenced, which is what keeps an SDK's internal
+* `Math.random()` from branding the run nondeterministic.
+*/
+type DeterminismEvents = {
+  type: "determinism:warning"; /** Which patched global fired. */
+  category: "bare-date-now" | "bare-math-random";
+  /**
+  * 'workflow': the caller is workflow-origin code (the violation the
+  * guard exists for; rejects the run under `determinism.mode:
+  * 'error'`). 'allowlisted': the caller matched a configured
+  * `determinism.allowlist` pattern and is exempt by explicit host
+  * decision; emitted for visibility, never rejects.
+  */
+  provenance: "workflow" | "allowlisted"; /** The calling stack frame, after the configured redaction hook. */
+  frame: string; /** Parsed location when the frame carries one, after redaction. */
+  file?: string;
+  line?: number;
+  column?: number;
+};
+/**
+* Adaptive orchestration, resolutions, and
+* accounting: emitted only by runs where the corresponding machinery is
+* active (applicability per mode:
+* https://docs.rulvar.com/guide/adaptive-orchestration). The types land as
+* one closed catalog with M7-T03; emitters arrive with their tasks.
+*/
+type AdaptiveEvents = {
+  type: "plan:revised";
+  entryRef: number;
+  planHash: string;
+  applied: number;
+  dropped: number;
+  revisionUnitsRemaining: number;
+} | {
+  type: "node:parked";
+  nodeId: string;
+  logicalTaskId: string;
+} | {
+  type: "node:cancelled";
+  nodeId: string;
+  logicalTaskId: string;
+} | {
+  type: "node:linked";
+  nodeId: string;
+  logicalTaskId: string;
+  donorRef: number;
+  reclaimedUsd: number;
+} | {
+  type: "orchestrator:woke";
+  digestSeq: number;
+  planHash: string;
+  coversToOrdinal: number;
+  renderSize: number;
+} | {
+  /**
+  * Two emitted shapes share the discriminant: the cap-freeze form
+  * carries { atCap: true, spentUsd, capUsd, finalizeReserveUsd },
+  * and the per-wake digest form carries atCap plus the passive
+  * WakeBudgetBlock fields (runSpentUsd .. softWarning).
+  */
+  type: "orchestrator:budget";
+  atCap: boolean;
+  spentUsd?: number;
+  capUsd?: number;
+  finalizeReserveUsd?: number;
+  runSpentUsd?: number;
+  runCeilingUsd?: number;
+  orchestratorSpentUsd?: number;
+  orchestratorCapUsd?: number;
+  orchestratorShare?: number;
+  softWarning?: boolean;
+} | {
+  type: "escalation:raised";
+  entryRef: number;
+  kind: "scope_bigger" | "scope_different" | "blocked_with_evidence";
+  logicalTaskId: string;
+  costToDateUsd: number;
+} | {
+  type: "escalation:decided";
+  entryRef: number;
+  decision: "retry" | "decompose" | "cancel" | "accept";
+  by: ResolutionBy;
+  countsAgainstLimit: boolean;
+} | {
+  type: "spawn:admitted";
+  entryRef: number; /** The admitting arms of the unified AdmitVerdict union. */
+  verdict: "admit" | "reuse_full" | "admit_graft";
+  agentType: string;
+  logicalTaskId: string;
+  /**
+  * Spawn-unit balance after the budget-layer debit. Present on
+  * budget-layer admissions (the orchestrator spawn tools and
+  * ctx.workflow children); absent on lineage-layer admissions
+  * (ctx.agent roots), whose spawn-unit debit rides the dispatch
+  * itself (v1.22.0 review P2-5).
+  */
+  spawnUnitsAfter?: number;
+} | {
+  type: "spawn:rejected";
+  /**
+  * The journaled admission decision entry; absent for the
+  * pre-admission config gates (orchestrate maxSpawns), which
+  * reject before anything is journaled.
+  */
+  entryRef?: number;
+  code: string;
+  agentType: string;
+  logicalTaskId?: string;
+} | {
+  type: "verify:failed";
+  entryRef: number;
+  logicalTaskId: string;
+  rung: number;
+  gate: "mechanical" | "judge" | "spot-check";
+} | {
+  type: "ledger:op";
+  entryRef: number;
+  op: "brief_set" | "fact_add" | "fact_supersede" | "lesson_add" | "observation_add";
+} | {
+  type: "stall:detected";
+  logicalTaskId: string;
+  stallStreak: number;
+} | {
+  type: "guard:oscillation";
+  spawnKeyHash: string;
+  oscillationCount: number;
+  limit: number;
+} | {
+  type: "resolution:applied";
+  targetRef: number;
+  entryRef: number;
+  by: ResolutionBy;
+} | {
+  type: "resolution:superseded";
+  targetRef: number;
+  entryRef: number;
+  supersededBy: number;
+  reason: "already_resolved" | "target_abandoned";
+} | {
+  type: "termination:debit";
+  entryRef: number;
+  counter: string;
+  remaining: number;
+  phi: number;
+} | {
+  type: "termination:denied";
+  entryRef: number;
+  counter: string;
+  code: string;
+} | {
+  type: "termination:config-drift";
+  field: string;
+  frozenValue: Json;
+  liveValue: Json;
+} | {
+  /**
+  * Declared for hosts; not emitted today. The compatibility scan
+  * runs strictly before a run's event stream exists, so the
+  * refusal travels only as the typed JournalCompatibilityError
+  * (which carries the same fields).
+  */
+  type: "journal:compat";
+  code: "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
+  found: number;
+  window: [number, number];
+};
+type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents | DeterminismEvents | AdaptiveEvents;
+/**
+* The envelope: seq is an independent per-run
+* telemetry counter, strictly increasing in emission order and DISTINCT
+* from JournalEntry.seq (never compare or join the two; entryRef fields
+* carry journal seqs explicitly). ts is wall clock, telemetry only.
+* replayed is true only on re-emitted journal-backed lifecycle events;
+* stream deltas are never re-emitted.
+*/
+type WorkflowEvent = {
+  runId: string;
+  seq: number;
+  ts: string;
+  spanId: string;
+  parentSpanId?: string;
+  replayed?: boolean;
+} & WorkflowEventBody;
+//#endregion
+//#region src/vendor/standard-schema.d.ts
+// Vendored from @standard-schema/spec@1.1.0 (MIT, Copyright (c) 2024 Colin
+// McDonnell), file dist/index.d.ts, byte-identical below this header.
+// Upstream: https://github.com/standard-schema/standard-schema
+// Types only, never a runtime dependency (docs/13-toolchain-repo.md,
+// section "Dependency baseline pins"; docs/08, section "SchemaSpec";
+// task M0-T08). StandardJSONSchemaV1 carries the JSON Schema projection
+// surface: ~standard.jsonSchema.input() with target draft-2020-12 and
+// fallback draft-07.
+/** The Standard Typed interface. This is a base type extended by other specs. */
+interface StandardTypedV1<Input = unknown, Output = Input> {
+  /** The Standard properties. */
+  readonly '~standard': StandardTypedV1.Props<Input, Output>;
+}
+declare namespace StandardTypedV1 {
+  /** The Standard Typed properties interface. */
+  interface Props<Input = unknown, Output = Input> {
+    /** The version number of the standard. */
+    readonly version: 1;
+    /** The vendor name of the schema library. */
+    readonly vendor: string;
+    /** Inferred types associated with the schema. */
+    readonly types?: Types<Input, Output> | undefined;
+  }
+  /** The Standard Typed types interface. */
+  interface Types<Input = unknown, Output = Input> {
+    /** The input type of the schema. */
+    readonly input: Input;
+    /** The output type of the schema. */
+    readonly output: Output;
+  }
+  /** Infers the input type of a Standard Typed. */
+  type InferInput<Schema extends StandardTypedV1> = NonNullable<Schema['~standard']['types']>['input'];
+  /** Infers the output type of a Standard Typed. */
+  type InferOutput<Schema extends StandardTypedV1> = NonNullable<Schema['~standard']['types']>['output'];
+}
+/** The Standard Schema interface. */
+interface StandardSchemaV1<Input = unknown, Output = Input> {
+  /** The Standard Schema properties. */
+  readonly '~standard': StandardSchemaV1.Props<Input, Output>;
+}
+declare namespace StandardSchemaV1 {
+  /** The Standard Schema properties interface. */
+  interface Props<Input = unknown, Output = Input> extends StandardTypedV1.Props<Input, Output> {
+    /** Validates unknown input values. */
+    readonly validate: (value: unknown, options?: StandardSchemaV1.Options | undefined) => Result<Output> | Promise<Result<Output>>;
+  }
+  /** The result interface of the validate function. */
+  type Result<Output> = SuccessResult<Output> | FailureResult;
+  /** The result interface if validation succeeds. */
+  interface SuccessResult<Output> {
+    /** The typed output value. */
+    readonly value: Output;
+    /** A falsy value for `issues` indicates success. */
+    readonly issues?: undefined;
+  }
+  interface Options {
+    /** Explicit support for additional vendor-specific parameters, if needed. */
+    readonly libraryOptions?: Record<string, unknown> | undefined;
+  }
+  /** The result interface if validation fails. */
+  interface FailureResult {
+    /** The issues of failed validation. */
+    readonly issues: ReadonlyArray<Issue>;
+  }
+  /** The issue interface of the failure output. */
+  interface Issue {
+    /** The error message of the issue. */
+    readonly message: string;
+    /** The path of the issue, if any. */
+    readonly path?: ReadonlyArray<PropertyKey | PathSegment> | undefined;
+  }
+  /** The path segment interface of the issue. */
+  interface PathSegment {
+    /** The key representing a path segment. */
+    readonly key: PropertyKey;
+  }
+  /** The Standard types interface. */
+  interface Types<Input = unknown, Output = Input> extends StandardTypedV1.Types<Input, Output> {}
+  /** Infers the input type of a Standard. */
+  type InferInput<Schema extends StandardTypedV1> = StandardTypedV1.InferInput<Schema>;
+  /** Infers the output type of a Standard. */
+  type InferOutput<Schema extends StandardTypedV1> = StandardTypedV1.InferOutput<Schema>;
+}
+/** The Standard JSON Schema interface. */
+interface StandardJSONSchemaV1<Input = unknown, Output = Input> {
+  /** The Standard JSON Schema properties. */
+  readonly '~standard': StandardJSONSchemaV1.Props<Input, Output>;
+}
+declare namespace StandardJSONSchemaV1 {
+  /** The Standard JSON Schema properties interface. */
+  interface Props<Input = unknown, Output = Input> extends StandardTypedV1.Props<Input, Output> {
+    /** Methods for generating the input/output JSON Schema. */
+    readonly jsonSchema: StandardJSONSchemaV1.Converter;
+  }
+  /** The Standard JSON Schema converter interface. */
+  interface Converter {
+    /** Converts the input type to JSON Schema. May throw if conversion is not supported. */
+    readonly input: (options: StandardJSONSchemaV1.Options) => Record<string, unknown>;
+    /** Converts the output type to JSON Schema. May throw if conversion is not supported. */
+    readonly output: (options: StandardJSONSchemaV1.Options) => Record<string, unknown>;
+  }
+  /**
+   * The target version of the generated JSON Schema.
+   *
+   * It is *strongly recommended* that implementers support `"draft-2020-12"` and `"draft-07"`, as they are both in wide use. All other targets can be implemented on a best-effort basis. Libraries should throw if they don't support a specified target.
+   *
+   * The `"openapi-3.0"` target is intended as a standardized specifier for OpenAPI 3.0 which is a superset of JSON Schema `"draft-04"`.
+   */
+  type Target = 'draft-2020-12' | 'draft-07' | 'openapi-3.0' | ({} & string);
+  /** The options for the input/output methods. */
+  interface Options {
+    /** Specifies the target version of the generated JSON Schema. Support for all versions is on a best-effort basis. If a given version is not supported, the library should throw. */
+    readonly target: Target;
+    /** Explicit support for additional vendor-specific parameters, if needed. */
+    readonly libraryOptions?: Record<string, unknown> | undefined;
+  }
+  /** The Standard types interface. */
+  interface Types<Input = unknown, Output = Input> extends StandardTypedV1.Types<Input, Output> {}
+  /** Infers the input type of a Standard. */
+  type InferInput<Schema extends StandardTypedV1> = StandardTypedV1.InferInput<Schema>;
+  /** Infers the output type of a Standard. */
+  type InferOutput<Schema extends StandardTypedV1> = StandardTypedV1.InferOutput<Schema>;
+}
+//#endregion
+//#region src/l0/schema.d.ts
+/** Form 2 of SchemaSpec: an explicit JSON Schema plus a runtime type guard. */
+type SchemaPair<T = unknown> = {
+  jsonSchema: JsonSchema;
+  validate: (value: unknown) => value is T;
+};
+/**
+* The L0 schema contract with exactly three accepted forms: a Standard
+* Schema (Zod, ArkType, Valibot, ...), a { jsonSchema, validate } pair, or
+* a bare JSON Schema literal.
+*/
+type SchemaSpec<T = unknown> = StandardSchemaV1<unknown, T> | SchemaPair<T> | JsonSchema;
+/**
+* Inferred output type per form: the Standard Schema output type; the
+* type-guard target of validate(); unknown for a bare JSON Schema.
+*/
+type Out<S> = S extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<S> : S extends {
+  validate: (value: unknown) => value is infer T;
+} ? T : unknown;
+/**
+* Form-1 guard: the value implements the Standard Schema interface. Some
+* libraries expose callable schemas (ArkType types are functions), so both
+* object- and function-typed values qualify.
+*/
+declare function isStandardSchemaSpec(spec: SchemaSpec): spec is StandardSchemaV1;
+/** Form-2 guard: an explicit { jsonSchema, validate } pair. */
+declare function isSchemaPairSpec(spec: SchemaSpec): spec is SchemaPair;
+/**
+* Derives the JSON Schema of a SchemaSpec. Form 1 projects via the
+* StandardJSONSchemaV1 input() converter, target draft 2020-12 with
+* draft-07 fallback; a library without the projection is a typed
+* ConfigError at definition time, never at first call. Transforming
+* schemas therefore project their INPUT type. Forms 2 and 3 are taken
+* verbatim.
+*/
+declare function projectToJsonSchema(spec: SchemaSpec): JsonSchema;
+/**
+* Canonical schema derivation: local fragment-only $ref inlined (recursion is
+* a ConfigError), remote and dynamic references forbidden, annotation
+* keywords stripped (format retained), reference infrastructure ($defs,
+* definitions, $anchor) removed once inlined. The result feeds JCS
+* serialization and sha256.
+*/
+declare function canonicalizeSchema(schema: JsonSchema): JsonSchema;
+/**
+* The schemaHash used when no structured-output schema is declared: the
+* hash of the canonical `true` schema.
+*/
+declare const EMPTY_SCHEMA_HASH: string;
+/** The toolsetHash of an empty toolset: the hash of the canonical empty contract array. */
+declare const EMPTY_TOOLSET_HASH: string;
+/**
+* schemaHash = sha256(JCS(canonicalize(schema))). Accepts the derived JSON
+* Schema (or a boolean schema); pass undefined for "no schema declared".
+*/
+declare function schemaHash(schema: JsonSchema | boolean | undefined): string;
+/** Derives and hashes a SchemaSpec in one step (identity path for spawns). */
+declare function schemaHashOfSpec(spec: SchemaSpec | undefined): string;
+/**
+* toolsetHash = sha256 over the JCS-canonical JSON array of per-tool
+* contract tuples (name, description, canonical parameters, version)
+* sorted by name. Tool description IS part of the contract; schema
+* annotations inside parameters are not. An absent version participates as
+* absent.
+*/
+declare function toolsetHash(contracts: ToolContract[]): string;
+/** Result of validating a value against a SchemaSpec. */
+type SchemaValidationResult<T = unknown> = {
+  valid: true;
+  value: T;
+} | {
+  valid: false;
+  issues: Issue$1[];
+};
+/**
+* Runtime validation per form:
+* form 1 via the Standard Schema's own validate, form 2 via the pair's
+* type guard, form 3 via the vendored draft 2020-12 validator. The same
+* machinery backs the structured-output tiers of the Agent Runtime.
+*/
+declare function validateSchemaSpec<S extends SchemaSpec>(spec: S, value: unknown): Promise<SchemaValidationResult<Out<S>>>;
+//#endregion
+//#region src/l0/spi/toolsource.d.ts
+/**
+* Declarative risk metadata on the tool contract. Policy input, not
+* identity: it does NOT enter toolsetHash.
+*/
+type ToolRisk = "read" | "write" | "network" | "execute" | "destructive";
+/**
+* The context handed to execute (and to permission hooks and canUseTool).
+* Deliberately exposes NO spawn primitives: tools are leaves of the
+* call-and-return tree (invariant I3); all spawning flows through Ctx
+* primitives.
+*/
+interface ToolContext {
+  runId: string;
+  /** Tool span in the run > phase > agent > tool hierarchy. */
+  spanId: string;
+  agent: {
+    agentType: string;
+    label?: string;
+  };
+  /** Isolation working directory; host cwd under isolation 'none'. */
+  cwd: string;
+  /** The spawn's declared isolation. */
+  isolation: IsolationSpec;
+  /** Fires on cancellation, budget ceiling, UsageLimits expiry. */
+  signal: AbortSignal;
+  /** Emits telemetry log events; never writes journal entries. */
+  log(level: "debug" | "info" | "warn" | "error", msg: string, data?: Json): void;
+}
+/**
+* Where execute runs. A declared capability consumed by dispatch and
+* policy. 'inprocess' runs the tool's `execute` closure in the engine
+* process (full host capabilities, an execution convenience). A
+* non-inprocess tag routes dispatch through the engine's registered
+* ToolExecutorProvider (RV-216) instead, so the tool's work runs out of
+* process under host-owned isolation; the shipped reference adapters live
+* in `@rulvar/executor`. The tag never enters toolsetHash.
+*/
+type ToolExecutor = "inprocess" | "subprocess" | "container";
+/**
+* A defined tool. The identity projection is the ToolContract
+* { name, description, parameters, version }: exactly what the model sees
+* and exactly what toolsetHash hashes; execute and every other
+* non-contract field are excluded by construction.
+*/
+interface ToolDef<S extends SchemaSpec = SchemaSpec> {
+  readonly kind: "tool";
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: S;
+  /** Opaque contract version; part of toolsetHash. */
+  readonly version?: string;
+  /** Default 'inprocess'. */
+  readonly executor: ToolExecutor;
+  /**
+  * Opaque policy data for a non-inprocess executor: what THIS tool's
+  * declared executor should run (for a subprocess adapter, the command
+  * and its argv). Never identity: excluded from toolsetHash exactly like
+  * `executor` and `risk`, and ignored for 'inprocess'. The engine passes
+  * it verbatim to the ToolExecutorProvider (RV-216).
+  */
+  readonly executorSpec?: Json;
+  /** Default false; the terminal permission default asks when true. */
+  readonly needsApproval: boolean;
+  readonly risk?: ToolRisk;
+  execute: (input: Out<S>, ctx: ToolContext) => Promise<unknown>;
+}
+/** Session handle passed to ToolSource.tools (minimal in v1; audited at M9). */
+interface ToolSourceSession {
+  runId: string;
+}
+/**
+* The ToolSource seam: tools() yields the source's current ToolDefs. The
+* toolset snapshot for a given agent spawn is captured at spawn time and
+* hashed into the spawn's identity via toolsetHash; a mid-run change MUST
+* NOT mutate an in-flight agent's toolset.
+*/
+interface ToolSource {
+  id: string;
+  tools(session: ToolSourceSession): Promise<ToolDef[]>;
+}
+//#endregion
+//#region src/l0/spi/executor.d.ts
+/** The non-inprocess executor tags a provider can be registered under. */
+type IsolatedExecutorTag = Exclude<ToolExecutor, "inprocess">;
+/**
+* The per-call context handed to a ToolExecutorProvider. It carries the
+* tool span (so provider telemetry nests under the run tree), the
+* cancellation signal, and a stable idempotency key.
+*/
+interface IsolatedExecContext {
+  runId: string;
+  /** The tool span, minted under the agent span exactly like inprocess. */
+  spanId: string;
+  agentType: string;
+  /**
+  * Stable identity of THIS logical tool call within THIS run
+  * incarnation: a deterministic function of the run, the logical
+  * invocation (the containing agent's journal seq plus the call's
+  * ordinal in that agent's tool loop), the tool name, the canonical
+  * arguments, and, for runs stamped with derivation 2
+  * (RunMeta.execKeyDerivation; RV403), the run's generation token. A
+  * rerun of the same call after a mid-flight crash reuses the key, so
+  * a provider whose work has external side effects can fold an
+  * at-least-once retry into effectively-once; a different call, even
+  * with byte-identical arguments, never collides; and under
+  * derivation 2 a deleteRun-then-recreate of the same runId never
+  * reuses the deleted incarnation's keys.
+  */
+  idempotencyKey: string;
+  /** Fires on cancellation, a budget ceiling, or UsageLimits expiry. */
+  signal: AbortSignal;
+  /** Emits telemetry log events under the tool span; never journals. */
+  log(level: "debug" | "info" | "warn" | "error", msg: string, data?: Json): void;
+}
+/** One out-of-process tool dispatch. */
+interface IsolatedExecRequest {
+  /** The declared executor tag ('subprocess' | 'container'). */
+  executor: IsolatedExecutorTag;
+  /** The tool contract name. */
+  tool: string;
+  /** The validated arguments, after the permission chain rewrote them. */
+  args: Json;
+  /**
+  * The tool's `executorSpec`: opaque host data telling THIS provider
+  * what to run (for a subprocess adapter, the command and its argv).
+  * Never identity; the engine passes it through verbatim.
+  */
+  spec: Json;
+  ctx: IsolatedExecContext;
+}
+/**
+* The isolated tool executor seam. A provider runs one dispatch to its
+* JSON result. A thrown error becomes the call's error tool result, never
+* a run abort: an executor failure (non-zero exit, timeout kill,
+* unparseable output, infrastructure error) is surfaced to the model
+* exactly like any other tool error, so the loop can react and the run
+* stays durable.
+*/
+interface ToolExecutorProvider {
+  /** Runs one dispatch to its JSON result; throws to signal tool failure. */
+  run(request: IsolatedExecRequest): Promise<Json>;
+}
+/**
+* The engine's executor registry: at most one provider per non-inprocess
+* tag. A tool whose `executor` tag is absent here fails typed at spawn
+* time, before any provider or model call.
+*/
+type ExecutorRegistry = Partial<Record<IsolatedExecutorTag, ToolExecutorProvider>>;
+//#endregion
+//#region src/l0/spi/provider.d.ts
+/**
+* Live-only hooks the engine passes to a stream dispatch (RV1013).
+* Never journaled, never part of request identity: like transport
+* retries, they exist only on the live wire path.
+*/
+interface StreamHooks {
+  /**
+  * Called BEFORE each provider-side continuation wire beyond the
+  * first (a `pause_turn` absorption makes several wire requests
+  * inside one dispatch): under the engine's opt-in hard mode
+  * (`quota.reserveContinuations`) the engine reserves the segment in
+  * the configured limiter before its egress. A resolved `undefined`
+  * admits the wire; a resolved WireError DENIES it, and the adapter
+  * must yield exactly that error as its terminal event and stop, so
+  * the wire never leaves. `segment` is the ordinal of the wire about
+  * to be sent (2 for the first continuation). A multi-wire adapter
+  * that never calls the hook keeps the documented post-hoc
+  * settlement semantics.
+  */
+  onContinuationSegment?: (info: {
+    segment: number;
+  }) => Promise<WireError | undefined>;
+}
+/**
+* One long-context price tier. When the full prompt (canonical
+* inputTokens, cache included) is strictly above `aboveInputTokens`, the
+* ENTIRE request is re-priced with these multipliers, not only the tokens
+* past the threshold (how providers state their long-context rules).
+* `inputMultiplier` scales every input-side rate: input, cache read, and
+* cache write.
+* `outputMultiplier` scales the output rate. Provider pricing pages state
+* multipliers for "input" without saying whether cache rates scale;
+* scaling them with input is the conservative reading for budget
+* enforcement (it never underestimates spend). With several tiers, the
+* highest threshold below the prompt size wins, independent of array
+* order.
+*/
+interface PricingTier {
+  aboveInputTokens: number;
+  inputMultiplier: number;
+  outputMultiplier: number;
+}
+/**
+* Per-model pricing in USD per million tokens. The registry's
+* versioned price table wins over adapter-
+* reported caps.pricing, which is a fallback only.
+*/
+interface Pricing {
+  inputUsdPerMTok: number;
+  outputUsdPerMTok: number;
+  cacheReadUsdPerMTok?: number;
+  /** 5m write premium rate. */
+  cacheWriteUsdPerMTok?: number;
+  /** 1h write premium rate where the provider distinguishes. */
+  cacheWrite1hUsdPerMTok?: number;
+  /** Long-context tiers; a row without them is one linear price. */
+  tiers?: PricingTier[];
+  /**
+  * ISO date (YYYY-MM-DD) of the last verification of this row against
+  * the provider's documented rates or its billing categories (RV814).
+  * A recorded verification event, never a guess: seed rows exist to
+  * bound ceilings conservatively, actual billing truth is established
+  * only by statement reconciliation over saved exports, and a
+  * confirmed divergence corrects the row in its own release with a
+  * changeset, never by a silent rewrite. Preflight stamps it on the
+  * spawn report and the invoice text names it with its age, so the
+  * consumer of a dollar figure can see how stale the rates behind it
+  * are; the settle pin carries it with the rest of the row.
+  */
+  ratesVerifiedAt?: string;
+}
+/** Capability facts the router consumes for tier selection and scrubbing. */
+type ModelCaps = {
+  structuredOutput: "native" | "forced-tool" | "prompt";
+  supportsTemperature: boolean;
+  supportsParallelTools: boolean; /** Canonical efforts this model accepts after mapping. */
+  reasoningEfforts: Effort[];
+  contextWindow: number;
+  maxOutputTokens: number;
+  /**
+  * The smallest request output cap the provider accepts (the v1.74
+  * experiment review, P0.1): OpenAI's Responses API rejects
+  * max_output_tokens below 16, so a dispatch under this floor is a
+  * guaranteed 400. The runtime never sends a request output cap below
+  * it: a budget last gasp dispatches the floor instead of one token,
+  * and a remainder that cannot buy the floor is refused typed before
+  * the wire. Absent means one, the historical floor.
+  */
+  minOutputTokensPerTurn?: number; /** Adapter-reported fallback only; the versioned price table wins. */
+  pricing?: Pricing;
+};
+interface ProviderAdapter {
+  /** Stable adapter id; the left segment of ModelRef. */
+  id: string;
+  /**
+  * Provider family for provider-raw matching and retention (committed
+  * during M4-T02). Two adapters of the same
+  * family share retained blocks and projections; default = id.
+  */
+  provider?: string;
+  /**
+  * Declares WHICH reading of the provider's usage telemetry this
+  * adapter normalizes under; the engine stamps it on usage-bearing
+  * terminal entries so a journal records not only the numbers but the
+  * semantics they were produced under (v1.20.0 review P1/P2-2). Bump
+  * the string whenever the MEANING of a reported Usage field changes,
+  * even when no pricing rate moves; a rate change is a PriceTable
+  * pricingVersion bump instead. Entries persisted before this shipped
+  * carry no stamp, which is itself information: an unstamped OpenAI
+  * entry with cache writes may predate the v1.20.0 cache-subset
+  * correction. Optional; adapters that never changed semantics can
+  * omit it.
+  */
+  usageSemantics?: string;
+  caps(model: string): ModelCaps;
+  /** Refresh the capability table from live model lists. */
+  refreshCaps?(): Promise<void>;
+  stream(req: ChatRequest, signal?: AbortSignal, hooks?: StreamHooks): AsyncIterable<ChatEvent>;
+  /**
+  * Provider-side token count for the request, used to tighten the
+  * admission reserve before a spawn dispatches. The request carries
+  * the FULL prompt, so an implementation that goes over the network is
+  * egress exactly like stream and MUST honor `opts.signal` (RV904):
+  * the engine only calls this after a zero-egress admission
+  * feasibility check, passes the spawn's abort signal, and treats an
+  * abort as cancellation rather than falling back to the flat
+  * reserve. Hosts that must not send prompts before their own
+  * admission gates pass an explicit `estCost` instead, which skips
+  * this call entirely.
+  */
+  countTokens?(req: ChatRequest, opts?: {
+    signal?: AbortSignal;
+  }): Promise<number>;
+}
+//#endregion
+//#region src/l0/spi/knowledge.d.ts
+/**
+* Task-class vocabulary aligned with the role quality floors vocabulary
+* (https://docs.rulvar.com/guide/model-routing). Scopeless global statements
+* are inexpressible: every claim binds a taskClass.
+*/
+type TaskClass = "code-edit" | "investigation" | "synthesis" | "extraction" | "planning" | "judging" | (string & {});
+type ClaimClass = "eval-measured" | "human-editorial";
+type ClaimStatus = "active" | "stale" | "superseded" | "archived";
+/** entryRef is the journal entry seq (canonical EntryRef; XF ruling). */
+type EvidenceRef = {
+  kind: "journal";
+  runId: string;
+  entryRef: number;
+} | {
+  kind: "eval";
+  reportId: string;
+  caseIds: string[];
+};
+interface ModelClaim {
+  /** ULID. */
+  id: string;
+  /** effort is part of identity, as in the canonical modelSpec. */
+  subject: {
+    model: ModelRef;
+    effort?: Effort;
+  };
+  taskClass: TaskClass;
+  polarity: "strength" | "weakness";
+  /** <=200 chars; proposal-born claims use a typed template, never a quote from tool output. */
+  statement: string;
+  /** eval-measured is committable only through the eval-committer identity (M11). */
+  class: ClaimClass;
+  status: ClaimStatus;
+  /** Mandatory, >=1. */
+  evidence: EvidenceRef[];
+  /** Writable ONLY by the eval-committer identity (schema-enforced from M11). */
+  metrics?: {
+    passRate: number;
+    n: number;
+    graderId: string;
+    cost?: number;
+    baseline?: {
+      model: ModelRef;
+      passRate: number;
+    };
+  };
+  confidence: "high" | "medium" | "low";
+  /** ISO date. */
+  observedAt: string;
+  /** TTL by class and polarity (the grounding and decay rules). */
+  expiresAt: string;
+  /** Honestly best-effort drift signal. */
+  modelEpoch?: {
+    registryVersion?: string;
+    pricingVersion?: string;
+    capsHash?: string;
+    canaryFingerprint?: string;
+  };
+  author: {
+    kind: "eval-pipeline" | "human";
+    id: string;
+  };
+  /** Orchestrator proposal provenance (phase 3). */
+  origin?: {
+    kind: "kb-proposal";
+    runId: string;
+    entryRef: number;
+  };
+  /** Append-only: an edit is a new claim plus supersede. */
+  supersedes?: string;
+}
+interface KnowledgeSnapshot {
+  /** Monotonic; the CAS token of commit. */
+  version: number;
+  /** Deterministic content hash of the claims array. */
+  hash: string;
+  claims: ModelClaim[];
+}
+/**
+* The write gate. The human variant carries the MANDATORY attribution
+* attestation (ruledOut over the checklist prompt, tools, difficulty,
+* transient-provider; recommended contrast evidence): rubber-stamping
+* "evidence exists" is constructively impossible. The eval-confirmed
+* variant is reserved for v2, outside the committed roadmap.
+*/
+type GateRecord = {
+  kind: "human";
+  approver: string;
+  at: string;
+  attribution: {
+    ruledOut: Array<"prompt" | "tools" | "difficulty" | "transient-provider">;
+    contrastEvidence?: EvidenceRef;
+  };
+} | {
+  kind: "eval-committer";
+  committerId: string;
+  reportId: string;
+} | {
+  kind: "eval-confirmed";
+  reportId: string;
+  n: number;
+  passRate: number;
+};
+type ClaimOp = {
+  op: "add";
+  claim: ModelClaim;
+  gate: GateRecord;
+} | {
+  op: "supersede";
+  claimId: string;
+  by: ModelClaim;
+  gate: GateRecord;
+} | {
+  op: "archive";
+  claimId: string;
+  reason: "deprecated" | "stale" | "rejected" | "falsified";
+} | {
+  op: "mark_stale";
+  claimId: string;
+  reason: "canary-drift";
+};
+/**
+* The SPI seam. commit performs CAS on
+* the monotonic snapshot version, mirroring the fencing-epoch
+* discipline of LeasableStore; concurrent maintenance commits serialize
+* through CAS rejection and rebase. commit is UNREACHABLE from the
+* runtime: runs hold ModelKnowledgeHandle.
+*/
+interface ModelKnowledgeStore {
+  current(): Promise<KnowledgeSnapshot>;
+  commit(ops: ClaimOp[], expectedVersion: number): Promise<number>;
+}
+/**
+* The runtime handle: with propose() deleted from the design and
+* commit absent from this shape, a run has no write path into the
+* cross-run medium at all.
+*/
+type ModelKnowledgeHandle = Pick<ModelKnowledgeStore, "current">;
+/** The closed trigger vocabulary of kb_propose (phase 3). */
+type KbProposalTrigger = "error" | "limit" | "schema-exhausted" | "verify-failed" | "no-progress" | "escalation";
+/**
+* One orchestrator model-knowledge proposal (phase 3). A proposal is a
+* run-ledger record, NOT a claim: it lives ONLY in the RunLedger
+* section modelObservations, is never rendered into any prompt of any
+* run before the human gate (absolute quarantine, the note included),
+* and reaches the gate exclusively through LedgerExport. The engine
+* assembles it from the tier-relative kb_propose payload: the subject
+* model is resolved by the engine from the referenced lineage's
+* declared ladder, never named by the orchestrator; evidence must
+* resolve into the proposing run's own decision entries.
+*/
+interface KbProposal {
+  subject: {
+    model: ModelRef;
+    effort?: Effort;
+  };
+  taskClass: TaskClass;
+  polarity: "strength" | "weakness";
+  trigger: KbProposalTrigger;
+  evidence: Array<{
+    kind: "journal";
+    runId: string;
+    entryRef: number;
+  }>;
+  /** <=200 chars; not rendered into any prompt before the gate. */
+  note?: string;
+}
+//#endregion
+//#region src/journal/lineage.d.ts
+/** Logical-task identity across rebirths (DEF-3); engine-minted ULID. */
+type LogicalTaskId = string;
+/** The closed relation vocabulary of the minting and inheritance table. */
+type LineageRelation = "first" | "respawn" | "rung-retry" | "decompose-child" | "unpark-restart";
+/** approachSig/approachSigCoarse derivation version. */
+declare const LINEAGE_SIG_VERSION: 1;
+/** Deterministic LTIDs canonized onto legacy journals. */
+declare const LEGACY_LTID_PREFIX = "legacy:";
+/** The computed lineage record of one spawn-authorizing decision entry. */
+interface LineageRef {
+  logicalTaskId: LogicalTaskId;
+  relation: LineageRelation;
+  /** 0-based, journal order among the LTID's attempts, never wall clock. */
+  attemptOrdinal: number;
+  /** Seq of the causing entry; mandatory for every relation except 'first'. */
+  causeRef?: EntryRef;
+  /** Decomposition chain of parent LTIDs, length <= maxDepth. */
+  ancestry: LogicalTaskId[];
+  approachSig: string;
+  approachSigCoarse: string;
+  sigVersion: typeof LINEAGE_SIG_VERSION;
+}
+/**
+* The value-part lineage block embedded in decision entries: the computed
+* LineageRef plus the normalized tag (the request part
+* holds the RAW proposal; the value part holds what was COMPUTED and is
+* reused byte-exact on replay).
+*/
+interface SpawnLineage extends LineageRef {
+  approachTag: string;
+}
+/** Attempt outcome classes entering LineageStats. */
+type AttemptOutcomeClass = "ok" | "escalated" | "task-error" | "transient-error" | "no-progress" | "verify-failed" | "limit" | "abandoned";
+/**
+* The pure lineage fold rendered in plan_view and WakeDigest, always
+* pinned to a snapshot (`uptoSeq`), never a live read inside a turn.
+* `approaches` groups settled history by approachSig; a group whose
+* attempts have not settled yet is omitted (there is no outcome to learn
+* from), while `attemptsUsed` still counts every authorized attempt.
+*/
+interface LineageStats {
+  attemptsUsed: number;
+  escalationsUsed: number;
+  stallStreak: number;
+  approaches: Array<{
+    approachSig: string;
+    approachTag: string;
+    attempts: number;
+    lastOutcome: AttemptOutcomeClass;
+  }>;
+}
+/** The spawn-options lineage block (ctx.agent, ctx.workflow, spawn_agent, add_task). */
+interface SpawnLineageOpt {
+  continues: LogicalTaskId;
+  /** Default 'respawn'. */
+  relation?: Exclude<LineageRelation, "first">;
+  /** Seq of the journal entry that caused the rebirth; mandatory. */
+  causeRef: EntryRef;
+}
+/** Lineage limits, monotonically consumed and never replenished (DEF-3). */
+interface EscalationLimits {
+  /** Default 2; the old name maxEscalationsPerNode is rejected (XF-10). */
+  maxEscalationsPerLogicalTask: number;
+  /** Default 8. */
+  maxAttemptsPerLogicalTask: number;
+}
+declare const DEFAULT_ESCALATION_LIMITS: EscalationLimits;
+/**
+* Validates a lineage-limits config record. The pre-rename knob name is
+* rejected with a migration hint (XF-10): silently honoring it would
+* change semantics (per logical task, not per node).
+*/
+declare function validateEscalationLimits(raw?: Partial<EscalationLimits> | Record<string, unknown>): EscalationLimits;
+/**
+* Approach-tag normalization: NFC, lowercase, runs of
+* non-alphanumerics collapse into a hyphen, truncate to 32 characters; an
+* empty value canonicalizes to 'default'. Prompt prose never enters any
+* signature: rephrasings collide by construction, not by heuristic.
+*/
+declare function normalizeApproachTag(raw?: string): string;
+/** The isolation string entering approachSigCoarse. */
+declare function canonicalIsolationTag(spec: IsolationSpec | undefined): string;
+/** The identity inputs of the coarse signature (prompt prose excluded). */
+interface ApproachSignatureInputs {
+  agentType: string;
+  toolsetHash: string;
+  schemaHash: string;
+  isolation: string;
+}
+/**
+* approachSigCoarse = sha256(JCS({ sigVersion, agentType, toolsetHash,
+* schemaHash, isolation })). Feeds the stall detector and the oscillation
+* guard, which keys ACROSS LTID boundaries.
+*/
+declare function approachSigCoarse(inputs: ApproachSignatureInputs): string;
+/** approachSig = sha256(JCS({ sigVersion, coarse, approachTag })); keys lessons. */
+declare function approachSigOf(coarse: string, tag?: string): string;
+/**
+* The deterministic signature inputs assigned to legacy spawns (journals
+* written before lineage existed) and to attempts whose producers did not
+* record signature inputs: stable constants, never wall-clock, so replay
+* canonizes identically on every engine.
+*/
+declare const LEGACY_SIGNATURE_INPUTS: ApproachSignatureInputs;
+/** Classifies one settled root terminal into its attempt outcome class. */
+declare function classifyAttemptOutcome(terminal: JournalEntry): AttemptOutcomeClass;
+/**
+* The incremental lineage fold: attempts, escalation debits, stall
+* streaks, single-live-attempt, and legacy canonization, computed from
+* journal entries only. `absorb` is idempotent by seq cursor; every read
+* accepts an optional `uptoSeq` pin so renders stay snapshot-stable.
+*/
+declare class LineageIndex {
+  private readonly attemptsByLtid;
+  private readonly escalationsByLtid;
+  /** Registration-order attempt queues per child (scope, key) slot. */
+  private readonly queueByScope;
+  private readonly recordByRootSeq;
+  /** First-closing-wins projection over resolution targets (DEF-4). */
+  private readonly closedTargets;
+  /** Live admits journaled a moment later (single-live-attempt window). */
+  private readonly pendingAdmits;
+  private cursor;
+  /** Registers a live admit strictly before its decision entry lands. */
+  noteAdmitted(logicalTaskId: LogicalTaskId): void;
+  /** Absorbs new entries (seq beyond the cursor); earlier ones are no-ops. */
+  absorb(entries: readonly JournalEntry[]): void;
+  private absorbEntry;
+  private absorbDecision;
+  private readEmbeddedAdmissions;
+  private registerAttempt;
+  private absorbResolution;
+  private absorbAbandon;
+  private absorbSpawnEntry;
+  /**
+  * Binds one dispatch entry to its attempt: the earliest registered
+  * attempt of the slot still waiting for its first dispatch; else the
+  * attempt whose bound key matches (an at-least-once redispatch of the
+  * same slot after cancelled/error/limit); else a legacy attempt is
+  * canonized with the deterministic 'legacy:' + contentHash LTID
+  * (random ULIDs on replay are forbidden).
+  */
+  private bindRoot;
+  private recordEscalation;
+  private attemptsOf;
+  attemptsUsed(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
+  escalationsUsed(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
+  /**
+  * True while the LTID has an unsettled attempt (admitted, dispatched, or
+  * redispatched without a terminal), including admits whose decision
+  * entries have not landed yet. Backs the single-live-attempt invariant:
+  * a competing admit gets `lineage_busy`.
+  */
+  hasLiveAttempt(logicalTaskId: LogicalTaskId): boolean;
+  /** The stall streak (pinnable to a snapshot seq). */
+  stallStreak(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
+  /** The pinned LineageStats render. */
+  statsOf(logicalTaskId: LogicalTaskId, uptoSeq?: number): LineageStats;
+  /** Every LTID the fold has seen (diagnostics and renders). */
+  knownLogicalTaskIds(): LogicalTaskId[];
+}
+//#endregion
 //#region src/journal/replayer.d.ts
 type ReplayMode = "scoped" | "cache" | "never";
 /** Large-value soft warn threshold (committed for M2). */
@@ -3270,6 +3668,86 @@ declare class KeyedLimiter {
   * cancellation drains provider queues too (v1.34.0 review P2-4).
   */
   withSlot<T>(key: string, fn: () => Promise<T>, onQueued?: () => void, signal?: AbortSignal): Promise<T>;
+}
+//#endregion
+//#region src/l0/spi/quota.d.ts
+/**
+* The pre-dispatch estimate a reservation is admitted under. Token
+* estimates are heuristic (the engine uses its deterministic
+* four-characters-per-token prompt estimate plus the request's output
+* cap when one is set); reconcile() settles the difference against
+* actual usage inside the same accounting window.
+*/
+interface QuotaEstimate {
+  /** Wire calls this reservation admits; the engine always sends 1. */
+  requests: number;
+  /** Heuristic prompt estimate for the attempt. */
+  inputTokens: number;
+  /** The request's output token cap, when one is set. */
+  maxOutputTokens?: number;
+}
+/** One admission request, dimensioned for tenant/model/provider rules. */
+interface QuotaReservationRequest {
+  /**
+  * The adapter id (the left segment of ModelRef), matching the keys
+  * of `concurrency.perProvider`.
+  */
+  provider: string;
+  /** The serving model, re-reserved per failover target. */
+  model: string;
+  /** The engine's configured tenant; absent when the host set none. */
+  tenant?: string;
+  /** The run paying for the attempt; observability only. */
+  runId?: string;
+  estimate: QuotaEstimate;
+}
+/**
+* The admission verdict. `retryAfterMs` on a denial is the
+* provider-shaped hint the retry engine honors verbatim: the time
+* until the limiter expects capacity (0 = retry immediately, e.g. a
+* request whose estimate can never fit its cap, so exhaustion and
+* failover happen without waiting; absent = the caller's backoff
+* policy applies).
+*/
+type QuotaDecision = {
+  granted: true;
+  reservationId: string;
+} | {
+  granted: false;
+  retryAfterMs?: number;
+  reason?: string;
+};
+/** The shared rate/quota limiter seam; see the module contract above. */
+interface QuotaLimiter {
+  reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
+  /**
+  * Settles a reservation against the attempt's actual usage. The
+  * optional `actual.requests` is the TRUE number of wire requests the
+  * reservation ended up covering (RV905: an adapter absorbing
+  * provider-side continuations makes several wire calls inside one
+  * reserved dispatch); implementations add the difference over the
+  * single request the reservation admitted into the same window, so
+  * the request cap reflects what the provider actually metered. A
+  * settlement never denies retroactively: the wire calls already
+  * happened. Implementations written against the two-argument form
+  * remain valid; they merely keep the historical undercount.
+  */
+  reconcile(reservationId: string, usage: Usage, actual?: {
+    requests?: number;
+  }): Promise<void>;
+  /**
+  * Cancels an UNUSED admission (RV1013): the reserved wire never
+  * left, so the admitted request and its token estimate return to
+  * the window. This is NOT reconcile: a settlement only ever adds
+  * (the calls already happened), while a release gives back exactly
+  * what admission consumed for a wire that was never sent (the
+  * engine calls it for pre-wire continuation reservations whose
+  * segment never flew). MUST be idempotent and tolerate unknown or
+  * expired ids as no-ops, like reconcile; a released id settles
+  * nothing afterwards. Optional: implementations without it keep the
+  * conservative window age-out for unused admissions.
+  */
+  release?(reservationId: string): Promise<void>;
 }
 //#endregion
 //#region src/l0/validate-numbers.d.ts
@@ -3780,577 +4258,6 @@ declare function validateEscalationReport(report: EscalationReport): Promise<Iss
 * never debit the escalation counter.
 */
 declare function countsAgainstLimit(kind: EscalationKind): boolean;
-//#endregion
-//#region src/l0/events.d.ts
-/** Run lifecycle and core telemetry (M1 subset). */
-type CoreEvents = {
-  type: "run:start";
-  workflow: string;
-  resumed: boolean;
-} | {
-  type: "run:end";
-  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
-  totalUsd: number;
-  /**
-  * Present and true when any priced usage folded into totalUsd is
-  * approximate (a transport cut, a stream the ceiling severed, or an
-  * abort left a turn's usage estimated rather than reported by the
-  * provider), so totalUsd is a lower bound estimate, never an exact
-  * charge. Absent means every contributing turn reported exact usage.
-  */
-  usageApprox?: boolean;
-  /**
-  * The semantic completion lift (RV-207 tail): present when the
-  * workflow reported semantic completion through the completion
-  * envelope contract: an `ok`/`exhausted` run whose result value is
-  * an object carrying a valid `completion` literal, or an `error`
-  * run whose typed error data carries one (the orchestrator
-  * acceptance path emits both). Transport status says whether the
-  * run ran; completion says whether the work is COMPLETE: an
-  * accepted degraded run is `status: 'ok'` with `completion:
-  * 'partial'`. Replay recomputes the same value from the re-executed
-  * workflow, so the field is identical live and replayed. Absent
-  * when the workflow makes no completion claim.
-  */
-  completion?: "complete" | "partial" | "rejected";
-  /**
-  * Settled child statuses by status name, lifted from the same
-  * envelope (or typed error data) when it carries a valid record of
-  * nonnegative integers. Absent otherwise.
-  */
-  childStatusCounts?: Record<string, number>;
-  /**
-  * Per-child degradation notes, lifted from the same envelope (or
-  * typed error data) when it carries a valid string array (the
-  * fifth experiment, cycle 75). An empty array is the workflow's
-  * claim of zero degradation; absence means no claim. The outcome
-  * mirror spreads the SAME lift, so the surfaces cannot disagree.
-  */
-  degradedReasons?: string[]; /** Children accepted by acceptPartialChildren; same lift. */
-  salvagedPartialChildren?: string[]; /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
-  salvagedTerminalOutputChildren?: string[];
-  /**
-  * Present and false ONLY when nothing durable records this
-  * terminal: a settlement write failed (the run_settle journal
-  * append or the terminal RunMeta projection, RV907), or the
-  * segment was superseded (`settledReason` names it, RV1009). The
-  * status above is true as computation, but `handle.result`
-  * rejects typed instead of resolving (SettlementError or
-  * SupersededError), and an event-only consumer must not treat
-  * this terminal as green. After a settlement failure, resuming
-  * the run re-settles by replay (no provider call) and the
-  * settled terminal carries no field, byte for byte like every
-  * ordinary run. Never emitted true.
-  */
-  settled?: false;
-  /**
-  * Present only beside `settled: false`, naming WHY the terminal
-  * refused green when the reason is not a settlement write
-  * fault: 'superseded' means the run_settle append bounced off
-  * the store's fence because a successor segment holds the lease
-  * and owns settlement (RV1009), and `handle.result` rejects
-  * with the typed SupersededError. A settlement WRITE failure
-  * keeps its historical shape (`settled: false` with no reason)
-  * byte for byte.
-  */
-  settledReason?: "superseded";
-  /**
-  * The per-child acceptance roster (RV806): status, salvage arm,
-  * and the evidence verdict where the child declared a contract;
-  * same lift and posture as the fields above.
-  */
-  acceptanceChildren?: Array<{
-    child: string;
-    status: string;
-    salvage?: "partial" | "terminal-output";
-    evidence?: {
-      recordedEntries: number;
-      minEntries: number;
-      met: boolean;
-      waivedBySalvage?: true;
-    };
-  }>;
-} | {
-  type: "phase:start";
-  phase: string;
-} | {
-  type: "log";
-  level: "debug" | "info" | "warn" | "error";
-  msg: string;
-  data?: Json;
-} | {
-  type: "budget:update";
-  spentUsd: number;
-  remainingUsd: number | null;
-  committedReserveUsd: number;
-} | {
-  type: "external:waiting";
-  key: string;
-  entryRef: number;
-  prompt?: string;
-  deadlineAt?: string;
-} | {
-  type: "approval:pending";
-  toolName: string;
-  entryRef: number;
-  deadlineAt?: string;
-} | {
-  type: "child:start";
-  workflow: string;
-  scope: string;
-} | {
-  type: "child:end";
-  workflow: string;
-  scope: string;
-  status: string;
-};
-/**
-* The structured exploration summary (RV-210): the engine-side tool
-* exploration counters for one agent invocation. Attached to the full
-* AgentResult and to the live `agent:end` event whenever any exploration
-* guard limit is configured; journaled inside the terminal error payload
-* (and therefore restored on replay) only when the guard itself ended
-* the invocation (abortClass 'exploration').
-*/
-interface ExplorationSummary {
-  /** Tool executions dispatched by the loop (the loop's own counter). */
-  toolCallsUsed: number;
-  /** Distinct (tool name, canonical args) signatures executed. */
-  distinctSignatures: number;
-  /** Executions of a signature that had already executed before. */
-  repeatedCalls: number;
-  /** Successful executions whose result digest was already seen. */
-  duplicateResultCalls: number;
-  /** Calls denied by the repeated-signature guard (never dispatched). */
-  deniedRepeats: number;
-  /** Executions per tool name. */
-  byTool: Record<string, number>;
-  /** Calls denied by maxCallsPerTool; present when that limit is configured. */
-  deniedToolCap?: number;
-  /** Weighted tool units spent; present when toolUnits is configured. */
-  toolUnitsUsed?: number;
-}
-/**
-* The tool budget pressure snapshot (RV304, the seventh comparison
-* experiment): how close one agent invocation came to its tool budget,
-* visible BEFORE the terminal 'limit' a starved worker would settle
-* with. Attached to the full AgentResult and to the live `agent:end`
-* event whenever maxToolCalls, toolUnits, or toolBudgetExtension is
-* configured. The snapshot itself never journals, but since RV509 it
-* has a durable subset: an extension grant and the finalization-window
-* entry journal as decision entries the moment they fire, a
-* crash-resume restores them from the journal, and a replayed result
-* carries `used` (from the terminal checkpoint), the granted `cap`,
-* `extensionsGranted`, and `finalizationWindowEntered` whenever the
-* invocation journaled at least one such decision. Every other field
-* (unitsUsed/unitsMax, noticesFired, finalizationReserveUsed, limiter,
-* and the cap of a grant-free run) is live-only fidelity, exactly like
-* transportRetries, and stays absent on replay.
-*/
-interface ToolBudgetSummary {
-  /** Executed tool calls (the loop's own counter). */
-  used: number;
-  /**
-  * The effective executed-call cap at the end: maxToolCalls plus every
-  * granted extension. Absent when only toolUnits bounds the loop.
-  */
-  cap?: number;
-  /** Weighted units spent; present when toolUnits is configured. */
-  unitsUsed?: number;
-  /** The weighted budget; present when toolUnits is configured. */
-  unitsMax?: number;
-  /**
-  * Extension grants used, restored grants included; present exactly
-  * when toolBudgetExtension is configured (RV301).
-  */
-  extensionsGranted?: number;
-  /**
-  * Notice thresholds (fractions of the cap) whose notices entered the
-  * conversation; present when at least one fired.
-  */
-  noticesFired?: number[];
-  /** Present and true when the finalization reserve summary turn ran. */
-  finalizationReserveUsed?: boolean;
-  /**
-  * Present and true when the finalization window activated at least
-  * once this invocation (RV302).
-  */
-  finalizationWindowEntered?: boolean;
-  /** The tool budget limiter that ended the loop, on that 'limit' only. */
-  limiter?: "maxToolCalls" | "toolUnits";
-}
-/**
-* How an event's `costUsd` was folded (RV702). `'per-call'`: the sum of
-* each provider request priced individually, the same basis the settled
-* CostReport and invoice use (RV504), so a nonlinear long-context tier
-* fires per REQUEST. `'aggregate-estimate'`: the aggregate usage priced
-* in one call, which a tier can inflate past what any single request
-* cost; emitted only when per-request records cannot cover the number
-* (a checkpoint written before the reconciliation ledger shipped, or a
-* terminal entry whose records do not cover its usage). An absent field
-* on an event stream recorded before RV702 means the aggregate basis.
-*/
-type CostBasis = "per-call" | "aggregate-estimate";
-/**
-* Agent lifecycle. One logical agent dispatch emits EXACTLY ONE
-* `agent:start`/`agent:end` pair on its span (the start carries the
-* primary role), and each model invocation phase inside the span
-* (`loop`, then possibly `summarize` activations, `finalize`,
-* `extract`) emits its own `agent:phase:start`/`agent:phase:end` pair,
-* so durations, per-phase usage, and attempts are derivable without
-* heuristics (the RV-207 event-model contract; before it, every phase
-* emitted an unpaired extra `agent:start` and consumers pairing starts
-* with the single end computed the LAST phase's duration as the
-* agent's). `reduceInvocationTable` is the official reducer over this
-* vocabulary.
-*/
-type AgentEvents = {
-  type: "agent:queued";
-  agentType: string;
-  label?: string;
-} | {
-  type: "agent:start";
-  agentType: string;
-  label?: string;
-  model: string;
-  role: string;
-} | {
-  type: "agent:phase:start";
-  agentType: string;
-  label?: string; /** The invocation role this phase activation runs as. */
-  role: string; /** The model the activation resolved to (fallbacks may serve another; the end event reports the server). */
-  model: string;
-  /**
-  * 1-based activation ordinal within the span, unique per
-  * activation (a summarize that fires three times gets three
-  * pairs). Key phases by (spanId, invocation).
-  */
-  invocation: number;
-} | {
-  type: "agent:phase:end";
-  agentType: string;
-  label?: string;
-  role: string; /** The model that actually served the activation's last attempt. */
-  model: string;
-  invocation: number;
-  /**
-  * Wall-clock activation duration. Live telemetry only: replayed
-  * phase pairs (reconstructed from the terminal entry's usage
-  * slices) carry 0.
-  */
-  durationMs: number; /** The usage this activation added to its (role, model) slices. */
-  usage: Usage; /** That usage priced at each serving model's own rate. */
-  costUsd: number;
-  /**
-  * The fold behind `costUsd` (RV702). Live phase deltas are always
-  * per-call (every slice a live activation adds is backed by a
-  * recorded provider call); a replayed pair says 'aggregate-estimate'
-  * exactly when its model's records do not cover its usage. Absent
-  * on streams recorded before RV702, which priced the aggregate.
-  */
-  costBasis?: CostBasis;
-  outcome: "ok" | "error";
-  /**
-  * Transport retries inside this activation. Present only when
-  * greater than zero; live telemetry only (absent on replay).
-  */
-  retries?: number;
-} | {
-  type: "agent:end";
-  agentType: string;
-  label?: string;
-  status: string;
-  usage: Usage;
-  costUsd: number;
-  /**
-  * The fold behind `costUsd` (RV702): 'per-call' when every usage
-  * slice of the invocation (restored included) is covered by
-  * per-request records priced individually, the settled fold's own
-  * basis; 'aggregate-estimate' when it is not (the aggregate number
-  * is kept so restored spend is never silently dropped, and labeled
-  * so it is never mistaken for the per-request fold). Absent on
-  * streams recorded before RV702, which priced the aggregate.
-  */
-  costBasis?: CostBasis;
-  entryRef: number;
-  /**
-  * Present and true when this agent's usage is approximate rather
-  * than reported by the provider (the turn was cut by a transport
-  * failure, a ceiling that severed the stream, or an abort). Absent
-  * means the provider reported the usage exactly. Mirrors the
-  * terminal journal entry's usageApprox.
-  */
-  usageApprox?: boolean;
-  /**
-  * Total transport retries across the span's activations. Present
-  * only when greater than zero; live telemetry only, never
-  * journaled, so a replayed agent:end omits it (absent means "zero
-  * or unknown").
-  */
-  retryCount?: number;
-  /**
-  * The exploration guard counters (RV-210). Present live whenever
-  * any exploration guard limit was configured for the invocation;
-  * on replay present only when the guard abort journaled it in the
-  * terminal error payload.
-  */
-  exploration?: ExplorationSummary;
-  /**
-  * The tool budget pressure snapshot (RV304). Present live whenever
-  * a tool budget limiter or the extension was configured; live
-  * telemetry only, absent on replay.
-  */
-  toolBudget?: ToolBudgetSummary;
-} | {
-  type: "agent:error";
-  agentType: string;
-  label?: string;
-  error: WireError;
-  willRetry: boolean;
-} | {
-  type: "agent:schema-retry";
-  agentType: string;
-  attempt: number;
-  maxAttempts: number;
-} | {
-  type: "agent:stream";
-  delta: string;
-};
-/** Tool lifecycle (emitters arrive with the tool system, M3). */
-type ToolEvents = {
-  type: "tool:start";
-  toolName: string;
-  /**
-  * The model-minted id of this tool call (RV908): the same id the
-  * journal's messages and tool-result parts carry, so a consumer
-  * pairs start and end EXACTLY even among concurrent same-name
-  * calls, instead of FIFO-guessing by (spanId, toolName). Present
-  * on every live event this engine emits, and on every replayed
-  * reconstruction (whose events exist only when the turn
-  * checkpoint blob is retrievable; the id rides the checkpoint's
-  * tool-result parts, so even journals written before RV908 name
-  * their calls there). Absent only on streams recorded before
-  * RV908 or written by foreign emitters, where consumers keep
-  * their historical pairing.
-  */
-  toolCallId?: string;
-  risk?: Json;
-} | {
-  type: "tool:end";
-  toolName: string; /** The same call id as the matching tool:start (RV908). */
-  toolCallId?: string;
-  outcome: "ok" | "error" | "denied";
-  durationMs: number;
-  /**
-  * Audit fields (M5-T05): the chain verdict,
-  * the deciding layer, the matched rule, and advisory domain-rule
-  * matches. Telemetry, never identity; ask verdicts additionally
-  * journal as suspended approvals.
-  */
-  verdict?: "allow" | "deny" | "ask";
-  decidedBy?: string;
-  rule?: Json;
-  advisory?: Json;
-  /**
-  * Present when an engine guard, not the permission chain, denied
-  * the call: the exploration guards (RV-210) or the finalization
-  * window (RV302). The outcome is 'denied' and the call was never
-  * dispatched.
-  */
-  guard?: "repeated-signature" | "per-tool-cap" | "finalization-window";
-};
-/**
-* Bare-nondeterminism detection (RV-209). Emitted LIVE by the segment
-* that observed the call, at most once per (category, provenance) per
-* execution segment; never journaled and never re-emitted with the
-* `replayed` flag. Because replay re-executes the workflow body, a
-* violation that survives in the code fires again on every replay of
-* the run, so the event appears organically in both live and replayed
-* streams. Exempt provenances (installed dependencies under
-* node_modules and Node runtime frames) never emit: they are
-* classified and silenced, which is what keeps an SDK's internal
-* `Math.random()` from branding the run nondeterministic.
-*/
-type DeterminismEvents = {
-  type: "determinism:warning"; /** Which patched global fired. */
-  category: "bare-date-now" | "bare-math-random";
-  /**
-  * 'workflow': the caller is workflow-origin code (the violation the
-  * guard exists for; rejects the run under `determinism.mode:
-  * 'error'`). 'allowlisted': the caller matched a configured
-  * `determinism.allowlist` pattern and is exempt by explicit host
-  * decision; emitted for visibility, never rejects.
-  */
-  provenance: "workflow" | "allowlisted"; /** The calling stack frame, after the configured redaction hook. */
-  frame: string; /** Parsed location when the frame carries one, after redaction. */
-  file?: string;
-  line?: number;
-  column?: number;
-};
-/**
-* Adaptive orchestration, resolutions, and
-* accounting: emitted only by runs where the corresponding machinery is
-* active (applicability per mode:
-* https://docs.rulvar.com/guide/adaptive-orchestration). The types land as
-* one closed catalog with M7-T03; emitters arrive with their tasks.
-*/
-type AdaptiveEvents = {
-  type: "plan:revised";
-  entryRef: number;
-  planHash: string;
-  applied: number;
-  dropped: number;
-  revisionUnitsRemaining: number;
-} | {
-  type: "node:parked";
-  nodeId: string;
-  logicalTaskId: string;
-} | {
-  type: "node:cancelled";
-  nodeId: string;
-  logicalTaskId: string;
-} | {
-  type: "node:linked";
-  nodeId: string;
-  logicalTaskId: string;
-  donorRef: number;
-  reclaimedUsd: number;
-} | {
-  type: "orchestrator:woke";
-  digestSeq: number;
-  planHash: string;
-  coversToOrdinal: number;
-  renderSize: number;
-} | {
-  /**
-  * Two emitted shapes share the discriminant: the cap-freeze form
-  * carries { atCap: true, spentUsd, capUsd, finalizeReserveUsd },
-  * and the per-wake digest form carries atCap plus the passive
-  * WakeBudgetBlock fields (runSpentUsd .. softWarning).
-  */
-  type: "orchestrator:budget";
-  atCap: boolean;
-  spentUsd?: number;
-  capUsd?: number;
-  finalizeReserveUsd?: number;
-  runSpentUsd?: number;
-  runCeilingUsd?: number;
-  orchestratorSpentUsd?: number;
-  orchestratorCapUsd?: number;
-  orchestratorShare?: number;
-  softWarning?: boolean;
-} | {
-  type: "escalation:raised";
-  entryRef: number;
-  kind: "scope_bigger" | "scope_different" | "blocked_with_evidence";
-  logicalTaskId: string;
-  costToDateUsd: number;
-} | {
-  type: "escalation:decided";
-  entryRef: number;
-  decision: "retry" | "decompose" | "cancel" | "accept";
-  by: ResolutionBy;
-  countsAgainstLimit: boolean;
-} | {
-  type: "spawn:admitted";
-  entryRef: number; /** The admitting arms of the unified AdmitVerdict union. */
-  verdict: "admit" | "reuse_full" | "admit_graft";
-  agentType: string;
-  logicalTaskId: string;
-  /**
-  * Spawn-unit balance after the budget-layer debit. Present on
-  * budget-layer admissions (the orchestrator spawn tools and
-  * ctx.workflow children); absent on lineage-layer admissions
-  * (ctx.agent roots), whose spawn-unit debit rides the dispatch
-  * itself (v1.22.0 review P2-5).
-  */
-  spawnUnitsAfter?: number;
-} | {
-  type: "spawn:rejected";
-  /**
-  * The journaled admission decision entry; absent for the
-  * pre-admission config gates (orchestrate maxSpawns), which
-  * reject before anything is journaled.
-  */
-  entryRef?: number;
-  code: string;
-  agentType: string;
-  logicalTaskId?: string;
-} | {
-  type: "verify:failed";
-  entryRef: number;
-  logicalTaskId: string;
-  rung: number;
-  gate: "mechanical" | "judge" | "spot-check";
-} | {
-  type: "ledger:op";
-  entryRef: number;
-  op: "brief_set" | "fact_add" | "fact_supersede" | "lesson_add" | "observation_add";
-} | {
-  type: "stall:detected";
-  logicalTaskId: string;
-  stallStreak: number;
-} | {
-  type: "guard:oscillation";
-  spawnKeyHash: string;
-  oscillationCount: number;
-  limit: number;
-} | {
-  type: "resolution:applied";
-  targetRef: number;
-  entryRef: number;
-  by: ResolutionBy;
-} | {
-  type: "resolution:superseded";
-  targetRef: number;
-  entryRef: number;
-  supersededBy: number;
-  reason: "already_resolved" | "target_abandoned";
-} | {
-  type: "termination:debit";
-  entryRef: number;
-  counter: string;
-  remaining: number;
-  phi: number;
-} | {
-  type: "termination:denied";
-  entryRef: number;
-  counter: string;
-  code: string;
-} | {
-  type: "termination:config-drift";
-  field: string;
-  frozenValue: Json;
-  liveValue: Json;
-} | {
-  /**
-  * Declared for hosts; not emitted today. The compatibility scan
-  * runs strictly before a run's event stream exists, so the
-  * refusal travels only as the typed JournalCompatibilityError
-  * (which carries the same fields).
-  */
-  type: "journal:compat";
-  code: "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
-  found: number;
-  window: [number, number];
-};
-type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents | DeterminismEvents | AdaptiveEvents;
-/**
-* The envelope: seq is an independent per-run
-* telemetry counter, strictly increasing in emission order and DISTINCT
-* from JournalEntry.seq (never compare or join the two; entryRef fields
-* carry journal seqs explicitly). ts is wall clock, telemetry only.
-* replayed is true only on re-emitted journal-backed lifecycle events;
-* stream deltas are never re-emitted.
-*/
-type WorkflowEvent = {
-  runId: string;
-  seq: number;
-  ts: string;
-  spanId: string;
-  parentSpanId?: string;
-  replayed?: boolean;
-} & WorkflowEventBody;
 //#endregion
 //#region src/runtime/exploration.d.ts
 /** The budget dimension a finalization window statement names (RV302). */
@@ -6464,213 +6371,6 @@ declare class AdmissionController {
   * re-estimated).
   */
   recoverInFlight(parentAccountScope: string, verdict: AdmitVerdict): void;
-}
-//#endregion
-//#region src/engine/cost-report.d.ts
-/**
-* Folds the per-run attribution buckets into the normative CostReport.
-* Live attribution buckets never see abandoned subtrees, so a host
-* that tracked abandoned spend itself passes it as `abandoned`;
-* omitted, the report shows a gross equal to the net. Non-finite
-* numbers anywhere in the inputs are a typed refusal (RV705): this
-* exported builder is the same public surface as
-* {@link costReportFromJournal} and holds the same RV610 doctrine,
-* instead of letting an Infinity or NaN serialize into null downstream.
-*/
-declare function buildCostReport(attribution: CostAttribution, totalUsd: number, abandoned?: CostReport["abandoned"]): CostReport;
-/**
-* The pure journal fold: the complete CostReport from terminal entries,
-* the same summation the kernel ledger uses (each terminal entry's
-* usage enters the sum once, priced per servedBy slice, abandoned
-* subtrees contribute zero).
-* The orchestrator block folds too: spend attributed to the
-* orchestrator sub-account, the reserve-funded share of it, the armed
-* wake count, and the at-cap freeze flag from the journaled cap
-* decision, so a replay-only resume reproduces the block instead of
-* reading this process's live accounts (which a replay never charges).
-*/
-declare function costReportFromJournal(entries: readonly JournalEntry[], priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined): CostReport;
-//#endregion
-//#region src/engine/run-handle.d.ts
-/** Suspensions still open at settle time; producers arrive with M2. */
-interface PendingExternal {
-  key: string;
-  scope: string;
-  entryRef: number;
-  prompt?: string;
-  /** Approvals and Flavor B escalations only. */
-  deadlineAt?: string;
-}
-/** Full contract: https://docs.rulvar.com/guide/observability. */
-interface CostReport {
-  /**
-  * The NET ledger: priced terminal usage with abandoned subtrees
-  * contributing zero (their spend is a sunk cost of branches the
-  * orchestrator discarded, not of the work the run kept). The
-  * provider still billed them: reconcile invoices against `grossUsd`,
-  * never this.
-  */
-  totalUsd: number;
-  /**
-  * The gross/net split (P1.3): totalUsd + abandoned.usd, every priced
-  * terminal slice with abandonment included. This is the immutable
-  * provider-spend figure an invoice reconciles against; abandoning a
-  * branch never shrinks it.
-  */
-  grossUsd: number;
-  /**
-  * Priced spend under abandoned subtrees, exactly the part totalUsd
-  * excludes. `unpriced` here surfaces abandoned slices with no price
-  * row (the top-level `unpriced` lists only slices contributing to
-  * totalUsd), and `usageApprox` follows the same semantics as the
-  * top-level flag over the abandoned entries; grossUsd is an estimate
-  * whenever either flag is raised.
-  */
-  abandoned: {
-    usd: number;
-    unpriced: Array<{
-      model: string;
-      usage: Usage;
-    }>;
-    usageApprox?: boolean;
-  };
-  /** Keyed by canonical ModelRef 'adapterId:model'. */
-  byModel: Record<string, number>;
-  /** ctx.phase names; phase is structural for this map. */
-  byPhase: Record<string, number>;
-  byAgentType: Record<string, number>;
-  byRole: Record<InvocationRole, number>;
-  /**
-  * All-zero with forcedFinish false in runs without a dynamic
-  * orchestrator (or when no cap resolved, so no sub-account opened).
-  * Folded purely from the journal: spentUsd is the priced usage of
-  * entries debited to the orchestrator sub-account, reserveUsedUsd its
-  * reserve-funded forced-finish share, wakes the ARMED (journaled)
-  * wake suspensions (a wait satisfied synchronously never suspends and
-  * is not counted), and forcedFinish the journaled at-cap decision.
-  */
-  orchestrator: {
-    spentUsd: number; /** spentUsd / max(totalUsd, 0.01): the epsilon-floored H-OrchShare input. */
-    share: number;
-    wakes: number;
-    forcedFinish: boolean;
-    reserveUsedUsd: number;
-  };
-  /** Usage on models absent from pricing; never a silent zero. */
-  unpriced: Array<{
-    model: string;
-    usage: Usage;
-  }>;
-  /**
-  * Present and true when any terminal entry folded into totalUsd carried
-  * approximate usage (a transport cut, a stream the ceiling severed, or
-  * an abort estimated the turn instead of the provider reporting it), so
-  * totalUsd is a lower bound estimate, never an exact charge. Absent
-  * means every contributing entry reported exact usage. The field the
-  * v1.39.0 review asked the report to raise so approximate cost is never
-  * shown as though it were the provider invoice.
-  */
-  usageApprox?: boolean;
-}
-/**
-* One row of the acceptance fold's per-child roster (RV806): the
-* settled status, the salvage arm that accepted the child (absent when
-* none did), and the evidence verdict where the child declared an
-* evidence contract. `waivedBySalvage: true` marks a child whose
-* evidence floor was NOT met but which a salvage arm accepted anyway;
-* gate on it where waived evidence must not pass silently.
-*/
-interface AcceptanceChildSummary {
-  child: string;
-  status: string;
-  salvage?: "partial" | "terminal-output";
-  evidence?: {
-    recordedEntries: number;
-    minEntries: number;
-    met: boolean;
-    waivedBySalvage?: true;
-  };
-}
-type RunOutcome<R> = {
-  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
-  value?: R;
-  error?: WireError;
-  /**
-  * The semantic completion lift, mirrored from `run:end` (RV-207 tail;
-  * the 1.65.0 experiment review, P0.5): present when the workflow
-  * reported semantic completion through the completion envelope
-  * contract, an `ok`/`exhausted` run whose result value is an object
-  * carrying a valid `completion` literal, or an `error` run whose typed
-  * error data carries one (the orchestrator acceptance path emits
-  * both). Transport status says whether the run ran; completion says
-  * whether the work is COMPLETE: an accepted degraded run is `status:
-  * 'ok'` with `completion: 'partial'`. The engine computes the lift
-  * ONCE and both surfaces spread the same object, so the outcome and
-  * the event can never disagree; a host reads completeness here
-  * without parsing workflow-specific value shapes on the accepted path
-  * or digging typed error data on the rejected one. Absent when the
-  * workflow makes no completion claim.
-  */
-  completion?: "complete" | "partial" | "rejected";
-  /**
-  * Settled child statuses by status name, lifted from the same
-  * envelope (or typed error data) when it carries a valid record of
-  * nonnegative integers; the mirror of the `run:end` field. Absent
-  * otherwise.
-  */
-  childStatusCounts?: Record<string, number>;
-  /**
-  * Per-child degradation notes, lifted from the same envelope (or
-  * typed error data) when it carries a valid string array (the fifth
-  * experiment, cycle 75): the facts the orchestrator acceptance path
-  * has always emitted beside completion, now on the outcome itself so
-  * a host stops digging error.data on the rejected path. An empty
-  * array is the workflow's claim of zero degradation; absence means no
-  * claim was made.
-  */
-  degradedReasons?: string[]; /** Children accepted by acceptPartialChildren; same lift and posture. */
-  salvagedPartialChildren?: string[];
-  /**
-  * Children accepted through validated terminal output salvage on
-  * 'limit'; same lift and posture.
-  */
-  salvagedTerminalOutputChildren?: string[];
-  /**
-  * The per-child machine roster of the acceptance fold (RV806), lifted
-  * from the same envelope (or typed error data) under the same
-  * posture: each spawned child with its settled status, the salvage
-  * arm that accepted it (when one did), and the evidence verdict where
-  * the child declared an evidence contract, `waivedBySalvage` marking
-  * a below-floor child a salvage arm accepted anyway. The twelfth
-  * comparison run accepted two below-floor children through salvage
-  * and the outcome showed it only as name lists; this is the machine
-  * verdict. Replay-stable: the roster is journaled inside the single
-  * acceptance decision.
-  */
-  acceptanceChildren?: AcceptanceChildSummary[]; /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
-  dropped: DroppedItem[]; /** Suspensions open at settle time (M2). */
-  pending: PendingExternal[];
-  usage: Usage;
-  cost: CostReport;
-};
-/** Adds 'running' for in-flight inspection. */
-type RunStatus = RunOutcome<unknown>["status"] | "running";
-interface RunHandle<R> {
-  runId: string;
-  result: Promise<RunOutcome<R>>;
-  events: AsyncIterable<WorkflowEvent>;
-  on<T extends WorkflowEvent["type"]>(type: T, cb: (e: Extract<WorkflowEvent, {
-    type: T;
-  }>) => void): () => void;
-  /**
-  * Resolves an open awaitExternal suspension (DEF-4 signature): applied
-  * when this attempt wins the first-closing-wins fold; repeated
-  * resolution is defined behavior, not an error. An invalid live payload
-  * throws InvalidResolutionError and journals nothing.
-  */
-  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
-  /** Cooperative cancellation; the run settles 'cancelled' with a complete CostReport. */
-  cancel(reason?: string): Promise<void>;
 }
 //#endregion
 //#region src/runner/inprocess.d.ts
@@ -9546,6 +9246,386 @@ declare function createCtx(internals: RunInternals, rootWorkflow?: {
 */
 declare function executeWorkflow<A, R>(internals: RunInternals, wf: Workflow<A, R>, args: A): Promise<R>;
 //#endregion
+//#region src/engine/cost-report.d.ts
+/**
+* Folds the per-run attribution buckets into the normative CostReport.
+* Live attribution buckets never see abandoned subtrees, so a host
+* that tracked abandoned spend itself passes it as `abandoned`;
+* omitted, the report shows a gross equal to the net. Non-finite
+* numbers anywhere in the inputs are a typed refusal (RV705): this
+* exported builder is the same public surface as
+* {@link costReportFromJournal} and holds the same RV610 doctrine,
+* instead of letting an Infinity or NaN serialize into null downstream.
+*/
+declare function buildCostReport(attribution: CostAttribution, totalUsd: number, abandoned?: CostReport["abandoned"]): CostReport;
+/**
+* The pure journal fold: the complete CostReport from terminal entries,
+* the same summation the kernel ledger uses (each terminal entry's
+* usage enters the sum once, priced per servedBy slice, abandoned
+* subtrees contribute zero).
+* The orchestrator block folds too: spend attributed to the
+* orchestrator sub-account, the reserve-funded share of it, the armed
+* wake count, and the at-cap freeze flag from the journaled cap
+* decision, so a replay-only resume reproduces the block instead of
+* reading this process's live accounts (which a replay never charges).
+*/
+declare function costReportFromJournal(entries: readonly JournalEntry[], priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined): CostReport;
+//#endregion
+//#region src/engine/run-handle.d.ts
+/** Suspensions still open at settle time; producers arrive with M2. */
+interface PendingExternal {
+  key: string;
+  scope: string;
+  entryRef: number;
+  prompt?: string;
+  /** Approvals and Flavor B escalations only. */
+  deadlineAt?: string;
+}
+/** Full contract: https://docs.rulvar.com/guide/observability. */
+interface CostReport {
+  /**
+  * The NET ledger: priced terminal usage with abandoned subtrees
+  * contributing zero (their spend is a sunk cost of branches the
+  * orchestrator discarded, not of the work the run kept). The
+  * provider still billed them: reconcile invoices against `grossUsd`,
+  * never this.
+  */
+  totalUsd: number;
+  /**
+  * The gross/net split (P1.3): totalUsd + abandoned.usd, every priced
+  * terminal slice with abandonment included. This is the immutable
+  * provider-spend figure an invoice reconciles against; abandoning a
+  * branch never shrinks it.
+  */
+  grossUsd: number;
+  /**
+  * Priced spend under abandoned subtrees, exactly the part totalUsd
+  * excludes. `unpriced` here surfaces abandoned slices with no price
+  * row (the top-level `unpriced` lists only slices contributing to
+  * totalUsd), and `usageApprox` follows the same semantics as the
+  * top-level flag over the abandoned entries; grossUsd is an estimate
+  * whenever either flag is raised.
+  */
+  abandoned: {
+    usd: number;
+    unpriced: Array<{
+      model: string;
+      usage: Usage;
+    }>;
+    usageApprox?: boolean;
+  };
+  /** Keyed by canonical ModelRef 'adapterId:model'. */
+  byModel: Record<string, number>;
+  /** ctx.phase names; phase is structural for this map. */
+  byPhase: Record<string, number>;
+  byAgentType: Record<string, number>;
+  byRole: Record<InvocationRole, number>;
+  /**
+  * All-zero with forcedFinish false in runs without a dynamic
+  * orchestrator (or when no cap resolved, so no sub-account opened).
+  * Folded purely from the journal: spentUsd is the priced usage of
+  * entries debited to the orchestrator sub-account, reserveUsedUsd its
+  * reserve-funded forced-finish share, wakes the ARMED (journaled)
+  * wake suspensions (a wait satisfied synchronously never suspends and
+  * is not counted), and forcedFinish the journaled at-cap decision.
+  */
+  orchestrator: {
+    spentUsd: number; /** spentUsd / max(totalUsd, 0.01): the epsilon-floored H-OrchShare input. */
+    share: number;
+    wakes: number;
+    forcedFinish: boolean;
+    reserveUsedUsd: number;
+  };
+  /** Usage on models absent from pricing; never a silent zero. */
+  unpriced: Array<{
+    model: string;
+    usage: Usage;
+  }>;
+  /**
+  * Present and true when any terminal entry folded into totalUsd carried
+  * approximate usage (a transport cut, a stream the ceiling severed, or
+  * an abort estimated the turn instead of the provider reporting it), so
+  * totalUsd is a lower bound estimate, never an exact charge. Absent
+  * means every contributing entry reported exact usage. The field the
+  * v1.39.0 review asked the report to raise so approximate cost is never
+  * shown as though it were the provider invoice.
+  */
+  usageApprox?: boolean;
+}
+/**
+* One row of the acceptance fold's per-child roster (RV806): the
+* settled status, the salvage arm that accepted the child (absent when
+* none did), and the evidence verdict where the child declared an
+* evidence contract. `waivedBySalvage: true` marks a child whose
+* evidence floor was NOT met but which a salvage arm accepted anyway;
+* gate on it where waived evidence must not pass silently.
+*/
+interface AcceptanceChildSummary {
+  child: string;
+  status: string;
+  salvage?: "partial" | "terminal-output";
+  evidence?: {
+    recordedEntries: number;
+    minEntries: number;
+    met: boolean;
+    waivedBySalvage?: true;
+  };
+}
+type RunOutcome<R> = {
+  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  value?: R;
+  error?: WireError;
+  /**
+  * The semantic completion lift, mirrored from `run:end` (RV-207 tail;
+  * the 1.65.0 experiment review, P0.5): present when the workflow
+  * reported semantic completion through the completion envelope
+  * contract, an `ok`/`exhausted` run whose result value is an object
+  * carrying a valid `completion` literal, or an `error` run whose typed
+  * error data carries one (the orchestrator acceptance path emits
+  * both). Transport status says whether the run ran; completion says
+  * whether the work is COMPLETE: an accepted degraded run is `status:
+  * 'ok'` with `completion: 'partial'`. The engine computes the lift
+  * ONCE and both surfaces spread the same object, so the outcome and
+  * the event can never disagree; a host reads completeness here
+  * without parsing workflow-specific value shapes on the accepted path
+  * or digging typed error data on the rejected one. Absent when the
+  * workflow makes no completion claim.
+  */
+  completion?: "complete" | "partial" | "rejected";
+  /**
+  * Settled child statuses by status name, lifted from the same
+  * envelope (or typed error data) when it carries a valid record of
+  * nonnegative integers; the mirror of the `run:end` field. Absent
+  * otherwise.
+  */
+  childStatusCounts?: Record<string, number>;
+  /**
+  * Per-child degradation notes, lifted from the same envelope (or
+  * typed error data) when it carries a valid string array (the fifth
+  * experiment, cycle 75): the facts the orchestrator acceptance path
+  * has always emitted beside completion, now on the outcome itself so
+  * a host stops digging error.data on the rejected path. An empty
+  * array is the workflow's claim of zero degradation; absence means no
+  * claim was made.
+  */
+  degradedReasons?: string[]; /** Children accepted by acceptPartialChildren; same lift and posture. */
+  salvagedPartialChildren?: string[];
+  /**
+  * Children accepted through validated terminal output salvage on
+  * 'limit'; same lift and posture.
+  */
+  salvagedTerminalOutputChildren?: string[];
+  /**
+  * The per-child machine roster of the acceptance fold (RV806), lifted
+  * from the same envelope (or typed error data) under the same
+  * posture: each spawned child with its settled status, the salvage
+  * arm that accepted it (when one did), and the evidence verdict where
+  * the child declared an evidence contract, `waivedBySalvage` marking
+  * a below-floor child a salvage arm accepted anyway. The twelfth
+  * comparison run accepted two below-floor children through salvage
+  * and the outcome showed it only as name lists; this is the machine
+  * verdict. Replay-stable: the roster is journaled inside the single
+  * acceptance decision.
+  */
+  acceptanceChildren?: AcceptanceChildSummary[]; /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
+  dropped: DroppedItem[]; /** Suspensions open at settle time (M2). */
+  pending: PendingExternal[];
+  usage: Usage;
+  cost: CostReport;
+  /**
+  * The unified terminal envelope (RV1105): every terminal fact in ONE
+  * shape, assembled once at the settlement chokepoint and shared with
+  * the `run:end` event, so the SDK and the event stream can never
+  * disagree. A RESOLVED outcome always carries `settled: true` inside
+  * it: an unsettled terminal rejects `handle.result` typed instead of
+  * resolving (RV907, RV1009), and its refusing envelope rides the
+  * event alone.
+  */
+  envelope: TerminalEnvelope;
+};
+/** Adds 'running' for in-flight inspection. */
+type RunStatus = RunOutcome<unknown>["status"] | "running";
+interface RunHandle<R> {
+  runId: string;
+  result: Promise<RunOutcome<R>>;
+  events: AsyncIterable<WorkflowEvent>;
+  on<T extends WorkflowEvent["type"]>(type: T, cb: (e: Extract<WorkflowEvent, {
+    type: T;
+  }>) => void): () => void;
+  /**
+  * Resolves an open awaitExternal suspension (DEF-4 signature): applied
+  * when this attempt wins the first-closing-wins fold; repeated
+  * resolution is defined behavior, not an error. An invalid live payload
+  * throws InvalidResolutionError and journals nothing.
+  */
+  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
+  /** Cooperative cancellation; the run settles 'cancelled' with a complete CostReport. */
+  cancel(reason?: string): Promise<void>;
+}
+//#endregion
+//#region src/engine/terminal-envelope.d.ts
+/** The outcome facts the assembler reads; a structural subset of RunOutcome. */
+type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, "status" | "error" | "completion"> & {
+  usage: RunOutcome<unknown>["usage"];
+  cost: Pick<RunOutcome<unknown>["cost"], "totalUsd" | "grossUsd" | "byModel"> & {
+    usageApprox?: boolean;
+  };
+};
+/**
+* Assembles one terminal envelope (RV1105). `settlement` present means
+* nothing durable records the terminal: `settled` reads false, and the
+* optional `settledReason: 'superseded'` names the fenced-out segment
+* (RV1009); absent means the settle held and `settled` reads true. The
+* per-model split is detached, so a consumer mutating the envelope
+* never reaches back into the cost report.
+*/
+declare function terminalEnvelopeOf(input: {
+  runId: string;
+  workflow: string;
+  outcome: TerminalOutcomeFacts;
+  agentsSpawned: number;
+  settlement?: {
+    settledReason?: "superseded";
+  };
+}): TerminalEnvelope;
+//#endregion
+//#region src/knowledge/decay.d.ts
+/**
+* The asymmetric TTL table:
+* a false negative is costlier through lock-in, so weaknesses expire
+* sooner than strengths.
+*/
+declare const CLAIM_TTL_DAYS: {
+  readonly "eval-measured": {
+    readonly strength: 90;
+    readonly weakness: 30;
+  };
+  readonly "human-editorial": {
+    readonly strength: 120;
+    readonly weakness: 45;
+  };
+};
+/** Inbox proposals expire after 14 days (reserved for M12 phase 3). */
+declare const INBOX_PROPOSAL_TTL_DAYS = 14;
+/** The asymmetric TTL applied to an observedAt ISO date. */
+declare function claimExpiry(claimClass: ModelClaim["class"], polarity: ModelClaim["polarity"], observedAt: string): string;
+/** True when the claim steers nothing at `at` (the read-path filter). */
+declare function claimExpired(claim: Pick<ModelClaim, "expiresAt">, at: string): boolean;
+/** The TTL state a maintenance view renders per claim. */
+type TtlState = "holds" | "expired";
+declare function ttlState(claim: Pick<ModelClaim, "expiresAt">, at: string): TtlState;
+/**
+* The re-measurement queue:
+* expired eval-measured claims that are still ACTIVE. Just a status
+* filter: the next sweep re-measures these subjects; nothing archives
+* them (archiving would empty the queue and hide the decay).
+*/
+declare function remeasureQueue(claims: readonly ModelClaim[], at: string): ModelClaim[];
+/**
+* Deprecation maintenance (deprecations archive claims, never delete
+* them, so historical runs keep their audit trail): archive ops for
+* every non-terminal claim of the deprecated
+* models. The caller commits them under its own gate-free archive ops.
+*/
+declare function archiveDeprecatedModelOps(claims: readonly ModelClaim[], deprecated: readonly ModelRef[]): ClaimOp[];
+//#endregion
+//#region src/knowledge/claims.d.ts
+/**
+* The typed statement template for a proposal-born claim (phase 3):
+* assembled over the closed enum vocabulary ONLY, so tool-output text
+* is unquotable into persistence, and model-free, because a claim
+* statement renders into the knowledge card's notes layer, which never
+* leaks model names to the orchestrator.
+*/
+declare function proposalStatement(proposal: Pick<KbProposal, "taskClass" | "polarity" | "trigger">): string;
+/** Appendix A: KB active-claims cap, default 8 per (model, taskClass). */
+declare const KB_ACTIVE_CLAIMS_CAP = 8;
+/** The committed data model bound: statement <= 200 chars. */
+declare const CLAIM_STATEMENT_MAX_CHARS = 200;
+interface ClaimValidationOptions {
+  /**
+  * True on the eval-committer path (the eval-committer gate).
+  * Editorial validation leaves it false and both eval-measured
+  * claims and metrics reject. At the op level the GATE decides this
+  * flag; the option exists for direct claim-level validation.
+  */
+  evalCommitter?: boolean;
+}
+/** Issues of one claim record (empty = valid). */
+declare function claimIssues(claim: ModelClaim, path: string, options?: ClaimValidationOptions): string[];
+/**
+* Issues of one op (empty = valid). GATE-DRIVEN (M11-T01): the gate on
+* the op decides which claim rules apply, so the identity is enforced
+* by shape alone. Referential integrity stays with apply.
+*/
+declare function claimOpIssues(op: ClaimOp, index: number): string[];
+/**
+* The commit-time cap (Appendix A): active claims per
+* (model, taskClass) after the batch applies. Supersede chains keep
+* only the head active by construction (applyClaimOps flips the prior
+* to 'superseded'), so a supersede never grows the count.
+*/
+declare function capIssues(claims: readonly ModelClaim[], cap?: number): string[];
+/**
+* The commit-batch validation: op shapes and gates first (GATE-DRIVEN
+* since M11-T01: the human gate carries editorial claims, the
+* eval-committer gate carries eval-measured claims with metrics), the
+* post-apply cap second. Throws one ConfigError carrying every issue,
+* so a maintenance caller fixes the batch in one round trip.
+*/
+declare function validateEditorialCommit(ops: readonly ClaimOp[], claimsAfter: readonly ModelClaim[], options?: ClaimValidationOptions & {
+  cap?: number;
+}): void;
+//#endregion
+//#region src/knowledge/epoch.d.ts
+/** Deterministic hash of a caps declaration (JCS + sha256). */
+declare function capsHashOf(caps: ModelCaps): string;
+interface ModelEpochInputs {
+  /** Profile-registry snapshot hash or any registry version marker. */
+  registryVersion?: string;
+  /** The configured PriceTable's pricingVersion. */
+  pricingVersion?: string;
+  /** The adapter's caps declaration for the subject model. */
+  caps?: ModelCaps;
+  /** The @rulvar/evals canary fingerprint, when probes ran. */
+  canaryFingerprint?: string;
+}
+/** Builds the optional modelEpoch block; empty inputs give undefined. */
+declare function modelEpochOf(inputs: ModelEpochInputs): ModelClaim["modelEpoch"];
+//#endregion
+//#region src/knowledge/file-store.d.ts
+/** Deterministic content hash of the claims array (JCS + sha256). */
+declare function knowledgeHash(claims: readonly ModelClaim[]): string;
+/**
+* Applies one op batch to a claims array, mechanically (M10-T01). The
+* editorial validators (attestation, caps, statement bounds) layer on
+* top in M10-T02; referential integrity is enforced here because a
+* dangling supersede or archive would corrupt the append-only chain.
+*/
+declare function applyClaimOps(claims: readonly ModelClaim[], ops: readonly ClaimOp[]): ModelClaim[];
+interface FileModelKnowledgeStoreOptions {
+  /** Default './rulvar.models.json'. */
+  path?: string;
+  /**
+  * Active claims per (model, taskClass); default 8. A nonnegative
+  * integer (zero refuses every active claim), validated at
+  * construction: the enforcement compares `count > cap`, and every
+  * comparison with NaN is false, so an unvalidated NaN or Infinity
+  * silently disabled the cap (v1.35.0 review P2-5).
+  */
+  activeClaimsCap?: number;
+}
+declare class FileModelKnowledgeStore implements ModelKnowledgeStore {
+  private readonly path;
+  private readonly activeClaimsCap;
+  /** In-process commit serialization; cross-process safety is CAS plus atomic rename. */
+  private queue;
+  constructor(options?: FileModelKnowledgeStoreOptions);
+  private read;
+  current(): Promise<KnowledgeSnapshot>;
+  commit(ops: ClaimOp[], expectedVersion: number): Promise<number>;
+}
+//#endregion
 //#region src/knowledge/card.d.ts
 /** The KB card render budget (characters). */
 declare const KB_CARD_RENDER_BUDGET_CHARS = 4096;
@@ -11434,4 +11514,4 @@ interface SandboxBridge {
 declare const SANDBOX_AGENT_OPT_KEYS: readonly string[];
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, AcceptanceChildSummary, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, type AppliedPricingRow, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildIdentityInput, ChildResultPage, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostAttributionFacts, type CostBasis, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_PATTERN, DEFAULT_CITATION_SAMPLE, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_CALLS_PER_ENTRY, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_EVIDENCE_OVERHEAD_CALLS, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DataKeyProvider, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DocumentedRates, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryBillingFold, EntryBillingUnit, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, EvidenceContract, type EvidenceRef, type ExecKeyDerivation, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINISH_SCHEMA, FINISH_SECTIONAL_SCHEMA, FINISH_TOOL_NAME, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FencedCodeMode, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, type FinalizationWindowBudget, FinishContract, FinishContractCitations, FinishContractGoldenReject, FinishContractManifest, FinishInfo, FinishSelfTestFailure, FinishSelfTestFixtures, FinishSelfTestReport, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceExport, InvoicePricingProvenance, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalPricingSnapshot, JournalSerializationContext, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_DEPTH_CEILING, MAX_RUN_ID_LENGTH, MAX_TIMER_DELAY_MS, MatchResult, McpConfig, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateAcceptance, OrchestrateOptions, OrchestrateSynthesis, OrchestrateSynthesisSkipReason, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, type PhaseRow, PhaseTarget, type PinnedPricingSegment, PipelineCollected, PipelineOpts, PlanInvariantError, type PostFanInBreakdown, PreflightAdmissionRow, PreflightFinding, PreflightInput, PreflightOrchestratorSpec, PreflightReport, PreflightSpawnReport, PreflightSpawnSpec, PreflightToolCeiling, PriceTable, PricedComponent, PricedComponents, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, RateLimitObservation, ReconcileOptions, ReconcileResult, RefEntryAppender, RefEntryClassification, RefusalInfo, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, SectionMatchMode, Semaphore, SerializationHook, Settled, SettlementError, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, type StreamHooks, StructuredOutputTier, SupersededError, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, type ToolBudgetSummary, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, assertSafeRunId, atCompactionThreshold, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compareRates, compilePermissionChain, compilePermissionPreset, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispatchProjectionReserveUsd, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidencePreservedValidator, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, finishContract, foldTermination, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, headingStructureValidator, identityJcs, implementationAgentProfile, invoiceFromJournal, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, journalPricingSnapshot, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, orchestratorAdmissionEstCostUsd, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, preflightEstimate, priceComponentsOf, priceEntryBilling, priceEntryUsage, priceUsdOf, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualRequestsDelta, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleKey, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reduceAuditTrail, reduceCriticalPath, reduceInvocationTable, registryKeyRing, remeasureQueue, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredSectionsValidator, researchAgentProfile, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, sectionCitationsValidator, selectStructuredOutputTier, selfTestFinishValidation, shouldCompact, snapshotQuotaRules, snapshotUsage, spawnDepthOf, spliceSections, stripFencedBlocks, sumUsage, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, usageViolations, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateUsageLimits, wordCountValidator, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, AcceptanceChildSummary, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, type AppliedPricingRow, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildIdentityInput, ChildResultPage, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostAttributionFacts, type CostBasis, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_PATTERN, DEFAULT_CITATION_SAMPLE, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_CALLS_PER_ENTRY, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_EVIDENCE_OVERHEAD_CALLS, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DataKeyProvider, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DocumentedRates, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryBillingFold, EntryBillingUnit, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, EvidenceContract, type EvidenceRef, type ExecKeyDerivation, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINISH_SCHEMA, FINISH_SECTIONAL_SCHEMA, FINISH_TOOL_NAME, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FencedCodeMode, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, type FinalizationWindowBudget, FinishContract, FinishContractCitations, FinishContractGoldenReject, FinishContractManifest, FinishInfo, FinishSelfTestFailure, FinishSelfTestFixtures, FinishSelfTestReport, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceExport, InvoicePricingProvenance, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalPricingSnapshot, JournalSerializationContext, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_DEPTH_CEILING, MAX_RUN_ID_LENGTH, MAX_TIMER_DELAY_MS, MatchResult, McpConfig, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateAcceptance, OrchestrateOptions, OrchestrateSynthesis, OrchestrateSynthesisSkipReason, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, type PhaseRow, PhaseTarget, type PinnedPricingSegment, PipelineCollected, PipelineOpts, PlanInvariantError, type PostFanInBreakdown, PreflightAdmissionRow, PreflightFinding, PreflightInput, PreflightOrchestratorSpec, PreflightReport, PreflightSpawnReport, PreflightSpawnSpec, PreflightToolCeiling, PriceTable, PricedComponent, PricedComponents, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, RateLimitObservation, ReconcileOptions, ReconcileResult, RefEntryAppender, RefEntryClassification, RefusalInfo, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, SectionMatchMode, Semaphore, SerializationHook, Settled, SettlementError, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, type StreamHooks, StructuredOutputTier, SupersededError, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, type TerminalEnvelope, TerminalOutcomeFacts, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, type ToolBudgetSummary, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, assertSafeRunId, atCompactionThreshold, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compareRates, compilePermissionChain, compilePermissionPreset, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispatchProjectionReserveUsd, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidencePreservedValidator, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, finishContract, foldTermination, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, headingStructureValidator, identityJcs, implementationAgentProfile, invoiceFromJournal, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, journalPricingSnapshot, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, orchestratorAdmissionEstCostUsd, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, preflightEstimate, priceComponentsOf, priceEntryBilling, priceEntryUsage, priceUsdOf, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualRequestsDelta, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleKey, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reduceAuditTrail, reduceCriticalPath, reduceInvocationTable, registryKeyRing, remeasureQueue, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredSectionsValidator, researchAgentProfile, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, sectionCitationsValidator, selectStructuredOutputTier, selfTestFinishValidation, shouldCompact, snapshotQuotaRules, snapshotUsage, spawnDepthOf, spliceSections, stripFencedBlocks, sumUsage, summarizeInstruction, summarizeOutput, terminalEnvelopeOf, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, usageViolations, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateUsageLimits, wordCountValidator, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };

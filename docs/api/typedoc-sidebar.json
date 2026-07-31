@@ -1539,6 +1539,10 @@
             "link": "/api/@rulvar/core/interfaces/TaskDigest.md"
           },
           {
+            "text": "TerminalEnvelope",
+            "link": "/api/@rulvar/core/interfaces/TerminalEnvelope.md"
+          },
+          {
             "text": "TerminalPatch",
             "link": "/api/@rulvar/core/interfaces/TerminalPatch.md"
           },
@@ -2127,6 +2131,10 @@
           {
             "text": "TaskSpec",
             "link": "/api/@rulvar/core/type-aliases/TaskSpec.md"
+          },
+          {
+            "text": "TerminalOutcomeFacts",
+            "link": "/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md"
           },
           {
             "text": "TerminationDeniedWriter",
@@ -3307,6 +3315,10 @@
           {
             "text": "sumUsage",
             "link": "/api/@rulvar/core/functions/sumUsage.md"
+          },
+          {
+            "text": "terminalEnvelopeOf",
+            "link": "/api/@rulvar/core/functions/terminalEnvelopeOf.md"
           },
           {
             "text": "terminationConfigDrift",
@@ -6113,6 +6125,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/TaskDigest.md"
           },
           {
+            "text": "TerminalEnvelope",
+            "link": "/api/@rulvar/rulvar/interfaces/TerminalEnvelope.md"
+          },
+          {
             "text": "TerminalPatch",
             "link": "/api/@rulvar/rulvar/interfaces/TerminalPatch.md"
           },
@@ -6709,6 +6725,10 @@
           {
             "text": "TaskSpec",
             "link": "/api/@rulvar/rulvar/type-aliases/TaskSpec.md"
+          },
+          {
+            "text": "TerminalOutcomeFacts",
+            "link": "/api/@rulvar/rulvar/type-aliases/TerminalOutcomeFacts.md"
           },
           {
             "text": "TerminationDeniedWriter",
@@ -7917,6 +7937,10 @@
           {
             "text": "sumUsage",
             "link": "/api/@rulvar/rulvar/functions/sumUsage.md"
+          },
+          {
+            "text": "terminalEnvelopeOf",
+            "link": "/api/@rulvar/rulvar/functions/terminalEnvelopeOf.md"
           },
           {
             "text": "terminationConfigDrift",

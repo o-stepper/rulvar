@@ -15,6 +15,8 @@ export * from './l0/encryption.js';
 export * from './l0/messages.js';
 export * from './l0/usage.js';
 export * from './l0/terminal.js';
+export type * from './l0/terminal-envelope.js';
+export * from './engine/terminal-envelope.js';
 export * from './l0/schema.js';
 export * from './l0/entries.js';
 export type * from './l0/spi/provider.js';

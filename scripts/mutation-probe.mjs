@@ -1444,6 +1444,60 @@ const MUTATIONS = [
       "          'ALTER TABLE quota_reservations ADD COLUMN requests INTEGER NOT NULL DEFAULT 0',",
     test: 'packages/store-sqlite/src/quota.test.ts',
   },
+  {
+    id: 'envelope-settlement-verdict',
+    doctrine:
+      'the terminal envelope is assembled AFTER the settlement verdict (RV1105): assembled settled-true always, a superseded or unsettled terminal reads green inside the one shape every consumer trusts',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "        ...(settlementFailure !== undefined\n          ? { settlement: {} }\n          : supersededBy !== undefined\n            ? { settlement: { settledReason: 'superseded' as const } }\n            : {}),",
+    replace: '',
+    test: 'packages/core/src/engine/terminal-envelope.test.ts',
+  },
+  {
+    id: 'envelope-event-mirror',
+    doctrine:
+      'run:end carries the SAME envelope object the outcome resolves with (RV1105): dropped from the event, an event-only consumer is back to assembling terminal facts from surface-specific fields',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '          envelope,\n        },\n        rootSpanId,\n      );\n      bus.end();',
+    replace: '        },\n        rootSpanId,\n      );\n      bus.end();',
+    test: 'packages/core/src/engine/terminal-envelope.test.ts',
+  },
+  {
+    id: 'envelope-error-passthrough',
+    doctrine:
+      'the envelope carries the typed error exactly (RV1105): dropped, an error terminal reads status error with no error inside the one shape that promised every fact',
+    file: 'packages/core/src/engine/terminal-envelope.ts',
+    find: '  if (outcome.error !== undefined) {\n    envelope.error = outcome.error;\n  }',
+    replace: '',
+    test: 'packages/core/src/engine/terminal-envelope.test.ts',
+  },
+  {
+    id: 'envelope-detached-split',
+    doctrine:
+      'the per-model split is DETACHED from the cost report (RV1105): shared by reference, a consumer mutating the envelope rewrites the settled cost report behind every other reader',
+    file: 'packages/core/src/engine/terminal-envelope.ts',
+    find: '    costByModel: { ...outcome.cost.byModel },',
+    replace: '    costByModel: outcome.cost.byModel,',
+    test: 'packages/core/src/engine/terminal-envelope.test.ts',
+  },
+  {
+    id: 'otel-envelope-mirror',
+    doctrine:
+      'the run span mirrors the envelope money and agent facts (RV1105): dropped, the trace and the SDK outcome disagree about what the run cost',
+    file: 'packages/cli/src/otel.ts',
+    find: "        const envelope = event.envelope as typeof event.envelope | undefined;\n        if (runOpen !== undefined && envelope !== undefined) {\n          runOpen.span.setAttribute('rulvar.run.total_usd', envelope.totalUsd);\n          runOpen.span.setAttribute('rulvar.run.agents_spawned', envelope.agentsSpawned);\n        }",
+    replace: '',
+    test: 'packages/cli/src/otel.test.ts',
+  },
+  {
+    id: 'server-envelope-surface',
+    doctrine:
+      'the HTTP run status carries the envelope verbatim (RV1105): dropped, the HTTP consumer is the one surface still assembling terminal facts by hand',
+    file: 'packages/cli/src/server.ts',
+    find: '        // The unified terminal envelope (RV1105): the same facts the\n        // SDK outcome resolves with, so an HTTP consumer assembles\n        // nothing from surface-specific fields.\n        envelope: outcome.envelope,',
+    replace: '',
+    test: 'packages/cli/src/server.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
