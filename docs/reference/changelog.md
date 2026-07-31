@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+
 ### 1.130.0
 
 #### Patch Changes
@@ -1376,6 +1383,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+
 ### 1.130.0
 
 #### Patch Changes
@@ -2559,6 +2573,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
 
 ### 1.130.0
 
@@ -4131,6 +4152,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.131.0
+
+#### Minor Changes
+
+- 256cae1: The thirteenth plan's probes become permanent gates, and the three moneys get their vocabulary (RV909, RV910; closes the thirteenth plan).
+
+  `runFaultInjection` grows eight fail-closed scenarios driving the plan's fixed defects end to end on the real engine, zero provider calls and zero keys: `nan-statement-refusal` (unsummable statement dollars refuse typed at reconciliation intake, never verdict `match` over NaN totals), `token-mismatch-divergence` (provider-reported counts that disagree with our recorded usage decide the verdict even when the dollars agree, with `tokenComparison: 'informational'` still the declared opt-out), `audit-missing-field-finding` (the documented-rates comparator fails closed in both directions), `anthropic-1h-priced` (the shipped Anthropic table prices the 1h cache-write share at the documented 2x-input premium under its pinned `pricingVersion`, on the per-call reconciliation ledger where the TTL split lives), `pause-turn-units` (continuations absorbed into one dispatch settle at true wire units across the quota window, the invoice row's segment set, and the all-or-nothing statement join, with a partial segment set reading `partial-coverage`, never `no-overlap`), `pre-admission-count-refusal` (a spawn the budget could never admit refuses before the `countTokens` egress, so the full child prompt never leaves the process), `forced-finish-completion` (a budget-capped adaptive orchestration settles `ok` with the honest completion envelope mirrored onto the outcome), and `settlement-terminal-honesty` (a failed settlement write rejects typed with `settled: false` on `run:end`; the healed resume re-settles by replay with zero live calls). Reverting any of the fixes now reports `matched: false` in the kit, not only in the unit suite that shipped the fix. To reach those surfaces `@rulvar/evals` gains `@rulvar/openai`, `@rulvar/anthropic`, and `@rulvar/plan` as dependencies.
+
+  `@rulvar/core` publishes `compareRates` (with its `DocumentedRates` input type), the both-directions documented-rates comparator the weekly audit runs: moved from the audit script to a published home so the kit can drive it as a gate, with the script importing the same function from dist inside its entrypoint exactly like the seeds, one source of truth. And the pricing docs now name the three moneys of one run in one place: recorded money (settled history under the `pricingVersion` pins its own settles wrote, the number `CostReport`, `rulvar inspect`, and the invoice's pinned rows show), the docs estimate (repricing at the current table, what `preflightEstimate` projects and the invoice prints past the pins), and the provider bill (established only by `reconcileStatement` over saved exports, never by a dashboard headline), plus the rate-update order: audit, then release, then new pinned runs.
 
 ### 1.130.0
 
@@ -6013,6 +6044,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.131.0
+
 ### 1.130.0
 
 ### 1.129.0
@@ -6377,6 +6410,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.131.0
+
+#### Minor Changes
+
+- 256cae1: The thirteenth plan's probes become permanent gates, and the three moneys get their vocabulary (RV909, RV910; closes the thirteenth plan).
+
+  `runFaultInjection` grows eight fail-closed scenarios driving the plan's fixed defects end to end on the real engine, zero provider calls and zero keys: `nan-statement-refusal` (unsummable statement dollars refuse typed at reconciliation intake, never verdict `match` over NaN totals), `token-mismatch-divergence` (provider-reported counts that disagree with our recorded usage decide the verdict even when the dollars agree, with `tokenComparison: 'informational'` still the declared opt-out), `audit-missing-field-finding` (the documented-rates comparator fails closed in both directions), `anthropic-1h-priced` (the shipped Anthropic table prices the 1h cache-write share at the documented 2x-input premium under its pinned `pricingVersion`, on the per-call reconciliation ledger where the TTL split lives), `pause-turn-units` (continuations absorbed into one dispatch settle at true wire units across the quota window, the invoice row's segment set, and the all-or-nothing statement join, with a partial segment set reading `partial-coverage`, never `no-overlap`), `pre-admission-count-refusal` (a spawn the budget could never admit refuses before the `countTokens` egress, so the full child prompt never leaves the process), `forced-finish-completion` (a budget-capped adaptive orchestration settles `ok` with the honest completion envelope mirrored onto the outcome), and `settlement-terminal-honesty` (a failed settlement write rejects typed with `settled: false` on `run:end`; the healed resume re-settles by replay with zero live calls). Reverting any of the fixes now reports `matched: false` in the kit, not only in the unit suite that shipped the fix. To reach those surfaces `@rulvar/evals` gains `@rulvar/openai`, `@rulvar/anthropic`, and `@rulvar/plan` as dependencies.
+
+  `@rulvar/core` publishes `compareRates` (with its `DocumentedRates` input type), the both-directions documented-rates comparator the weekly audit runs: moved from the audit script to a published home so the kit can drive it as a gate, with the script importing the same function from dist inside its entrypoint exactly like the seeds, one source of truth. And the pricing docs now name the three moneys of one run in one place: recorded money (settled history under the `pricingVersion` pins its own settles wrote, the number `CostReport`, `rulvar inspect`, and the invoice's pinned rows show), the docs estimate (repricing at the current table, what `preflightEstimate` projects and the invoice prints past the pins), and the provider bill (established only by `reconcileStatement` over saved exports, never by a dashboard headline), plus the rate-update order: audit, then release, then new pinned runs.
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+  - @rulvar/anthropic@1.131.0
+  - @rulvar/openai@1.131.0
+  - @rulvar/plan@1.131.0
+  - @rulvar/testing@1.131.0
 
 ### 1.130.0
 
@@ -7807,6 +7859,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+
 ### 1.130.0
 
 #### Patch Changes
@@ -8397,6 +8456,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
 
 ### 1.130.0
 
@@ -9768,6 +9834,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+
 ### 1.130.0
 
 #### Patch Changes
@@ -11065,6 +11138,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+  - eslint-plugin-rulvar@1.131.0
 
 ### 1.130.0
 
@@ -12455,6 +12536,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+  - @rulvar/anthropic@1.131.0
+  - @rulvar/openai@1.131.0
 
 ### 1.130.0
 
@@ -14060,6 +14150,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+
 ### 1.130.0
 
 #### Patch Changes
@@ -15353,6 +15450,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
+
 ### 1.130.0
 
 #### Patch Changes
@@ -15963,6 +16067,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
 
 ### 1.130.0
 
@@ -17205,6 +17316,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.131.0
+
+#### Patch Changes
+
+- Updated dependencies [256cae1]
+  - @rulvar/core@1.131.0
 
 ### 1.130.0
 
