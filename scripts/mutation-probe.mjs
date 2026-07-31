@@ -1498,6 +1498,45 @@ const MUTATIONS = [
     replace: '',
     test: 'packages/cli/src/server.test.ts',
   },
+  {
+    id: 'otel-terminal-export-total',
+    doctrine:
+      'toOtel exports EVERY terminal path (RV1106): with the rejection tolerance reverted, an unsettled terminal whose stream already carried the refusal fails the whole export instead of completing it',
+    file: 'packages/cli/src/otel.ts',
+    find: "  const settledOk = await run.result.then(\n    (outcome) => outcome.status === 'ok',\n    () => false,\n  );",
+    replace: "  const settledOk = (await run.result).status === 'ok';",
+    test: 'packages/cli/src/envelope-conformance.test.ts',
+  },
+  {
+    id: 'otel-refusal-reason',
+    doctrine:
+      'the run span names WHICH refusal ended it (RV1009/RV1106): with the superseded arm collapsed into the outage message, a fenced-out segment and a settlement write fault become indistinguishable on the trace',
+    file: 'packages/cli/src/otel.ts',
+    find: "          event.settled === false\n            ? event.settledReason === 'superseded'\n              ? 'superseded: a successor owns settlement; this stale terminal is withheld'\n              : 'settlement failed: nothing durable records this terminal; resume re-settles'\n            : undefined,",
+    replace:
+      "          event.settled === false\n            ? 'settlement failed: nothing durable records this terminal; resume re-settles'\n            : undefined,",
+    test: 'packages/cli/src/envelope-conformance.test.ts',
+  },
+  {
+    id: 'envelope-agents-ledger',
+    doctrine:
+      'the envelope agent counter is the budget ledger of admissions (RV1105/RV1106): hardcoded to zero, every surface agrees on a number no admission ever produced and the conformance table must catch the lie',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '        agentsSpawned: budget.spent().agentsSpawned,',
+    replace: '        agentsSpawned: 0,',
+    test: 'packages/cli/src/envelope-conformance.test.ts',
+    build: '@rulvar/core',
+  },
+  {
+    id: 'runend-sibling-status',
+    doctrine:
+      'the run:end sibling status is the computed status, never an optimistic literal (RV1106): forced green, the event disagrees with the envelope it carries and the sibling coherence pins must go red',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "          type: 'run:end',\n          status,",
+    replace: "          type: 'run:end',\n          status: 'ok' as const,",
+    test: 'packages/cli/src/envelope-conformance.test.ts',
+    build: '@rulvar/core',
+  },
 ];
 
 const args = process.argv.slice(2);
