@@ -271,6 +271,10 @@ The RV909 scenarios turn the thirteenth experiment's fixed defects into permanen
 - `forced-finish-completion`: a budget-capped adaptive orchestration settles `ok` with the honest completion envelope `{ result, completion: 'partial' }` mirrored onto the outcome, never a bare result a consumer could execute as a full success.
 - `settlement-terminal-honesty`: a run whose settlement write fails rejects typed and its `run:end` carries `settled: false`; the healed resume re-settles by replay with zero live calls, and the settled terminal carries no such mark.
 
+The RV1002 scenario turns the fourteenth experiment's live-budget probe into the same kind of gate, driven on the REAL live path rather than post-hoc pricing:
+
+- `ttl-live-budget-parity`: one differentiated cache write (a mid-stream usage event carrying the [TTL split](/guide/budgets#the-three-moneys)) debits the live ledger and settles to the SAME dollars, the run usage aggregate keeps the split it was billed under, and a ceiling set between the unsplit and split readings severs the run instead of settling `ok` over its own hard ceiling.
+
 The report is fail closed: a scenario whose branch stops producing its documented observable reports `matched: false` with the observed detail quoted, and `allMatched` says so, instead of the list quietly becoming untested again. With `artifactsDir` each scenario writes one `<scenario>.json` bundle (its doctrine, the observation, and every artifact: outcomes, journals, and the raw pre-repair bytes for the byte faults), the trace a review can cite exactly like an experiment's; `only: [...]` runs a named subset and an unknown name is a typed `ConfigError`.
 
 ## Matrix sweeps across models

@@ -493,6 +493,12 @@ interface WireTurn {
   usage: Usage;
   /** Namespaced under the adapter id on the finish event. */
   metadata?: Record<string, unknown>;
+  /**
+   * Also report the turn's usage as a mid-stream usage event before any
+   * content, the way a real wire's message_start does: the RV1002
+   * scenario drives the LIVE budget inlet, not the finish remainder.
+   */
+  reportUsageMidStream?: boolean;
 }
 
 /**
@@ -533,6 +539,9 @@ function wireAdapter(
         return;
       }
       served.push(turn);
+      if (turn.reportUsageMidStream === true) {
+        yield { type: 'usage', usage: { ...turn.usage } };
+      }
       yield { type: 'text-delta', text: turn.text };
       yield {
         type: 'finish',
@@ -753,8 +762,8 @@ const anthropic1hPriced: FaultScenario = {
     const seed = ANTHROPIC_PRICING.models[ref];
     // Billing rides the per-dispatch reconciliation ledger: the TTL
     // split lives on the provider call record (and the settled fold and
-    // the invoice price per call), while the entry's aggregate usage
-    // keeps only the canonical four counters.
+    // the invoice price per call); since RV1001 the aggregates carry
+    // the split too, and the per-call record stays the billing basis.
     const terminal = entries.find((entry) => entry.kind === 'agent' && entry.status === 'ok');
     const recorded = terminal?.providerCalls?.[0]?.usage;
     const writeRate = seed?.cacheWriteUsdPerMTok;
@@ -1129,6 +1138,109 @@ const settlementTerminalHonesty: FaultScenario = {
   },
 };
 
+/**
+ * RV1002 over the RV1001 fix: the fourteenth experiment's probe fed a
+ * $4 ceiling a stream whose differentiated cache write priced $4.50
+ * while the unsplit live fold read $3.75, and the run settled ok half a
+ * dollar over its own hard ceiling. The gate drives the REAL live path
+ * (a mid-stream usage event against the layer-3 ceiling), never the
+ * post-hoc pricing the 1h scenario already covers: the live debit and
+ * the settled fold must price one differentiated write to the same
+ * dollars, and a ceiling between the unsplit and split readings must
+ * sever the run instead of letting it claim success.
+ */
+const TTL_PRICING: PriceTable = {
+  pricingVersion: 'fault-ttl-v1',
+  models: {
+    'ttl:model': {
+      inputUsdPerMTok: 10,
+      outputUsdPerMTok: 50,
+      cacheReadUsdPerMTok: 1,
+      cacheWriteUsdPerMTok: 12.5,
+      cacheWrite1hUsdPerMTok: 20,
+    },
+  },
+};
+
+/** 200k at the 5m write rate + 100k at the 1h rate: $2.50 + $2.00. */
+const TTL_SPLIT_USAGE: Usage = {
+  inputTokens: 300_000,
+  outputTokens: 0,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 300_000,
+  cacheWrite5mTokens: 200_000,
+  cacheWrite1hTokens: 100_000,
+};
+
+const ttlLiveBudgetParity: FaultScenario = {
+  name: 'ttl-live-budget-parity',
+  doctrine:
+    'the live budget debit prices the cache-write TTL split exactly like the settled fold ' +
+    '(RV1001): one differentiated write reads the same dollars on both money paths, the run ' +
+    'usage aggregate keeps the split it was billed under, and a ceiling between the unsplit ' +
+    'and split readings severs the run instead of settling ok over its own hard ceiling',
+  async run() {
+    const runTtl = async (runId: string, budgetUsd: number) => {
+      const adapter = wireAdapter('ttl', [
+        { text: 'cached answer', usage: TTL_SPLIT_USAGE, reportUsageMidStream: true },
+      ]);
+      const engine = createEngine({
+        adapters: [adapter],
+        stores: { journal: new InMemoryStore() },
+        defaults: { routing: { loop: 'ttl:model' } },
+        pricing: TTL_PRICING,
+      });
+      const handle = engine.run(echoWorkflow, undefined, { runId, budgetUsd });
+      let maxLiveSpentUsd = 0;
+      handle.on('budget:update', (event) => {
+        if (event.spentUsd > maxLiveSpentUsd) {
+          maxLiveSpentUsd = event.spentUsd;
+        }
+      });
+      const outcome = await handle.result;
+      return { outcome, maxLiveSpentUsd };
+    };
+    const parity = await runTtl('fault-ttl-parity', 10);
+    const capped = await runTtl('fault-ttl-capped', 4);
+    const parityUsage = parity.outcome.usage;
+    const matched =
+      parity.outcome.status === 'ok' &&
+      parity.outcome.cost.totalUsd === 4.5 &&
+      parity.maxLiveSpentUsd === 4.5 &&
+      parityUsage.cacheWrite5mTokens === 200_000 &&
+      parityUsage.cacheWrite1hTokens === 100_000 &&
+      capped.outcome.status !== 'ok' &&
+      capped.outcome.cost.totalUsd === 4.5 &&
+      capped.maxLiveSpentUsd === capped.outcome.cost.totalUsd;
+    return {
+      observation: {
+        matched,
+        detail:
+          `one differentiated write debited live=${String(parity.maxLiveSpentUsd)} USD and ` +
+          `settled=${String(parity.outcome.cost.totalUsd)} USD on the same run (aggregate ` +
+          `5m=${String(parityUsage.cacheWrite5mTokens)}, ` +
+          `1h=${String(parityUsage.cacheWrite1hTokens)}); under the $4 ceiling the run ` +
+          `settled '${capped.outcome.status}' at ${String(capped.outcome.cost.totalUsd)} USD ` +
+          `with live=${String(capped.maxLiveSpentUsd)}`,
+      },
+      artifacts: [
+        jsonArtifact('parity-run.json', {
+          status: parity.outcome.status,
+          settledUsd: parity.outcome.cost.totalUsd,
+          liveUsd: parity.maxLiveSpentUsd,
+          usage: parityUsage,
+        }),
+        jsonArtifact('capped-run.json', {
+          status: capped.outcome.status,
+          settledUsd: capped.outcome.cost.totalUsd,
+          liveUsd: capped.maxLiveSpentUsd,
+          error: capped.outcome.error?.message ?? null,
+        }),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -1145,6 +1257,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   preAdmissionCountRefusal,
   forcedFinishCompletion,
   settlementTerminalHonesty,
+  ttlLiveBudgetParity,
 ];
 
 /** The scenario names in run order. */

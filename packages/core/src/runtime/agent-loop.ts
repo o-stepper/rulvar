@@ -32,7 +32,13 @@ import type {
   ToolContract,
   Usage,
 } from '../l0/messages.js';
-import { sanitizeTokenCount, sanitizeUsage, snapshotUsage, usageViolations } from '../l0/usage.js';
+import {
+  sanitizeTokenCount,
+  sanitizeUsage,
+  snapshotUsage,
+  sumUsage,
+  usageViolations,
+} from '../l0/usage.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
 import type { QuotaDecision, QuotaReservationRequest } from '../l0/spi/quota.js';
 import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
@@ -704,18 +710,10 @@ const ZERO_USAGE: Usage = {
 // (v1.59.0 review P1).
 const wallRandom: () => number = Math.random.bind(globalThis);
 
+// The canonical adder (l0/usage.ts): aggregates keep the cache-write
+// TTL split their money was debited under (RV1001).
 function addUsage(total: Usage, turn: Usage): Usage {
-  const sum: Usage = {
-    inputTokens: total.inputTokens + turn.inputTokens,
-    outputTokens: total.outputTokens + turn.outputTokens,
-    cacheReadTokens: total.cacheReadTokens + turn.cacheReadTokens,
-    cacheWriteTokens: total.cacheWriteTokens + turn.cacheWriteTokens,
-  };
-  const reasoning = (total.reasoningTokens ?? 0) + (turn.reasoningTokens ?? 0);
-  if (reasoning > 0) {
-    sum.reasoningTokens = reasoning;
-  }
-  return sum;
+  return sumUsage(total, turn);
 }
 
 /**
@@ -842,6 +840,8 @@ async function streamTurn(
             'cacheReadTokens',
             'cacheWriteTokens',
             'reasoningTokens',
+            'cacheWrite5mTokens',
+            'cacheWrite1hTokens',
           ] as const) {
             const value = event.usage[field];
             if (value === undefined) {
@@ -863,6 +863,15 @@ async function streamTurn(
           };
           if (cleaned.reasoningTokens !== undefined) {
             delta.reasoningTokens = cleaned.reasoningTokens;
+          }
+          // The TTL split rides the delta (RV1001): the live debit must
+          // price the 1h share at its own rate, or a ceiling holds
+          // against a cheaper reading than settlement records.
+          if (cleaned.cacheWrite5mTokens !== undefined) {
+            delta.cacheWrite5mTokens = cleaned.cacheWrite5mTokens;
+          }
+          if (cleaned.cacheWrite1hTokens !== undefined) {
+            delta.cacheWrite1hTokens = cleaned.cacheWrite1hTokens;
           }
           reported = addUsage(reported, delta);
           options.onUsage?.(delta);
@@ -2793,11 +2802,15 @@ export async function runAgent<S extends SchemaSpec>(
       'outputTokens',
       'cacheReadTokens',
       'cacheWriteTokens',
+      'cacheWrite5mTokens',
+      'cacheWrite1hTokens',
     ] as const) {
-      if (reported[field] > safe[field]) {
+      const reportedCount = reported[field] ?? 0;
+      const safeCount = safe[field] ?? 0;
+      if (reportedCount > safeCount) {
         invariantViolation ??=
           `adapter '${adapterId}' violated the Usage invariant: mid-stream ${field} ` +
-          `(${String(reported[field])}) exceeded the finish total (${String(safe[field])})`;
+          `(${String(reportedCount)}) exceeded the finish total (${String(safeCount)})`;
       }
     }
     const overReportedReads = Math.max(0, reported.cacheReadTokens - safe.cacheReadTokens);
@@ -2814,11 +2827,35 @@ export async function runAgent<S extends SchemaSpec>(
     if (reasoningRemainder > 0) {
       remainder.reasoningTokens = reasoningRemainder;
     }
+    // The TTL split's remainder mirrors the scalar fields (RV1001): the
+    // finish-confirmed shares not yet debited mid-stream reach the
+    // ledger with their attribution intact, so the live fold prices the
+    // 1h premium exactly like settlement will. A mid-stream report that
+    // shifted tokens BETWEEN shares can make this per-field catch-up
+    // overlap a write already debited; that direction only ever
+    // overcharges (never a credit), the conservative posture every
+    // repair here takes.
+    const write5mRemainder = Math.max(
+      0,
+      (safe.cacheWrite5mTokens ?? 0) - (reported.cacheWrite5mTokens ?? 0),
+    );
+    if (write5mRemainder > 0) {
+      remainder.cacheWrite5mTokens = write5mRemainder;
+    }
+    const write1hRemainder = Math.max(
+      0,
+      (safe.cacheWrite1hTokens ?? 0) - (reported.cacheWrite1hTokens ?? 0),
+    );
+    if (write1hRemainder > 0) {
+      remainder.cacheWrite1hTokens = write1hRemainder;
+    }
     if (
       remainder.inputTokens > 0 ||
       remainder.outputTokens > 0 ||
       remainder.cacheReadTokens > 0 ||
-      remainder.cacheWriteTokens > 0
+      remainder.cacheWriteTokens > 0 ||
+      write5mRemainder > 0 ||
+      write1hRemainder > 0
     ) {
       options.budget?.onUsage(remainder, ref);
     }

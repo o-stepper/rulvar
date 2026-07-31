@@ -30,6 +30,7 @@ const EXPECTED = [
   'pre-admission-count-refusal',
   'forced-finish-completion',
   'settlement-terminal-honesty',
+  'ttl-live-budget-parity',
 ];
 
 describe('the fault-injection kit (RV811)', () => {
@@ -73,6 +74,11 @@ describe('the fault-injection kit (RV811)', () => {
     expect(byName.get('settlement-terminal-honesty')?.observation.detail).toContain(
       'settled=false',
     );
+    // The RV1002 scenario: the fourteenth experiment's live-budget
+    // probe as a permanent gate, driven on the REAL live path (a
+    // mid-stream usage event against a ceiling), never post-hoc.
+    expect(byName.get('ttl-live-budget-parity')?.observation.detail).toContain('live=4.5');
+    expect(byName.get('ttl-live-budget-parity')?.observation.detail).toContain('settled=4.5');
   });
 
   it('writes experiment-grade artifacts when a directory is given, and only runs the named subset', async () => {

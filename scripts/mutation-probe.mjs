@@ -1077,6 +1077,42 @@ const MUTATIONS = [
     replace: 'class RunSettleOutageStore extends InMemoryStore {\n  armed = false;',
     test: 'packages/evals/src/fault-injection.test.ts',
   },
+  {
+    id: 'ttl-live-cleaner-split',
+    doctrine:
+      'the mid-stream usage inlet carries the cache-write TTL split to the live debit (RV1001): dropped, the ledger prices a differentiated write at the plain 5m rate and a $4 ceiling holds against $3.75 while settlement records $4.50',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "            'reasoningTokens',\n            'cacheWrite5mTokens',\n            'cacheWrite1hTokens',\n          ] as const) {",
+    replace: "            'reasoningTokens',\n          ] as const) {",
+    test: 'packages/core/src/engine/ttl-live-parity.test.ts',
+  },
+  {
+    id: 'ttl-aggregate-split',
+    doctrine:
+      'the canonical usage adder keeps the TTL split aggregates were billed under (RV1001): dropped, run:end usage and every fold silently lose the 1h attribution the money named',
+    file: 'packages/core/src/l0/usage.ts',
+    find: '  if (\n    total.cacheWrite5mTokens !== undefined ||\n    total.cacheWrite1hTokens !== undefined ||\n    turn.cacheWrite5mTokens !== undefined ||\n    turn.cacheWrite1hTokens !== undefined\n  ) {',
+    replace: '  if (false as boolean) {',
+    test: 'packages/core/src/l0/usage.test.ts',
+  },
+  {
+    id: 'ttl-remainder-split',
+    doctrine:
+      'the finish remainder keeps the TTL attribution when no mid-stream event reported it (RV1001): dropped, a finish-only differentiated write live-debits its 1h share at the plain write rate and the two money paths disagree again',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    const write1hRemainder = Math.max(\n      0,\n      (safe.cacheWrite1hTokens ?? 0) - (reported.cacheWrite1hTokens ?? 0),\n    );',
+    replace: '    const write1hRemainder = 0;',
+    test: 'packages/core/src/engine/ttl-live-parity.test.ts',
+  },
+  {
+    id: 'fault-kit-ttl-parity-drive',
+    doctrine:
+      'the parity scenario actually DRIVES a differentiated write against the live ledger (RV1002): with the split dropped from the fixture both readings collapse to $3.75, the expected $4.50 never appears, and the scenario must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '  cacheWriteTokens: 300_000,\n  cacheWrite5mTokens: 200_000,\n  cacheWrite1hTokens: 100_000,\n};\n\nconst ttlLiveBudgetParity: FaultScenario = {',
+    replace: '  cacheWriteTokens: 300_000,\n};\n\nconst ttlLiveBudgetParity: FaultScenario = {',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

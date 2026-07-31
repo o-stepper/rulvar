@@ -133,6 +133,44 @@ export function snapshotUsage(usage: Usage): Usage {
 }
 
 /**
+ * Canonical usage addition for aggregates. The four required counts sum
+ * field by field and reasoning appears when the sum is positive, byte
+ * for byte the historical fold. The cache-write TTL split survives
+ * aggregation (RV1001): when either side differentiates its writes, an
+ * undifferentiated side's writes count as the 5m share, which is
+ * financially identical (both bill at the plain write rate) and keeps
+ * the sum canonical under the split-sum rule instead of dropping the 1h
+ * attribution the money was debited under. Sides carrying no split add
+ * exactly as before, so aggregates over undifferentiated usage stay
+ * byte stable.
+ */
+export function sumUsage(total: Usage, turn: Usage): Usage {
+  const sum: Usage = {
+    inputTokens: total.inputTokens + turn.inputTokens,
+    outputTokens: total.outputTokens + turn.outputTokens,
+    cacheReadTokens: total.cacheReadTokens + turn.cacheReadTokens,
+    cacheWriteTokens: total.cacheWriteTokens + turn.cacheWriteTokens,
+  };
+  const reasoning = (total.reasoningTokens ?? 0) + (turn.reasoningTokens ?? 0);
+  if (reasoning > 0) {
+    sum.reasoningTokens = reasoning;
+  }
+  if (
+    total.cacheWrite5mTokens !== undefined ||
+    total.cacheWrite1hTokens !== undefined ||
+    turn.cacheWrite5mTokens !== undefined ||
+    turn.cacheWrite1hTokens !== undefined
+  ) {
+    const oneH = (usage: Usage): number => usage.cacheWrite1hTokens ?? 0;
+    const fiveM = (usage: Usage): number =>
+      usage.cacheWrite5mTokens ?? Math.max(0, usage.cacheWriteTokens - oneH(usage));
+    sum.cacheWrite5mTokens = fiveM(total) + fiveM(turn);
+    sum.cacheWrite1hTokens = oneH(total) + oneH(turn);
+  }
+  return sum;
+}
+
+/**
  * The per-field repair for DELTAS (mid-stream usage reports and other
  * partial increments): each count is repaired like `sanitizeTokenCount`,
  * but the whole-usage subset rule is deliberately NOT applied, because a
