@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred eleven rounds, verbatim in this repository's history:
+The one hundred twelve rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -325,6 +325,7 @@ The one hundred eleven rounds, verbatim in this repository's history:
 | v1.127.0      | 27c4e38 (#569): pause_turn continuations accounted as wire units: the segment set on record and invoice, the quota window at the true count, the whole-set statement join                 | v1.128.0   |
 | v1.128.0      | 1612439 (#573): the forced finish settles the completion envelope, partial unless the declared contract passed, validators binding the finalizer, run:end marking failed settlements      | v1.129.0   |
 | v1.129.0      | d6bec7a (#576): every tool event names its model-minted call id, and the OTel exporter pairs tool spans exactly by id with the historical FIFO kept for old streams                       | v1.130.0   |
+| v1.130.0      | 256cae1 (#580): the thirteenth plan closes: the fault kit gates every fixed defect fail closed, the rates comparator published to core, the three moneys named with their surfaces        | v1.131.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
