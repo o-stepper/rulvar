@@ -1289,9 +1289,9 @@ const MUTATIONS = [
     doctrine:
       'under quota.reserveContinuations each provider-side continuation is admitted BEFORE its egress (RV1013): disarmed, the hard mode silently degrades to post-hoc accounting and the over-cap wire leaves anyway',
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: '          if (quota.reserveContinuations !== true) {\n            return streamTurn(target.adapter, req, site.streamOptionsFor(target));\n          }',
+    find: '          if (quota.reserveContinuations !== true) {\n            return streamTurn(target.adapter, req, meteredOptionsFor(target));\n          }',
     replace:
-      '          if (true as boolean || quota.reserveContinuations !== true) {\n            return streamTurn(target.adapter, req, site.streamOptionsFor(target));\n          }',
+      '          if (true as boolean || quota.reserveContinuations !== true) {\n            return streamTurn(target.adapter, req, meteredOptionsFor(target));\n          }',
     test: 'packages/anthropic/src/pause-turn-usage.test.ts',
   },
   {
@@ -1350,6 +1350,69 @@ const MUTATIONS = [
     find: '    const tierGap = compareRates(withPremium, { ...withPremium, tiers: [tier] });',
     replace:
       '    const tierGap = compareRates({ ...withPremium, tiers: [tier] }, { ...withPremium, tiers: [tier] });',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'meter-marginal-pricing',
+    doctrine:
+      'the per-call meter prices the ACCUMULATION, never the slice alone (RV1101): priced per slice, a long-context tier crossed by the call sum that no single slice reached debits the cheap reading and the live ledger disagrees with the settled fold again',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '      const total = this.debitableUsd(servedBy, accumulated);',
+    replace: '      const total = pricedUsd + this.debitableUsd(servedBy, safe);',
+    test: 'packages/core/src/engine/tier-live-parity.test.ts',
+  },
+  {
+    id: 'meter-no-credit',
+    doctrine:
+      'a marginal debit never credits (RV1101): without the clamp, a price function that shrinks as usage grows subtracts money from spentUsd and the budget stops being monotone',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '      const marginal = Math.max(0, total - pricedUsd);',
+    replace: '      const marginal = total - pricedUsd;',
+    test: 'packages/core/src/engine/tier-live-parity.test.ts',
+  },
+  {
+    id: 'meter-remainder-route',
+    doctrine:
+      'the settle remainder debits through the SAME meter as the mid-stream deltas (RV1101): routed to the per-slice inlet instead, a crossing completed by the finish prices the remainder as a fresh slice and the two money paths disagree on the output premium',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '      if (meter !== undefined) {\n        meter(remainder);\n      } else {\n        options.budget?.onUsage(remainder, ref);\n      }',
+    replace: '      options.budget?.onUsage(remainder, ref);',
+    test: 'packages/core/src/engine/tier-live-parity.test.ts',
+  },
+  {
+    id: 'meter-dispatch-wiring',
+    doctrine:
+      'the dispatch chokepoint opens one meter per provider call (RV1101): never opened, every site keeps the historical per-slice callback and the tier crossing under-debits live exactly as before the fix',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          callMeter = options.budget?.openCallMeter?.(dispatched.resolved.ref);',
+    replace: '          callMeter = undefined;',
+    test: 'packages/core/src/engine/tier-live-parity.test.ts',
+  },
+  {
+    id: 'ctx-meter-scope',
+    doctrine:
+      'the engine budget hooks expose the per-call meter with the account scope bound (RV1101): dropped from the wrapper, the loop falls back to per-slice debits and the live parity the docs call proven silently narrows to linear pricing',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '        openCallMeter: (servedBy) => internals.budget.openCallMeter(servedBy, budgetAccount),',
+    replace: '',
+    test: 'packages/core/src/engine/tier-live-parity.test.ts',
+  },
+  {
+    id: 'kit-tier-parity-drive',
+    doctrine:
+      'the tier parity scenario actually DRIVES a crossing (RV1102): with the tier dropped from the fixture row both readings collapse to $3.00, the expected $5.75 and the marginal ladder never appear, and the scenario must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '      tiers: [{ aboveInputTokens: 200_000, inputMultiplier: 2, outputMultiplier: 1.5 }],',
+    replace: '',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'kit-tier-slices-drive',
+    doctrine:
+      'the tier parity scenario drives the crossing through MID-STREAM slices (RV1102): with the slices dropped the whole call arrives as one finish remainder, the $1.50 and $5.00 ladder readings never appear, and a scenario that stopped driving the live path must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '  usageSlices: [\n    { inputTokens: 150_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },\n    { inputTokens: 100_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },\n  ],',
+    replace: '',
     test: 'packages/evals/src/fault-injection.test.ts',
   },
 ];

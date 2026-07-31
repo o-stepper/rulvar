@@ -518,6 +518,14 @@ interface WireTurn {
    * needs a real unknown-usage attempt, never a hand-built invoice row.
    */
   failBeforeUsage?: boolean;
+  /**
+   * Report the turn's usage as mid-stream DELTAS in this order before
+   * any content, the way a long prompt's counts arrive in increments;
+   * the finish still carries the accumulated total. The RV1101
+   * scenario needs a call whose SUM crosses a long-context tier while
+   * no single slice does. Takes precedence over reportUsageMidStream.
+   */
+  usageSlices?: readonly Usage[];
 }
 
 /**
@@ -569,7 +577,11 @@ function wireAdapter(
         };
         return;
       }
-      if (turn.reportUsageMidStream === true) {
+      if (turn.usageSlices !== undefined) {
+        for (const slice of turn.usageSlices) {
+          yield { type: 'usage', usage: { ...slice } };
+        }
+      } else if (turn.reportUsageMidStream === true) {
         yield { type: 'usage', usage: { ...turn.usage } };
       }
       yield { type: 'text-delta', text: turn.text };
@@ -1646,6 +1658,131 @@ const statementSettleableGuard: FaultScenario = {
   },
 };
 
+/**
+ * RV1101 over the fourteenth plan's backlog: the settled fold prices
+ * every provider call whole, so a long-context tier fires on the
+ * call's full prompt, while the live budget priced each mid-stream
+ * slice alone. A 250k prompt arriving as 150k + 100k slices debited
+ * $3.00 live while settlement recorded $5.75, and a $4 ceiling
+ * between the two readings settled ok over its own hard cap. The gate
+ * drives the REAL live path (mid-stream deltas against the layer-3
+ * ceiling) through a tier crossing no single slice reached: the
+ * per-call marginal meter must debit the retroactive re-price at the
+ * crossing slice, live and settled must read the same dollars, and
+ * the between-readings ceiling must sever the run.
+ */
+const TIER_PRICING: PriceTable = {
+  pricingVersion: 'fault-tier-v1',
+  models: {
+    'tier:model': {
+      inputUsdPerMTok: 10,
+      outputUsdPerMTok: 50,
+      tiers: [{ aboveInputTokens: 200_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+    },
+  },
+};
+
+/** 250k prompt as 150k + 100k mid-stream slices; 10k output on finish. */
+const TIER_CROSSING_TURN: WireTurn = {
+  text: 'long context answer',
+  usage: {
+    inputTokens: 250_000,
+    outputTokens: 10_000,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  },
+  usageSlices: [
+    { inputTokens: 150_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    { inputTokens: 100_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  ],
+};
+
+const tierCrossingLiveParity: FaultScenario = {
+  name: 'tier-crossing-live-parity',
+  doctrine:
+    'a long-context tier crossed by the sum of one call that no single mid-stream slice ' +
+    'reached debits the live budget exactly like the settled fold (RV1101): the per-call ' +
+    'marginal meter re-prices the whole call at the crossing slice, live and settled read ' +
+    'the same dollars, and a ceiling between the per-slice and tiered readings severs the ' +
+    'run instead of settling ok over its own hard cap',
+  async run() {
+    const runTier = async (runId: string, budgetUsd: number) => {
+      const adapter = wireAdapter('tier', [TIER_CROSSING_TURN]);
+      const engine = createEngine({
+        adapters: [adapter],
+        stores: { journal: new InMemoryStore() },
+        defaults: { routing: { loop: 'tier:model' } },
+        pricing: TIER_PRICING,
+      });
+      const handle = engine.run(echoWorkflow, undefined, { runId, budgetUsd });
+      let maxLiveSpentUsd = 0;
+      const ladder: number[] = [];
+      handle.on('budget:update', (event) => {
+        if (event.spentUsd > maxLiveSpentUsd) {
+          maxLiveSpentUsd = event.spentUsd;
+        }
+        if (event.spentUsd > 0 && ladder[ladder.length - 1] !== event.spentUsd) {
+          ladder.push(event.spentUsd);
+        }
+      });
+      const outcome = await handle.result;
+      return { outcome, maxLiveSpentUsd, ladder };
+    };
+    const parity = await runTier('fault-tier-parity', 100);
+    const capped = await runTier('fault-tier-capped', 4);
+    // The live ladder pins the DRIVE, not only the destination: the
+    // marginal meter must read $1.50 after the first slice, $5.00 at
+    // the crossing (the retroactive re-price of the whole call), and
+    // $5.75 at the finish remainder. A scenario that stopped slicing
+    // (or a meter that stopped re-pricing) cannot reproduce it.
+    const expectedLadder = [1.5, 5, 5.75];
+    let cursor = 0;
+    for (const reading of parity.ladder) {
+      if (reading === expectedLadder[cursor]) {
+        cursor += 1;
+      }
+    }
+    const ladderDriven = cursor === expectedLadder.length;
+    const matched =
+      parity.outcome.status === 'ok' &&
+      parity.outcome.cost.totalUsd === 5.75 &&
+      parity.maxLiveSpentUsd === 5.75 &&
+      ladderDriven &&
+      capped.outcome.status !== 'ok' &&
+      capped.outcome.cost.totalUsd === 5.75 &&
+      capped.maxLiveSpentUsd === capped.outcome.cost.totalUsd;
+    return {
+      observation: {
+        matched,
+        detail:
+          `a 250k call arriving as 150k + 100k slices (no slice crossed the 200k tier) ` +
+          `debited live=${String(parity.maxLiveSpentUsd)} USD and ` +
+          `settled=${String(parity.outcome.cost.totalUsd)} USD on the same run over the ` +
+          `live ladder ${parity.ladder.join(' -> ')}; under the $4 ceiling between the ` +
+          `per-slice ($3.00) and tiered readings the run settled ` +
+          `'${capped.outcome.status}' at ${String(capped.outcome.cost.totalUsd)} USD with ` +
+          `live=${String(capped.maxLiveSpentUsd)}`,
+      },
+      artifacts: [
+        jsonArtifact('parity-run.json', {
+          status: parity.outcome.status,
+          settledUsd: parity.outcome.cost.totalUsd,
+          liveUsd: parity.maxLiveSpentUsd,
+          ladder: parity.ladder,
+          usage: parity.outcome.usage,
+        }),
+        jsonArtifact('capped-run.json', {
+          status: capped.outcome.status,
+          settledUsd: capped.outcome.cost.totalUsd,
+          liveUsd: capped.maxLiveSpentUsd,
+          ladder: capped.ladder,
+          error: capped.outcome.error?.message ?? null,
+        }),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -1666,6 +1803,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   pauseTurnRealAdapter,
   statementSettleableGuard,
   supersededTerminalHonesty,
+  tierCrossingLiveParity,
 ];
 
 /** The scenario names in run order. */

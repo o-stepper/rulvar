@@ -823,12 +823,51 @@ export class RunBudget {
     // debit below charges under (RV1001), so the ledger's usage
     // telemetry names the same attribution as its dollars.
     this.usageInternal = sumUsage(this.usageInternal, safe);
-    // A model with no price row contributes zero here, so a USD ceiling
-    // cannot bound it. That is legitimate for a local model (it costs
-    // nothing) and a silent hole for a model whose price row is merely
-    // missing, so the ceiling says so out loud, once per model. The
-    // usage still surfaces through CostReport.unpriced either way.
-    const priced = this.priceUsd?.(servedBy, safe);
+    this.debitAccounts(this.debitableUsd(servedBy, safe), accountScope);
+  }
+
+  /**
+   * The per-call marginal meter (RV1101). One meter covers ONE provider
+   * call (the settled fold's billing basis, RV801): the loop feeds it
+   * every mid-stream delta and the settle remainder of that call, and
+   * each feeding debits the INCREMENT of the call's accumulated price
+   * over what the call already paid, never the slice priced alone. The
+   * telescoping sum equals the price of the call's total usage for any
+   * pricing shape, so a long-context tier crossed by the accumulation
+   * mid-call debits the retroactive re-price of the whole call at the
+   * crossing slice, exactly the dollars settlement will record;
+   * per-slice pricing could never see that crossing (no single slice
+   * crosses the threshold, RV1101). A negative increment (a price
+   * function that shrinks as usage grows) clamps to zero: a debit
+   * never credits, spend stays monotone. Unpriced models and invalid
+   * price results debit zero through the same once-per-model warnings
+   * as onUsage. The tier still never fires on a run aggregate no
+   * single call crossed: each call opens its own meter (RV504).
+   */
+  openCallMeter(servedBy: ModelRef, accountScope: string = ROOT_ACCOUNT): (delta: Usage) => void {
+    let accumulated: Usage = { ...ZERO_USAGE };
+    let pricedUsd = 0;
+    return (delta: Usage): void => {
+      const safe = sanitizeUsageDelta(delta);
+      this.usageInternal = sumUsage(this.usageInternal, safe);
+      accumulated = sumUsage(accumulated, safe);
+      const total = this.debitableUsd(servedBy, accumulated);
+      const marginal = Math.max(0, total - pricedUsd);
+      pricedUsd = Math.max(pricedUsd, total);
+      this.debitAccounts(marginal, accountScope);
+    };
+  }
+
+  /**
+   * Prices one usage for debiting, owning both warning paths. A model
+   * with no price row contributes zero, so a USD ceiling cannot bound
+   * it. That is legitimate for a local model (it costs nothing) and a
+   * silent hole for a model whose price row is merely missing, so the
+   * ceiling says so out loud, once per model. The usage still surfaces
+   * through CostReport.unpriced either way.
+   */
+  private debitableUsd(servedBy: ModelRef, usage: Usage): number {
+    const priced = this.priceUsd?.(servedBy, usage);
     if (
       priced === undefined &&
       this.ceilingUsd !== undefined &&
@@ -844,7 +883,7 @@ export class RunBudget {
           'createEngine({ pricing }) to cap it; its usage is reported under CostReport.unpriced',
       });
     }
-    let usd = priced ?? 0;
+    const usd = priced ?? 0;
     if (!Number.isFinite(usd) || usd < 0) {
       // Backstop that should never fire behind sanitized usage: a price
       // function returning NaN or a negative USD would otherwise poison
@@ -860,8 +899,13 @@ export class RunBudget {
             'NOT debited and any ceiling under-counts it',
         });
       }
-      usd = 0;
+      return 0;
     }
+    return usd;
+  }
+
+  /** The one debit chokepoint: spend propagation, severing, telemetry. */
+  private debitAccounts(usd: number, accountScope: string): void {
     for (const account of this.chainOf(accountScope)) {
       account.spentUsd += usd;
       if (

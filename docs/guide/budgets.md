@@ -295,7 +295,14 @@ settlement records, never a cheaper reading of the same provider usage.
 Since RV1001 that is a proven invariant, not an aspiration: the live debit
 and the settled fold price one provider usage to the same dollars, and the
 `ttl-live-budget-parity` [kit scenario](/guide/evals#the-fault-injection-kit)
-gates the equality on the real live path in every release.
+gates the equality on the real live path in every release. The equality holds
+per provider call, not per slice (RV1101): the live ledger debits each call
+marginally against the call's own accumulated price, so a long-context tier
+crossed by the call's sum re-prices the whole call at the crossing slice even
+when no single mid-stream slice reached the threshold, exactly the dollars
+settlement will record; the tier still never fires on a run aggregate no
+single call crossed, because settlement's billing basis is the provider call.
+The `tier-crossing-live-parity` kit scenario gates that arc.
 
 **Docs estimate** is a repricing at the current versioned table, the rates the
 provider's documentation pages publish: what work is *expected* to cost under
