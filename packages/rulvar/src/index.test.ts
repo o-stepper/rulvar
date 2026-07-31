@@ -52,7 +52,27 @@ describe('@rulvar/rulvar umbrella (M1-T10)', () => {
         remainingUsd: 0.9877,
         committedReserveUsd: 0,
       },
-      { ...base, seq: 7, spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.0123 },
+      {
+        ...base,
+        seq: 7,
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 0.0123,
+        // The unified terminal envelope rides every run:end (RV1105).
+        envelope: {
+          runId: 'r1',
+          workflow: 'review',
+          status: 'ok',
+          settled: true,
+          totalUsd: 0.0123,
+          grossUsd: 0.0123,
+          costByModel: { 'fake:model': 0.0123 },
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          usageApprox: false,
+          agentsSpawned: 1,
+        },
+      },
     ];
     async function* stream(): AsyncIterable<WorkflowEvent> {
       for (const event of events) {

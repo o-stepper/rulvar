@@ -28,6 +28,7 @@ type CoreEvents =
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   degradedReasons?: string[];
+  envelope: TerminalEnvelope;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
   settled?: false;
@@ -115,6 +116,7 @@ Run lifecycle and core telemetry (M1 subset).
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   degradedReasons?: string[];
+  envelope: TerminalEnvelope;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
   settled?: false;
@@ -132,6 +134,7 @@ Run lifecycle and core telemetry (M1 subset).
 | `childStatusCounts?` | `Record`\&lt;`string`, `number`\&gt; | Settled child statuses by status name, lifted from the same envelope (or typed error data) when it carries a valid record of nonnegative integers. Absent otherwise. | `packages/core/dist/index.d.ts` |
 | `completion?` | `"complete"` \| `"partial"` \| `"rejected"` | The semantic completion lift (RV-207 tail): present when the workflow reported semantic completion through the completion envelope contract: an `ok`/`exhausted` run whose result value is an object carrying a valid `completion` literal, or an `error` run whose typed error data carries one (the orchestrator acceptance path emits both). Transport status says whether the run ran; completion says whether the work is COMPLETE: an accepted degraded run is `status: 'ok'` with `completion: 'partial'`. Replay recomputes the same value from the re-executed workflow, so the field is identical live and replayed. Absent when the workflow makes no completion claim. | `packages/core/dist/index.d.ts` |
 | `degradedReasons?` | `string`[] | Per-child degradation notes, lifted from the same envelope (or typed error data) when it carries a valid string array (the fifth experiment, cycle 75). An empty array is the workflow's claim of zero degradation; absence means no claim. The outcome mirror spreads the SAME lift, so the surfaces cannot disagree. | `packages/core/dist/index.d.ts` |
+| `envelope` | [`TerminalEnvelope`](/api/@rulvar/rulvar/interfaces/TerminalEnvelope.md) | The unified terminal envelope (RV1105): every terminal fact in ONE shape, the same object the resolved outcome carries, so an event-only consumer assembles nothing. On the settled paths the sibling fields above stay byte for byte; when settlement did not hold, `envelope.settled` mirrors the `settled: false` mark (with `settledReason` inside for the superseded arc, RV1009). | `packages/core/dist/index.d.ts` |
 | `salvagedPartialChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `salvagedTerminalOutputChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `settled?` | `false` | Present and false ONLY when nothing durable records this terminal: a settlement write failed (the run_settle journal append or the terminal RunMeta projection, RV907), or the segment was superseded (`settledReason` names it, RV1009). The status above is true as computation, but `handle.result` rejects typed instead of resolving (SettlementError or SupersededError), and an event-only consumer must not treat this terminal as green. After a settlement failure, resuming the run re-settles by replay (no provider call) and the settled terminal carries no field, byte for byte like every ordinary run. Never emitted true. | `packages/core/dist/index.d.ts` |

@@ -14,6 +14,7 @@ type RunOutcome<R> = {
   cost: CostReport;
   degradedReasons?: string[];
   dropped: DroppedItem[];
+  envelope: TerminalEnvelope;
   error?: WireError;
   pending: PendingExternal[];
   salvagedPartialChildren?: string[];
@@ -130,6 +131,24 @@ dropped: DroppedItem[];
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### envelope
+
+```ts
+envelope: TerminalEnvelope;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The unified terminal envelope (RV1105): every terminal fact in ONE
+shape, assembled once at the settlement chokepoint and shared with
+the `run:end` event, so the SDK and the event stream can never
+disagree. A RESOLVED outcome always carries `settled: true` inside
+it: an unsettled terminal rejects `handle.result` typed instead of
+resolving (RV907, RV1009), and its refusing envelope rides the
+event alone.
 
 ***
 

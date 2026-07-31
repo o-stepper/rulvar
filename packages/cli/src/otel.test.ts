@@ -10,7 +10,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { createEngine, defineWorkflow, InMemoryStore, type WorkflowEvent } from '@rulvar/core';
+import {
+  createEngine,
+  defineWorkflow,
+  InMemoryStore,
+  type WorkflowEvent,
+  type TerminalEnvelope,
+} from '@rulvar/core';
 
 import { FakeAdapter, FAKE_MODEL_REF } from '@rulvar/testing';
 import { toOtel, type SpanLike, type TracerLike } from './otel.js';
@@ -92,6 +98,22 @@ async function runAndCollect(
         yield await Promise.resolve(event);
       }
     })(),
+  };
+}
+
+/** A minimal settled envelope for run:end literals (RV1105). */
+function envelopeFor(runId: string, totalUsd: number): TerminalEnvelope {
+  return {
+    runId,
+    workflow: 'wf',
+    status: 'ok',
+    settled: true,
+    totalUsd,
+    grossUsd: totalUsd,
+    costByModel: {},
+    usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    usageApprox: false,
+    agentsSpawned: 1,
   };
 }
 
@@ -415,13 +437,63 @@ describe('toOtel unsettled terminals (RV907)', () => {
     const base = { runId: 'rs', seq: 0 };
     const events: WorkflowEvent[] = [
       { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
-      { ...base, ts: at(10), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0 },
+      {
+        ...base,
+        ts: at(10),
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 0,
+        envelope: envelopeFor('rs', 0),
+      },
     ];
     const { tracer, spans } = inMemoryTracer();
     await toOtel({ runId: 'rs', events: stream(events), result }, tracer);
     const runSpan = spans.find((span) => span.name.startsWith('run '));
     expect(runSpan?.attributes['rulvar.run.settled']).toBeUndefined();
     expect(runSpan?.status?.code).toBe(1);
+  });
+
+  it('the run span mirrors the terminal envelope money and agent facts (RV1105)', async () => {
+    const base = { runId: 'rv', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(10),
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 1.25,
+        envelope: { ...envelopeFor('rv', 1.25), agentsSpawned: 3 },
+      },
+    ];
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel({ runId: 'rv', events: stream(events), result }, tracer);
+    const runSpan = spans.find((span) => span.name.startsWith('run '));
+    expect(runSpan?.attributes['rulvar.run.total_usd']).toBe(1.25);
+    expect(runSpan?.attributes['rulvar.run.agents_spawned']).toBe(3);
+  });
+
+  it('a persisted run:end from an older engine (no envelope) still closes the span', async () => {
+    const base = { runId: 'rl', seq: 0 };
+    const legacyEnd = {
+      ...base,
+      ts: at(10),
+      spanId: 's0',
+      type: 'run:end',
+      status: 'ok',
+      totalUsd: 0,
+    } as unknown as WorkflowEvent;
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      legacyEnd,
+    ];
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel({ runId: 'rl', events: stream(events), result }, tracer);
+    const runSpan = spans.find((span) => span.name.startsWith('run '));
+    expect(runSpan?.status?.code).toBe(1);
+    expect(runSpan?.attributes['rulvar.run.total_usd']).toBeUndefined();
   });
 });
 
@@ -517,7 +589,15 @@ describe('toOtel invocation spans (RV-207)', () => {
         entryRef: 2,
         retryCount: 2,
       },
-      { ...base, ts: at(72), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.012 },
+      {
+        ...base,
+        ts: at(72),
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 0.012,
+        envelope: envelopeFor('r2', 0.012),
+      },
     ];
     const { tracer, spans } = inMemoryTracer();
     const created = await toOtel(
@@ -580,7 +660,15 @@ describe('toOtel invocation spans (RV-207)', () => {
         costUsd: 0.01,
         entryRef: 2,
       },
-      { ...base, ts: at(71), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.01 },
+      {
+        ...base,
+        ts: at(71),
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 0.01,
+        envelope: envelopeFor('r3', 0.01),
+      },
     ];
     const { tracer, spans } = inMemoryTracer();
     const created = await toOtel(
@@ -1008,7 +1096,15 @@ describe('toOtel determinism events (RV-209)', () => {
         line: 12,
         column: 9,
       },
-      { ...base, ts: at(10), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0 },
+      {
+        ...base,
+        ts: at(10),
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 0,
+        envelope: envelopeFor('rd', 0),
+      },
     ];
     const recorded: Array<{
       name: string;

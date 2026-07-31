@@ -278,6 +278,15 @@ describe('createServer (M8-T01)', () => {
     const settled = await untilStatus(server, runId, 'ok');
     expect(settled.value).toEqual({ analysis: 'server analysis', approved: true, item: 42 });
     expect(settled.live).toBe(true);
+    // The HTTP outcome carries the unified terminal envelope (RV1105):
+    // the same facts the SDK outcome resolves with, no assembly.
+    expect(settled.envelope).toMatchObject({
+      runId,
+      workflow: 'gated',
+      status: 'ok',
+      settled: true,
+      usageApprox: false,
+    });
 
     const cost = await get(server, `/runs/${runId}/cost`);
     expect(cost.status).toBe(200);
@@ -326,7 +335,11 @@ describe('createServer (M8-T01)', () => {
     expect(replay.filter((frame) => frame.event === 'external:waiting')).toHaveLength(0);
     const last = replay[replay.length - 1];
     expect(last.event).toBe('run:end');
-    expect(last.data).toMatchObject({ status: 'ok' });
+    expect(last.data).toMatchObject({
+      status: 'ok',
+      // The SSE terminal carries the envelope verbatim (RV1105).
+      envelope: { status: 'ok', settled: true, workflow: 'gated' },
+    });
 
     // A cursor seq the buffer does not hold replays everything strictly
     // AFTER it (at-least-once without the historical whole buffer

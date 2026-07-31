@@ -1,0 +1,29 @@
+[**Rulvar API reference**](../../../index.md)
+
+***
+
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / TerminalEnvelope
+
+# Interface: TerminalEnvelope
+
+Defined in: `packages/core/dist/index.d.ts`
+
+One run terminal, the same on every surface (RV1105).
+
+## Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-agentsspawned"></a> `agentsSpawned` | `number` | Agents admitted over the run's lifetime, resume seed included. | `packages/core/dist/index.d.ts` |
+| <a id="property-completion"></a> `completion?` | `"partial"` \| `"rejected"` \| `"complete"` | The semantic completion claim, when the workflow made one. | `packages/core/dist/index.d.ts` |
+| <a id="property-costbymodel"></a> `costByModel` | `Record`\&lt;`string`, `number`\&gt; | The per-model split of totalUsd, keyed by canonical ModelRef. | `packages/core/dist/index.d.ts` |
+| <a id="property-error"></a> `error?` | [`WireError`](/api/@rulvar/rulvar/type-aliases/WireError.md) | The typed error, exactly the outcome's, when status is 'error'. | `packages/core/dist/index.d.ts` |
+| <a id="property-grossusd"></a> `grossUsd` | `number` | The gross figure with abandoned subtrees included (P1.3). | `packages/core/dist/index.d.ts` |
+| <a id="property-runid"></a> `runId` | `string` | The run this terminal speaks for. | `packages/core/dist/index.d.ts` |
+| <a id="property-settled"></a> `settled` | `boolean` | Whether anything durable records this terminal (RV907). False only on the event stream: `handle.result` rejects typed instead of resolving an unsettled outcome. | `packages/core/dist/index.d.ts` |
+| <a id="property-settledreason"></a> `settledReason?` | `"superseded"` | Present only beside `settled: false` when a successor owns settlement (RV1009). | `packages/core/dist/index.d.ts` |
+| <a id="property-status"></a> `status` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | The computed transport status of the run. | `packages/core/dist/index.d.ts` |
+| <a id="property-totalusd"></a> `totalUsd` | `number` | The NET settled fold: what the run recorded as spent. | `packages/core/dist/index.d.ts` |
+| <a id="property-usage"></a> `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | The run's usage aggregate, TTL attribution included. | `packages/core/dist/index.d.ts` |
+| <a id="property-usageapprox"></a> `usageApprox` | `boolean` | True when any priced usage is approximate: totalUsd is a lower bound. | `packages/core/dist/index.d.ts` |
+| <a id="property-workflow"></a> `workflow` | `string` | The workflow name the run was started (or resumed) under. | `packages/core/dist/index.d.ts` |
