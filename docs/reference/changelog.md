@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
+
 ### 1.141.0
 
 #### Patch Changes
@@ -1468,6 +1474,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
+
 ### 1.141.0
 
 #### Patch Changes
@@ -2725,6 +2737,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.142.0
+
+#### Minor Changes
+
+- 473981a: The terminal envelope conformance table (RV1106): every terminal path (ok, error, exhausted, cancelled, superseded) drives the real engine, and the envelope is checked fact for fact across the resolved outcome, the run:end event, the HTTP run status body, the SSE replay, and the OTel run span, in one truth table with the surface honesty rules pinned. The red-first fix the table found: `toOtel` now completes its export over every terminal path, the rejecting ones included; a rejecting `result` never fails an export the stream already completed, it only marks a leftover span with the refusal instead of green.
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
 
 ### 1.141.0
 
@@ -4387,6 +4409,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.142.0
 
 ### 1.141.0
 
@@ -6355,6 +6379,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.142.0
+
 ### 1.141.0
 
 ### 1.140.0
@@ -6741,6 +6767,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.142.0
+- @rulvar/core@1.142.0
+- @rulvar/openai@1.142.0
+- @rulvar/plan@1.142.0
+- @rulvar/testing@1.142.0
 
 ### 1.141.0
 
@@ -8355,6 +8391,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
+
 ### 1.141.0
 
 #### Patch Changes
@@ -9019,6 +9061,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
 
 ### 1.141.0
 
@@ -10475,6 +10523,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
+
 ### 1.141.0
 
 #### Patch Changes
@@ -11846,6 +11900,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
+- eslint-plugin-rulvar@1.142.0
 
 ### 1.141.0
 
@@ -13321,6 +13382,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.142.0
+- @rulvar/core@1.142.0
+- @rulvar/openai@1.142.0
 
 ### 1.141.0
 
@@ -15024,6 +15093,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
+
 ### 1.141.0
 
 #### Patch Changes
@@ -16391,6 +16466,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
+
 ### 1.141.0
 
 #### Patch Changes
@@ -17079,6 +17160,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
 
 ### 1.141.0
 
@@ -18399,6 +18486,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.142.0
+
+#### Patch Changes
+
+- @rulvar/core@1.142.0
 
 ### 1.141.0
 
