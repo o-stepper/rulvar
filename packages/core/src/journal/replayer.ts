@@ -22,6 +22,7 @@ import {
   type UsageSlice,
 } from '../l0/entries.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
+import { sumUsage } from '../l0/usage.js';
 import type { JournalStore, Lease } from '../l0/spi/store.js';
 import { toJournalValue } from './serializable.js';
 import { validateEntryShape } from './kinds.js';
@@ -541,13 +542,12 @@ export class Replayer {
    * CostReport and the invoice.
    */
   ledger(): Ledger {
-    const usage: Usage = {
+    let usage: Usage = {
       inputTokens: 0,
       outputTokens: 0,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
-    let reasoning = 0;
     let usd = 0;
     let agentsSpawned = 0;
     const abandonFold = this.foldInternal.abandonFold;
@@ -568,11 +568,10 @@ export class Replayer {
       if (entry.status === 'running' || entry.usage === undefined) {
         continue;
       }
-      usage.inputTokens += entry.usage.inputTokens;
-      usage.outputTokens += entry.usage.outputTokens;
-      usage.cacheReadTokens += entry.usage.cacheReadTokens;
-      usage.cacheWriteTokens += entry.usage.cacheWriteTokens;
-      reasoning += entry.usage.reasoningTokens ?? 0;
+      // The canonical adder (RV1001): the settled fold keeps the
+      // cache-write TTL split its entries were priced under, so
+      // run:end usage names the same attribution as the money.
+      usage = sumUsage(usage, entry.usage);
       // The billing fold (RV504, adopted by the ledger in RV801): a
       // model whose per-dispatch records cover its usage prices per
       // provider call, so a nonlinear long-context tier fires per
@@ -585,9 +584,6 @@ export class Replayer {
       if (this.priceUsd !== undefined) {
         usd += priceEntryBilling(entry, this.priceUsd).usd;
       }
-    }
-    if (reasoning > 0) {
-      usage.reasoningTokens = reasoning;
     }
     return { usage, usd, agentsSpawned };
   }

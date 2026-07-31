@@ -288,7 +288,10 @@ under the `pricingVersion` pins its own settles recorded, never re-priced by a
 later table rotation. It is the number the outcome's `CostReport` carries,
 `rulvar inspect` prints from the journal, and the pinned rows of
 `rulvar invoice` itemize per call. Two runs over the same journal report the
-same recorded money forever.
+same recorded money forever. The live ledger debits the same quantity as it
+accrues: mid-stream usage reaches the ceiling with its cache-write TTL split
+intact (RV1001), so the dollars a ceiling holds against are the dollars
+settlement records, never a cheaper reading of the same provider usage.
 
 **Docs estimate** is a repricing at the current versioned table, the rates the
 provider's documentation pages publish: what work is *expected* to cost under

@@ -6,7 +6,7 @@
 
 # Interface: PostFanInBreakdown
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:281](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L281)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:270](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L270)
 
 Where the post-fan-in interval actually went (RV710): the eleventh
 comparison experiment measured 45.5 percent of wall sitting after
@@ -35,10 +35,10 @@ attributed and are skipped, never guessed at.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-coordinationmodelms"></a> `coordinationModelMs` | `number` | Model activations of coordination spans inside the window. | [packages/core/src/l0/telemetry-reduce.ts:283](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L283) |
-| <a id="property-coordinationtoolms"></a> `coordinationToolMs` | `number` | Tool executions of coordination spans inside the window, summed. | [packages/core/src/l0/telemetry-reduce.ts:285](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L285) |
-| <a id="property-coordinationtoolmsbyname"></a> `coordinationToolMsByName` | `Record`\&lt;`string`, `number`\&gt; | The same tool time keyed by tool name. A zero-duration execution inside the window still registers its name: sub-millisecond tools round to 0 on the wall clock but did run here. | [packages/core/src/l0/telemetry-reduce.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L291) |
-| <a id="property-coveredms"></a> `coveredMs` | `number` | Union length of every covered interval above. | [packages/core/src/l0/telemetry-reduce.ts:295](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L295) |
-| <a id="property-residuems"></a> `residueMs` | `number` | postFanInMs minus coveredMs, floored at zero. | [packages/core/src/l0/telemetry-reduce.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L297) |
-| <a id="property-residueshare"></a> `residueShare?` | `number` | residueMs / postFanInMs when the window is longer than zero. | [packages/core/src/l0/telemetry-reduce.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L299) |
-| <a id="property-synthesisms"></a> `synthesisMs` | `number` | Completed 'synthesize' span wall clipped to the window. | [packages/core/src/l0/telemetry-reduce.ts:293](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L293) |
+| <a id="property-coordinationmodelms"></a> `coordinationModelMs` | `number` | Model activations of coordination spans inside the window. | [packages/core/src/l0/telemetry-reduce.ts:272](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L272) |
+| <a id="property-coordinationtoolms"></a> `coordinationToolMs` | `number` | Tool executions of coordination spans inside the window, summed. | [packages/core/src/l0/telemetry-reduce.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L274) |
+| <a id="property-coordinationtoolmsbyname"></a> `coordinationToolMsByName` | `Record`\&lt;`string`, `number`\&gt; | The same tool time keyed by tool name. A zero-duration execution inside the window still registers its name: sub-millisecond tools round to 0 on the wall clock but did run here. | [packages/core/src/l0/telemetry-reduce.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L280) |
+| <a id="property-coveredms"></a> `coveredMs` | `number` | Union length of every covered interval above. | [packages/core/src/l0/telemetry-reduce.ts:284](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L284) |
+| <a id="property-residuems"></a> `residueMs` | `number` | postFanInMs minus coveredMs, floored at zero. | [packages/core/src/l0/telemetry-reduce.ts:286](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L286) |
+| <a id="property-residueshare"></a> `residueShare?` | `number` | residueMs / postFanInMs when the window is longer than zero. | [packages/core/src/l0/telemetry-reduce.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L288) |
+| <a id="property-synthesisms"></a> `synthesisMs` | `number` | Completed 'synthesize' span wall clipped to the window. | [packages/core/src/l0/telemetry-reduce.ts:282](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L282) |

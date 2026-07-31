@@ -566,7 +566,7 @@ fractions never eat finalization money). Undefined when uncapped.
 remaining(): Spend | null;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:896](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L896)
+Defined in: [packages/core/src/engine/budget.ts:890](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L890)
 
 Null when the run has no USD ceiling.
 
@@ -679,7 +679,7 @@ The layer-3 signal of one sub-account's subtree, when it exists.
 spent(): Spend;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:887](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L887)
+Defined in: [packages/core/src/engine/budget.ts:881](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L881)
 
 #### Returns
 

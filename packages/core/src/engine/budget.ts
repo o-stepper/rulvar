@@ -28,7 +28,7 @@
 import { BudgetExhaustedError, ConfigError } from '../l0/errors.js';
 import { requireNonNegativeNumber } from '../l0/validate-numbers.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
-import { sanitizeUsage, sanitizeUsageDelta } from '../l0/usage.js';
+import { sanitizeUsage, sanitizeUsageDelta, sumUsage } from '../l0/usage.js';
 import type { ModelCaps, Pricing } from '../l0/spi/provider.js';
 import { affordableOutputTokens, priceUsdOf } from '../model/pricing.js';
 import { BUDGET_ABORT_REASON, type RuntimeEventSink } from '../runtime/agent-loop.js';
@@ -819,16 +819,10 @@ export class RunBudget {
     // The repair always detaches from the caller's object, so a hostile
     // accessor cannot vary its answers between validation and use.
     const safe = sanitizeUsageDelta(usage);
-    this.usageInternal = {
-      inputTokens: this.usageInternal.inputTokens + safe.inputTokens,
-      outputTokens: this.usageInternal.outputTokens + safe.outputTokens,
-      cacheReadTokens: this.usageInternal.cacheReadTokens + safe.cacheReadTokens,
-      cacheWriteTokens: this.usageInternal.cacheWriteTokens + safe.cacheWriteTokens,
-    };
-    const reasoning = (this.usageInternal.reasoningTokens ?? 0) + (safe.reasoningTokens ?? 0);
-    if (reasoning > 0) {
-      this.usageInternal.reasoningTokens = reasoning;
-    }
+    // The canonical adder keeps the cache-write TTL split the priced
+    // debit below charges under (RV1001), so the ledger's usage
+    // telemetry names the same attribution as its dollars.
+    this.usageInternal = sumUsage(this.usageInternal, safe);
     // A model with no price row contributes zero here, so a USD ceiling
     // cannot bound it. That is legitimate for a local model (it costs
     // nothing) and a silent hole for a model whose price row is merely

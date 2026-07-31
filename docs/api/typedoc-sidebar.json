@@ -3289,6 +3289,10 @@
             "link": "/api/@rulvar/core/functions/summarizeOutput.md"
           },
           {
+            "text": "sumUsage",
+            "link": "/api/@rulvar/core/functions/sumUsage.md"
+          },
+          {
             "text": "terminationConfigDrift",
             "link": "/api/@rulvar/core/functions/terminationConfigDrift.md"
           },
@@ -7877,6 +7881,10 @@
           {
             "text": "summarizeOutput",
             "link": "/api/@rulvar/rulvar/functions/summarizeOutput.md"
+          },
+          {
+            "text": "sumUsage",
+            "link": "/api/@rulvar/rulvar/functions/sumUsage.md"
           },
           {
             "text": "terminationConfigDrift",

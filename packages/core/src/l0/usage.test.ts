@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Usage } from './messages.js';
-import { sanitizeTokenCount, sanitizeUsage, usageViolations } from './usage.js';
+import { sanitizeTokenCount, sanitizeUsage, sumUsage, usageViolations } from './usage.js';
 
 const VALID: Usage = {
   inputTokens: 100,
@@ -215,5 +215,82 @@ describe('the cache-write TTL split (RV810)', () => {
       };
       expect(usageViolations(sanitizeUsage(usage))).toEqual([]);
     }
+  });
+});
+
+describe('sumUsage (RV1001)', () => {
+  it('sums undifferentiated usage byte for byte like the historical fold', () => {
+    const sum = sumUsage(VALID, { ...VALID, reasoningTokens: 5 });
+    expect(sum).toEqual({
+      inputTokens: 200,
+      outputTokens: 20,
+      cacheReadTokens: 60,
+      cacheWriteTokens: 40,
+      reasoningTokens: 5,
+    });
+    expect(sumUsage(VALID, VALID)).not.toHaveProperty('reasoningTokens');
+    expect(sumUsage(VALID, VALID)).not.toHaveProperty('cacheWrite5mTokens');
+    expect(sumUsage(VALID, VALID)).not.toHaveProperty('cacheWrite1hTokens');
+  });
+
+  it('keeps the TTL split when both sides differentiate', () => {
+    const split: Usage = {
+      inputTokens: 300,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 300,
+      cacheWrite5mTokens: 200,
+      cacheWrite1hTokens: 100,
+    };
+    const sum = sumUsage(split, split);
+    expect(sum.cacheWriteTokens).toBe(600);
+    expect(sum.cacheWrite5mTokens).toBe(400);
+    expect(sum.cacheWrite1hTokens).toBe(200);
+    expect(usageViolations(sum)).toEqual([]);
+  });
+
+  it('counts an undifferentiated side as the 5m share, keeping the sum canonical', () => {
+    const split: Usage = {
+      inputTokens: 300,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 300,
+      cacheWrite5mTokens: 200,
+      cacheWrite1hTokens: 100,
+    };
+    const unsplit: Usage = {
+      inputTokens: 50,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 50,
+    };
+    for (const sum of [sumUsage(split, unsplit), sumUsage(unsplit, split)]) {
+      expect(sum.cacheWriteTokens).toBe(350);
+      expect(sum.cacheWrite5mTokens).toBe(250);
+      expect(sum.cacheWrite1hTokens).toBe(100);
+      expect(usageViolations(sum)).toEqual([]);
+    }
+  });
+
+  it('derives the missing 5m share from the write total on a 1h-only side', () => {
+    const oneHourOnly: Usage = {
+      inputTokens: 300,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 300,
+      cacheWrite1hTokens: 300,
+    };
+    const partial: Usage = {
+      inputTokens: 100,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 100,
+      cacheWrite1hTokens: 40,
+    };
+    const sum = sumUsage(oneHourOnly, partial);
+    expect(sum.cacheWriteTokens).toBe(400);
+    expect(sum.cacheWrite1hTokens).toBe(340);
+    expect(sum.cacheWrite5mTokens).toBe(60);
+    expect(usageViolations(sum)).toEqual([]);
   });
 });

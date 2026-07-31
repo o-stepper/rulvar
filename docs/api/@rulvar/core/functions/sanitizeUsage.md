@@ -10,7 +10,7 @@
 function sanitizeUsage(usage): Usage;
 ```
 
-Defined in: [packages/core/src/l0/usage.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L172)
+Defined in: [packages/core/src/l0/usage.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/usage.ts#L210)
 
 Conservative repair for accounting. Pairs with `usageViolations`: the
 violation fails the call loud, and the sanitized numbers are the only

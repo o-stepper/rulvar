@@ -15,22 +15,11 @@
  */
 import type { Usage } from './messages.js';
 import type { CostBasis, ToolBudgetSummary, WorkflowEvent } from './events.js';
+// The canonical adder (RV1001): byRole buckets keep the cache-write TTL
+// split the folded phase events carry.
+import { sumUsage } from './usage.js';
 
 const ZERO: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
-
-function addUsage(a: Usage, b: Usage): Usage {
-  const sum: Usage = {
-    inputTokens: a.inputTokens + b.inputTokens,
-    outputTokens: a.outputTokens + b.outputTokens,
-    cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
-    cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
-  };
-  const reasoning = (a.reasoningTokens ?? 0) + (b.reasoningTokens ?? 0);
-  if (reasoning > 0) {
-    sum.reasoningTokens = reasoning;
-  }
-  return sum;
-}
 
 /** One phase activation of one agent span. */
 export interface PhaseRow {
@@ -195,7 +184,7 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
           costUsd: 0,
           costBasis: 'per-call',
         });
-        bucket.usage = addUsage(bucket.usage, event.usage);
+        bucket.usage = sumUsage(bucket.usage, event.usage);
         bucket.costUsd += event.costUsd;
         if (phase.costBasis === 'aggregate-estimate') {
           bucket.costBasis = 'aggregate-estimate';
