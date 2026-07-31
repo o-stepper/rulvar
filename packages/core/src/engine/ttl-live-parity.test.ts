@@ -81,6 +81,8 @@ interface ParityRun {
   status: string;
   totalUsd: number;
   maxLiveSpentUsd: number;
+  /** Distinct nonzero live spentUsd readings, in arrival order. */
+  ladder: number[];
   usage: Usage;
 }
 
@@ -103,9 +105,13 @@ async function runParity(
   });
   const handle = engine.run(workflow, undefined, { budgetUsd });
   let maxLiveSpentUsd = 0;
+  const ladder: number[] = [];
   handle.on('budget:update', (event) => {
     if (event.spentUsd > maxLiveSpentUsd) {
       maxLiveSpentUsd = event.spentUsd;
+    }
+    if (event.spentUsd > 0 && ladder[ladder.length - 1] !== event.spentUsd) {
+      ladder.push(event.spentUsd);
     }
   });
   const outcome = await handle.result;
@@ -113,6 +119,7 @@ async function runParity(
     status: outcome.status,
     totalUsd: outcome.cost.totalUsd,
     maxLiveSpentUsd,
+    ladder,
     usage: outcome.usage,
   };
 }
@@ -162,6 +169,18 @@ describe('live-budget parity for the cache-write TTL split (RV1001)', () => {
     expect(run.usage.cacheWrite5mTokens).toBe(250_000);
     expect(run.usage.cacheWrite1hTokens).toBe(100_000);
     expect(usageViolations(run.usage)).toEqual([]);
+  });
+
+  it('the split prices at the mid-stream inlet itself, never only at the settle catch-up', async () => {
+    // The per-field TTL catch-up in the remainder (and, since RV1101,
+    // the per-call marginal meter) restores END-OF-CALL parity even if
+    // the mid-stream inlet dropped the split; the ceiling's promptness
+    // contract is stronger. The FIRST live reading of a differentiated
+    // write must already be the differentiated dollars ($4.50, never
+    // the $3.75 unsplit reading), so a ceiling between the two severs
+    // while the stream is still paying, not at its settle.
+    const run = await runParity([SPLIT_USAGE], 10);
+    expect(run.ladder[0]).toBe(4.5);
   });
 
   it('the finish remainder carries the split when no mid-stream event reported it', async () => {

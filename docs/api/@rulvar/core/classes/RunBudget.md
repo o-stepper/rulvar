@@ -433,6 +433,44 @@ recorded ceiling wins once and the accumulated state is kept.
 
 ***
 
+### openCallMeter()
+
+```ts
+openCallMeter(servedBy, accountScope?): (delta) => void;
+```
+
+Defined in: [packages/core/src/engine/budget.ts:847](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L847)
+
+The per-call marginal meter (RV1101). One meter covers ONE provider
+call (the settled fold's billing basis, RV801): the loop feeds it
+every mid-stream delta and the settle remainder of that call, and
+each feeding debits the INCREMENT of the call's accumulated price
+over what the call already paid, never the slice priced alone. The
+telescoping sum equals the price of the call's total usage for any
+pricing shape, so a long-context tier crossed by the accumulation
+mid-call debits the retroactive re-price of the whole call at the
+crossing slice, exactly the dollars settlement will record;
+per-slice pricing could never see that crossing (no single slice
+crosses the threshold, RV1101). A negative increment (a price
+function that shrinks as usage grows) clamps to zero: a debit
+never credits, spend stays monotone. Unpriced models and invalid
+price results debit zero through the same once-per-model warnings
+as onUsage. The tier still never fires on a run aggregate no
+single call crossed: each call opens its own meter (RV504).
+
+#### Parameters
+
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `servedBy` | `` `${string}:${string}` `` | `undefined` |
+| `accountScope` | `string` | `ROOT_ACCOUNT` |
+
+#### Returns
+
+(`delta`) => `void`
+
+***
+
 ### refuseSpawnIfInfeasible()
 
 ```ts
@@ -566,7 +604,7 @@ fractions never eat finalization money). Undefined when uncapped.
 remaining(): Spend | null;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:890](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L890)
+Defined in: [packages/core/src/engine/budget.ts:934](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L934)
 
 Null when the run has no USD ceiling.
 
@@ -679,7 +717,7 @@ The layer-3 signal of one sub-account's subtree, when it exists.
 spent(): Spend;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:881](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L881)
+Defined in: [packages/core/src/engine/budget.ts:925](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L925)
 
 #### Returns
 

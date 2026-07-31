@@ -347,6 +347,17 @@ export interface BudgetHooks {
   ) => (() => void) | undefined;
   /** Live usage accounting; layer 3 may respond by aborting `signal`. */
   onUsage(usage: Usage, servedBy: ModelRef): void;
+  /**
+   * Opens the per-call marginal meter (RV1101): one meter per provider
+   * call, fed every mid-stream delta and the settle remainder of THAT
+   * call. The budget prices the call's ACCUMULATED usage and debits
+   * the increment over what the call already paid, so a long-context
+   * tier crossed by the accumulation re-prices the whole call live
+   * exactly as the settled fold will; per-slice pricing can never see
+   * that crossing (no single slice crosses the threshold). Optional:
+   * hooks without it keep the historical per-slice debit into onUsage.
+   */
+  openCallMeter?: (servedBy: ModelRef) => (delta: Usage) => void;
   /** Layer 3: the ceiling AbortSignal. */
   signal?: AbortSignal;
 }
@@ -2768,6 +2779,11 @@ export async function runAgent<S extends SchemaSpec>(
     role: InvocationRole,
     streamViolation?: string,
     sawFinish?: boolean,
+    // The call's own marginal meter (RV1101): the remainder must debit
+    // against the SAME accumulation the mid-stream deltas fed, or a
+    // tier crossing completed by the finish would price the remainder
+    // as a fresh slice and the two money paths would disagree again.
+    meter?: (delta: Usage) => void,
     // Returns the sanitized usage it accounted, so the reconciliation
     // record minted beside the call carries the SAME numbers the phase
     // slices accumulated (P1.3: per-model sums over records reconcile
@@ -2870,7 +2886,11 @@ export async function runAgent<S extends SchemaSpec>(
       write5mRemainder > 0 ||
       write1hRemainder > 0
     ) {
-      options.budget?.onUsage(remainder, ref);
+      if (meter !== undefined) {
+        meter(remainder);
+      } else {
+        options.budget?.onUsage(remainder, ref);
+      }
     }
     return safe;
   };
@@ -2992,6 +3012,22 @@ export async function runAgent<S extends SchemaSpec>(
         // was granted, in grant order; settled or released after the
         // outcome.
         const segmentReservations: string[] = [];
+        // The per-call marginal meter of THIS attempt (RV1101): opened
+        // at the dispatch chokepoint so every mid-stream delta and the
+        // settle remainder of the SAME provider call debit against the
+        // call's accumulation, and a long-context tier crossed by the
+        // call's sum re-prices the call live exactly as the settled
+        // fold will. Hooks without the meter keep the site's per-slice
+        // onUsage callback.
+        let callMeter: ((delta: Usage) => void) | undefined;
+        const meteredOptionsFor = (dispatched: PhaseTarget): Parameters<typeof streamTurn>[2] => {
+          const streamOptions = site.streamOptionsFor(dispatched);
+          callMeter = options.budget?.openCallMeter?.(dispatched.resolved.ref);
+          if (callMeter !== undefined) {
+            streamOptions.onUsage = callMeter;
+          }
+          return streamOptions;
+        };
         // The in-flight exposure hold of THIS attempt (RV711): taken
         // synchronously with the attempt's own request right before
         // the wire call, released once the attempt settles (its usage
@@ -3082,7 +3118,7 @@ export async function runAgent<S extends SchemaSpec>(
                   `the shared quota limiter failed; dispatching ${target.resolved.ref} ` +
                   `without a reservation (onLimiterError 'allow'): ${detail}`,
               });
-              return streamTurn(target.adapter, req, site.streamOptionsFor(target));
+              return streamTurn(target.adapter, req, meteredOptionsFor(target));
             }
             return quotaDeniedOutcome({
               infrastructure: `the shared quota limiter failed (onLimiterError 'deny'): ${detail}`,
@@ -3093,7 +3129,7 @@ export async function runAgent<S extends SchemaSpec>(
           }
           reservationId = decision.reservationId;
           if (quota.reserveContinuations !== true) {
-            return streamTurn(target.adapter, req, site.streamOptionsFor(target));
+            return streamTurn(target.adapter, req, meteredOptionsFor(target));
           }
           // The hard mode (RV1013): each provider-side continuation is
           // admitted BEFORE its egress through the adapter hook. A
@@ -3155,7 +3191,7 @@ export async function runAgent<S extends SchemaSpec>(
               return undefined;
             },
           };
-          return streamTurn(target.adapter, req, { ...site.streamOptionsFor(target), hooks });
+          return streamTurn(target.adapter, req, { ...meteredOptionsFor(target), hooks });
         };
         const dispatch = (): Promise<TurnOutcome> => {
           // Checked inside the thunk so a keyed limiter queue wait
@@ -3167,7 +3203,7 @@ export async function runAgent<S extends SchemaSpec>(
           if (options.quota === undefined) {
             const req = site.requestFor(target);
             admitExposure(req);
-            return streamTurn(target.adapter, req, site.streamOptionsFor(target));
+            return streamTurn(target.adapter, req, meteredOptionsFor(target));
           }
           return dispatchWithQuota(options.quota);
         };
@@ -3275,6 +3311,7 @@ export async function runAgent<S extends SchemaSpec>(
             site.role,
             outcome.usageViolation,
             outcome.finish !== undefined,
+            callMeter,
           );
           // The reconciliation record of THIS wire call (P1.3): the
           // provider ran (quota denials and abort short circuits are

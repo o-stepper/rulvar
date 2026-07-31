@@ -10,6 +10,6 @@
 const FAULT_SCENARIO_NAMES: readonly string[];
 ```
 
-Defined in: [packages/evals/src/fault-injection.ts:1672](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L1672)
+Defined in: [packages/evals/src/fault-injection.ts:1810](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L1810)
 
 The scenario names in run order.

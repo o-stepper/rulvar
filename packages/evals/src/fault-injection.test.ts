@@ -34,6 +34,7 @@ const EXPECTED = [
   'pause-turn-real-adapter',
   'statement-settleable-guard',
   'superseded-terminal-honesty',
+  'tier-crossing-live-parity',
 ];
 
 describe('the fault-injection kit (RV811)', () => {
@@ -115,6 +116,19 @@ describe('the fault-injection kit (RV811)', () => {
       'the seed declares none',
     );
     expect(byName.get('audit-missing-field-finding')?.observation.detail).toContain('NaN');
+    // The RV1101 scenario: a tier crossing on one call's sum that no
+    // mid-stream slice reached must read the same dollars on both
+    // money paths, and the between-readings ceiling must sever.
+    expect(byName.get('tier-crossing-live-parity')?.observation.detail).toContain('live=5.75');
+    expect(byName.get('tier-crossing-live-parity')?.observation.detail).toContain('settled=5.75');
+    expect(byName.get('tier-crossing-live-parity')?.observation.detail).toContain(
+      'no slice crossed',
+    );
+    // The marginal ladder: $1.50 after the first slice, the $5.00
+    // retroactive re-price at the crossing, $5.75 at the remainder.
+    expect(byName.get('tier-crossing-live-parity')?.observation.detail).toContain(
+      '1.5 -> 5 -> 5.75',
+    );
     // The report is self-describing (RV1014): the scenario count can
     // never quietly shrink under a consumer that pins these.
     expect(report.requested).toBe(EXPECTED.length);
@@ -157,13 +171,14 @@ describe('the fault-injection kit (RV811)', () => {
     await expect(runFaultInjection({ only: [] })).rejects.toThrow(/empty/);
   });
 
-  it('every real defect of the fourteenth plan keeps a kit scenario on the real path (RV1014)', () => {
+  it('every real defect of the validated plans keeps a kit scenario on the real path (RV1014)', () => {
     const coverage: Record<string, string> = {
       'RV1001/RV1002 live budget parity': 'ttl-live-budget-parity',
       'RV1003/RV1004 real-adapter pause_turn': 'pause-turn-real-adapter',
       'RV1005/RV1006 statement consistency and settleable': 'statement-settleable-guard',
       'RV1007 comparator fail-closed': 'audit-missing-field-finding',
       'RV1009 superseded terminal': 'superseded-terminal-honesty',
+      'RV1101 tier-crossing live parity': 'tier-crossing-live-parity',
     };
     for (const scenario of Object.values(coverage)) {
       expect(FAULT_SCENARIO_NAMES).toContain(scenario);

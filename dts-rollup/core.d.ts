@@ -4922,6 +4922,17 @@ interface BudgetHooks {
   admitTurnExposure?: (servedBy: ModelRef, estimatedInputTokens: number, plannedOutputTokens: number) => (() => void) | undefined;
   /** Live usage accounting; layer 3 may respond by aborting `signal`. */
   onUsage(usage: Usage, servedBy: ModelRef): void;
+  /**
+  * Opens the per-call marginal meter (RV1101): one meter per provider
+  * call, fed every mid-stream delta and the settle remainder of THAT
+  * call. The budget prices the call's ACCUMULATED usage and debits
+  * the increment over what the call already paid, so a long-context
+  * tier crossed by the accumulation re-prices the whole call live
+  * exactly as the settled fold will; per-slice pricing can never see
+  * that crossing (no single slice crosses the threshold). Optional:
+  * hooks without it keep the historical per-slice debit into onUsage.
+  */
+  openCallMeter?: (servedBy: ModelRef) => (delta: Usage) => void;
   /** Layer 3: the ceiling AbortSignal. */
   signal?: AbortSignal;
 }
@@ -5957,6 +5968,36 @@ declare class RunBudget {
   * in-flight agent; providers bill severed streams).
   */
   onUsage(usage: Usage, servedBy: ModelRef, accountScope?: string): void;
+  /**
+  * The per-call marginal meter (RV1101). One meter covers ONE provider
+  * call (the settled fold's billing basis, RV801): the loop feeds it
+  * every mid-stream delta and the settle remainder of that call, and
+  * each feeding debits the INCREMENT of the call's accumulated price
+  * over what the call already paid, never the slice priced alone. The
+  * telescoping sum equals the price of the call's total usage for any
+  * pricing shape, so a long-context tier crossed by the accumulation
+  * mid-call debits the retroactive re-price of the whole call at the
+  * crossing slice, exactly the dollars settlement will record;
+  * per-slice pricing could never see that crossing (no single slice
+  * crosses the threshold, RV1101). A negative increment (a price
+  * function that shrinks as usage grows) clamps to zero: a debit
+  * never credits, spend stays monotone. Unpriced models and invalid
+  * price results debit zero through the same once-per-model warnings
+  * as onUsage. The tier still never fires on a run aggregate no
+  * single call crossed: each call opens its own meter (RV504).
+  */
+  openCallMeter(servedBy: ModelRef, accountScope?: string): (delta: Usage) => void;
+  /**
+  * Prices one usage for debiting, owning both warning paths. A model
+  * with no price row contributes zero, so a USD ceiling cannot bound
+  * it. That is legitimate for a local model (it costs nothing) and a
+  * silent hole for a model whose price row is merely missing, so the
+  * ceiling says so out loud, once per model. The usage still surfaces
+  * through CostReport.unpriced either way.
+  */
+  private debitableUsd;
+  /** The one debit chokepoint: spend propagation, severing, telemetry. */
+  private debitAccounts;
   spent(): Spend;
   /** Null when the run has no USD ceiling. */
   remaining(): Spend | null;

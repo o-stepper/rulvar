@@ -2178,6 +2178,11 @@ export function createCtx(
                 ),
             }),
         onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy, budgetAccount),
+        // The per-call marginal meter (RV1101): every provider call
+        // debits against its own accumulation, so a long-context tier
+        // crossed by the call's total re-prices the call live exactly
+        // as the settled fold will.
+        openCallMeter: (servedBy) => internals.budget.openCallMeter(servedBy, budgetAccount),
         // Layer 3 severs through the whole account chain: the account's
         // own subtree signal composed with the run root (M6-T06).
         signal:
