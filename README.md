@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred seven rounds, verbatim in this repository's history:
+The one hundred eight rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -321,6 +321,7 @@ The one hundred seven rounds, verbatim in this repository's history:
 | v1.123.0      | 37fd1f2 (#557): the extension covers the declared evidence deficit before the cap, cache writes price by TTL, and a fault kit drives the never-observed fail-closed branches              | v1.124.0   |
 | v1.124.0      | 109e9fa (#560): the Anthropic 1h write premium seeded at 2x input, the rates audit failing closed on page-only rates, and Terra/Luna carrying the provider's documented cut               | v1.125.0   |
 | v1.125.0      | e5e9526 (#563): statement numbers that cannot be evidence refused typed at intake, and provider-reported token disagreements deciding the reconciliation verdict                          | v1.126.0   |
+| v1.126.0      | b3b1805 (#566): the pre-dispatch token count admitted behind a zero-egress feasibility floor, honoring the abort signal, every count visible as a named log event                         | v1.127.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
