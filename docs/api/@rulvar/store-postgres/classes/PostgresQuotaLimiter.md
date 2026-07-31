@@ -6,7 +6,7 @@
 
 # Class: PostgresQuotaLimiter
 
-Defined in: [packages/store-postgres/src/quota.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L274)
+Defined in: [packages/store-postgres/src/quota.ts:275](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L275)
 
 The multi-host reference implementation of the core QuotaLimiter
 SPI: engine processes pointing instances at ONE database and schema
@@ -46,7 +46,7 @@ they mean. Call `close()` when done.
 new PostgresQuotaLimiter(options): PostgresQuotaLimiter;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L297)
+Defined in: [packages/store-postgres/src/quota.ts:298](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L298)
 
 #### Parameters
 
@@ -66,7 +66,7 @@ Defined in: [packages/store-postgres/src/quota.ts:297](https://github.com/o-step
 close(): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:799](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L799)
+Defined in: [packages/store-postgres/src/quota.ts:805](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L805)
 
 #### Returns
 
@@ -77,10 +77,24 @@ Defined in: [packages/store-postgres/src/quota.ts:799](https://github.com/o-step
 ### reconcile()
 
 ```ts
-reconcile(reservationId, usage): Promise<void>;
+reconcile(
+   reservationId, 
+   usage, 
+actual?): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:732](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L732)
+Defined in: [packages/store-postgres/src/quota.ts:733](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L733)
+
+Settles a reservation against the attempt's actual usage. The
+optional `actual.requests` is the TRUE number of wire requests the
+reservation ended up covering (RV905: an adapter absorbing
+provider-side continuations makes several wire calls inside one
+reserved dispatch); implementations add the difference over the
+single request the reservation admitted into the same window, so
+the request cap reflects what the provider actually metered. A
+settlement never denies retroactively: the wire calls already
+happened. Implementations written against the two-argument form
+remain valid; they merely keep the historical undercount.
 
 #### Parameters
 
@@ -88,6 +102,8 @@ Defined in: [packages/store-postgres/src/quota.ts:732](https://github.com/o-step
 | ------ | ------ |
 | `reservationId` | `string` |
 | `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) |
+| `actual?` | \{ `requests?`: `number`; \} |
+| `actual.requests?` | `number` |
 
 #### Returns
 
@@ -105,7 +121,7 @@ Defined in: [packages/store-postgres/src/quota.ts:732](https://github.com/o-step
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:674](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L674)
+Defined in: [packages/store-postgres/src/quota.ts:675](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L675)
 
 #### Parameters
 
@@ -134,7 +150,7 @@ snapshot(): Promise<{
 }[]>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:772](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L772)
+Defined in: [packages/store-postgres/src/quota.ts:778](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L778)
 
 Current-window counters per rule, for telemetry and referees.
 

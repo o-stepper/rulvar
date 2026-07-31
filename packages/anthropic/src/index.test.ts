@@ -294,6 +294,12 @@ describe('stream mapping (M1-T12)', () => {
     expect((finish.providerMetadata?.anthropic as Record<string, unknown>).responseId).toBe(
       'msg_1',
     );
+    // A single-segment turn carries NO wire-request set: the field
+    // exists only when pause_turn absorption made several wire calls,
+    // keeping the unsegmented finish byte-identical (RV905).
+    expect('wireRequests' in (finish.providerMetadata?.anthropic as Record<string, unknown>)).toBe(
+      false,
+    );
   });
 
   it('ships thinking blocks as the retention payload, carry included (M4-T02)', async () => {
@@ -427,6 +433,14 @@ describe('stream mapping (M1-T12)', () => {
     expect(calls).toHaveLength(2);
     // Exactly one canonical finish; pause_turn never surfaces.
     expect(events.filter((e) => e.type === 'finish')).toHaveLength(1);
+    // The finish names every wire request the absorption made (RV905):
+    // both segment ids in order, so quota, the call record, and the
+    // statement join can account the dispatch at its true wire count.
+    const finish = events.find((e) => e.type === 'finish');
+    const meta = (finish as { providerMetadata?: Record<string, unknown> }).providerMetadata
+      ?.anthropic as Record<string, unknown>;
+    expect(meta.responseId).toBe('m2');
+    expect(meta.wireRequests).toEqual({ count: 2, responseIds: ['m1', 'm2'] });
     // The continuation appended the partial assistant content and no
     // synthetic user message.
     const secondMessages = calls[1]?.messages as Array<{ role: string; content: unknown[] }>;

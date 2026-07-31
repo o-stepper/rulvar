@@ -19,10 +19,24 @@ The shared rate/quota limiter seam; see the module contract above.
 ### reconcile()
 
 ```ts
-reconcile(reservationId, usage): Promise<void>;
+reconcile(
+   reservationId, 
+   usage, 
+actual?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/quota.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L87)
+Defined in: [packages/core/src/l0/spi/quota.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L99)
+
+Settles a reservation against the attempt's actual usage. The
+optional `actual.requests` is the TRUE number of wire requests the
+reservation ended up covering (RV905: an adapter absorbing
+provider-side continuations makes several wire calls inside one
+reserved dispatch); implementations add the difference over the
+single request the reservation admitted into the same window, so
+the request cap reflects what the provider actually metered. A
+settlement never denies retroactively: the wire calls already
+happened. Implementations written against the two-argument form
+remain valid; they merely keep the historical undercount.
 
 #### Parameters
 
@@ -30,6 +44,8 @@ Defined in: [packages/core/src/l0/spi/quota.ts:87](https://github.com/o-stepper/
 | ------ | ------ |
 | `reservationId` | `string` |
 | `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) |
+| `actual?` | \{ `requests?`: `number`; \} |
+| `actual.requests?` | `number` |
 
 #### Returns
 

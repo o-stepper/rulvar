@@ -483,7 +483,11 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    */
   quota?: {
     reserve: (request: QuotaReservationRequest) => Promise<QuotaDecision>;
-    reconcile: (reservationId: string, usage: Usage) => Promise<void>;
+    reconcile: (
+      reservationId: string,
+      usage: Usage,
+      actual?: { requests?: number },
+    ) => Promise<void>;
     /** Limiter infrastructure failure policy; a denial is unaffected. */
     onLimiterError: 'deny' | 'allow';
   };
@@ -3058,9 +3062,23 @@ export async function runAgent<S extends SchemaSpec>(
           // consumed (an aborted or failed attempt settles too; its
           // recorded usage is whatever the stream reported). A
           // reconcile failure only warns: the wire call already
-          // happened and the window ages the estimate out.
+          // happened and the window ages the estimate out. When the
+          // adapter absorbed provider-side continuations, the finish
+          // metadata names the true wire request count (RV905) and the
+          // window settles at it: a reservation left at 1 would let a
+          // pause_turn-heavy workload overrun the provider's RPM cap by
+          // the continuation factor.
+          const wireNamespace = outcome.providerMetadata?.[target.adapter.id] as
+            { wireRequests?: { count?: unknown } } | undefined;
+          const wireCount = wireNamespace?.wireRequests?.count;
           try {
-            await options.quota.reconcile(reservationId, outcome.usage);
+            await options.quota.reconcile(
+              reservationId,
+              outcome.usage,
+              typeof wireCount === 'number' && Number.isInteger(wireCount) && wireCount > 1
+                ? { requests: wireCount }
+                : undefined,
+            );
           } catch (thrown) {
             const detail = thrown instanceof Error ? thrown.message : String(thrown);
             events?.emit({
@@ -3093,7 +3111,12 @@ export async function runAgent<S extends SchemaSpec>(
           // excluded above), so a provider could bill it whether it
           // finished, failed, or was severed.
           const namespace = outcome.providerMetadata?.[target.adapter.id] as
-            { responseId?: unknown; response?: { id?: unknown } } | undefined;
+            | {
+                responseId?: unknown;
+                response?: { id?: unknown };
+                wireRequests?: { count?: unknown; responseIds?: unknown[] };
+              }
+            | undefined;
           const record: ProviderCallRecord = {
             ordinal: providerCalls.length + 1,
             role: site.role,
@@ -3114,6 +3137,21 @@ export async function runAgent<S extends SchemaSpec>(
             // shape third-party bridges emit); the flat first-class form
             // wins when both are present (RV401).
             record.responseId = namespace.response.id;
+          }
+          // Provider-side continuations absorbed into this dispatch
+          // (RV905): the record carries every segment id so a
+          // per-request statement joins the whole set, and the quota
+          // window below settles at the true wire request count.
+          const wire = namespace?.wireRequests;
+          const wireIds =
+            wire !== undefined &&
+            Array.isArray(wire.responseIds) &&
+            wire.responseIds.length > 1 &&
+            wire.responseIds.every((id): id is string => typeof id === 'string')
+              ? wire.responseIds
+              : undefined;
+          if (wireIds !== undefined) {
+            record.wireResponseIds = wireIds;
           }
           if (outcome.usageApprox) {
             record.usageApprox = true;

@@ -6,7 +6,7 @@
 
 # Class: SqliteQuotaLimiter
 
-Defined in: [packages/store-sqlite/src/quota.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L104)
+Defined in: [packages/store-sqlite/src/quota.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L105)
 
 The cross-process reference implementation of the core QuotaLimiter
 SPI: engine processes pointing instances at ONE database file (this
@@ -37,7 +37,7 @@ policy decides what that means. Call `close()` when done.
 new SqliteQuotaLimiter(options): SqliteQuotaLimiter;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L113)
+Defined in: [packages/store-sqlite/src/quota.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L114)
 
 #### Parameters
 
@@ -57,7 +57,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:113](https://github.com/o-steppe
 close(): void;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L274)
+Defined in: [packages/store-sqlite/src/quota.ts:279](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L279)
 
 #### Returns
 
@@ -68,10 +68,24 @@ Defined in: [packages/store-sqlite/src/quota.ts:274](https://github.com/o-steppe
 ### reconcile()
 
 ```ts
-reconcile(reservationId, usage): Promise<void>;
+reconcile(
+   reservationId, 
+   usage, 
+actual?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:219](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L219)
+Defined in: [packages/store-sqlite/src/quota.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L220)
+
+Settles a reservation against the attempt's actual usage. The
+optional `actual.requests` is the TRUE number of wire requests the
+reservation ended up covering (RV905: an adapter absorbing
+provider-side continuations makes several wire calls inside one
+reserved dispatch); implementations add the difference over the
+single request the reservation admitted into the same window, so
+the request cap reflects what the provider actually metered. A
+settlement never denies retroactively: the wire calls already
+happened. Implementations written against the two-argument form
+remain valid; they merely keep the historical undercount.
 
 #### Parameters
 
@@ -79,6 +93,8 @@ Defined in: [packages/store-sqlite/src/quota.ts:219](https://github.com/o-steppe
 | ------ | ------ |
 | `reservationId` | `string` |
 | `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) |
+| `actual?` | \{ `requests?`: `number`; \} |
+| `actual.requests?` | `number` |
 
 #### Returns
 
@@ -96,7 +112,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:219](https://github.com/o-steppe
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L162)
+Defined in: [packages/store-sqlite/src/quota.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L163)
 
 #### Parameters
 
@@ -125,7 +141,7 @@ snapshot(): {
 }[];
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:256](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L256)
+Defined in: [packages/store-sqlite/src/quota.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L261)
 
 Current-window counters per rule, for telemetry and referees.
 

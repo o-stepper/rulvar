@@ -872,6 +872,43 @@ const MUTATIONS = [
     replace: '  admitSpawn(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {',
     test: 'packages/core/src/engine/budget.test.ts',
   },
+  {
+    id: 'wire-request-set',
+    doctrine:
+      'a pause_turn absorption names its whole wire request set on the finish metadata (RV905): with the field disarmed, up to six wire calls read as one to quota, the call record, and the statement join',
+    file: 'packages/anthropic/src/wire.ts',
+    find: '        if (options?.wirePrior !== undefined) {',
+    replace: '        if (false) {',
+    test: 'packages/anthropic/src/index.test.ts',
+  },
+  {
+    id: 'wire-window-settle',
+    doctrine:
+      'the request window settles at the true wire count through the shared delta arithmetic (RV905): collapsed to zero, a pause_turn-heavy workload overruns the provider RPM cap by the continuation factor on every reference limiter',
+    file: 'packages/core/src/model/quota.ts',
+    find: "  return typeof requests === 'number' && Number.isInteger(requests) && requests > 1\n    ? requests - 1\n    : 0;",
+    replace:
+      "  return typeof requests === 'number' && Number.isInteger(requests) && requests > 1\n    ? 0\n    : 0;",
+    test: 'packages/core/src/engine/wire-units.test.ts',
+  },
+  {
+    id: 'wire-loop-actual',
+    doctrine:
+      'the loop passes the finish-reported wire count into the quota settlement (RV905): dropped on the floor, the reservation stays at one request and the window undercount survives every limiter fix',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "              typeof wireCount === 'number' && Number.isInteger(wireCount) && wireCount > 1\n                ? { requests: wireCount }\n                : undefined,",
+    replace: '              undefined,',
+    test: 'packages/core/src/engine/wire-units.test.ts',
+  },
+  {
+    id: 'wire-join-all-or-nothing',
+    doctrine:
+      'a multi-wire dispatch joins its statement segments all-or-nothing (RV905): joined on any subset, a partially delivered export compares a fragment against the whole dispatch and manufactures divergence out of incomplete delivery',
+    file: 'packages/openai/src/reconcile.ts',
+    find: '      if (rowIds.length === 0 || hits.length !== rowIds.length) {',
+    replace: '      if (rowIds.length === 0 || hits.length === 0) {',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

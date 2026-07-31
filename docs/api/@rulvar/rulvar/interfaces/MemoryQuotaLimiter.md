@@ -19,10 +19,24 @@ The in-process reference QuotaLimiter returned by memoryQuotaLimiter.
 ### reconcile()
 
 ```ts
-reconcile(reservationId, usage): Promise<void>;
+reconcile(
+   reservationId, 
+   usage, 
+actual?): Promise<void>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+Settles a reservation against the attempt's actual usage. The
+optional `actual.requests` is the TRUE number of wire requests the
+reservation ended up covering (RV905: an adapter absorbing
+provider-side continuations makes several wire calls inside one
+reserved dispatch); implementations add the difference over the
+single request the reservation admitted into the same window, so
+the request cap reflects what the provider actually metered. A
+settlement never denies retroactively: the wire calls already
+happened. Implementations written against the two-argument form
+remain valid; they merely keep the historical undercount.
 
 #### Parameters
 
@@ -30,6 +44,8 @@ Defined in: `packages/core/dist/index.d.ts`
 | ------ | ------ |
 | `reservationId` | `string` |
 | `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) |
+| `actual?` | \{ `requests?`: `number`; \} |
+| `actual.requests?` | `number` |
 
 #### Returns
 

@@ -166,6 +166,12 @@ interface TurnMapping {
   assistantContent: Block[];
   pauseTurn: boolean;
   finished: boolean;
+  /**
+  * The segment's provider message id, captured for paused and
+  * finished segments alike so the adapter can account every wire
+  * request of a pause_turn absorption (RV905).
+  */
+  responseId?: string;
 }
 /**
 * Maps one Messages API stream into ChatEvents, yielding each canonical
@@ -187,6 +193,16 @@ interface TurnMapping {
 */
 declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>, ids: IdMap, options?: {
   carryRetained?: Block[];
+  /**
+  * Response ids of the PRIOR pause_turn segments of this turn
+  * (RV905): when present, the finish metadata names the whole wire
+  * request set (`wireRequests: { count, responseIds }`) so the core
+  * can account the dispatch at its true wire count. Absent on the
+  * first segment, so an unsegmented finish stays byte-identical.
+  */
+  wirePrior?: {
+    responseIds: Array<string | undefined>;
+  };
 }): AsyncGenerator<ChatEvent, TurnMapping>;
 /**
 * Projects an SDK/API error into the retryable WireError vocabulary:

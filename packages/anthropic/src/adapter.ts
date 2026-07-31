@@ -237,6 +237,10 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
       // turn: the terminal finish ships the whole turn's retention
       // payload (M4-T02).
       const carryRetained: Array<Record<string, unknown>> = [];
+      // Response ids of the pause_turn segments already absorbed
+      // (RV905): with any present, the finish names the whole wire
+      // request set so the dispatch accounts at its true wire count.
+      const priorSegmentIds: Array<string | undefined> = [];
       while (true) {
         let stream: AsyncIterable<AnthropicStreamEvent>;
         try {
@@ -260,7 +264,10 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
         // drives the provider read; a slow consumer slows the read, so
         // nothing buffers), and the generator's return value carries the
         // accumulated pause_turn state.
-        const mapper = mapAnthropicStream(stream, ids, { carryRetained });
+        const mapper = mapAnthropicStream(stream, ids, {
+          carryRetained,
+          ...(priorSegmentIds.length === 0 ? {} : { wirePrior: { responseIds: priorSegmentIds } }),
+        });
         let mapping: TurnMapping;
         try {
           while (true) {
@@ -306,6 +313,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
             (block) => block.type === 'thinking' || block.type === 'redacted_thinking',
           ),
         );
+        priorSegmentIds.push(mapping.responseId);
         // pause_turn: append the partial assistant content and re-send,
         // WITHOUT a synthetic user message, up to the continuation cap;
         // never a canonical finish.

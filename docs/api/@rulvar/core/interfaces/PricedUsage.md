@@ -6,7 +6,7 @@
 
 # Interface: PricedUsage
 
-Defined in: [packages/core/src/l0/entries.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L185)
+Defined in: [packages/core/src/l0/entries.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L195)
 
 A priced slice, plus the total and the gaps the price table did not cover.
 
@@ -14,6 +14,6 @@ A priced slice, plus the total and the gaps the price table did not cover.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-priced"></a> `priced` | [`UsageSlice`](/api/@rulvar/core/interfaces/UsageSlice.md) & \{ `usd`: `number`; \}[] | Covered slices with their prices; the basis of per-model attribution. | [packages/core/src/l0/entries.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L189) |
-| <a id="property-unpriced"></a> `unpriced` | [`UsageSlice`](/api/@rulvar/core/interfaces/UsageSlice.md)[] | Slices with no price row: surfaced as unpriced, never a silent zero. | [packages/core/src/l0/entries.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L191) |
-| <a id="property-usd"></a> `usd` | `number` | Total of every slice the price table covered. | [packages/core/src/l0/entries.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L187) |
+| <a id="property-priced"></a> `priced` | [`UsageSlice`](/api/@rulvar/core/interfaces/UsageSlice.md) & \{ `usd`: `number`; \}[] | Covered slices with their prices; the basis of per-model attribution. | [packages/core/src/l0/entries.ts:199](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L199) |
+| <a id="property-unpriced"></a> `unpriced` | [`UsageSlice`](/api/@rulvar/core/interfaces/UsageSlice.md)[] | Slices with no price row: surfaced as unpriced, never a silent zero. | [packages/core/src/l0/entries.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L201) |
+| <a id="property-usd"></a> `usd` | `number` | Total of every slice the price table covered. | [packages/core/src/l0/entries.ts:197](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L197) |

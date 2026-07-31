@@ -6,7 +6,7 @@
 
 # Interface: QuotaCounters
 
-Defined in: [packages/core/src/model/quota.ts:194](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L194)
+Defined in: [packages/core/src/model/quota.ts:211](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L211)
 
 Current-window counters of one rule bucket.
 
@@ -14,5 +14,5 @@ Current-window counters of one rule bucket.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-requests"></a> `requests` | `number` | [packages/core/src/model/quota.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L195) |
-| <a id="property-tokens"></a> `tokens` | `number` | [packages/core/src/model/quota.ts:196](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L196) |
+| <a id="property-requests"></a> `requests` | `number` | [packages/core/src/model/quota.ts:212](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L212) |
+| <a id="property-tokens"></a> `tokens` | `number` | [packages/core/src/model/quota.ts:213](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L213) |

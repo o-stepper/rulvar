@@ -84,5 +84,17 @@ export type QuotaDecision =
 /** The shared rate/quota limiter seam; see the module contract above. */
 export interface QuotaLimiter {
   reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
-  reconcile(reservationId: string, usage: Usage): Promise<void>;
+  /**
+   * Settles a reservation against the attempt's actual usage. The
+   * optional `actual.requests` is the TRUE number of wire requests the
+   * reservation ended up covering (RV905: an adapter absorbing
+   * provider-side continuations makes several wire calls inside one
+   * reserved dispatch); implementations add the difference over the
+   * single request the reservation admitted into the same window, so
+   * the request cap reflects what the provider actually metered. A
+   * settlement never denies retroactively: the wire calls already
+   * happened. Implementations written against the two-argument form
+   * remain valid; they merely keep the historical undercount.
+   */
+  reconcile(reservationId: string, usage: Usage, actual?: { requests?: number }): Promise<void>;
 }

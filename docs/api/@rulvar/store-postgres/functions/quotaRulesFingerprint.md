@@ -10,7 +10,7 @@
 function quotaRulesFingerprint(rules): string;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L187)
+Defined in: [packages/store-postgres/src/quota.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L188)
 
 The canonical fingerprint of one rule SET (RV506): sha256 hex over
 the sorted canonical rule keys (the core's `quotaRuleKey`, the same

@@ -35,6 +35,7 @@ import {
   ConfigError,
   QUOTA_WINDOW_MS,
   mergeQuotaDenial,
+  quotaActualRequestsDelta,
   quotaActualTokens,
   quotaEstimateTokens,
   quotaRuleAdmission,
@@ -216,7 +217,7 @@ export class SqliteQuotaLimiter implements QuotaLimiter {
     }
   }
 
-  reconcile(reservationId: string, usage: Usage): Promise<void> {
+  reconcile(reservationId: string, usage: Usage, actual?: { requests?: number }): Promise<void> {
     const at = this.now();
     const windowStart = at - (at % QUOTA_WINDOW_MS);
     this.db.exec('BEGIN IMMEDIATE');
@@ -235,12 +236,16 @@ export class SqliteQuotaLimiter implements QuotaLimiter {
       this.db.prepare('DELETE FROM quota_reservations WHERE id = ?').run(reservationId);
       if (row.window_start === windowStart) {
         const delta = quotaActualTokens(usage) - row.estimate_tokens;
+        // The reservation admitted one request; absorbed provider-side
+        // continuations settle the difference into the same window
+        // (RV905), shared arithmetic with every reference limiter.
+        const requestsDelta = quotaActualRequestsDelta(actual);
         const adjust = this.db.prepare(
-          'UPDATE quota_buckets SET tokens = MAX(0, tokens + ?) ' +
+          'UPDATE quota_buckets SET tokens = MAX(0, tokens + ?), requests = requests + ? ' +
             'WHERE rule_key = ? AND window_start = ?',
         );
         for (const key of JSON.parse(row.rule_keys) as string[]) {
-          adjust.run(delta, key, windowStart);
+          adjust.run(delta, requestsDelta, key, windowStart);
         }
       }
       // A rolled-over window aged the estimate out with it.

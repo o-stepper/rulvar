@@ -498,3 +498,119 @@ describe('reconcileStatement: fail-closed numeric intake (RV903)', () => {
     }
   });
 });
+
+describe('reconcileStatement: multi-wire dispatches (RV905)', () => {
+  // A dispatch that absorbed pause_turn continuations is ONE invoice
+  // row carrying every segment's response id, while the provider's
+  // per-request export bills each wire request as its own row.
+  const segmentedInvoice = (): { rows: InvoiceRow[] } => {
+    const base = rowsOf([SPECS[0]])[0];
+    return {
+      rows: [{ ...base, responseId: 'seg-3', wireResponseIds: ['seg-1', 'seg-2', 'seg-3'] }],
+    };
+  };
+  const rowUsd = (): number => {
+    const usd = segmentedInvoice().rows[0]?.usd;
+    if (usd === undefined) {
+      throw new Error('fixture row must be priced');
+    }
+    return usd;
+  };
+
+  it('joins every segment row of the export to the one dispatch and matches', () => {
+    const usd = rowUsd();
+    const report = reconcileStatement(
+      segmentedInvoice(),
+      {
+        kind: 'requests',
+        rows: [
+          { responseId: 'seg-1', usd: usd / 2 },
+          { responseId: 'seg-2', usd: usd / 4 },
+          { responseId: 'seg-3', usd: usd / 4 },
+        ],
+      },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('match');
+    expect(report.coverage.matchedRows).toBe(1);
+    expect(report.coverage.statementOnlyRows).toBe(0);
+    expect(report.totals.deltaUsd ?? 0).toBeCloseTo(0, 9);
+  });
+
+  it('a partially delivered segment set reads partial coverage, never statement-only noise', () => {
+    const usd = rowUsd();
+    const report = reconcileStatement(
+      segmentedInvoice(),
+      {
+        kind: 'requests',
+        rows: [
+          { responseId: 'seg-1', usd: usd / 2 },
+          { responseId: 'seg-2', usd: usd / 4 },
+        ],
+      },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('partial-coverage');
+    expect(report.coverage.matchedRows).toBe(0);
+    expect(report.coverage.unmatchedRows).toBe(1);
+    // The two delivered segments matched OUR dispatch's segment set:
+    // they are incomplete coverage, not foreign statement rows.
+    expect(report.coverage.statementOnlyRows).toBe(0);
+    expect(report.divergent).toHaveLength(0);
+  });
+
+  it('segment token counts compare as a sum against the dispatch usage', () => {
+    const usd = rowUsd();
+    const spec = SPECS[0];
+    const third = (value: number, index: number): number =>
+      index < 2 ? Math.floor(value / 3) : value - 2 * Math.floor(value / 3);
+    const segments = [0, 1, 2].map((index) => ({
+      responseId: `seg-${String(index + 1)}`,
+      usd: index === 0 ? usd / 2 : usd / 4,
+      usage: {
+        inputTokens: third(spec.usage.inputTokens, index),
+        outputTokens: third(spec.usage.outputTokens, index),
+      },
+    }));
+    const clean = reconcileStatement(
+      segmentedInvoice(),
+      { kind: 'requests', rows: segments },
+      { pricingOf: PRICING_OF },
+    );
+    expect(clean.tokenMismatches).toBe(0);
+    expect(clean.verdict).toBe('match');
+
+    const skewed = segments.map((segment, index) =>
+      index === 0
+        ? { ...segment, usage: { ...segment.usage, inputTokens: segment.usage.inputTokens + 100 } }
+        : segment,
+    );
+    const report = reconcileStatement(
+      segmentedInvoice(),
+      { kind: 'requests', rows: skewed },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.tokenMismatches).toBe(1);
+    expect(report.verdict).toBe('divergence');
+    expect(report.tokenMismatchSample[0]?.field).toBe('inputTokens');
+  });
+
+  it('an id matching no dispatch segment stays statement-only', () => {
+    const usd = rowUsd();
+    const report = reconcileStatement(
+      segmentedInvoice(),
+      {
+        kind: 'requests',
+        rows: [
+          { responseId: 'seg-1', usd: usd / 2 },
+          { responseId: 'seg-2', usd: usd / 4 },
+          { responseId: 'seg-3', usd: usd / 4 },
+          { responseId: 'ghost-9', usd: 0.5 },
+        ],
+      },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.coverage.statementOnlyRows).toBe(1);
+    expect(report.coverage.statementOnlyIdSample).toEqual(['ghost-9']);
+  });
+});
