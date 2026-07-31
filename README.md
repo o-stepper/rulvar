@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred twenty two rounds, verbatim in this repository's history:
+The one hundred twenty three rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -336,6 +336,7 @@ The one hundred twenty two rounds, verbatim in this repository's history:
 | v1.138.0      | 03a2141 (#605): the live budget debits each provider call marginally against its accumulated price, so tier crossings read live == settled, with the marginal ladder pinned by the kit    | v1.139.0   |
 | v1.139.0      | 3044838 (#608): release lands in both store limiters, a cancelled admission returns whole to the shared window from any process or host, legacy reservation rows migrate in place         | v1.140.0   |
 | v1.140.0      | 4f12a62 (#611): one terminal envelope carries every run fact, assembled once at settlement and mirrored verbatim by the outcome, run:end, the HTTP status body, and the OTel span         | v1.141.0   |
+| v1.141.0      | 473981a (#614): the conformance table drives every terminal path across the outcome, run:end, HTTP, and OTel surfaces; toOtel completes its export over rejecting terminals               | v1.142.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
