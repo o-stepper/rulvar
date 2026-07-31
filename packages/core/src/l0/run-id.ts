@@ -15,9 +15,18 @@ import { ConfigError } from './errors.js';
 const SAFE_RUN_ID = /^[A-Za-z0-9._-]+$/;
 
 /**
+ * The runId length ceiling (RV1012): a runId is a filesystem name
+ * component and a correlation key, so the cap keeps it comfortably
+ * under filesystem name limits with room for store suffixes, and
+ * starves length-based smuggling through the unmasked id channel.
+ */
+export const MAX_RUN_ID_LENGTH = 200;
+
+/**
  * Throws a ConfigError unless runId is a filesystem-safe token: a
- * non-empty string over [A-Za-z0-9._-] that is neither '.' nor '..'. The
- * dot pair passes the alphabet on its own, so it is refused explicitly.
+ * non-empty string over [A-Za-z0-9._-] that is neither '.' nor '..'
+ * (the dot pair passes the alphabet on its own, so it is refused
+ * explicitly), no longer than {@link MAX_RUN_ID_LENGTH}.
  */
 export function assertSafeRunId(runId: string, context: string): void {
   if (
@@ -30,6 +39,12 @@ export function assertSafeRunId(runId: string, context: string): void {
     throw new ConfigError(
       `${context}: runId ${JSON.stringify(runId)} is not filesystem-safe ` +
         '(allowed: [A-Za-z0-9._-], and neither "." nor "..")',
+    );
+  }
+  if (runId.length > MAX_RUN_ID_LENGTH) {
+    throw new ConfigError(
+      `${context}: runId of length ${String(runId.length)} exceeds the ` +
+        `${String(MAX_RUN_ID_LENGTH)}-character ceiling (RV1012)`,
     );
   }
 }

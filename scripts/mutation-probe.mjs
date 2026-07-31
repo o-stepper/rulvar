@@ -1238,6 +1238,51 @@ const MUTATIONS = [
       "      return Promise.reject(new Error('stale fencing epoch: a successor holds the lease'));\n    }\n    return super.append(runId, entry);",
     test: 'packages/evals/src/fault-injection.test.ts',
   },
+  {
+    id: 'import-ref-namespace',
+    doctrine:
+      'every bundle blob ref must live in the bundle runId namespace (RV1010): disarmed, a crafted bundle for run A imports a ref into run B and overwrites another run blobs through the import surface',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "      if (typeof ref !== 'string' || !ref.startsWith(`${runId}/`)) {",
+    replace: '      if (false as boolean) {',
+    test: 'packages/core/src/engine/data-protection.test.ts',
+  },
+  {
+    id: 'import-entry-validation',
+    doctrine:
+      'every imported entry passes the journal codec shape validation before the first write (RV1010): disarmed, a bundle carrying garbage entries appends them and bricks the run it claims to restore',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      const issues = validateEntryShape(entry);',
+    replace: '      const issues = [] as ReturnType<typeof validateEntryShape>;',
+    test: 'packages/core/src/engine/data-protection.test.ts',
+  },
+  {
+    id: 'import-rollback',
+    doctrine:
+      'a failed import rolls back its partial writes so the retry stays open (RV1010): with the journal rollback dropped, a mid-import failure leaves entries behind and the exists-refusal bricks every retry',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '        await journal.delete(runId);',
+    replace: '        void runId;',
+    test: 'packages/core/src/engine/data-protection.test.ts',
+  },
+  {
+    id: 'spawn-profiles-allowlist',
+    doctrine:
+      'opts.profiles is an enforced allowlist at dispatch (RV1011): disarmed, a spawn naming a registered-but-hidden profile by a guessed name proceeds to admission and widens the vocabulary the host limited',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (opts?.profiles !== undefined && advertisedProfiles[params.agentType] === undefined) {',
+    replace: '        if (false as boolean) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'runid-mask-intake',
+    doctrine:
+      'a secret-shaped runId refuses typed at intake under an active masking policy (RV1012): disarmed, the id rides every event envelope unmasked and the host masking policy is bypassed by the correlation key itself',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '    if (maskEvents) {',
+    replace: '    if (false as boolean && maskEvents) {',
+    test: 'packages/core/src/engine/config-validation.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

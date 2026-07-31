@@ -2414,10 +2414,23 @@ export function makeOrchestratorWorkflow(
           );
         }
         const scope = childScopeOf();
+        // The advertised set is the ENFORCED set (RV1011): with
+        // opts.profiles passed, a spawn naming anything outside the
+        // allowlist refuses typed BEFORE admission, because a
+        // registered-but-hidden profile reachable by a guessed name
+        // would widen the vocabulary the host deliberately limited.
+        // Without opts.profiles the advertised set IS the registry and
+        // behavior is unchanged.
+        if (opts?.profiles !== undefined && advertisedProfiles[params.agentType] === undefined) {
+          throw new ConfigError(
+            `agentType '${params.agentType}' is not in this orchestrate's profiles ` +
+              `allowlist (advertised: ${Object.keys(advertisedProfiles).sort().join(', ') || 'none'})`,
+          );
+        }
         // The approach signature is computed from the profile-resolved
         // identity inputs available at admission (DEF-3); the toolset and
         // schema registries land in M7-T05 and upgrade the hashes there.
-        const profile = internals.defaults.profiles?.[params.agentType];
+        const profile = advertisedProfiles[params.agentType];
         const profileModel = profile?.model;
         if (
           profileModel !== undefined &&
