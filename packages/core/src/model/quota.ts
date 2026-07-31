@@ -284,6 +284,8 @@ interface MemoryBucket {
 interface MemoryReservation {
   windowStart: number;
   estimateTokens: number;
+  /** Requests this admission consumed; returned whole by release (RV1013). */
+  requests: number;
   ruleIndexes: number[];
 }
 
@@ -299,6 +301,8 @@ export interface QuotaWindowSnapshot {
 export interface MemoryQuotaLimiter extends QuotaLimiter {
   /** Current-window counters per rule; rolled-over windows read as zero. */
   snapshot(): QuotaWindowSnapshot[];
+  /** The reference limiter always implements release (RV1013). */
+  release(reservationId: string): Promise<void>;
 }
 
 /**
@@ -379,7 +383,12 @@ export function memoryQuotaLimiter(
       }
       nextReservation += 1;
       const reservationId = `mq-${String(nextReservation)}`;
-      reservations.set(reservationId, { windowStart, estimateTokens, ruleIndexes: matched });
+      reservations.set(reservationId, {
+        windowStart,
+        estimateTokens,
+        requests: request.estimate.requests,
+        ruleIndexes: matched,
+      });
       return Promise.resolve({ granted: true, reservationId });
     },
 
@@ -405,6 +414,31 @@ export function memoryQuotaLimiter(
         if (bucket !== undefined && bucket.windowStart === windowStart) {
           bucket.tokens = Math.max(0, bucket.tokens + delta);
           bucket.requests += requestsDelta;
+        }
+      }
+      return Promise.resolve();
+    },
+
+    release(reservationId: string): Promise<void> {
+      // Cancelling an UNUSED admission (RV1013): the reserved wire
+      // never left, so exactly what admission consumed returns to the
+      // window. Unknown ids, double release, and rolled windows are
+      // no-ops (the estimate aged out with its window), and a released
+      // id settles nothing afterwards.
+      const reservation = reservations.get(reservationId);
+      if (reservation === undefined) {
+        return Promise.resolve();
+      }
+      reservations.delete(reservationId);
+      const windowStart = windowStartAt(now());
+      if (reservation.windowStart !== windowStart) {
+        return Promise.resolve();
+      }
+      for (const index of reservation.ruleIndexes) {
+        const bucket = buckets.get(index);
+        if (bucket !== undefined && bucket.windowStart === windowStart) {
+          bucket.requests = Math.max(0, bucket.requests - reservation.requests);
+          bucket.tokens = Math.max(0, bucket.tokens - reservation.estimateTokens);
         }
       }
       return Promise.resolve();
@@ -440,6 +474,22 @@ export interface EngineQuotaConfig {
    */
   onLimiterError?: 'deny' | 'allow';
   /**
+   * The opt-in hard mode for provider-side continuations (RV1013).
+   * Default off: a dispatch reserves ONE request and a multi-wire
+   * absorption (`pause_turn`) settles its true wire count post-hoc,
+   * which is accounting, not admission: the continuations already
+   * left. With `reserveContinuations: true` the engine reserves each
+   * continuation in the limiter BEFORE its egress through the
+   * adapter-side StreamHooks seam: under a hard provider RPM cap the
+   * over-cap wire never leaves (the denial rides the provider-429
+   * machinery), a granted admission whose wire never left is released
+   * back to the window where the limiter implements `release`, and
+   * the post-hoc settlement stops re-adding individually admitted
+   * segments so the window is never double-counted. Adapters unaware
+   * of the hook keep the post-hoc semantics exactly.
+   */
+  reserveContinuations?: boolean;
+  /**
    * The drift telemetry opt-in (the v1.71 experiment review, P0.5
    * resized): the SAME rule declaration `preflightEstimate` takes as
    * `quotaRules`, mirrored here so the engine can hold it against what
@@ -465,6 +515,8 @@ export interface EngineQuotaRuntime {
   limiter: QuotaLimiter;
   tenant?: string;
   onLimiterError: 'deny' | 'allow';
+  /** Pre-wire continuation admission (RV1013); see {@link EngineQuotaConfig}. */
+  reserveContinuations: boolean;
   /** The declared rule mirror for drift telemetry; see {@link EngineQuotaConfig}. */
   declaredRules?: readonly QuotaRule[];
 }
@@ -509,6 +561,11 @@ export function validateEngineQuotaConfig(
     candidate.onLimiterError !== 'allow'
   ) {
     throw new ConfigError(`${site}.onLimiterError must be 'deny' or 'allow' when given`);
+  }
+  const reserveContinuations = (candidate as { reserveContinuations?: unknown })
+    .reserveContinuations;
+  if (reserveContinuations !== undefined && typeof reserveContinuations !== 'boolean') {
+    throw new ConfigError(`${site}.reserveContinuations must be a boolean when given`);
   }
   const declared = (candidate as { declaredRules?: unknown }).declaredRules;
   if (declared !== undefined) {

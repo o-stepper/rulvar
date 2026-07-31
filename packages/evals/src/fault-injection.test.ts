@@ -108,6 +108,17 @@ describe('the fault-injection kit (RV811)', () => {
     expect(byName.get('superseded-terminal-honesty')?.observation.detail).toContain(
       'exactly one settle entry',
     );
+    // The RV1007 arcs ride the audit scenario (RV1014 sweep): a
+    // page-only long-context tier and a NaN scalar are findings on the
+    // published comparator, never silent passes.
+    expect(byName.get('audit-missing-field-finding')?.observation.detail).toContain(
+      'the seed declares none',
+    );
+    expect(byName.get('audit-missing-field-finding')?.observation.detail).toContain('NaN');
+    // The report is self-describing (RV1014): the scenario count can
+    // never quietly shrink under a consumer that pins these.
+    expect(report.requested).toBe(EXPECTED.length);
+    expect(report.selected).toBe(EXPECTED.length);
   });
 
   it('writes experiment-grade artifacts when a directory is given, and only runs the named subset', async () => {
@@ -118,6 +129,8 @@ describe('the fault-injection kit (RV811)', () => {
     });
     expect(report.scenarios).toHaveLength(2);
     expect(report.allMatched).toBe(true);
+    expect(report.requested).toBe(2);
+    expect(report.selected).toBe(2);
     const files = readdirSync(dir);
     expect(files.length).toBeGreaterThanOrEqual(2);
     expect(report.artifactFiles?.length).toBeGreaterThanOrEqual(2);
@@ -135,5 +148,25 @@ describe('the fault-injection kit (RV811)', () => {
     await expect(runFaultInjection({ only: ['no-such-branch'] })).rejects.toThrow(
       /unknown fault scenario/,
     );
+  });
+
+  it('refuses an empty only selection typed instead of vacuous success (RV1014)', async () => {
+    // `only: []` selected zero scenarios and reported allMatched true:
+    // a gate that runs nothing must refuse, in tone with the
+    // unknown-name refusal above.
+    await expect(runFaultInjection({ only: [] })).rejects.toThrow(/empty/);
+  });
+
+  it('every real defect of the fourteenth plan keeps a kit scenario on the real path (RV1014)', () => {
+    const coverage: Record<string, string> = {
+      'RV1001/RV1002 live budget parity': 'ttl-live-budget-parity',
+      'RV1003/RV1004 real-adapter pause_turn': 'pause-turn-real-adapter',
+      'RV1005/RV1006 statement consistency and settleable': 'statement-settleable-guard',
+      'RV1007 comparator fail-closed': 'audit-missing-field-finding',
+      'RV1009 superseded terminal': 'superseded-terminal-honesty',
+    };
+    for (const scenario of Object.values(coverage)) {
+      expect(FAULT_SCENARIO_NAMES).toContain(scenario);
+    }
   });
 });

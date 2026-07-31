@@ -10,6 +10,7 @@
 export type { Json, Bytes } from './l0/json.js';
 export * from './l0/errors.js';
 export * from './l0/serialization.js';
+export * from './l0/run-id.js';
 export * from './l0/encryption.js';
 export * from './l0/messages.js';
 export * from './l0/usage.js';

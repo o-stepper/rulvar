@@ -97,4 +97,17 @@ export interface QuotaLimiter {
    * remain valid; they merely keep the historical undercount.
    */
   reconcile(reservationId: string, usage: Usage, actual?: { requests?: number }): Promise<void>;
+  /**
+   * Cancels an UNUSED admission (RV1013): the reserved wire never
+   * left, so the admitted request and its token estimate return to
+   * the window. This is NOT reconcile: a settlement only ever adds
+   * (the calls already happened), while a release gives back exactly
+   * what admission consumed for a wire that was never sent (the
+   * engine calls it for pre-wire continuation reservations whose
+   * segment never flew). MUST be idempotent and tolerate unknown or
+   * expired ids as no-ops, like reconcile; a released id settles
+   * nothing afterwards. Optional: implementations without it keep the
+   * conservative window age-out for unused admissions.
+   */
+  release?(reservationId: string): Promise<void>;
 }

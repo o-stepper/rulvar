@@ -10,7 +10,7 @@
 function anthropic(options?): ProviderAdapter;
 ```
 
-Defined in: [packages/anthropic/src/adapter.ts:168](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L168)
+Defined in: [packages/anthropic/src/adapter.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L169)
 
 Creates the first-class Anthropic adapter (id 'anthropic'). SDK
 autoretries are disabled (max_retries 0): the core owns retries and

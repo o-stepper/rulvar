@@ -18,6 +18,29 @@
  *   adapter boundary.
  */
 import type { ChatEvent, ChatRequest, Effort } from '../messages.js';
+import type { WireError } from '../errors.js';
+
+/**
+ * Live-only hooks the engine passes to a stream dispatch (RV1013).
+ * Never journaled, never part of request identity: like transport
+ * retries, they exist only on the live wire path.
+ */
+export interface StreamHooks {
+  /**
+   * Called BEFORE each provider-side continuation wire beyond the
+   * first (a `pause_turn` absorption makes several wire requests
+   * inside one dispatch): under the engine's opt-in hard mode
+   * (`quota.reserveContinuations`) the engine reserves the segment in
+   * the configured limiter before its egress. A resolved `undefined`
+   * admits the wire; a resolved WireError DENIES it, and the adapter
+   * must yield exactly that error as its terminal event and stop, so
+   * the wire never leaves. `segment` is the ordinal of the wire about
+   * to be sent (2 for the first continuation). A multi-wire adapter
+   * that never calls the hook keeps the documented post-hoc
+   * settlement semantics.
+   */
+  onContinuationSegment?: (info: { segment: number }) => Promise<WireError | undefined>;
+}
 
 /**
  * One long-context price tier. When the full prompt (canonical
@@ -118,7 +141,7 @@ export interface ProviderAdapter {
   caps(model: string): ModelCaps;
   /** Refresh the capability table from live model lists. */
   refreshCaps?(): Promise<void>;
-  stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent>;
+  stream(req: ChatRequest, signal?: AbortSignal, hooks?: StreamHooks): AsyncIterable<ChatEvent>;
   /**
    * Provider-side token count for the request, used to tighten the
    * admission reserve before a spawn dispatches. The request carries

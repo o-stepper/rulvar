@@ -352,3 +352,59 @@ describe('duplicate rules are refused at construction (RV704)', () => {
     ).not.toThrow();
   });
 });
+
+describe('release: cancelling an unused admission (RV1013)', () => {
+  const request = () => ({
+    provider: 'p',
+    model: 'p:m',
+    estimate: { requests: 1, inputTokens: 10 },
+  });
+
+  it('release returns the admitted request to the window; unknown ids and re-release are no-ops', async () => {
+    const limiter = memoryQuotaLimiter([{ provider: 'p', requestsPerMinute: 2 }]);
+    const first = await limiter.reserve(request());
+    const second = await limiter.reserve(request());
+    expect(first.granted).toBe(true);
+    expect(second.granted).toBe(true);
+    expect((await limiter.reserve(request())).granted).toBe(false);
+
+    // The wire behind the second admission never left: releasing it
+    // returns the slot, and the next admission is granted again.
+    const id = (second as { reservationId: string }).reservationId;
+    await limiter.release(id);
+    expect(limiter.snapshot()[0]?.requests).toBe(1);
+    expect((await limiter.reserve(request())).granted).toBe(true);
+
+    // Unknown ids and double release change nothing (idempotent, like
+    // reconcile): a crashed process may never release.
+    await limiter.release('ghost');
+    await limiter.release(id);
+    expect(limiter.snapshot()[0]?.requests).toBe(2);
+  });
+
+  it('release after the window rolled is a no-op: the estimate aged out with it', async () => {
+    let clock = 0;
+    const limiter = memoryQuotaLimiter([{ provider: 'p', requestsPerMinute: 2 }], {
+      now: () => clock,
+    });
+    const granted = await limiter.reserve(request());
+    expect(granted.granted).toBe(true);
+    clock += QUOTA_WINDOW_MS;
+    await limiter.release((granted as { reservationId: string }).reservationId);
+    expect(limiter.snapshot()[0]?.requests).toBe(0);
+  });
+
+  it('a released reservation cannot be reconciled afterwards (one settlement per admission)', async () => {
+    const limiter = memoryQuotaLimiter([{ provider: 'p', requestsPerMinute: 5 }]);
+    const granted = await limiter.reserve(request());
+    const id = (granted as { reservationId: string }).reservationId;
+    await limiter.release(id);
+    await limiter.reconcile(
+      id,
+      { inputTokens: 5, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      { requests: 3 },
+    );
+    // The reconcile of a released id is the unknown-id no-op.
+    expect(limiter.snapshot()[0]?.requests).toBe(0);
+  });
+});

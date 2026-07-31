@@ -1527,6 +1527,10 @@
             "link": "/api/@rulvar/core/interfaces/StepIdentityInput.md"
           },
           {
+            "text": "StreamHooks",
+            "link": "/api/@rulvar/core/interfaces/StreamHooks.md"
+          },
+          {
             "text": "SuspendedAppend",
             "link": "/api/@rulvar/core/interfaces/SuspendedAppend.md"
           },
@@ -2435,6 +2439,10 @@
             "link": "/api/@rulvar/core/variables/MAX_DEPTH_CEILING.md"
           },
           {
+            "text": "MAX_RUN_ID_LENGTH",
+            "link": "/api/@rulvar/core/variables/MAX_RUN_ID_LENGTH.md"
+          },
+          {
             "text": "MAX_TIMER_DELAY_MS",
             "link": "/api/@rulvar/core/variables/MAX_TIMER_DELAY_MS.md"
           },
@@ -2567,6 +2575,10 @@
           {
             "text": "assertFencedWrites",
             "link": "/api/@rulvar/core/functions/assertFencedWrites.md"
+          },
+          {
+            "text": "assertSafeRunId",
+            "link": "/api/@rulvar/core/functions/assertSafeRunId.md"
           },
           {
             "text": "atCompactionThreshold",
@@ -6089,6 +6101,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/StepIdentityInput.md"
           },
           {
+            "text": "StreamHooks",
+            "link": "/api/@rulvar/rulvar/interfaces/StreamHooks.md"
+          },
+          {
             "text": "SuspendedAppend",
             "link": "/api/@rulvar/rulvar/interfaces/SuspendedAppend.md"
           },
@@ -7009,6 +7025,10 @@
             "link": "/api/@rulvar/rulvar/variables/MAX_DEPTH_CEILING.md"
           },
           {
+            "text": "MAX_RUN_ID_LENGTH",
+            "link": "/api/@rulvar/rulvar/variables/MAX_RUN_ID_LENGTH.md"
+          },
+          {
             "text": "MAX_TIMER_DELAY_MS",
             "link": "/api/@rulvar/rulvar/variables/MAX_TIMER_DELAY_MS.md"
           },
@@ -7153,6 +7173,10 @@
           {
             "text": "assertFencedWrites",
             "link": "/api/@rulvar/rulvar/functions/assertFencedWrites.md"
+          },
+          {
+            "text": "assertSafeRunId",
+            "link": "/api/@rulvar/rulvar/functions/assertSafeRunId.md"
           },
           {
             "text": "atCompactionThreshold",

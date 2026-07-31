@@ -910,6 +910,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           limiter: options.quota.limiter,
           ...(options.quota.tenant === undefined ? {} : { tenant: options.quota.tenant }),
           onLimiterError: options.quota.onLimiterError ?? 'deny',
+          reserveContinuations: options.quota.reserveContinuations ?? false,
           ...(options.quota.declaredRules === undefined
             ? {}
             : { declaredRules: options.quota.declaredRules }),

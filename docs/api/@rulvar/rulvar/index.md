@@ -342,6 +342,7 @@ const engine = createEngine({
 | [StandardJSONSchemaV1](/api/@rulvar/rulvar/interfaces/StandardJSONSchemaV1.md) | The Standard JSON Schema interface. |
 | [StandardSchemaV1](/api/@rulvar/rulvar/interfaces/StandardSchemaV1.md) | The Standard Schema interface. |
 | [StepIdentityInput](/api/@rulvar/rulvar/interfaces/StepIdentityInput.md) | Journaled effectful steps: ctx.step (kind 'step'). |
+| [StreamHooks](/api/@rulvar/rulvar/interfaces/StreamHooks.md) | Live-only hooks the engine passes to a stream dispatch (RV1013). Never journaled, never part of request identity: like transport retries, they exist only on the live wire path. |
 | [SuspendedAppend](/api/@rulvar/rulvar/interfaces/SuspendedAppend.md) | Fields common to every append through the kernel. |
 | [TaskDigest](/api/@rulvar/rulvar/interfaces/TaskDigest.md) | The per-child digest handed to the orchestrator. |
 | [TerminalPatch](/api/@rulvar/rulvar/interfaces/TerminalPatch.md) | - |
@@ -579,6 +580,7 @@ const engine = createEngine({
 | [MASKED\_SECRET](/api/@rulvar/rulvar/variables/MASKED_SECRET.md) | The replacement marker; deterministic and greppable. |
 | [MAX\_CHILD\_RESULT\_PAGE\_CHARS](/api/@rulvar/rulvar/variables/MAX_CHILD_RESULT_PAGE_CHARS.md) | - |
 | [MAX\_DEPTH\_CEILING](/api/@rulvar/rulvar/variables/MAX_DEPTH_CEILING.md) | - |
+| [MAX\_RUN\_ID\_LENGTH](/api/@rulvar/rulvar/variables/MAX_RUN_ID_LENGTH.md) | The runId length ceiling (RV1012): a runId is a filesystem name component and a correlation key, so the cap keeps it comfortably under filesystem name limits with room for store suffixes, and starves length-based smuggling through the unmasked id channel. |
 | [MAX\_TIMER\_DELAY\_MS](/api/@rulvar/rulvar/variables/MAX_TIMER_DELAY_MS.md) | The Node timer ceiling: setTimeout clamps any longer delay to 1 ms, so a naive far-future timer fires immediately (v1.34.0 review P2-2). Relative timer options are validated against this bound; absolute deadlines use the sliced timer in long-timer.ts instead. |
 | [OPENAI\_MODELS](/api/@rulvar/rulvar/variables/OPENAI_MODELS.md) | Static seed table of the current model set. |
 | [ORCHESTRATE\_WORKFLOW\_NAME](/api/@rulvar/rulvar/variables/ORCHESTRATE_WORKFLOW_NAME.md) | - |
@@ -619,6 +621,7 @@ const engine = createEngine({
 | [approachSigOf](/api/@rulvar/rulvar/functions/approachSigOf.md) | approachSig = sha256(JCS({ sigVersion, coarse, approachTag })); keys lessons. |
 | [archiveDeprecatedModelOps](/api/@rulvar/rulvar/functions/archiveDeprecatedModelOps.md) | Deprecation maintenance (deprecations archive claims, never delete them, so historical runs keep their audit trail): archive ops for every non-terminal claim of the deprecated models. The caller commits them under its own gate-free archive ops. |
 | [assertFencedWrites](/api/@rulvar/rulvar/functions/assertFencedWrites.md) | Deployment-time assertion for queue hosts that require the full fence: throws a typed ConfigError naming each store that does NOT declare `fencedWrites`. A host that tolerates advisory meta or transcript writes simply never calls this. The shipped pair that satisfies it with transcripts present is `@rulvar/store-sqlite`: the store as the journal plus its `transcripts()` twin. |
+| [assertSafeRunId](/api/@rulvar/rulvar/functions/assertSafeRunId.md) | Throws a ConfigError unless runId is a filesystem-safe token: a non-empty string over [A-Za-z0-9._-] that is neither '.' nor '..' (the dot pair passes the alphabet on its own, so it is refused explicitly), no longer than [MAX\_RUN\_ID\_LENGTH](/api/@rulvar/rulvar/variables/MAX_RUN_ID_LENGTH.md). |
 | [atCompactionThreshold](/api/@rulvar/rulvar/functions/atCompactionThreshold.md) | The summarize trigger: the compaction threshold on the context window (default 0.8). Pure predicate; the compaction pipeline that acts on it is M4-T03. |
 | [auditRun](/api/@rulvar/rulvar/functions/auditRun.md) | Audits one run: loads the meta row and the journal, derives the state the journal supports, and names the divergence. Read only. |
 | [auditRuns](/api/@rulvar/rulvar/functions/auditRuns.md) | Audits every run the catalog lists. Loads EVERY journal it audits: this is operator tooling for finding stranded runs, not a hot path. |
