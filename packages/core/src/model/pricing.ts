@@ -218,13 +218,25 @@ export function compareRates(seed: DocumentedRates, page: DocumentedRates): stri
     }
     if (pageValue === undefined) {
       findings.push(`${field}: seed ${String(seedValue)} but the page shows no such rate`);
-    } else if (Math.abs(seedValue - pageValue) > 1e-9) {
+    } else if (!(Math.abs(seedValue - pageValue) <= 1e-9)) {
+      // Negated form on purpose (RV1007): a broken extraction yields
+      // NaN, and NaN > epsilon is false, so the positive form read a
+      // rate that stopped parsing as agreement. The tier fields below
+      // always compared this way; the scalars now match them.
       findings.push(`${field}: seed ${String(seedValue)} vs page ${String(pageValue)}`);
     }
   }
   const seedTiers = seed.tiers;
-  if (Array.isArray(seedTiers)) {
-    const pageTiers = page.tiers;
+  const pageTiers = page.tiers;
+  if (!Array.isArray(seedTiers)) {
+    // The RV902 doctrine applies to tiers too (RV1007): a long-context
+    // premium the page documents and the seed never declared is a
+    // silent underpricing channel, and the seed-only loop below never
+    // saw it. An empty page tier list claims nothing.
+    if (Array.isArray(pageTiers) && pageTiers.length > 0) {
+      findings.push(`tiers: the page shows ${String(pageTiers.length)} but the seed declares none`);
+    }
+  } else {
     if (!Array.isArray(pageTiers) || pageTiers.length !== seedTiers.length) {
       findings.push(
         `tiers: seed declares ${String(seedTiers.length)}, page shows ` +

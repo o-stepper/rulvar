@@ -88,15 +88,15 @@ describe('turn-boundary checkpoint blob (M3-T02)', () => {
   });
 });
 
-describe('structural decode validation (RV804)', () => {
-  const blobOf = (payload: unknown): Uint8Array => {
-    const json = Buffer.from(JSON.stringify(payload), 'utf8');
-    const blob = new Uint8Array(json.length + 1);
-    blob[0] = CHECKPOINT_FORMAT_V1;
-    blob.set(json, 1);
-    return blob;
-  };
+const blobOf = (payload: unknown): Uint8Array => {
+  const json = Buffer.from(JSON.stringify(payload), 'utf8');
+  const blob = new Uint8Array(json.length + 1);
+  blob[0] = CHECKPOINT_FORMAT_V1;
+  blob.set(json, 1);
+  return blob;
+};
 
+describe('structural decode validation (RV804)', () => {
   it('a parseable blob with malformed nested messages decodes to undefined, never a raw TypeError', () => {
     // The twelfth experiment's reproduction: {v:1,messages:[{}]} passed
     // the top-level guard and the message map then died on
@@ -118,6 +118,64 @@ describe('structural decode validation (RV804)', () => {
   });
 
   it('a well-formed checkpoint still round-trips unchanged', () => {
+    expect(decodeCheckpoint(encodeCheckpoint(state()))).toEqual(state());
+  });
+});
+
+describe('top-level decode guard (RV1008)', () => {
+  it('a top-level null decodes to undefined, never a raw TypeError', () => {
+    // JSON.parse('null') passes the try/catch, and parsed.v then threw
+    // a raw TypeError out of a function whose contract is never-throws
+    // (the nested RV804 walk never got the chance): the one top-level
+    // shape the twelfth-experiment fix left open.
+    expect(decodeCheckpoint(blobOf(null))).toBeUndefined();
+  });
+
+  it('top-level primitives and arrays decode to undefined without a throw', () => {
+    for (const payload of [42, 'checkpoint', true, false, [], [1, 2], [{ v: 1 }]]) {
+      expect(decodeCheckpoint(blobOf(payload))).toBeUndefined();
+    }
+  });
+
+  it('the malformed corpus never throws: undefined is the whole answer', () => {
+    const rawBlob = (text: string): Uint8Array => {
+      const bytes = Buffer.from(text, 'utf8');
+      const blob = new Uint8Array(bytes.length + 1);
+      blob[0] = CHECKPOINT_FORMAT_V1;
+      blob.set(bytes, 1);
+      return blob;
+    };
+    const corpus = [
+      'null',
+      'nul',
+      '42',
+      '"checkpoint"',
+      'true',
+      'false',
+      '[]',
+      '[null]',
+      '{',
+      '{"v":1',
+      '{"v":1}',
+      '{"v":1,"messages":null}',
+      '{"v":2,"messages":[]}',
+      '\u0000\u0001\u0002',
+    ];
+    for (const text of corpus) {
+      let decoded: unknown = 'sentinel';
+      expect(
+        () => {
+          decoded = decodeCheckpoint(rawBlob(text));
+        },
+        `corpus entry ${JSON.stringify(text)} must not throw`,
+      ).not.toThrow();
+      expect(decoded, `corpus entry ${JSON.stringify(text)} must decode to undefined`).toBe(
+        undefined,
+      );
+    }
+  });
+
+  it('a valid round-trip is unchanged by the guard', () => {
     expect(decodeCheckpoint(encodeCheckpoint(state()))).toEqual(state());
   });
 });

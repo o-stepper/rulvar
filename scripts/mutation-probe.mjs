@@ -704,7 +704,7 @@ const MUTATIONS = [
     doctrine:
       'the documented-rates comparator names every seed field that diverges from the page; a comparator that tolerates the difference silently re-verifies a stale seed forever (RV813, published home RV909)',
     file: 'packages/core/src/model/pricing.ts',
-    find: '    } else if (Math.abs(seedValue - pageValue) > 1e-9) {',
+    find: '    } else if (!(Math.abs(seedValue - pageValue) <= 1e-9)) {',
     replace: '    } else if (false as boolean) {',
     test: 'packages/core/src/model/pricing.test.ts',
   },
@@ -1180,6 +1180,33 @@ const MUTATIONS = [
     replace:
       "      {\n        text: 'never delivered',\n        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },\n      },",
     test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'rates-page-only-tier',
+    doctrine:
+      'a long-context tier the page documents and the seed never declared is a finding (RV1007): disarmed, the tier loop runs only when the SEED declares tiers and a page-only premium is the silent underpricing channel the RV902 doctrine names',
+    file: 'packages/core/src/model/pricing.ts',
+    find: '    if (Array.isArray(pageTiers) && pageTiers.length > 0) {',
+    replace: '    if ((false as boolean) && Array.isArray(pageTiers) && pageTiers.length > 0) {',
+    test: 'packages/core/src/model/pricing.test.ts',
+  },
+  {
+    id: 'rates-nan-scalar',
+    doctrine:
+      'NaN on either side of a scalar rate is a finding, never agreement (RV1007): with the positive comparison form restored, a page extraction that stops parsing yields NaN, NaN > epsilon is false, and the audit reads a broken extraction as a clean pass',
+    file: 'packages/core/src/model/pricing.ts',
+    find: '    } else if (!(Math.abs(seedValue - pageValue) <= 1e-9)) {',
+    replace: '    } else if (Math.abs(seedValue - pageValue) > 1e-9) {',
+    test: 'packages/core/src/model/pricing.test.ts',
+  },
+  {
+    id: 'checkpoint-top-level-guard',
+    doctrine:
+      'a checkpoint whose top-level payload is not an object decodes to undefined, never a raw TypeError (RV1008): disarmed, JSON.parse of null passes the try/catch and parsed.v throws out of a function whose contract is never-throws',
+    file: 'packages/core/src/journal/checkpoint.ts',
+    find: "  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {",
+    replace: '  if (false as boolean) {',
+    test: 'packages/core/src/journal/checkpoint.test.ts',
   },
 ];
 
