@@ -167,6 +167,18 @@ export interface StatementReconciliation {
   usageUnknownRows: number;
   componentToleranceUsd: number;
   verdict: 'match' | 'divergence' | 'partial-coverage' | 'no-overlap';
+  /**
+   * The settlement-grade composite, first class (RV1006): true exactly
+   * when the verdict is 'match' AND coverage is complete AND no row's
+   * usage is unknown AND no model went unpriced. A 'match' alone is
+   * not enough: an export can cover every KNOWN row to the cent while
+   * a usage-unknown attempt still holds unattributed money, and a safe
+   * consumer must not assemble this predicate by hand. The last two
+   * conditions overlap today's verdict semantics deliberately: the
+   * predicate states the full contract so it cannot drift apart from
+   * a future verdict refinement.
+   */
+  settleable: boolean;
 }
 
 const SAMPLE_CAP = 20;
@@ -228,9 +240,12 @@ function assertTokenCount(where: string, field: string, value: number): void {
  * headline total with no rows), a request row without a response id, a
  * duplicate response id (an ambiguous join), a request export whose
  * rows carry neither dollars, components, nor usage, any non-finite or
- * negative dollar amount, any non-integer or negative token count, or
- * a non-finite or negative tolerance (RV903: a statement that cannot
- * be summed must refuse loudly, never verdict 'match' on NaN totals).
+ * negative dollar amount, any non-integer or negative token count, a
+ * non-finite or negative tolerance (RV903: a statement that cannot
+ * be summed must refuse loudly, never verdict 'match' on NaN totals),
+ * or a row whose usd and componentsUsd contradict each other beyond
+ * totalToleranceUsd (RV1005: an internally contradictory export is
+ * not evidence either).
  */
 export function reconcileStatement(
   invoice: { rows: readonly InvoiceRow[] },
@@ -285,6 +300,12 @@ export function reconcileStatement(
   const statementOnlyIdSample: string[] = [];
   let statementTotalUsd: number | undefined;
   let statementComponents: Map<string, Partial<Record<BillingComponent, number>>> | undefined;
+  // Requests mode: how many matched export rows there were, and how
+  // many of them carried row dollars. The totals comparison may decide
+  // only when the two coincide, i.e. the export's dollar claim covers
+  // the same set our dollars fold over (RV1005).
+  let matchedStatementRows = 0;
+  let matchedUsdRows = 0;
   let tokenMismatches = 0;
   // True when a partially delivered multi-wire segment set touched our
   // data (RV905): the export overlaps, so the verdict is
@@ -315,11 +336,34 @@ export function reconcileStatement(
         assertStatementUsd(where, 'usd', row.usd);
       }
       if (row.componentsUsd !== undefined) {
+        let componentsSum = 0;
+        let componentsSeen = 0;
         for (const component of COMPONENTS) {
           const usd = row.componentsUsd[component];
           if (usd !== undefined) {
             assertStatementUsd(where, `componentsUsd.${component}`, usd);
+            componentsSum += usd;
+            componentsSeen += 1;
           }
+        }
+        // A row carrying BOTH a total and a component split must have
+        // them agree (RV1005): the fourteenth experiment fed usd 100
+        // beside components summing 1 and read verdict 'match', because
+        // each claim sat inside its own tolerance and nothing compared
+        // them to each other. An export whose own numbers contradict
+        // each other is not evidence; refuse instead of picking a side.
+        if (
+          row.usd !== undefined &&
+          componentsSeen > 0 &&
+          Math.abs(row.usd - componentsSum) > totalToleranceUsd
+        ) {
+          throw new ConfigError(
+            `statement reconciliation refused: ${where} carries usd ${String(row.usd)} and a ` +
+              `component split summing to ${String(componentsSum)}, claims that contradict ` +
+              `each other beyond the ${String(totalToleranceUsd)} totals tolerance; an export ` +
+              'whose own total disagrees with its own components is not evidence: normalize ' +
+              'it to one dollar claim per row or fix the export',
+          );
         }
       }
       if (row.usage !== undefined) {
@@ -438,7 +482,9 @@ export function reconcileStatement(
       if (!matchedStatement.has(row.responseId)) {
         continue;
       }
+      matchedStatementRows += 1;
       if (row.usd !== undefined) {
+        matchedUsdRows += 1;
         totalSeen = true;
         total += row.usd;
       }
@@ -573,13 +619,24 @@ export function reconcileStatement(
     .sort((a, b) => Math.abs(b.deltaUsd ?? 0) - Math.abs(a.deltaUsd ?? 0));
 
   const totalsDelta = statementTotalUsd === undefined ? undefined : statementTotalUsd - ourUsd;
-  // A per-request export carrying row dollars but no component split
-  // can still diverge as a whole: the totals are then the only dollar
-  // comparison there is.
+  // The totals comparison decides only when both sides' dollar claims
+  // cover the SAME set: in requests mode every matched export row
+  // carries usd, in categories mode every component line is claimed
+  // with nothing statement-only, and no covered model is unpriced.
+  // Anything less compares different scopes and would manufacture
+  // divergence out of partial delivery, which the coverage machinery
+  // already names honestly.
+  const totalsComparable =
+    unpricedModels.size === 0 &&
+    (statement.kind === 'requests'
+      ? matchedUsdRows === matchedStatementRows
+      : statementOnlyRows === 0 && components.every((line) => line.statementUsd !== undefined));
+  // Presence of a component split no longer suppresses the comparison
+  // (RV1005): a total and a split that describe different dollars are
+  // exactly the divergence to NAME, and before this check an export
+  // could carry any total beside agreeing components and read 'match'.
   const totalsDivergent =
-    statementComponents === undefined &&
-    totalsDelta !== undefined &&
-    Math.abs(totalsDelta) > totalToleranceUsd;
+    totalsComparable && totalsDelta !== undefined && Math.abs(totalsDelta) > totalToleranceUsd;
 
   const coverageComplete =
     unmatchedRows === 0 &&
@@ -630,5 +687,10 @@ export function reconcileStatement(
     usageUnknownRows,
     componentToleranceUsd,
     verdict,
+    settleable:
+      verdict === 'match' &&
+      coverageComplete &&
+      usageUnknownRows === 0 &&
+      unpricedModels.size === 0,
   };
 }

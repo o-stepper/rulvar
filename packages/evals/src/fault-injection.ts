@@ -499,6 +499,13 @@ interface WireTurn {
    * scenario drives the LIVE budget inlet, not the finish remainder.
    */
   reportUsageMidStream?: boolean;
+  /**
+   * Yield a RETRYABLE error before any usage or content: the attempt
+   * fails with nothing reported, its ledger row settles usageUnknown,
+   * and the next scripted turn serves the retry. The RV1006 scenario
+   * needs a real unknown-usage attempt, never a hand-built invoice row.
+   */
+  failBeforeUsage?: boolean;
 }
 
 /**
@@ -539,6 +546,17 @@ function wireAdapter(
         return;
       }
       served.push(turn);
+      if (turn.failBeforeUsage === true) {
+        yield {
+          type: 'error',
+          error: {
+            code: 'agent',
+            message: `wire adapter '${id}': scripted pre-usage transport failure`,
+            retryable: true,
+          },
+        };
+        return;
+      }
       if (turn.reportUsageMidStream === true) {
         yield { type: 'usage', usage: { ...turn.usage } };
       }
@@ -1383,6 +1401,116 @@ const pauseTurnRealAdapter: FaultScenario = {
   },
 };
 
+const retryingWorkflow = defineWorkflow({ name: 'fault-kit-retrying' }, async (ctx) => {
+  // The default policy already retries transport-class failures; only
+  // the waits shrink so the kit stays quick.
+  return await ctx.agent('one small step', {
+    retry: { attempts: 2, backoff: { initialMs: 1, factor: 1, maxMs: 2 } },
+  });
+});
+
+/**
+ * RV1005 + RV1006: the fourteenth experiment showed that a 'match'
+ * verdict is a weaker claim than settlement needs (a clean export
+ * beside a usage-unknown attempt leaves unattributed money on the
+ * table with every surface reading green) and that an export row could
+ * carry a total contradicting its own component split with each claim
+ * sitting inside its own tolerance.
+ */
+const statementSettleableGuard: FaultScenario = {
+  name: 'statement-settleable-guard',
+  doctrine:
+    "a 'match' verdict alone is not settlement-grade evidence: settleable states the " +
+    'composite (match, complete coverage, zero usage-unknown rows, no unpriced models) ' +
+    'first class (RV1006), and an export row whose own total contradicts its own ' +
+    'component split refuses typed at intake (RV1005)',
+  async run() {
+    // A REAL run whose first attempt dies before any usage report: its
+    // ledger row settles usageUnknown, money no export can ever name.
+    const adapter = wireAdapter('wire', [
+      {
+        text: 'never delivered',
+        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        failBeforeUsage: true,
+      },
+      {
+        text: 'priced answer',
+        usage: { inputTokens: 1000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        metadata: { responseId: 'resp-1' },
+      },
+    ]);
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'wire:model' } },
+      pricing: WIRE_PRICING,
+    });
+    const outcome = await engine.run(retryingWorkflow, undefined, {
+      runId: 'fault-settleable-unknown',
+    }).result;
+    if (outcome.status !== 'ok') {
+      throw new Error(
+        `fault kit: the unknown-usage seed settled '${outcome.status}' instead of ok`,
+      );
+    }
+    const entries = await store.load('fault-settleable-unknown');
+    const composed = journalPricingSnapshot(entries)?.composedPriceUsd(() => undefined);
+    if (composed === undefined) {
+      throw new Error('fault kit: the seeded journal carries no pricing snapshot');
+    }
+    const invoice = invoiceFromJournal(entries, composed);
+    const statement: ProviderStatement = {
+      kind: 'requests',
+      rows: [{ responseId: 'resp-1', usd: 0.006 }],
+    };
+    const guarded = reconcileStatement(invoice, statement, { pricingOf: wirePricingOf });
+    const clean = reconcileStatement(await statementSeedRun('fault-settleable-clean'), statement, {
+      pricingOf: wirePricingOf,
+    });
+    let refusal =
+      'reconcileStatement accepted a row whose usd 100 contradicts its components summing 1';
+    let refused = false;
+    try {
+      reconcileStatement(
+        invoice,
+        {
+          kind: 'requests',
+          rows: [{ responseId: 'resp-1', usd: 100, componentsUsd: { input: 1 } }],
+        },
+        { pricingOf: wirePricingOf },
+      );
+    } catch (thrown) {
+      refusal = errorText(thrown);
+      refused =
+        thrown instanceof Error && thrown.name === 'ConfigError' && refusal.includes('contradict');
+    }
+    const matched =
+      guarded.verdict === 'match' &&
+      guarded.coverage.complete &&
+      guarded.usageUnknownRows === 1 &&
+      guarded.settleable === false &&
+      clean.verdict === 'match' &&
+      clean.settleable === true &&
+      refused;
+    return {
+      observation: {
+        matched,
+        detail:
+          `verdict '${guarded.verdict}' with complete coverage still reads settleable=false ` +
+          `over ${String(guarded.usageUnknownRows)} usage-unknown row (unattributed money on ` +
+          'the table); the clean twin reads settleable=true; and the row whose total ' +
+          'contradicts its own component split refused typed at intake',
+      },
+      artifacts: [
+        jsonArtifact('report-usage-unknown.json', guarded),
+        jsonArtifact('report-clean.json', clean),
+        jsonArtifact('refusal.json', { detail: refusal }),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -1401,6 +1529,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   settlementTerminalHonesty,
   ttlLiveBudgetParity,
   pauseTurnRealAdapter,
+  statementSettleableGuard,
 ];
 
 /** The scenario names in run order. */
