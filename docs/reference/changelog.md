@@ -18,6 +18,19 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.128.0
+
+#### Minor Changes
+
+- 27c4e38: pause_turn continuations become accounted wire units (RV905, the thirteenth experiment's fifth release risk). The Anthropic adapter absorbs server-side turn pauses by re-sending, making up to six wire requests inside ONE core dispatch; until now the request quota window, the provider call record, and the invoice row all saw one, and a per-request provider statement matched one segment while the rest read statement-only.
+
+  The adapter's finish metadata now names the whole segment set (`providerMetadata.anthropic.wireRequests = { count, responseIds }`); the provider call record and the invoice row carry `wireResponseIds`; and the quota reconciliation settles the reservation against the TRUE wire request count. The `QuotaLimiter.reconcile` SPI gains an optional `actual.requests` argument, honored by all three reference limiters through one shared arithmetic (`quotaActualRequestsDelta`), so a window that admitted one request per reservation now reflects what the provider's own RPM meter saw; a settlement only ever adds, never denies retroactively, and implementations written against the two-argument form remain valid. `reconcileStatement` joins a multi-wire invoice row by ANY id of its segment set, all-or-nothing: a partially delivered segment set reads `partial-coverage` with its delivered segments never counted as statement-only (and never `no-overlap` when segments touched our data), and provider-reported token counts compare as the SUM over the segments against the dispatch's recorded usage. Single-wire dispatches carry none of the new fields and stay byte-identical, journals and events included.
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+
 ### 1.127.0
 
 #### Minor Changes
@@ -1349,6 +1362,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+
 ### 1.127.0
 
 #### Patch Changes
@@ -2511,6 +2531,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
 
 ### 1.127.0
 
@@ -4048,6 +4075,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.128.0
+
+#### Minor Changes
+
+- 27c4e38: pause_turn continuations become accounted wire units (RV905, the thirteenth experiment's fifth release risk). The Anthropic adapter absorbs server-side turn pauses by re-sending, making up to six wire requests inside ONE core dispatch; until now the request quota window, the provider call record, and the invoice row all saw one, and a per-request provider statement matched one segment while the rest read statement-only.
+
+  The adapter's finish metadata now names the whole segment set (`providerMetadata.anthropic.wireRequests = { count, responseIds }`); the provider call record and the invoice row carry `wireResponseIds`; and the quota reconciliation settles the reservation against the TRUE wire request count. The `QuotaLimiter.reconcile` SPI gains an optional `actual.requests` argument, honored by all three reference limiters through one shared arithmetic (`quotaActualRequestsDelta`), so a window that admitted one request per reservation now reflects what the provider's own RPM meter saw; a settlement only ever adds, never denies retroactively, and implementations written against the two-argument form remain valid. `reconcileStatement` joins a multi-wire invoice row by ANY id of its segment set, all-or-nothing: a partially delivered segment set reads `partial-coverage` with its delivered segments never counted as statement-only (and never `no-overlap` when segments touched our data), and provider-reported token counts compare as the SUM over the segments against the dispatch's recorded usage. Single-wire dispatches carry none of the new fields and stay byte-identical, journals and events included.
 
 ### 1.127.0
 
@@ -5904,6 +5939,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.128.0
+
 ### 1.127.0
 
 ### 1.126.0
@@ -6262,6 +6299,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+  - @rulvar/testing@1.128.0
 
 ### 1.127.0
 
@@ -7668,6 +7713,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+
 ### 1.127.0
 
 #### Patch Changes
@@ -8237,6 +8289,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.128.0
+
+#### Minor Changes
+
+- 27c4e38: pause_turn continuations become accounted wire units (RV905, the thirteenth experiment's fifth release risk). The Anthropic adapter absorbs server-side turn pauses by re-sending, making up to six wire requests inside ONE core dispatch; until now the request quota window, the provider call record, and the invoice row all saw one, and a per-request provider statement matched one segment while the rest read statement-only.
+
+  The adapter's finish metadata now names the whole segment set (`providerMetadata.anthropic.wireRequests = { count, responseIds }`); the provider call record and the invoice row carry `wireResponseIds`; and the quota reconciliation settles the reservation against the TRUE wire request count. The `QuotaLimiter.reconcile` SPI gains an optional `actual.requests` argument, honored by all three reference limiters through one shared arithmetic (`quotaActualRequestsDelta`), so a window that admitted one request per reservation now reflects what the provider's own RPM meter saw; a settlement only ever adds, never denies retroactively, and implementations written against the two-argument form remain valid. `reconcileStatement` joins a multi-wire invoice row by ANY id of its segment set, all-or-nothing: a partially delivered segment set reads `partial-coverage` with its delivered segments never counted as statement-only (and never `no-overlap` when segments touched our data), and provider-reported token counts compare as the SUM over the segments against the dispatch's recorded usage. Single-wire dispatches carry none of the new fields and stay byte-identical, journals and events included.
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
 
 ### 1.127.0
 
@@ -9581,6 +9646,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+
 ### 1.127.0
 
 #### Patch Changes
@@ -10857,6 +10929,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+  - eslint-plugin-rulvar@1.128.0
 
 ### 1.127.0
 
@@ -12223,6 +12303,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+  - @rulvar/anthropic@1.128.0
+  - @rulvar/openai@1.128.0
 
 ### 1.127.0
 
@@ -13801,6 +13890,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+
 ### 1.127.0
 
 #### Patch Changes
@@ -15073,6 +15169,19 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.128.0
+
+#### Minor Changes
+
+- 27c4e38: pause_turn continuations become accounted wire units (RV905, the thirteenth experiment's fifth release risk). The Anthropic adapter absorbs server-side turn pauses by re-sending, making up to six wire requests inside ONE core dispatch; until now the request quota window, the provider call record, and the invoice row all saw one, and a per-request provider statement matched one segment while the rest read statement-only.
+
+  The adapter's finish metadata now names the whole segment set (`providerMetadata.anthropic.wireRequests = { count, responseIds }`); the provider call record and the invoice row carry `wireResponseIds`; and the quota reconciliation settles the reservation against the TRUE wire request count. The `QuotaLimiter.reconcile` SPI gains an optional `actual.requests` argument, honored by all three reference limiters through one shared arithmetic (`quotaActualRequestsDelta`), so a window that admitted one request per reservation now reflects what the provider's own RPM meter saw; a settlement only ever adds, never denies retroactively, and implementations written against the two-argument form remain valid. `reconcileStatement` joins a multi-wire invoice row by ANY id of its segment set, all-or-nothing: a partially delivered segment set reads `partial-coverage` with its delivered segments never counted as statement-only (and never `no-overlap` when segments touched our data), and provider-reported token counts compare as the SUM over the segments against the dispatch's recorded usage. Single-wire dispatches carry none of the new fields and stay byte-identical, journals and events included.
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
+
 ### 1.127.0
 
 #### Patch Changes
@@ -15656,6 +15765,19 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.128.0
+
+#### Minor Changes
+
+- 27c4e38: pause_turn continuations become accounted wire units (RV905, the thirteenth experiment's fifth release risk). The Anthropic adapter absorbs server-side turn pauses by re-sending, making up to six wire requests inside ONE core dispatch; until now the request quota window, the provider call record, and the invoice row all saw one, and a per-request provider statement matched one segment while the rest read statement-only.
+
+  The adapter's finish metadata now names the whole segment set (`providerMetadata.anthropic.wireRequests = { count, responseIds }`); the provider call record and the invoice row carry `wireResponseIds`; and the quota reconciliation settles the reservation against the TRUE wire request count. The `QuotaLimiter.reconcile` SPI gains an optional `actual.requests` argument, honored by all three reference limiters through one shared arithmetic (`quotaActualRequestsDelta`), so a window that admitted one request per reservation now reflects what the provider's own RPM meter saw; a settlement only ever adds, never denies retroactively, and implementations written against the two-argument form remain valid. `reconcileStatement` joins a multi-wire invoice row by ANY id of its segment set, all-or-nothing: a partially delivered segment set reads `partial-coverage` with its delivered segments never counted as statement-only (and never `no-overlap` when segments touched our data), and provider-reported token counts compare as the SUM over the segments against the dispatch's recorded usage. Single-wire dispatches carry none of the new fields and stay byte-identical, journals and events included.
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
 
 ### 1.127.0
 
@@ -16871,6 +16993,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.128.0
+
+#### Patch Changes
+
+- Updated dependencies [27c4e38]
+  - @rulvar/core@1.128.0
 
 ### 1.127.0
 
