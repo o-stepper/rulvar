@@ -157,7 +157,9 @@ declare class SqliteQuotaLimiter implements QuotaLimiter {
   private readonly now;
   constructor(options: SqliteQuotaLimiterOptions);
   reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
-  reconcile(reservationId: string, usage: Usage): Promise<void>;
+  reconcile(reservationId: string, usage: Usage, actual?: {
+    requests?: number;
+  }): Promise<void>;
   /** Current-window counters per rule, for telemetry and referees. */
   snapshot(): Array<{
     rule: QuotaRule;

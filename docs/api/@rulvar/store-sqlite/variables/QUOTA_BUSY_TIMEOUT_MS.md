@@ -10,7 +10,7 @@
 const QUOTA_BUSY_TIMEOUT_MS: 2000 = 2_000;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L59)
+Defined in: [packages/store-sqlite/src/quota.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L60)
 
 How long a runtime reserve/reconcile transaction waits for a
 sibling process's transaction before the driver reports busy. Quota

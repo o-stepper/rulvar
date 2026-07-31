@@ -79,6 +79,14 @@ export interface InvoiceRow {
   attempt?: number;
   outcome: ProviderCallRecord['outcome'] | 'unattributed';
   responseId?: string;
+  /**
+   * Every wire request's response id when the adapter absorbed
+   * provider-side continuations into this one dispatch (RV905); a
+   * per-request statement bills each segment as its own row, so the
+   * reconciliation joins this row by ANY id of the set. Absent on
+   * single-wire rows.
+   */
+  wireResponseIds?: string[];
   usage: Usage;
   usageApprox?: boolean;
   /**
@@ -439,6 +447,9 @@ export function invoiceFromJournal(
         attempt: record.attempt,
         outcome: record.outcome,
         ...(record.responseId === undefined ? {} : { responseId: record.responseId }),
+        ...(record.wireResponseIds === undefined
+          ? {}
+          : { wireResponseIds: record.wireResponseIds }),
         usage: record.usage,
         ...(record.usageApprox === true ? { usageApprox: true } : {}),
         ...(usageUnknown ? { usageUnknown: true } : {}),

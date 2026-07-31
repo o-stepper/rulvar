@@ -54,6 +54,7 @@ import {
   MAX_TIMER_DELAY_MS,
   QUOTA_WINDOW_MS,
   mergeQuotaDenial,
+  quotaActualRequestsDelta,
   quotaActualTokens,
   quotaEstimateTokens,
   quotaRuleAdmission,
@@ -729,7 +730,7 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
     });
   }
 
-  reconcile(reservationId: string, usage: Usage): Promise<void> {
+  reconcile(reservationId: string, usage: Usage, actual?: { requests?: number }): Promise<void> {
     const at = this.now();
     const windowStart = at - (at % QUOTA_WINDOW_MS);
     return this.withQuotaLock(async (client) => {
@@ -756,11 +757,16 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
       ]);
       if (Number(row.window_start) === windowStart) {
         const delta = quotaActualTokens(usage) - Number(row.estimate_tokens);
+        // The reservation admitted one request; absorbed provider-side
+        // continuations settle the difference into the same window
+        // (RV905), shared arithmetic with every reference limiter.
+        const requestsDelta = quotaActualRequestsDelta(actual);
         for (const key of JSON.parse(row.rule_keys) as string[]) {
           await client.query(
-            `UPDATE ${this.table('quota_buckets')} SET tokens = GREATEST(0, tokens + $1)
-               WHERE rule_key = $2 AND window_start = $3`,
-            [delta, key, windowStart],
+            `UPDATE ${this.table('quota_buckets')}
+                SET tokens = GREATEST(0, tokens + $1), requests = requests + $2
+               WHERE rule_key = $3 AND window_start = $4`,
+            [delta, requestsDelta, key, windowStart],
           );
         }
       }

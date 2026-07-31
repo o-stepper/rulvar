@@ -10,7 +10,7 @@
 const QUOTA_ADMISSION_DEADLINE_MS: 5000 = 5_000;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L88)
+Defined in: [packages/store-postgres/src/quota.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L89)
 
 The default bound on one WHOLE admission path (RV506): lazy
 bootstrap, pool checkout, and the admission transaction together.

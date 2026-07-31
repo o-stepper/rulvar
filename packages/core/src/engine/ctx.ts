@@ -2292,7 +2292,8 @@ export function createCtx(
             runId: internals.runId,
             ...(quota.tenant === undefined ? {} : { tenant: quota.tenant }),
           }),
-        reconcile: (reservationId, usage) => quota.limiter.reconcile(reservationId, usage),
+        reconcile: (reservationId, usage, actual) =>
+          quota.limiter.reconcile(reservationId, usage, actual),
         onLimiterError: quota.onLimiterError,
       };
     }

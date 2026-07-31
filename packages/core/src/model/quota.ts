@@ -190,6 +190,23 @@ export function quotaActualTokens(usage: Usage): number {
   return usage.inputTokens + usage.outputTokens;
 }
 
+/**
+ * The request-count settlement delta of one reservation (RV905): the
+ * reservation admitted ONE wire request, and `actual.requests` names
+ * how many the attempt actually made (an adapter absorbing
+ * provider-side continuations dispatches several inside one reserved
+ * call). Non-integer, non-positive, or absent actuals settle as the
+ * single reserved request (delta 0); a settlement only ever ADDS, the
+ * calls already happened. Shared by every reference limiter so the
+ * three implementations cannot disagree about the arithmetic.
+ */
+export function quotaActualRequestsDelta(actual?: { requests?: number }): number {
+  const requests = actual?.requests;
+  return typeof requests === 'number' && Number.isInteger(requests) && requests > 1
+    ? requests - 1
+    : 0;
+}
+
 /** Current-window counters of one rule bucket. */
 export interface QuotaCounters {
   requests: number;
@@ -366,7 +383,7 @@ export function memoryQuotaLimiter(
       return Promise.resolve({ granted: true, reservationId });
     },
 
-    reconcile(reservationId: string, usage: Usage): Promise<void> {
+    reconcile(reservationId: string, usage: Usage, actual?: { requests?: number }): Promise<void> {
       const reservation = reservations.get(reservationId);
       if (reservation === undefined) {
         return Promise.resolve();
@@ -378,10 +395,16 @@ export function memoryQuotaLimiter(
         return Promise.resolve();
       }
       const delta = quotaActualTokens(usage) - reservation.estimateTokens;
+      // The reservation admitted one request; a dispatch that absorbed
+      // provider-side continuations settles the difference so the
+      // window carries the true wire request count (RV905). Malformed
+      // actuals settle as the single reserved request.
+      const requestsDelta = quotaActualRequestsDelta(actual);
       for (const index of reservation.ruleIndexes) {
         const bucket = buckets.get(index);
         if (bucket !== undefined && bucket.windowStart === windowStart) {
           bucket.tokens = Math.max(0, bucket.tokens + delta);
+          bucket.requests += requestsDelta;
         }
       }
       return Promise.resolve();

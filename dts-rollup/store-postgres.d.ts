@@ -332,7 +332,9 @@ declare class PostgresQuotaLimiter implements QuotaLimiter {
   */
   private assertCurrentIdentity;
   reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
-  reconcile(reservationId: string, usage: Usage): Promise<void>;
+  reconcile(reservationId: string, usage: Usage, actual?: {
+    requests?: number;
+  }): Promise<void>;
   /** Current-window counters per rule, for telemetry and referees. */
   snapshot(): Promise<Array<{
     rule: QuotaRule;

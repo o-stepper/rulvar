@@ -110,6 +110,27 @@ describe('SqliteQuotaLimiter semantics', () => {
     limiter.close();
   });
 
+  it('reconcile settles the request window at the true wire count (RV905)', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = new SqliteQuotaLimiter({
+      path: freshPath(),
+      rules: [{ provider: 'fake', requestsPerMinute: 3 }],
+      now: () => at,
+    });
+    const first = await limiter.reserve(request());
+    expect(first.granted).toBe(true);
+    // The dispatch absorbed two provider-side continuations: three wire
+    // requests behind the one reservation, settled at reconcile.
+    await limiter.reconcile(
+      (first as { reservationId: string }).reservationId,
+      { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      { requests: 3 },
+    );
+    const blocked = await limiter.reserve(request());
+    expect(blocked.granted).toBe(false);
+    limiter.close();
+  });
+
   it('two instances over one file enforce one cap, and reconcile crosses instances', async () => {
     const path = freshPath();
     const at = QUOTA_WINDOW_MS * 9;

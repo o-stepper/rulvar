@@ -3093,6 +3093,10 @@
             "link": "/api/@rulvar/core/functions/providerOf.md"
           },
           {
+            "text": "quotaActualRequestsDelta",
+            "link": "/api/@rulvar/core/functions/quotaActualRequestsDelta.md"
+          },
+          {
             "text": "quotaActualTokens",
             "link": "/api/@rulvar/core/functions/quotaActualTokens.md"
           },
@@ -7665,6 +7669,10 @@
           {
             "text": "providerOf",
             "link": "/api/@rulvar/rulvar/functions/providerOf.md"
+          },
+          {
+            "text": "quotaActualRequestsDelta",
+            "link": "/api/@rulvar/rulvar/functions/quotaActualRequestsDelta.md"
           },
           {
             "text": "quotaActualTokens",

@@ -437,6 +437,12 @@ export interface TurnMapping {
   assistantContent: Block[];
   pauseTurn: boolean;
   finished: boolean;
+  /**
+   * The segment's provider message id, captured for paused and
+   * finished segments alike so the adapter can account every wire
+   * request of a pause_turn absorption (RV905).
+   */
+  responseId?: string;
 }
 
 /**
@@ -460,7 +466,17 @@ export interface TurnMapping {
 export async function* mapAnthropicStream(
   stream: AsyncIterable<AnthropicStreamEvent>,
   ids: IdMap,
-  options?: { carryRetained?: Block[] },
+  options?: {
+    carryRetained?: Block[];
+    /**
+     * Response ids of the PRIOR pause_turn segments of this turn
+     * (RV905): when present, the finish metadata names the whole wire
+     * request set (`wireRequests: { count, responseIds }`) so the core
+     * can account the dispatch at its true wire count. Absent on the
+     * first segment, so an unsegmented finish stays byte-identical.
+     */
+    wirePrior?: { responseIds: Array<string | undefined> };
+  },
 ): AsyncGenerator<ChatEvent, TurnMapping> {
   const mapping: TurnMapping = {
     assistantContent: [],
@@ -577,12 +593,26 @@ export async function* mapAnthropicStream(
         const mapped = mapStopReason(stopReason, stopDetails);
         if (mapped.pauseTurn) {
           mapping.pauseTurn = true;
+          if (responseId !== undefined) {
+            mapping.responseId = responseId;
+          }
           return mapping;
         }
         const providerMetadata: Record<string, unknown> = { anthropic: {} };
         const meta = providerMetadata.anthropic as Record<string, unknown>;
         if (responseId !== undefined) {
           meta.responseId = responseId;
+        }
+        if (options?.wirePrior !== undefined) {
+          // The absorbed turn's wire request set (RV905): count every
+          // segment (prior pauses plus this finish), ids in wire order
+          // where the provider reported them.
+          meta.wireRequests = {
+            count: options.wirePrior.responseIds.length + 1,
+            responseIds: [...options.wirePrior.responseIds, responseId].filter(
+              (id): id is string => typeof id === 'string',
+            ),
+          };
         }
         if (stopSequence !== undefined) {
           meta.stopSequence = stopSequence;
@@ -607,6 +637,9 @@ export async function* mapAnthropicStream(
           providerMetadata,
         };
         mapping.finished = true;
+        if (responseId !== undefined) {
+          mapping.responseId = responseId;
+        }
         return mapping;
       }
       default:

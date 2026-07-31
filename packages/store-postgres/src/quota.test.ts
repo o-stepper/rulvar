@@ -266,6 +266,25 @@ describeDb('PostgresQuotaLimiter semantics', () => {
     expect((await limiter.reserve(request())).granted).toBe(true);
   });
 
+  it('reconcile settles the request window at the true wire count (RV905)', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = limiterOver(freshSchema(), {
+      rules: [{ provider: 'fake', requestsPerMinute: 3 }],
+      now: () => at,
+    });
+    const first = await limiter.reserve(request());
+    expect(first.granted).toBe(true);
+    // The dispatch absorbed two provider-side continuations: three wire
+    // requests behind the one reservation, settled at reconcile.
+    await limiter.reconcile(
+      (first as { reservationId: string }).reservationId,
+      { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      { requests: 3 },
+    );
+    expect((await limiter.snapshot())[0]?.requests).toBe(3);
+    expect((await limiter.reserve(request())).granted).toBe(false);
+  });
+
   it('two instances over one schema enforce one cap, and reconcile crosses instances', async () => {
     const schema = freshSchema();
     const at = QUOTA_WINDOW_MS * 9;

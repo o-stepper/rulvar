@@ -137,6 +137,16 @@ export interface ProviderCallRecord {
    * dropping them.
    */
   responseId?: string;
+  /**
+   * Every wire request's response id when the adapter absorbed
+   * provider-side continuations into this one dispatch (RV905:
+   * `providerMetadata[<adapter id>].wireRequests`, the Anthropic
+   * pause_turn absorption). A per-request provider statement bills each
+   * segment as its own row, so the reconciliation joins by ANY id of
+   * this set. Absent on single-wire dispatches, keeping them
+   * byte-identical.
+   */
+  wireResponseIds?: string[];
   /** This call's usage exactly, sanitized like every accounted number. */
   usage: Usage;
   /** True when the stream was cut, so the usage is a lower bound. */

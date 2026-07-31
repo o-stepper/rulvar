@@ -6,7 +6,7 @@
 
 # Class: QuotaDeadlineError
 
-Defined in: [packages/store-postgres/src/quota.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L103)
+Defined in: [packages/store-postgres/src/quota.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L104)
 
 Thrown when one quota admission (reserve or reconcile) misses the
 full-path deadline. It surfaces exactly where the lock timeout
@@ -35,7 +35,7 @@ new QuotaDeadlineError(
    phase): QuotaDeadlineError;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L117)
+Defined in: [packages/store-postgres/src/quota.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L118)
 
 #### Parameters
 
@@ -59,6 +59,6 @@ Error.constructor
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-deadlinems"></a> `deadlineMs` | `readonly` | `number` | The deadline that expired, in milliseconds. | [packages/store-postgres/src/quota.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L105) |
-| <a id="property-phase"></a> `phase` | `readonly` | `"bootstrap"` \| `"acquire"` \| `"transaction"` | Where the path stood: inside the schema bootstrap transaction, waiting for a pooled connection, or mid-admission-transaction. The message narrates only what actually happened to a connection in that phase (RV608): a refusal while WAITING held nothing, so it destroyed nothing. | [packages/store-postgres/src/quota.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L115) |
-| <a id="property-schema"></a> `schema` | `readonly` | `string` | The schema whose admission missed it. | [packages/store-postgres/src/quota.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L107) |
+| <a id="property-deadlinems"></a> `deadlineMs` | `readonly` | `number` | The deadline that expired, in milliseconds. | [packages/store-postgres/src/quota.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L106) |
+| <a id="property-phase"></a> `phase` | `readonly` | `"bootstrap"` \| `"acquire"` \| `"transaction"` | Where the path stood: inside the schema bootstrap transaction, waiting for a pooled connection, or mid-admission-transaction. The message narrates only what actually happened to a connection in that phase (RV608): a refusal while WAITING held nothing, so it destroyed nothing. | [packages/store-postgres/src/quota.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L116) |
+| <a id="property-schema"></a> `schema` | `readonly` | `string` | The schema whose admission missed it. | [packages/store-postgres/src/quota.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L108) |

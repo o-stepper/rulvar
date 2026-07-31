@@ -286,6 +286,10 @@ export function reconcileStatement(
   let statementTotalUsd: number | undefined;
   let statementComponents: Map<string, Partial<Record<BillingComponent, number>>> | undefined;
   let tokenMismatches = 0;
+  // True when a partially delivered multi-wire segment set touched our
+  // data (RV905): the export overlaps, so the verdict is
+  // partial-coverage, never no-overlap.
+  let partialOverlap = false;
   const tokenMismatchSample: StatementReconciliation['tokenMismatchSample'] = [];
 
   const rowsWithResponseId = billable.filter((row) => row.responseId !== undefined).length;
@@ -344,36 +348,73 @@ export function reconcileStatement(
     }
     const matched: InvoiceRow[] = [];
     const matchedStatement = new Set<string>();
+    // Segment ids of PARTIALLY delivered multi-wire dispatches (RV905):
+    // they matched our dispatch's segment set, so they are incomplete
+    // coverage, never foreign statement rows; the dispatch itself reads
+    // unmatched and the verdict partial-coverage.
+    const partialSegmentIds = new Set<string>();
     for (const row of billable) {
-      const hit = row.responseId === undefined ? undefined : byId.get(row.responseId);
-      if (hit === undefined) {
+      // A dispatch that absorbed provider-side continuations carries
+      // every segment's response id (RV905) and joins all-or-nothing:
+      // comparing a partial segment subset against the whole dispatch
+      // would manufacture divergence out of incomplete delivery.
+      const rowIds =
+        row.wireResponseIds !== undefined && row.wireResponseIds.length > 0
+          ? row.wireResponseIds
+          : row.responseId === undefined
+            ? []
+            : [row.responseId];
+      const hits = rowIds
+        .map((id) => byId.get(id))
+        .filter((hit): hit is StatementRequestRow => hit !== undefined);
+      if (rowIds.length === 0 || hits.length !== rowIds.length) {
         unmatchedRows += 1;
         if (row.responseId !== undefined && unmatchedIdSample.length < SAMPLE_CAP) {
           unmatchedIdSample.push(row.responseId);
         }
+        for (const hit of hits) {
+          partialSegmentIds.add(hit.responseId);
+          partialOverlap = true;
+        }
         continue;
       }
-      matchedStatement.add(hit.responseId);
+      for (const hit of hits) {
+        matchedStatement.add(hit.responseId);
+      }
       matched.push(row);
       // Token comparison where the export carries counts: ours are the
       // provider's own reported numbers, so a disagreement means the
-      // export and the wire disagree and is worth naming.
-      if (hit.usage !== undefined) {
-        const pairs: Array<[string, number | undefined, number]> = [
-          ['inputTokens', hit.usage.inputTokens, row.usage.inputTokens],
-          ['cachedInputTokens', hit.usage.cachedInputTokens, row.usage.cacheReadTokens],
-          ['cacheWriteTokens', hit.usage.cacheWriteTokens, row.usage.cacheWriteTokens],
-          ['outputTokens', hit.usage.outputTokens, row.usage.outputTokens],
+      // export and the wire disagree and is worth naming. A multi-wire
+      // dispatch compares each field as the SUM over its segments, and
+      // only fields every segment reports are comparable (a partial
+      // per-segment field cannot sum to a claim).
+      if (hits.length > 0 && hits.every((hit) => hit.usage !== undefined)) {
+        const fields: Array<
+          ['inputTokens' | 'cachedInputTokens' | 'cacheWriteTokens' | 'outputTokens', number]
+        > = [
+          ['inputTokens', row.usage.inputTokens],
+          ['cachedInputTokens', row.usage.cacheReadTokens],
+          ['cacheWriteTokens', row.usage.cacheWriteTokens],
+          ['outputTokens', row.usage.outputTokens],
         ];
-        for (const [field, statementValue, ours] of pairs) {
-          if (statementValue !== undefined && statementValue !== ours) {
+        for (const [field, ours] of fields) {
+          let sum = 0;
+          let present = 0;
+          for (const hit of hits) {
+            const value = hit.usage?.[field];
+            if (value !== undefined) {
+              sum += value;
+              present += 1;
+            }
+          }
+          if (present === hits.length && sum !== ours) {
             tokenMismatches += 1;
             if (tokenMismatchSample.length < SAMPLE_CAP) {
               tokenMismatchSample.push({
-                responseId: hit.responseId,
+                responseId: row.responseId ?? rowIds[0] ?? '',
                 field,
                 ours,
-                statement: statementValue,
+                statement: sum,
               });
             }
           }
@@ -381,7 +422,7 @@ export function reconcileStatement(
       }
     }
     for (const row of statement.rows) {
-      if (!matchedStatement.has(row.responseId)) {
+      if (!matchedStatement.has(row.responseId) && !partialSegmentIds.has(row.responseId)) {
         statementOnlyRows += 1;
         if (statementOnlyIdSample.length < SAMPLE_CAP) {
           statementOnlyIdSample.push(row.responseId);
@@ -556,7 +597,7 @@ export function reconcileStatement(
   let verdict: StatementReconciliation['verdict'];
   if (divergent.length > 0 || totalsDivergent || tokensDivergent) {
     verdict = 'divergence';
-  } else if (matchedRows === 0) {
+  } else if (matchedRows === 0 && !partialOverlap) {
     verdict = 'no-overlap';
   } else if (!coverageComplete) {
     verdict = 'partial-coverage';
