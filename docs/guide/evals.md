@@ -260,6 +260,17 @@ The comparison experiments left a standing list of fail-closed branches never ob
 - `pricing-rotation-uncovered-tail`: after a price-table rotation that drops the model, the pinned segment still prices under its own pin while the uncovered tail folds unpriced (`undefined`), surfaced, never a silent zero at stale rates.
 - `unknown-provider-id`: routing to an unregistered provider id fails typed naming the id; nothing dispatches.
 
+The RV909 scenarios turn the thirteenth experiment's fixed defects into permanent gates, so reverting any fix reports `matched: false` here, not only in the unit suite that shipped it:
+
+- `nan-statement-refusal`: a statement whose dollars cannot be summed is refused typed at [reconciliation intake](/guide/providers#openai-statement-reconciliation), never verdict `match` over NaN totals with the divergence check silently disarmed.
+- `token-mismatch-divergence`: provider-reported token counts that disagree with our recorded usage decide the reconciliation verdict even when the dollars agree; `tokenComparison: 'informational'` stays the declared opt-out with the mismatch still counted.
+- `audit-missing-field-finding`: the documented-rates comparator (`compareRates`, the one the weekly audit runs) fails closed in both directions: a billable page rate the seed never declared is a named finding, and so is a seed rate the page dropped.
+- `anthropic-1h-priced`: the shipped Anthropic table prices the 1h cache-write share at the documented 2x-input premium under its pinned `pricingVersion`, on the per-call reconciliation ledger, never the whole write count at the 5m rate.
+- `pause-turn-units`: continuations absorbed into one dispatch settle at true wire units: the quota reservation reconciles the actual request count, the invoice row names every segment id, and a per-request statement joins the whole set all-or-nothing (a partial segment set reads `partial-coverage`, never `no-overlap`).
+- `pre-admission-count-refusal`: a spawn the budget could never admit refuses before the `countTokens` egress, so the full child prompt never leaves the process.
+- `forced-finish-completion`: a budget-capped adaptive orchestration settles `ok` with the honest completion envelope `{ result, completion: 'partial' }` mirrored onto the outcome, never a bare result a consumer could execute as a full success.
+- `settlement-terminal-honesty`: a run whose settlement write fails rejects typed and its `run:end` carries `settled: false`; the healed resume re-settles by replay with zero live calls, and the settled terminal carries no such mark.
+
 The report is fail closed: a scenario whose branch stops producing its documented observable reports `matched: false` with the observed detail quoted, and `allMatched` says so, instead of the list quietly becoming untested again. With `artifactsDir` each scenario writes one `<scenario>.json` bundle (its doctrine, the observation, and every artifact: outcomes, journals, and the raw pre-repair bytes for the byte faults), the trace a review can cite exactly like an experiment's; `only: [...]` runs a named subset and an unknown name is a typed `ConfigError`.
 
 ## Matrix sweeps across models

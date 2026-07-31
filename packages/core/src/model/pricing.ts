@@ -163,3 +163,86 @@ export function affordableOutputTokens(
   });
   return Math.floor(((remainingUsd - inputUsd) / outputRate) * 1_000_000);
 }
+
+/**
+ * One side of a documented-rates comparison: the five per-MTok rate
+ * fields a provider pricing page publishes plus the long-context tiers,
+ * every field optional because either side may legitimately not carry
+ * one. A seed {@link Pricing} row is assignable directly.
+ */
+export interface DocumentedRates {
+  inputUsdPerMTok?: number;
+  outputUsdPerMTok?: number;
+  cacheReadUsdPerMTok?: number;
+  cacheWriteUsdPerMTok?: number;
+  cacheWrite1hUsdPerMTok?: number;
+  tiers?: PricingTier[];
+}
+
+const RATE_FIELDS = [
+  'inputUsdPerMTok',
+  'outputUsdPerMTok',
+  'cacheReadUsdPerMTok',
+  'cacheWriteUsdPerMTok',
+  'cacheWrite1hUsdPerMTok',
+] as const;
+
+const TIER_FIELDS = ['aboveInputTokens', 'inputMultiplier', 'outputMultiplier'] as const;
+
+/**
+ * Compares a pricing seed against rates extracted from the provider's
+ * documented pricing page, in BOTH directions (RV902): a seed rate the
+ * page moved or dropped is a finding, and so is a documented billable
+ * rate the seed never declared, because a billable column missing from
+ * the seed is a silent underpricing channel (the 1h cache-write premium
+ * hid exactly there). Declared long-context tiers compare field by
+ * field. Returns human-readable findings, empty when the sides agree;
+ * the weekly rates audit (scripts/rates-audit.mjs) runs this exact
+ * comparator over the live pages, and the fault-injection kit drives it
+ * as a permanent gate (RV909). It verifies DOCUMENTATION, not billing:
+ * only a statement reconciliation over saved exports settles what the
+ * provider's meter actually charges.
+ */
+export function compareRates(seed: DocumentedRates, page: DocumentedRates): string[] {
+  const findings: string[] = [];
+  for (const field of RATE_FIELDS) {
+    const seedValue = seed[field];
+    const pageValue = page[field];
+    if (seedValue === undefined) {
+      if (pageValue !== undefined) {
+        findings.push(
+          `${field}: the page shows ${String(pageValue)} but the seed declares no such rate`,
+        );
+      }
+      continue;
+    }
+    if (pageValue === undefined) {
+      findings.push(`${field}: seed ${String(seedValue)} but the page shows no such rate`);
+    } else if (Math.abs(seedValue - pageValue) > 1e-9) {
+      findings.push(`${field}: seed ${String(seedValue)} vs page ${String(pageValue)}`);
+    }
+  }
+  const seedTiers = seed.tiers;
+  if (Array.isArray(seedTiers)) {
+    const pageTiers = page.tiers;
+    if (!Array.isArray(pageTiers) || pageTiers.length !== seedTiers.length) {
+      findings.push(
+        `tiers: seed declares ${String(seedTiers.length)}, page shows ` +
+          `${Array.isArray(pageTiers) ? String(pageTiers.length) : 'none'}`,
+      );
+    } else {
+      for (let i = 0; i < seedTiers.length; i += 1) {
+        for (const field of TIER_FIELDS) {
+          const seedValue = seedTiers[i]?.[field] ?? Number.NaN;
+          const pageValue = pageTiers[i]?.[field] ?? Number.NaN;
+          if (!(Math.abs(seedValue - pageValue) <= 1e-9)) {
+            findings.push(
+              `tiers[${String(i)}].${field}: seed ${String(seedValue)} vs page ${String(pageValue)}`,
+            );
+          }
+        }
+      }
+    }
+  }
+  return findings;
+}

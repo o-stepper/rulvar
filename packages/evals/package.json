@@ -28,7 +28,10 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
+    "@rulvar/anthropic": "workspace:*",
     "@rulvar/core": "workspace:*",
+    "@rulvar/openai": "workspace:*",
+    "@rulvar/plan": "workspace:*",
     "@rulvar/testing": "workspace:*"
   },
   "devDependencies": {

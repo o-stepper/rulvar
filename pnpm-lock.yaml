@@ -341,9 +341,18 @@ importers:
 
   packages/evals:
     dependencies:
+      '@rulvar/anthropic':
+        specifier: workspace:*
+        version: link:../anthropic
       '@rulvar/core':
         specifier: workspace:*
         version: link:../core
+      '@rulvar/openai':
+        specifier: workspace:*
+        version: link:../openai
+      '@rulvar/plan':
+        specifier: workspace:*
+        version: link:../plan
       '@rulvar/testing':
         specifier: workspace:*
         version: link:../testing
