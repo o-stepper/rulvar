@@ -150,6 +150,7 @@ export class SqliteQuotaLimiter implements QuotaLimiter {
     for (;;) {
       try {
         this.db.exec(schema);
+        this.migrateReservationRequests();
         break;
       } catch (thrown) {
         if (!isSqliteBusy(thrown) || wallClock() > bootDeadline) {
@@ -157,6 +158,33 @@ export class SqliteQuotaLimiter implements QuotaLimiter {
         }
         sleepSync(25);
       }
+    }
+  }
+
+  /**
+   * Adds the `requests` column release() returns to the window
+   * (RV1103). Pre-release schemas lack it; the default 1 IS the exact
+   * value for every row an engine wrote, because the engine reserves
+   * exactly one request per admission. Serialized under BEGIN
+   * IMMEDIATE so N processes booting over one legacy file cannot race
+   * the ALTER; idempotent, and busy collisions retry with the rest of
+   * the bootstrap.
+   */
+  private migrateReservationRequests(): void {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const columns = this.db.prepare('PRAGMA table_info(quota_reservations)').all() as Array<{
+        name: string;
+      }>;
+      if (!columns.some((column) => column.name === 'requests')) {
+        this.db.exec(
+          'ALTER TABLE quota_reservations ADD COLUMN requests INTEGER NOT NULL DEFAULT 1',
+        );
+      }
+      this.db.exec('COMMIT');
+    } catch (thrown) {
+      this.rollbackQuietly();
+      throw thrown;
     }
   }
 
@@ -205,10 +233,16 @@ export class SqliteQuotaLimiter implements QuotaLimiter {
       const reservationId = randomUUID();
       this.db
         .prepare(
-          'INSERT INTO quota_reservations (id, window_start, estimate_tokens, rule_keys) ' +
-            'VALUES (?, ?, ?, ?)',
+          'INSERT INTO quota_reservations (id, window_start, estimate_tokens, rule_keys, requests) ' +
+            'VALUES (?, ?, ?, ?, ?)',
         )
-        .run(reservationId, windowStart, estimateTokens, JSON.stringify(matched));
+        .run(
+          reservationId,
+          windowStart,
+          estimateTokens,
+          JSON.stringify(matched),
+          request.estimate.requests,
+        );
       this.db.exec('COMMIT');
       return Promise.resolve({ granted: true, reservationId });
     } catch (thrown) {
@@ -249,6 +283,51 @@ export class SqliteQuotaLimiter implements QuotaLimiter {
         }
       }
       // A rolled-over window aged the estimate out with it.
+      this.db.exec('COMMIT');
+      return Promise.resolve();
+    } catch (thrown) {
+      this.rollbackQuietly();
+      throw thrown;
+    }
+  }
+
+  /**
+   * Cancels an UNUSED admission (RV1103, the optional SPI method from
+   * RV1013): exactly what admission consumed, the admitted requests
+   * and the token estimate, returns to the window, from any process
+   * sharing the file. Unknown ids, a double release, and a release
+   * after reconcile are no-ops (the row is gone); a rolled-over window
+   * already aged the estimate out, so only the row is deleted; a
+   * released id settles nothing afterwards. Mirrors
+   * `memoryQuotaLimiter.release` verdict for verdict.
+   */
+  release(reservationId: string): Promise<void> {
+    const at = this.now();
+    const windowStart = at - (at % QUOTA_WINDOW_MS);
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const row = this.db
+        .prepare(
+          'SELECT window_start, estimate_tokens, rule_keys, requests ' +
+            'FROM quota_reservations WHERE id = ?',
+        )
+        .get(reservationId) as
+        | { window_start: number; estimate_tokens: number; rule_keys: string; requests: number }
+        | undefined;
+      if (row === undefined) {
+        this.db.exec('COMMIT');
+        return Promise.resolve();
+      }
+      this.db.prepare('DELETE FROM quota_reservations WHERE id = ?').run(reservationId);
+      if (row.window_start === windowStart) {
+        const giveBack = this.db.prepare(
+          'UPDATE quota_buckets SET requests = MAX(0, requests - ?), tokens = MAX(0, tokens - ?) ' +
+            'WHERE rule_key = ? AND window_start = ?',
+        );
+        for (const key of JSON.parse(row.rule_keys) as string[]) {
+          giveBack.run(row.requests, row.estimate_tokens, key, windowStart);
+        }
+      }
       this.db.exec('COMMIT');
       return Promise.resolve();
     } catch (thrown) {

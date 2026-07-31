@@ -20,6 +20,7 @@ import {
   QUOTA_WINDOW_MS,
   createEngine,
   defineWorkflow,
+  quotaRuleKey,
   type ChatEvent,
   type ChatRequest,
   type ModelCaps,
@@ -676,5 +677,121 @@ describeDb('two engines over one database (the RV410 acceptance, in-process form
     expect(result.error?.kind).toBe('rate-limit');
     expect(adapterB.calls.length).toBe(0);
     expect((await limiterB.snapshot())[0]?.requests).toBe(1);
+  });
+});
+
+describeDb('PostgresQuotaLimiter.release (RV1104)', () => {
+  const rules: QuotaRule[] = [
+    { provider: 'fake', requestsPerMinute: 1 },
+    { provider: 'fake', tokensPerMinute: 50 },
+  ];
+
+  it('returns exactly what admission consumed to the window', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = limiterOver(freshSchema(), { rules, now: () => at });
+    const granted = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    expect(granted.granted).toBe(true);
+    const denied = await limiter.reserve(request());
+    expect(denied.granted).toBe(false);
+    await limiter.release(granted.granted ? granted.reservationId : '');
+    for (const row of await limiter.snapshot()) {
+      expect(row.requests).toBe(0);
+      expect(row.tokens).toBe(0);
+    }
+    const regranted = await limiter.reserve(
+      request({ estimate: { requests: 1, inputTokens: 40 } }),
+    );
+    expect(regranted.granted).toBe(true);
+  });
+
+  it('unknown ids and a double release are no-ops, and a released id settles nothing', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = limiterOver(freshSchema(), { rules, now: () => at });
+    await limiter.release('no-such-reservation');
+    const granted = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    const id = granted.granted ? granted.reservationId : '';
+    await limiter.release(id);
+    await limiter.release(id);
+    await limiter.reconcile(id, {
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    for (const row of await limiter.snapshot()) {
+      expect(row.requests).toBe(0);
+      expect(row.tokens).toBe(0);
+    }
+  });
+
+  it('a rolled-over window aged the estimate out: release touches nothing', async () => {
+    let at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = limiterOver(freshSchema(), { rules, now: () => at });
+    const granted = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    at += QUOTA_WINDOW_MS;
+    await limiter.release(granted.granted ? granted.reservationId : '');
+    for (const row of await limiter.snapshot()) {
+      expect(row.requests).toBe(0);
+      expect(row.tokens).toBe(0);
+    }
+  });
+
+  it('releases across limiter instances over one schema (the cross-host arc)', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const schema = freshSchema();
+    const a = limiterOver(schema, { rules, now: () => at });
+    const b = limiterOver(schema, { rules, now: () => at });
+    const granted = await a.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    expect(granted.granted).toBe(true);
+    await b.release(granted.granted ? granted.reservationId : '');
+    const regranted = await a.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    expect(regranted.granted).toBe(true);
+  });
+
+  it('migrates a pre-release reservation row to one admitted request', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const windowStart = QUOTA_WINDOW_MS * 100;
+    const schema = freshSchema();
+    const key = quotaRuleKey(rules[0]);
+    const tokensKey = quotaRuleKey(rules[1]);
+    // Build the pre-RV1104 schema by hand: no `requests` column on the
+    // reservations table, exactly what a 1.139.0 engine left behind.
+    const admin = new pg.Pool({ connectionString: url, max: 1 });
+    await admin.query(`CREATE SCHEMA "${schema}"`);
+    await admin.query(`
+      CREATE TABLE "${schema}".rulvar_quota_buckets (
+        rule_key TEXT NOT NULL,
+        window_start BIGINT NOT NULL,
+        requests BIGINT NOT NULL,
+        tokens BIGINT NOT NULL,
+        PRIMARY KEY (rule_key, window_start)
+      );
+      CREATE TABLE "${schema}".rulvar_quota_reservations (
+        id TEXT PRIMARY KEY,
+        window_start BIGINT NOT NULL,
+        estimate_tokens BIGINT NOT NULL,
+        rule_keys TEXT NOT NULL
+      );
+    `);
+    await admin.query(
+      `INSERT INTO "${schema}".rulvar_quota_buckets (rule_key, window_start, requests, tokens)
+         VALUES ($1, $3, 1, 40), ($2, $3, 1, 40)`,
+      [key, tokensKey, windowStart],
+    );
+    await admin.query(
+      `INSERT INTO "${schema}".rulvar_quota_reservations (id, window_start, estimate_tokens, rule_keys)
+         VALUES ('legacy-reservation', $1, 40, $2)`,
+      [windowStart, JSON.stringify([key, tokensKey])],
+    );
+    await admin.end();
+    // Boot migrates the schema (ADD COLUMN IF NOT EXISTS defaulting to
+    // 1, the single request every engine admission reserves), so the
+    // legacy row releases exactly one request and its whole estimate.
+    const limiter = limiterOver(schema, { rules, now: () => at });
+    await limiter.release('legacy-reservation');
+    for (const row of await limiter.snapshot()) {
+      expect(row.requests).toBe(0);
+      expect(row.tokens).toBe(0);
+    }
   });
 });

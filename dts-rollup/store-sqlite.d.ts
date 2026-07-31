@@ -156,10 +156,31 @@ declare class SqliteQuotaLimiter implements QuotaLimiter {
   private readonly ordered;
   private readonly now;
   constructor(options: SqliteQuotaLimiterOptions);
+  /**
+  * Adds the `requests` column release() returns to the window
+  * (RV1103). Pre-release schemas lack it; the default 1 IS the exact
+  * value for every row an engine wrote, because the engine reserves
+  * exactly one request per admission. Serialized under BEGIN
+  * IMMEDIATE so N processes booting over one legacy file cannot race
+  * the ALTER; idempotent, and busy collisions retry with the rest of
+  * the bootstrap.
+  */
+  private migrateReservationRequests;
   reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
   reconcile(reservationId: string, usage: Usage, actual?: {
     requests?: number;
   }): Promise<void>;
+  /**
+  * Cancels an UNUSED admission (RV1103, the optional SPI method from
+  * RV1013): exactly what admission consumed, the admitted requests
+  * and the token estimate, returns to the window, from any process
+  * sharing the file. Unknown ids, a double release, and a release
+  * after reconcile are no-ops (the row is gone); a rolled-over window
+  * already aged the estimate out, so only the row is deleted; a
+  * released id settles nothing afterwards. Mirrors
+  * `memoryQuotaLimiter.release` verdict for verdict.
+  */
+  release(reservationId: string): Promise<void>;
   /** Current-window counters per rule, for telemetry and referees. */
   snapshot(): Array<{
     rule: QuotaRule;

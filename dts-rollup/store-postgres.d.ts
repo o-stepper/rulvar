@@ -335,6 +335,19 @@ declare class PostgresQuotaLimiter implements QuotaLimiter {
   reconcile(reservationId: string, usage: Usage, actual?: {
     requests?: number;
   }): Promise<void>;
+  /**
+  * Cancels an UNUSED admission (RV1104, the optional SPI method from
+  * RV1013): exactly what admission consumed, the admitted requests
+  * and the token estimate, returns to the window, from any host
+  * sharing the schema. Unknown ids, a double release, and a release
+  * after reconcile are no-ops (the row is gone); a rolled-over window
+  * already aged the estimate out, so only the row is deleted; a
+  * released id settles nothing afterwards. Runs under the same
+  * advisory lock and generation fence as every admission, so a
+  * rotated-away host returns nothing under retired bucket keys.
+  * Mirrors `memoryQuotaLimiter.release` verdict for verdict.
+  */
+  release(reservationId: string): Promise<void>;
   /** Current-window counters per rule, for telemetry and referees. */
   snapshot(): Promise<Array<{
     rule: QuotaRule;
