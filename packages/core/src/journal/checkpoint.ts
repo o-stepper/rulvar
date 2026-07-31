@@ -108,22 +108,31 @@ export function encodeCheckpoint(state: CheckpointState): Uint8Array {
 
 /**
  * Decodes a checkpoint blob. Returns undefined for an empty blob, an
- * unknown format byte, unparseable JSON, or a parseable payload whose
- * nested message structure is malformed (RV804): a resume never trusts
- * a checkpoint it cannot decode, and it never throws; the dangling
- * dispatch reruns from the top instead (at-least-once is the
- * documented floor).
+ * unknown format byte, unparseable JSON, a top-level payload that is
+ * not an object (RV1008: `null`, a number, a string, an array), or a
+ * parseable payload whose nested message structure is malformed
+ * (RV804): a resume never trusts a checkpoint it cannot decode, and it
+ * never throws; the dangling dispatch reruns from the top instead
+ * (at-least-once is the documented floor).
  */
 export function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined {
   if (blob.length < 2 || blob[0] !== CHECKPOINT_FORMAT_V1) {
     return undefined;
   }
-  let parsed: CheckpointState;
+  let raw: unknown;
   try {
-    parsed = JSON.parse(Buffer.from(blob.subarray(1)).toString('utf8')) as CheckpointState;
+    raw = JSON.parse(Buffer.from(blob.subarray(1)).toString('utf8'));
   } catch {
     return undefined;
   }
+  // JSON.parse('null') parses fine, and `parsed.v` on it then threw a
+  // raw TypeError out of a function whose contract is never-throws
+  // (RV1008): the one top-level shape the RV804 fix left open. Arrays
+  // and primitives fall to the same guard.
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const parsed = raw as CheckpointState;
   if (parsed.v !== 1 || !Array.isArray(parsed.messages)) {
     return undefined;
   }

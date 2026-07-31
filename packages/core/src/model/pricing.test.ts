@@ -164,4 +164,30 @@ describe('compareRates (RV902, published home RV909)', () => {
       'tiers[0].inputMultiplier: seed 2 vs page 1.5',
     ]);
   });
+
+  it('a page-only tier is a finding, never a silent pass (RV1007)', () => {
+    // The page documents a long-context premium the seed never
+    // declared: the exact silent-underpricing channel the doctrine
+    // above names, hidden until now because the tier loop only ran
+    // when the SEED declared tiers.
+    const tier = { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 };
+    expect(compareRates(seed, { ...seed, tiers: [tier] })).toEqual([
+      'tiers: the page shows 1 but the seed declares none',
+    ]);
+    // An empty page tier list claims nothing.
+    expect(compareRates(seed, { ...seed, tiers: [] })).toEqual([]);
+  });
+
+  it('NaN on either side of a scalar rate is a finding, never agreement (RV1007)', () => {
+    // A page extraction that stops parsing yields NaN, and
+    // Math.abs(NaN) > epsilon is false: the historical form read a
+    // broken extraction as agreement. The tier fields already used the
+    // negated NaN-safe form; the scalars now match it.
+    expect(compareRates({ ...seed, inputUsdPerMTok: Number.NaN }, seed)).toEqual([
+      'inputUsdPerMTok: seed NaN vs page 3',
+    ]);
+    expect(compareRates(seed, { ...seed, outputUsdPerMTok: Number.NaN })).toEqual([
+      'outputUsdPerMTok: seed 15 vs page NaN',
+    ]);
+  });
 });
