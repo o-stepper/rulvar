@@ -81,10 +81,14 @@ describe('durable settlement acknowledgement (P0.1)', () => {
   it('a failed run_settle append rejects typed, skips the meta write, and resume re-settles by replay', async () => {
     const store = new SettleAppendOutageStore();
     const { engine, wf, adapter } = buildEngine(store);
-    const logs: string[] = [];
+    const logs: Array<{ msg: string; seq: number }> = [];
+    let runEnd: { seq: number; status: string; settled?: boolean } | undefined;
     const handle = engine.run(wf, undefined, {});
     handle.on('log', (event) => {
-      logs.push((event as { msg: string }).msg);
+      logs.push(event);
+    });
+    handle.on('run:end', (event) => {
+      runEnd = event;
     });
 
     let thrown: unknown;
@@ -114,15 +118,34 @@ describe('durable settlement acknowledgement (P0.1)', () => {
     // journal with no settle entry).
     expect((await store.load(handle.runId)).some(isSettleEntry)).toBe(false);
     expect((await store.getMeta(handle.runId))?.status).toBe('running');
-    expect(logs.some((msg) => msg.includes('settlement write failed (run-settle)'))).toBe(true);
+    const warn = logs.find((log) => log.msg.includes('settlement write failed (run-settle)'));
+    expect(warn).toBeDefined();
+
+    // The event terminal is not green (RV907): run:end still reports
+    // the COMPUTED status, and `settled: false` says nothing durable
+    // records it, so an event-only consumer cannot read a terminal that
+    // exists in no store as a settled success. The warn precedes it.
+    expect(runEnd?.status).toBe('ok');
+    expect(runEnd?.settled).toBe(false);
+    expect(runEnd?.seq).toBeGreaterThan(warn?.seq ?? Number.MAX_SAFE_INTEGER);
 
     // Healed store: resume re-settles the SAME outcome purely by
-    // replay; the adapter is never paid a second time.
+    // replay; the adapter is never paid a second time, and the settled
+    // terminal carries no `settled` field, byte for byte like every
+    // ordinary run.
     store.armed = false;
-    const resumed = await engine.resume(handle.runId, wf).result;
+    let resumedEnd: Record<string, unknown> | undefined;
+    const resumedHandle = engine.resume(handle.runId, wf);
+    resumedHandle.on('run:end', (event) => {
+      resumedEnd = event;
+    });
+    const resumed = await resumedHandle.result;
+    await new Promise((resolve) => setImmediate(resolve));
     expect(resumed.status).toBe('ok');
     expect(resumed.value).toBe('done');
     expect(adapter.calls).toHaveLength(1);
+    expect(resumedEnd).toBeDefined();
+    expect('settled' in (resumedEnd ?? {})).toBe(false);
     expect((await store.load(handle.runId)).some(isSettleEntry)).toBe(true);
     expect((await store.getMeta(handle.runId))?.status).toBe('ok');
   });
@@ -131,6 +154,10 @@ describe('durable settlement acknowledgement (P0.1)', () => {
     const store = new TerminalMetaOutageStore();
     const { engine, wf, adapter } = buildEngine(store);
     const handle = engine.run(wf, undefined, {});
+    let runEnd: { settled?: boolean } | undefined;
+    handle.on('run:end', (event) => {
+      runEnd = event;
+    });
 
     let thrown: unknown;
     try {
@@ -142,6 +169,8 @@ describe('durable settlement acknowledgement (P0.1)', () => {
     const settlement = thrown as SettlementError;
     expect(settlement.stage).toBe('meta');
     expect(settlement.runStatus).toBe('ok');
+    // Both settlement stages mark the event terminal unsettled (RV907).
+    expect(runEnd?.settled).toBe(false);
 
     // The journal settle IS durable; only the projection is behind, the
     // same residue a crash between the two writes leaves.
@@ -164,10 +193,19 @@ describe('durable settlement acknowledgement (P0.1)', () => {
     const { engine, wf } = buildEngine(store);
 
     // The fencing contract working is not a settlement fault: the
-    // successor owns settlement and this segment stays silent.
-    const outcome = await engine.run(wf, undefined, {}).result;
+    // successor owns settlement and this segment stays silent, and its
+    // run:end carries no `settled` field (RV907 marks only failures).
+    const handle = engine.run(wf, undefined, {});
+    let runEnd: Record<string, unknown> | undefined;
+    handle.on('run:end', (event) => {
+      runEnd = event;
+    });
+    const outcome = await handle.result;
+    await new Promise((resolve) => setImmediate(resolve));
     expect(outcome.status).toBe('ok');
     expect(outcome.value).toBe('done');
+    expect(runEnd).toBeDefined();
+    expect('settled' in (runEnd ?? {})).toBe(false);
   });
 
   it('an error-status run acknowledges the settlement write fault the same way', async () => {

@@ -509,16 +509,32 @@ Three details make the cap safe rather than merely present:
   finish (killing them would overpay), new plan revisions become impossible,
   and at quiescence the orchestrator gets one final wake, paid from the
   reserve, with a single `finish` tool. A successful finish yields outcome
-  `ok` with a `forcedFinish` mark in the cost report. If even that fails, the
-  engine synthesizes a deterministic partial result from the journaled plan
-  state with zero LLM calls, and the run ends `exhausted` with a non-null
-  value. The sole alternative is `atCap: 'fail-run'`: the reserved finalizer
+  `ok` with a `forcedFinish` mark in the cost report, and the value is the
+  completion envelope `{ result, completion }` (RV906): `completion` is
+  `'partial'` unless the finish provably passed the FULL declared contract.
+  Declared [finish validators](/guide/orchestration-modes#validating-the-finish-result)
+  bind the reserved finalizer exactly like any other finish (on capped runs
+  synthesis never runs, so this finish IS the final output they must judge),
+  and an accepted verdict with no declared
+  [acceptance policy](/guide/orchestration-modes#acceptance-the-child-completion-policy)
+  reads `completion: 'complete'`: a valid early finish is honestly complete.
+  A declared acceptance policy is never judged at the cap, so with one
+  declared the terminal stays `'partial'`; the engine lifts the literal onto
+  `run:end` and the outcome mirror either way, so a consumer reading only
+  `status: 'ok'` can no longer execute a truncated plan as a full success. A
+  finalizer finish the validators reject never becomes the run value. If the
+  finalizer fails, the engine synthesizes a deterministic partial result from
+  the journaled plan state with zero LLM calls, and the run ends `exhausted`
+  with a non-null value itself carrying `completion: 'partial'`. The sole
+  alternative is `atCap: 'fail-run'`: the reserved finalizer
   is skipped entirely and the run fails with outcome `error` carrying
   `FailRunError` (code `fail_run`, `data.source: 'orchestrator_budget_cap'`,
   `data.capDecisionRef`). The journaled cap decision freezes the chosen
   policy, so a crash between the decision and its effect rolls the SAME
   outcome forward on resume with no second decision and no model call, even
-  when the live options disagree.
+  when the live options disagree; a resume that finds the finalize terminal
+  (or the fallback decision) already journaled reuses that recorded effect
+  and reproduces the identical honest terminal with zero paid calls.
 
 Every numeric field of the budget spec validates before any journal entry,
 provider call, or child dispatch: `capUsd` and `finalizeReserveUsd` are finite

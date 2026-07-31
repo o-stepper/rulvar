@@ -1811,7 +1811,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
         );
       }
       // run:end spreads the SAME lift computed at outcome construction
-      // above, so telemetry and handle.result can never disagree.
+      // above, so telemetry and handle.result can never disagree. A
+      // failed settlement stamps `settled: false` (RV907): the event
+      // stream must never show a green terminal that exists in no
+      // durable record, and the ordinary path keeps its exact bytes.
       bus.emit(
         {
           type: 'run:end',
@@ -1819,6 +1822,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           totalUsd: outcome.cost.totalUsd,
           ...(outcome.cost.usageApprox === true ? { usageApprox: true } : {}),
           ...(lifted === undefined ? {} : lifted),
+          ...(settlementFailure === undefined ? {} : { settled: false as const }),
         },
         rootSpanId,
       );

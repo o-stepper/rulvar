@@ -909,6 +909,65 @@ const MUTATIONS = [
     replace: '      if (rowIds.length === 0 || hits.length === 0) {',
     test: 'packages/openai/src/reconcile.test.ts',
   },
+  {
+    id: 'forced-finish-partial',
+    build: '@rulvar/core',
+    doctrine:
+      "a forced finish never impersonates a full success (RV906): stamped 'complete', a consumer reading the completion pair executes a truncated plan as done",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "          completion: contractComplete ? 'complete' : 'partial',",
+    replace: "          completion: 'complete',",
+    test: 'packages/plan/src/orchestrator-budget.test.ts',
+  },
+  {
+    id: 'forced-finish-acceptance-unproven',
+    build: '@rulvar/core',
+    doctrine:
+      "a declared acceptance policy keeps the capped terminal 'partial' (RV906): acceptance is never judged at the cap, so dropping the guard claims a contract nothing evaluated",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          validationSpec !== undefined &&\n          opts?.acceptance === undefined &&',
+    replace: '          validationSpec !== undefined &&',
+    test: 'packages/plan/src/orchestrator-budget.test.ts',
+  },
+  {
+    id: 'finalize-validators-bound',
+    build: '@rulvar/core',
+    doctrine:
+      'the declared finish validators bind the reserved finalizer (RV906): unbound, a capped run returns output the declared contract would have rejected',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        // dispatch keeps its exact historical bytes.\n        [kTerminalTool]: {\n          name: FINISH_TOOL_NAME,\n          ...(validationSpec === undefined\n            ? {}\n            : {\n                validate: validateFinish,\n                ...(validationSpec.repairTurnReserve === undefined\n                  ? {}\n                  : { repairTurnReserve: validationSpec.repairTurnReserve }),\n              }),\n        },',
+    replace:
+      '        // dispatch keeps its exact historical bytes.\n        [kTerminalTool]: { name: FINISH_TOOL_NAME },',
+    test: 'packages/plan/src/orchestrator-budget.test.ts',
+  },
+  {
+    id: 'finalize-effect-rollforward',
+    build: '@rulvar/core',
+    doctrine:
+      'the journaled finalize effect rolls forward on resume (RV906): re-dispatching mints a fresh agent identity from the drifted live digest and re-pays the reserve on every resume of a settled capped run',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        priorFinalize !== undefined || priorFallback !== undefined\n          ? {',
+    replace: '        false\n          ? {',
+    test: 'packages/plan/src/orchestrator-budget.test.ts',
+  },
+  {
+    id: 'runend-settled-mark',
+    doctrine:
+      'a failed settlement marks run:end settled false (RV907): unmarked, an event-only consumer reads a green terminal that exists in no durable record',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '          ...(settlementFailure === undefined ? {} : { settled: false as const }),',
+    replace: '          ...{},',
+    test: 'packages/core/src/engine/settlement.test.ts',
+  },
+  {
+    id: 'runend-settled-absent',
+    doctrine:
+      'an ordinary settled terminal carries no settled field (RV907 byte doctrine): stamping every run flags healthy terminals and breaks the absent-field contract',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '          ...(settlementFailure === undefined ? {} : { settled: false as const }),',
+    replace: '          ...{ settled: false as const },',
+    test: 'packages/core/src/engine/settlement.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -148,8 +148,18 @@ export interface OrchestratorBudgetSpec {
   /**
    * The policy at the cap, validated as exactly one of the two literals
    * even at a plain JS/JSON boundary. 'finish-with-partial' (default)
-   * runs the reserved finalizer and returns its partial result with run
-   * outcome 'ok'. 'fail-run' skips the finalizer entirely: the run
+   * runs the reserved finalizer and settles run status 'ok' with the
+   * completion envelope { result, completion } as the value (RV906):
+   * completion is 'partial' unless the finalizer's finish provably
+   * passed the FULL declared contract (the declared finish validators
+   * bind the reserved finalizer; a declared acceptance policy is never
+   * judged at the cap, so with one declared the terminal stays
+   * 'partial'). The engine lifts the same literal onto run:end and the
+   * outcome mirror, so a consumer reading only status cannot execute a
+   * truncated plan as a full success. A finalizer that cannot produce
+   * an accepted finish falls back to the deterministic partial on the
+   * 'exhausted' outcome, itself carrying completion 'partial'.
+   * 'fail-run' skips the finalizer entirely: the run
    * fails with outcome 'error' carrying FailRunError (code 'fail_run',
    * data.source 'orchestrator_budget_cap', data.capDecisionRef); resume
    * rolls the same failure forward from the journaled cap decision
@@ -170,9 +180,12 @@ export interface OrchestratorBudgetSpec {
  * envelope { result, completion, childStatusCounts, degradedReasons }. A
  * violated policy fails the run with the typed FailRunError (code
  * 'fail_run', data.source 'orchestrator_acceptance') instead of settling
- * ok. A budget cap settle keeps its atCap policy: the cap partial is
- * already visible as run status 'exhausted' or the typed fail run error,
- * never a plain ok, so acceptance does not judge it again.
+ * ok. A budget cap settle keeps its atCap policy and acceptance is not
+ * judged at the cap: under 'finish-with-partial' the capped terminal
+ * carries completion 'partial' in its envelope (RV906) precisely
+ * because the declared acceptance went unjudged, and under 'fail-run'
+ * the typed failure stands, so the cap can never impersonate an
+ * accepted finish.
  */
 export interface OrchestrateAcceptance {
   /**
@@ -3591,7 +3604,11 @@ export function makeOrchestratorWorkflow(
      * and the pinned digest, and a finalizeTurns limit, paid from the
      * reserve. On its failure the engine writes
      * orchestrator_finalize_fallback and SYNTHESIZES a deterministic
-     * partial result by pure fold, without a single LLM call.
+     * partial result by pure fold, without a single LLM call. Both
+     * arms settle the completion envelope (RV906): the finalizer's ok
+     * wraps as { result, completion } and the synthesized fold names
+     * itself partial, so every forced terminal carries its honesty
+     * machine readably.
      */
     const runForcedFinish = async (): Promise<unknown> => {
       const capEntry = internals.replayer.snapshot().find((entry) => entry.seq === capDecisionRef);
@@ -3601,11 +3618,32 @@ export function makeOrchestratorWorkflow(
         (tool) => tool.name === FINISH_TOOL_NAME,
       );
       internals.cost.orchestrator.forcedFinish = true;
-      if (orchestratorAccount !== undefined) {
-        // The finalize dispatch draws FROM the reserve (DEF-7): stop
-        // subtracting it from the remainder now that it is being spent.
-        internals.budget.releaseFinalizeReserve(orchestratorAccount);
-      }
+      /**
+       * The journaled finalize effects roll forward (RV906): the
+       * finalize terminal (stamped costAttribution.finalizeReserve,
+       * strictly after the cap decision) and the fallback decision ARE
+       * the cap's recorded effects, so a resume that finds either must
+       * reuse it instead of paying a second dispatch. The prompt below
+       * derives from the LIVE digest, whose spend folds and ordinals a
+       * settled journal has moved past: re-deriving it on resume would
+       * mint a fresh agent identity and re-pay the reserve on every
+       * resume of an already settled capped run.
+       */
+      const fallbackKey = deriverV2.deriveKey({ kind: 'orchestrator-finalize-fallback' });
+      const priorFallback = internals.replayer
+        .snapshot()
+        .find((entry) => entry.kind === 'decision' && entry.key === fallbackKey);
+      const priorFinalize = internals.replayer
+        .snapshot()
+        .filter(
+          (entry) =>
+            entry.kind === 'agent' &&
+            entry.scope === callingState.scope &&
+            entry.seq > (capDecisionRef ?? -1) &&
+            entry.status !== 'running' &&
+            entry.costAttribution?.finalizeReserve === true,
+        )
+        .at(-1);
       const finalizeTurns = capState?.finalizeTurns ?? 2;
       const finalOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
         role: 'orchestrate',
@@ -3618,43 +3656,119 @@ export function makeOrchestratorWorkflow(
         // the reserve exists to fund.
         ...(capState === undefined ? {} : { estCost: capState.finalizeReserveUsd }),
         ...(opts?.model === undefined ? {} : { model: opts.model }),
-        [kTerminalTool]: { name: FINISH_TOOL_NAME },
+        // The declared finish validators bind the reserved finalizer
+        // (RV906): a capped run's final output obeys the same declared
+        // contract as any other finish (on capped runs synthesis never
+        // runs, so this finish IS the final output the validators must
+        // judge). A finish they reject never becomes the run value: the
+        // finalizer exhausts its turns and the deterministic fallback
+        // below settles the run. Without a declared contract the
+        // dispatch keeps its exact historical bytes.
+        [kTerminalTool]: {
+          name: FINISH_TOOL_NAME,
+          ...(validationSpec === undefined
+            ? {}
+            : {
+                validate: validateFinish,
+                ...(validationSpec.repairTurnReserve === undefined
+                  ? {}
+                  : { repairTurnReserve: validationSpec.repairTurnReserve }),
+              }),
+        },
         // Stamped into the terminal's cost attribution: the journal
         // fold derives reserveUsedUsd from it.
         [kFinalizeReserve]: true,
       };
-      const finalState: CtxScopeState = { ...callingState };
-      if (orchestratorAccount !== undefined) {
-        finalState.budgetScope = orchestratorAccount;
-      }
-      const digest = buildDigest(wakeOrdinal);
-      const reserveBaseline =
-        orchestratorAccount === undefined
-          ? 0
-          : (internals.budget.accountView(orchestratorAccount)?.spentUsd ?? 0);
-      const final = await runtime.runInScope(finalState, () =>
-        (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
-          [
-            'The orchestrator budget cap was reached (decision entry ' +
-              `${String(capDecisionRef ?? -1)}). The plan is frozen; admitted work has ` +
-              'settled. Produce the FINAL result of the run from the digest below by ' +
-              'calling finish({ result }) EXACTLY once. No other tool exists.',
-            `PLAN HASH: ${capValue?.snapshot?.planHash ?? ''}`,
-            `DIGEST: ${JSON.stringify(digest)}`,
-          ].join('\n'),
-          finalOpts,
-        ),
-      );
-      if (orchestratorAccount !== undefined) {
-        const view = internals.budget.accountView(orchestratorAccount);
-        internals.cost.orchestrator.spentUsd = view?.spentUsd ?? 0;
-        internals.cost.orchestrator.reserveUsedUsd = Math.max(
-          0,
-          (view?.spentUsd ?? 0) - reserveBaseline,
+      const runFinalizeDispatch = async (): Promise<AgentResult<unknown>> => {
+        if (orchestratorAccount !== undefined) {
+          // The finalize dispatch draws FROM the reserve (DEF-7): stop
+          // subtracting it from the remainder now that it is being
+          // spent.
+          internals.budget.releaseFinalizeReserve(orchestratorAccount);
+        }
+        const finalState: CtxScopeState = { ...callingState };
+        if (orchestratorAccount !== undefined) {
+          finalState.budgetScope = orchestratorAccount;
+        }
+        const digest = buildDigest(wakeOrdinal);
+        const reserveBaseline =
+          orchestratorAccount === undefined
+            ? 0
+            : (internals.budget.accountView(orchestratorAccount)?.spentUsd ?? 0);
+        const dispatched = await runtime.runInScope(finalState, () =>
+          (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+            [
+              'The orchestrator budget cap was reached (decision entry ' +
+                `${String(capDecisionRef ?? -1)}). The plan is frozen; admitted work has ` +
+                'settled. Produce the FINAL result of the run from the digest below by ' +
+                'calling finish({ result }) EXACTLY once. No other tool exists.',
+              `PLAN HASH: ${capValue?.snapshot?.planHash ?? ''}`,
+              `DIGEST: ${JSON.stringify(digest)}`,
+            ].join('\n'),
+            finalOpts,
+          ),
         );
-      }
+        if (orchestratorAccount !== undefined) {
+          const view = internals.budget.accountView(orchestratorAccount);
+          internals.cost.orchestrator.spentUsd = view?.spentUsd ?? 0;
+          internals.cost.orchestrator.reserveUsedUsd = Math.max(
+            0,
+            (view?.spentUsd ?? 0) - reserveBaseline,
+          );
+        }
+        return dispatched;
+      };
+      // The recorded effect wins over a fresh dispatch: a restored
+      // terminal replays its journaled value (and a restored fallback
+      // replays as the non-ok arm below), with zero paid calls and no
+      // reserve mutation, because the journal fold already carries the
+      // spend and the reserveUsedUsd attribution.
+      const final: {
+        status: string;
+        output: unknown;
+        turns: number;
+        error?: { kind?: string };
+      } =
+        priorFinalize !== undefined || priorFallback !== undefined
+          ? {
+              status: priorFinalize?.status ?? 'limit',
+              // An ok finish whose result was exactly null journals no
+              // value; null restores the live envelope byte for byte.
+              output: priorFinalize?.value ?? null,
+              turns: (priorFallback?.value as { turnsUsed?: number } | undefined)?.turnsUsed ?? 0,
+            }
+          : await runFinalizeDispatch();
       if (final.status === 'ok') {
-        return final.output;
+        // The honest completion of a forced finish (RV906): the value
+        // is the completion envelope, and the literal is 'partial'
+        // UNLESS the finish provably passed the FULL declared contract.
+        // The proof is the journaled accepted validation decision of
+        // the finalize dispatch (strictly after the cap decision, in
+        // this scope), so a resume recomputes the identical claim from
+        // the journal, and a journal written before the validators
+        // bound this path honestly stays 'partial'. A declared
+        // acceptance policy is never judged at the cap, so with one
+        // declared the full contract is unproven and the terminal
+        // stays 'partial'; with nothing declared there is no proof of
+        // completeness at all.
+        const contractComplete =
+          validationSpec !== undefined &&
+          opts?.acceptance === undefined &&
+          internals.replayer
+            .snapshot()
+            .some(
+              (entry) =>
+                entry.kind === 'decision' &&
+                entry.scope === callingState.scope &&
+                entry.seq > (capDecisionRef ?? -1) &&
+                (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+                  'orchestrator_finish_validation' &&
+                (entry.value as { verdict?: string }).verdict === 'accepted',
+            );
+        return {
+          result: final.output,
+          completion: contractComplete ? 'complete' : 'partial',
+        };
       }
       const reason =
         final.error?.kind === 'schema-mismatch'
@@ -3662,7 +3776,6 @@ export function makeOrchestratorWorkflow(
           : final.error?.kind === 'budget'
             ? 'ceiling-abort'
             : 'turns-exhausted';
-      const fallbackKey = deriverV2.deriveKey({ kind: 'orchestrator-finalize-fallback' });
       if (
         !internals.replayer
           .snapshot()
@@ -3687,10 +3800,13 @@ export function makeOrchestratorWorkflow(
         });
       }
       // The synthesized partial: a pure fold over the settled records
-      // and the frozen plan snapshot; exhaustion is never null.
+      // and the frozen plan snapshot; exhaustion is never null, and the
+      // fold names itself partial (RV906) so the exhausted terminal
+      // lifts the same honest literal as the finalizer's envelope.
       internals.budget.markExhausted();
       return {
         forcedFinishFallback: true,
+        completion: 'partial',
         planHash: capValue?.snapshot?.planHash ?? '',
         completed: [...byOrdinal.values()]
           .filter((record) => record.settled !== undefined)

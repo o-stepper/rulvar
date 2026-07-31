@@ -30,6 +30,7 @@ type CoreEvents =
   degradedReasons?: string[];
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
+  settled?: false;
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   totalUsd: number;
   type: "run:end";
@@ -115,6 +116,7 @@ Run lifecycle and core telemetry (M1 subset).
   degradedReasons?: string[];
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
+  settled?: false;
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   totalUsd: number;
   type: "run:end";
@@ -130,6 +132,7 @@ Run lifecycle and core telemetry (M1 subset).
 | `degradedReasons?` | `string`[] | Per-child degradation notes, lifted from the same envelope (or typed error data) when it carries a valid string array (the fifth experiment, cycle 75). An empty array is the workflow's claim of zero degradation; absence means no claim. The outcome mirror spreads the SAME lift, so the surfaces cannot disagree. | `packages/core/dist/index.d.ts` |
 | `salvagedPartialChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `salvagedTerminalOutputChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
+| `settled?` | `false` | Present and false ONLY when a settlement write failed (the run_settle journal append or the terminal RunMeta projection, RV907): the status above is true as computation, but nothing durable records it, `handle.result` rejects with the typed SettlementError instead of resolving, and an event-only consumer must not treat this terminal as green. Resuming the run re-settles by replay (no provider call) and the settled terminal carries no field, byte for byte like every ordinary run. Never emitted true. | `packages/core/dist/index.d.ts` |
 | `status` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | - | `packages/core/dist/index.d.ts` |
 | `totalUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `type` | `"run:end"` | - | `packages/core/dist/index.d.ts` |

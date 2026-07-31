@@ -125,6 +125,16 @@ describe('renderEventLine terminal safety', () => {
     ).toBe('agent reviewer ok ($0.0120, 15 tok, 2 retries)');
   });
 
+  it('marks an unsettled terminal so an event-only reader never takes it green (RV907)', () => {
+    expect(
+      renderEventLine(ev({ type: 'run:end', status: 'ok', totalUsd: 0, settled: false }, 'root')),
+    ).toBe('run R1 ok settled=false (outcome withheld; resume re-settles)');
+    // A settled terminal keeps its exact historical line.
+    expect(renderEventLine(ev({ type: 'run:end', status: 'ok', totalUsd: 0 }, 'root'))).toBe(
+      'run R1 ok',
+    );
+  });
+
   it('renders the determinism warning with its localized site, or the frame without one', () => {
     expect(
       renderEventLine(

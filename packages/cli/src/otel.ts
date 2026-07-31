@@ -261,7 +261,13 @@ export async function toOtel(
     stack.push(open);
   };
 
-  const endSpan = (spanId: string, ts: string, status?: string, message?: string): void => {
+  const endSpan = (
+    spanId: string,
+    ts: string,
+    status?: string,
+    message?: string,
+    unsettled = false,
+  ): void => {
     const open = openBySpanId.get(spanId);
     if (open === undefined) {
       return;
@@ -270,7 +276,7 @@ export async function toOtel(
       open.span.setAttribute('rulvar.status', status);
     }
     open.span.setStatus(
-      status !== undefined && status !== 'ok' && status !== 'skipped'
+      (status !== undefined && status !== 'ok' && status !== 'skipped') || unsettled
         ? { code: STATUS_ERROR, ...(message === undefined ? {} : { message }) }
         : { code: STATUS_OK },
     );
@@ -330,7 +336,21 @@ export async function toOtel(
             JSON.stringify(event.acceptanceChildren),
           );
         }
-        endSpan(event.spanId, event.ts, event.status);
+        // An unsettled terminal (RV907): the computed status stays an
+        // attribute, but the span refuses green, because nothing
+        // durable records this terminal and handle.result rejects.
+        if (runOpen !== undefined && event.settled === false) {
+          runOpen.span.setAttribute('rulvar.run.settled', false);
+        }
+        endSpan(
+          event.spanId,
+          event.ts,
+          event.status,
+          event.settled === false
+            ? 'settlement failed: nothing durable records this terminal; resume re-settles'
+            : undefined,
+          event.settled === false,
+        );
         break;
       }
       // Phase activations are child spans of the agent span, keyed
