@@ -13,14 +13,17 @@ function reconcileStatement(
    options): StatementReconciliation;
 ```
 
-Defined in: [packages/openai/src/reconcile.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/reconcile.ts#L169)
+Defined in: [packages/openai/src/reconcile.ts:235](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/reconcile.ts#L235)
 
 Reconciles the invoice against a normalized provider export. Pure and
 journal-free; see the module doc for the contract. Throws a typed
 ConfigError on inputs that cannot be evidence: an empty statement (a
 headline total with no rows), a request row without a response id, a
-duplicate response id (an ambiguous join), or a request export whose
-rows carry neither dollars, components, nor usage.
+duplicate response id (an ambiguous join), a request export whose
+rows carry neither dollars, components, nor usage, any non-finite or
+negative dollar amount, any non-integer or negative token count, or
+a non-finite or negative tolerance (RV903: a statement that cannot
+be summed must refuse loudly, never verdict 'match' on NaN totals).
 
 ## Parameters
 

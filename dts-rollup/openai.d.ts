@@ -200,6 +200,20 @@ interface ReconcileStatementOptions {
   totalToleranceUsd?: number;
   /** Provider-side model name of a served ref; default strips the adapter prefix. */
   modelOf?: (servedBy: ModelRef) => string;
+  /**
+  * How provider-reported token counts weigh on the verdict (RV903).
+  * 'verdict' (default): any token disagreement between the export and
+  * our recorded usage is a divergence, because our counts ARE the
+  * provider's own wire-reported numbers, so an export that disagrees
+  * with them describes a different request than the wire served, and
+  * dollars derived from either cannot be trusted to mean the same
+  * thing. 'informational' preserves the pre-v1.126 dollar-only
+  * verdict for exports whose token semantics legitimately differ from
+  * the wire's (a different cache accounting, rounded aggregates):
+  * mismatches are still counted and sampled, but only dollar deltas
+  * decide.
+  */
+  tokenComparison?: "verdict" | "informational";
 }
 /** One (model, component) line of the reconciliation. */
 interface ComponentDelta {
@@ -244,7 +258,12 @@ interface StatementReconciliation {
   components: ComponentDelta[];
   /** The lines beyond tolerance, largest |delta| first: the named divergences. */
   divergent: ComponentDelta[];
-  /** Sample of token disagreements between the export and our recorded usage (requests mode). */
+  /**
+  * Token disagreements between the export and our recorded usage
+  * (requests mode). Under the default tokenComparison 'verdict' any
+  * mismatch makes the verdict 'divergence'; under 'informational' the
+  * count and sample still report, advisory only (RV903).
+  */
   tokenMismatches: number;
   tokenMismatchSample: Array<{
     responseId: string;
@@ -264,8 +283,11 @@ interface StatementReconciliation {
 * journal-free; see the module doc for the contract. Throws a typed
 * ConfigError on inputs that cannot be evidence: an empty statement (a
 * headline total with no rows), a request row without a response id, a
-* duplicate response id (an ambiguous join), or a request export whose
-* rows carry neither dollars, components, nor usage.
+* duplicate response id (an ambiguous join), a request export whose
+* rows carry neither dollars, components, nor usage, any non-finite or
+* negative dollar amount, any non-integer or negative token count, or
+* a non-finite or negative tolerance (RV903: a statement that cannot
+* be summed must refuse loudly, never verdict 'match' on NaN totals).
 */
 declare function reconcileStatement(invoice: {
   rows: readonly InvoiceRow[];

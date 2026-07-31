@@ -10,6 +10,6 @@
 type BillingComponent = "input" | "cached-input" | "cache-write" | "output";
 ```
 
-Defined in: [packages/openai/src/reconcile.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/reconcile.ts#L30)
+Defined in: [packages/openai/src/reconcile.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/reconcile.ts#L39)
 
 The four billing components a provider statement itemizes.

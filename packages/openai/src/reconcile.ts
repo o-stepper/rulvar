@@ -19,6 +19,15 @@
  * every component, so a real divergence NAMES the rate-card line that
  * moved instead of printing one inexplicable total.
  *
+ * The intake fails closed on numbers that cannot be evidence (RV903,
+ * the thirteenth experiment's probes): non-finite or negative dollars,
+ * non-integer or negative token counts, and non-finite or negative
+ * tolerances refuse typed instead of flowing NaN through the sums to a
+ * false 'match'. Provider-reported token disagreements decide the
+ * verdict by default; `tokenComparison: 'informational'` restores the
+ * dollar-only verdict for exports with legitimately different token
+ * semantics.
+ *
  * Sidecar only, like the v1.19.0 cache audit beside it: nothing here
  * reads or writes a journal, and the caller stores the report next to
  * the invoice it reconciles.
@@ -82,6 +91,20 @@ export interface ReconcileStatementOptions {
   totalToleranceUsd?: number;
   /** Provider-side model name of a served ref; default strips the adapter prefix. */
   modelOf?: (servedBy: ModelRef) => string;
+  /**
+   * How provider-reported token counts weigh on the verdict (RV903).
+   * 'verdict' (default): any token disagreement between the export and
+   * our recorded usage is a divergence, because our counts ARE the
+   * provider's own wire-reported numbers, so an export that disagrees
+   * with them describes a different request than the wire served, and
+   * dollars derived from either cannot be trusted to mean the same
+   * thing. 'informational' preserves the pre-v1.126 dollar-only
+   * verdict for exports whose token semantics legitimately differ from
+   * the wire's (a different cache accounting, rounded aggregates):
+   * mismatches are still counted and sampled, but only dollar deltas
+   * decide.
+   */
+  tokenComparison?: 'verdict' | 'informational';
 }
 
 /** One (model, component) line of the reconciliation. */
@@ -125,7 +148,12 @@ export interface StatementReconciliation {
   components: ComponentDelta[];
   /** The lines beyond tolerance, largest |delta| first: the named divergences. */
   divergent: ComponentDelta[];
-  /** Sample of token disagreements between the export and our recorded usage (requests mode). */
+  /**
+   * Token disagreements between the export and our recorded usage
+   * (requests mode). Under the default tokenComparison 'verdict' any
+   * mismatch makes the verdict 'divergence'; under 'informational' the
+   * count and sample still report, advisory only (RV903).
+   */
   tokenMismatches: number;
   tokenMismatchSample: Array<{
     responseId: string;
@@ -159,21 +187,71 @@ const defaultModelOf = (servedBy: ModelRef): string => {
 };
 
 /**
+ * A statement dollar amount must be a finite nonnegative number
+ * (RV903). The thirteenth experiment's probe fed `usd: NaN` and got
+ * verdict 'match' with NaN totals: NaN flowed through the sums and
+ * `Math.abs(NaN) > tolerance` is false, so the divergence check
+ * silently disarmed. Negative amounts are refused too: provider
+ * credits and adjustments are real, but they are not per-request or
+ * per-component BILLING evidence, and folding them into the join would
+ * let an adjustment mask a rate divergence of the same size.
+ */
+function assertStatementUsd(where: string, field: string, value: number): void {
+  if (!Number.isFinite(value)) {
+    throw new ConfigError(
+      `statement reconciliation refused: ${where} carries ${field} ${String(value)}, which ` +
+        'cannot be summed; a statement whose dollars are not finite is not evidence',
+    );
+  }
+  if (value < 0) {
+    throw new ConfigError(
+      `statement reconciliation refused: ${where} carries negative ${field} ${String(value)}; ` +
+        'credits and adjustments reconcile separately, never as negative statement rows',
+    );
+  }
+}
+
+/** A provider-reported token count must be a nonnegative integer (RV903). */
+function assertTokenCount(where: string, field: string, value: number): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new ConfigError(
+      `statement reconciliation refused: ${where} carries ${field} ${String(value)}; ` +
+        'provider-reported token counts are nonnegative integers',
+    );
+  }
+}
+
+/**
  * Reconciles the invoice against a normalized provider export. Pure and
  * journal-free; see the module doc for the contract. Throws a typed
  * ConfigError on inputs that cannot be evidence: an empty statement (a
  * headline total with no rows), a request row without a response id, a
- * duplicate response id (an ambiguous join), or a request export whose
- * rows carry neither dollars, components, nor usage.
+ * duplicate response id (an ambiguous join), a request export whose
+ * rows carry neither dollars, components, nor usage, any non-finite or
+ * negative dollar amount, any non-integer or negative token count, or
+ * a non-finite or negative tolerance (RV903: a statement that cannot
+ * be summed must refuse loudly, never verdict 'match' on NaN totals).
  */
 export function reconcileStatement(
   invoice: { rows: readonly InvoiceRow[] },
   statement: ProviderStatement,
   options: ReconcileStatementOptions,
 ): StatementReconciliation {
+  for (const [name, value] of [
+    ['componentToleranceUsd', options.componentToleranceUsd],
+    ['totalToleranceUsd', options.totalToleranceUsd],
+  ] as const) {
+    if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+      throw new ConfigError(
+        `statement reconciliation refused: ${name} ${String(value)} is not a finite ` +
+          'nonnegative dollar tolerance',
+      );
+    }
+  }
   const componentToleranceUsd = options.componentToleranceUsd ?? 0.005;
   const totalToleranceUsd = options.totalToleranceUsd ?? 0.01;
   const modelOf = options.modelOf ?? defaultModelOf;
+  const tokenComparison = options.tokenComparison ?? 'verdict';
   if (statement.rows.length === 0) {
     throw new ConfigError(
       'statement reconciliation refused: the statement carries no rows. A headline total is ' +
@@ -227,6 +305,31 @@ export function reconcileStatement(
           `statement reconciliation refused: duplicate response id '${row.responseId}' in the ` +
             'export makes the join ambiguous',
         );
+      }
+      const where = `row '${row.responseId}'`;
+      if (row.usd !== undefined) {
+        assertStatementUsd(where, 'usd', row.usd);
+      }
+      if (row.componentsUsd !== undefined) {
+        for (const component of COMPONENTS) {
+          const usd = row.componentsUsd[component];
+          if (usd !== undefined) {
+            assertStatementUsd(where, `componentsUsd.${component}`, usd);
+          }
+        }
+      }
+      if (row.usage !== undefined) {
+        for (const field of [
+          'inputTokens',
+          'cachedInputTokens',
+          'cacheWriteTokens',
+          'outputTokens',
+        ] as const) {
+          const count = row.usage[field];
+          if (count !== undefined) {
+            assertTokenCount(where, `usage.${field}`, count);
+          }
+        }
       }
       byId.set(row.responseId, row);
       if (row.usd !== undefined || row.componentsUsd !== undefined || row.usage !== undefined) {
@@ -320,6 +423,7 @@ export function reconcileStatement(
     statementComponents = new Map();
     let total = 0;
     for (const row of statement.rows) {
+      assertStatementUsd(`category row '${row.model}' ${row.component}`, 'usd', row.usd);
       const sums = statementComponents.get(row.model) ?? {};
       sums[row.component] = (sums[row.component] ?? 0) + row.usd;
       statementComponents.set(row.model, sums);
@@ -444,8 +548,13 @@ export function reconcileStatement(
       (matchedRows === rowsWithResponseId && rowsWithResponseId === billable.length)) &&
     (statement.kind === 'requests' || components.every((line) => line.statementUsd !== undefined));
 
+  // Token disagreements decide the verdict by default (RV903): a
+  // mismatch is only ever counted on a MATCHED row, so this can never
+  // shadow a no-overlap report.
+  const tokensDivergent = tokenComparison === 'verdict' && tokenMismatches > 0;
+
   let verdict: StatementReconciliation['verdict'];
-  if (divergent.length > 0 || totalsDivergent) {
+  if (divergent.length > 0 || totalsDivergent || tokensDivergent) {
     verdict = 'divergence';
   } else if (matchedRows === 0) {
     verdict = 'no-overlap';
