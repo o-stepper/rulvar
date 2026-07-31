@@ -23,4 +23,13 @@ describe('assertSafeRunId (v1.36.0 review SEC-P1)', () => {
     expect(() => assertSafeRunId(undefined as unknown as string, 'ctx')).toThrow(ConfigError);
     expect(() => assertSafeRunId(null as unknown as string, 'ctx')).toThrow(ConfigError);
   });
+
+  it('enforces the length ceiling (RV1012)', () => {
+    // The runId is a path component and a correlation key: a sane
+    // ceiling keeps it under filesystem name limits with room for
+    // store suffixes, and starves length-based smuggling.
+    expect(() => assertSafeRunId('a'.repeat(200), 'ctx')).not.toThrow();
+    expect(() => assertSafeRunId('a'.repeat(201), 'ctx')).toThrow(ConfigError);
+    expect(() => assertSafeRunId('a'.repeat(201), 'ctx')).toThrow(/200/);
+  });
 });

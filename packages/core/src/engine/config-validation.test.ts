@@ -394,4 +394,40 @@ describe('run id containment (v1.36.0 review SEC-P1)', () => {
     const outcome = await engine.run(singleAgentWf, undefined, { runId: 'tenant-42.run_1' }).result;
     expect(outcome.status).toBe('ok');
   });
+
+  it('refuses a secret-shaped runId the default masking policy would rewrite (RV1012)', () => {
+    // The runId rides every event envelope UNMASKED (body masking runs
+    // before the envelope is assembled), so a secret-shaped id is a
+    // masking-bypass channel the host creates itself; the intake
+    // refuses it typed before any side effect.
+    const { adapter, engine } = fakeEngine();
+    const secretShaped = 'sk-ant-api03-AbCdEfGhIjKlMnOpQrSt';
+    expect(() => engine.run(singleAgentWf, undefined, { runId: secretShaped })).toThrow(
+      ConfigError,
+    );
+    expect(() => engine.run(singleAgentWf, undefined, { runId: secretShaped })).toThrow(
+      /redaction|secret-shaped/,
+    );
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('refuses a runId matching host redaction patterns; maskEvents false restores acceptance', async () => {
+    const custom = fakeEngine({ redaction: { patterns: ['MRN-\\d+'] } });
+    expect(() => custom.engine.run(singleAgentWf, undefined, { runId: 'MRN-12345' })).toThrow(
+      /redaction|secret-shaped/,
+    );
+    // With masking off, events carry raw strings everywhere and the
+    // runId is no special channel: the intake check does not apply.
+    const off = fakeEngine({ redaction: { maskEvents: false } });
+    const outcome = await off.engine.run(singleAgentWf, undefined, {
+      runId: 'sk-ant-api03-AbCdEfGhIjKlMnOpQrSt',
+    }).result;
+    expect(outcome.status).toBe('ok');
+  });
+
+  it('refuses a runId beyond the length ceiling before any side effect', () => {
+    const { adapter, engine } = fakeEngine();
+    expect(() => engine.run(singleAgentWf, undefined, { runId: 'a'.repeat(201) })).toThrow(/200/);
+    expect(adapter.calls).toHaveLength(0);
+  });
 });

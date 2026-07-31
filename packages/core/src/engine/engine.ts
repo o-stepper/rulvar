@@ -34,10 +34,12 @@ import type { RunMeta, JournalStore, LeasableStore, Lease } from '../l0/spi/stor
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import {
   compileSecretMasker,
+  maskSecretsDeep,
   wrapJournalStore,
   wrapTranscriptStore,
   type SerializationHook,
 } from '../l0/serialization.js';
+import { validateEntryShape } from '../journal/kinds.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { validateSchemaSpec, type SchemaSpec } from '../l0/schema.js';
 import { jcsSerialize } from '../l0/jcs.js';
@@ -1037,6 +1039,24 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // of the journal's own name guard, so a runId of '..' would escape the
     // transcript root there. Minted ids and prior-run ids pass unchanged.
     assertSafeRunId(runId, 'engine.run');
+    // A runId is a correlation key: it rides every event envelope
+    // UNMASKED (body masking runs before the envelope is assembled),
+    // every journal path, and every transcript ref prefix, so a
+    // secret-shaped runId would leak through the very masking the host
+    // configured: a bypass channel the host creates itself. Under an
+    // active masking policy the intake refuses such an id typed
+    // (RV1012); masking the id instead would sever correlation.
+    if (maskEvents) {
+      const maskedRunId =
+        eventMasker === undefined ? maskSecretsDeep(runId) : eventMasker.maskDeep(runId);
+      if (maskedRunId !== runId) {
+        throw new ConfigError(
+          `engine.run: runId matches the active redaction policy (a secret-shaped ` +
+            `correlation key); events carry the runId unmasked by design, so an id the ` +
+            `policy would rewrite is refused at intake; mint a neutral runId instead`,
+        );
+      }
+    }
     // The segment's lease rides ONE mutable holder (P0.2): caller
     // supplied (queue mode, or the genesis handoff via
     // RunOptions.lease) or engine acquired at the ownership boot in
@@ -2149,6 +2169,37 @@ export function createEngine(options: CreateEngineOptions): Engine {
       throw new ConfigError('importRun: the bundle must be a RunExport (runId, entries, blobs)');
     }
     const runId = bundle.runId;
+    // Intake validation BEFORE any write (RV1010): an import is an
+    // all-or-nothing claim, so everything checkable up front refuses
+    // up front. Every blob ref must live in the bundle runId's own
+    // namespace: transcript refs are runId-prefixed by construction,
+    // and a crafted bundle for run A must never overwrite run B's
+    // blobs through a foreign ref.
+    for (const blob of bundle.blobs) {
+      const ref: unknown = (blob as { ref?: unknown } | undefined)?.ref;
+      if (typeof ref !== 'string' || !ref.startsWith(`${runId}/`)) {
+        throw new ConfigError(
+          `importRun: blob ref '${String(ref)}' is outside run '${runId}' namespace ` +
+            `('${runId}/...'); a bundle imports only its own run's blobs`,
+        );
+      }
+    }
+    // Every entry must pass the journal codec's shape validation (the
+    // same registry the replayer folds with): an import that appends
+    // garbage would brick the run it claims to restore.
+    bundle.entries.forEach((entry, index) => {
+      const rawEntry: unknown = entry;
+      if (typeof rawEntry !== 'object' || rawEntry === null) {
+        throw new ConfigError(`importRun: entries[${String(index)}] is not a journal entry`);
+      }
+      const issues = validateEntryShape(entry);
+      if (issues.length > 0) {
+        throw new ConfigError(
+          `importRun: entries[${String(index)}] is not a valid journal entry: ` +
+            issues.map((issue) => issue.message).join('; '),
+        );
+      }
+    });
     const existingMeta = await readRunMeta(journal, runId);
     const existingEntries = await journal.load(runId);
     const existingBlobs = await transcripts.list(runId);
@@ -2158,14 +2209,30 @@ export function createEngine(options: CreateEngineOptions): Engine {
           'interleaves with live history (delete the run first if replacement is intended)',
       );
     }
-    for (const entry of bundle.entries) {
-      await journal.append(runId, entry);
-    }
-    for (const blob of bundle.blobs) {
-      await transcripts.put(blob.ref, blob.data);
-    }
-    if (bundle.meta !== undefined) {
-      await journal.putMeta({ ...bundle.meta, runId });
+    // Writes in blobs -> entries -> meta order with best-effort
+    // rollback (RV1010): a failed import must not leave a partial run
+    // that bricks the retry through the exists-refusal above.
+    try {
+      for (const blob of bundle.blobs) {
+        await transcripts.put(blob.ref, blob.data);
+      }
+      for (const entry of bundle.entries) {
+        await journal.append(runId, entry);
+      }
+      if (bundle.meta !== undefined) {
+        await journal.putMeta({ ...bundle.meta, runId });
+      }
+    } catch (failed) {
+      try {
+        for (const ref of await transcripts.list(runId)) {
+          await transcripts.delete(ref);
+        }
+        await journal.delete(runId);
+      } catch {
+        // Best effort: the original failure is the story; a rollback
+        // that also failed leaves residue `rulvar runs audit` can see.
+      }
+      throw failed;
     }
   }
 

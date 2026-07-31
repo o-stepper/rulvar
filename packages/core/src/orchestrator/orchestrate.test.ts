@@ -244,6 +244,60 @@ describe('orchestrate (M6-T07/T08)', () => {
     expect(secondTurn).toContain('declares a ladder');
   });
 
+  it('opts.profiles is an enforced allowlist: a hidden profile refuses typed before admission (RV1011)', async () => {
+    // The advertisement was filtered but the dispatch resolved from the
+    // FULL registry, so a spawn naming a registered-but-hidden profile
+    // by a guessed name went straight through: the vocabulary the host
+    // limited must be the vocabulary the dispatch honors.
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'hidden' || agentTypeOf(req) === 'worker') {
+        return { text: 'child done' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'hidden', prompt: 'sneak in' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'real task' } },
+        };
+      }
+      if (orchTurn === 3) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'survived' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: {
+        worker: { description: 'does one task' },
+        hidden: { description: 'registered but outside this orchestrate allowlist' },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('goal', { profiles: ['worker'] });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('survived');
+
+    const entries = await store.load('test-run');
+    // ONE admission decision total (the allowed worker): the hidden
+    // spawn refused typed BEFORE admission and burned nothing.
+    expect(admissionEntries(entries)).toHaveLength(1);
+    const childAgents = entries.filter(
+      (e) => e.kind === 'agent' && e.scope.startsWith('agent:') && e.status === 'ok',
+    );
+    expect(childAgents).toHaveLength(1);
+    // The typed refusal reached the model naming the allowlist and the
+    // advertised vocabulary.
+    const orchCallsAll = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    const refusalTurn = JSON.stringify(orchCallsAll[1]?.messages.at(-1)?.parts);
+    expect(refusalTurn).toContain('allowlist');
+    expect(refusalTurn).toContain('worker');
+  });
+
   it('admits children under a small run ceiling: the orchestrator reserves its cap, not maxOutputTokens', async () => {
     // Found live by the M12 checkpoint: the
     // default admission reserve of the orchestrator agent (flat here,
