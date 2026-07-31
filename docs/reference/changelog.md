@@ -18,6 +18,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.138.0
+
+#### Minor Changes
+
+- ed0c4fb: Pre-wire continuation reservation, the self-describing fault kit, and the run-id surface (RV1013 + RV1014, PR VII closing the fourteenth plan)
+
+  - Pre-wire continuation admission (RV1013, opt-in). Post-hoc settlement is accounting, not admission: a hard provider RPM cap needs each `pause_turn` continuation reserved BEFORE its egress. With `quota: { reserveContinuations: true }` the engine admits every provider-side continuation through the new adapter-side `StreamHooks` seam (`ProviderAdapter.stream` gains an optional third parameter; the Anthropic adapter honors it): under a 2-request window the third wire of one absorbed dispatch never leaves and the denial rides the provider-429 machinery verbatim, the main settlement stops re-adding individually admitted segments (the window is never double-counted), and a granted admission whose wire never left is RELEASED back to the window through the new optional `QuotaLimiter.release(reservationId)` (implemented by `memoryQuotaLimiter`; a release returns exactly what admission consumed, and unknown or expired ids are no-ops). Adapters unaware of the hook keep the documented post-hoc semantics byte for byte, and the default stays post-hoc. The midstream-versus-finish usage confirmation now fires only when a finish CLAIM exists: an error-terminal absorption (a segment denial, a transport cut) no longer manufactures an invariant violation that shadows the real wire error.
+  - The self-describing kit (RV1014). `runFaultInjection` refuses an empty `only` selection typed (a gate that runs zero scenarios used to report `allMatched: true`), and the report carries `requested` and `selected` counts so the gate can never quietly shrink. The audit scenario grows the RV1007 arcs (a page-only long-context tier and a `NaN` scalar are findings, never silent passes), completing kit coverage of every real defect of the fourteenth plan on its real path.
+  - The run-id boundary surface (`assertSafeRunId`, `MAX_RUN_ID_LENGTH`) is now exported from `@rulvar/core`, so hosts can pre-validate ids before `engine.run`.
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+
 ### 1.137.0
 
 #### Patch Changes
@@ -1433,6 +1448,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+
 ### 1.137.0
 
 #### Patch Changes
@@ -2663,6 +2685,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
 
 ### 1.137.0
 
@@ -4294,6 +4323,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.138.0
+
+#### Minor Changes
+
+- ed0c4fb: Pre-wire continuation reservation, the self-describing fault kit, and the run-id surface (RV1013 + RV1014, PR VII closing the fourteenth plan)
+
+  - Pre-wire continuation admission (RV1013, opt-in). Post-hoc settlement is accounting, not admission: a hard provider RPM cap needs each `pause_turn` continuation reserved BEFORE its egress. With `quota: { reserveContinuations: true }` the engine admits every provider-side continuation through the new adapter-side `StreamHooks` seam (`ProviderAdapter.stream` gains an optional third parameter; the Anthropic adapter honors it): under a 2-request window the third wire of one absorbed dispatch never leaves and the denial rides the provider-429 machinery verbatim, the main settlement stops re-adding individually admitted segments (the window is never double-counted), and a granted admission whose wire never left is RELEASED back to the window through the new optional `QuotaLimiter.release(reservationId)` (implemented by `memoryQuotaLimiter`; a release returns exactly what admission consumed, and unknown or expired ids are no-ops). Adapters unaware of the hook keep the documented post-hoc semantics byte for byte, and the default stays post-hoc. The midstream-versus-finish usage confirmation now fires only when a finish CLAIM exists: an error-terminal absorption (a segment denial, a transport cut) no longer manufactures an invariant violation that shadows the real wire error.
+  - The self-describing kit (RV1014). `runFaultInjection` refuses an empty `only` selection typed (a gate that runs zero scenarios used to report `allMatched: true`), and the report carries `requested` and `selected` counts so the gate can never quietly shrink. The audit scenario grows the RV1007 arcs (a page-only long-context tier and a `NaN` scalar are findings, never silent passes), completing kit coverage of every real defect of the fourteenth plan on its real path.
+  - The run-id boundary surface (`assertSafeRunId`, `MAX_RUN_ID_LENGTH`) is now exported from `@rulvar/core`, so hosts can pre-validate ids before `engine.run`.
 
 ### 1.137.0
 
@@ -6238,6 +6277,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.138.0
+
 ### 1.137.0
 
 ### 1.136.0
@@ -6616,6 +6657,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.138.0
+
+#### Minor Changes
+
+- ed0c4fb: Pre-wire continuation reservation, the self-describing fault kit, and the run-id surface (RV1013 + RV1014, PR VII closing the fourteenth plan)
+
+  - Pre-wire continuation admission (RV1013, opt-in). Post-hoc settlement is accounting, not admission: a hard provider RPM cap needs each `pause_turn` continuation reserved BEFORE its egress. With `quota: { reserveContinuations: true }` the engine admits every provider-side continuation through the new adapter-side `StreamHooks` seam (`ProviderAdapter.stream` gains an optional third parameter; the Anthropic adapter honors it): under a 2-request window the third wire of one absorbed dispatch never leaves and the denial rides the provider-429 machinery verbatim, the main settlement stops re-adding individually admitted segments (the window is never double-counted), and a granted admission whose wire never left is RELEASED back to the window through the new optional `QuotaLimiter.release(reservationId)` (implemented by `memoryQuotaLimiter`; a release returns exactly what admission consumed, and unknown or expired ids are no-ops). Adapters unaware of the hook keep the documented post-hoc semantics byte for byte, and the default stays post-hoc. The midstream-versus-finish usage confirmation now fires only when a finish CLAIM exists: an error-terminal absorption (a segment denial, a transport cut) no longer manufactures an invariant violation that shadows the real wire error.
+  - The self-describing kit (RV1014). `runFaultInjection` refuses an empty `only` selection typed (a gate that runs zero scenarios used to report `allMatched: true`), and the report carries `requested` and `selected` counts so the gate can never quietly shrink. The audit scenario grows the RV1007 arcs (a page-only long-context tier and a `NaN` scalar are findings, never silent passes), completing kit coverage of every real defect of the fourteenth plan on its real path.
+  - The run-id boundary surface (`assertSafeRunId`, `MAX_RUN_ID_LENGTH`) is now exported from `@rulvar/core`, so hosts can pre-validate ids before `engine.run`.
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+  - @rulvar/anthropic@1.138.0
+  - @rulvar/openai@1.138.0
+  - @rulvar/plan@1.138.0
+  - @rulvar/testing@1.138.0
 
 ### 1.137.0
 
@@ -8175,6 +8235,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+
 ### 1.137.0
 
 #### Patch Changes
@@ -8812,6 +8879,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
 
 ### 1.137.0
 
@@ -10241,6 +10315,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+
 ### 1.137.0
 
 #### Patch Changes
@@ -11585,6 +11666,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+  - eslint-plugin-rulvar@1.138.0
 
 ### 1.137.0
 
@@ -13029,6 +13118,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+  - @rulvar/anthropic@1.138.0
+  - @rulvar/openai@1.138.0
 
 ### 1.137.0
 
@@ -14697,6 +14795,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+
 ### 1.137.0
 
 #### Patch Changes
@@ -16037,6 +16142,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
+
 ### 1.137.0
 
 #### Patch Changes
@@ -16694,6 +16806,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
 
 ### 1.137.0
 
@@ -17983,6 +18102,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.138.0
+
+#### Patch Changes
+
+- Updated dependencies [ed0c4fb]
+  - @rulvar/core@1.138.0
 
 ### 1.137.0
 
