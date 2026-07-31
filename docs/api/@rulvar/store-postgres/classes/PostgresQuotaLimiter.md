@@ -66,7 +66,7 @@ Defined in: [packages/store-postgres/src/quota.ts:298](https://github.com/o-step
 close(): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:805](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L805)
+Defined in: [packages/store-postgres/src/quota.ts:870](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L870)
 
 #### Returns
 
@@ -83,7 +83,7 @@ reconcile(
 actual?): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:733](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L733)
+Defined in: [packages/store-postgres/src/quota.ts:748](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L748)
 
 Settles a reservation against the attempt's actual usage. The
 optional `actual.requests` is the TRUE number of wire requests the
@@ -115,13 +115,48 @@ remain valid; they merely keep the historical undercount.
 
 ***
 
+### release()
+
+```ts
+release(reservationId): Promise<void>;
+```
+
+Defined in: [packages/store-postgres/src/quota.ts:804](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L804)
+
+Cancels an UNUSED admission (RV1104, the optional SPI method from
+RV1013): exactly what admission consumed, the admitted requests
+and the token estimate, returns to the window, from any host
+sharing the schema. Unknown ids, a double release, and a release
+after reconcile are no-ops (the row is gone); a rolled-over window
+already aged the estimate out, so only the row is deleted; a
+released id settles nothing afterwards. Runs under the same
+advisory lock and generation fence as every admission, so a
+rotated-away host returns nothing under retired bucket keys.
+Mirrors `memoryQuotaLimiter.release` verdict for verdict.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `reservationId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;`void`\&gt;
+
+#### Implementation of
+
+[`QuotaLimiter`](/api/@rulvar/rulvar/interfaces/QuotaLimiter.md).[`release`](/api/@rulvar/rulvar/interfaces/QuotaLimiter.md#release)
+
+***
+
 ### reserve()
 
 ```ts
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:675](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L675)
+Defined in: [packages/store-postgres/src/quota.ts:684](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L684)
 
 #### Parameters
 
@@ -150,7 +185,7 @@ snapshot(): Promise<{
 }[]>;
 ```
 
-Defined in: [packages/store-postgres/src/quota.ts:778](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L778)
+Defined in: [packages/store-postgres/src/quota.ts:843](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/quota.ts#L843)
 
 Current-window counters per rule, for telemetry and referees.
 

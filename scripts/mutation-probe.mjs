@@ -1415,6 +1415,35 @@ const MUTATIONS = [
     replace: '',
     test: 'packages/evals/src/fault-injection.test.ts',
   },
+  {
+    id: 'sqlite-release-return',
+    doctrine:
+      'a release returns EXACTLY what admission consumed to the window (RV1103): returning nothing, the cancelled reservation keeps its slot consumed and a hard RPM cap starves on admissions that never flew',
+    file: 'packages/store-sqlite/src/quota.ts',
+    find: '          giveBack.run(row.requests, row.estimate_tokens, key, windowStart);',
+    replace: '          giveBack.run(0, 0, key, windowStart);',
+    test: 'packages/store-sqlite/src/quota.test.ts',
+  },
+  {
+    id: 'sqlite-release-tombstone',
+    doctrine:
+      'a released reservation row is deleted so the id settles NOTHING afterwards (RV1103): left in place, a late reconcile over the released id re-adds actual usage the window already gave back and the cap double-counts',
+    file: 'packages/store-sqlite/src/quota.ts',
+    find: "      this.db.prepare('DELETE FROM quota_reservations WHERE id = ?').run(reservationId);\n      if (row.window_start === windowStart) {\n        const giveBack = this.db.prepare(",
+    replace:
+      '      if (row.window_start === windowStart) {\n        const giveBack = this.db.prepare(',
+    test: 'packages/store-sqlite/src/quota.test.ts',
+  },
+  {
+    id: 'sqlite-release-migration-default',
+    doctrine:
+      'the legacy-schema migration defaults the requests column to the ONE request every engine admission reserves (RV1103): defaulted to zero, a pre-release reservation releases its tokens but keeps the request consumed and the window under-returns',
+    file: 'packages/store-sqlite/src/quota.ts',
+    find: "          'ALTER TABLE quota_reservations ADD COLUMN requests INTEGER NOT NULL DEFAULT 1',",
+    replace:
+      "          'ALTER TABLE quota_reservations ADD COLUMN requests INTEGER NOT NULL DEFAULT 0',",
+    test: 'packages/store-sqlite/src/quota.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

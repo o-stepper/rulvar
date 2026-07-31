@@ -57,7 +57,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:114](https://github.com/o-steppe
 close(): void;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:279](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L279)
+Defined in: [packages/store-sqlite/src/quota.ts:358](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L358)
 
 #### Returns
 
@@ -74,7 +74,7 @@ reconcile(
 actual?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L220)
+Defined in: [packages/store-sqlite/src/quota.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L254)
 
 Settles a reservation against the attempt's actual usage. The
 optional `actual.requests` is the TRUE number of wire requests the
@@ -106,13 +106,46 @@ remain valid; they merely keep the historical undercount.
 
 ***
 
+### release()
+
+```ts
+release(reservationId): Promise<void>;
+```
+
+Defined in: [packages/store-sqlite/src/quota.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L304)
+
+Cancels an UNUSED admission (RV1103, the optional SPI method from
+RV1013): exactly what admission consumed, the admitted requests
+and the token estimate, returns to the window, from any process
+sharing the file. Unknown ids, a double release, and a release
+after reconcile are no-ops (the row is gone); a rolled-over window
+already aged the estimate out, so only the row is deleted; a
+released id settles nothing afterwards. Mirrors
+`memoryQuotaLimiter.release` verdict for verdict.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `reservationId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;`void`\&gt;
+
+#### Implementation of
+
+[`QuotaLimiter`](/api/@rulvar/rulvar/interfaces/QuotaLimiter.md).[`release`](/api/@rulvar/rulvar/interfaces/QuotaLimiter.md#release)
+
+***
+
 ### reserve()
 
 ```ts
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L163)
+Defined in: [packages/store-sqlite/src/quota.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L191)
 
 #### Parameters
 
@@ -141,7 +174,7 @@ snapshot(): {
 }[];
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L261)
+Defined in: [packages/store-sqlite/src/quota.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L340)
 
 Current-window counters per rule, for telemetry and referees.
 

@@ -417,6 +417,15 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
           value TEXT
         );
       `);
+      // The `requests` column release() returns to the window (RV1104).
+      // Pre-release schemas lack it; the default 1 IS the exact value
+      // for every row an engine wrote, because the engine reserves
+      // exactly one request per admission. Idempotent under the boot
+      // lock.
+      await client.query(
+        `ALTER TABLE ${this.table('quota_reservations')}
+           ADD COLUMN IF NOT EXISTS requests BIGINT NOT NULL DEFAULT 1`,
+      );
       // The identity check rides the SAME boot lock and transaction:
       // two hosts booting a fresh schema with different rules serialize
       // here, one records its set, the other is refused. A pre-RV506
@@ -723,8 +732,14 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
       const reservationId = randomUUID();
       await client.query(
         `INSERT INTO ${this.table('quota_reservations')}
-           (id, window_start, estimate_tokens, rule_keys) VALUES ($1, $2, $3, $4)`,
-        [reservationId, windowStart, estimateTokens, JSON.stringify(matched)],
+           (id, window_start, estimate_tokens, rule_keys, requests) VALUES ($1, $2, $3, $4, $5)`,
+        [
+          reservationId,
+          windowStart,
+          estimateTokens,
+          JSON.stringify(matched),
+          request.estimate.requests,
+        ],
       );
       return { granted: true, reservationId };
     });
@@ -771,6 +786,56 @@ export class PostgresQuotaLimiter implements QuotaLimiter {
         }
       }
       // A rolled-over window aged the estimate out with it.
+    });
+  }
+
+  /**
+   * Cancels an UNUSED admission (RV1104, the optional SPI method from
+   * RV1013): exactly what admission consumed, the admitted requests
+   * and the token estimate, returns to the window, from any host
+   * sharing the schema. Unknown ids, a double release, and a release
+   * after reconcile are no-ops (the row is gone); a rolled-over window
+   * already aged the estimate out, so only the row is deleted; a
+   * released id settles nothing afterwards. Runs under the same
+   * advisory lock and generation fence as every admission, so a
+   * rotated-away host returns nothing under retired bucket keys.
+   * Mirrors `memoryQuotaLimiter.release` verdict for verdict.
+   */
+  release(reservationId: string): Promise<void> {
+    const at = this.now();
+    const windowStart = at - (at % QUOTA_WINDOW_MS);
+    return this.withQuotaLock(async (client) => {
+      await this.assertCurrentIdentity(client);
+      const rows = (
+        await client.query(
+          `SELECT window_start::int8 AS window_start, estimate_tokens::int8 AS estimate_tokens,
+                  rule_keys, requests::int8 AS requests
+             FROM ${this.table('quota_reservations')} WHERE id = $1`,
+          [reservationId],
+        )
+      ).rows as Array<{
+        window_start: string | number;
+        estimate_tokens: string | number;
+        rule_keys: string;
+        requests: string | number;
+      }>;
+      const row = rows[0];
+      if (row === undefined) {
+        return;
+      }
+      await client.query(`DELETE FROM ${this.table('quota_reservations')} WHERE id = $1`, [
+        reservationId,
+      ]);
+      if (Number(row.window_start) === windowStart) {
+        for (const key of JSON.parse(row.rule_keys) as string[]) {
+          await client.query(
+            `UPDATE ${this.table('quota_buckets')}
+                SET requests = GREATEST(0, requests - $1), tokens = GREATEST(0, tokens - $2)
+               WHERE rule_key = $3 AND window_start = $4`,
+            [Number(row.requests), Number(row.estimate_tokens), key, windowStart],
+          );
+        }
+      }
     });
   }
 

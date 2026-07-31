@@ -8,6 +8,7 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -16,6 +17,7 @@ import {
   QUOTA_WINDOW_MS,
   createEngine,
   defineWorkflow,
+  quotaRuleKey,
   type ChatEvent,
   type ChatRequest,
   type ModelCaps,
@@ -265,5 +267,149 @@ describe('immutable rules snapshot and canonical denial order (RV608)', () => {
       reason: 'requestsPerMinute 1 exhausted',
     });
     expect(JSON.stringify(two)).toBe(JSON.stringify(one));
+  });
+});
+
+describe('SqliteQuotaLimiter.release (RV1103)', () => {
+  const rules: QuotaRule[] = [
+    { provider: 'fake', requestsPerMinute: 1 },
+    { provider: 'fake', tokensPerMinute: 50 },
+  ];
+
+  it('returns exactly what admission consumed to the window', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = new SqliteQuotaLimiter({ path: freshPath(), rules, now: () => at });
+    const granted = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    expect(granted.granted).toBe(true);
+    const denied = await limiter.reserve(request());
+    expect(denied.granted).toBe(false);
+    await limiter.release(granted.granted ? granted.reservationId : '');
+    // The admitted request and its token estimate are back, whole.
+    for (const row of limiter.snapshot()) {
+      expect(row.requests).toBe(0);
+      expect(row.tokens).toBe(0);
+    }
+    const regranted = await limiter.reserve(
+      request({ estimate: { requests: 1, inputTokens: 40 } }),
+    );
+    expect(regranted.granted).toBe(true);
+    limiter.close();
+  });
+
+  it('unknown ids and a double release are no-ops, and a released id settles nothing', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = new SqliteQuotaLimiter({ path: freshPath(), rules, now: () => at });
+    await limiter.release('no-such-reservation');
+    const granted = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    const id = granted.granted ? granted.reservationId : '';
+    await limiter.release(id);
+    await limiter.release(id);
+    // A released id settles nothing afterwards: the huge actual usage
+    // must not reach the window through the dead reservation.
+    await limiter.reconcile(id, {
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    for (const row of limiter.snapshot()) {
+      expect(row.requests).toBe(0);
+      expect(row.tokens).toBe(0);
+    }
+    limiter.close();
+  });
+
+  it('release after reconcile is a no-op: the settle already spoke for the wire', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = new SqliteQuotaLimiter({ path: freshPath(), rules, now: () => at });
+    const granted = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    const id = granted.granted ? granted.reservationId : '';
+    await limiter.reconcile(id, {
+      inputTokens: 30,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    await limiter.release(id);
+    const [byRequests, byTokens] = limiter.snapshot();
+    // The settled wire stays counted: 1 request, 30 actual tokens.
+    expect(byRequests?.requests).toBe(1);
+    expect(byTokens?.tokens).toBe(30);
+    limiter.close();
+  });
+
+  it('a rolled-over window aged the estimate out: release touches nothing', async () => {
+    let at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const limiter = new SqliteQuotaLimiter({ path: freshPath(), rules, now: () => at });
+    const granted = await limiter.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    at += QUOTA_WINDOW_MS;
+    await limiter.release(granted.granted ? granted.reservationId : '');
+    for (const row of limiter.snapshot()) {
+      expect(row.requests).toBe(0);
+      expect(row.tokens).toBe(0);
+    }
+    limiter.close();
+  });
+
+  it('releases across limiter instances over one file (the cross-process arc)', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const path = freshPath();
+    const a = new SqliteQuotaLimiter({ path, rules, now: () => at });
+    const b = new SqliteQuotaLimiter({ path, rules, now: () => at });
+    const granted = await a.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    expect(granted.granted).toBe(true);
+    await b.release(granted.granted ? granted.reservationId : '');
+    const regranted = await a.reserve(request({ estimate: { requests: 1, inputTokens: 40 } }));
+    expect(regranted.granted).toBe(true);
+    a.close();
+    b.close();
+  });
+
+  it('migrates a pre-release reservation row to one admitted request', async () => {
+    const at = QUOTA_WINDOW_MS * 100 + 15_000;
+    const windowStart = QUOTA_WINDOW_MS * 100;
+    const path = freshPath();
+    const key = quotaRuleKey(rules[0]);
+    const tokensKey = quotaRuleKey(rules[1]);
+    // Build the pre-RV1103 schema by hand: no `requests` column on the
+    // reservations table, exactly what a 1.139.0 engine left behind.
+    const legacy = new DatabaseSync(path);
+    legacy.exec(`
+      CREATE TABLE quota_buckets (
+        rule_key TEXT NOT NULL,
+        window_start INTEGER NOT NULL,
+        requests INTEGER NOT NULL,
+        tokens INTEGER NOT NULL,
+        PRIMARY KEY (rule_key, window_start)
+      );
+      CREATE TABLE quota_reservations (
+        id TEXT PRIMARY KEY,
+        window_start INTEGER NOT NULL,
+        estimate_tokens INTEGER NOT NULL,
+        rule_keys TEXT NOT NULL
+      );
+    `);
+    const seed = legacy.prepare(
+      'INSERT INTO quota_buckets (rule_key, window_start, requests, tokens) VALUES (?, ?, ?, ?)',
+    );
+    seed.run(key, windowStart, 1, 40);
+    seed.run(tokensKey, windowStart, 1, 40);
+    legacy
+      .prepare(
+        'INSERT INTO quota_reservations (id, window_start, estimate_tokens, rule_keys) ' +
+          'VALUES (?, ?, ?, ?)',
+      )
+      .run('legacy-reservation', windowStart, 40, JSON.stringify([key, tokensKey]));
+    legacy.close();
+    // Boot migrates the schema (ALTER adds `requests` defaulting to 1,
+    // the single request every engine admission reserves), so the
+    // legacy row releases exactly one request and its whole estimate.
+    const limiter = new SqliteQuotaLimiter({ path, rules, now: () => at });
+    await limiter.release('legacy-reservation');
+    for (const row of limiter.snapshot()) {
+      expect(row.requests).toBe(0);
+      expect(row.tokens).toBe(0);
+    }
+    limiter.close();
   });
 });
