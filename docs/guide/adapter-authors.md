@@ -23,7 +23,7 @@ interface ProviderAdapter {
   /** Optional: refresh the capability table from live model lists. */
   refreshCaps?(): Promise<void>;
   stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent>;
-  countTokens?(req: ChatRequest): Promise<number>;
+  countTokens?(req: ChatRequest, opts?: { signal?: AbortSignal }): Promise<number>;
 }
 
 type ModelCaps = {
@@ -151,7 +151,7 @@ Two mechanisms depend on your adapter being byte stable.
 | `minOutputTokensPerTurn` | The smallest request output cap the provider accepts (OpenAI's Responses API rejects `max_output_tokens` below 16). The runtime never dispatches below it: a budget last gasp sends the floor instead of one token, a remainder that cannot buy the floor is refused typed, and a configured per-turn cap below it is a `ConfigError`. Absent means one. |
 | `pricing` | Fallback only; the engine's versioned price table wins when both exist. |
 
-Be honest and be conservative. Declaring a capability the provider cannot serve produces live 400s; declaring less than the truth merely costs a tier. When you cannot introspect the target (gateways, long tail hosts), take the posture `openaiCompatible` takes and let callers override per model: `structuredOutput: "prompt"`, `supportsTemperature: true`, `supportsParallelTools: false`, empty `reasoningEfforts`, no pricing (exported as `CONSERVATIVE_COMPATIBLE_CAPS` from `@rulvar/openai`). `refreshCaps` and `countTokens` are optional: implement them when your provider has a live model list or a token counting endpoint.
+Be honest and be conservative. Declaring a capability the provider cannot serve produces live 400s; declaring less than the truth merely costs a tier. When you cannot introspect the target (gateways, long tail hosts), take the posture `openaiCompatible` takes and let callers override per model: `structuredOutput: "prompt"`, `supportsTemperature: true`, `supportsParallelTools: false`, empty `reasoningEfforts`, no pricing (exported as `CONSERVATIVE_COMPATIBLE_CAPS` from `@rulvar/openai`). `refreshCaps` and `countTokens` are optional: implement them when your provider has a live model list or a token counting endpoint. A `countTokens` implementation that goes over the network is egress exactly like `stream` (the request carries the full prompt), so it MUST honor `opts.signal`: the engine only calls it after a zero-egress admission feasibility check, passes the spawn's abort signal, and treats an abort as cancellation.
 
 ## The adapter skeleton
 

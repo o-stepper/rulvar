@@ -119,5 +119,17 @@ export interface ProviderAdapter {
   /** Refresh the capability table from live model lists. */
   refreshCaps?(): Promise<void>;
   stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent>;
-  countTokens?(req: ChatRequest): Promise<number>;
+  /**
+   * Provider-side token count for the request, used to tighten the
+   * admission reserve before a spawn dispatches. The request carries
+   * the FULL prompt, so an implementation that goes over the network is
+   * egress exactly like stream and MUST honor `opts.signal` (RV904):
+   * the engine only calls this after a zero-egress admission
+   * feasibility check, passes the spawn's abort signal, and treats an
+   * abort as cancellation rather than falling back to the flat
+   * reserve. Hosts that must not send prompts before their own
+   * admission gates pass an explicit `estCost` instead, which skips
+   * this call entirely.
+   */
+  countTokens?(req: ChatRequest, opts?: { signal?: AbortSignal }): Promise<number>;
 }

@@ -590,6 +590,36 @@ describe('adapter surface (M1-T12)', () => {
     ).toBe(42);
   });
 
+  it('countTokens threads the abort signal into the SDK request options (RV904)', async () => {
+    // The count request carries the FULL prompt, so it is egress like
+    // any dispatch: the caller's abort must reach the wire instead of
+    // leaving an uncancellable request behind a cancelled spawn.
+    const seen: Array<{ signal?: AbortSignal } | undefined> = [];
+    const client: AnthropicClientLike = {
+      messages: {
+        create: () => Promise.reject(new Error('unused')),
+        countTokens: (_params, opts) => {
+          seen.push(opts);
+          return Promise.resolve({ input_tokens: 9 });
+        },
+      },
+      models: { list: () => Promise.resolve({ data: [] }) },
+    };
+    const adapter = anthropic({ client });
+    const controller = new AbortController();
+    expect(
+      await adapter.countTokens?.(
+        {
+          model: 'claude-fable-5',
+          messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }],
+        },
+        { signal: controller.signal },
+      ),
+    ).toBe(9);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.signal).toBe(controller.signal);
+  });
+
   it.skipIf(!liveTestEnabled('ANTHROPIC_API_KEY'))(
     'live smoke: one small call (opt-in via RULVAR_LIVE_TESTS=1, spends budget)',
     async () => {

@@ -31,7 +31,10 @@ export const DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS = 5;
 export interface AnthropicClientLike {
   messages: {
     create(params: Record<string, unknown>, opts?: { signal?: AbortSignal }): Promise<unknown>;
-    countTokens(params: Record<string, unknown>): Promise<{ input_tokens: number }>;
+    countTokens(
+      params: Record<string, unknown>,
+      opts?: { signal?: AbortSignal },
+    ): Promise<{ input_tokens: number }>;
   };
   models: {
     list(params?: Record<string, unknown>): Promise<{
@@ -327,7 +330,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
       }
     },
 
-    async countTokens(req: ChatRequest): Promise<number> {
+    async countTokens(req: ChatRequest, opts?: { signal?: AbortSignal }): Promise<number> {
       const info = infoFor(req.model);
       const params = buildAnthropicParams(req, {
         ids,
@@ -344,7 +347,12 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
       if (params.tools !== undefined) {
         body.tools = params.tools;
       }
-      const result = await client.messages.countTokens(body);
+      // The count request carries the full prompt: egress like create,
+      // so the caller's abort reaches the wire the same way (RV904).
+      const result = await client.messages.countTokens(
+        body,
+        opts?.signal === undefined ? undefined : { signal: opts.signal },
+      );
       return result.input_tokens;
     },
   };
