@@ -37,6 +37,12 @@ const PACK_DIRS = [
   'packages/planner',
   'packages/plan',
   'packages/evals',
+  // The fault-injection kit's provider-surface dependencies (RV909):
+  // the packed evals tarball pins them at the unpublished workspace
+  // version, so the smoke install must supply them as tarballs too or
+  // npm walks to the registry for a version that does not exist yet.
+  'packages/anthropic',
+  'packages/openai',
   'packages/testing',
   'packages/eslint-plugin-rulvar',
 ];
@@ -61,6 +67,8 @@ const CLI = tarball(/^rulvar-cli-/);
 const PLANNER = tarball(/^rulvar-planner-/);
 const PLAN = tarball(/^rulvar-plan-\d/);
 const EVALS = tarball(/^rulvar-evals-/);
+const ANTHROPIC = tarball(/^rulvar-anthropic-/);
+const OPENAI = tarball(/^rulvar-openai-/);
 const TESTING = tarball(/^rulvar-testing-/);
 const ESLINT_PLUGIN = tarball(/^eslint-plugin-rulvar-/);
 
@@ -205,7 +213,7 @@ check('bare kb sweep reports the missing evals', rulvar(bare, ['kb', 'sweep']), 
 });
 
 // ---- Consumer 1 upgraded: companions installed ----------------------
-npmInstall(bare, [PLANNER, PLAN, EVALS, TESTING, ESLINT_PLUGIN]);
+npmInstall(bare, [PLANNER, PLAN, EVALS, ANTHROPIC, OPENAI, TESTING, ESLINT_PLUGIN]);
 writeFileSync(
   join(bare, 'rulvar.config.mjs'),
   [
