@@ -1472,7 +1472,7 @@ const supersededTerminalHonesty: FaultScenario = {
     await new Promise((resolve) => setImmediate(resolve));
     const staleSettles = await settleCount();
     // The successor: a resume once the fence no longer rejects this
-    // holder settles the run exactly once, by replay, free.
+    // holder records the one authoritative settle by replay, free.
     store.armed = false;
     let resumedEnd: Record<string, unknown> | undefined;
     const resumedHandle = engine.resume('fault-superseded', echoWorkflow);
