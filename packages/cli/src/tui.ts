@@ -68,7 +68,7 @@ function rawEventLine(event: WorkflowEvent): string | undefined {
       // An unsettled terminal (RV907) is never rendered green-shaped:
       // the computed status stays, the marker says nothing durable
       // records it and what heals it.
-      return `run ${str(event.runId)} ${str(event.status)}${event.usageApprox === true ? ' (cost approx)' : ''}${event.completion === undefined ? '' : ` completion=${str(event.completion)}`}${event.settled === false ? ' settled=false (outcome withheld; resume re-settles)' : ''}`;
+      return `run ${str(event.runId)} ${str(event.status)}${event.usageApprox === true ? ' (cost approx)' : ''}${event.completion === undefined ? '' : ` completion=${str(event.completion)}`}${event.settled === false ? (event.settledReason === 'superseded' ? ' settled=false (superseded; the successor owns settlement)' : ' settled=false (outcome withheld; resume re-settles)') : ''}`;
     default:
       return undefined;
   }

@@ -344,16 +344,22 @@ export async function toOtel(
         }
         // An unsettled terminal (RV907): the computed status stays an
         // attribute, but the span refuses green, because nothing
-        // durable records this terminal and handle.result rejects.
+        // durable records this terminal and handle.result rejects. A
+        // superseded segment (RV1009) carries its distinct reason.
         if (runOpen !== undefined && event.settled === false) {
           runOpen.span.setAttribute('rulvar.run.settled', false);
+          if (event.settledReason !== undefined) {
+            runOpen.span.setAttribute('rulvar.run.settled_reason', event.settledReason);
+          }
         }
         endSpan(
           event.spanId,
           event.ts,
           event.status,
           event.settled === false
-            ? 'settlement failed: nothing durable records this terminal; resume re-settles'
+            ? event.settledReason === 'superseded'
+              ? 'superseded: a successor owns settlement; this stale terminal is withheld'
+              : 'settlement failed: nothing durable records this terminal; resume re-settles'
             : undefined,
           event.settled === false,
         );

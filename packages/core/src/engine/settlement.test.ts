@@ -4,14 +4,16 @@
  * run_settle journal append or the terminal RunMeta projection) rejects
  * handle.result with the typed SettlementError instead of resolving,
  * a failed settle append SKIPS the meta write so the projection can
- * never run ahead of the journal, a superseded segment's LeaseHeldError
- * stays swallowed on both writes (the fencing contract working), and a
- * resume over the healed store re-settles the same outcome by replay
- * without one paid provider call.
+ * never run ahead of the journal, a superseded segment (its settle
+ * append bounced off the store's fence) rejects with the typed
+ * SupersededError while its run:end refuses green under the distinct
+ * superseded reason (RV1009), and a resume over the healed store
+ * re-settles the same outcome by replay without one paid provider
+ * call.
  */
 import { describe, expect, it } from 'vitest';
 
-import { LeaseHeldError, SettlementError } from '../l0/errors.js';
+import { LeaseHeldError, SettlementError, SupersededError } from '../l0/errors.js';
 import type { JournalEntry } from '../l0/entries.js';
 import type { RunMeta } from '../l0/spi/store.js';
 import { InMemoryStore } from '../stores/inmemory.js';
@@ -46,17 +48,19 @@ class TerminalMetaOutageStore extends InMemoryStore {
   }
 }
 
-/** Rejects BOTH settlement writes with the fencing rejection. */
+/** Rejects BOTH settlement writes with the fencing rejection while armed; heals on disarm. */
 class SupersededSegmentStore extends InMemoryStore {
+  armed = true;
+
   override append(runId: string, e: JournalEntry): Promise<void> {
-    if (isSettleEntry(e)) {
+    if (this.armed && isSettleEntry(e)) {
       return Promise.reject(new LeaseHeldError('stale fencing epoch: not the current holder'));
     }
     return super.append(runId, e);
   }
 
   override putMeta(m: RunMeta): Promise<void> {
-    if (m.status !== 'running' && m.status !== 'suspended') {
+    if (this.armed && m.status !== 'running' && m.status !== 'suspended') {
       return Promise.reject(new LeaseHeldError('stale fencing epoch: not the current holder'));
     }
     return super.putMeta(m);
@@ -188,24 +192,80 @@ describe('durable settlement acknowledgement (P0.1)', () => {
     expect((await store.getMeta(handle.runId))?.status).toBe('ok');
   });
 
-  it('a superseded segment’s LeaseHeldError stays swallowed on both writes', async () => {
+  it('a superseded segment rejects typed with the distinct superseded reason, never a green terminal (RV1009)', async () => {
     const store = new SupersededSegmentStore();
     const { engine, wf } = buildEngine(store);
 
-    // The fencing contract working is not a settlement fault: the
-    // successor owns settlement and this segment stays silent, and its
-    // run:end carries no `settled` field (RV907 marks only failures).
+    // The fencing contract working is not a settlement FAULT, but it is
+    // not a green terminal either: the successor owns settlement,
+    // nothing durable records THIS segment's outcome, and resolving ok
+    // here was exactly the split view RV907 forbids (a superseded
+    // segment used to resolve ok with an unmarked run:end).
     const handle = engine.run(wf, undefined, {});
+    const logs: Array<{ msg: string; seq: number }> = [];
     let runEnd: Record<string, unknown> | undefined;
+    handle.on('log', (event) => {
+      logs.push(event);
+    });
     handle.on('run:end', (event) => {
       runEnd = event;
     });
-    const outcome = await handle.result;
+    let thrown: unknown;
+    try {
+      await handle.result;
+    } catch (err) {
+      thrown = err;
+    }
     await new Promise((resolve) => setImmediate(resolve));
-    expect(outcome.status).toBe('ok');
-    expect(outcome.value).toBe('done');
-    expect(runEnd).toBeDefined();
-    expect('settled' in (runEnd ?? {})).toBe(false);
+    expect(thrown).toBeInstanceOf(SupersededError);
+    const superseded = thrown as SupersededError;
+    expect(superseded.code).toBe('superseded');
+    expect(superseded.retryable).toBe(false);
+    expect(superseded.runId).toBe(handle.runId);
+    expect(superseded.runStatus).toBe('ok');
+    expect(superseded.cause).toBeInstanceOf(LeaseHeldError);
+    expect(superseded.message).toContain('successor');
+    expect(superseded.data).toEqual({ runId: handle.runId, runStatus: 'ok' });
+
+    // The event terminal refuses green with the DISTINCT reason, so an
+    // event-only consumer can tell a superseded segment from a
+    // settlement write failure; the warn precedes the terminal.
+    expect(runEnd?.status).toBe('ok');
+    expect(runEnd?.settled).toBe(false);
+    expect(runEnd?.settledReason).toBe('superseded');
+    expect(logs.some((log) => log.msg.includes('superseded'))).toBe(true);
+
+    // Nothing durable claims this outcome: no settle entry landed, and
+    // the meta write was SKIPPED (bouncing it would only re-prove the
+    // fence; the projection stays the successor's business).
+    expect((await store.load(handle.runId)).some(isSettleEntry)).toBe(false);
+    expect((await store.getMeta(handle.runId))?.status).toBe('running');
+  });
+
+  it('exactly one successor settles: the healed resume records the one authoritative settle by replay', async () => {
+    const store = new SupersededSegmentStore();
+    const { engine, wf, adapter } = buildEngine(store);
+    const handle = engine.run(wf, undefined, {});
+    await handle.result.catch(() => undefined);
+
+    // The successor (here: a resume once the fence no longer rejects
+    // this holder) settles the run exactly once, by replay, without a
+    // second paid call; its terminal carries no settled mark.
+    store.armed = false;
+    let resumedEnd: Record<string, unknown> | undefined;
+    const resumedHandle = engine.resume(handle.runId, wf);
+    resumedHandle.on('run:end', (event) => {
+      resumedEnd = event;
+    });
+    const resumed = await resumedHandle.result;
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe('done');
+    expect(adapter.calls).toHaveLength(1);
+    expect((await store.load(handle.runId)).filter(isSettleEntry)).toHaveLength(1);
+    expect((await store.getMeta(handle.runId))?.status).toBe('ok');
+    expect(resumedEnd).toBeDefined();
+    expect('settled' in (resumedEnd ?? {})).toBe(false);
   });
 
   it('an error-status run acknowledges the settlement write fault the same way', async () => {

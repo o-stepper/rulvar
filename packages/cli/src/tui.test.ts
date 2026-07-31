@@ -129,6 +129,22 @@ describe('renderEventLine terminal safety', () => {
     expect(
       renderEventLine(ev({ type: 'run:end', status: 'ok', totalUsd: 0, settled: false }, 'root')),
     ).toBe('run R1 ok settled=false (outcome withheld; resume re-settles)');
+    // A superseded segment names its distinct reason (RV1009): the
+    // resume hint would be wrong advice, the successor owns the run.
+    expect(
+      renderEventLine(
+        ev(
+          {
+            type: 'run:end',
+            status: 'ok',
+            totalUsd: 0,
+            settled: false,
+            settledReason: 'superseded',
+          },
+          'root',
+        ),
+      ),
+    ).toBe('run R1 ok settled=false (superseded; the successor owns settlement)');
     // A settled terminal keeps its exact historical line.
     expect(renderEventLine(ev({ type: 'run:end', status: 'ok', totalUsd: 0 }, 'root'))).toBe(
       'run R1 ok',

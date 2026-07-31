@@ -62,17 +62,30 @@ export type CoreEvents =
       /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
       salvagedTerminalOutputChildren?: string[];
       /**
-       * Present and false ONLY when a settlement write failed (the
-       * run_settle journal append or the terminal RunMeta projection,
-       * RV907): the status above is true as computation, but nothing
-       * durable records it, `handle.result` rejects with the typed
-       * SettlementError instead of resolving, and an event-only
-       * consumer must not treat this terminal as green. Resuming the
-       * run re-settles by replay (no provider call) and the settled
-       * terminal carries no field, byte for byte like every ordinary
-       * run. Never emitted true.
+       * Present and false ONLY when nothing durable records this
+       * terminal: a settlement write failed (the run_settle journal
+       * append or the terminal RunMeta projection, RV907), or the
+       * segment was superseded (`settledReason` names it, RV1009). The
+       * status above is true as computation, but `handle.result`
+       * rejects typed instead of resolving (SettlementError or
+       * SupersededError), and an event-only consumer must not treat
+       * this terminal as green. After a settlement failure, resuming
+       * the run re-settles by replay (no provider call) and the
+       * settled terminal carries no field, byte for byte like every
+       * ordinary run. Never emitted true.
        */
       settled?: false;
+      /**
+       * Present only beside `settled: false`, naming WHY the terminal
+       * refused green when the reason is not a settlement write
+       * fault: 'superseded' means the run_settle append bounced off
+       * the store's fence because a successor segment holds the lease
+       * and owns settlement (RV1009), and `handle.result` rejects
+       * with the typed SupersededError. A settlement WRITE failure
+       * keeps its historical shape (`settled: false` with no reason)
+       * byte for byte.
+       */
+      settledReason?: 'superseded';
       /**
        * The per-child acceptance roster (RV806): status, salvage arm,
        * and the evidence verdict where the child declared a contract;

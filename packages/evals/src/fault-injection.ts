@@ -29,9 +29,11 @@ import {
   invoiceFromJournal,
   journalPricingSnapshot,
   JsonlFileStore,
+  LeaseHeldError,
   memoryQuotaLimiter,
   priceComponentsOf,
   SettlementError,
+  SupersededError,
   type ChatEvent,
   type ChatRequest,
   type InvoiceExport,
@@ -41,6 +43,7 @@ import {
   type PriceTable,
   type ProviderAdapter,
   type QuotaLimiter,
+  type RunMeta,
   type Usage,
 } from '@rulvar/core';
 import { reconcileStatement, type ProviderStatement } from '@rulvar/openai';
@@ -1401,6 +1404,115 @@ const pauseTurnRealAdapter: FaultScenario = {
   },
 };
 
+/** Bounces BOTH settlement writes off the fence while armed; heals on disarm. */
+class SupersededSettleStore extends InMemoryStore {
+  armed = true;
+
+  override append(runId: string, entry: JournalEntry): Promise<void> {
+    const decisionType = (entry.value as { decisionType?: string } | undefined)?.decisionType;
+    if (this.armed && decisionType === 'run_settle') {
+      return Promise.reject(new LeaseHeldError('stale fencing epoch: a successor holds the lease'));
+    }
+    return super.append(runId, entry);
+  }
+
+  override putMeta(meta: RunMeta): Promise<void> {
+    if (this.armed && meta.status !== 'running' && meta.status !== 'suspended') {
+      return Promise.reject(new LeaseHeldError('stale fencing epoch: a successor holds the lease'));
+    }
+    return super.putMeta(meta);
+  }
+}
+
+/**
+ * RV1009: a fenced-out segment must not read green anywhere. Before
+ * this gate a superseded segment's LeaseHeldError was swallowed on both
+ * settlement writes and the stale handle resolved ok with an unmarked
+ * run:end: a green terminal no durable store wrote, the exact split
+ * view RV907 forbids.
+ */
+const supersededTerminalHonesty: FaultScenario = {
+  name: 'superseded-terminal-honesty',
+  doctrine:
+    'a superseded segment rejects typed (SupersededError) with run:end refusing green under ' +
+    'the DISTINCT superseded reason, and exactly one successor settles the run (RV1009); a ' +
+    'fenced-out terminal that no durable store wrote must never read ok',
+  async run() {
+    const store = new SupersededSettleStore();
+    let liveCalls = 0;
+    const adapter = new FakeAdapter({
+      agents: {
+        '*': () => {
+          liveCalls += 1;
+          return 'superseded answer';
+        },
+      },
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: ROUTING,
+    });
+    const settleCount = async (): Promise<number> =>
+      (await store.load('fault-superseded')).filter(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType === 'run_settle',
+      ).length;
+    const handle = engine.run(echoWorkflow, undefined, { runId: 'fault-superseded' });
+    let runEnd: { status?: string; settled?: boolean; settledReason?: string } | undefined;
+    handle.on('run:end', (event) => {
+      runEnd = event;
+    });
+    let thrown: unknown;
+    try {
+      await handle.result;
+    } catch (raised) {
+      thrown = raised;
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+    const staleSettles = await settleCount();
+    // The successor: a resume once the fence no longer rejects this
+    // holder records the one authoritative settle by replay, free.
+    store.armed = false;
+    let resumedEnd: Record<string, unknown> | undefined;
+    const resumedHandle = engine.resume('fault-superseded', echoWorkflow);
+    resumedHandle.on('run:end', (event) => {
+      resumedEnd = event;
+    });
+    const resumed = await resumedHandle.result;
+    await new Promise((resolve) => setImmediate(resolve));
+    const settles = await settleCount();
+    const matched =
+      thrown instanceof SupersededError &&
+      thrown.code === 'superseded' &&
+      thrown.retryable === false &&
+      thrown.cause instanceof LeaseHeldError &&
+      runEnd?.status === 'ok' &&
+      runEnd.settled === false &&
+      runEnd.settledReason === 'superseded' &&
+      staleSettles === 0 &&
+      resumed.status === 'ok' &&
+      liveCalls === 1 &&
+      settles === 1 &&
+      resumedEnd !== undefined &&
+      !('settled' in resumedEnd);
+    return {
+      observation: {
+        matched,
+        detail:
+          `the fenced-out segment rejected typed ('${errorText(thrown)}') while run:end ` +
+          `refused green with settledReason=${String(runEnd?.settledReason)} and zero settle ` +
+          `entries; the successor settled ok by replay (liveCalls=${String(liveCalls)}) with ` +
+          `exactly one settle entry (${String(settles)})`,
+      },
+      artifacts: [
+        jsonArtifact('run-end.json', { superseded: runEnd ?? null, successor: resumedEnd ?? null }),
+        jsonArtifact('journal.json', await store.load('fault-superseded')),
+      ],
+    };
+  },
+};
+
 const retryingWorkflow = defineWorkflow({ name: 'fault-kit-retrying' }, async (ctx) => {
   // The default policy already retries transport-class failures; only
   // the waits shrink so the kit stays quick.
@@ -1530,6 +1642,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   ttlLiveBudgetParity,
   pauseTurnRealAdapter,
   statementSettleableGuard,
+  supersededTerminalHonesty,
 ];
 
 /** The scenario names in run order. */

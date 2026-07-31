@@ -44,7 +44,8 @@ export type ErrorCode =
   | 'lease_held'
   | 'knowledge_cas'
   | 'determinism'
-  | 'settlement';
+  | 'settlement'
+  | 'superseded';
 
 /** An alias for the registry type; both names are public. */
 export type RulvarErrorCode = ErrorCode;
@@ -332,8 +333,11 @@ export class LeaseHeldError extends RulvarError {
  * so recovery is deterministic: resume the run and replay re-settles
  * the same outcome without a provider call, or reconcile the store
  * with `rulvar runs audit [--repair]`. A superseded segment's fencing
- * rejection (LeaseHeldError) is NOT this error and stays swallowed:
- * the successor owns settlement. `data` records
+ * rejection of the settle append (LeaseHeldError) is NOT this error:
+ * it rejects with the typed {@link SupersededError} (RV1009), while a
+ * meta-only lease bounce over an already durable settle stays
+ * swallowed (the journal records the outcome; only the projection
+ * belongs to the current holder). `data` records
  * { runId, runStatus, stage }.
  */
 export class SettlementError extends RulvarError {
@@ -354,6 +358,39 @@ export class SettlementError extends RulvarError {
       cause: opts.cause,
     });
     this.stage = opts.stage;
+    this.runId = opts.runId;
+    this.runStatus = opts.runStatus;
+  }
+}
+
+/**
+ * The segment computed its outcome but its run_settle append bounced
+ * off the store's fence (LeaseHeldError): a successor segment holds
+ * the lease and owns settlement (RV1009). Nothing durable records
+ * THIS segment's outcome, so `handle.result` rejects with this error
+ * instead of resolving, and the segment's run:end refuses green with
+ * `settled: false` and `settledReason: 'superseded'`: a green
+ * terminal that exists in no durable store is exactly the split view
+ * RV907 forbids, and before this error a superseded segment resolved
+ * ok silently. Not retryable: the successor owns the run; read the
+ * authoritative outcome from its settle or the store's run meta. A
+ * meta-only lease bounce over an already durable settle is NOT this
+ * error and stays swallowed: the journal records the outcome, and
+ * only the projection belongs to the current holder. `data` records
+ * { runId, runStatus }.
+ */
+export class SupersededError extends RulvarError {
+  readonly code = 'superseded' as const;
+  readonly runId: string;
+  /** The outcome status the stale segment computed and must not act on. */
+  readonly runStatus: string;
+
+  constructor(message: string, opts: { runId: string; runStatus: string; cause?: unknown }) {
+    super(message, {
+      retryable: false,
+      data: { runId: opts.runId, runStatus: opts.runStatus },
+      cause: opts.cause,
+    });
     this.runId = opts.runId;
     this.runStatus = opts.runStatus;
   }

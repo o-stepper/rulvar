@@ -955,7 +955,7 @@ const MUTATIONS = [
     doctrine:
       'a failed settlement marks run:end settled false (RV907): unmarked, an event-only consumer reads a green terminal that exists in no durable record',
     file: 'packages/core/src/engine/engine.ts',
-    find: '          ...(settlementFailure === undefined ? {} : { settled: false as const }),',
+    find: "          ...(settlementFailure !== undefined\n            ? { settled: false as const }\n            : supersededBy !== undefined\n              ? { settled: false as const, settledReason: 'superseded' as const }\n              : {}),",
     replace: '          ...{},',
     test: 'packages/core/src/engine/settlement.test.ts',
   },
@@ -964,7 +964,7 @@ const MUTATIONS = [
     doctrine:
       'an ordinary settled terminal carries no settled field (RV907 byte doctrine): stamping every run flags healthy terminals and breaks the absent-field contract',
     file: 'packages/core/src/engine/engine.ts',
-    find: '          ...(settlementFailure === undefined ? {} : { settled: false as const }),',
+    find: "          ...(settlementFailure !== undefined\n            ? { settled: false as const }\n            : supersededBy !== undefined\n              ? { settled: false as const, settledReason: 'superseded' as const }\n              : {}),",
     replace: '          ...{ settled: false as const },',
     test: 'packages/core/src/engine/settlement.test.ts',
   },
@@ -1207,6 +1207,36 @@ const MUTATIONS = [
     find: "  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {",
     replace: '  if (false as boolean) {',
     test: 'packages/core/src/journal/checkpoint.test.ts',
+  },
+  {
+    id: 'superseded-settle-rejection',
+    doctrine:
+      'a superseded segment rejects typed instead of resolving a green terminal (RV1009): with the historical swallow restored, a settle append bouncing off the fence resolves ok silently and the caller acts on an outcome no durable store records',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '          } catch (settleErr) {\n            if (settleErr instanceof LeaseHeldError) {\n              supersededBy = settleErr;\n            } else {',
+    replace:
+      '          } catch (settleErr) {\n            if (settleErr instanceof LeaseHeldError) {\n              /* historical swallow */\n            } else {',
+    test: 'packages/core/src/engine/settlement.test.ts',
+  },
+  {
+    id: 'superseded-terminal-reason',
+    doctrine:
+      'the superseded terminal names its DISTINCT reason on run:end (RV1009): with the reason dropped, an event-only consumer cannot tell a superseded segment from a settlement write failure and the resume hint becomes wrong advice',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "            : supersededBy !== undefined\n              ? { settled: false as const, settledReason: 'superseded' as const }\n              : {}),",
+    replace:
+      '            : supersededBy !== undefined\n              ? { settled: false as const }\n              : {}),',
+    test: 'packages/core/src/engine/settlement.test.ts',
+  },
+  {
+    id: 'fault-kit-superseded-drive',
+    doctrine:
+      'the superseded scenario actually DRIVES a fencing rejection (RV1009): with the bounce downgraded to a plain error, the run takes the SettlementError path, the expected SupersededError and superseded reason never appear, and the scenario must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "      return Promise.reject(new LeaseHeldError('stale fencing epoch: a successor holds the lease'));\n    }\n    return super.append(runId, entry);",
+    replace:
+      "      return Promise.reject(new Error('stale fencing epoch: a successor holds the lease'));\n    }\n    return super.append(runId, entry);",
+    test: 'packages/evals/src/fault-injection.test.ts',
   },
 ];
 

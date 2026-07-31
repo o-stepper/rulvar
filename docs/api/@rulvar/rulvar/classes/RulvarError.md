@@ -36,6 +36,7 @@ it never means a provider SDK autoretry, which is disabled.
 - [`SandboxError`](/api/@rulvar/rulvar/classes/SandboxError.md)
 - [`ScriptRejected`](/api/@rulvar/rulvar/classes/ScriptRejected.md)
 - [`SettlementError`](/api/@rulvar/rulvar/classes/SettlementError.md)
+- [`SupersededError`](/api/@rulvar/rulvar/classes/SupersededError.md)
 
 ## Constructors
 

@@ -649,6 +649,10 @@
             "link": "/api/@rulvar/core/classes/SpanRegistry.md"
           },
           {
+            "text": "SupersededError",
+            "link": "/api/@rulvar/core/classes/SupersededError.md"
+          },
+          {
             "text": "TerminationAccount",
             "link": "/api/@rulvar/core/classes/TerminationAccount.md"
           }
@@ -5177,6 +5181,10 @@
           {
             "text": "SpanRegistry",
             "link": "/api/@rulvar/rulvar/classes/SpanRegistry.md"
+          },
+          {
+            "text": "SupersededError",
+            "link": "/api/@rulvar/rulvar/classes/SupersededError.md"
           },
           {
             "text": "TerminationAccount",
