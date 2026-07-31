@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+
 ### 1.138.0
 
 #### Minor Changes
@@ -1448,6 +1455,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+
 ### 1.138.0
 
 #### Patch Changes
@@ -2685,6 +2699,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
 
 ### 1.138.0
 
@@ -4323,6 +4344,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.139.0
+
+#### Minor Changes
+
+- 03a2141: The live budget debits each provider call marginally against the call's own accumulated price (RV1101): a long-context tier crossed by the call's sum that no single mid-stream slice reached now re-prices the whole call live at the crossing slice, exactly the dollars the settled fold records, and a ceiling between the per-slice and tiered readings severs the run instead of settling ok over its own hard cap. `RunBudget.openCallMeter` and the optional `BudgetHooks.openCallMeter` carry the seam (one meter per provider call, the settled fold's billing basis; the mid-stream deltas and the settle remainder of one call share one accumulation; a marginal debit never credits; the tier still never fires on a run aggregate no single call crossed). The fault kit gains the `tier-crossing-live-parity` scenario (RV1102), pinning both money paths and the marginal live ladder on the real engine.
 
 ### 1.138.0
 
@@ -6277,6 +6304,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.139.0
+
 ### 1.138.0
 
 ### 1.137.0
@@ -6657,6 +6686,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.139.0
+
+#### Minor Changes
+
+- 03a2141: The live budget debits each provider call marginally against the call's own accumulated price (RV1101): a long-context tier crossed by the call's sum that no single mid-stream slice reached now re-prices the whole call live at the crossing slice, exactly the dollars the settled fold records, and a ceiling between the per-slice and tiered readings severs the run instead of settling ok over its own hard cap. `RunBudget.openCallMeter` and the optional `BudgetHooks.openCallMeter` carry the seam (one meter per provider call, the settled fold's billing basis; the mid-stream deltas and the settle remainder of one call share one accumulation; a marginal debit never credits; the tier still never fires on a run aggregate no single call crossed). The fault kit gains the `tier-crossing-live-parity` scenario (RV1102), pinning both money paths and the marginal live ladder on the real engine.
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+  - @rulvar/anthropic@1.139.0
+  - @rulvar/openai@1.139.0
+  - @rulvar/plan@1.139.0
+  - @rulvar/testing@1.139.0
 
 ### 1.138.0
 
@@ -8235,6 +8279,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+
 ### 1.138.0
 
 #### Patch Changes
@@ -8879,6 +8930,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
 
 ### 1.138.0
 
@@ -10315,6 +10373,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+
 ### 1.138.0
 
 #### Patch Changes
@@ -11666,6 +11731,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+  - eslint-plugin-rulvar@1.139.0
 
 ### 1.138.0
 
@@ -13118,6 +13191,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+  - @rulvar/anthropic@1.139.0
+  - @rulvar/openai@1.139.0
 
 ### 1.138.0
 
@@ -14795,6 +14877,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+
 ### 1.138.0
 
 #### Patch Changes
@@ -16142,6 +16231,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
+
 ### 1.138.0
 
 #### Patch Changes
@@ -16806,6 +16902,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
 
 ### 1.138.0
 
@@ -18102,6 +18205,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.139.0
+
+#### Patch Changes
+
+- Updated dependencies [03a2141]
+  - @rulvar/core@1.139.0
 
 ### 1.138.0
 
