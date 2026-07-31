@@ -10,6 +10,7 @@
  */
 import {
   isStrictCompatibleSchema,
+  sumUsage,
   type CacheHint,
   type CanonicalId,
   type ChatEvent,
@@ -443,6 +444,13 @@ export interface TurnMapping {
    * request of a pause_turn absorption (RV905).
    */
   responseId?: string;
+  /**
+   * The SEGMENT's own normalized usage (RV1003): a paused segment
+   * yields no finish, so this is how its counts reach the adapter's
+   * whole-turn accumulation. The terminal finish EVENT carries the turn
+   * total (usagePrior folded in); this field stays segment-only.
+   */
+  usage: Usage;
 }
 
 /**
@@ -476,12 +484,24 @@ export async function* mapAnthropicStream(
      * first segment, so an unsegmented finish stays byte-identical.
      */
     wirePrior?: { responseIds: Array<string | undefined> };
+    /**
+     * Accumulated usage of the PRIOR pause_turn segments of this turn
+     * (RV1003): the terminal finish must speak for the WHOLE logical
+     * turn, because core sums the per-segment mid-stream reports and
+     * verifies them against the finish total; a finish carrying only
+     * the last segment's counts turns a legitimate absorption into a
+     * usage-invariant kill and loses the paid segments from the money.
+     * Absent on the first segment, so an unsegmented finish stays
+     * byte-identical.
+     */
+    usagePrior?: Usage;
   },
 ): AsyncGenerator<ChatEvent, TurnMapping> {
   const mapping: TurnMapping = {
     assistantContent: [],
     pauseTurn: false,
     finished: false,
+    usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
   };
 
   let usage: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -593,6 +613,7 @@ export async function* mapAnthropicStream(
         const mapped = mapStopReason(stopReason, stopDetails);
         if (mapped.pauseTurn) {
           mapping.pauseTurn = true;
+          mapping.usage = usage;
           if (responseId !== undefined) {
             mapping.responseId = responseId;
           }
@@ -633,10 +654,14 @@ export async function* mapAnthropicStream(
         yield {
           type: 'finish',
           finish: mapped.finish ?? { reason: 'stop' },
-          usage,
+          // The whole logical turn (RV1003): prior absorbed segments
+          // folded in, so the total confirms every per-segment
+          // mid-stream report and the money keeps every paid wire.
+          usage: options?.usagePrior === undefined ? usage : sumUsage(options.usagePrior, usage),
           providerMetadata,
         };
         mapping.finished = true;
+        mapping.usage = usage;
         if (responseId !== undefined) {
           mapping.responseId = responseId;
         }
@@ -646,6 +671,7 @@ export async function* mapAnthropicStream(
         break;
     }
   }
+  mapping.usage = usage;
   return mapping;
 }
 

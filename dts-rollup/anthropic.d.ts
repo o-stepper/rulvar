@@ -172,6 +172,13 @@ interface TurnMapping {
   * request of a pause_turn absorption (RV905).
   */
   responseId?: string;
+  /**
+  * The SEGMENT's own normalized usage (RV1003): a paused segment
+  * yields no finish, so this is how its counts reach the adapter's
+  * whole-turn accumulation. The terminal finish EVENT carries the turn
+  * total (usagePrior folded in); this field stays segment-only.
+  */
+  usage: Usage;
 }
 /**
 * Maps one Messages API stream into ChatEvents, yielding each canonical
@@ -203,6 +210,17 @@ declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>,
   wirePrior?: {
     responseIds: Array<string | undefined>;
   };
+  /**
+  * Accumulated usage of the PRIOR pause_turn segments of this turn
+  * (RV1003): the terminal finish must speak for the WHOLE logical
+  * turn, because core sums the per-segment mid-stream reports and
+  * verifies them against the finish total; a finish carrying only
+  * the last segment's counts turns a legitimate absorption into a
+  * usage-invariant kill and loses the paid segments from the money.
+  * Absent on the first segment, so an unsegmented finish stays
+  * byte-identical.
+  */
+  usagePrior?: Usage;
 }): AsyncGenerator<ChatEvent, TurnMapping>;
 /**
 * Projects an SDK/API error into the retryable WireError vocabulary:

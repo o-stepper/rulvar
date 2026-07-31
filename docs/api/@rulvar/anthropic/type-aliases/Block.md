@@ -10,6 +10,6 @@
 type Block = Record<string, unknown>;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L58)
+Defined in: [packages/anthropic/src/wire.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L59)
 
 A raw Messages API content block, structurally typed.

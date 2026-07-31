@@ -9,10 +9,12 @@ import Anthropic, { type ClientOptions as AnthropicClientOptions } from '@anthro
 import {
   ConfigError,
   createCanonicalIdMinter,
+  sumUsage,
   type ChatEvent,
   type ChatRequest,
   type ModelCaps,
   type ProviderAdapter,
+  type Usage,
 } from '@rulvar/core';
 import { ANTHROPIC_MODELS, anthropicModelInfo, type AnthropicModelInfo } from './caps.js';
 import {
@@ -221,10 +223,30 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
 
     async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
       const info = infoFor(req.model);
-      const pauseCap =
-        typeof req.providerOptions?.anthropic?.pauseTurnMaxContinuations === 'number'
-          ? req.providerOptions.anthropic.pauseTurnMaxContinuations
-          : DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS;
+      // The continuation-cap intake (RV1004): a present cap must be a
+      // nonnegative safe integer, refused typed BEFORE the first wire.
+      // The historical `typeof === 'number'` guard let NaN through and
+      // `continuations > NaN` is always false: an invalid option
+      // silently DISARMED the bound, and every unbounded continuation
+      // is a paid provider request.
+      const rawPauseCap = req.providerOptions?.anthropic?.pauseTurnMaxContinuations;
+      if (
+        rawPauseCap !== undefined &&
+        (typeof rawPauseCap !== 'number' || !Number.isSafeInteger(rawPauseCap) || rawPauseCap < 0)
+      ) {
+        const shown =
+          typeof rawPauseCap === 'number'
+            ? String(rawPauseCap)
+            : typeof rawPauseCap === 'string'
+              ? `'${rawPauseCap}'`
+              : (JSON.stringify(rawPauseCap) ?? 'a non-numeric value');
+        throw new ConfigError(
+          `pauseTurnMaxContinuations must be a nonnegative safe integer, got ${shown}; an ` +
+            'invalid cap never disarms the continuation bound, because every absorbed ' +
+            'continuation is a paid wire request',
+        );
+      }
+      const pauseCap = rawPauseCap ?? DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS;
 
       let params = buildAnthropicParams(req, {
         ids,
@@ -241,6 +263,11 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
       // (RV905): with any present, the finish names the whole wire
       // request set so the dispatch accounts at its true wire count.
       const priorSegmentIds: Array<string | undefined> = [];
+      // Usage of the segments already absorbed (RV1003): the terminal
+      // finish speaks for the whole logical turn, or core's
+      // midstream<=finish invariant kills a legitimate absorption and
+      // the paid segments vanish from the money.
+      let absorbedUsage: Usage | undefined;
       while (true) {
         let stream: AsyncIterable<AnthropicStreamEvent>;
         try {
@@ -267,6 +294,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
         const mapper = mapAnthropicStream(stream, ids, {
           carryRetained,
           ...(priorSegmentIds.length === 0 ? {} : { wirePrior: { responseIds: priorSegmentIds } }),
+          ...(absorbedUsage === undefined ? {} : { usagePrior: absorbedUsage }),
         });
         let mapping: TurnMapping;
         try {
@@ -314,6 +342,8 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
           ),
         );
         priorSegmentIds.push(mapping.responseId);
+        absorbedUsage =
+          absorbedUsage === undefined ? mapping.usage : sumUsage(absorbedUsage, mapping.usage);
         // pause_turn: append the partial assistant content and re-send,
         // WITHOUT a synthetic user message, up to the continuation cap;
         // never a canonical finish.

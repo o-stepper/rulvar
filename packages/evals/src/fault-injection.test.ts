@@ -31,6 +31,7 @@ const EXPECTED = [
   'forced-finish-completion',
   'settlement-terminal-honesty',
   'ttl-live-budget-parity',
+  'pause-turn-real-adapter',
 ];
 
 describe('the fault-injection kit (RV811)', () => {
@@ -79,6 +80,12 @@ describe('the fault-injection kit (RV811)', () => {
     // mid-stream usage event against a ceiling), never post-hoc.
     expect(byName.get('ttl-live-budget-parity')?.observation.detail).toContain('live=4.5');
     expect(byName.get('ttl-live-budget-parity')?.observation.detail).toContain('settled=4.5');
+    // The RV1003+RV1004 scenario: the REAL Anthropic adapter's
+    // two-segment pause_turn through the real engine, never a synthetic
+    // adapter with ready wire metadata; plus the invalid continuation
+    // cap refusing typed before any wire.
+    expect(byName.get('pause-turn-real-adapter')?.observation.detail).toContain('usage 11/2');
+    expect(byName.get('pause-turn-real-adapter')?.observation.detail).toContain('before any wire');
   });
 
   it('writes experiment-grade artifacts when a directory is given, and only runs the named subset', async () => {

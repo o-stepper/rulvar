@@ -13,7 +13,7 @@ function mapAnthropicStream(
 options?): AsyncGenerator<ChatEvent, TurnMapping>;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:466](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L466)
+Defined in: [packages/anthropic/src/wire.ts:474](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L474)
 
 Maps one Messages API stream into ChatEvents, yielding each canonical
 event AS the corresponding provider event is consumed: the consumer's
@@ -38,8 +38,9 @@ finish ships the whole turn's retention payload (M4-T02).
 | ------ | ------ | ------ |
 | `stream` | `AsyncIterable`\&lt;[`AnthropicStreamEvent`](/api/@rulvar/anthropic/type-aliases/AnthropicStreamEvent.md)\&gt; | - |
 | `ids` | [`IdMap`](/api/@rulvar/anthropic/classes/IdMap.md) | - |
-| `options?` | \{ `carryRetained?`: [`Block`](/api/@rulvar/anthropic/type-aliases/Block.md)[]; `wirePrior?`: \{ `responseIds`: (`string` \| `undefined`)[]; \}; \} | - |
+| `options?` | \{ `carryRetained?`: [`Block`](/api/@rulvar/anthropic/type-aliases/Block.md)[]; `usagePrior?`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `wirePrior?`: \{ `responseIds`: (`string` \| `undefined`)[]; \}; \} | - |
 | `options.carryRetained?` | [`Block`](/api/@rulvar/anthropic/type-aliases/Block.md)[] | - |
+| `options.usagePrior?` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | Accumulated usage of the PRIOR pause_turn segments of this turn (RV1003): the terminal finish must speak for the WHOLE logical turn, because core sums the per-segment mid-stream reports and verifies them against the finish total; a finish carrying only the last segment's counts turns a legitimate absorption into a usage-invariant kill and loses the paid segments from the money. Absent on the first segment, so an unsegmented finish stays byte-identical. |
 | `options.wirePrior?` | \{ `responseIds`: (`string` \| `undefined`)[]; \} | Response ids of the PRIOR pause_turn segments of this turn (RV905): when present, the finish metadata names the whole wire request set (`wireRequests: { count, responseIds }`) so the core can account the dispatch at its true wire count. Absent on the first segment, so an unsegmented finish stays byte-identical. |
 | `options.wirePrior.responseIds?` | (`string` \| `undefined`)[] | - |
 

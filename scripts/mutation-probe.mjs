@@ -1113,6 +1113,34 @@ const MUTATIONS = [
     replace: '  cacheWriteTokens: 300_000,\n};\n\nconst ttlLiveBudgetParity: FaultScenario = {',
     test: 'packages/evals/src/fault-injection.test.ts',
   },
+  {
+    id: 'pause-usage-accumulation',
+    doctrine:
+      'the terminal finish speaks for the WHOLE pause_turn absorption (RV1003): with the prior-segment fold dropped, the finish carries only the last segment, core reads mid-stream 11 over finish 6, and a legitimate continuation dies on the usage invariant with its paid segments lost from the money',
+    file: 'packages/anthropic/src/wire.ts',
+    find: '          usage: options?.usagePrior === undefined ? usage : sumUsage(options.usagePrior, usage),',
+    replace: '          usage,',
+    test: 'packages/anthropic/src/pause-turn-usage.test.ts',
+  },
+  {
+    id: 'pause-cap-validation',
+    doctrine:
+      'an invalid pauseTurnMaxContinuations refuses typed before the first wire (RV1004): disarmed, NaN silently removes the continuation bound (continuations > NaN is always false) and every unbounded continuation is a paid provider request',
+    file: 'packages/anthropic/src/adapter.ts',
+    find: '      if (\n        rawPauseCap !== undefined &&',
+    replace: '      if (\n        (false as boolean) &&\n        rawPauseCap !== undefined &&',
+    test: 'packages/anthropic/src/pause-turn-usage.test.ts',
+  },
+  {
+    id: 'fault-kit-pause-real-drive',
+    doctrine:
+      'the real-adapter scenario actually DRIVES a two-segment pause_turn (RV1003): with the first segment finishing instead of pausing, one wire serves the whole turn, the expected 11/2 usage and two-id wire set never appear, and the scenario must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "                { type: 'message_delta', delta: { stop_reason: 'pause_turn' }, usage: {} },",
+    replace:
+      "                { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: {} },",
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

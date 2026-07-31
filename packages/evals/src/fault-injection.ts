@@ -19,7 +19,7 @@ import { appendFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { ANTHROPIC_PRICING } from '@rulvar/anthropic';
+import { ANTHROPIC_PRICING, anthropic } from '@rulvar/anthropic';
 import {
   compareRates,
   ConfigError,
@@ -1241,6 +1241,148 @@ const ttlLiveBudgetParity: FaultScenario = {
   },
 };
 
+/**
+ * RV1003 + RV1004 over the fourteenth experiment's P0: a legitimate
+ * two-segment pause_turn through the REAL Anthropic adapter and the
+ * real engine used to die on the usage invariant (each segment's
+ * message_start emitted its own mid-stream usage, 5 then 6, while the
+ * terminal finish carried only the last segment's count: 11 > 6), and
+ * `pauseTurnMaxContinuations: NaN` silently disarmed the continuation
+ * bound. The gate drives the real adapter with an injected client,
+ * never a synthetic adapter with ready wire metadata: the finish must
+ * speak for the whole logical turn, the wire units must land in the
+ * quota window and the invoice row, and an invalid cap must refuse
+ * typed before any wire.
+ */
+const pauseTurnRealAdapter: FaultScenario = {
+  name: 'pause-turn-real-adapter',
+  doctrine:
+    'a legitimate provider-side continuation survives the real adapter end to end: the ' +
+    'terminal finish carries the whole logical turn (per-segment mid-stream reports ' +
+    'confirmed, every paid segment in the money), the quota window and the invoice row ' +
+    'settle at true wire units, and an invalid pauseTurnMaxContinuations refuses typed ' +
+    'before any wire instead of silently disarming the bound (RV1003 + RV1004)',
+  async run() {
+    async function* segmentStream(
+      events: Array<Record<string, unknown>>,
+    ): AsyncIterable<Record<string, unknown>> {
+      await Promise.resolve();
+      yield* events;
+    }
+    let wireCalls = 0;
+    const client = {
+      messages: {
+        create(): Promise<unknown> {
+          wireCalls += 1;
+          const first = wireCalls === 1;
+          const events: Array<Record<string, unknown>> = first
+            ? [
+                { type: 'message_start', message: { id: 'm1', usage: { input_tokens: 5 } } },
+                { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+                {
+                  type: 'content_block_delta',
+                  index: 0,
+                  delta: { type: 'text_delta', text: 'a ' },
+                },
+                { type: 'content_block_stop', index: 0 },
+                { type: 'message_delta', delta: { stop_reason: 'pause_turn' }, usage: {} },
+                { type: 'message_stop' },
+              ]
+            : [
+                { type: 'message_start', message: { id: 'm2', usage: { input_tokens: 6 } } },
+                { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+                { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'b' } },
+                { type: 'content_block_stop', index: 0 },
+                {
+                  type: 'message_delta',
+                  delta: { stop_reason: 'end_turn' },
+                  usage: { output_tokens: 2 },
+                },
+                { type: 'message_stop' },
+              ];
+          return Promise.resolve(segmentStream(events));
+        },
+        countTokens: () => Promise.resolve({ input_tokens: 1 }),
+      },
+      models: { list: () => Promise.resolve({ data: [] }) },
+    };
+    const limiter = memoryQuotaLimiter([{ provider: 'anthropic', requestsPerMinute: 30 }]);
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [anthropic({ client })],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'anthropic:claude-fable-5' } },
+      quota: { limiter },
+    });
+    const outcome = await engine.run(echoWorkflow, undefined, { runId: 'fault-pause-real' }).result;
+    const entries = await store.load('fault-pause-real');
+    const terminal = entries.find((entry) => entry.kind === 'agent' && entry.status === 'ok');
+    const recorded = terminal?.providerCalls?.[0]?.usage;
+    const invoice = invoiceFromJournal(entries, () => undefined);
+    const row = invoice.rows.find((r) => r.servedBy === 'anthropic:claude-fable-5');
+    const snapshot = limiter.snapshot() as unknown as Array<{ requests?: number }> & {
+      windows?: Array<{ requests?: number }>;
+    };
+    const quotaRequests = snapshot.windows?.[0]?.requests ?? snapshot[0]?.requests;
+
+    // The invalid cap: refused typed before any wire, never a silent
+    // disarm (the experiment observed 8 unbounded paid wires).
+    const callsBeforeNan = wireCalls;
+    let nanRefusal: unknown;
+    try {
+      for await (const event of anthropic({ client }).stream({
+        model: 'claude-fable-5',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
+        providerOptions: { anthropic: { pauseTurnMaxContinuations: Number.NaN } },
+      })) {
+        void event;
+      }
+    } catch (thrown) {
+      nanRefusal = thrown;
+    }
+    const matched =
+      outcome.status === 'ok' &&
+      wireCalls === callsBeforeNan &&
+      wireCalls === 2 &&
+      outcome.usage.inputTokens === 11 &&
+      outcome.usage.outputTokens === 2 &&
+      recorded?.inputTokens === 11 &&
+      recorded.outputTokens === 2 &&
+      row?.responseId === 'm2' &&
+      row.wireResponseIds?.length === 2 &&
+      row.wireResponseIds[0] === 'm1' &&
+      row.wireResponseIds[1] === 'm2' &&
+      quotaRequests === 2 &&
+      nanRefusal instanceof ConfigError &&
+      nanRefusal.message.includes('pauseTurnMaxContinuations');
+    return {
+      observation: {
+        matched,
+        detail:
+          `the real adapter's two-segment pause_turn settled '${outcome.status}' with ` +
+          `usage 11/2 observed as ${String(outcome.usage.inputTokens)}/` +
+          `${String(outcome.usage.outputTokens)} across ${String(wireCalls)} wires, invoice ` +
+          `row [${(row?.wireResponseIds ?? []).join(',')}], quota window ` +
+          `${String(quotaRequests)}; pauseTurnMaxContinuations=NaN refused typed before any ` +
+          `wire ('${errorText(nanRefusal)}')`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          usage: outcome.usage,
+          recorded: recorded ?? null,
+          invoiceRow: row ?? null,
+          quotaRequests: quotaRequests ?? null,
+        }),
+        jsonArtifact('nan-refusal.json', {
+          refused: nanRefusal instanceof ConfigError,
+          message: errorText(nanRefusal),
+        }),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -1258,6 +1400,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   forcedFinishCompletion,
   settlementTerminalHonesty,
   ttlLiveBudgetParity,
+  pauseTurnRealAdapter,
 ];
 
 /** The scenario names in run order. */
