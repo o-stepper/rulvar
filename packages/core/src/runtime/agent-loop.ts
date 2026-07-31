@@ -1323,6 +1323,7 @@ async function executeToolCall(options: {
     options.events?.emit({
       type: 'tool:end',
       toolName: call.name,
+      toolCallId: call.id,
       outcome,
       durationMs: options.now() - startedAt,
       ...options.audit,
@@ -2322,6 +2323,7 @@ export async function runAgent<S extends SchemaSpec>(
       events?.emit({
         type: 'tool:start',
         toolName: call.name,
+        toolCallId: call.id,
         ...(def?.risk === undefined ? {} : { risk: def.risk }),
       });
       const gateStartedAt = now();
@@ -2336,6 +2338,7 @@ export async function runAgent<S extends SchemaSpec>(
           events?.emit({
             type: 'tool:end',
             toolName: call.name,
+            toolCallId: call.id,
             outcome: 'denied',
             durationMs: now() - gateStartedAt,
             ...gate.audit,
@@ -2357,6 +2360,7 @@ export async function runAgent<S extends SchemaSpec>(
             events?.emit({
               type: 'tool:end',
               toolName: call.name,
+              toolCallId: call.id,
               outcome: 'denied',
               durationMs: now() - gateStartedAt,
               ...gate.audit,
@@ -2388,6 +2392,7 @@ export async function runAgent<S extends SchemaSpec>(
           events?.emit({
             type: 'tool:end',
             toolName: gatedCall.name,
+            toolCallId: call.id,
             outcome: 'error',
             durationMs: now() - gateStartedAt,
           });
@@ -2408,6 +2413,7 @@ export async function runAgent<S extends SchemaSpec>(
           events?.emit({
             type: 'tool:end',
             toolName: gatedCall.name,
+            toolCallId: call.id,
             outcome: 'error',
             durationMs: now() - gateStartedAt,
           });
@@ -2425,6 +2431,7 @@ export async function runAgent<S extends SchemaSpec>(
         events?.emit({
           type: 'tool:end',
           toolName: gatedCall.name,
+          toolCallId: call.id,
           outcome: 'ok',
           durationMs: now() - gateStartedAt,
         });
@@ -2462,6 +2469,7 @@ export async function runAgent<S extends SchemaSpec>(
           events?.emit({
             type: 'tool:end',
             toolName: gatedCall.name,
+            toolCallId: call.id,
             outcome: 'error',
             durationMs: now() - gateStartedAt,
           });
@@ -2490,6 +2498,7 @@ export async function runAgent<S extends SchemaSpec>(
           events?.emit({
             type: 'tool:end',
             toolName: gatedCall.name,
+            toolCallId: call.id,
             outcome: 'error',
             durationMs: now() - gateStartedAt,
           });
@@ -2499,6 +2508,7 @@ export async function runAgent<S extends SchemaSpec>(
         events?.emit({
           type: 'tool:end',
           toolName: gatedCall.name,
+          toolCallId: call.id,
           outcome: 'ok',
           durationMs: now() - gateStartedAt,
         });
@@ -2549,6 +2559,7 @@ export async function runAgent<S extends SchemaSpec>(
             events?.emit({
               type: 'tool:end',
               toolName: gatedCall.name,
+              toolCallId: call.id,
               outcome: 'denied',
               durationMs: now() - gateStartedAt,
               guard: 'finalization-window',
@@ -2578,6 +2589,7 @@ export async function runAgent<S extends SchemaSpec>(
           events?.emit({
             type: 'tool:end',
             toolName: gatedCall.name,
+            toolCallId: call.id,
             outcome: 'denied',
             durationMs: now() - gateStartedAt,
             guard: guardVerdict.guard,

@@ -191,21 +191,27 @@ export async function toOtel(
   const stack: OpenSpan[] = [];
   let created = 0;
   // Tool executions are child spans of their agent span (RV802). Tool
-  // events ride the AGENT's spanId and the vocabulary carries no
-  // per-call id, so the pair key is synthetic: every tool:start mints a
-  // fresh key and queues it per (spanId, toolName); the matching
-  // tool:end pops the oldest open key of that pair, FIFO. Concurrent
-  // same-name calls on one agent may therefore swap attribution among
-  // identically named spans; counts, parentage, and the duration
-  // multiset are exact. Before RV802, tool:start was swallowed as a
-  // duplicate opener of the agent span and the FIRST tool:end closed
-  // the agent span itself, so agent:end attached usage, cost, and
-  // exploration to nothing and later tool events played whack-a-mole
-  // with agent-keyed spans (the twelfth comparison experiment's P0 #2:
-  // 569 tool events on 12 agent spans, none with a span of its own).
+  // events ride the AGENT's spanId, so every tool:start mints a fresh
+  // synthetic key. Pairing is exact when the events carry the
+  // model-minted toolCallId (RV908): the end closes precisely the span
+  // its id opened, so concurrent same-name calls keep their own
+  // durations and outcomes. Events without the field (journals recorded
+  // before RV908, foreign emitters) keep the historical FIFO fallback:
+  // the end pops the oldest open key of (spanId, toolName), which may
+  // swap attribution among identically named spans while counts,
+  // parentage, and the duration multiset stay exact; an id-bearing end
+  // whose start carried no id falls back to the same FIFO, so mixed
+  // streams pair no worse than before. Before RV802, tool:start was
+  // swallowed as a duplicate opener of the agent span and the FIRST
+  // tool:end closed the agent span itself, so agent:end attached
+  // usage, cost, and exploration to nothing (the twelfth comparison
+  // experiment's P0 #2: 569 tool events on 12 agent spans, none with a
+  // span of its own).
   let toolMint = 0;
   const openToolPairs = new Map<string, string[]>();
   const toolPairOf = (spanId: string, toolName: string): string => `${spanId} ${toolName}`;
+  const openToolById = new Map<string, string>();
+  const toolIdOf = (spanId: string, toolCallId: string): string => `${spanId} ${toolCallId}`;
 
   const { contextApi, setSpan } = options;
   // Compiled once, typed failure before anything exports (RV-217).
@@ -398,18 +404,37 @@ export async function toOtel(
       case 'tool:start': {
         const key = `${event.spanId}#tool${String(toolMint)}`;
         toolMint += 1;
-        const pair = toolPairOf(event.spanId, event.toolName);
-        const fifo = openToolPairs.get(pair);
-        if (fifo === undefined) {
-          openToolPairs.set(pair, [key]);
+        if (typeof event.toolCallId === 'string') {
+          // Exact pairing (RV908): the id-keyed register, never the
+          // FIFO queue, so a later no-id end cannot steal this span.
+          openToolById.set(toolIdOf(event.spanId, event.toolCallId), key);
         } else {
-          fifo.push(key);
+          const pair = toolPairOf(event.spanId, event.toolName);
+          const fifo = openToolPairs.get(pair);
+          if (fifo === undefined) {
+            openToolPairs.set(pair, [key]);
+          } else {
+            fifo.push(key);
+          }
         }
         startSpan(event, key, event.spanId);
+        if (typeof event.toolCallId === 'string') {
+          openBySpanId.get(key)?.span.setAttribute('rulvar.tool.call_id', event.toolCallId);
+        }
         break;
       }
       case 'tool:end': {
-        const key = openToolPairs.get(toolPairOf(event.spanId, event.toolName))?.shift();
+        let key: string | undefined;
+        if (typeof event.toolCallId === 'string') {
+          const idKey = toolIdOf(event.spanId, event.toolCallId);
+          key = openToolById.get(idKey);
+          if (key !== undefined) {
+            openToolById.delete(idKey);
+          }
+        }
+        // The FIFO fallback covers streams recorded before RV908 and an
+        // id-bearing closer whose start carried no id.
+        key ??= openToolPairs.get(toolPairOf(event.spanId, event.toolName))?.shift();
         if (key === undefined) {
           // A closer with no open start (a foreign or truncated
           // stream): the exporter's tolerance posture is a span event

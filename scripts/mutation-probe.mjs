@@ -677,8 +677,8 @@ const MUTATIONS = [
     doctrine:
       'a tool:end closes its own synthetic pair span, never the agent span it rides: the agent span must live to agent:end with its usage, cost, and exploration attributes (RV802)',
     file: 'packages/cli/src/otel.ts',
-    find: '        const key = openToolPairs.get(toolPairOf(event.spanId, event.toolName))?.shift();',
-    replace: '        const key = event.spanId;',
+    find: '        key ??= openToolPairs.get(toolPairOf(event.spanId, event.toolName))?.shift();',
+    replace: '        key ??= event.spanId;',
     test: 'packages/cli/src/otel.test.ts',
   },
   {
@@ -967,6 +967,42 @@ const MUTATIONS = [
     find: '          ...(settlementFailure === undefined ? {} : { settled: false as const }),',
     replace: '          ...{ settled: false as const },',
     test: 'packages/core/src/engine/settlement.test.ts',
+  },
+  {
+    id: 'tool-event-call-id',
+    doctrine:
+      'every live tool event names its call (RV908): without the id, consumers are back to FIFO-guessing which of two same-name executions failed',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "        type: 'tool:start',\n        toolName: call.name,\n        toolCallId: call.id,",
+    replace: "        type: 'tool:start',\n        toolName: call.name,",
+    test: 'packages/core/src/runtime/tool-dispatch.test.ts',
+  },
+  {
+    id: 'replay-tool-id',
+    doctrine:
+      'the replayed tool reconstruction names the same call id as the live stream (RV908): dropped, a resumed stream pairs worse than the run it replays',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: "          { type: 'tool:start', toolName: toolResult.name, toolCallId: toolResult.id },",
+    replace: "          { type: 'tool:start', toolName: toolResult.name },",
+    test: 'packages/core/src/engine/invocation-events.test.ts',
+  },
+  {
+    id: 'otel-tool-id-pairing',
+    doctrine:
+      'the OTel exporter pairs tool spans exactly by toolCallId (RV908): degraded to FIFO, concurrent same-name calls finishing out of order swap durations and outcomes',
+    file: 'packages/cli/src/otel.ts',
+    find: '          key = openToolById.get(idKey);\n          if (key !== undefined) {\n            openToolById.delete(idKey);\n          }',
+    replace: '          key = undefined;',
+    test: 'packages/cli/src/otel.test.ts',
+  },
+  {
+    id: 'otel-fifo-fallback',
+    doctrine:
+      'streams without the id keep the historical FIFO pairing (RV908): removed, every pre-RV908 journal renders its tool executions as orphan span events',
+    file: 'packages/cli/src/otel.ts',
+    find: '        key ??= openToolPairs.get(toolPairOf(event.spanId, event.toolName))?.shift();',
+    replace: '        key ??= undefined;',
+    test: 'packages/cli/src/otel.test.ts',
   },
 ];
 

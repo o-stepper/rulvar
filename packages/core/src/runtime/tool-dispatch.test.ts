@@ -88,9 +88,59 @@ describe('agent loop tool dispatch (M3-T01)', () => {
     ]);
     // The wire request declares the contract, not the definition.
     expect(adapter.calls[0]?.tools).toEqual([toolContract(lookup)]);
-    expect(events.ofType('tool:start')).toHaveLength(1);
+    // Every tool event names its call (RV908): the id the model minted
+    // rides both sides of the pair, so consumers pair exactly.
+    expect(events.ofType('tool:start')).toEqual([
+      expect.objectContaining({ toolName: 'lookup', toolCallId: 'id-0-0' }),
+    ]);
     expect(events.ofType('tool:end')).toEqual([
-      expect.objectContaining({ toolName: 'lookup', outcome: 'ok' }),
+      expect.objectContaining({ toolName: 'lookup', outcome: 'ok', toolCallId: 'id-0-0' }),
+    ]);
+  });
+
+  it('concurrent same-name calls keep distinct call ids on their event pairs (RV908)', async () => {
+    const flaky = tool({
+      name: 'flaky',
+      description: 'fails on demand',
+      parameters: z.strictObject({ fail: z.boolean() }),
+      execute: (input) =>
+        input.fail ? Promise.reject(new Error('boom')) : Promise.resolve('fine'),
+    });
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? {
+            toolCalls: [
+              { name: 'flaky', args: { fail: false } },
+              { name: 'flaky', args: { fail: true } },
+            ],
+          }
+        : { text: 'done' },
+    );
+    const events = recordingSink();
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([flaky]),
+      events,
+    });
+    expect(result.status).toBe('ok');
+    expect(
+      events.ofType('tool:start').map((event) => (event as { toolCallId?: string }).toolCallId),
+    ).toEqual(['id-0-0', 'id-0-1']);
+    // Each end names ITS call, so the error outcome is attributable to
+    // the failing call even among identically named executions.
+    expect(
+      events
+        .ofType('tool:end')
+        .map((event) => [
+          (event as { toolCallId?: string }).toolCallId,
+          (event as { outcome?: string }).outcome,
+        ]),
+    ).toEqual([
+      ['id-0-0', 'ok'],
+      ['id-0-1', 'error'],
     ]);
   });
 
