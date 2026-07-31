@@ -1,5 +1,18 @@
 # @rulvar/anthropic
 
+## 1.127.0
+
+### Minor Changes
+
+- b3b1805: Admission before egress for the pre-dispatch token count (RV904, the thirteenth experiment's pre-admission egress probe). ctx.agent calls the adapter's optional `countTokens` with the FULL child prompt to tighten the admission reserve; before this release that network call ran before the budget decided anything, so a spawn the budget could never admit still sent the prompt to the provider, the call honored no abort signal, and nothing observable recorded the egress.
+
+  The reserve is monotone in the count, so the smallest reserve any count outcome could produce is computable without it: the priced floor at zero input tokens, or the flat fallback the count-failed path admits under. The engine now checks that floor against the budget first, through the exact refusal arithmetic `admitSpawn` itself uses (`RunBudget.refuseSpawnIfInfeasible`, the refusal arm factored out so the two layers can never disagree), and a spawn that could never be admitted (the lifetime spawn cap, a full account, an exhausted ceiling) refuses with zero network calls. The provider SPI's `countTokens` gains an options argument with an `AbortSignal`; the Anthropic adapter threads it into the SDK request, and an abort mid-count cancels the spawn instead of silently falling back to the flat reserve and dispatching behind a cancelled spawn. Every count is now observable: an `admission.countTokens` info log names the model and the counted tokens, and a failed count warns with the failure the flat reserve then covers. An explicit `estCost` (per call or per profile) remains the zero-egress path that skips the count entirely, now documented as the posture for hosts whose privacy gates must run before any prompt byte reaches a provider. Spawns on adapters without `countTokens`, and spawns carrying `estCost`, behave byte-identically to v1.126.0.
+
+### Patch Changes
+
+- Updated dependencies [b3b1805]
+  - @rulvar/core@1.127.0
+
 ## 1.126.0
 
 ### Patch Changes
