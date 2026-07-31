@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred nineteen rounds, verbatim in this repository's history:
+The one hundred twenty rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -333,6 +333,7 @@ The one hundred nineteen rounds, verbatim in this repository's history:
 | v1.135.0      | aa6ca71 (#596): a superseded segment refuses green everywhere: typed SupersededError, the distinct settledReason on the terminal event, and one authoritative successor settle            | v1.136.0   |
 | v1.136.0      | 96f6788 (#599): importRun fails closed with rollback so a retry never bricks, opts.profiles becomes an enforced allowlist at dispatch, and a secret-shaped runId refuses at intake        | v1.137.0   |
 | v1.137.0      | ed0c4fb (#602): opt-in pre-wire reservation admits each pause_turn continuation before egress, the fault kit refuses empty selections and reports its own counts, run-id surface exported | v1.138.0   |
+| v1.138.0      | 03a2141 (#605): the live budget debits each provider call marginally against its accumulated price, so tier crossings read live == settled, with the marginal ladder pinned by the kit    | v1.139.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
