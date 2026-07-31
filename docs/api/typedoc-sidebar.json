@@ -871,6 +871,10 @@
             "link": "/api/@rulvar/core/interfaces/DeterminismConfig.md"
           },
           {
+            "text": "DocumentedRates",
+            "link": "/api/@rulvar/core/interfaces/DocumentedRates.md"
+          },
+          {
             "text": "DonorCandidate",
             "link": "/api/@rulvar/core/interfaces/DonorCandidate.md"
           },
@@ -2667,6 +2671,10 @@
           {
             "text": "compactMessages",
             "link": "/api/@rulvar/core/functions/compactMessages.md"
+          },
+          {
+            "text": "compareRates",
+            "link": "/api/@rulvar/core/functions/compareRates.md"
           },
           {
             "text": "compilePermissionChain",
@@ -5393,6 +5401,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/DeterminismConfig.md"
           },
           {
+            "text": "DocumentedRates",
+            "link": "/api/@rulvar/rulvar/interfaces/DocumentedRates.md"
+          },
+          {
             "text": "DonorCandidate",
             "link": "/api/@rulvar/rulvar/interfaces/DonorCandidate.md"
           },
@@ -7237,6 +7249,10 @@
           {
             "text": "compactMessages",
             "link": "/api/@rulvar/rulvar/functions/compactMessages.md"
+          },
+          {
+            "text": "compareRates",
+            "link": "/api/@rulvar/rulvar/functions/compareRates.md"
           },
           {
             "text": "compilePermissionChain",

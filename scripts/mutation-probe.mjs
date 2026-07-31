@@ -702,11 +702,11 @@ const MUTATIONS = [
   {
     id: 'rates-audit-divergence',
     doctrine:
-      'the documented-rates audit names every seed field that diverges from the page; a comparator that tolerates the difference silently re-verifies a stale seed forever (RV813)',
-    file: 'scripts/rates-audit.mjs',
-    find: '    } else if (Math.abs(Number(seedValue) - Number(pageValue)) > 1e-9) {',
-    replace: '    } else if (false) {',
-    test: 'scripts/rates-audit.test.mjs',
+      'the documented-rates comparator names every seed field that diverges from the page; a comparator that tolerates the difference silently re-verifies a stale seed forever (RV813, published home RV909)',
+    file: 'packages/core/src/model/pricing.ts',
+    find: '    } else if (Math.abs(seedValue - pageValue) > 1e-9) {',
+    replace: '    } else if (false as boolean) {',
+    test: 'packages/core/src/model/pricing.test.ts',
   },
   {
     id: 'preflight-rates-verified-stamp',
@@ -801,11 +801,11 @@ const MUTATIONS = [
   {
     id: 'audit-page-only-field',
     doctrine:
-      'the rates audit fails closed on a billable page rate the seed never declared (RV902): the one-directional skip is exactly where the 1h underpricing hid behind a printed match',
-    file: 'scripts/rates-audit.mjs',
+      'the rates comparator fails closed on a billable page rate the seed never declared (RV902, published home RV909): the one-directional skip is exactly where the 1h underpricing hid behind a printed match',
+    file: 'packages/core/src/model/pricing.ts',
     find: '    if (seedValue === undefined) {\n      if (pageValue !== undefined) {\n        findings.push(\n          `${field}: the page shows ${String(pageValue)} but the seed declares no such rate`,\n        );\n      }\n      continue;\n    }',
     replace: '    if (seedValue === undefined) {\n      continue;\n    }',
-    test: 'scripts/rates-audit.test.mjs',
+    test: 'packages/core/src/model/pricing.test.ts',
   },
   {
     id: 'anthropic-1h-seed-rate',
@@ -1003,6 +1003,79 @@ const MUTATIONS = [
     find: '        key ??= openToolPairs.get(toolPairOf(event.spanId, event.toolName))?.shift();',
     replace: '        key ??= undefined;',
     test: 'packages/cli/src/otel.test.ts',
+  },
+  {
+    id: 'fault-kit-nan-drive',
+    doctrine:
+      'the nan-statement scenario actually FEEDS unsummable dollars (RV909): with the fault swapped for a clean amount, the intake refusal never fires and the scenario must report matched false instead of vouching for a branch it never entered',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "        { kind: 'requests', rows: [{ responseId: 'resp-1', usd: Number.NaN }] },",
+    replace: "        { kind: 'requests', rows: [{ responseId: 'resp-1', usd: 0.006 }] },",
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-token-mismatch-drive',
+    doctrine:
+      'the token-mismatch scenario actually DISAGREES with the wire (RV909): with the statement echoing our recorded count, no mismatch exists, the default verdict reads match, and the scenario must fail closed',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "      rows: [{ responseId: 'resp-1', usd: 0.006, usage: { inputTokens: 999, outputTokens: 200 } }],",
+    replace:
+      "      rows: [{ responseId: 'resp-1', usd: 0.006, usage: { inputTokens: 1000, outputTokens: 200 } }],",
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-audit-direction-drive',
+    doctrine:
+      'the audit scenario actually PROBES the page-only direction (RV909): comparing the full seed against itself produces no seed-gap finding and the scenario must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '    const seedGap = compareRates(withoutPremium, withPremium);',
+    replace: '    const seedGap = compareRates(withPremium, withPremium);',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-1h-split-drive',
+    doctrine:
+      'the 1h-premium scenario actually SHIPS the TTL split (RV909): without the split fields the whole write count folds at the 5m rate exactly like the pre-RV810 wire, and the scenario must report matched false instead of praising the undifferentiated fold',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '      cacheWriteTokens: 300_000,\n      cacheWrite5mTokens: 200_000,\n      cacheWrite1hTokens: 100_000,\n    };',
+    replace: '      cacheWriteTokens: 300_000,\n    };',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-pause-units-drive',
+    doctrine:
+      'the pause-turn scenario actually ABSORBS continuations (RV909): with the wireRequests metadata gone the dispatch is single-wire, no segment set reaches the invoice or the quota window, and the scenario must fail closed',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "        metadata: {\n          responseId: 'seg-1',\n          wireRequests: { count: 3, responseIds: ['seg-1', 'seg-2', 'seg-3'] },\n        },",
+    replace: "        metadata: {\n          responseId: 'seg-1',\n        },",
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-count-egress-drive',
+    doctrine:
+      'the pre-admission scenario actually STARVES the ceiling (RV909): with a boundless budget nothing refuses, the run settles ok, and the scenario must report matched false instead of claiming a refusal that never happened',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "      runId: 'fault-count',\n      budgetUsd: 0.001,",
+    replace: "      runId: 'fault-count',\n      budgetUsd: 1e9,",
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-forced-finish-drive',
+    doctrine:
+      'the forced-finish scenario actually FINISHES through the reserved wake (RV909): a finalizer that burns its turns without calling finish falls back to the synthesized partial on the exhausted outcome, and the ok-envelope claim must fail closed',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "            ? fakeToolCalls({ name: 'finish', args: { result: 'partial but honest' } })",
+    replace: "            ? fakeToolCalls({ name: 'plan_view', args: {} })",
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-settlement-drive',
+    doctrine:
+      'the settlement scenario actually INJECTS the outage (RV909): disarmed, the run settles clean, no SettlementError rejects and no settled=false mark exists, so the scenario must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: 'class RunSettleOutageStore extends InMemoryStore {\n  armed = true;',
+    replace: 'class RunSettleOutageStore extends InMemoryStore {\n  armed = false;',
+    test: 'packages/evals/src/fault-injection.test.ts',
   },
 ];
 

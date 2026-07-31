@@ -9,26 +9,43 @@
  * fault). Fail closed like everything else in this package: a scenario
  * whose branch stops producing its documented observable reports
  * `matched: false` and the whole report says so, instead of the list
- * quietly becoming untested again.
+ * quietly becoming untested again. The RV909 scenarios extend the list
+ * with the thirteenth experiment's fixed defects, so each fix's probe
+ * is a permanent gate: reverting the fixed behavior reports
+ * `matched: false` here, not only in the unit suite that shipped it.
  */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { appendFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { ANTHROPIC_PRICING } from '@rulvar/anthropic';
 import {
+  compareRates,
   ConfigError,
   createEngine,
   defineWorkflow,
   InMemoryStore,
+  invoiceFromJournal,
   journalPricingSnapshot,
   JsonlFileStore,
   memoryQuotaLimiter,
+  priceComponentsOf,
+  SettlementError,
+  type ChatEvent,
+  type ChatRequest,
+  type InvoiceExport,
   type JournalEntry,
+  type ModelCaps,
   type ModelRef,
+  type PriceTable,
+  type ProviderAdapter,
+  type QuotaLimiter,
   type Usage,
 } from '@rulvar/core';
-import { FakeAdapter, FAKE_MODEL_REF } from '@rulvar/testing';
+import { reconcileStatement, type ProviderStatement } from '@rulvar/openai';
+import { orchestratePlanned } from '@rulvar/plan';
+import { FakeAdapter, FAKE_MODEL_REF, fakeToolCalls } from '@rulvar/testing';
 
 /** One machine-checkable observation of a driven branch. */
 export interface FaultScenarioObservation {
@@ -462,6 +479,656 @@ const unknownProviderId: FaultScenario = {
   },
 };
 
+const WIRE_CAPS: ModelCaps = {
+  structuredOutput: 'native',
+  supportsTemperature: true,
+  supportsParallelTools: true,
+  reasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+  contextWindow: 1_000_000,
+  maxOutputTokens: 64_000,
+};
+
+interface WireTurn {
+  text: string;
+  usage: Usage;
+  /** Namespaced under the adapter id on the finish event. */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * A minimal real adapter whose finish events carry scripted usage and
+ * provider metadata: the RV909 scenarios need exact provider-reported
+ * token counts, response ids, and wire-request segment sets, which the
+ * pattern-matching FakeAdapter deliberately does not script.
+ */
+function wireAdapter(
+  id: string,
+  turns: readonly WireTurn[],
+): ProviderAdapter & { served: WireTurn[] } {
+  const served: WireTurn[] = [];
+  return {
+    id,
+    served,
+    caps: () => WIRE_CAPS,
+    async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
+      void req;
+      // Yield to the microtask queue like a real transport before the
+      // first event, so consumers never observe a fully synchronous
+      // stream.
+      await Promise.resolve();
+      if (signal?.aborted === true) {
+        return;
+      }
+      const turn = turns[served.length];
+      if (turn === undefined) {
+        yield {
+          type: 'error',
+          error: {
+            code: 'agent',
+            message: `wire adapter '${id}': no scripted turn ${String(served.length)}`,
+            retryable: false,
+            data: { kind: 'terminal' },
+          },
+        };
+        return;
+      }
+      served.push(turn);
+      yield { type: 'text-delta', text: turn.text };
+      yield {
+        type: 'finish',
+        finish: { reason: 'stop' },
+        usage: turn.usage,
+        ...(turn.metadata === undefined ? {} : { providerMetadata: { [id]: turn.metadata } }),
+      };
+    },
+  };
+}
+
+const WIRE_PRICING: PriceTable = {
+  pricingVersion: 'fault-wire-v1',
+  models: { 'wire:model': { inputUsdPerMTok: 3, outputUsdPerMTok: 15 } },
+};
+
+const wirePricingOf = (servedBy: ModelRef) => WIRE_PRICING.models[servedBy];
+
+/**
+ * One priced run whose single provider call carries the response id
+ * 'resp-1' and exact usage (1000 in, 200 out): the invoice both
+ * statement scenarios reconcile against.
+ */
+async function statementSeedRun(runId: string): Promise<InvoiceExport> {
+  const adapter = wireAdapter('wire', [
+    {
+      text: 'priced answer',
+      usage: { inputTokens: 1000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      metadata: { responseId: 'resp-1' },
+    },
+  ]);
+  const store = new InMemoryStore();
+  const engine = createEngine({
+    adapters: [adapter],
+    stores: { journal: store },
+    defaults: { routing: { loop: 'wire:model' } },
+    pricing: WIRE_PRICING,
+  });
+  const outcome = await engine.run(echoWorkflow, undefined, { runId }).result;
+  if (outcome.status !== 'ok') {
+    throw new Error(`fault kit: the seeding run settled '${outcome.status}' instead of ok`);
+  }
+  const entries = await store.load(runId);
+  const composed = journalPricingSnapshot(entries)?.composedPriceUsd(() => undefined);
+  if (composed === undefined) {
+    throw new Error('fault kit: the seeded journal carries no pricing snapshot');
+  }
+  return invoiceFromJournal(entries, composed);
+}
+
+/**
+ * RV903 (intake half): a statement whose dollars are not finite is
+ * refused typed, because NaN flowed through the sums in the thirteenth
+ * experiment's probe and `Math.abs(NaN) > tolerance` is false, so the
+ * old verdict was 'match' with the divergence check silently disarmed.
+ */
+const nanStatementRefusal: FaultScenario = {
+  name: 'nan-statement-refusal',
+  doctrine:
+    'a statement whose dollars cannot be summed is refused typed at intake (RV903), never ' +
+    "verdict 'match' over NaN totals with the divergence check silently disarmed",
+  async run() {
+    const invoice = await statementSeedRun('fault-nan-statement');
+    let detail =
+      "reconcileStatement accepted usd NaN (the pre-v1.126 behavior: verdict 'match' " +
+      'with NaN totals)';
+    let matched = false;
+    try {
+      reconcileStatement(
+        invoice,
+        { kind: 'requests', rows: [{ responseId: 'resp-1', usd: Number.NaN }] },
+        { pricingOf: wirePricingOf },
+      );
+    } catch (thrown) {
+      detail = errorText(thrown);
+      matched =
+        thrown instanceof Error &&
+        thrown.name === 'ConfigError' &&
+        detail.includes('cannot be summed');
+    }
+    return {
+      observation: { matched, detail },
+      artifacts: [jsonArtifact('invoice.json', invoice), jsonArtifact('refusal.json', { detail })],
+    };
+  },
+};
+
+/**
+ * RV903 (verdict half): our recorded counts ARE the provider's own
+ * wire-reported numbers, so an export that disagrees with them
+ * describes a different request than the wire served, and its dollars
+ * cannot be trusted to mean the same thing even when they agree.
+ */
+const tokenMismatchDivergence: FaultScenario = {
+  name: 'token-mismatch-divergence',
+  doctrine:
+    'provider-reported token counts that disagree with our recorded usage decide the ' +
+    'verdict (RV903) even when the dollars agree; tokenComparison informational stays the ' +
+    'declared opt-out with the mismatch still counted',
+  async run() {
+    const invoice = await statementSeedRun('fault-token-mismatch');
+    const statement: ProviderStatement = {
+      kind: 'requests',
+      rows: [{ responseId: 'resp-1', usd: 0.006, usage: { inputTokens: 999, outputTokens: 200 } }],
+    };
+    const byDefault = reconcileStatement(invoice, statement, { pricingOf: wirePricingOf });
+    const optedOut = reconcileStatement(invoice, statement, {
+      pricingOf: wirePricingOf,
+      tokenComparison: 'informational',
+    });
+    const mismatch = byDefault.tokenMismatchSample[0];
+    const matched =
+      byDefault.verdict === 'divergence' &&
+      byDefault.tokenMismatches === 1 &&
+      mismatch?.field === 'inputTokens' &&
+      mismatch.ours === 1000 &&
+      mismatch.statement === 999 &&
+      optedOut.verdict === 'match' &&
+      optedOut.tokenMismatches === 1;
+    return {
+      observation: {
+        matched,
+        detail:
+          `the dollars agree yet the default verdict is '${byDefault.verdict}' on ` +
+          `${String(byDefault.tokenMismatches)} token mismatch (${mismatch?.field ?? 'none'}: ` +
+          `ours ${String(mismatch?.ours)} vs statement ${String(mismatch?.statement)}); ` +
+          `under 'informational' the verdict is '${optedOut.verdict}' with the mismatch ` +
+          'still counted, advisory only',
+      },
+      artifacts: [
+        jsonArtifact('verdict-default.json', byDefault),
+        jsonArtifact('verdict-informational.json', optedOut),
+      ],
+    };
+  },
+};
+
+/**
+ * RV902: the documented-rates comparator the weekly audit runs, driven
+ * from its published home. The 1h write premium hid exactly in the
+ * page-only direction: a billable documented rate the seed never
+ * declared passed the old one-directional comparison silently.
+ */
+const auditMissingFieldFinding: FaultScenario = {
+  name: 'audit-missing-field-finding',
+  doctrine:
+    'the documented-rates comparator fails closed in BOTH directions (RV902): a billable ' +
+    'page rate the seed never declared is a named finding, and so is a seed rate the page ' +
+    'dropped, never a silent pass',
+  run() {
+    const withPremium = {
+      inputUsdPerMTok: 5,
+      outputUsdPerMTok: 25,
+      cacheWriteUsdPerMTok: 6.25,
+      cacheWrite1hUsdPerMTok: 10,
+    };
+    const { cacheWrite1hUsdPerMTok: _dropped, ...withoutPremium } = withPremium;
+    const seedGap = compareRates(withoutPremium, withPremium);
+    const pageGap = compareRates(withPremium, withoutPremium);
+    const clean = compareRates(withPremium, { ...withPremium });
+    const matched =
+      seedGap.length === 1 &&
+      (seedGap[0] ?? '').includes('the seed declares no such rate') &&
+      pageGap.length === 1 &&
+      (pageGap[0] ?? '').includes('the page shows no such rate') &&
+      clean.length === 0;
+    return Promise.resolve({
+      observation: {
+        matched,
+        detail:
+          `page-only premium: '${seedGap[0] ?? 'no finding'}'; dropped premium: ` +
+          `'${pageGap[0] ?? 'no finding'}'; identical rates compare clean ` +
+          `(${String(clean.length)} findings)`,
+      },
+      artifacts: [jsonArtifact('findings.json', { seedGap, pageGap, clean })],
+    });
+  },
+};
+
+/**
+ * RV901 over RV810: the shipped Anthropic table's 1h cache-write
+ * premium (2x input, the provider's fifth published column) actually
+ * prices a run whose usage carries the TTL split, under the pinned
+ * pricingVersion, instead of the whole write count folding at the 5m
+ * rate.
+ */
+const anthropic1hPriced: FaultScenario = {
+  name: 'anthropic-1h-priced',
+  doctrine:
+    'the shipped Anthropic table prices the 1h cache-write share at the documented ' +
+    '2x-input premium under its pinned pricingVersion (RV901 over the RV810 TTL split), ' +
+    'never the whole write count at the 5m rate',
+  async run() {
+    const ref: ModelRef = 'anthropic:claude-opus-4-8';
+    const usage: Usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 1_000,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 300_000,
+      cacheWrite5mTokens: 200_000,
+      cacheWrite1hTokens: 100_000,
+    };
+    const adapter = wireAdapter('anthropic', [{ text: 'cached answer', usage }]);
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: ref } },
+      pricing: ANTHROPIC_PRICING,
+    });
+    const outcome = await engine.run(echoWorkflow, undefined, { runId: 'fault-1h' }).result;
+    if (outcome.status !== 'ok') {
+      throw new Error(`fault kit: the seeding run settled '${outcome.status}' instead of ok`);
+    }
+    const entries = await store.load('fault-1h');
+    const snapshot = journalPricingSnapshot(entries);
+    const pinnedVersion = snapshot?.pricingVersion;
+    const seed = ANTHROPIC_PRICING.models[ref];
+    // Billing rides the per-dispatch reconciliation ledger: the TTL
+    // split lives on the provider call record (and the settled fold and
+    // the invoice price per call), while the entry's aggregate usage
+    // keeps only the canonical four counters.
+    const terminal = entries.find((entry) => entry.kind === 'agent' && entry.status === 'ok');
+    const recorded = terminal?.providerCalls?.[0]?.usage;
+    const writeRate = seed?.cacheWriteUsdPerMTok;
+    const premiumRate = seed?.cacheWrite1hUsdPerMTok;
+    const splitUsd =
+      seed === undefined || recorded === undefined
+        ? undefined
+        : priceComponentsOf(seed, recorded).cacheWrite.usd;
+    const undifferentiatedUsd =
+      writeRate === undefined || recorded === undefined
+        ? undefined
+        : (recorded.cacheWriteTokens / 1_000_000) * writeRate;
+    const expectedUsd =
+      writeRate === undefined || premiumRate === undefined
+        ? undefined
+        : 0.2 * writeRate + 0.1 * premiumRate;
+    const composed = snapshot?.composedPriceUsd(() => undefined);
+    const invoice = invoiceFromJournal(entries, composed ?? (() => undefined));
+    const rowUsd = invoice.rows.find((row) => row.servedBy === ref)?.usd;
+    const matched =
+      pinnedVersion === 'anthropic-2026-07-31' &&
+      seed !== undefined &&
+      premiumRate === 2 * seed.inputUsdPerMTok &&
+      recorded?.cacheWrite1hTokens === 100_000 &&
+      splitUsd !== undefined &&
+      expectedUsd !== undefined &&
+      undifferentiatedUsd !== undefined &&
+      Math.abs(splitUsd - expectedUsd) < 1e-9 &&
+      splitUsd > undifferentiatedUsd &&
+      rowUsd !== undefined &&
+      Math.abs(rowUsd - (3.5 + 0.025 + splitUsd)) < 1e-9;
+    return {
+      observation: {
+        matched,
+        detail:
+          `the journal pinned '${pinnedVersion ?? 'none'}'; the 1h premium is 2x input ` +
+          `(${String(premiumRate)} vs ${String(seed?.inputUsdPerMTok)}); the recorded ` +
+          `call's split write component priced ${String(splitUsd)} USD against ` +
+          `${String(undifferentiatedUsd)} at the undifferentiated 5m fold, and the ` +
+          `invoice row priced ${String(rowUsd)} USD on the per-call basis`,
+      },
+      artifacts: [
+        jsonArtifact('seed-row.json', seed ?? null),
+        jsonArtifact('recorded-usage.json', recorded ?? null),
+        jsonArtifact('fold.json', {
+          splitUsd: splitUsd ?? null,
+          undifferentiatedUsd: undifferentiatedUsd ?? null,
+          invoiceRowUsd: rowUsd ?? null,
+        }),
+      ],
+    };
+  },
+};
+
+/**
+ * RV905: an adapter absorbing provider-side continuations (pause_turn)
+ * makes several wire calls inside one reserved dispatch. The quota
+ * window, the invoice row, and the statement join must all speak true
+ * wire units, or a continuation-heavy workload overruns the provider's
+ * RPM cap and a per-request export manufactures false divergence.
+ */
+const pauseTurnUnits: FaultScenario = {
+  name: 'pause-turn-units',
+  doctrine:
+    'provider-side continuations absorbed into one dispatch settle at true wire units ' +
+    '(RV905): the quota reservation reconciles the actual request count, the invoice row ' +
+    'names every segment id, and a per-request statement joins the whole set ' +
+    'all-or-nothing (a partial segment set reads partial-coverage, never no-overlap)',
+  async run() {
+    const reconciled: Array<{ requests?: number }> = [];
+    const limiter: QuotaLimiter = {
+      reserve: () => Promise.resolve({ granted: true, reservationId: 'fault-r1' }),
+      reconcile: (_reservationId, _usage, actual) => {
+        reconciled.push(actual?.requests === undefined ? {} : { requests: actual.requests });
+        return Promise.resolve();
+      },
+    };
+    const adapter = wireAdapter('wire', [
+      {
+        text: 'continued answer',
+        usage: { inputTokens: 3000, outputTokens: 300, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        metadata: {
+          responseId: 'seg-1',
+          wireRequests: { count: 3, responseIds: ['seg-1', 'seg-2', 'seg-3'] },
+        },
+      },
+    ]);
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'wire:model' } },
+      pricing: WIRE_PRICING,
+      quota: { limiter },
+    });
+    const outcome = await engine.run(echoWorkflow, undefined, { runId: 'fault-pause' }).result;
+    if (outcome.status !== 'ok') {
+      throw new Error(`fault kit: the seeding run settled '${outcome.status}' instead of ok`);
+    }
+    const entries = await store.load('fault-pause');
+    const composed = journalPricingSnapshot(entries)?.composedPriceUsd(() => undefined);
+    const invoice = invoiceFromJournal(entries, composed ?? (() => undefined));
+    const row = invoice.rows.find((candidate) => candidate.wireResponseIds !== undefined);
+    const segments = row?.wireResponseIds?.join(',');
+    const full = reconcileStatement(
+      invoice,
+      {
+        kind: 'requests',
+        rows: [
+          { responseId: 'seg-1', usd: 0.005 },
+          { responseId: 'seg-2', usd: 0.005 },
+          { responseId: 'seg-3', usd: 0.0035 },
+        ],
+      },
+      { pricingOf: wirePricingOf },
+    );
+    const partial = reconcileStatement(
+      invoice,
+      {
+        kind: 'requests',
+        rows: [
+          { responseId: 'seg-1', usd: 0.005 },
+          { responseId: 'seg-2', usd: 0.005 },
+        ],
+      },
+      { pricingOf: wirePricingOf },
+    );
+    const matched =
+      segments === 'seg-1,seg-2,seg-3' &&
+      reconciled.some((entry) => entry.requests === 3) &&
+      full.verdict === 'match' &&
+      full.coverage.complete &&
+      partial.verdict === 'partial-coverage';
+    return {
+      observation: {
+        matched,
+        detail:
+          `the reservation settled at 3 wire requests (reconciled ` +
+          `${JSON.stringify(reconciled)}); the invoice row names segments ` +
+          `${segments ?? 'none'}; the full segment statement reads '${full.verdict}' and a ` +
+          `partial segment set reads '${partial.verdict}', never no-overlap`,
+      },
+      artifacts: [
+        jsonArtifact('invoice.json', invoice),
+        jsonArtifact('verdicts.json', {
+          full: { verdict: full.verdict, coverage: full.coverage },
+          partial: { verdict: partial.verdict, coverage: partial.coverage },
+        }),
+      ],
+    };
+  },
+};
+
+/**
+ * RV904: the count request carries the FULL child prompt, so it is
+ * provider egress exactly like a dispatch. A spawn the budget could
+ * never admit must refuse before that prompt leaves the process, on
+ * the same refusal arithmetic real admission decides with.
+ */
+const preAdmissionCountRefusal: FaultScenario = {
+  name: 'pre-admission-count-refusal',
+  doctrine:
+    'a spawn the budget could never admit refuses BEFORE the countTokens egress (RV904): ' +
+    'the full child prompt never leaves the process, and the refusal is the same typed ' +
+    'ceiling refusal real admission would throw',
+  async run() {
+    let counted = 0;
+    const inner = new FakeAdapter({
+      agents: { '*': 'never dispatched' },
+      capsOverrides: { pricing: { inputUsdPerMTok: 3, outputUsdPerMTok: 15 } },
+    });
+    const adapter: ProviderAdapter = {
+      id: inner.id,
+      caps: inner.caps,
+      stream: (req, signal) => inner.stream(req, signal),
+      countTokens: () => {
+        counted += 1;
+        return Promise.resolve(500);
+      },
+    };
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: ROUTING,
+    });
+    const outcome = await engine.run(echoWorkflow, undefined, {
+      runId: 'fault-count',
+      budgetUsd: 0.001,
+    }).result;
+    const message = outcome.error?.message ?? '';
+    const matched =
+      outcome.status === 'exhausted' &&
+      message.includes('budget ceiling reached') &&
+      counted === 0 &&
+      inner.calls.length === 0;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run status '${outcome.status}' (${message}); the count endpoint was never ` +
+          `called (counted=${String(counted)}) and no prompt left the process ` +
+          `(dispatches=${String(inner.calls.length)})`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', { status: outcome.status, error: outcome.error }),
+        jsonArtifact('egress.json', { counted, dispatches: inner.calls.length }),
+      ],
+    };
+  },
+};
+
+/**
+ * RV906: the reserved finalizer's result rides the honest completion
+ * envelope. A consumer reading only `status: 'ok'` off a capped run
+ * used to execute a truncated plan as a full success; the envelope and
+ * the outcome mirror make the partiality machine-readable. The at-cap
+ * freeze is adaptive machinery, so the scenario runs the PlanRunner
+ * extension exactly like a production adaptive orchestration.
+ */
+const forcedFinishCompletion: FaultScenario = {
+  name: 'forced-finish-completion',
+  doctrine:
+    'a budget-capped orchestration settles ok with the honest completion envelope ' +
+    "(RV906): the forced finish returns { result, completion: 'partial' } and mirrors " +
+    'completion onto the outcome, never a bare result a consumer could execute as a ' +
+    'full success',
+  async run() {
+    const adapter = new FakeAdapter({
+      agents: {
+        // The boot turn parks on quiescence; the wake evaluation that
+        // follows trips the soft boundary (turn estimate 0.5 over the
+        // 0.4 cap), so the only other turn is the reserved final wake.
+        '*': (call) =>
+          JSON.stringify(call.req.messages).includes('budget cap was reached')
+            ? fakeToolCalls({ name: 'finish', args: { result: 'partial but honest' } })
+            : fakeToolCalls({
+                name: 'wait_for_events',
+                args: { triggers: [{ kind: 'quiescence' }] },
+              }),
+      },
+    });
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: FAKE_MODEL_REF, orchestrate: FAKE_MODEL_REF } },
+    });
+    const outcome = await orchestratePlanned(
+      engine,
+      'a goal the cap interrupts',
+      { budget: { capUsd: 0.4, finalizeReserveUsd: 0.01 } },
+      { runId: 'fault-forced-finish' },
+    ).result;
+    const value = outcome.value as { result?: unknown; completion?: unknown } | undefined;
+    const matched =
+      outcome.status === 'ok' &&
+      value?.result === 'partial but honest' &&
+      value.completion === 'partial' &&
+      outcome.completion === 'partial' &&
+      outcome.cost.orchestrator?.forcedFinish === true &&
+      adapter.calls.length === 2;
+    return {
+      observation: {
+        matched,
+        detail:
+          `the capped run settled '${outcome.status}' with envelope completion ` +
+          `'${String(value?.completion)}' mirrored onto the outcome ` +
+          `('${String(outcome.completion)}'); forcedFinish=` +
+          `${String(outcome.cost.orchestrator?.forcedFinish)} across ` +
+          `${String(adapter.calls.length)} turns (the parked boot turn and the reserved ` +
+          'final wake)',
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          completion: outcome.completion ?? null,
+          orchestrator: outcome.cost.orchestrator ?? null,
+        }),
+        jsonArtifact('journal.json', await store.load('fault-forced-finish')),
+      ],
+    };
+  },
+};
+
+/** Fails the run_settle journal append while armed; heals on disarm. */
+class RunSettleOutageStore extends InMemoryStore {
+  armed = true;
+
+  override append(runId: string, entry: JournalEntry): Promise<void> {
+    const decisionType = (entry.value as { decisionType?: string } | undefined)?.decisionType;
+    if (this.armed && decisionType === 'run_settle') {
+      return Promise.reject(new Error('injected outage: the run_settle append failed'));
+    }
+    return super.append(runId, entry);
+  }
+}
+
+/**
+ * RV907: a terminal that exists in no store must not read green off
+ * the event stream. The settlement-failure run:end carries
+ * `settled: false`; the healed resume re-settles the same outcome by
+ * replay, free, and its terminal carries no such mark.
+ */
+const settlementTerminalHonesty: FaultScenario = {
+  name: 'settlement-terminal-honesty',
+  doctrine:
+    'a run whose settlement write fails rejects typed (SettlementError) and its run:end ' +
+    'carries settled=false so an event-only consumer never takes the terminal green ' +
+    '(RV907); the healed resume re-settles by replay with zero live calls and its ' +
+    'settled terminal carries no such mark',
+  async run() {
+    const store = new RunSettleOutageStore();
+    let liveCalls = 0;
+    const adapter = new FakeAdapter({
+      agents: {
+        '*': () => {
+          liveCalls += 1;
+          return 'settled answer';
+        },
+      },
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: ROUTING,
+    });
+    const handle = engine.run(echoWorkflow, undefined, { runId: 'fault-settle' });
+    let runEnd: { status?: string; settled?: boolean } | undefined;
+    handle.on('run:end', (event) => {
+      runEnd = event;
+    });
+    let thrown: unknown;
+    try {
+      await handle.result;
+    } catch (raised) {
+      thrown = raised;
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+    store.armed = false;
+    let resumedEnd: Record<string, unknown> | undefined;
+    const resumedHandle = engine.resume('fault-settle', echoWorkflow);
+    resumedHandle.on('run:end', (event) => {
+      resumedEnd = event;
+    });
+    const resumed = await resumedHandle.result;
+    await new Promise((resolve) => setImmediate(resolve));
+    const matched =
+      thrown instanceof SettlementError &&
+      thrown.stage === 'run-settle' &&
+      runEnd?.status === 'ok' &&
+      runEnd.settled === false &&
+      resumed.status === 'ok' &&
+      liveCalls === 1 &&
+      resumedEnd !== undefined &&
+      !('settled' in resumedEnd);
+    return {
+      observation: {
+        matched,
+        detail:
+          `the failed settlement rejected typed ('${errorText(thrown)}') while run:end ` +
+          `reported status '${runEnd?.status ?? 'none'}' with ` +
+          `settled=${String(runEnd?.settled)}; the healed resume re-settled by replay ` +
+          `(liveCalls=${String(liveCalls)}) and its terminal carries no settled mark`,
+      },
+      artifacts: [
+        jsonArtifact('run-end.json', { failed: runEnd ?? null, resumed: resumedEnd ?? null }),
+        jsonArtifact('journal.json', await store.load('fault-settle')),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -470,6 +1137,14 @@ const SCENARIOS: readonly FaultScenario[] = [
   crashResumeSettleBoundary,
   pricingRotationUncoveredTail,
   unknownProviderId,
+  nanStatementRefusal,
+  tokenMismatchDivergence,
+  auditMissingFieldFinding,
+  anthropic1hPriced,
+  pauseTurnUnits,
+  preAdmissionCountRefusal,
+  forcedFinishCompletion,
+  settlementTerminalHonesty,
 ];
 
 /** The scenario names in run order. */

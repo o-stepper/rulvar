@@ -172,71 +172,24 @@ export function extractAnthropicModelRates(text, displayName) {
   };
 }
 
-const RATE_FIELDS = [
-  'inputUsdPerMTok',
-  'outputUsdPerMTok',
-  'cacheReadUsdPerMTok',
-  'cacheWriteUsdPerMTok',
-  'cacheWrite1hUsdPerMTok',
-];
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const dist = (name) => pathToFileURL(join(root, 'packages', name, 'dist', 'index.js')).href;
 
 /**
- * Divergences between a seed pricing row and the page's extracted
- * rates, named field by field, in BOTH directions (RV902): a seed field
- * the page no longer shows is drift, and a billable page rate the seed
- * never claimed is drift too. The old one-directional rule rested on
- * the canonical Usage being unable to bill the 1h write premium; RV810
- * made it billable, so a documented rate missing from the seed is a
- * silent underpricing channel and the audit fails closed on it (the
- * thirteenth experiment's blind-spot probe). Rates are exact published
- * decimals, so equality is exact up to float noise.
- * @param {Record<string, unknown>} seed @param {Record<string, unknown>} page
- * @returns {string[]}
+ * The comparator moved to its published home, `@rulvar/core`
+ * `compareRates` (RV909): the fault-injection kit drives it as a
+ * permanent gate there, and this script re-exports the SAME function
+ * from dist (exactly like the seeds below), so the weekly audit and the
+ * kit can never drift apart. Both directions (RV902): a seed field the
+ * page no longer shows is drift, and a billable page rate the seed
+ * never claimed is drift too, because a documented rate missing from
+ * the seed is a silent underpricing channel (the 1h write premium hid
+ * exactly there until RV810/RV901 made it billable and seeded).
  */
-export function compareRates(seed, page) {
-  const findings = [];
-  for (const field of RATE_FIELDS) {
-    const seedValue = seed[field];
-    const pageValue = page[field];
-    if (seedValue === undefined) {
-      if (pageValue !== undefined) {
-        findings.push(
-          `${field}: the page shows ${String(pageValue)} but the seed declares no such rate`,
-        );
-      }
-      continue;
-    }
-    if (pageValue === undefined) {
-      findings.push(`${field}: seed ${String(seedValue)} but the page shows no such rate`);
-    } else if (Math.abs(Number(seedValue) - Number(pageValue)) > 1e-9) {
-      findings.push(`${field}: seed ${String(seedValue)} vs page ${String(pageValue)}`);
-    }
-  }
-  const seedTiers = seed.tiers;
-  if (Array.isArray(seedTiers)) {
-    const pageTiers = page.tiers;
-    if (!Array.isArray(pageTiers) || pageTiers.length !== seedTiers.length) {
-      findings.push(
-        `tiers: seed declares ${String(seedTiers.length)}, page shows ${Array.isArray(pageTiers) ? String(pageTiers.length) : 'none'}`,
-      );
-    } else {
-      for (let i = 0; i < seedTiers.length; i += 1) {
-        for (const field of ['aboveInputTokens', 'inputMultiplier', 'outputMultiplier']) {
-          if (Math.abs(Number(seedTiers[i][field]) - Number(pageTiers[i][field])) > 1e-9) {
-            findings.push(
-              `tiers[${String(i)}].${field}: seed ${String(seedTiers[i][field])} vs page ${String(pageTiers[i][field])}`,
-            );
-          }
-        }
-      }
-    }
-  }
-  return findings;
-}
+const { compareRates } = await import(dist('core'));
+export { compareRates };
 
 async function main() {
-  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const dist = (name) => pathToFileURL(join(root, 'packages', name, 'dist', 'index.js')).href;
   const { OPENAI_MODELS } = await import(dist('openai'));
   const { ANTHROPIC_MODELS } = await import(dist('anthropic'));
 

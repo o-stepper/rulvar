@@ -22,6 +22,14 @@ const EXPECTED = [
   'crash-resume-settle-boundary',
   'pricing-rotation-uncovered-tail',
   'unknown-provider-id',
+  'nan-statement-refusal',
+  'token-mismatch-divergence',
+  'audit-missing-field-finding',
+  'anthropic-1h-priced',
+  'pause-turn-units',
+  'pre-admission-count-refusal',
+  'forced-finish-completion',
+  'settlement-terminal-honesty',
 ];
 
 describe('the fault-injection kit (RV811)', () => {
@@ -51,6 +59,20 @@ describe('the fault-injection kit (RV811)', () => {
     expect(byName.get('crash-resume-settle-boundary')?.observation.detail).toContain('liveCalls=1');
     expect(byName.get('pricing-rotation-uncovered-tail')?.observation.detail).toContain('unpriced');
     expect(byName.get('unknown-provider-id')?.observation.detail).toContain('ghost');
+    // The RV909 scenarios: the thirteenth experiment's probes as
+    // permanent gates, each pinned by the observable that proves the
+    // FIXED branch (not the historical defect) was the one driven.
+    expect(byName.get('nan-statement-refusal')?.observation.detail).toContain('cannot be summed');
+    expect(byName.get('token-mismatch-divergence')?.observation.detail).toContain('divergence');
+    expect(byName.get('token-mismatch-divergence')?.observation.detail).toContain('informational');
+    expect(byName.get('audit-missing-field-finding')?.observation.detail).toContain('no such rate');
+    expect(byName.get('anthropic-1h-priced')?.observation.detail).toContain('anthropic-2026-07-31');
+    expect(byName.get('pause-turn-units')?.observation.detail).toContain('wire requests');
+    expect(byName.get('pre-admission-count-refusal')?.observation.detail).toContain('never called');
+    expect(byName.get('forced-finish-completion')?.observation.detail).toContain("'partial'");
+    expect(byName.get('settlement-terminal-honesty')?.observation.detail).toContain(
+      'settled=false',
+    );
   });
 
   it('writes experiment-grade artifacts when a directory is given, and only runs the named subset', async () => {

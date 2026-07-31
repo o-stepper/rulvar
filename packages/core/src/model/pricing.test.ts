@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Usage } from '../l0/messages.js';
-import { priceComponentsOf, priceUsdOf } from './pricing.js';
+import { compareRates, priceComponentsOf, priceUsdOf } from './pricing.js';
 
 const usageOf = (
   inputTokens: number,
@@ -123,5 +123,45 @@ describe('the cache-write TTL split pricing (RV810)', () => {
       tiers: [{ aboveInputTokens: 1_000_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
     };
     expect(priceUsdOf(tiered, split)).toBeCloseTo((1 * 3.75 + 2 * 6) * 2, 10);
+  });
+});
+
+describe('compareRates (RV902, published home RV909)', () => {
+  const seed = {
+    inputUsdPerMTok: 3,
+    outputUsdPerMTok: 15,
+    cacheReadUsdPerMTok: 0.3,
+    cacheWriteUsdPerMTok: 3.75,
+    cacheWrite1hUsdPerMTok: 6,
+  };
+
+  it('identical rates compare clean, and a moved rate names itself', () => {
+    expect(compareRates(seed, { ...seed })).toEqual([]);
+    expect(compareRates(seed, { ...seed, inputUsdPerMTok: 2.5 })).toEqual([
+      'inputUsdPerMTok: seed 3 vs page 2.5',
+    ]);
+  });
+
+  it('fails closed in BOTH directions on a missing field', () => {
+    const { cacheWrite1hUsdPerMTok: _dropped, ...withoutPremium } = seed;
+    // Seed declares a rate the page dropped.
+    expect(compareRates(seed, withoutPremium)).toEqual([
+      'cacheWrite1hUsdPerMTok: seed 6 but the page shows no such rate',
+    ]);
+    // The RV902 direction: a documented billable rate the seed never
+    // declared is a silent underpricing channel, never a pass.
+    expect(compareRates(withoutPremium, seed)).toEqual([
+      'cacheWrite1hUsdPerMTok: the page shows 6 but the seed declares no such rate',
+    ]);
+  });
+
+  it('compares declared long-context tiers field by field', () => {
+    const tier = { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 };
+    const tiered = { ...seed, tiers: [tier] };
+    expect(compareRates(tiered, { ...seed, tiers: [tier] })).toEqual([]);
+    expect(compareRates(tiered, seed)).toEqual(['tiers: seed declares 1, page shows none']);
+    expect(compareRates(tiered, { ...seed, tiers: [{ ...tier, inputMultiplier: 1.5 }] })).toEqual([
+      'tiers[0].inputMultiplier: seed 2 vs page 1.5',
+    ]);
   });
 });

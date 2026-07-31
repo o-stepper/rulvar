@@ -276,6 +276,46 @@ new table with a new `pricingVersion`, and runs priced from the adapter caps
 fallback journal the version as `unpriced`, which is precisely why passing a
 versioned table is recommended for anything whose journals outlive a deploy.
 
+### The three moneys of one run {#the-three-moneys}
+
+Every dollar figure rulvar shows is one of exactly three quantities, and the
+vocabulary matters because the twelfth comparison run burned a day confusing
+them: the dashboard headline disagreed with the run's own number while the
+provider's billing categories confirmed it to the cent.
+
+**Recorded money** is what the run reported as spent: settled history priced
+under the `pricingVersion` pins its own settles recorded, never re-priced by a
+later table rotation. It is the number the outcome's `CostReport` carries,
+`rulvar inspect` prints from the journal, and the pinned rows of
+`rulvar invoice` itemize per call. Two runs over the same journal report the
+same recorded money forever.
+
+**Docs estimate** is a repricing at the current versioned table, the rates the
+provider's documentation pages publish: what work is *expected* to cost under
+today's table. It is the number `preflightEstimate` and `rulvar preflight`
+project before the first paid call, and the number `rulvar invoice` prints for
+any usage past the last pin. It moves when the table rotates; recorded money
+does not.
+
+**Provider bill** is what the provider's meter actually charged, and only one
+surface can claim it: a statement reconciliation over saved per-request or
+per-component exports
+([`reconcileStatement`](/guide/providers#openai-statement-reconciliation)).
+A dashboard headline is not the provider bill (it is eventually consistent and
+refused typed); a docs estimate is not the provider bill either, because a
+documented rate and a metered rate are different authorities. When the three
+disagree, the reconciliation names the component and the implied actual rate
+that moved.
+
+Rates connect the three in one direction only: the weekly audit compares the
+seeds against the documented pages, a confirmed change ships as its own
+release with a new `pricingVersion`, and only runs started after that release
+record under the new pins. Audit, then release, then new pinned runs; recorded
+history keeps the pins its settles wrote, and no figure is ever rewritten in
+place. See [rate verification and
+drift](/guide/providers#rate-verification-and-drift) for what a seed's
+`ratesVerifiedAt` date does and does not claim.
+
 ## Sub-accounts and the account tree
 
 Budget accounts form a tree with the run root at the top. A child workflow
