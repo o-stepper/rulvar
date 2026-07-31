@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+
 ### 1.128.0
 
 #### Minor Changes
@@ -1362,6 +1369,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+
 ### 1.128.0
 
 #### Patch Changes
@@ -2531,6 +2545,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.129.0
+
+#### Minor Changes
+
+- 1612439: Honest terminals (RV906 + RV907, the thirteenth experiment's release risks six and seven): a forced finish names itself partial, and a failed settlement is never a green event.
+
+  RV906: under the default `budget.atCap: 'finish-with-partial'`, the capped terminal's value becomes the completion envelope `{ result, completion }`, and the literal is `'partial'` unless the finalizer's finish provably passed the FULL declared contract: the declared finish validators now BIND the reserved finalizer (on capped runs synthesis never runs, so that finish is the final output they must judge; a finish they reject never becomes the run value and the deterministic fallback settles the run), while a declared acceptance policy is still never judged at the cap, so with one declared the terminal stays `'partial'`. The finalize fallback's synthesized partial carries the same `completion: 'partial'` claim on its `exhausted` outcome. The engine lifts the literal onto `run:end` and the outcome mirror, so a consumer reading only `status` can no longer execute a truncated plan as a full success. The journaled finalize effects also roll forward on resume: a settled capped run reuses its recorded finalize terminal (or fallback decision) instead of re-deriving the prompt from the drifted live digest, which used to mint a fresh agent identity and re-pay the reserve on every resume of an already settled capped run.
+
+  RV907: `run:end` gains `settled: false`, present ONLY when a settlement write failed (the `run_settle` journal append or the terminal `RunMeta` projection): the status stays true as computation, but nothing durable records it and `handle.result` rejects with the typed `SettlementError`, so an event-only consumer is refused the green terminal exactly like the rejected promise. The CLI progress line appends `settled=false (outcome withheld; resume re-settles)`, and the OTel exporter stamps `rulvar.run.settled: false` and refuses the OK span status. The order stays warn, then the marked `run:end`, then the throw; a healed resume re-settles by replay with zero paid calls and its terminal carries no field, byte for byte like every ordinary run.
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
 
 ### 1.128.0
 
@@ -4075,6 +4104,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.129.0
+
+#### Minor Changes
+
+- 1612439: Honest terminals (RV906 + RV907, the thirteenth experiment's release risks six and seven): a forced finish names itself partial, and a failed settlement is never a green event.
+
+  RV906: under the default `budget.atCap: 'finish-with-partial'`, the capped terminal's value becomes the completion envelope `{ result, completion }`, and the literal is `'partial'` unless the finalizer's finish provably passed the FULL declared contract: the declared finish validators now BIND the reserved finalizer (on capped runs synthesis never runs, so that finish is the final output they must judge; a finish they reject never becomes the run value and the deterministic fallback settles the run), while a declared acceptance policy is still never judged at the cap, so with one declared the terminal stays `'partial'`. The finalize fallback's synthesized partial carries the same `completion: 'partial'` claim on its `exhausted` outcome. The engine lifts the literal onto `run:end` and the outcome mirror, so a consumer reading only `status` can no longer execute a truncated plan as a full success. The journaled finalize effects also roll forward on resume: a settled capped run reuses its recorded finalize terminal (or fallback decision) instead of re-deriving the prompt from the drifted live digest, which used to mint a fresh agent identity and re-pay the reserve on every resume of an already settled capped run.
+
+  RV907: `run:end` gains `settled: false`, present ONLY when a settlement write failed (the `run_settle` journal append or the terminal `RunMeta` projection): the status stays true as computation, but nothing durable records it and `handle.result` rejects with the typed `SettlementError`, so an event-only consumer is refused the green terminal exactly like the rejected promise. The CLI progress line appends `settled=false (outcome withheld; resume re-settles)`, and the OTel exporter stamps `rulvar.run.settled: false` and refuses the OK span status. The order stays warn, then the marked `run:end`, then the throw; a healed resume re-settles by replay with zero paid calls and its terminal carries no field, byte for byte like every ordinary run.
 
 ### 1.128.0
 
@@ -5939,6 +5978,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.129.0
+
 ### 1.128.0
 
 ### 1.127.0
@@ -6299,6 +6340,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+  - @rulvar/testing@1.129.0
 
 ### 1.128.0
 
@@ -7713,6 +7762,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+
 ### 1.128.0
 
 #### Patch Changes
@@ -8289,6 +8345,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
 
 ### 1.128.0
 
@@ -9646,6 +9709,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+
 ### 1.128.0
 
 #### Patch Changes
@@ -10929,6 +10999,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+  - eslint-plugin-rulvar@1.129.0
 
 ### 1.128.0
 
@@ -12303,6 +12381,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+  - @rulvar/anthropic@1.129.0
+  - @rulvar/openai@1.129.0
 
 ### 1.128.0
 
@@ -13890,6 +13977,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+
 ### 1.128.0
 
 #### Patch Changes
@@ -15169,6 +15263,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
+
 ### 1.128.0
 
 #### Minor Changes
@@ -15765,6 +15866,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
 
 ### 1.128.0
 
@@ -16993,6 +17101,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.129.0
+
+#### Patch Changes
+
+- Updated dependencies [1612439]
+  - @rulvar/core@1.129.0
 
 ### 1.128.0
 
