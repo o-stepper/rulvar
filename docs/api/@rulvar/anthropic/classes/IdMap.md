@@ -6,7 +6,7 @@
 
 # Class: IdMap
 
-Defined in: [packages/anthropic/src/wire.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L23)
+Defined in: [packages/anthropic/src/wire.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L24)
 
 Bijective canonical-to-wire tool-call id map.
 
@@ -18,7 +18,7 @@ Bijective canonical-to-wire tool-call id map.
 new IdMap(mint): IdMap;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L28)
+Defined in: [packages/anthropic/src/wire.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L29)
 
 #### Parameters
 
@@ -38,7 +38,7 @@ Defined in: [packages/anthropic/src/wire.ts:28](https://github.com/o-stepper/rul
 canonicalFor(wireId): string;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L32)
+Defined in: [packages/anthropic/src/wire.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L33)
 
 #### Parameters
 
@@ -58,7 +58,7 @@ Defined in: [packages/anthropic/src/wire.ts:32](https://github.com/o-stepper/rul
 wireFor(canonicalId): string;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L43)
+Defined in: [packages/anthropic/src/wire.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L44)
 
 #### Parameters
 

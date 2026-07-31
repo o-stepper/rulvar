@@ -12,7 +12,7 @@ type AnthropicStreamEvent = Record<string, unknown> & {
 };
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L338)
+Defined in: [packages/anthropic/src/wire.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L339)
 
 Raw Messages API stream events, structurally typed.
 
@@ -20,4 +20,4 @@ Raw Messages API stream events, structurally typed.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `type` | `string` | [packages/anthropic/src/wire.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L338) |
+| `type` | `string` | [packages/anthropic/src/wire.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L339) |

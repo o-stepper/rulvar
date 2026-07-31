@@ -10,7 +10,7 @@
 function normalizeAnthropicUsage(raw): Usage;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:404](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L404)
+Defined in: [packages/anthropic/src/wire.ts:405](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L405)
 
 Normalizes Messages API usage under the Usage invariant: Anthropic
 reports input_tokens EXCLUDING cache reads and writes, so the canonical
