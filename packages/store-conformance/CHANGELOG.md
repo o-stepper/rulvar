@@ -1,5 +1,12 @@
 # @rulvar/store-conformance
 
+## 1.137.0
+
+### Patch Changes
+
+- Updated dependencies [96f6788]
+  - @rulvar/core@1.137.0
+
 ## 1.136.0
 
 ### Patch Changes

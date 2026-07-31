@@ -1,5 +1,15 @@
 # @rulvar/core
 
+## 1.137.0
+
+### Minor Changes
+
+- 96f6788: Integrity and boundaries: importRun fails closed with rollback, opts.profiles is an enforced allowlist, and a secret-shaped runId refuses at intake (RV1010 + RV1011 + RV1012, PR VI of the fourteenth plan)
+
+  - `importRun` hardening (RV1010). The intake fails closed before the first write: every bundle blob ref must live in the bundle runId's own namespace (`<runId>/...`), so a crafted bundle for run A can never overwrite run B's blobs, and every entry must pass the journal codec's shape validation, so an import never appends garbage it would later refuse to replay. Writes land blobs, then entries, then meta, and a mid-import store failure rolls the partial import back best-effort: the exists-refusal never bricks the retry.
+  - `opts.profiles` is an enforced allowlist (RV1011). The advertisement was filtered but the dispatch resolved from the FULL registry, so a spawn naming a registered-but-hidden profile by a guessed name went straight through. The dispatch now resolves from the same filtered set, and with `opts.profiles` passed, a spawn naming anything outside the allowlist refuses with a typed `ConfigError` before admission (no slot burned, nothing journaled); without `opts.profiles` behavior is unchanged.
+  - Secret-shaped runId refusal (RV1012). The runId is a correlation key: it rides every event envelope UNMASKED (body masking runs before the envelope is assembled), so a secret-shaped runId was a masking-bypass channel the host created itself. Under an active masking policy, `engine.run` now refuses typed a runId the policy would rewrite (the default credential patterns and any host `redaction.patterns` alike), and `assertSafeRunId` gains a 200-character ceiling (`MAX_RUN_ID_LENGTH`); with `maskEvents: false` nothing is masked anywhere and the check does not apply.
+
 ## 1.136.0
 
 ### Minor Changes
