@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
+
 ### 1.139.0
 
 #### Patch Changes
@@ -1455,6 +1461,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
+
 ### 1.139.0
 
 #### Patch Changes
@@ -2699,6 +2711,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
 
 ### 1.139.0
 
@@ -4344,6 +4362,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.140.0
 
 ### 1.139.0
 
@@ -6304,6 +6324,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.140.0
+
 ### 1.139.0
 
 ### 1.138.0
@@ -6686,6 +6708,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/plan@1.140.0
+- @rulvar/anthropic@1.140.0
+- @rulvar/core@1.140.0
+- @rulvar/openai@1.140.0
+- @rulvar/testing@1.140.0
 
 ### 1.139.0
 
@@ -8279,6 +8311,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
+
 ### 1.139.0
 
 #### Patch Changes
@@ -8930,6 +8968,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
 
 ### 1.139.0
 
@@ -10373,6 +10417,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
+
 ### 1.139.0
 
 #### Patch Changes
@@ -11731,6 +11781,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
+- eslint-plugin-rulvar@1.140.0
 
 ### 1.139.0
 
@@ -13191,6 +13248,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.140.0
+- @rulvar/core@1.140.0
+- @rulvar/openai@1.140.0
 
 ### 1.139.0
 
@@ -14877,6 +14942,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
+
 ### 1.139.0
 
 #### Patch Changes
@@ -16231,6 +16302,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.140.0
+
+#### Minor Changes
+
+- 3044838: Both store limiters implement the optional `QuotaLimiter.release` (RV1103 + RV1104, the SPI method from RV1013): a cancelled admission returns exactly what it consumed, the admitted requests and the token estimate, to the window, from any process sharing the file (`SqliteQuotaLimiter`) or any host sharing the schema (`PostgresQuotaLimiter`, under the same advisory lock and generation fence as every admission). Unknown, expired, and repeated ids are no-ops; a rolled-over window already aged the estimate out; a released id settles nothing afterwards; verdicts mirror `memoryQuotaLimiter` exactly. Both reservation tables grew a `requests` column, migrated in place on boot (sqlite: a serialized `ALTER` under `BEGIN IMMEDIATE`; postgres: `ADD COLUMN IF NOT EXISTS` under the boot lock) defaulting to 1, the single request every engine admission reserves, so pre-release reservations release exactly what their admission consumed.
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
+
 ### 1.139.0
 
 #### Patch Changes
@@ -16902,6 +16983,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.140.0
+
+#### Minor Changes
+
+- 3044838: Both store limiters implement the optional `QuotaLimiter.release` (RV1103 + RV1104, the SPI method from RV1013): a cancelled admission returns exactly what it consumed, the admitted requests and the token estimate, to the window, from any process sharing the file (`SqliteQuotaLimiter`) or any host sharing the schema (`PostgresQuotaLimiter`, under the same advisory lock and generation fence as every admission). Unknown, expired, and repeated ids are no-ops; a rolled-over window already aged the estimate out; a released id settles nothing afterwards; verdicts mirror `memoryQuotaLimiter` exactly. Both reservation tables grew a `requests` column, migrated in place on boot (sqlite: a serialized `ALTER` under `BEGIN IMMEDIATE`; postgres: `ADD COLUMN IF NOT EXISTS` under the boot lock) defaulting to 1, the single request every engine admission reserves, so pre-release reservations release exactly what their admission consumed.
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
 
 ### 1.139.0
 
@@ -18205,6 +18296,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.140.0
+
+#### Patch Changes
+
+- @rulvar/core@1.140.0
 
 ### 1.139.0
 

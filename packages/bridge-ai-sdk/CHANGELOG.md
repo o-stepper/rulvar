@@ -1,5 +1,11 @@
 # @rulvar/bridge-ai-sdk
 
+## 1.140.0
+
+### Patch Changes
+
+- @rulvar/core@1.140.0
+
 ## 1.139.0
 
 ### Patch Changes
