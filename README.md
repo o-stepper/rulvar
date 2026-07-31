@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred fourteen rounds, verbatim in this repository's history:
+The one hundred fifteen rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -328,6 +328,7 @@ The one hundred fourteen rounds, verbatim in this repository's history:
 | v1.130.0      | 256cae1 (#580): the thirteenth plan closes: the fault kit gates every fixed defect fail closed, the rates comparator published to core, the three moneys named with their surfaces        | v1.131.0   |
 | v1.131.0      | 2bec904 (#584): the fourteenth plan opens: the live budget prices the TTL split exactly like settlement, a between-readings ceiling severs the run, the kit gates parity live             | v1.132.0   |
 | v1.132.0      | 2659f54 (#587): pause_turn survives end to end: the finish speaks for the whole logical turn, an invalid continuation cap refuses before the first wire, the kit drives the real adapter  | v1.133.0   |
+| v1.133.0      | cb50ea0 (#590): a contradictory statement refuses at intake, totals decide beside components, settleable states the settlement composite, the kit seeds a real unknown-usage row          | v1.134.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
