@@ -1777,26 +1777,12 @@ export function createCtx(
     const adapter = adapterOf(loopResolved);
     const caps = adapter.caps(loopResolved.model);
     const limits = mergeUsageLimits(opts.limits, profile?.limits, internals.defaults.limits);
-    let inputTokens: number | undefined;
-    if (opts.estCost === undefined && profile?.estCost === undefined && adapter.countTokens) {
-      try {
-        inputTokens = await adapter.countTokens({
-          model: loopResolved.model,
-          messages: [{ role: 'user', parts: [{ type: 'text', text: prompt }] }],
-        });
-      } catch {
-        inputTokens = undefined;
-      }
-    }
     const reserveOptions: Parameters<typeof admissionReserveUsd>[0] = { caps };
     if (opts.estCost !== undefined) {
       reserveOptions.estCost = opts.estCost;
     }
     if (profile?.estCost !== undefined) {
       reserveOptions.profileEstCost = profile.estCost;
-    }
-    if (inputTokens !== undefined) {
-      reserveOptions.inputTokens = inputTokens;
     }
     if (limits.maxOutputTokensPerTurn !== undefined) {
       reserveOptions.maxOutputTokensPerTurn = limits.maxOutputTokensPerTurn;
@@ -1810,11 +1796,78 @@ export function createCtx(
     // nothing. An explicit estCost still wins: that is the host speaking.
     const unpriced =
       internals.pricingOf !== undefined && internals.pricingOf(loopResolved.ref) === undefined;
+    const budgetAccount = state.budgetScope ?? ROOT_ACCOUNT;
+    let inputTokens: number | undefined;
+    if (opts.estCost === undefined && profile?.estCost === undefined && adapter.countTokens) {
+      // Admission before egress (RV904, the thirteenth experiment's
+      // pre-admission egress probe): the count request carries the FULL
+      // child prompt, so it is provider egress exactly like a dispatch.
+      // The reserve is monotone in the count, so the smallest reserve
+      // any outcome could produce is computable without it: the priced
+      // floor at zero input tokens, or the flat fallback the count-
+      // failed path admits under. If even that floor cannot be admitted
+      // (the lifetime spawn cap, a full account, an exhausted ceiling),
+      // the spawn refuses HERE, before the prompt leaves the process.
+      const floorReserveUsd = unpriced
+        ? 0
+        : Math.min(
+            admissionReserveUsd({ ...reserveOptions, inputTokens: 0 }),
+            admissionReserveUsd(reserveOptions),
+          );
+      const floorHeadroomUsd = internals.budget.allowanceHeadroomOf(budgetAccount);
+      internals.budget.refuseSpawnIfInfeasible(
+        floorHeadroomUsd === undefined
+          ? floorReserveUsd
+          : Math.min(floorReserveUsd, floorHeadroomUsd),
+        budgetAccount,
+      );
+      const upstream = state.signal ?? internals.runSignal;
+      try {
+        inputTokens = await adapter.countTokens(
+          {
+            model: loopResolved.model,
+            messages: [{ role: 'user', parts: [{ type: 'text', text: prompt }] }],
+          },
+          upstream === undefined ? undefined : { signal: upstream },
+        );
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'info',
+            msg: `admission.countTokens: ${loopResolved.ref} counted ${String(inputTokens)} input tokens`,
+            data: { model: loopResolved.ref, inputTokens },
+          },
+          state.spanId,
+        );
+      } catch (thrown) {
+        if (upstream?.aborted === true) {
+          // Cancelled mid-count: the throw folds under the aborted
+          // signal as cancellation, never as a silent fallback to the
+          // flat reserve and a dispatch behind a cancelled spawn.
+          throw thrown;
+        }
+        inputTokens = undefined;
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg:
+              `admission.countTokens: ${loopResolved.ref} count failed ` +
+              `(${thrown instanceof Error ? thrown.message : String(thrown)}); ` +
+              'the flat reserve admits instead',
+            data: { model: loopResolved.ref },
+          },
+          state.spanId,
+        );
+      }
+    }
+    if (inputTokens !== undefined) {
+      reserveOptions.inputTokens = inputTokens;
+    }
     const reserve =
       unpriced && opts.estCost === undefined && profile?.estCost === undefined
         ? 0
         : admissionReserveUsd(reserveOptions);
-    const budgetAccount = state.budgetScope ?? ROOT_ACCOUNT;
     // The reserve never exceeds the tightest allowance on the account
     // chain: an allowance ceiling already bounds this spawn's lifetime
     // spend, so an estimate above it must clamp, not deny (the layer-2

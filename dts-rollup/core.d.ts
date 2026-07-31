@@ -1686,7 +1686,21 @@ interface ProviderAdapter {
   /** Refresh the capability table from live model lists. */
   refreshCaps?(): Promise<void>;
   stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent>;
-  countTokens?(req: ChatRequest): Promise<number>;
+  /**
+  * Provider-side token count for the request, used to tighten the
+  * admission reserve before a spawn dispatches. The request carries
+  * the FULL prompt, so an implementation that goes over the network is
+  * egress exactly like stream and MUST honor `opts.signal` (RV904):
+  * the engine only calls this after a zero-egress admission
+  * feasibility check, passes the spawn's abort signal, and treats an
+  * abort as cancellation rather than falling back to the flat
+  * reserve. Hosts that must not send prompts before their own
+  * admission gates pass an explicit `estCost` instead, which skips
+  * this call entirely.
+  */
+  countTokens?(req: ChatRequest, opts?: {
+    signal?: AbortSignal;
+  }): Promise<number>;
 }
 //#endregion
 //#region src/l0/spi/isolation.d.ts
@@ -5638,6 +5652,18 @@ declare class RunBudget {
   * mutates no account, increments no counter, and journals nothing.
   * Also enforces the engine lifetime spawn cap.
   */
+  /**
+  * The refusal arm of admitSpawn as a standalone check (RV904): throws
+  * exactly the refusal admitSpawn would throw for this reserve (the
+  * lifetime spawn cap, a full account, a ceiling overflow), marking
+  * the run exhausted the same way, but commits NOTHING on success.
+  * ctx.agent runs it against the smallest reserve any countTokens
+  * outcome could produce, so a spawn the budget could never admit
+  * refuses BEFORE the child prompt leaves the process; admitSpawn
+  * still decides with the real reserve afterward, sharing this exact
+  * arithmetic so the two can never disagree about a refusal.
+  */
+  refuseSpawnIfInfeasible(reserveUsd: number, accountScope?: string): void;
   admitSpawn(reserveUsd: number, accountScope?: string): void;
   /**
   * Resume roll-forward: commits a reserve recovered from a journaled

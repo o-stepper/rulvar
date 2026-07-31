@@ -845,6 +845,33 @@ const MUTATIONS = [
       "  const tokensDivergent = false && tokenComparison === 'verdict' && tokenMismatches > 0;",
     test: 'packages/openai/src/reconcile.test.ts',
   },
+  {
+    id: 'count-admission-floor',
+    doctrine:
+      'the pre-egress admission feasibility check runs against the real reserve floor (RV904): collapsed to zero, a spawn the budget could never admit sends the full child prompt to the provider count endpoint before the refusal',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '      internals.budget.refuseSpawnIfInfeasible(\n        floorHeadroomUsd === undefined\n          ? floorReserveUsd\n          : Math.min(floorReserveUsd, floorHeadroomUsd),\n        budgetAccount,\n      );',
+    replace: '      internals.budget.refuseSpawnIfInfeasible(0, budgetAccount);',
+    test: 'packages/core/src/engine/ctx-count-admission.test.ts',
+  },
+  {
+    id: 'count-signal-thread',
+    doctrine:
+      "the admission count is egress like any dispatch and must honor the caller's abort (RV904): an adapter that drops the signal leaves an uncancellable full-prompt request behind a cancelled spawn",
+    file: 'packages/anthropic/src/adapter.ts',
+    find: '      const result = await client.messages.countTokens(\n        body,\n        opts?.signal === undefined ? undefined : { signal: opts.signal },\n      );',
+    replace: '      const result = await client.messages.countTokens(body, undefined);',
+    test: 'packages/anthropic/src/index.test.ts',
+  },
+  {
+    id: 'spawn-admission-shared-arm',
+    doctrine:
+      'admitSpawn decides through the same refusal arithmetic the RV904 pre-check runs (refuseSpawnIfInfeasible): with the shared arm unwired, every spawn admits past any ceiling and the two admission layers can disagree about a refusal',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '  admitSpawn(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {\n    this.refuseSpawnIfInfeasible(reserveUsd, accountScope);',
+    replace: '  admitSpawn(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

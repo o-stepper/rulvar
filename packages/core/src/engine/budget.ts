@@ -485,7 +485,18 @@ export class RunBudget {
    * mutates no account, increments no counter, and journals nothing.
    * Also enforces the engine lifetime spawn cap.
    */
-  admitSpawn(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
+  /**
+   * The refusal arm of admitSpawn as a standalone check (RV904): throws
+   * exactly the refusal admitSpawn would throw for this reserve (the
+   * lifetime spawn cap, a full account, a ceiling overflow), marking
+   * the run exhausted the same way, but commits NOTHING on success.
+   * ctx.agent runs it against the smallest reserve any countTokens
+   * outcome could produce, so a spawn the budget could never admit
+   * refuses BEFORE the child prompt leaves the process; admitSpawn
+   * still decides with the real reserve afterward, sharing this exact
+   * arithmetic so the two can never disagree about a refusal.
+   */
+  refuseSpawnIfInfeasible(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
     // Backstop for the reserve formula itself (v1.34.0 review P2-3):
     // estCost and flatReserveUsd are validated at their intake, but a
     // countTokens estimate is adapter-computed and could still produce
@@ -503,8 +514,7 @@ export class RunBudget {
         { data: { cap: this.lifetimeSpawnCap } },
       );
     }
-    const chain = this.chainOf(accountScope);
-    for (const account of chain) {
+    for (const account of this.chainOf(accountScope)) {
       if (account.ceilingUsd === undefined) {
         continue;
       }
@@ -535,8 +545,12 @@ export class RunBudget {
         );
       }
     }
+  }
+
+  admitSpawn(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
+    this.refuseSpawnIfInfeasible(reserveUsd, accountScope);
     this.agentsSpawnedInternal += 1;
-    for (const account of chain) {
+    for (const account of this.chainOf(accountScope)) {
       account.committedReserveUsd += reserveUsd;
     }
     this.emitUpdate();

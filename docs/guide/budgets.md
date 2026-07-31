@@ -111,6 +111,20 @@ cannot spend more), and an unpriced model reserves nothing unless you pass an
 explicit `estCost` (a dollar reserve would deny work the ceiling cannot bound
 anyway; see the unpriced-model section below).
 
+The `countTokens` arm is a provider call carrying the FULL child prompt, so it
+is egress exactly like a dispatch, and admission decides before it runs: the
+reserve is monotone in the count, so the engine first checks the smallest
+reserve any count outcome could produce (the priced floor at zero input
+tokens, or the flat fallback the count-failed path admits under) against the
+budget, and a spawn that could never be admitted refuses with zero network
+calls. The count itself honors the spawn's abort signal (an abort mid-count
+cancels the spawn instead of falling back to the flat reserve), and each count
+is visible as an `admission.countTokens` log event naming the model and the
+counted tokens (or the failure the flat reserve then covers). An explicit
+`estCost`, per call or per profile, is the zero-egress path: it skips the
+count entirely, which is the right posture for hosts whose privacy gates must
+run before any prompt byte reaches a provider.
+
 One case is deliberately NOT clamped away. When a PlanRunner `add_task` op
 declares an explicit `budgetUsd` and the resolved profile's `estCost` cannot
 fit it, the op is bounced at `plan_revise` time with the typed reason

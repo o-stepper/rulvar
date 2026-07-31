@@ -176,17 +176,6 @@ admitSpawn(reserveUsd, accountScope?): void;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Layer 1: PROJECTED admission before spawn. A spawn is admitted only
-when every account in the ancestor chain of `accountScope` still has
-admission headroom AND fits the PROPOSED reserve on top of spent +
-committedReserve + finalizeReserve (the finalize reserve is
-untouchable by admission, DEF-7). An exact fill is allowed; one
-dollar past the ceiling is not: a spawn is never admitted on the
-argument that the money it needs is merely not committed yet. The
-whole chain is checked before anything commits, so a rejection
-mutates no account, increments no counter, and journals nothing.
-Also enforces the engine lifetime spawn cap.
-
 #### Parameters
 
 | Parameter | Type |
@@ -437,6 +426,37 @@ recorded ceiling wins once and the accumulated state is kept.
 | `options.finalizeReserveUsd?` | `number` |
 | `options.kind?` | `"orchestrator-cap"` \| `"child-allowance"` |
 | `options.parentScope?` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+### refuseSpawnIfInfeasible()
+
+```ts
+refuseSpawnIfInfeasible(reserveUsd, accountScope?): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The refusal arm of admitSpawn as a standalone check (RV904): throws
+exactly the refusal admitSpawn would throw for this reserve (the
+lifetime spawn cap, a full account, a ceiling overflow), marking
+the run exhausted the same way, but commits NOTHING on success.
+ctx.agent runs it against the smallest reserve any countTokens
+outcome could produce, so a spawn the budget could never admit
+refuses BEFORE the child prompt leaves the process; admitSpawn
+still decides with the real reserve afterward, sharing this exact
+arithmetic so the two can never disagree about a refusal.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `reserveUsd` | `number` |
+| `accountScope?` | `string` |
 
 #### Returns
 

@@ -48,7 +48,9 @@ interface AnthropicClientLike {
     create(params: Record<string, unknown>, opts?: {
       signal?: AbortSignal;
     }): Promise<unknown>;
-    countTokens(params: Record<string, unknown>): Promise<{
+    countTokens(params: Record<string, unknown>, opts?: {
+      signal?: AbortSignal;
+    }): Promise<{
       input_tokens: number;
     }>;
   };

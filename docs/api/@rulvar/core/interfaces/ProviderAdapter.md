@@ -41,16 +41,29 @@ Defined in: [packages/core/src/l0/spi/provider.ts:118](https://github.com/o-step
 ### countTokens()?
 
 ```ts
-optional countTokens(req): Promise<number>;
+optional countTokens(req, opts?): Promise<number>;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L122)
+Defined in: [packages/core/src/l0/spi/provider.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L134)
+
+Provider-side token count for the request, used to tighten the
+admission reserve before a spawn dispatches. The request carries
+the FULL prompt, so an implementation that goes over the network is
+egress exactly like stream and MUST honor `opts.signal` (RV904):
+the engine only calls this after a zero-egress admission
+feasibility check, passes the spawn's abort signal, and treats an
+abort as cancellation rather than falling back to the flat
+reserve. Hosts that must not send prompts before their own
+admission gates pass an explicit `estCost` instead, which skips
+this call entirely.
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `req` | [`ChatRequest`](/api/@rulvar/core/interfaces/ChatRequest.md) |
+| `opts?` | \{ `signal?`: `AbortSignal`; \} |
+| `opts.signal?` | `AbortSignal` |
 
 #### Returns
 

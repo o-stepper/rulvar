@@ -164,7 +164,7 @@ interface ProviderAdapter {
   /** Refresh the capability table from live model lists. */
   refreshCaps?(): Promise<void>;
   stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent>;
-  countTokens?(req: ChatRequest): Promise<number>;
+  countTokens?(req: ChatRequest, opts?: { signal?: AbortSignal }): Promise<number>;
 }
 
 type ModelCaps = {
@@ -230,7 +230,7 @@ const adapter = anthropic({
 });
 ```
 
-The adapter id is `anthropic`; address models as `anthropic:claude-sonnet-5`, `anthropic:claude-fable-5`, and so on. `ANTHROPIC_MODELS` exports the seeded capability table, and `refreshCaps()` corrects context window and output figures from the live model list. `countTokens` is implemented over the stateless count tokens endpoint.
+The adapter id is `anthropic`; address models as `anthropic:claude-sonnet-5`, `anthropic:claude-fable-5`, and so on. `ANTHROPIC_MODELS` exports the seeded capability table, and `refreshCaps()` corrects context window and output figures from the live model list. `countTokens` is implemented over the stateless count tokens endpoint; the count request carries the full prompt (egress like any dispatch), so the adapter threads the caller's abort signal into the SDK request, and the engine only issues the call after its zero-egress admission feasibility check (see [projected admission](/guide/budgets#layer-1-projected-admission-before-spawn)). Hosts whose privacy gates must run before any prompt byte reaches the provider pass an explicit `estCost` instead, which skips the count entirely.
 
 The capability table is a **static seed**, verified against the provider's official figures on the release date, and the engine never refreshes it on its own: a hidden network call inside `createEngine` would make run identity depend on wall-clock provider state. When the host wants live figures driving admission, compaction, and the output clamp, refresh the adapter before handing it to the engine:
 
