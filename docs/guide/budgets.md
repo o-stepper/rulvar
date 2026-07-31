@@ -292,6 +292,10 @@ same recorded money forever. The live ledger debits the same quantity as it
 accrues: mid-stream usage reaches the ceiling with its cache-write TTL split
 intact (RV1001), so the dollars a ceiling holds against are the dollars
 settlement records, never a cheaper reading of the same provider usage.
+Since RV1001 that is a proven invariant, not an aspiration: the live debit
+and the settled fold price one provider usage to the same dollars, and the
+`ttl-live-budget-parity` [kit scenario](/guide/evals#the-fault-injection-kit)
+gates the equality on the real live path in every release.
 
 **Docs estimate** is a repricing at the current versioned table, the rates the
 provider's documentation pages publish: what work is *expected* to cost under

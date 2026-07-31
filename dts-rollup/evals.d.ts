@@ -809,6 +809,15 @@ interface FaultInjectionReport {
   scenarios: FaultScenarioReport[];
   /** Every scenario matched its documented observable. */
   allMatched: boolean;
+  /**
+  * Scenarios the call asked for: the full registry size, or the
+  * `only` selection's length (RV1014). With `selected` beside it the
+  * report is self-describing: a consumer pinning these can never
+  * watch the gate quietly shrink.
+  */
+  requested: number;
+  /** Scenarios actually run; always equals `requested` (the intake refuses misses). */
+  selected: number;
   /** The artifact files written, when `artifactsDir` was given. */
   artifactFiles?: string[];
 }

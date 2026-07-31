@@ -896,8 +896,8 @@ const MUTATIONS = [
     doctrine:
       'the loop passes the finish-reported wire count into the quota settlement (RV905): dropped on the floor, the reservation stays at one request and the window undercount survives every limiter fix',
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: "              typeof wireCount === 'number' && Number.isInteger(wireCount) && wireCount > 1\n                ? { requests: wireCount }\n                : undefined,",
-    replace: '              undefined,',
+    find: '              : wireCount !== undefined\n                ? { requests: wireCount }\n                : undefined;',
+    replace: '              : undefined;',
     test: 'packages/core/src/engine/wire-units.test.ts',
   },
   {
@@ -1282,6 +1282,75 @@ const MUTATIONS = [
     find: '    if (maskEvents) {',
     replace: '    if (false as boolean && maskEvents) {',
     test: 'packages/core/src/engine/config-validation.test.ts',
+  },
+  {
+    id: 'segment-prewire-admission',
+    build: '@rulvar/core',
+    doctrine:
+      'under quota.reserveContinuations each provider-side continuation is admitted BEFORE its egress (RV1013): disarmed, the hard mode silently degrades to post-hoc accounting and the over-cap wire leaves anyway',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          if (quota.reserveContinuations !== true) {\n            return streamTurn(target.adapter, req, site.streamOptionsFor(target));\n          }',
+    replace:
+      '          if (true as boolean || quota.reserveContinuations !== true) {\n            return streamTurn(target.adapter, req, site.streamOptionsFor(target));\n          }',
+    test: 'packages/anthropic/src/pause-turn-usage.test.ts',
+  },
+  {
+    id: 'segment-main-no-double-count',
+    build: '@rulvar/core',
+    doctrine:
+      'the main settlement never re-adds individually admitted segments (RV1013): with the granted count ignored, one absorbed dispatch counts its continuations twice and the window overstates the true wire count',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '            options.quota.reserveContinuations === true\n              ? wireCount !== undefined && wireCount - granted > 1\n                ? { requests: wireCount - granted }\n                : undefined',
+    replace:
+      '            options.quota.reserveContinuations === true\n              ? wireCount !== undefined && wireCount > 1\n                ? { requests: wireCount }\n                : undefined',
+    test: 'packages/anthropic/src/pause-turn-usage.test.ts',
+  },
+  {
+    id: 'segment-release-unused',
+    doctrine:
+      'a granted admission whose wire never left releases back to the window (RV1013): with the flown count inflated to cover every grant, unused admissions stay consumed and the window overstates capacity forever',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '            const flown = (wireCount ?? 1) - 1;',
+    replace: '            const flown = segmentReservations.length;',
+    test: 'packages/core/src/engine/quota-segments.test.ts',
+  },
+  {
+    id: 'invariant-finish-gate',
+    build: '@rulvar/core',
+    doctrine:
+      'the midstream<=finish confirmation fires only when a finish claim exists (RV1013): ungated, an error-terminal absorption manufactures a violation that shadows the real wire error, exactly the class of kill RV1003 removed',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '      if (sawFinish === true && reportedCount > safeCount) {',
+    replace: '      if (reportedCount > safeCount) {',
+    test: 'packages/anthropic/src/pause-turn-usage.test.ts',
+  },
+  {
+    id: 'limiter-release-return',
+    doctrine:
+      'memoryQuotaLimiter.release returns exactly what admission consumed (RV1013): a no-op release leaves the cancelled request in the window and the next legitimate admission is denied capacity that was never used',
+    file: 'packages/core/src/model/quota.ts',
+    find: '          bucket.requests = Math.max(0, bucket.requests - reservation.requests);',
+    replace: '          bucket.requests = Math.max(0, bucket.requests);',
+    test: 'packages/core/src/model/quota.test.ts',
+  },
+  {
+    id: 'kit-empty-only-refusal',
+    doctrine:
+      'runFaultInjection refuses an empty only selection typed (RV1014): disarmed, a gate that runs zero scenarios reports allMatched true, vacuous success from a suite that verified nothing',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '  if (options?.only !== undefined && options.only.length === 0) {',
+    replace: '  if (false as boolean) {',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'audit-rv1007-arcs',
+    doctrine:
+      'the audit scenario actually DRIVES the RV1007 branches (RV1014): with the page-only tier arc collapsed to tiers on both sides, the finding never appears and the scenario must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '    const tierGap = compareRates(withPremium, { ...withPremium, tiers: [tier] });',
+    replace:
+      '    const tierGap = compareRates({ ...withPremium, tiers: [tier] }, { ...withPremium, tiers: [tier] });',
+    test: 'packages/evals/src/fault-injection.test.ts',
   },
 ];
 

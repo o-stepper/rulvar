@@ -218,3 +218,110 @@ describe('the continuation-cap intake (RV1004)', () => {
     expect(events.filter((e) => e.type === 'finish')).toHaveLength(1);
   });
 });
+
+/** Three segments: two pause_turn absorptions, then the terminal. */
+function threeSegmentClient(): AnthropicClientLike & { calls: number } {
+  const holder = {
+    calls: 0,
+    messages: {
+      create(): Promise<unknown> {
+        holder.calls += 1;
+        const n = holder.calls;
+        const events: AnthropicStreamEvent[] =
+          n < 3
+            ? [
+                {
+                  type: 'message_start',
+                  message: { id: `m${String(n)}`, usage: { input_tokens: 5 } },
+                },
+                { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+                {
+                  type: 'content_block_delta',
+                  index: 0,
+                  delta: { type: 'text_delta', text: 'a ' },
+                },
+                { type: 'content_block_stop', index: 0 },
+                { type: 'message_delta', delta: { stop_reason: 'pause_turn' }, usage: {} },
+                { type: 'message_stop' },
+              ]
+            : [
+                {
+                  type: 'message_start',
+                  message: { id: 'm3', usage: { input_tokens: 4 } },
+                },
+                { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+                { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'b' } },
+                { type: 'content_block_stop', index: 0 },
+                {
+                  type: 'message_delta',
+                  delta: { stop_reason: 'end_turn' },
+                  usage: { output_tokens: 2 },
+                },
+                { type: 'message_stop' },
+              ];
+        return Promise.resolve(fixture(events));
+      },
+      countTokens: () => Promise.resolve({ input_tokens: 1 }),
+    },
+    models: { list: () => Promise.resolve({ data: [] }) },
+  };
+  return holder;
+}
+
+describe('pre-wire continuation reservation (RV1013)', () => {
+  const engineWith = (
+    client: AnthropicClientLike,
+    limiter: ReturnType<typeof memoryQuotaLimiter>,
+    reserveContinuations: boolean,
+  ) =>
+    createEngine({
+      adapters: [anthropic({ client })],
+      stores: { journal: new InMemoryStore() },
+      defaults: { routing: { loop: 'anthropic:claude-fable-5' } },
+      quota: { limiter, ...(reserveContinuations ? { reserveContinuations: true } : {}) },
+    });
+  const wf = defineWorkflow({ name: 'quota-pause' }, async (ctx) => {
+    await ctx.agent('go', {
+      retry: { attempts: 1, backoff: { initialMs: 1, factor: 1, maxMs: 1 } },
+    });
+    return 'done';
+  });
+
+  it('cap 2 under reserveContinuations: the third wire never leaves and the denial is typed', async () => {
+    // The hard-RPM contract (RV1013): post-hoc reconcile is accounting,
+    // and only a pre-wire reservation can keep the THIRD wire of one
+    // absorbed dispatch inside a 2-request window from leaving at all.
+    const client = threeSegmentClient();
+    const limiter = memoryQuotaLimiter([{ provider: 'anthropic', requestsPerMinute: 2 }]);
+    const outcome = await engineWith(client, limiter, true).run(wf, undefined, {}).result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.message).toContain('continuation');
+    expect(client.calls).toBe(2);
+    expect(limiter.snapshot()[0]?.requests).toBe(2);
+  });
+
+  it('the default stays post-hoc: all three wires fly and the window settles at the true count', async () => {
+    const client = threeSegmentClient();
+    const limiter = memoryQuotaLimiter([{ provider: 'anthropic', requestsPerMinute: 2 }]);
+    const outcome = await engineWith(client, limiter, false).run(wf, undefined, {}).result;
+    expect(outcome.status).toBe('ok');
+    expect(client.calls).toBe(3);
+    // Documented post-hoc semantics: the window records the overrun
+    // after the fact; nothing was denied retroactively.
+    expect(limiter.snapshot()[0]?.requests).toBe(3);
+  });
+
+  it('cap 3 under reserveContinuations: the absorption completes and the window carries EXACTLY the true wire count', async () => {
+    const client = threeSegmentClient();
+    const limiter = memoryQuotaLimiter([{ provider: 'anthropic', requestsPerMinute: 3 }]);
+    const outcome = await engineWith(client, limiter, true).run(wf, undefined, {}).result;
+    expect(outcome.status).toBe('ok');
+    expect(client.calls).toBe(3);
+    // One main admission plus two segment admissions, and the main
+    // settlement adds nothing on top (the double-count guard): the
+    // window equals the true wire count.
+    expect(limiter.snapshot()[0]?.requests).toBe(3);
+    expect(outcome.usage.inputTokens).toBe(14);
+    expect(outcome.usage.outputTokens).toBe(2);
+  });
+});

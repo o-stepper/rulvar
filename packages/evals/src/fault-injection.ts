@@ -76,6 +76,15 @@ export interface FaultInjectionReport {
   scenarios: FaultScenarioReport[];
   /** Every scenario matched its documented observable. */
   allMatched: boolean;
+  /**
+   * Scenarios the call asked for: the full registry size, or the
+   * `only` selection's length (RV1014). With `selected` beside it the
+   * report is self-describing: a consumer pinning these can never
+   * watch the gate quietly shrink.
+   */
+  requested: number;
+  /** Scenarios actually run; always equals `requested` (the intake refuses misses). */
+  selected: number;
   /** The artifact files written, when `artifactsDir` was given. */
   artifactFiles?: string[];
 }
@@ -701,17 +710,21 @@ const tokenMismatchDivergence: FaultScenario = {
 };
 
 /**
- * RV902: the documented-rates comparator the weekly audit runs, driven
- * from its published home. The 1h write premium hid exactly in the
- * page-only direction: a billable documented rate the seed never
- * declared passed the old one-directional comparison silently.
+ * RV902 + RV1007: the documented-rates comparator the weekly audit
+ * runs, driven from its published home. The 1h write premium hid
+ * exactly in the page-only direction; the fourteenth plan found two
+ * more silent passes on the same surface: a page-only long-context
+ * tier (the tier loop ran only when the SEED declared tiers) and a
+ * NaN scalar (`NaN > epsilon` is false, so a broken extraction read
+ * as agreement).
  */
 const auditMissingFieldFinding: FaultScenario = {
   name: 'audit-missing-field-finding',
   doctrine:
     'the documented-rates comparator fails closed in BOTH directions (RV902): a billable ' +
     'page rate the seed never declared is a named finding, and so is a seed rate the page ' +
-    'dropped, never a silent pass',
+    'dropped, never a silent pass; page-only long-context tiers and NaN scalars are ' +
+    'findings too (RV1007)',
   run() {
     const withPremium = {
       inputUsdPerMTok: 5,
@@ -723,21 +736,31 @@ const auditMissingFieldFinding: FaultScenario = {
     const seedGap = compareRates(withoutPremium, withPremium);
     const pageGap = compareRates(withPremium, withoutPremium);
     const clean = compareRates(withPremium, { ...withPremium });
+    // The RV1007 arcs: a long-context premium only the page documents,
+    // and a rate whose extraction stopped parsing.
+    const tier = { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 };
+    const tierGap = compareRates(withPremium, { ...withPremium, tiers: [tier] });
+    const nanGap = compareRates({ ...withPremium, inputUsdPerMTok: Number.NaN }, withPremium);
     const matched =
       seedGap.length === 1 &&
       (seedGap[0] ?? '').includes('the seed declares no such rate') &&
       pageGap.length === 1 &&
       (pageGap[0] ?? '').includes('the page shows no such rate') &&
-      clean.length === 0;
+      clean.length === 0 &&
+      tierGap.length === 1 &&
+      (tierGap[0] ?? '').includes('the seed declares none') &&
+      nanGap.length === 1 &&
+      (nanGap[0] ?? '').includes('NaN');
     return Promise.resolve({
       observation: {
         matched,
         detail:
           `page-only premium: '${seedGap[0] ?? 'no finding'}'; dropped premium: ` +
           `'${pageGap[0] ?? 'no finding'}'; identical rates compare clean ` +
-          `(${String(clean.length)} findings)`,
+          `(${String(clean.length)} findings); page-only tier: '${tierGap[0] ?? 'no finding'}'; ` +
+          `NaN scalar: '${nanGap[0] ?? 'no finding'}'`,
       },
-      artifacts: [jsonArtifact('findings.json', { seedGap, pageGap, clean })],
+      artifacts: [jsonArtifact('findings.json', { seedGap, pageGap, clean, tierGap, nanGap })],
     });
   },
 };
@@ -1658,6 +1681,15 @@ export async function runFaultInjection(
   options?: RunFaultInjectionOptions,
 ): Promise<FaultInjectionReport> {
   const known = new Map(SCENARIOS.map((scenario) => [scenario.name, scenario]));
+  // An empty selection refuses typed (RV1014): `only: []` used to
+  // select zero scenarios and report allMatched true, a gate that ran
+  // nothing claiming success. In tone with the unknown-name refusal.
+  if (options?.only !== undefined && options.only.length === 0) {
+    throw new ConfigError(
+      'runFaultInjection: only is empty; a gate that runs zero scenarios cannot report ' +
+        'success (omit only to run the full kit)',
+    );
+  }
   for (const name of options?.only ?? []) {
     if (!known.has(name)) {
       throw new ConfigError(
@@ -1690,6 +1722,8 @@ export async function runFaultInjection(
   return {
     scenarios,
     allMatched: scenarios.every((report) => report.observation.matched),
+    requested: options?.only === undefined ? SCENARIOS.length : options.only.length,
+    selected: scenarios.length,
     ...(options?.artifactsDir === undefined ? {} : { artifactFiles }),
   };
 }

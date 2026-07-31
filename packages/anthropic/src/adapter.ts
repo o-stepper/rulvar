@@ -14,6 +14,7 @@ import {
   type ChatRequest,
   type ModelCaps,
   type ProviderAdapter,
+  type StreamHooks,
   type Usage,
 } from '@rulvar/core';
 import { ANTHROPIC_MODELS, anthropicModelInfo, type AnthropicModelInfo } from './caps.js';
@@ -221,7 +222,11 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
       } while (afterId !== undefined);
     },
 
-    async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
+    async *stream(
+      req: ChatRequest,
+      signal?: AbortSignal,
+      hooks?: StreamHooks,
+    ): AsyncIterable<ChatEvent> {
       const info = infoFor(req.model);
       // The continuation-cap intake (RV1004): a present cap must be a
       // nonnegative safe integer, refused typed BEFORE the first wire.
@@ -358,6 +363,15 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
               data: { kind: 'transport' },
             },
           };
+          return;
+        }
+        // Pre-wire segment admission (RV1013): under the engine's
+        // opt-in hard mode the continuation must hold a reservation
+        // BEFORE its egress; a denial is yielded as the limiter's own
+        // terminal error and the over-cap wire never leaves.
+        const denial = await hooks?.onContinuationSegment?.({ segment: continuations + 1 });
+        if (denial !== undefined) {
+          yield { type: 'error', error: denial };
           return;
         }
         const messages = params.messages as Array<Record<string, unknown>>;

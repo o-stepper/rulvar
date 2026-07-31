@@ -39,7 +39,7 @@ import {
   sumUsage,
   usageViolations,
 } from '../l0/usage.js';
-import type { ProviderAdapter } from '../l0/spi/provider.js';
+import type { ProviderAdapter, StreamHooks } from '../l0/spi/provider.js';
 import type { QuotaDecision, QuotaReservationRequest } from '../l0/spi/quota.js';
 import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
 import type { Out, SchemaSpec } from '../l0/schema.js';
@@ -496,6 +496,10 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     ) => Promise<void>;
     /** Limiter infrastructure failure policy; a denial is unaffected. */
     onLimiterError: 'deny' | 'allow';
+    /** Pre-wire continuation admission (RV1013); default post-hoc. */
+    reserveContinuations?: boolean;
+    /** Cancels an unused admission; absent = window age-out. */
+    release?: (reservationId: string) => Promise<void>;
   };
   /** The resolved toolset; absent = no tools declared. */
   tools?: ToolRuntime;
@@ -773,6 +777,8 @@ async function streamTurn(
     onDelta?: (delta: string) => void;
     /** Mid-stream usage reporting (feeds the layer-3 ceiling). */
     onUsage?: (delta: Usage) => void;
+    /** Live-only adapter hooks (RV1013 pre-wire segment admission). */
+    hooks?: StreamHooks;
   },
 ): Promise<TurnOutcome> {
   const idle = new AbortController();
@@ -801,7 +807,7 @@ async function streamTurn(
 
   try {
     armIdle();
-    for await (const event of adapter.stream(req, combined)) {
+    for await (const event of adapter.stream(req, combined, options.hooks)) {
       armIdle();
       switch (event.type) {
         case 'text-delta':
@@ -2761,6 +2767,7 @@ export async function runAgent<S extends SchemaSpec>(
     ref: ModelRef,
     role: InvocationRole,
     streamViolation?: string,
+    sawFinish?: boolean,
     // Returns the sanitized usage it accounted, so the reconciliation
     // record minted beside the call carries the SAME numbers the phase
     // slices accumulated (P1.3: per-model sums over records reconcile
@@ -2797,6 +2804,12 @@ export async function runAgent<S extends SchemaSpec>(
     // tokens were not reads. Re-debit the excess as plain input (the
     // discount already paid keeps the correction conservative, never a
     // credit) and fail the call loud like every other violation.
+    // The midstream<=finish confirmation exists only when a finish
+    // CLAIM exists (RV1013): an error-terminal attempt carries no
+    // total to confirm, and comparing per-segment deltas against a
+    // partial attempt would manufacture a violation that shadows the
+    // real wire error (a mid-absorption segment denial or a transport
+    // cut). The conservative re-debit below stays active either way.
     for (const field of [
       'inputTokens',
       'outputTokens',
@@ -2807,7 +2820,7 @@ export async function runAgent<S extends SchemaSpec>(
     ] as const) {
       const reportedCount = reported[field] ?? 0;
       const safeCount = safe[field] ?? 0;
-      if (reportedCount > safeCount) {
+      if (sawFinish === true && reportedCount > safeCount) {
         invariantViolation ??=
           `adapter '${adapterId}' violated the Usage invariant: mid-stream ${field} ` +
           `(${String(reportedCount)}) exceeded the finish total (${String(safeCount)})`;
@@ -2974,6 +2987,11 @@ export async function runAgent<S extends SchemaSpec>(
         // failover takeover) reserves anew, exactly as each wire call
         // consumes provider capacity anew.
         let reservationId: string | undefined;
+        // Pre-wire segment admissions of THIS attempt (RV1013): each
+        // provider-side continuation the adapter asked the hook for and
+        // was granted, in grant order; settled or released after the
+        // outcome.
+        const segmentReservations: string[] = [];
         // The in-flight exposure hold of THIS attempt (RV711): taken
         // synchronously with the attempt's own request right before
         // the wire call, released once the attempt settles (its usage
@@ -3074,7 +3092,70 @@ export async function runAgent<S extends SchemaSpec>(
             return quotaDeniedOutcome(decision);
           }
           reservationId = decision.reservationId;
-          return streamTurn(target.adapter, req, site.streamOptionsFor(target));
+          if (quota.reserveContinuations !== true) {
+            return streamTurn(target.adapter, req, site.streamOptionsFor(target));
+          }
+          // The hard mode (RV1013): each provider-side continuation is
+          // admitted BEFORE its egress through the adapter hook. A
+          // denial resolves to the limiter's own rate-limit-class
+          // WireError, which the adapter yields as its terminal event,
+          // so the over-cap wire never leaves and the retry and
+          // failover machinery sees exactly the provider-429 shape.
+          const hooks: StreamHooks = {
+            onContinuationSegment: async () => {
+              let segmentDecision: QuotaDecision;
+              try {
+                segmentDecision = await quota.reserve({
+                  provider: target.adapter.id,
+                  model: target.resolved.model,
+                  estimate: { requests: 1, inputTokens: 0 },
+                });
+              } catch (thrown) {
+                const detail = thrown instanceof Error ? thrown.message : String(thrown);
+                if (quota.onLimiterError === 'allow') {
+                  events?.emit({
+                    type: 'log',
+                    level: 'warn',
+                    msg:
+                      `the shared quota limiter failed; continuing ${target.resolved.ref} ` +
+                      `without a segment reservation (onLimiterError 'allow'): ${detail}`,
+                  });
+                  return undefined;
+                }
+                return {
+                  code: 'quota-limiter',
+                  message:
+                    `the shared quota limiter failed on a pause_turn continuation ` +
+                    `(onLimiterError 'deny'): ${detail}`,
+                  retryable: true,
+                  data: { kind: 'transport', source: 'quota-limiter' },
+                };
+              }
+              if (!segmentDecision.granted) {
+                return {
+                  code: 'rate-limit',
+                  message:
+                    `the shared quota limiter denied a pause_turn continuation of ` +
+                    `${target.resolved.ref}` +
+                    (segmentDecision.reason === undefined ? '' : `: ${segmentDecision.reason}`),
+                  retryable: true,
+                  data: {
+                    kind: 'rate-limit',
+                    source: 'quota-limiter',
+                    ...(segmentDecision.retryAfterMs === undefined
+                      ? {}
+                      : { retryAfterMs: segmentDecision.retryAfterMs }),
+                    ...(segmentDecision.reason === undefined
+                      ? {}
+                      : { reason: segmentDecision.reason }),
+                  },
+                };
+              }
+              segmentReservations.push(segmentDecision.reservationId);
+              return undefined;
+            },
+          };
+          return streamTurn(target.adapter, req, { ...site.streamOptionsFor(target), hooks });
         };
         const dispatch = (): Promise<TurnOutcome> => {
           // Checked inside the thunk so a keyed limiter queue wait
@@ -3119,15 +3200,28 @@ export async function runAgent<S extends SchemaSpec>(
           // the continuation factor.
           const wireNamespace = outcome.providerMetadata?.[target.adapter.id] as
             { wireRequests?: { count?: unknown } } | undefined;
-          const wireCount = wireNamespace?.wireRequests?.count;
-          try {
-            await options.quota.reconcile(
-              reservationId,
-              outcome.usage,
-              typeof wireCount === 'number' && Number.isInteger(wireCount) && wireCount > 1
+          const rawWireCount = wireNamespace?.wireRequests?.count;
+          const wireCount =
+            typeof rawWireCount === 'number' && Number.isInteger(rawWireCount) && rawWireCount > 1
+              ? rawWireCount
+              : undefined;
+          // Under pre-wire segment admission (RV1013) every hook-granted
+          // continuation already consumed the window at its own
+          // admission, so the main settlement must not re-add it (that
+          // would double-count); it settles only the continuations no
+          // grant covered (an adapter unaware of the hook). Without the
+          // hard mode this is the historical RV905 settlement verbatim.
+          const granted = segmentReservations.length;
+          const mainActual =
+            options.quota.reserveContinuations === true
+              ? wireCount !== undefined && wireCount - granted > 1
+                ? { requests: wireCount - granted }
+                : undefined
+              : wireCount !== undefined
                 ? { requests: wireCount }
-                : undefined,
-            );
+                : undefined;
+          try {
+            await options.quota.reconcile(reservationId, outcome.usage, mainActual);
           } catch (thrown) {
             const detail = thrown instanceof Error ? thrown.message : String(thrown);
             events?.emit({
@@ -3135,6 +3229,32 @@ export async function runAgent<S extends SchemaSpec>(
               level: 'warn',
               msg: `the shared quota limiter failed to reconcile a reservation: ${detail}`,
             });
+          }
+          // A granted admission whose wire never left releases back to
+          // the window (RV1013): the finish names the true wire set, so
+          // grants beyond the flown continuations are UNUSED. Without a
+          // finish nothing certifies which wires flew, and the
+          // conservative direction for a rate cap is to leave the
+          // admission consumed (the window ages it out).
+          if (
+            options.quota.reserveContinuations === true &&
+            granted > 0 &&
+            outcome.finish !== undefined &&
+            options.quota.release !== undefined
+          ) {
+            const flown = (wireCount ?? 1) - 1;
+            for (const unused of segmentReservations.slice(Math.max(0, flown))) {
+              try {
+                await options.quota.release(unused);
+              } catch (thrown) {
+                const detail = thrown instanceof Error ? thrown.message : String(thrown);
+                events?.emit({
+                  type: 'log',
+                  level: 'warn',
+                  msg: `the shared quota limiter failed to release an unused admission: ${detail}`,
+                });
+              }
+            }
           }
         }
         if (outcome.quotaDenied === true) {
@@ -3154,6 +3274,7 @@ export async function runAgent<S extends SchemaSpec>(
             target.resolved.ref,
             site.role,
             outcome.usageViolation,
+            outcome.finish !== undefined,
           );
           // The reconciliation record of THIS wire call (P1.3): the
           // provider ran (quota denials and abort short circuits are

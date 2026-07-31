@@ -57,6 +57,32 @@ remain valid; they merely keep the historical undercount.
 
 ***
 
+### release()
+
+```ts
+release(reservationId): Promise<void>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The reference limiter always implements release (RV1013).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `reservationId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;`void`\&gt;
+
+#### Overrides
+
+[`QuotaLimiter`](/api/@rulvar/rulvar/interfaces/QuotaLimiter.md).[`release`](/api/@rulvar/rulvar/interfaces/QuotaLimiter.md#release)
+
+***
+
 ### reserve()
 
 ```ts

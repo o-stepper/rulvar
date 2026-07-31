@@ -90,7 +90,10 @@ Refresh the capability table from live model lists.
 ### stream()
 
 ```ts
-stream(req, signal?): AsyncIterable<ChatEvent>;
+stream(
+   req, 
+   signal?, 
+hooks?): AsyncIterable<ChatEvent>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -101,6 +104,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | ------ | ------ |
 | `req` | [`ChatRequest`](/api/@rulvar/rulvar/interfaces/ChatRequest.md) |
 | `signal?` | `AbortSignal` |
+| `hooks?` | [`StreamHooks`](/api/@rulvar/rulvar/interfaces/StreamHooks.md) |
 
 #### Returns
 

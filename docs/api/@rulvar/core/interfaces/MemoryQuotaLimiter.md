@@ -6,7 +6,7 @@
 
 # Interface: MemoryQuotaLimiter
 
-Defined in: [packages/core/src/model/quota.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L299)
+Defined in: [packages/core/src/model/quota.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L301)
 
 The in-process reference QuotaLimiter returned by memoryQuotaLimiter.
 
@@ -57,6 +57,32 @@ remain valid; they merely keep the historical undercount.
 
 ***
 
+### release()
+
+```ts
+release(reservationId): Promise<void>;
+```
+
+Defined in: [packages/core/src/model/quota.ts:305](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L305)
+
+The reference limiter always implements release (RV1013).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `reservationId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;`void`\&gt;
+
+#### Overrides
+
+[`QuotaLimiter`](/api/@rulvar/core/interfaces/QuotaLimiter.md).[`release`](/api/@rulvar/core/interfaces/QuotaLimiter.md#release)
+
+***
+
 ### reserve()
 
 ```ts
@@ -87,7 +113,7 @@ Defined in: [packages/core/src/l0/spi/quota.ts:86](https://github.com/o-stepper/
 snapshot(): QuotaWindowSnapshot[];
 ```
 
-Defined in: [packages/core/src/model/quota.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L301)
+Defined in: [packages/core/src/model/quota.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L303)
 
 Current-window counters per rule; rolled-over windows read as zero.
 
