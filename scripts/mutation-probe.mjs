@@ -1166,9 +1166,9 @@ const MUTATIONS = [
     doctrine:
       'settleable is the full settlement-grade composite (RV1006): with the usage-unknown condition dropped, a match over a ledger still holding unattributed money reads settleable true and the predicate stops naming exactly the money a match cannot vouch for',
     file: 'packages/openai/src/reconcile.ts',
-    find: '    settleable:\n      verdict === \'match\' &&\n      coverageComplete &&\n      usageUnknownRows === 0 &&\n      unpricedModels.size === 0,',
+    find: "    settleable:\n      verdict === 'match' &&\n      coverageComplete &&\n      usageUnknownRows === 0 &&\n      unpricedModels.size === 0,",
     replace:
-      '    settleable:\n      verdict === \'match\' &&\n      coverageComplete &&\n      unpricedModels.size === 0,',
+      "    settleable:\n      verdict === 'match' &&\n      coverageComplete &&\n      unpricedModels.size === 0,",
     test: 'packages/openai/src/reconcile.test.ts',
   },
   {
