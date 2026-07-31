@@ -18,6 +18,6 @@ type ProviderStatement =
 };
 ```
 
-Defined in: [packages/openai/src/reconcile.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/reconcile.ts#L64)
+Defined in: [packages/openai/src/reconcile.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/reconcile.ts#L73)
 
 A normalized provider export: never a headline total.

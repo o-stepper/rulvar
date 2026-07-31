@@ -17,7 +17,11 @@ import { describe, expect, it } from 'vitest';
 import type { InvoiceRow, ModelRef, Pricing, Usage } from '@rulvar/core';
 import { ConfigError, priceComponentsOf, priceUsdOf } from '@rulvar/core';
 
-import { reconcileStatement } from './reconcile.js';
+import {
+  reconcileStatement,
+  type ProviderStatement,
+  type StatementRequestRow,
+} from './reconcile.js';
 
 const SOL: Pricing = {
   inputUsdPerMTok: 5,
@@ -251,7 +255,12 @@ describe('reconcileStatement: per-request mode', () => {
     expect(report.coverage.statementOnlyIdSample).toEqual(['resp-x']);
   });
 
-  it('provider-reported token counts are compared against ours where the export carries them', () => {
+  it('a provider-reported token disagreement is a divergence even when the dollars agree (RV903)', () => {
+    // Our counts ARE the provider's own wire-reported numbers, so an
+    // export disagreeing with them means the export and the wire
+    // describe different requests; dollars derived from either cannot
+    // be trusted to mean the same thing, and the thirteenth
+    // experiment's probe showed this reading 'match'.
     const rows = fullRequestRows.map((row) =>
       row.responseId === 'resp-4'
         ? {
@@ -272,6 +281,33 @@ describe('reconcileStatement: per-request mode', () => {
     );
     expect(report.tokenMismatches).toBe(1);
     expect(report.tokenMismatchSample[0]?.responseId).toBe('resp-4');
+    expect(report.verdict).toBe('divergence');
+  });
+
+  it("tokenComparison 'informational' preserves the dollar-only verdict for divergent token semantics", () => {
+    const rows = fullRequestRows.map((row) =>
+      row.responseId === 'resp-4'
+        ? {
+            ...row,
+            usage: {
+              inputTokens: 999,
+              outputTokens: 10_000,
+              cachedInputTokens: 0,
+              cacheWriteTokens: 0,
+            },
+          }
+        : row,
+    );
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows },
+      { pricingOf: PRICING_OF, tokenComparison: 'informational' },
+    );
+    // Mismatches are still counted and sampled; only the verdict
+    // treats them as advisory.
+    expect(report.tokenMismatches).toBe(1);
+    expect(report.tokenMismatchSample[0]?.responseId).toBe('resp-4');
+    expect(report.verdict).toBe('match');
   });
 });
 
@@ -343,5 +379,122 @@ describe('reconcileStatement: refusals and declared gaps', () => {
     );
     expect(report.usageUnknownRows).toBe(1);
     expect(report.verdict).toBe('match');
+  });
+});
+
+describe('reconcileStatement: fail-closed numeric intake (RV903)', () => {
+  const requestRows = (patch: Partial<StatementRequestRow>): ProviderStatement => ({
+    kind: 'requests',
+    rows: [{ responseId: 'resp-1', usd: 1, ...patch }],
+  });
+
+  it('refuses a request row whose usd is NaN instead of matching on NaN totals', () => {
+    // The thirteenth experiment's probe: usd NaN flowed into the totals,
+    // Math.abs(NaN) > tolerance is false, and the verdict read 'match'
+    // with NaN statementUsd and deltaUsd.
+    expect(() =>
+      reconcileStatement(INVOICE, requestRows({ usd: Number.NaN }), { pricingOf: PRICING_OF }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      reconcileStatement(INVOICE, requestRows({ usd: Number.NaN }), { pricingOf: PRICING_OF }),
+    ).toThrow(/resp-1.*usd|usd.*resp-1/);
+  });
+
+  it('refuses infinite and negative dollars, naming the row and field', () => {
+    expect(() =>
+      reconcileStatement(INVOICE, requestRows({ usd: Number.POSITIVE_INFINITY }), {
+        pricingOf: PRICING_OF,
+      }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      reconcileStatement(INVOICE, requestRows({ usd: -0.25 }), { pricingOf: PRICING_OF }),
+    ).toThrow(/credits|adjustments/);
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        requestRows({ componentsUsd: { input: Number.NEGATIVE_INFINITY } }),
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(/componentsUsd\.input/);
+  });
+
+  it('refuses non-integer and negative provider-reported token counts', () => {
+    expect(() =>
+      reconcileStatement(INVOICE, requestRows({ usage: { inputTokens: 1.5 } }), {
+        pricingOf: PRICING_OF,
+      }),
+    ).toThrow(/usage\.inputTokens/);
+    expect(() =>
+      reconcileStatement(INVOICE, requestRows({ usage: { outputTokens: -3 } }), {
+        pricingOf: PRICING_OF,
+      }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      reconcileStatement(INVOICE, requestRows({ usage: { cacheWriteTokens: Number.NaN } }), {
+        pricingOf: PRICING_OF,
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it('refuses a category row whose usd cannot be summed', () => {
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        {
+          kind: 'categories',
+          rows: [{ model: 'gpt-5.6-sol', component: 'input', usd: Number.NaN }],
+        },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(/gpt-5\.6-sol.*input|input.*gpt-5\.6-sol/);
+  });
+
+  it('refuses non-finite and negative tolerances', () => {
+    const statement = requestRows({});
+    expect(() =>
+      reconcileStatement(INVOICE, statement, {
+        pricingOf: PRICING_OF,
+        componentToleranceUsd: Number.NaN,
+      }),
+    ).toThrow(/componentToleranceUsd/);
+    expect(() =>
+      reconcileStatement(INVOICE, statement, {
+        pricingOf: PRICING_OF,
+        totalToleranceUsd: -0.01,
+      }),
+    ).toThrow(/totalToleranceUsd/);
+  });
+
+  it('every dollar figure of an accepted report is finite', () => {
+    const reports = [
+      reconcileStatement(
+        INVOICE,
+        {
+          kind: 'requests',
+          rows: SPECS.map((spec) => ({ responseId: spec.responseId ?? '', usd: 1 })),
+        },
+        { pricingOf: PRICING_OF },
+      ),
+      reconcileStatement(
+        INVOICE,
+        { kind: 'categories', rows: trueCategories(true) },
+        { pricingOf: PRICING_OF },
+      ),
+    ];
+    for (const report of reports) {
+      expect(Number.isFinite(report.totals.ourUsd)).toBe(true);
+      if (report.totals.statementUsd !== undefined) {
+        expect(Number.isFinite(report.totals.statementUsd)).toBe(true);
+      }
+      if (report.totals.deltaUsd !== undefined) {
+        expect(Number.isFinite(report.totals.deltaUsd)).toBe(true);
+      }
+      for (const line of report.components) {
+        expect(Number.isFinite(line.ourUsd)).toBe(true);
+        if (line.deltaUsd !== undefined) {
+          expect(Number.isFinite(line.deltaUsd)).toBe(true);
+        }
+      }
+    }
   });
 });

@@ -825,6 +825,26 @@ const MUTATIONS = [
     replace: '    inputUsdPerMTok: 2.5,\n    outputUsdPerMTok: 12,',
     test: 'packages/openai/src/index.test.ts',
   },
+  {
+    id: 'reconcile-nan-intake',
+    doctrine:
+      "statement dollars that cannot be summed refuse typed at intake (RV903): with the finiteness gate gone, usd NaN flows through the totals, Math.abs(NaN) > tolerance is false, and a corrupted export reads verdict 'match' with NaN deltas",
+    file: 'packages/openai/src/reconcile.ts',
+    find: '  if (!Number.isFinite(value)) {\n    throw new ConfigError(\n      `statement reconciliation refused: ${where} carries ${field} ${String(value)}, which ` +',
+    replace:
+      '  if (false) {\n    throw new ConfigError(\n      `statement reconciliation refused: ${where} carries ${field} ${String(value)}, which ` +',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
+  {
+    id: 'reconcile-token-verdict',
+    doctrine:
+      'provider-reported token disagreements decide the verdict by default (RV903): with the branch disarmed, an export describing different requests than the wire served still reads match whenever its dollars happen to agree',
+    file: 'packages/openai/src/reconcile.ts',
+    find: "  const tokensDivergent = tokenComparison === 'verdict' && tokenMismatches > 0;",
+    replace:
+      "  const tokensDivergent = false && tokenComparison === 'verdict' && tokenMismatches > 0;",
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
