@@ -1,5 +1,15 @@
 # @rulvar/evals
 
+## 1.140.0
+
+### Patch Changes
+
+- @rulvar/plan@1.140.0
+- @rulvar/anthropic@1.140.0
+- @rulvar/core@1.140.0
+- @rulvar/openai@1.140.0
+- @rulvar/testing@1.140.0
+
 ## 1.139.0
 
 ### Minor Changes
