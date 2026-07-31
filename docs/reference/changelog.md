@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+
 ### 1.131.0
 
 #### Patch Changes
@@ -1383,6 +1390,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+
 ### 1.131.0
 
 #### Patch Changes
@@ -2573,6 +2587,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
 
 ### 1.131.0
 
@@ -4152,6 +4173,19 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.132.0
+
+#### Minor Changes
+
+- 2bec904: Live-budget parity for the cache-write TTL split, and the fault kit gates it on the real live path (RV1001 + RV1002, PR I of the fourteenth plan)
+
+  The fourteenth comparison experiment reproduced a hard-ceiling breach: a run with `budgetUsd: 4` settled `ok` at $4.50, because the mid-stream usage inlet, the reported/remainder fold, and every usage aggregate dropped `cacheWrite5mTokens`/`cacheWrite1hTokens`, so the live ledger priced a differentiated cache write at the plain 5m rate ($3.75) while settlement priced the split ($4.50). The two money paths now read one provider usage identically:
+
+  - The mid-stream cleaner and the finish remainder carry the TTL split to the live debit, so the layer-3 ceiling holds against the same dollars settlement records; a ceiling between the unsplit and split readings severs the run instead of letting it settle `ok` over the ceiling.
+  - `@rulvar/core` exports `sumUsage`, the canonical usage adder: aggregates (the run outcome, the settled ledger fold, the budget telemetry, `reduceInvocationTable` buckets) keep the split they were billed under, and an undifferentiated side's writes count as the 5m share so mixed aggregates stay canonical under the split-sum invariant.
+  - Mid-stream TTL counts the finish total does not confirm are a usage-invariant violation, loud like every other telemetry anomaly; per-field catch-up over a shifted attribution only ever overcharges, never credits.
+  - `runFaultInjection` (`@rulvar/evals`) grows a sixteenth scenario, `ttl-live-budget-parity`: a mid-stream differentiated write against the real engine must debit live and settle to the same $4.50, keep the split on the aggregate, and refuse to settle `ok` under a $4 ceiling. Reverting the fix reports `matched: false` in the kit, not only in the unit suite that shipped it.
 
 ### 1.131.0
 
@@ -6044,6 +6078,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.132.0
+
 ### 1.131.0
 
 ### 1.130.0
@@ -6410,6 +6446,28 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.132.0
+
+#### Minor Changes
+
+- 2bec904: Live-budget parity for the cache-write TTL split, and the fault kit gates it on the real live path (RV1001 + RV1002, PR I of the fourteenth plan)
+
+  The fourteenth comparison experiment reproduced a hard-ceiling breach: a run with `budgetUsd: 4` settled `ok` at $4.50, because the mid-stream usage inlet, the reported/remainder fold, and every usage aggregate dropped `cacheWrite5mTokens`/`cacheWrite1hTokens`, so the live ledger priced a differentiated cache write at the plain 5m rate ($3.75) while settlement priced the split ($4.50). The two money paths now read one provider usage identically:
+
+  - The mid-stream cleaner and the finish remainder carry the TTL split to the live debit, so the layer-3 ceiling holds against the same dollars settlement records; a ceiling between the unsplit and split readings severs the run instead of letting it settle `ok` over the ceiling.
+  - `@rulvar/core` exports `sumUsage`, the canonical usage adder: aggregates (the run outcome, the settled ledger fold, the budget telemetry, `reduceInvocationTable` buckets) keep the split they were billed under, and an undifferentiated side's writes count as the 5m share so mixed aggregates stay canonical under the split-sum invariant.
+  - Mid-stream TTL counts the finish total does not confirm are a usage-invariant violation, loud like every other telemetry anomaly; per-field catch-up over a shifted attribution only ever overcharges, never credits.
+  - `runFaultInjection` (`@rulvar/evals`) grows a sixteenth scenario, `ttl-live-budget-parity`: a mid-stream differentiated write against the real engine must debit live and settle to the same $4.50, keep the split on the aggregate, and refuse to settle `ok` under a $4 ceiling. Reverting the fix reports `matched: false` in the kit, not only in the unit suite that shipped it.
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+  - @rulvar/anthropic@1.132.0
+  - @rulvar/openai@1.132.0
+  - @rulvar/plan@1.132.0
+  - @rulvar/testing@1.132.0
 
 ### 1.131.0
 
@@ -7859,6 +7917,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+
 ### 1.131.0
 
 #### Patch Changes
@@ -8456,6 +8521,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
 
 ### 1.131.0
 
@@ -9834,6 +9906,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+
 ### 1.131.0
 
 #### Patch Changes
@@ -11138,6 +11217,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+  - eslint-plugin-rulvar@1.132.0
 
 ### 1.131.0
 
@@ -12536,6 +12623,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+  - @rulvar/anthropic@1.132.0
+  - @rulvar/openai@1.132.0
 
 ### 1.131.0
 
@@ -14150,6 +14246,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+
 ### 1.131.0
 
 #### Patch Changes
@@ -15450,6 +15553,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
+
 ### 1.131.0
 
 #### Patch Changes
@@ -16067,6 +16177,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
 
 ### 1.131.0
 
@@ -17316,6 +17433,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.132.0
+
+#### Patch Changes
+
+- Updated dependencies [2bec904]
+  - @rulvar/core@1.132.0
 
 ### 1.131.0
 
