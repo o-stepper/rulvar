@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred sixteen rounds, verbatim in this repository's history:
+The one hundred seventeen rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -330,6 +330,7 @@ The one hundred sixteen rounds, verbatim in this repository's history:
 | v1.132.0      | 2659f54 (#587): pause_turn survives end to end: the finish speaks for the whole logical turn, an invalid continuation cap refuses before the first wire, the kit drives the real adapter  | v1.133.0   |
 | v1.133.0      | cb50ea0 (#590): a contradictory statement refuses at intake, totals decide beside components, settleable states the settlement composite, the kit seeds a real unknown-usage row          | v1.134.0   |
 | v1.134.0      | cf75e22 (#593): the rates comparator names page-only tiers and NaN instead of passing them, and the checkpoint decoder answers undefined on a top-level null instead of throwing          | v1.135.0   |
+| v1.135.0      | aa6ca71 (#596): a superseded segment refuses green everywhere: typed SupersededError, the distinct settledReason on the terminal event, and one authoritative successor settle            | v1.136.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
