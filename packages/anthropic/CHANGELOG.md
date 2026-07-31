@@ -1,5 +1,11 @@
 # @rulvar/anthropic
 
+## 1.126.0
+
+### Patch Changes
+
+- @rulvar/core@1.126.0
+
 ## 1.125.0
 
 ### Minor Changes

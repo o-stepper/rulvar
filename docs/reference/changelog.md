@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
+
 ### 1.125.0
 
 #### Minor Changes
@@ -1330,6 +1336,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
+
 ### 1.125.0
 
 #### Patch Changes
@@ -2479,6 +2491,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
 
 ### 1.125.0
 
@@ -4003,6 +4021,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.126.0
 
 ### 1.125.0
 
@@ -5849,6 +5869,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.126.0
+
 ### 1.125.0
 
 ### 1.124.0
@@ -6203,6 +6225,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
+- @rulvar/testing@1.126.0
 
 ### 1.125.0
 
@@ -7594,6 +7623,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
+
 ### 1.125.0
 
 #### Patch Changes
@@ -8150,6 +8185,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.126.0
+
+#### Minor Changes
+
+- e5e9526: Fail-closed statement reconciliation (RV903, the thirteenth experiment's two false-match probes): `reconcileStatement` now refuses at intake, with a typed `ConfigError` naming the row and field, any statement number that cannot be evidence: non-finite or negative dollars (`usd` and every `componentsUsd` entry, requests and categories alike), non-integer or negative provider-reported token counts, and non-finite or negative tolerances. Before this, a request row with `usd: NaN` flowed through the totals, `Math.abs(NaN) > tolerance` evaluated false, and a corrupted export read `verdict: 'match'` with NaN `statementUsd` and `deltaUsd`; negative amounts are refused too, because credits and adjustments are not per-request billing evidence and a negative row could mask a rate divergence of its own size.
+
+  Provider-reported token counts now decide the verdict by default: our recorded counts are the provider's own wire-reported numbers, so an export that disagrees with them describes a different request than the wire served, and any token mismatch reads as `divergence` even when the dollars agree (the second probe: `verdict: 'match'` beside `tokenMismatches: 1`). The new `tokenComparison: 'informational'` option restores the pre-v1.126 dollar-only verdict for exports whose token semantics legitimately differ from the wire's; the mismatch count and `tokenMismatchSample` report either way. Reports for clean exports are byte-identical to v1.125.0.
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
 
 ### 1.125.0
 
@@ -9475,6 +9522,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
+
 ### 1.125.0
 
 #### Patch Changes
@@ -10738,6 +10791,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
+- eslint-plugin-rulvar@1.126.0
 
 ### 1.125.0
 
@@ -12089,6 +12149,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.126.0
+
+#### Patch Changes
+
+- Updated dependencies [e5e9526]
+  - @rulvar/openai@1.126.0
+  - @rulvar/anthropic@1.126.0
+  - @rulvar/core@1.126.0
 
 ### 1.125.0
 
@@ -13649,6 +13718,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
+
 ### 1.125.0
 
 #### Patch Changes
@@ -14908,6 +14983,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
+
 ### 1.125.0
 
 #### Patch Changes
@@ -15478,6 +15559,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
 
 ### 1.125.0
 
@@ -16680,6 +16767,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.126.0
+
+#### Patch Changes
+
+- @rulvar/core@1.126.0
 
 ### 1.125.0
 

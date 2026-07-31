@@ -1,7 +1,0 @@
----
-'@rulvar/openai': minor
----
-
-Fail-closed statement reconciliation (RV903, the thirteenth experiment's two false-match probes): `reconcileStatement` now refuses at intake, with a typed `ConfigError` naming the row and field, any statement number that cannot be evidence: non-finite or negative dollars (`usd` and every `componentsUsd` entry, requests and categories alike), non-integer or negative provider-reported token counts, and non-finite or negative tolerances. Before this, a request row with `usd: NaN` flowed through the totals, `Math.abs(NaN) > tolerance` evaluated false, and a corrupted export read `verdict: 'match'` with NaN `statementUsd` and `deltaUsd`; negative amounts are refused too, because credits and adjustments are not per-request billing evidence and a negative row could mask a rate divergence of its own size.
-
-Provider-reported token counts now decide the verdict by default: our recorded counts are the provider's own wire-reported numbers, so an export that disagrees with them describes a different request than the wire served, and any token mismatch reads as `divergence` even when the dollars agree (the second probe: `verdict: 'match'` beside `tokenMismatches: 1`). The new `tokenComparison: 'informational'` option restores the pre-v1.126 dollar-only verdict for exports whose token semantics legitimately differ from the wire's; the mismatch count and `tokenMismatchSample` report either way. Reports for clean exports are byte-identical to v1.125.0.
