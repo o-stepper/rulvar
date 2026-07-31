@@ -1413,8 +1413,11 @@ export function createCtx(
         }
       }
       // Tool results reconstructed from the replayed turn checkpoint are
-      // re-emitted with the replay marker.
-      let replayedToolResults: Array<{ name: string; isError: boolean }> = [];
+      // re-emitted with the replay marker, each naming its call id
+      // (RV908): the checkpoint's tool-result parts have always carried
+      // the id, so even a journal written before the field shipped
+      // names its calls on resume.
+      let replayedToolResults: Array<{ id: string; name: string; isError: boolean }> = [];
       let replayedToolCallsUsed: number | undefined;
       if (matched.kind === 'replay' && terminal?.checkpointRef !== undefined) {
         const blob = await internals.transcripts.get(terminal.checkpointRef);
@@ -1437,6 +1440,7 @@ export function createCtx(
             .flatMap((msg) => msg.parts)
             .filter((part) => part.type === 'tool-result')
             .map((part) => ({
+              id: part.id,
               name: part.name,
               isError: (part as { isError?: boolean }).isError === true,
             }));
@@ -1478,11 +1482,16 @@ export function createCtx(
         true,
       );
       for (const toolResult of replayedToolResults) {
-        internals.events.emit({ type: 'tool:start', toolName: toolResult.name }, spanId, true);
+        internals.events.emit(
+          { type: 'tool:start', toolName: toolResult.name, toolCallId: toolResult.id },
+          spanId,
+          true,
+        );
         internals.events.emit(
           {
             type: 'tool:end',
             toolName: toolResult.name,
+            toolCallId: toolResult.id,
             outcome: toolResult.isError ? 'error' : 'ok',
             durationMs: 0,
           },

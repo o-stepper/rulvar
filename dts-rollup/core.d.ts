@@ -3991,10 +3991,25 @@ type AgentEvents = {
 type ToolEvents = {
   type: "tool:start";
   toolName: string;
+  /**
+  * The model-minted id of this tool call (RV908): the same id the
+  * journal's messages and tool-result parts carry, so a consumer
+  * pairs start and end EXACTLY even among concurrent same-name
+  * calls, instead of FIFO-guessing by (spanId, toolName). Present
+  * on every live event this engine emits, and on every replayed
+  * reconstruction (whose events exist only when the turn
+  * checkpoint blob is retrievable; the id rides the checkpoint's
+  * tool-result parts, so even journals written before RV908 name
+  * their calls there). Absent only on streams recorded before
+  * RV908 or written by foreign emitters, where consumers keep
+  * their historical pairing.
+  */
+  toolCallId?: string;
   risk?: Json;
 } | {
   type: "tool:end";
-  toolName: string;
+  toolName: string; /** The same call id as the matching tool:start (RV908). */
+  toolCallId?: string;
   outcome: "ok" | "error" | "denied";
   durationMs: number;
   /**

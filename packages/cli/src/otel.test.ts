@@ -752,6 +752,211 @@ describe('toOtel tool spans (RV802)', () => {
     expect(agent?.attributes['rulvar.cost_usd']).toBe(0.001);
     expect(agent?.events).toContain('tool:end');
   });
+
+  it('events carrying toolCallId pair exactly: reverse-order ends keep their own durations and outcomes (RV908)', async () => {
+    // The FIFO swap this closes: two same-name calls where the SECOND
+    // finishes first used to close the FIRST span with the second's
+    // timestamp and outcome.
+    const base = { runId: 'rt3', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(1),
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'researcher',
+        model: 'fake:model',
+        role: 'loop',
+      },
+      {
+        ...base,
+        ts: at(10),
+        spanId: 's1',
+        type: 'tool:start',
+        toolName: 'search',
+        toolCallId: 'call-a',
+      },
+      {
+        ...base,
+        ts: at(20),
+        spanId: 's1',
+        type: 'tool:start',
+        toolName: 'search',
+        toolCallId: 'call-b',
+      },
+      {
+        ...base,
+        ts: at(30),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'search',
+        toolCallId: 'call-b',
+        outcome: 'error',
+        durationMs: 10,
+      },
+      {
+        ...base,
+        ts: at(60),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'search',
+        toolCallId: 'call-a',
+        outcome: 'ok',
+        durationMs: 50,
+      },
+      {
+        ...base,
+        ts: at(70),
+        spanId: 's1',
+        type: 'agent:end',
+        agentType: 'researcher',
+        status: 'ok',
+        usage,
+        costUsd: 0.001,
+        entryRef: 2,
+      },
+      { ...base, ts: at(72), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.001 },
+    ] as unknown as WorkflowEvent[];
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel({ runId: 'rt3', events: toStream(events), result: okResult }, tracer);
+    const tools = spans.filter((span) => span.name.startsWith('tool '));
+    expect(tools).toHaveLength(2);
+    expect(tools[0]?.attributes['rulvar.tool.call_id']).toBe('call-a');
+    expect(tools[0]?.startTime).toBe(Date.parse(at(10)));
+    expect(tools[0]?.endTime).toBe(Date.parse(at(60)));
+    expect(tools[0]?.attributes['rulvar.status']).toBe('ok');
+    expect(tools[0]?.status?.code).toBe(1);
+    expect(tools[1]?.attributes['rulvar.tool.call_id']).toBe('call-b');
+    expect(tools[1]?.startTime).toBe(Date.parse(at(20)));
+    expect(tools[1]?.endTime).toBe(Date.parse(at(30)));
+    expect(tools[1]?.attributes['rulvar.status']).toBe('error');
+    expect(tools[1]?.status?.code).toBe(2);
+  });
+
+  it('a stream without the field keeps the historical FIFO pairing byte for byte', async () => {
+    // Old journals and foreign emitters carry no toolCallId: the
+    // fallback is the exact RV802 behavior, swap included, so nothing
+    // recorded before RV908 renders differently.
+    const base = { runId: 'rt4', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(1),
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'researcher',
+        model: 'fake:model',
+        role: 'loop',
+      },
+      { ...base, ts: at(10), spanId: 's1', type: 'tool:start', toolName: 'search' },
+      { ...base, ts: at(20), spanId: 's1', type: 'tool:start', toolName: 'search' },
+      {
+        ...base,
+        ts: at(30),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'search',
+        outcome: 'error',
+        durationMs: 10,
+      },
+      {
+        ...base,
+        ts: at(60),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'search',
+        outcome: 'ok',
+        durationMs: 50,
+      },
+      {
+        ...base,
+        ts: at(70),
+        spanId: 's1',
+        type: 'agent:end',
+        agentType: 'researcher',
+        status: 'ok',
+        usage,
+        costUsd: 0.001,
+        entryRef: 2,
+      },
+      { ...base, ts: at(72), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.001 },
+    ] as unknown as WorkflowEvent[];
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel({ runId: 'rt4', events: toStream(events), result: okResult }, tracer);
+    const tools = spans.filter((span) => span.name.startsWith('tool '));
+    expect(tools).toHaveLength(2);
+    // FIFO: the first end closes the FIRST start, whatever call it was.
+    expect(tools[0]?.endTime).toBe(Date.parse(at(30)));
+    expect(tools[0]?.attributes['rulvar.status']).toBe('error');
+    expect(tools[1]?.endTime).toBe(Date.parse(at(60)));
+    expect(tools[1]?.attributes['rulvar.status']).toBe('ok');
+    expect(tools.every((span) => span.attributes['rulvar.tool.call_id'] === undefined)).toBe(true);
+  });
+
+  it('an id-bearing tool:end whose start carried no id falls back to FIFO, and a true orphan stays a span event', async () => {
+    const base = { runId: 'rt5', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(1),
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'researcher',
+        model: 'fake:model',
+        role: 'loop',
+      },
+      { ...base, ts: at(10), spanId: 's1', type: 'tool:start', toolName: 'search' },
+      {
+        ...base,
+        ts: at(30),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'search',
+        toolCallId: 'call-x',
+        outcome: 'ok',
+        durationMs: 20,
+      },
+      // No start anywhere for this one: the orphan tolerance holds for
+      // id-bearing closers exactly as before.
+      {
+        ...base,
+        ts: at(40),
+        spanId: 's1',
+        type: 'tool:end',
+        toolName: 'fetch',
+        toolCallId: 'call-y',
+        outcome: 'ok',
+        durationMs: 1,
+      },
+      {
+        ...base,
+        ts: at(70),
+        spanId: 's1',
+        type: 'agent:end',
+        agentType: 'researcher',
+        status: 'ok',
+        usage,
+        costUsd: 0.001,
+        entryRef: 2,
+      },
+      { ...base, ts: at(72), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.001 },
+    ] as unknown as WorkflowEvent[];
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel({ runId: 'rt5', events: toStream(events), result: okResult }, tracer);
+    const tools = spans.filter((span) => span.name.startsWith('tool '));
+    expect(tools).toHaveLength(1);
+    expect(tools[0]?.endTime).toBe(Date.parse(at(30)));
+    expect(tools[0]?.attributes['rulvar.status']).toBe('ok');
+    const agent = spans.find((span) => span.name.startsWith('agent '));
+    expect(agent?.events).toContain('tool:end');
+    expect(agent?.endTime).toBe(Date.parse(at(70)));
+  });
 });
 
 describe('toOtel determinism events (RV-209)', () => {

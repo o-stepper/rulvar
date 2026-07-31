@@ -254,6 +254,50 @@ describe('per-call phase pricing under a nonlinear tier (RV702)', () => {
     expect((table.agents[0] as { costBasis?: string } | undefined)?.costBasis).toBe('per-call');
   });
 
+  it('live and replayed tool events name the same call id (RV908)', async () => {
+    const toolEventsOf = (handle: {
+      on: (type: 'tool:start' | 'tool:end', fn: (event: WorkflowEvent) => void) => () => void;
+    }): WorkflowEvent[] => {
+      const events: WorkflowEvent[] = [];
+      for (const type of ['tool:start', 'tool:end'] as const) {
+        handle.on(type, (event) => events.push(event));
+      }
+      return events;
+    };
+    const store = new InMemoryStore();
+    // ONE engine for run and resume: the default transcript store is
+    // engine-private, and the replayed reconstruction reads the
+    // checkpoint blob, so a fresh engine over a journal-only store
+    // (blob gone) legitimately reconstructs nothing.
+    const engine = tieredEngine(store);
+    const first = engine.run(wf2, {});
+    const liveTools = toolEventsOf(first);
+    expect((await first.result).status).toBe('ok');
+    expect(
+      liveTools.map((event) => [event.type, (event as { toolCallId?: string }).toolCallId]),
+    ).toEqual([
+      ['tool:start', 'id-0-0'],
+      ['tool:end', 'id-0-0'],
+    ]);
+
+    // The replayed reconstruction reads the id from the checkpoint's
+    // tool-result parts, so a journal written before this shipped
+    // still names its calls on resume.
+    const resumed = engine.resume(first.runId, wf2, {});
+    const replayedTools = toolEventsOf(resumed);
+    expect((await resumed.result).status).toBe('ok');
+    expect(
+      replayedTools.map((event) => [
+        event.type,
+        (event as { toolCallId?: string }).toolCallId,
+        event.replayed,
+      ]),
+    ).toEqual([
+      ['tool:start', 'id-0-0', true],
+      ['tool:end', 'id-0-0', true],
+    ]);
+  });
+
   it('the replayed stream carries the same per-call dollars as the live one', async () => {
     const store = new InMemoryStore();
     const first = tieredEngine(store).run(wf2, {});
