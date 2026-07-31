@@ -3,15 +3,19 @@
 // the two real page shapes; the live fetch runs only in the weekly
 // contract workflow. The doctrine under test: extraction that comes
 // back empty is a FINDING (the page shape changed, a human verifies),
-// and a divergence between the page and the seed is named field by
-// field; the audit never tolerates and never rewrites.
+// and the audit never tolerates and never rewrites. The comparator the
+// audit runs (`compareRates`) lives at its published home in
+// `@rulvar/core` since RV909, imported from dist inside main() like the
+// seeds so this module stays loadable by the dependency-free CI script
+// tests; `packages/core/src/model/pricing.test.ts` owns its unit tests
+// (both directions, RV902) and the fault-injection kit drives it as a
+// permanent gate.
 //
 // Run with: pnpm test:scripts (node --test "scripts/**/*.test.mjs").
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  compareRates,
   decodeHtmlText,
   extractAnthropicModelRates,
   extractOpenAiModelRates,
@@ -118,59 +122,4 @@ test('extractAnthropicModelRates fails closed when the model is not on the page'
   const extracted = extractAnthropicModelRates(ANTHROPIC_PAGE, 'Claude Mist 9');
   assert.equal(extracted.ok, false);
   assert.match(extracted.reason, /not found/);
-});
-
-const SEED = {
-  inputUsdPerMTok: 5,
-  outputUsdPerMTok: 30,
-  cacheReadUsdPerMTok: 0.5,
-  cacheWriteUsdPerMTok: 6.25,
-  tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
-};
-
-test('compareRates is silent when every seed field matches the page', () => {
-  assert.deepEqual(compareRates(SEED, { ...SEED }), []);
-});
-
-test('compareRates names a diverging rate with both numbers', () => {
-  const findings = compareRates(SEED, { ...SEED, inputUsdPerMTok: 6 });
-  assert.equal(findings.length, 1);
-  assert.match(findings[0], /inputUsdPerMTok/);
-  assert.match(findings[0], /seed 5\b/);
-  assert.match(findings[0], /page 6\b/);
-});
-
-test('compareRates flags a seed field the page no longer shows', () => {
-  const { cacheWriteUsdPerMTok, ...pageWithoutWrite } = SEED;
-  const findings = compareRates(SEED, pageWithoutWrite);
-  assert.equal(findings.length, 1);
-  assert.match(findings[0], /cacheWriteUsdPerMTok/);
-  assert.match(findings[0], /page shows no/);
-});
-
-test('compareRates flags tier drift field by field', () => {
-  const findings = compareRates(SEED, {
-    ...SEED,
-    tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 2 }],
-  });
-  assert.equal(findings.length, 1);
-  assert.match(findings[0], /outputMultiplier/);
-});
-
-test('compareRates flags a billable page rate the seed never claimed (RV902)', () => {
-  // The pre-RV810 rationale for skipping page-only fields (the 1h write
-  // premium the canonical Usage could not bill) is retired: the Usage
-  // split CAN bill it now, so a documented rate missing from the seed
-  // is a silent underpricing channel, and the audit fails closed on it.
-  const seed = {
-    inputUsdPerMTok: 10,
-    outputUsdPerMTok: 50,
-    cacheReadUsdPerMTok: 1,
-    cacheWriteUsdPerMTok: 12.5,
-  };
-  const page = { ...seed, cacheWrite1hUsdPerMTok: 20 };
-  const findings = compareRates(seed, page);
-  assert.equal(findings.length, 1);
-  assert.match(findings[0], /cacheWrite1hUsdPerMTok/);
-  assert.match(findings[0], /seed declares no such rate/);
 });

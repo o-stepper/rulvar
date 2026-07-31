@@ -175,21 +175,20 @@ export function extractAnthropicModelRates(text, displayName) {
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = (name) => pathToFileURL(join(root, 'packages', name, 'dist', 'index.js')).href;
 
-/**
- * The comparator moved to its published home, `@rulvar/core`
- * `compareRates` (RV909): the fault-injection kit drives it as a
- * permanent gate there, and this script re-exports the SAME function
- * from dist (exactly like the seeds below), so the weekly audit and the
- * kit can never drift apart. Both directions (RV902): a seed field the
- * page no longer shows is drift, and a billable page rate the seed
- * never claimed is drift too, because a documented rate missing from
- * the seed is a silent underpricing channel (the 1h write premium hid
- * exactly there until RV810/RV901 made it billable and seeded).
- */
-const { compareRates } = await import(dist('core'));
-export { compareRates };
-
 async function main() {
+  // The comparator lives at its published home, `@rulvar/core`
+  // `compareRates` (RV909): the fault-injection kit drives it as a
+  // permanent gate there and `packages/core/src/model/pricing.test.ts`
+  // owns its unit tests, so this script imports the SAME function from
+  // dist exactly like the seeds below (inside main, keeping the module
+  // loadable by the dependency-free CI script tests), and the weekly
+  // audit and the kit can never drift apart. Both directions (RV902): a
+  // seed field the page no longer shows is drift, and a billable page
+  // rate the seed never claimed is drift too, because a documented rate
+  // missing from the seed is a silent underpricing channel (the 1h
+  // write premium hid exactly there until RV810/RV901 made it billable
+  // and seeded).
+  const { compareRates } = await import(dist('core'));
   const { OPENAI_MODELS } = await import(dist('openai'));
   const { ANTHROPIC_MODELS } = await import(dist('anthropic'));
 
