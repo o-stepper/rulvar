@@ -172,11 +172,13 @@ function openAttributes(
 }
 
 /**
- * Exports one settled run's event stream onto a tracer. The run's
- * events are consumed in seq order; span openers start spans, the
- * matching closers end them, and payload-only events attach as span
- * events on the innermost open span. Returns the number of spans
- * created.
+ * Exports one run's event stream onto a tracer. The run's events are
+ * consumed in seq order; span openers start spans, the matching
+ * closers end them, and payload-only events attach as span events on
+ * the innermost open span. Returns the number of spans created. Every
+ * terminal path exports, the unsettled ones included (RV1106): a
+ * rejecting `result` never fails an export the stream already
+ * completed, it only marks any leftover span with the refusal.
  */
 export async function toOtel(
   run: {
@@ -492,10 +494,17 @@ export async function toOtel(
     }
   }
   // The run may end without a run:end opener match in edge cases; close
-  // anything still open at the run's settle time.
-  const outcome = await run.result;
+  // anything still open at the run's settle time. An unsettled terminal
+  // REJECTS handle.result typed (RV907) after the stream already
+  // carried the refusal, so the export completes either way (RV1106);
+  // a leftover span refuses green, because nothing durable records its
+  // terminal.
+  const settledOk = await run.result.then(
+    (outcome) => outcome.status === 'ok',
+    () => false,
+  );
   for (const open of [...openBySpanId.values()]) {
-    open.span.setStatus({ code: outcome.status === 'ok' ? STATUS_OK : STATUS_ERROR });
+    open.span.setStatus({ code: settledOk ? STATUS_OK : STATUS_ERROR });
     open.span.end();
     openBySpanId.delete(open.spanId);
   }

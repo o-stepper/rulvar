@@ -13,13 +13,15 @@ function toOtel(
 options?): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/otel.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L181)
+Defined in: [packages/cli/src/otel.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L183)
 
-Exports one settled run's event stream onto a tracer. The run's
-events are consumed in seq order; span openers start spans, the
-matching closers end them, and payload-only events attach as span
-events on the innermost open span. Returns the number of spans
-created.
+Exports one run's event stream onto a tracer. The run's events are
+consumed in seq order; span openers start spans, the matching
+closers end them, and payload-only events attach as span events on
+the innermost open span. Returns the number of spans created. Every
+terminal path exports, the unsettled ones included (RV1106): a
+rejecting `result` never fails an export the stream already
+completed, it only marks any leftover span with the refusal.
 
 ## Parameters
 
