@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+
 ### 1.129.0
 
 #### Patch Changes
@@ -1369,6 +1376,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+
 ### 1.129.0
 
 #### Patch Changes
@@ -2545,6 +2559,19 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.130.0
+
+#### Minor Changes
+
+- d6bec7a: Every tool event names its call (RV908, the thirteenth experiment's OTel attribution risk). `tool:start` and `tool:end` gain `toolCallId`, the model-minted id the journal's messages and tool-result parts have always carried: present on every live event and on every replayed reconstruction (the id rides the checkpoint's tool-result parts, so even journals written before this release name their calls on resume), absent only on streams recorded before RV908 or written by foreign emitters.
+
+  The OTel exporter pairs tool spans EXACTLY by the id (stamped as `rulvar.tool.call_id`), so concurrent same-name calls that finish out of order keep their own durations and outcomes instead of FIFO-swapping attribution. Streams without the field keep the historical FIFO pairing byte for byte, an id-bearing `tool:end` whose start carried no id falls back to the same FIFO (mixed streams pair no worse than before), and the orphan tolerance (a closer with no open start attaches as a span event) is unchanged.
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
 
 ### 1.129.0
 
@@ -4104,6 +4131,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.130.0
+
+#### Minor Changes
+
+- d6bec7a: Every tool event names its call (RV908, the thirteenth experiment's OTel attribution risk). `tool:start` and `tool:end` gain `toolCallId`, the model-minted id the journal's messages and tool-result parts have always carried: present on every live event and on every replayed reconstruction (the id rides the checkpoint's tool-result parts, so even journals written before this release name their calls on resume), absent only on streams recorded before RV908 or written by foreign emitters.
+
+  The OTel exporter pairs tool spans EXACTLY by the id (stamped as `rulvar.tool.call_id`), so concurrent same-name calls that finish out of order keep their own durations and outcomes instead of FIFO-swapping attribution. Streams without the field keep the historical FIFO pairing byte for byte, an id-bearing `tool:end` whose start carried no id falls back to the same FIFO (mixed streams pair no worse than before), and the orphan tolerance (a closer with no open start attaches as a span event) is unchanged.
 
 ### 1.129.0
 
@@ -5978,6 +6013,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.130.0
+
 ### 1.129.0
 
 ### 1.128.0
@@ -6340,6 +6377,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+  - @rulvar/testing@1.130.0
 
 ### 1.129.0
 
@@ -7762,6 +7807,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+
 ### 1.129.0
 
 #### Patch Changes
@@ -8345,6 +8397,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
 
 ### 1.129.0
 
@@ -9709,6 +9768,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+
 ### 1.129.0
 
 #### Patch Changes
@@ -10999,6 +11065,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+  - eslint-plugin-rulvar@1.130.0
 
 ### 1.129.0
 
@@ -12381,6 +12455,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+  - @rulvar/anthropic@1.130.0
+  - @rulvar/openai@1.130.0
 
 ### 1.129.0
 
@@ -13977,6 +14060,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+
 ### 1.129.0
 
 #### Patch Changes
@@ -15263,6 +15353,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
+
 ### 1.129.0
 
 #### Patch Changes
@@ -15866,6 +15963,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
 
 ### 1.129.0
 
@@ -17101,6 +17205,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.130.0
+
+#### Patch Changes
+
+- Updated dependencies [d6bec7a]
+  - @rulvar/core@1.130.0
 
 ### 1.129.0
 
