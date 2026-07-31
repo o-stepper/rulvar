@@ -1141,6 +1141,46 @@ const MUTATIONS = [
       "                { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: {} },",
     test: 'packages/evals/src/fault-injection.test.ts',
   },
+  {
+    id: 'statement-contradiction-intake',
+    doctrine:
+      'an export row carrying a total that contradicts its own component split refuses typed at intake (RV1005): disarmed, usd 100 beside components summing 1 reads verdict match because each claim sits inside its own tolerance and nothing compares them to each other',
+    file: 'packages/openai/src/reconcile.ts',
+    find: '        if (\n          row.usd !== undefined &&\n          componentsSeen > 0 &&',
+    replace:
+      '        if (\n          (false as boolean) &&\n          row.usd !== undefined &&\n          componentsSeen > 0 &&',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
+  {
+    id: 'statement-totals-unsuppressed',
+    doctrine:
+      'presence of a component split no longer suppresses the totals comparison (RV1005): with the historical guard restored, a total drifting 5 USD beside agreeing components reads verdict match and the one comparison that can see the drift never runs',
+    file: 'packages/openai/src/reconcile.ts',
+    find: '  const totalsDivergent =\n    totalsComparable && totalsDelta !== undefined && Math.abs(totalsDelta) > totalToleranceUsd;',
+    replace:
+      '  const totalsDivergent =\n    statementComponents === undefined &&\n    totalsComparable && totalsDelta !== undefined && Math.abs(totalsDelta) > totalToleranceUsd;',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
+  {
+    id: 'statement-settleable-predicate',
+    doctrine:
+      'settleable is the full settlement-grade composite (RV1006): with the usage-unknown condition dropped, a match over a ledger still holding unattributed money reads settleable true and the predicate stops naming exactly the money a match cannot vouch for',
+    file: 'packages/openai/src/reconcile.ts',
+    find: '    settleable:\n      verdict === \'match\' &&\n      coverageComplete &&\n      usageUnknownRows === 0 &&\n      unpricedModels.size === 0,',
+    replace:
+      '    settleable:\n      verdict === \'match\' &&\n      coverageComplete &&\n      unpricedModels.size === 0,',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
+  {
+    id: 'fault-kit-settleable-drive',
+    doctrine:
+      'the settleable scenario actually DRIVES a real unknown-usage attempt (RV1006): with the scripted pre-usage failure dropped, no ledger row settles usageUnknown, the guarded report stops reading match with settleable false, and the scenario must report matched false',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "      {\n        text: 'never delivered',\n        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },\n        failBeforeUsage: true,\n      },",
+    replace:
+      "      {\n        text: 'never delivered',\n        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },\n      },",
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

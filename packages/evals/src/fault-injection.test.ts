@@ -32,6 +32,7 @@ const EXPECTED = [
   'settlement-terminal-honesty',
   'ttl-live-budget-parity',
   'pause-turn-real-adapter',
+  'statement-settleable-guard',
 ];
 
 describe('the fault-injection kit (RV811)', () => {
@@ -86,6 +87,17 @@ describe('the fault-injection kit (RV811)', () => {
     // cap refusing typed before any wire.
     expect(byName.get('pause-turn-real-adapter')?.observation.detail).toContain('usage 11/2');
     expect(byName.get('pause-turn-real-adapter')?.observation.detail).toContain('before any wire');
+    // The RV1005+RV1006 scenario: a 'match' verdict is not settlement
+    // grade while unknown-usage money is on the table, and an export
+    // row whose own total contradicts its own component split refuses
+    // typed at intake.
+    expect(byName.get('statement-settleable-guard')?.observation.detail).toContain(
+      'settleable=false',
+    );
+    expect(byName.get('statement-settleable-guard')?.observation.detail).toContain(
+      'settleable=true',
+    );
+    expect(byName.get('statement-settleable-guard')?.observation.detail).toContain('contradict');
   });
 
   it('writes experiment-grade artifacts when a directory is given, and only runs the named subset', async () => {

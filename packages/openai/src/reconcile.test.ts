@@ -614,3 +614,213 @@ describe('reconcileStatement: multi-wire dispatches (RV905)', () => {
     expect(report.coverage.statementOnlyIdSample).toEqual(['ghost-9']);
   });
 });
+
+describe('reconcileStatement: statement internal consistency (RV1005)', () => {
+  const componentsOf = (spec: RowSpec): NonNullable<StatementRequestRow['componentsUsd']> => {
+    const parts = priceComponentsOf(PRICING_OF(spec.servedBy) ?? SOL, spec.usage);
+    return {
+      input: parts.input.usd,
+      'cached-input': parts.cachedInput.usd,
+      'cache-write': parts.cacheWrite.usd,
+      output: parts.output.usd,
+    };
+  };
+  const sumOf = (components: NonNullable<StatementRequestRow['componentsUsd']>): number =>
+    Object.values(components).reduce((acc: number, usd) => acc + (usd ?? 0), 0);
+
+  it('refuses a row whose usd contradicts its own component split, naming the row', () => {
+    // The fourteenth experiment's repro: total 100 beside components
+    // summing 1 read verdict 'match', because each claim sat inside its
+    // own tolerance and nothing compared them to each other.
+    const attempt = (): unknown =>
+      reconcileStatement(
+        INVOICE,
+        {
+          kind: 'requests',
+          rows: [{ responseId: 'resp-1', usd: 100, componentsUsd: { input: 1 } }],
+        },
+        { pricingOf: PRICING_OF },
+      );
+    expect(attempt).toThrow(ConfigError);
+    expect(attempt).toThrow(/resp-1/);
+    expect(attempt).toThrow(/contradict/);
+  });
+
+  it('accepts a row whose total agrees with its split within the totals tolerance', () => {
+    const spec = SPECS[0];
+    if (spec === undefined) {
+      throw new Error('fixture must have rows');
+    }
+    const components = componentsOf(spec);
+    const report = reconcileStatement(
+      INVOICE,
+      {
+        kind: 'requests',
+        rows: [{ responseId: 'resp-1', usd: sumOf(components) + 0.009, componentsUsd: components }],
+      },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('partial-coverage');
+  });
+
+  it('honors a custom totalToleranceUsd at intake', () => {
+    const rows = [{ responseId: 'resp-1', usd: 2.3, componentsUsd: { input: 2 } }];
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        { kind: 'requests', rows },
+        { pricingOf: PRICING_OF, totalToleranceUsd: 0.5 },
+      ),
+    ).not.toThrow();
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        { kind: 'requests', rows },
+        { pricingOf: PRICING_OF, totalToleranceUsd: 0.1 },
+      ),
+    ).toThrow(ConfigError);
+  });
+
+  it('a total drifting beyond tolerance decides even when a component split is present', () => {
+    // Both sol rows carry their true split (each internally
+    // consistent), the terra rows carry bare dollars, and one terra
+    // total is inflated by 5 USD: every component line agrees, the
+    // totals do not, and presence of a split must not suppress the one
+    // comparison that can see it.
+    const rows = SPECS.map((spec) => {
+      const usd = priceUsdOf(PRICING_OF(spec.servedBy) ?? SOL, spec.usage);
+      const base = {
+        responseId: spec.responseId ?? '',
+        model: spec.servedBy.slice(spec.servedBy.indexOf(':') + 1),
+      };
+      if (spec.servedBy === 'openai:gpt-5.6-sol') {
+        return { ...base, usd, componentsUsd: componentsOf(spec) };
+      }
+      return spec.responseId === 'resp-4' ? { ...base, usd: usd + 5 } : { ...base, usd };
+    });
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('divergence');
+    expect(report.totals.deltaUsd).toBeCloseTo(5, 6);
+    // No component line moved: the totals alone name this divergence.
+    expect(report.divergent).toHaveLength(0);
+  });
+
+  it('an internally consistent export with splits on some rows stays match when totals agree', () => {
+    const rows = SPECS.map((spec) => {
+      const usd = priceUsdOf(PRICING_OF(spec.servedBy) ?? SOL, spec.usage);
+      const base = {
+        responseId: spec.responseId ?? '',
+        model: spec.servedBy.slice(spec.servedBy.indexOf(':') + 1),
+      };
+      return spec.servedBy === 'openai:gpt-5.6-sol'
+        ? { ...base, usd, componentsUsd: componentsOf(spec) }
+        : { ...base, usd };
+    });
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('match');
+    expect(report.totals.deltaUsd).toBeCloseTo(0, 9);
+  });
+
+  it('totals stay advisory when the export claims dollars on only a subset of rows', () => {
+    // Both terra rows itemize components without row dollars, the sol
+    // rows carry bare dollars: the two dollar claims cover DIFFERENT
+    // sets, so a totals comparison would manufacture divergence out of
+    // scope mismatch, exactly what the coverage doctrine forbids.
+    const rows = SPECS.map((spec) => {
+      const base = {
+        responseId: spec.responseId ?? '',
+        model: spec.servedBy.slice(spec.servedBy.indexOf(':') + 1),
+      };
+      return spec.servedBy === 'openai:gpt-5.6-terra'
+        ? { ...base, componentsUsd: componentsOf(spec) }
+        : { ...base, usd: priceUsdOf(PRICING_OF(spec.servedBy) ?? SOL, spec.usage) };
+    });
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('match');
+    // The reported total still names what the export claimed; only the
+    // verdict treats it as advisory under a scope mismatch.
+    expect(report.totals.statementUsd).toBeGreaterThan(0);
+    expect(report.totals.deltaUsd ?? 0).toBeLessThan(0);
+  });
+});
+
+describe('reconcileStatement: the settleable predicate (RV1006)', () => {
+  const fullRows = SPECS.map((spec) => ({
+    responseId: spec.responseId ?? '',
+    model: spec.servedBy.slice(spec.servedBy.indexOf(':') + 1),
+    usd: priceUsdOf(PRICING_OF(spec.servedBy) ?? SOL, spec.usage),
+  }));
+
+  it('a clean complete match is settleable', () => {
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows: fullRows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('match');
+    expect(report.settleable).toBe(true);
+  });
+
+  it("a 'match' over a ledger holding usage-unknown money is NOT settleable", () => {
+    // The billed-but-unknown attempt is exactly the money a 'match'
+    // cannot vouch for: the export covers every KNOWN row, verdict and
+    // coverage read clean, and the unknown row's dollars are still on
+    // the table.
+    const invoice = {
+      rows: rowsOf([
+        ...SPECS,
+        { servedBy: 'openai:gpt-5.6-terra', usage: usageOf(0, 0, 0, 0), usageUnknown: true },
+      ]),
+    };
+    const report = reconcileStatement(
+      invoice,
+      { kind: 'requests', rows: fullRows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('match');
+    expect(report.coverage.complete).toBe(true);
+    expect(report.usageUnknownRows).toBe(1);
+    expect(report.settleable).toBe(false);
+  });
+
+  it('partial coverage and divergence are never settleable', () => {
+    const truncated = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows: fullRows.slice(0, 2) },
+      { pricingOf: PRICING_OF },
+    );
+    expect(truncated.verdict).toBe('partial-coverage');
+    expect(truncated.settleable).toBe(false);
+    const skewed = fullRows.map((row, i) => (i === 0 ? { ...row, usd: row.usd * 2 } : row));
+    const diverged = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows: skewed },
+      { pricingOf: PRICING_OF },
+    );
+    expect(diverged.verdict).toBe('divergence');
+    expect(diverged.settleable).toBe(false);
+  });
+
+  it('unpriced models are never settleable', () => {
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'categories', rows: trueCategories(false) },
+      { pricingOf: (servedBy) => (servedBy === 'openai:gpt-5.6-sol' ? SOL : undefined) },
+    );
+    expect(report.unpricedModels).toEqual(['gpt-5.6-terra']);
+    expect(report.verdict).toBe('partial-coverage');
+    expect(report.settleable).toBe(false);
+  });
+});

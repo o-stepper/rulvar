@@ -277,6 +277,18 @@ interface StatementReconciliation {
   usageUnknownRows: number;
   componentToleranceUsd: number;
   verdict: "match" | "divergence" | "partial-coverage" | "no-overlap";
+  /**
+  * The settlement-grade composite, first class (RV1006): true exactly
+  * when the verdict is 'match' AND coverage is complete AND no row's
+  * usage is unknown AND no model went unpriced. A 'match' alone is
+  * not enough: an export can cover every KNOWN row to the cent while
+  * a usage-unknown attempt still holds unattributed money, and a safe
+  * consumer must not assemble this predicate by hand. The last two
+  * conditions overlap today's verdict semantics deliberately: the
+  * predicate states the full contract so it cannot drift apart from
+  * a future verdict refinement.
+  */
+  settleable: boolean;
 }
 /**
 * Reconciles the invoice against a normalized provider export. Pure and
@@ -285,9 +297,12 @@ interface StatementReconciliation {
 * headline total with no rows), a request row without a response id, a
 * duplicate response id (an ambiguous join), a request export whose
 * rows carry neither dollars, components, nor usage, any non-finite or
-* negative dollar amount, any non-integer or negative token count, or
-* a non-finite or negative tolerance (RV903: a statement that cannot
-* be summed must refuse loudly, never verdict 'match' on NaN totals).
+* negative dollar amount, any non-integer or negative token count, a
+* non-finite or negative tolerance (RV903: a statement that cannot
+* be summed must refuse loudly, never verdict 'match' on NaN totals),
+* or a row whose usd and componentsUsd contradict each other beyond
+* totalToleranceUsd (RV1005: an internally contradictory export is
+* not evidence either).
 */
 declare function reconcileStatement(invoice: {
   rows: readonly InvoiceRow[];
