@@ -3714,6 +3714,18 @@ type CoreEvents = {
   salvagedPartialChildren?: string[]; /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
   salvagedTerminalOutputChildren?: string[];
   /**
+  * Present and false ONLY when a settlement write failed (the
+  * run_settle journal append or the terminal RunMeta projection,
+  * RV907): the status above is true as computation, but nothing
+  * durable records it, `handle.result` rejects with the typed
+  * SettlementError instead of resolving, and an event-only
+  * consumer must not treat this terminal as green. Resuming the
+  * run re-settles by replay (no provider call) and the settled
+  * terminal carries no field, byte for byte like every ordinary
+  * run. Never emitted true.
+  */
+  settled?: false;
+  /**
   * The per-child acceptance roster (RV806): status, salvage arm,
   * and the evidence verdict where the child declared a contract;
   * same lift and posture as the fields above.
@@ -7999,8 +8011,18 @@ interface OrchestratorBudgetSpec {
   /**
   * The policy at the cap, validated as exactly one of the two literals
   * even at a plain JS/JSON boundary. 'finish-with-partial' (default)
-  * runs the reserved finalizer and returns its partial result with run
-  * outcome 'ok'. 'fail-run' skips the finalizer entirely: the run
+  * runs the reserved finalizer and settles run status 'ok' with the
+  * completion envelope { result, completion } as the value (RV906):
+  * completion is 'partial' unless the finalizer's finish provably
+  * passed the FULL declared contract (the declared finish validators
+  * bind the reserved finalizer; a declared acceptance policy is never
+  * judged at the cap, so with one declared the terminal stays
+  * 'partial'). The engine lifts the same literal onto run:end and the
+  * outcome mirror, so a consumer reading only status cannot execute a
+  * truncated plan as a full success. A finalizer that cannot produce
+  * an accepted finish falls back to the deterministic partial on the
+  * 'exhausted' outcome, itself carrying completion 'partial'.
+  * 'fail-run' skips the finalizer entirely: the run
   * fails with outcome 'error' carrying FailRunError (code 'fail_run',
   * data.source 'orchestrator_budget_cap', data.capDecisionRef); resume
   * rolls the same failure forward from the journaled cap decision
@@ -8020,9 +8042,12 @@ interface OrchestratorBudgetSpec {
 * envelope { result, completion, childStatusCounts, degradedReasons }. A
 * violated policy fails the run with the typed FailRunError (code
 * 'fail_run', data.source 'orchestrator_acceptance') instead of settling
-* ok. A budget cap settle keeps its atCap policy: the cap partial is
-* already visible as run status 'exhausted' or the typed fail run error,
-* never a plain ok, so acceptance does not judge it again.
+* ok. A budget cap settle keeps its atCap policy and acceptance is not
+* judged at the cap: under 'finish-with-partial' the capped terminal
+* carries completion 'partial' in its envelope (RV906) precisely
+* because the declared acceptance went unjudged, and under 'fail-run'
+* the typed failure stands, so the cap can never impersonate an
+* accepted finish.
 */
 interface OrchestrateAcceptance {
   /**

@@ -133,8 +133,11 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
     });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
-    // The forced finish produced the run result.
-    expect(outcome.value).toBe('partial but honest');
+    // The forced finish produced the run result, wrapped in the honest
+    // completion envelope (RV906): a consumer reading only status must
+    // not execute a truncated plan as a full success.
+    expect(outcome.value).toEqual({ result: 'partial but honest', completion: 'partial' });
+    expect(outcome.completion).toBe('partial');
     expect(outcome.cost.orchestrator.forcedFinish).toBe(true);
     // The unwind digest of the forced finalization counts as the sole
     // delivered wake.
@@ -178,10 +181,15 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
     expect(outcome.status).toBe('exhausted');
     const value = outcome.value as {
       forcedFinishFallback?: boolean;
+      completion?: string;
       completed?: Array<{ status?: string }>;
     };
     expect(value?.forcedFinishFallback).toBe(true);
     expect(value?.completed?.[0]?.status).toBe('ok');
+    // The synthesized partial names itself partial (RV906): the
+    // exhausted terminal lifts the claim onto the outcome mirror.
+    expect(value?.completion).toBe('partial');
+    expect(outcome.completion).toBe('partial');
     expect(finalizeTurns).toBeGreaterThanOrEqual(1);
 
     const entries = await store.load(handle.runId);
@@ -204,7 +212,7 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
     const outcome = await handle.result;
     // The reserved finalizer settles the capped run; synthesis never runs.
     expect(outcome.status).toBe('ok');
-    expect(outcome.value).toBe('partial but honest');
+    expect(outcome.value).toEqual({ result: 'partial but honest', completion: 'partial' });
 
     const entries = await withStore.load(handle.runId);
     const caps = decisionsOf(entries, 'orchestrator_budget_cap');
@@ -225,6 +233,128 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
       'orchestrator_budget_cap',
     );
     expect('synthesisSkipped' in (controlCaps[0] ?? {})).toBe(false);
+  });
+});
+
+describe('the forced finish carries its honest completion (RV906)', () => {
+  const acceptAll = { name: 'accept-all', validate: () => ({ ok: true as const }) };
+  const rejectAll = {
+    name: 'reject-all',
+    validate: () => ({ ok: false as const, reasons: ['the digest is not cited'] }),
+  };
+
+  async function runEndOf(handle: {
+    on: (type: 'run:end', fn: (event: unknown) => void) => unknown;
+    result: Promise<unknown>;
+  }): Promise<{ completion?: string } | undefined> {
+    let runEnd: { completion?: string } | undefined;
+    handle.on('run:end', (event) => {
+      runEnd = event as { completion?: string };
+    });
+    await handle.result;
+    // run:end races handle.result; drain the microtask queue twice.
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    return runEnd;
+  }
+
+  it("the capped terminal lifts completion 'partial' onto run:end", async () => {
+    const adapter = scriptedAdapter(planScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'honest freeze', {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01 },
+    });
+    const runEnd = await runEndOf(handle);
+    expect(runEnd?.completion).toBe('partial');
+  });
+
+  it('the declared validators bind the reserved finalizer, and a finish that passes the full declared contract is honestly complete', async () => {
+    const adapter = scriptedAdapter(planScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'validated freeze', {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01 },
+      finishValidation: { validators: [acceptAll] },
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    // The finalizer's finish passed every declared surface: the early
+    // finish is honestly complete, never downgraded by the cap alone.
+    expect(outcome.value).toEqual({ result: 'partial but honest', completion: 'complete' });
+    expect(outcome.completion).toBe('complete');
+
+    // The proof is journaled: the finalize finish's accepted validation
+    // decision sits strictly after the cap decision.
+    const entries = await store.load(handle.runId);
+    const capSeq = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'orchestrator_budget_cap',
+    )?.seq;
+    const accepted = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string; verdict?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation' &&
+        (entry.value as { verdict?: string }).verdict === 'accepted',
+    );
+    expect(accepted?.seq).toBeGreaterThan(capSeq ?? Number.MAX_SAFE_INTEGER);
+  });
+
+  it('a finalize finish the declared validators reject falls back to the synthesized partial', async () => {
+    const adapter = scriptedAdapter(planScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'rejected freeze', {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01, finalizeTurns: 1 },
+      finishValidation: { validators: [rejectAll], maxRepairs: 0 },
+    });
+    const outcome = await handle.result;
+    // The rejected output never becomes the run value: the deterministic
+    // fold does, honestly partial, on the exhausted terminal.
+    expect(outcome.status).toBe('exhausted');
+    expect((outcome.value as { forcedFinishFallback?: boolean }).forcedFinishFallback).toBe(true);
+    expect(outcome.completion).toBe('partial');
+    const entries = await store.load(handle.runId);
+    const rejected = decisionsOf(entries, 'orchestrator_finish_validation');
+    expect(rejected.length).toBeGreaterThanOrEqual(1);
+    expect(rejected.every((decision) => decision.verdict !== 'accepted')).toBe(true);
+    expect(decisionsOf(entries, 'orchestrator_finalize_fallback')).toHaveLength(1);
+  });
+
+  it('a declared acceptance policy keeps the capped terminal partial: the full contract is not judged at the cap', async () => {
+    const adapter = scriptedAdapter(planScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'accepted freeze', {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01 },
+      finishValidation: { validators: [acceptAll] },
+      acceptance: { childPolicy: 'all-ok' },
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toEqual({ result: 'partial but honest', completion: 'partial' });
+    expect(outcome.completion).toBe('partial');
+  });
+
+  it('resume reproduces the identical honest terminal without one model call', async () => {
+    const adapter = scriptedAdapter(planScript());
+    const store = new InMemoryStore();
+    const options = {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01 },
+      finishValidation: { validators: [acceptAll] },
+    };
+    const handle = orchestratePlanned(engineWith(adapter, store), 'resumed freeze', options);
+    const outcome = await handle.result;
+    expect(outcome.value).toEqual({ result: 'partial but honest', completion: 'complete' });
+    const entriesBefore = (await store.load(handle.runId)).length;
+
+    const resumedAdapter = scriptedAdapter(planScript());
+    const resumed = await engineWith(resumedAdapter, store).resume(
+      handle.runId,
+      makeOrchestratorWorkflow('resumed freeze', { ...options, extension: planRunner({}) }),
+    ).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toEqual({ result: 'partial but honest', completion: 'complete' });
+    expect(resumed.completion).toBe('complete');
+    expect(resumedAdapter.calls).toHaveLength(0);
+    expect((await store.load(handle.runId)).length).toBe(entriesBefore);
   });
 });
 

@@ -10,7 +10,7 @@
 function attachProgress(handle, io): () => void;
 ```
 
-Defined in: [packages/cli/src/tui.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/tui.ts#L75)
+Defined in: [packages/cli/src/tui.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/tui.ts#L78)
 
 Attaches the renderer to a handle's event stream; returns a detach.
 

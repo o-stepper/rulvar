@@ -347,6 +347,60 @@ describe('OTel attribute masking (M8-T04; docs/09 section 8)', () => {
   });
 });
 
+describe('toOtel unsettled terminals (RV907)', () => {
+  const at = (ms: number): string => new Date(1_700_000_000_000 + ms).toISOString();
+  const stream = (events: WorkflowEvent[]): AsyncIterable<WorkflowEvent> =>
+    (async function* () {
+      for (const event of events) {
+        yield await Promise.resolve(event);
+      }
+    })();
+  const result = Promise.resolve({
+    status: 'ok',
+    dropped: [],
+    pending: [],
+    usage: { inputTokens: 0, outputTokens: 0 },
+    cost: { totalUsd: 0, byModel: {}, byPhase: {}, byAgentType: {}, byRole: {}, unpriced: [] },
+  } as unknown as import('@rulvar/core').RunOutcome<unknown>);
+
+  it('a run:end carrying settled false is never a green span', async () => {
+    const base = { runId: 'ru', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(10),
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 0,
+        settled: false,
+      } as unknown as WorkflowEvent,
+    ];
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel({ runId: 'ru', events: stream(events), result }, tracer);
+    const runSpan = spans.find((span) => span.name.startsWith('run '));
+    expect(runSpan?.attributes['rulvar.run.settled']).toBe(false);
+    // The computed status stays visible, but the span status refuses
+    // green: nothing durable records this terminal.
+    expect(runSpan?.attributes['rulvar.status']).toBe('ok');
+    expect(runSpan?.status?.code).toBe(2);
+  });
+
+  it('a settled terminal keeps its green span and carries no settled attribute', async () => {
+    const base = { runId: 'rs', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      { ...base, ts: at(10), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0 },
+    ];
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel({ runId: 'rs', events: stream(events), result }, tracer);
+    const runSpan = spans.find((span) => span.name.startsWith('run '));
+    expect(runSpan?.attributes['rulvar.run.settled']).toBeUndefined();
+    expect(runSpan?.status?.code).toBe(1);
+  });
+});
+
 describe('toOtel invocation spans (RV-207)', () => {
   const okResult = Promise.resolve({
     status: 'ok',

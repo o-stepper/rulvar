@@ -18,9 +18,12 @@ the live options), and the workflow result becomes the acceptance
 envelope { result, completion, childStatusCounts, degradedReasons }. A
 violated policy fails the run with the typed FailRunError (code
 'fail_run', data.source 'orchestrator_acceptance') instead of settling
-ok. A budget cap settle keeps its atCap policy: the cap partial is
-already visible as run status 'exhausted' or the typed fail run error,
-never a plain ok, so acceptance does not judge it again.
+ok. A budget cap settle keeps its atCap policy and acceptance is not
+judged at the cap: under 'finish-with-partial' the capped terminal
+carries completion 'partial' in its envelope (RV906) precisely
+because the declared acceptance went unjudged, and under 'fail-run'
+the typed failure stands, so the cap can never impersonate an
+accepted finish.
 
 ## Properties
 

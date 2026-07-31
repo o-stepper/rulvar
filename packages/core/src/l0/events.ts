@@ -62,6 +62,18 @@ export type CoreEvents =
       /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
       salvagedTerminalOutputChildren?: string[];
       /**
+       * Present and false ONLY when a settlement write failed (the
+       * run_settle journal append or the terminal RunMeta projection,
+       * RV907): the status above is true as computation, but nothing
+       * durable records it, `handle.result` rejects with the typed
+       * SettlementError instead of resolving, and an event-only
+       * consumer must not treat this terminal as green. Resuming the
+       * run re-settles by replay (no provider call) and the settled
+       * terminal carries no field, byte for byte like every ordinary
+       * run. Never emitted true.
+       */
+      settled?: false;
+      /**
        * The per-child acceptance roster (RV806): status, salvage arm,
        * and the evidence verdict where the child declared a contract;
        * same lift and posture as the fields above.
