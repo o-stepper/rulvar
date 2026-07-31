@@ -22,8 +22,11 @@ Every entry the run appended before settlement is already durable,
 so recovery is deterministic: resume the run and replay re-settles
 the same outcome without a provider call, or reconcile the store
 with `rulvar runs audit [--repair]`. A superseded segment's fencing
-rejection (LeaseHeldError) is NOT this error and stays swallowed:
-the successor owns settlement. `data` records
+rejection of the settle append (LeaseHeldError) is NOT this error:
+it rejects with the typed [SupersededError](/api/@rulvar/rulvar/classes/SupersededError.md) (RV1009), while a
+meta-only lease bounce over an already durable settle stays
+swallowed (the journal records the outcome; only the projection
+belongs to the current holder). `data` records
 { runId, runStatus, stage }.
 
 ## Extends

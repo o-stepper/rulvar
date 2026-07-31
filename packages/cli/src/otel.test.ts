@@ -387,6 +387,30 @@ describe('toOtel unsettled terminals (RV907)', () => {
     expect(runSpan?.status?.code).toBe(2);
   });
 
+  it('a superseded terminal stamps the distinct reason and still refuses green (RV1009)', async () => {
+    const base = { runId: 'rv', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(10),
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 0,
+        settled: false,
+        settledReason: 'superseded',
+      } as unknown as WorkflowEvent,
+    ];
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel({ runId: 'rv', events: stream(events), result }, tracer);
+    const runSpan = spans.find((span) => span.name.startsWith('run '));
+    expect(runSpan?.attributes['rulvar.run.settled']).toBe(false);
+    expect(runSpan?.attributes['rulvar.run.settled_reason']).toBe('superseded');
+    expect(runSpan?.status?.code).toBe(2);
+    expect(runSpan?.status?.message).toContain('successor');
+  });
+
   it('a settled terminal keeps its green span and carries no settled attribute', async () => {
     const base = { runId: 'rs', seq: 0 };
     const events: WorkflowEvent[] = [

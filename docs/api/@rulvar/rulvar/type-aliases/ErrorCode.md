@@ -26,7 +26,8 @@ type ErrorCode =
   | "lease_held"
   | "knowledge_cas"
   | "determinism"
-  | "settlement";
+  | "settlement"
+  | "superseded";
 ```
 
 Defined in: `packages/core/dist/index.d.ts`

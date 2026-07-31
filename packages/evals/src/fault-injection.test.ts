@@ -33,6 +33,7 @@ const EXPECTED = [
   'ttl-live-budget-parity',
   'pause-turn-real-adapter',
   'statement-settleable-guard',
+  'superseded-terminal-honesty',
 ];
 
 describe('the fault-injection kit (RV811)', () => {
@@ -98,6 +99,15 @@ describe('the fault-injection kit (RV811)', () => {
       'settleable=true',
     );
     expect(byName.get('statement-settleable-guard')?.observation.detail).toContain('contradict');
+    // The RV1009 scenario: a fenced-out segment refuses green typed
+    // with the distinct superseded reason, and exactly one successor
+    // settles the run.
+    expect(byName.get('superseded-terminal-honesty')?.observation.detail).toContain(
+      'settledReason=superseded',
+    );
+    expect(byName.get('superseded-terminal-honesty')?.observation.detail).toContain(
+      'exactly one settle entry',
+    );
   });
 
   it('writes experiment-grade artifacts when a directory is given, and only runs the named subset', async () => {

@@ -31,6 +31,7 @@ type CoreEvents =
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
   settled?: false;
+  settledReason?: "superseded";
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   totalUsd: number;
   type: "run:end";
@@ -117,6 +118,7 @@ Run lifecycle and core telemetry (M1 subset).
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
   settled?: false;
+  settledReason?: "superseded";
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   totalUsd: number;
   type: "run:end";
@@ -132,7 +134,8 @@ Run lifecycle and core telemetry (M1 subset).
 | `degradedReasons?` | `string`[] | Per-child degradation notes, lifted from the same envelope (or typed error data) when it carries a valid string array (the fifth experiment, cycle 75). An empty array is the workflow's claim of zero degradation; absence means no claim. The outcome mirror spreads the SAME lift, so the surfaces cannot disagree. | `packages/core/dist/index.d.ts` |
 | `salvagedPartialChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `salvagedTerminalOutputChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
-| `settled?` | `false` | Present and false ONLY when a settlement write failed (the run_settle journal append or the terminal RunMeta projection, RV907): the status above is true as computation, but nothing durable records it, `handle.result` rejects with the typed SettlementError instead of resolving, and an event-only consumer must not treat this terminal as green. Resuming the run re-settles by replay (no provider call) and the settled terminal carries no field, byte for byte like every ordinary run. Never emitted true. | `packages/core/dist/index.d.ts` |
+| `settled?` | `false` | Present and false ONLY when nothing durable records this terminal: a settlement write failed (the run_settle journal append or the terminal RunMeta projection, RV907), or the segment was superseded (`settledReason` names it, RV1009). The status above is true as computation, but `handle.result` rejects typed instead of resolving (SettlementError or SupersededError), and an event-only consumer must not treat this terminal as green. After a settlement failure, resuming the run re-settles by replay (no provider call) and the settled terminal carries no field, byte for byte like every ordinary run. Never emitted true. | `packages/core/dist/index.d.ts` |
+| `settledReason?` | `"superseded"` | Present only beside `settled: false`, naming WHY the terminal refused green when the reason is not a settlement write fault: 'superseded' means the run_settle append bounced off the store's fence because a successor segment holds the lease and owns settlement (RV1009), and `handle.result` rejects with the typed SupersededError. A settlement WRITE failure keeps its historical shape (`settled: false` with no reason) byte for byte. | `packages/core/dist/index.d.ts` |
 | `status` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | - | `packages/core/dist/index.d.ts` |
 | `totalUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `type` | `"run:end"` | - | `packages/core/dist/index.d.ts` |

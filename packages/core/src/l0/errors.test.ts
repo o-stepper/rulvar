@@ -17,6 +17,7 @@ import {
   PlanInvariantError,
   ReplayPlanHashMismatch,
   ScriptRejected,
+  SupersededError,
 } from './errors.js';
 
 /** JSON round trip: exactly what a journal write and read performs. */
@@ -77,6 +78,11 @@ describe('error taxonomy (M1-T02)', () => {
       code: 'lease_held',
       retryable: true,
     },
+    {
+      error: new SupersededError('a successor owns settlement', { runId: 'r1', runStatus: 'ok' }),
+      code: 'superseded',
+      retryable: false,
+    },
   ];
 
   it('every named error serializes to a WireError and back losslessly', () => {
@@ -96,8 +102,10 @@ describe('error taxonomy (M1-T02)', () => {
   it('the code registry is closed and unique across classes', () => {
     const codes = cases.map(({ error }) => error.code);
     expect(new Set(codes).size).toBe(codes.length);
-    // 13 registry codes: 12 RulvarError classes plus 'agent' (a value, not a class).
-    expect(codes).toHaveLength(12);
+    // 13 serialized classes here ('agent' is a value, not a class);
+    // growing this list is a deliberate registry extension, never a
+    // side effect (SupersededError joined under RV1009).
+    expect(codes).toHaveLength(13);
     expect(codes).not.toContain('agent');
   });
 

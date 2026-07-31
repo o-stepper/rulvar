@@ -12,6 +12,7 @@ import {
   LeaseHeldError,
   RulvarError,
   SettlementError,
+  SupersededError,
   type WireError,
 } from '../l0/errors.js';
 import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
@@ -1713,16 +1714,25 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // BEFORE the meta write: a crash between the two leaves the
       // repairable 'meta-behind' residue, never a journal behind its
       // projection. Failure posture (the settlement acknowledgement):
-      // ONLY a fenced store's LeaseHeldError is swallowed, on both
-      // writes, because a superseded segment's settle bouncing off the
-      // successor's fence is the fencing contract working, and the
-      // successor owns settlement. Any OTHER failure rejects
-      // handle.result with the typed SettlementError below instead of
-      // resolving: the caller must never act on an outcome nothing
-      // durable records. A failed settle append also SKIPS the meta
-      // write; proceeding would fabricate a journal behind its
-      // projection, the one residue reconcile treats as impossible.
+      // a fenced store's LeaseHeldError on the SETTLE APPEND means a
+      // successor segment holds the lease and owns settlement, the
+      // fencing contract working, and nothing durable records THIS
+      // segment's outcome: the meta write is skipped, run:end refuses
+      // green with the distinct superseded reason, and handle.result
+      // rejects with the typed SupersededError instead of resolving
+      // (RV1009; a superseded segment used to resolve ok silently). A
+      // meta-only lease bounce stays swallowed: it only happens over a
+      // settle the journal already records (a pure replay of a settled
+      // run, or a lease lost between the two writes), so the outcome IS
+      // durable and only the projection belongs to the current holder.
+      // Any OTHER failure rejects handle.result with the typed
+      // SettlementError below instead of resolving: the caller must
+      // never act on an outcome nothing durable records. A failed
+      // settle append also SKIPS the meta write; proceeding would
+      // fabricate a journal behind its projection, the one residue
+      // reconcile treats as impossible.
       let settlementFailure: { stage: 'run-settle' | 'meta'; cause: unknown } | undefined;
+      let supersededBy: LeaseHeldError | undefined;
       if (resumeCtx?.strict !== true) {
         const priorCount = resumeCtx?.priorEntries.length ?? 0;
         const snapshotLength = replayer.snapshot().length;
@@ -1780,13 +1790,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
               },
             });
           } catch (settleErr) {
-            if (!(settleErr instanceof LeaseHeldError)) {
+            if (settleErr instanceof LeaseHeldError) {
+              supersededBy = settleErr;
+            } else {
               settlementFailure = { stage: 'run-settle', cause: settleErr };
             }
           }
         }
       }
-      if (settlementFailure === undefined) {
+      if (settlementFailure === undefined && supersededBy === undefined) {
         try {
           await putMeta(status);
         } catch (metaErr) {
@@ -1809,10 +1821,22 @@ export function createEngine(options: CreateEngineOptions): Engine {
           },
           rootSpanId,
         );
+      } else if (supersededBy !== undefined) {
+        bus.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg:
+              'run segment superseded: the settle append bounced off the store fence and a ' +
+              'successor owns settlement; handle.result rejects with SupersededError',
+          },
+          rootSpanId,
+        );
       }
       // run:end spreads the SAME lift computed at outcome construction
       // above, so telemetry and handle.result can never disagree. A
-      // failed settlement stamps `settled: false` (RV907): the event
+      // failed settlement stamps `settled: false` (RV907), a superseded
+      // segment stamps it with the distinct reason (RV1009): the event
       // stream must never show a green terminal that exists in no
       // durable record, and the ordinary path keeps its exact bytes.
       bus.emit(
@@ -1822,7 +1846,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
           totalUsd: outcome.cost.totalUsd,
           ...(outcome.cost.usageApprox === true ? { usageApprox: true } : {}),
           ...(lifted === undefined ? {} : lifted),
-          ...(settlementFailure === undefined ? {} : { settled: false as const }),
+          ...(settlementFailure !== undefined
+            ? { settled: false as const }
+            : supersededBy !== undefined
+              ? { settled: false as const, settledReason: 'superseded' as const }
+              : {}),
         },
         rootSpanId,
       );
@@ -1836,6 +1864,16 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // handle.result resolves, so an await-settle-then-resume caller
       // never collides with its own just-released lease.
       await settleOwnership();
+      if (supersededBy !== undefined) {
+        throw new SupersededError(
+          `run '${runId}' computed status '${status}' but its settle append bounced off the ` +
+            `store's fence: a successor segment holds the lease and owns settlement ` +
+            `(${supersededBy.message}). Nothing durable records this segment's outcome, so it ` +
+            `is withheld; read the run's authoritative outcome from the successor's settle or ` +
+            `the store's run meta`,
+          { runId, runStatus: status, cause: supersededBy },
+        );
+      }
       if (settlementFailure !== undefined) {
         const causeText =
           settlementFailure.cause instanceof Error
