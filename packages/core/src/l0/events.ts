@@ -101,6 +101,8 @@ export type CoreEvents =
           minEntries: number;
           met: boolean;
           waivedBySalvage?: true;
+          /** RV1207: the floor was required, so the arm did not promote. */
+          floorRequired?: true;
         };
       }>;
       /**

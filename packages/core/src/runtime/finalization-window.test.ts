@@ -586,6 +586,154 @@ describe('durable window entry before the gated call (RV601)', () => {
     expect(executions.count).toBe(1);
   });
 
+  it('reserveForEvidenceDeficit widens the reserve to the outstanding floor plus the summary (RV1208)', async () => {
+    // The sixteenth experiment's judged P1-1: the budget worker spent
+    // 108 calls and still settled with 10 of 14 declared evidence
+    // entries, because the window reserved a FIXED tail that the
+    // deficit had long outgrown. With the opt-in, the reserve is at
+    // least the outstanding deficit plus one summary call, so searching
+    // stops while the floor is still closable.
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    const evidenceRecorder = tool({
+      name: 'record_evidence',
+      description: 'records one evidence entry',
+      parameters: z.strictObject({}),
+      execute: () => {
+        recordExecutions.count += 1;
+        return Promise.resolve({ recorded: true });
+      },
+    });
+    // The model searches until the window tells it to stop, then closes
+    // the floor and finishes: the reserve decides how much it got.
+    const adapter = scriptedAdapter((req) => {
+      const noticed = windowNotices(req).length > 0;
+      if (!noticed) {
+        return reads(1);
+      }
+      return recordExecutions.count < 3
+        ? { toolCall: { name: 'record_evidence', args: {} } }
+        : { toolCall: { name: 'finish', args: { result: 'done' } } };
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 10,
+        maxToolCalls: 10,
+        // A one-call reserve would let the loop search until a single
+        // call remains, three short of the floor.
+        finalizationWindow: {
+          reserveCalls: 1,
+          allow: ['record_evidence'],
+          reserveForEvidenceDeficit: true,
+        },
+      }),
+      evidenceContract: { minEntries: 3 },
+      tools: runtimeOf([readTool(readExecutions), evidenceRecorder, finishTool()]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    // Deficit 3 plus the summary call widens the reserve to 4, so the
+    // window binds after six executed reads, not after nine.
+    expect(readExecutions.count).toBe(6);
+    expect(recordExecutions.count).toBe(3);
+    // The notice names the live deficit, so the model knows what the
+    // reserved tail is FOR. It fires exactly once, as always.
+    const notices = windowNotices(adapter.calls.at(-1) as { messages: Msg[] });
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('3 more evidence');
+  });
+
+  it('the widened reserve shrinks as the floor closes and never narrows below the configured reserve (RV1208)', async () => {
+    const readExecutions = { count: 0 };
+    const evidenceRecorder = tool({
+      name: 'record_evidence',
+      description: 'records one evidence entry',
+      parameters: z.strictObject({}),
+      execute: () => Promise.resolve({ recorded: true }),
+    });
+    // The floor is already met, so the widened reserve collapses to the
+    // configured one and the loop keeps its ordinary search budget.
+    const adapter = scriptedAdapter((_req, call) => {
+      if (call === 0) {
+        return { toolCall: { name: 'record_evidence', args: {} } };
+      }
+      if (call < 8) {
+        return reads(1);
+      }
+      return { toolCall: { name: 'finish', args: { result: 'done' } } };
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 12,
+        maxToolCalls: 10,
+        finalizationWindow: {
+          reserveCalls: 2,
+          allow: ['record_evidence'],
+          reserveForEvidenceDeficit: true,
+        },
+      }),
+      evidenceContract: { minEntries: 1 },
+      tools: runtimeOf([readTool(readExecutions), evidenceRecorder, finishTool()]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    // One record plus reads until the configured two-call reserve.
+    expect(readExecutions.count).toBe(7);
+  });
+
+  it('without the opt-in the window is byte-identical under the same contract (RV1208)', async () => {
+    const readExecutions = { count: 0 };
+    const evidenceRecorder = tool({
+      name: 'record_evidence',
+      description: 'records one evidence entry',
+      parameters: z.strictObject({}),
+      execute: () => Promise.resolve({ recorded: true }),
+    });
+    const adapter = scriptedAdapter((_req, call) => {
+      if (call < 9) {
+        return reads(1);
+      }
+      return { toolCall: { name: 'finish', args: { result: 'done' } } };
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 12,
+        maxToolCalls: 10,
+        finalizationWindow: { reserveCalls: 1, allow: ['record_evidence'] },
+      }),
+      evidenceContract: { minEntries: 3 },
+      tools: runtimeOf([readTool(readExecutions), evidenceRecorder, finishTool()]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    // The historical contract: a fixed one-call reserve, so the loop
+    // searches until nine calls are gone with the floor still open.
+    expect(readExecutions.count).toBe(9);
+  });
+
+  it('rejects a malformed reserveForEvidenceDeficit typed (RV1208)', () => {
+    expect(() =>
+      validateUsageLimits(
+        {
+          finalizationWindow: {
+            reserveCalls: 2,
+            reserveForEvidenceDeficit: 'yes' as unknown as boolean,
+          },
+        },
+        'RunOptions.limits',
+      ),
+    ).toThrow(ConfigError);
+  });
+
   it('a rejected entry append records no window entry and fails the segment', async () => {
     const executions = { count: 0 };
     const adapter = scriptedAdapter((_req, call) =>

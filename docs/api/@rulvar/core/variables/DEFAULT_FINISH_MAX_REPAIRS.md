@@ -10,6 +10,6 @@
 const DEFAULT_FINISH_MAX_REPAIRS: 1 = 1;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L254)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L274)
 
 How many rejected finishes are repaired by default: the plan's repair once.

@@ -179,6 +179,21 @@ export interface UsageLimits {
     reserveCalls: number;
     /** Tool names allowed inside the window; default: zero-cost tools. */
     allow?: string[];
+    /**
+     * The evidence-aware reserve (RV1208, the sixteenth comparison
+     * run: a worker spent 108 calls and still settled with 10 of 14
+     * declared evidence entries, because the window reserved a FIXED
+     * tail the deficit had long outgrown). With this true AND an
+     * evidence contract declared on the invocation, the effective
+     * reserve is the larger of `reserveCalls` and the outstanding
+     * deficit plus one summary call, recomputed at every boundary from
+     * the same successful-`record_evidence` window the floor refusal
+     * reads. So searching stops while the floor is still closable, and
+     * the reserve collapses back to `reserveCalls` as entries land.
+     * The one-time notice names the live deficit. Off by default: an
+     * earlier window entry changes recorded model requests.
+     */
+    reserveForEvidenceDeficit?: boolean;
   };
 }
 
@@ -213,6 +228,8 @@ export interface EffectiveUsageLimits {
   finalizationWindow?: {
     reserveCalls: number;
     allow?: string[];
+    /** RV1208: widen the reserve to the outstanding evidence deficit plus the summary. */
+    reserveForEvidenceDeficit?: boolean;
   };
 }
 
@@ -414,8 +431,18 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
     if (typeof window !== 'object' || window === null || Array.isArray(window)) {
       throw new ConfigError(`${site}.finalizationWindow must be { reserveCalls, allow? }`);
     }
-    const { reserveCalls, allow } = window as { reserveCalls?: unknown; allow?: unknown };
+    const { reserveCalls, allow, reserveForEvidenceDeficit } = window as {
+      reserveCalls?: unknown;
+      allow?: unknown;
+      reserveForEvidenceDeficit?: unknown;
+    };
     requirePositiveInteger(reserveCalls as number, `${site}.finalizationWindow.reserveCalls`);
+    if (reserveForEvidenceDeficit !== undefined && typeof reserveForEvidenceDeficit !== 'boolean') {
+      throw new ConfigError(
+        `${site}.finalizationWindow.reserveForEvidenceDeficit must be a boolean; ` +
+          `got ${typeof reserveForEvidenceDeficit}`,
+      );
+    }
     if (allow !== undefined) {
       if (!Array.isArray(allow)) {
         throw new ConfigError(`${site}.finalizationWindow.allow must be an array of tool names`);
