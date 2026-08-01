@@ -10,7 +10,7 @@
 function stripFencedBlocks(text): string;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L134)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L136)
 
 Removes fenced code blocks from a text, the delimiter lines
 included, and returns the remaining lines joined by newlines. The

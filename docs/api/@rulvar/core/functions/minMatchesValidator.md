@@ -10,7 +10,7 @@
 function minMatchesValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:810](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L810)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:812](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L812)
 
 Requires at least `min` matches of `pattern` in the result text (the
 plan's citation and source count checks: a file:line pattern, a URL

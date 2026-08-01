@@ -835,6 +835,22 @@
             "link": "/api/@rulvar/core/interfaces/CompiledWorkflow.md"
           },
           {
+            "text": "Contradiction",
+            "link": "/api/@rulvar/core/interfaces/Contradiction.md"
+          },
+          {
+            "text": "ContradictionClaim",
+            "link": "/api/@rulvar/core/interfaces/ContradictionClaim.md"
+          },
+          {
+            "text": "ContradictionOptions",
+            "link": "/api/@rulvar/core/interfaces/ContradictionOptions.md"
+          },
+          {
+            "text": "ContradictionSource",
+            "link": "/api/@rulvar/core/interfaces/ContradictionSource.md"
+          },
+          {
             "text": "CostAttribution",
             "link": "/api/@rulvar/core/interfaces/CostAttribution.md"
           },
@@ -1185,6 +1201,10 @@
           {
             "text": "OrchestrateAcceptance",
             "link": "/api/@rulvar/core/interfaces/OrchestrateAcceptance.md"
+          },
+          {
+            "text": "OrchestrateContradictions",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateContradictions.md"
           },
           {
             "text": "OrchestrateOptions",
@@ -2307,8 +2327,16 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_CHILDREN_PER_NODE.md"
           },
           {
+            "text": "DEFAULT_MAX_CONTRADICTIONS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_MAX_CONTRADICTIONS.md"
+          },
+          {
             "text": "DEFAULT_MAX_DEPTH",
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_DEPTH.md"
+          },
+          {
+            "text": "DEFAULT_MAX_EXCERPT_CHARS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_MAX_EXCERPT_CHARS.md"
           },
           {
             "text": "DEFAULT_MAX_OSCILLATIONS_PER_KEY",
@@ -2871,6 +2899,10 @@
           {
             "text": "finalizeFires",
             "link": "/api/@rulvar/core/functions/finalizeFires.md"
+          },
+          {
+            "text": "findContradictions",
+            "link": "/api/@rulvar/core/functions/findContradictions.md"
           },
           {
             "text": "finishContract",
@@ -5437,6 +5469,22 @@
             "link": "/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md"
           },
           {
+            "text": "Contradiction",
+            "link": "/api/@rulvar/rulvar/interfaces/Contradiction.md"
+          },
+          {
+            "text": "ContradictionClaim",
+            "link": "/api/@rulvar/rulvar/interfaces/ContradictionClaim.md"
+          },
+          {
+            "text": "ContradictionOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/ContradictionOptions.md"
+          },
+          {
+            "text": "ContradictionSource",
+            "link": "/api/@rulvar/rulvar/interfaces/ContradictionSource.md"
+          },
+          {
             "text": "CostAttribution",
             "link": "/api/@rulvar/rulvar/interfaces/CostAttribution.md"
           },
@@ -5791,6 +5839,10 @@
           {
             "text": "OrchestrateAcceptance",
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateAcceptance.md"
+          },
+          {
+            "text": "OrchestrateContradictions",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateContradictions.md"
           },
           {
             "text": "OrchestrateOptions",
@@ -6945,8 +6997,16 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_CHILDREN_PER_NODE.md"
           },
           {
+            "text": "DEFAULT_MAX_CONTRADICTIONS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_CONTRADICTIONS.md"
+          },
+          {
             "text": "DEFAULT_MAX_DEPTH",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_DEPTH.md"
+          },
+          {
+            "text": "DEFAULT_MAX_EXCERPT_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_EXCERPT_CHARS.md"
           },
           {
             "text": "DEFAULT_MAX_OSCILLATIONS_PER_KEY",
@@ -7521,6 +7581,10 @@
           {
             "text": "finalizeFires",
             "link": "/api/@rulvar/rulvar/functions/finalizeFires.md"
+          },
+          {
+            "text": "findContradictions",
+            "link": "/api/@rulvar/rulvar/functions/findContradictions.md"
           },
           {
             "text": "finishContract",

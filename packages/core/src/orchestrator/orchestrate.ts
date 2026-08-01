@@ -85,6 +85,11 @@ import {
   type FinishValidator,
 } from './finish-validators.js';
 import {
+  findContradictions,
+  type Contradiction,
+  type ContradictionSource,
+} from './contradictions.js';
+import {
   selfTestFinishValidation,
   type FinishContract,
   type FinishSelfTestFixtures,
@@ -537,6 +542,49 @@ export interface OrchestrateOptions {
    * {@link OrchestrateSynthesis}.
    */
   synthesis?: OrchestrateSynthesis;
+  /**
+   * The opt-in bounded contradiction pass (RV1302, the sixteenth
+   * comparison experiment's P2-1 remainder). A fan-out produces N
+   * independent children and nothing else in the pipeline compares
+   * their claims against EACH OTHER: acceptance judges each child
+   * alone, the finish validators judge the final text mechanically, and
+   * `synthesis.dedupeClaims` matches on agreement, so it is blind to
+   * disagreement by construction. With this set, the settled evidence
+   * pool is folded through {@link findContradictions} at the post-fan-in
+   * chokepoint and the run says what it found. See
+   * {@link OrchestrateContradictions}.
+   */
+  contradictions?: OrchestrateContradictions;
+}
+
+/**
+ * The bounded contradiction pass's knobs (RV1302). The pass itself is a
+ * PURE fold over the settled children the journal replays verbatim, so
+ * it costs no model call, no clock, and no wall time worth measuring in
+ * the post-fan-in window, and it journals nothing: a resume re-derives
+ * the identical finding (the `dedupeClaims`, `policyFacts`, and
+ * `evidenceIndex` precedent). The evidence pool it judges is the one
+ * `evidenceIndex` indexes: ok children plus salvage-accepted ones, so a
+ * dead child's error text can never contradict a real finding.
+ */
+export interface OrchestrateContradictions {
+  /**
+   * What a detected contradiction does. 'report' (the default) puts the
+   * findings on the acceptance envelope and in an info log, and changes
+   * nothing else. 'carry' additionally names them in the 'single'
+   * synthesis prompt with the instruction to resolve each explicitly
+   * instead of silently picking one, and REQUIRES that synthesis (a
+   * ConfigError otherwise, the `evidenceIndex` precedent: there is no
+   * prompt to ride without it). 'fail' fails the run typed with
+   * `data.source` 'orchestrator_contradictions' BEFORE any synthesis
+   * dispatch, so a pool that contradicts itself never pays to have the
+   * disagreement composed away.
+   */
+  onFound?: 'report' | 'carry' | 'fail';
+  /** Overrides {@link DEFAULT_CITATION_PATTERN} for the anchors; fail-closed at intake. */
+  pattern?: string;
+  /** Bound on reported contradictions; default {@link DEFAULT_MAX_CONTRADICTIONS}. */
+  max?: number;
 }
 
 /**
@@ -1252,6 +1300,75 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     if (synthesis.estCost !== undefined) {
       requireNonNegativeNumber(synthesis.estCost as number, 'orchestrate synthesis.estCost');
+    }
+  }
+  if (opts.contradictions !== undefined) {
+    const dispute = opts.contradictions as {
+      onFound?: unknown;
+      pattern?: unknown;
+      max?: unknown;
+    };
+    if (typeof dispute !== 'object' || Array.isArray(dispute)) {
+      throw new ConfigError(
+        `orchestrate contradictions must be an object; got ${JSON.stringify(opts.contradictions)}`,
+      );
+    }
+    const onFound = dispute.onFound ?? 'report';
+    if (onFound !== 'report' && onFound !== 'carry' && onFound !== 'fail') {
+      throw new ConfigError(
+        "orchestrate contradictions.onFound must be 'report', 'carry' or 'fail'; got " +
+          JSON.stringify(dispute.onFound),
+      );
+    }
+    if (onFound === 'carry') {
+      if (opts.synthesis === undefined) {
+        throw new ConfigError(
+          "orchestrate contradictions.onFound 'carry' requires synthesis: without the " +
+            'post-fan-in invocation there is no prompt to carry the findings into; use ' +
+            "'report' or 'fail'",
+        );
+      }
+      if (opts.synthesis.mode === 'incremental') {
+        throw new ConfigError(
+          "orchestrate contradictions.onFound 'carry' needs a 'single' synthesis: the " +
+            "deterministic 'incremental' reconciliation has no prompt for the findings to ride",
+        );
+      }
+    }
+    if (dispute.pattern !== undefined) {
+      if (typeof dispute.pattern !== 'string') {
+        throw new ConfigError(
+          `orchestrate contradictions.pattern must be a string; got ${typeof dispute.pattern}`,
+        );
+      }
+      let probe: RegExp;
+      try {
+        probe = new RegExp(dispute.pattern, '');
+      } catch (thrown) {
+        throw new ConfigError(
+          'orchestrate contradictions.pattern does not compile: ' +
+            (thrown instanceof Error ? thrown.message : String(thrown)),
+        );
+      }
+      // The RV610 posture: a pattern matching the empty string turns
+      // every inline span into an anchor, which floods the pass instead
+      // of arming it.
+      if (probe.test('')) {
+        throw new ConfigError(
+          'orchestrate contradictions.pattern must not be able to match the empty string; got ' +
+            JSON.stringify(dispute.pattern),
+        );
+      }
+    }
+    if (
+      dispute.max !== undefined &&
+      (!Number.isInteger(dispute.max) || (dispute.max as number) < 1)
+    ) {
+      throw new ConfigError(
+        `orchestrate contradictions.max must be a positive integer; got ${JSON.stringify(
+          dispute.max,
+        )}`,
+      );
     }
   }
   const spec = opts.budget;
@@ -4105,6 +4222,98 @@ export function makeOrchestratorWorkflow(
      */
     let synthesisSkippedByValidDraft = false;
 
+    /**
+     * The bounded contradiction pass's findings (RV1302), set exactly
+     * when the pass is configured: an EMPTY array is a fact (the pass
+     * ran and the pool agreed) and `undefined` is a different fact
+     * (nothing looked), which is why the envelope distinguishes them.
+     */
+    let contradictionsFound: Contradiction[] | undefined;
+    /**
+     * Folds the settled evidence pool through {@link findContradictions}
+     * at the post-fan-in chokepoint: after the accepted acceptance
+     * verdict and BEFORE any synthesis dispatch, so the 'fail' posture
+     * never pays to have a disagreement composed away. Journals nothing:
+     * the fold is pure over the settled children the journal replays
+     * verbatim, so a resume re-derives the identical finding (the
+     * dedupeClaims / policyFacts / evidenceIndex precedent).
+     */
+    const runContradictionPass = async (snapshot?: Record<string, Json>): Promise<void> => {
+      const dispute = opts?.contradictions;
+      if (dispute === undefined) {
+        return;
+      }
+      // A REPLAYED root returns before the async recovery has rebuilt
+      // `records`, exactly like the synthesis prompt fold below.
+      await recoveryDone;
+      const salvageOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
+      const pool: ContradictionSource[] = [];
+      for (const record of [...byOrdinal.values()].sort(
+        (a, b) => a.spawnOrdinal - b.spawnOrdinal,
+      )) {
+        const settled = record.settled;
+        // The evidenceIndex eligibility exactly: ok children plus
+        // salvage-accepted ones. A dead child's error text is not
+        // evidence, so it can never contradict a real finding.
+        if (
+          settled === undefined ||
+          !(
+            settled.status === 'ok' ||
+            (salvageOn &&
+              settled.status === 'limit' &&
+              settled.output !== null &&
+              settled.output !== undefined)
+          )
+        ) {
+          continue;
+        }
+        pool.push({ nodeId: record.nodeId, text: serializeChildOutput(settled) });
+      }
+      const found = findContradictions(pool, {
+        ...(dispute.pattern === undefined ? {} : { pattern: dispute.pattern }),
+        ...(dispute.max === undefined ? {} : { max: dispute.max }),
+      });
+      contradictionsFound = found;
+      const onFound = dispute.onFound ?? 'report';
+      internals.events.emit(
+        {
+          type: 'log',
+          level: found.length === 0 ? 'debug' : 'info',
+          msg: 'orchestrator contradiction pass',
+          data: {
+            children: pool.length,
+            contradictions: found.length,
+            onFound,
+            anchors: found.map((entry) => entry.anchor),
+          },
+        },
+        callingState.spanId,
+      );
+      if (onFound !== 'fail' || found.length === 0) {
+        return;
+      }
+      throw new FailRunError(
+        `the orchestrator contradiction pass found ${String(found.length)} contradiction` +
+          `${found.length === 1 ? '' : 's'} in the settled child pool: ` +
+          found
+            .map(
+              (entry) =>
+                `${entry.anchor} is read differently for '${entry.key}' (` +
+                `${entry.claims.map((claim) => JSON.stringify(claim.value)).join(' vs ')})`,
+            )
+            .join('; '),
+        {
+          data: {
+            source: 'orchestrator_contradictions',
+            contradictions: found as unknown as Json,
+            // The acceptance snapshot the run already earned (cycle 73):
+            // the fan-out work IS complete, the failure is downstream.
+            ...(snapshot ?? {}),
+          },
+        },
+      );
+    };
+
     const runSynthesis = async (draft: unknown): Promise<unknown> => {
       const spec = opts?.synthesis;
       if (spec === undefined) {
@@ -4511,6 +4720,21 @@ export function makeOrchestratorWorkflow(
               'DRAFT CONTRACT GAPS: the coordination draft failed exactly these declared ' +
                 'validators; repair the named gaps and preserve the draft otherwise. ' +
                 JSON.stringify(draftGaps),
+            ]),
+        // The carried pool disagreement (RV1302), under onFound 'carry'
+        // only and only when the pass actually found something: the
+        // prompt stays byte identical for an agreeing pool, so a run
+        // that opts in pays nothing in journal identity for the quiet
+        // case.
+        ...(opts?.contradictions?.onFound !== 'carry' ||
+        contradictionsFound === undefined ||
+        contradictionsFound.length === 0
+          ? []
+          : [
+              'CHILD CONTRADICTIONS: the settled children read these cited locations ' +
+                'differently; resolve each one EXPLICITLY in the final result (say which ' +
+                'reading holds and why it does) instead of silently picking one. ' +
+                JSON.stringify(contradictionsFound),
             ]),
         // The opt-in policy-facts line (RV709): folded ONLY from
         // replay-stable material (the settled child results' durable
@@ -4989,6 +5213,10 @@ export function makeOrchestratorWorkflow(
       );
     }
     if (opts?.acceptance === undefined) {
+      // Without an acceptance policy there is no verdict to order
+      // against, but the chokepoint is the same one: the pass runs
+      // before the synthesis dispatch it may cancel.
+      await runContradictionPass();
       try {
         return await runSynthesis(result.output);
       } catch (thrown) {
@@ -5276,6 +5504,21 @@ export function makeOrchestratorWorkflow(
         },
       );
     }
+    // The contradiction pass sits between the accepted verdict and the
+    // synthesis dispatch (RV1302): a rejected run never reaches it, and
+    // under 'fail' a self-contradicting pool never pays for the
+    // invocation that would compose the disagreement away.
+    await runContradictionPass({
+      completion: decision.completion,
+      childStatusCounts: decision.childStatusCounts,
+      degradedReasons: decision.degradedReasons,
+      ...(decision.salvagedPartialChildren === undefined
+        ? {}
+        : { salvagedPartialChildren: decision.salvagedPartialChildren }),
+      ...(decision.salvagedTerminalOutputChildren === undefined
+        ? {}
+        : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+    });
     // Synthesis runs strictly AFTER the accepted verdict: a rejected run
     // never pays for a synthesis invocation (RV-211).
     let synthesizedFinal: unknown;
@@ -5333,6 +5576,12 @@ export function makeOrchestratorWorkflow(
       ...(synthesisSkippedByValidDraft
         ? { synthesisSkipped: 'synthesis_skipped_by_valid_draft' as const }
         : {}),
+      // The contradiction pass (RV1302): present whenever the pass was
+      // configured, EMPTY when it ran and the pool agreed. The
+      // distinction is the point: an absent field says nothing looked,
+      // and an empty list says something looked and found nothing (the
+      // RV1209 provenance doctrine, absence means NOT RECORDED).
+      ...(contradictionsFound === undefined ? {} : { contradictions: contradictionsFound }),
     };
   });
 }

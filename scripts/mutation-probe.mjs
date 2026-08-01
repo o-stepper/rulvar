@@ -1821,6 +1821,79 @@ const MUTATIONS = [
     replace: '            continue;',
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
+  {
+    id: 'contradiction-cross-child',
+    doctrine:
+      'a pool contradiction needs two DIFFERENT children (RV1301): counted within one child too, an author narrating "it was 3, it is now 5" reads as a pool dispute, and the pass floods the very window it was built to shorten',
+    file: 'packages/core/src/orchestrator/contradictions.ts',
+    find: '      if (left.length > 1 || right.length > 1 || left[0] !== right[0]) {',
+    replace: '      if (true) {',
+    test: 'packages/core/src/orchestrator/contradictions.test.ts',
+  },
+  {
+    id: 'contradiction-shared-key',
+    doctrine:
+      'two readings conflict only under the SAME key (RV1301): grouped by anchor alone, `attempts: 3` and `backoffMs: 100` on one line are reported as a dispute, which is two aspects of a line, not a disagreement about it',
+    file: 'packages/core/src/orchestrator/contradictions.ts',
+    find: '        const key = collapse(keyed[1]);',
+    replace: "        const key = '';",
+    test: 'packages/core/src/orchestrator/contradictions.test.ts',
+  },
+  {
+    id: 'contradiction-output-bound',
+    doctrine:
+      'the fold is bounded by max (RV1301): unbounded, a pool that disputes everything puts an unbounded list into the synthesis prompt and the terminal envelope, which is the post-fan-in tail this pass exists to protect',
+    file: 'packages/core/src/orchestrator/contradictions.ts',
+    find: '      if (found.length === max) {\n        return found;\n      }',
+    replace: '',
+    test: 'packages/core/src/orchestrator/contradictions.test.ts',
+  },
+  {
+    id: 'contradiction-empty-pattern',
+    doctrine:
+      'an anchor pattern that can match the empty string is refused fail closed (RV1301): admitted, every inline span becomes an anchor and the pass floods instead of arming, the RV610 posture',
+    file: 'packages/core/src/orchestrator/contradictions.ts',
+    find: "  if (new RegExp(pattern, '').test('')) {",
+    replace: '  if (false) {',
+    test: 'packages/core/src/orchestrator/contradictions.test.ts',
+  },
+  {
+    id: 'contradiction-evidence-pool',
+    doctrine:
+      "the pass judges the EVIDENCE pool only (RV1302): widened to every settled child, a dead child's error text disputes a real finding, and a run fails on a claim nothing accepted",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        if (\n          settled === undefined ||\n          !(\n            settled.status === 'ok' ||",
+    replace: '        if (\n          settled === undefined ||\n          !(\n            true ||',
+    test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
+  {
+    id: 'contradiction-fail-posture',
+    doctrine:
+      "the 'fail' posture actually fails the run BEFORE the synthesis dispatch (RV1302): degraded to a report, a self-contradicting pool pays for the invocation that composes the disagreement away and settles ok",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (onFound !== 'fail' || found.length === 0) {\n        return;\n      }",
+    replace: '      return;',
+    test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
+  {
+    id: 'contradiction-carry-line',
+    doctrine:
+      "the 'carry' posture actually names the findings in the synthesis prompt (RV1302): dropped, the composing model is asked to resolve a disagreement it was never told about, which is exactly the blind re-derivation carryDraftGaps was built to end",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        ...(opts?.contradictions?.onFound !== 'carry' ||",
+    replace: '        ...(true ||',
+    test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
+  {
+    id: 'contradiction-empty-is-a-fact',
+    doctrine:
+      'an EMPTY findings list rides the envelope (RV1302): dropped as if absent, "the pass ran and the pool agreed" becomes indistinguishable from "nothing looked", which is exactly the absence doctrine RV1209 pinned',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      ...(contradictionsFound === undefined ? {} : { contradictions: contradictionsFound }),',
+    replace:
+      '      ...(contradictionsFound === undefined || contradictionsFound.length === 0\n        ? {}\n        : { contradictions: contradictionsFound }),',
+    test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

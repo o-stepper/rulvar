@@ -12,6 +12,8 @@
 import { ConfigError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
 
+import { sentencesOf } from './sentences.js';
+
 /**
  * One child as the finish validators see it (the RV-202 provenance
  * contract): a pure read of the durable state the orchestrator already
@@ -877,17 +879,6 @@ export const DEFAULT_EVIDENCE_GRADE_PHRASES: readonly string[] = [
  */
 export const DEFAULT_ARTIFACT_PATTERN =
   '(?:run[ -]?[0-9A-HJKMNP-TV-Z]{6,26}|[\\w./-]+\\.\\w+:\\d+)';
-
-/**
- * The sentence scope both RV1212 validators judge in: a terminator
- * followed by whitespace, a blank line, or a list/heading break. Only
- * `.!?` terminate; a colon or a semicolon does NOT, because the values
- * these validators read are written as `attempts: 3` and splitting
- * there would tear a claim away from the citation that supports it.
- */
-function sentencesOf(text: string): string[] {
-  return text.split(/(?<=[.!?])\s+|\n{2,}|\n(?=\s*[-*#])/u);
-}
 
 /**
  * Requires every evidence-GRADE claim to point at an artifact (RV1212).
