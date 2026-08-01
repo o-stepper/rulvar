@@ -7398,12 +7398,12 @@ interface CitationTarget {
 * citations are the values that sentence asserts about the citations
 * that are, and each asserted value must appear in the cited line (or
 * within `window` lines AFTER it, for a value the citation introduces)
-* as a WHOLE token, not a substring (RV1402): judged by `includes`, a
-* claim of `3` was satisfied by a line saying `30`, which is the
-* seventeenth comparison judge's repro. A sentence that cites without
-* asserting an inline value passes: the validator judges assertions,
-* never prose ({@link citationTargetsValidator} is the validator that
-* judges every citation with no such precondition).
+* as a WHOLE token, never a substring (RV1402): under `includes`, an
+* asserted `3` was satisfied by a line saying `30`, the seventeenth
+* comparison judge's repro. A sentence that cites without asserting an
+* inline value passes: the validator judges assertions, never prose
+* ({@link citationTargetsValidator} judges every citation with no such
+* precondition).
 *
 * `resolve` is host code and must be PURE over a snapshot the host
 * froze before the run, exactly like every other finish validator: a
@@ -7420,41 +7420,44 @@ declare function citedValueValidator(options: {
   name?: string;
 }): FinishValidator;
 /**
-* Resolves EVERY citation in the result text against the host's own
+* Resolves EVERY citation of the result text against the host's own
 * source snapshot (RV1401, the seventeenth comparison experiment
 * P0-1). The seventeenth run's answer carried `ghost.ts:0`, a location
-* no checkout ever held, and every configured check passed: the
+* no checkout ever held, and the whole configured chain passed it: the
 * citation pattern accepts any digits (a line of 0 included),
-* `requireKnown` proves only that a child SAID the string, and
-* {@link citedValueValidator} resolves a citation only when its
-* sentence asserts an inline value beside it. A fabricated location
-* that no sentence asserts anything about therefore counted as
+* `evidencePreservedValidator`'s `requireKnown` proves only that some
+* child SAID the string, and {@link citedValueValidator} resolves a
+* citation only when its sentence asserts an inline value beside it,
+* so a fabricated location nobody asserted anything about counted as
 * provenance and licensed the valid-draft skip. This validator closes
-* the hole at the root: every match of `pattern`, inline code and
-* plain prose alike, is parsed as `path:line` and resolved, with no
-* sentence-level precondition.
+* the hole at the root: every match of `pattern` in the result text,
+* inline code and plain prose alike, is parsed as `path:line` and
+* resolved, with no sentence-level precondition.
 *
-* Three refusals, each fail closed:
+* Three refusals, each fail closed. A match that does not parse as
+* `path:line` with a safe integer line is refused rather than skipped:
+* the host's own pattern claims it IS a citation. A line below 1 is
+* refused BEFORE the resolver runs: source lines are 1-based, and a
+* sloppy resolver might well answer line 0. A citation the resolver
+* does not know is refused, because a citation nothing resolves is not
+* provenance. Repeated occurrences are judged once, and refusal
+* reasons list the offenders capped at 20.
 *
-* - a match that does not parse as `path:line` (a custom pattern
-*   matched something the tail cannot split) is refused rather than
-*   skipped, because an unjudgeable citation must never read as
-*   judged;
-* - a line below 1 is refused BEFORE the resolver runs: source lines
-*   are 1-based, `:0` is the exact shape the default pattern lets
-*   through, and a sloppy host resolver might well answer it;
-* - a citation the resolver does not know is refused: a citation
-*   nothing resolves is not provenance.
-*
-* `resolve` is the same host contract {@link citedValueValidator}
-* takes: PURE over a snapshot the host froze before the run
-* (returning undefined for a location outside it), never the live
-* filesystem. Repeated occurrences are judged once. `fencedCode:
-* 'excluded'` strips fenced code before scanning, for hosts whose
-* contracts already exclude it; the default judges the whole text.
-* Intake is fail closed (RV610): a pattern that cannot compile or
-* that can match the empty string is refused typed. Default name
-* 'citation-targets'.
+* `resolve` is host code and must be PURE over a snapshot the host
+* froze before the run, exactly like {@link citedValueValidator}'s: a
+* resolver reading the filesystem live would make a verdict depend on
+* when it ran and break replay. `fencedCode: 'excluded'` strips fenced
+* code before scanning (default 'counted'), for hosts whose contracts
+* already exclude it. A text with no citation at all passes: demanding
+* citations exist is `minMatchesValidator`'s job, this one demands the
+* ones present are real. Intake is fail closed (RV610): a pattern that
+* does not compile or that can match the empty string is refused
+* typed, and zero-length matches a lookaround produces in context
+* never enter the pool. Wired into `finishValidation`, the refusal
+* also reaches the `skipWhenDraftValid` gate (RV510 judges the draft
+* by the full declared contract), so a draft carrying an unresolvable
+* citation can no longer skip the synthesis it was supposed to earn.
+* Default name 'citation-targets'.
 */
 declare function citationTargetsValidator(options: {
   resolve: (target: CitationTarget) => string | undefined; /** Overrides {@link DEFAULT_CITATION_PATTERN}; must capture `path:line`. */
