@@ -1,5 +1,16 @@
 # @rulvar/evals
 
+## 1.145.0
+
+### Patch Changes
+
+- Updated dependencies [faf7d95]
+  - @rulvar/openai@1.145.0
+  - @rulvar/anthropic@1.145.0
+  - @rulvar/core@1.145.0
+  - @rulvar/plan@1.145.0
+  - @rulvar/testing@1.145.0
+
 ## 1.144.0
 
 ### Patch Changes

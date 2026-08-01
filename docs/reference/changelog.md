@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
+
 ### 1.144.0
 
 #### Patch Changes
@@ -1488,6 +1494,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
+
 ### 1.144.0
 
 #### Patch Changes
@@ -2765,6 +2777,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
 
 ### 1.144.0
 
@@ -4451,6 +4469,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.145.0
 
 ### 1.144.0
 
@@ -6433,6 +6453,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.145.0
+
 ### 1.144.0
 
 ### 1.143.0
@@ -6825,6 +6847,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.145.0
+
+#### Patch Changes
+
+- Updated dependencies [faf7d95]
+  - @rulvar/openai@1.145.0
+  - @rulvar/anthropic@1.145.0
+  - @rulvar/core@1.145.0
+  - @rulvar/plan@1.145.0
+  - @rulvar/testing@1.145.0
 
 ### 1.144.0
 
@@ -8471,6 +8504,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
+
 ### 1.144.0
 
 #### Patch Changes
@@ -9155,6 +9194,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.145.0
+
+#### Minor Changes
+
+- faf7d95: An affirmatively declared empty claim is not settlement evidence (RV1201). A per-request statement row whose `usage` or `componentsUsd` was an object with no figures used to read verdict `match` with complete coverage and `settleable: true` on the object's mere presence, exactly the false settlement-grade evidence the sixteenth experiment's judge reproduced as R1: `{usage:{}}` and `{componentsUsd:{}}` both settled. The intake now refuses such a row with a typed `ConfigError` naming the row and the empty field, at the same fail-closed gate that already refuses non-finite dollars, malformed token counts, and self-contradicting rows. The documented partial-declaration model is unchanged: a row declaring only its `responseId` still joins the coverage set, because presence is coverage, not a figure claim; and a single declared figure (one token count, one component line) remains evidence exactly as before.
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
 
 ### 1.144.0
 
@@ -10631,6 +10680,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
+
 ### 1.144.0
 
 #### Patch Changes
@@ -12022,6 +12077,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
+- eslint-plugin-rulvar@1.145.0
 
 ### 1.144.0
 
@@ -13520,6 +13582,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.145.0
+
+#### Patch Changes
+
+- Updated dependencies [faf7d95]
+  - @rulvar/openai@1.145.0
+  - @rulvar/anthropic@1.145.0
+  - @rulvar/core@1.145.0
 
 ### 1.144.0
 
@@ -15249,6 +15320,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
+
 ### 1.144.0
 
 #### Patch Changes
@@ -16636,6 +16713,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
+
 ### 1.144.0
 
 #### Patch Changes
@@ -17344,6 +17427,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
 
 ### 1.144.0
 
@@ -18684,6 +18773,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.145.0
+
+#### Patch Changes
+
+- @rulvar/core@1.145.0
 
 ### 1.144.0
 
