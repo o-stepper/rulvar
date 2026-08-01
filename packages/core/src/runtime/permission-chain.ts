@@ -13,7 +13,7 @@
  */
 import { compilePermissionPreset } from '../tools/presets.js';
 import { lexShellCommand, matchArgvPattern } from '../tools/shell-matcher.js';
-import { ConfigError } from '../l0/errors.js';
+import { requireDeadlineMs } from '../l0/validate-numbers.js';
 import type { ToolContext, ToolDef, ToolRisk } from '../l0/spi/toolsource.js';
 
 export type HookVerdict = 'allow' | 'deny' | 'ask' | { modifiedInput: unknown } | undefined;
@@ -65,8 +65,11 @@ export interface PermissionConfig {
    * The deadline is journaled ON the suspension entry, so it survives
    * resume and re-arms from the entry, exactly like the flavor B
    * escalation deadline; a racing live decision and the timeout can
-   * never both apply (first-closing-wins). Absent is the historical
-   * contract: the approval waits indefinitely.
+   * never both apply (first-closing-wins). A positive integer no
+   * larger than the deadline ceiling (one hundred years in
+   * milliseconds, RV1204), so now + interval always journals as a
+   * valid absolute date. Absent is the historical contract: the
+   * approval waits indefinitely.
    */
   approvalDeadlineMs?: number;
 }
@@ -137,15 +140,12 @@ export function compilePermissionChain(
   // Most specific wins: a profile deadline overrides the engine's, a
   // single slot like canUseTool. Validated here so both layers share
   // one chokepoint: a zero, negative, or fractional deadline would arm
-  // a nonsense timer, so it refuses to compile instead (RV1107).
+  // a nonsense timer (RV1107), and an interval over the deadline
+  // ceiling could not journal as a valid absolute date (RV1204), so
+  // both refuse to compile instead.
   const approvalDeadlineMs = profile?.approvalDeadlineMs ?? engine?.approvalDeadlineMs;
-  if (
-    approvalDeadlineMs !== undefined &&
-    (!Number.isInteger(approvalDeadlineMs) || approvalDeadlineMs <= 0)
-  ) {
-    throw new ConfigError(
-      'permissions.approvalDeadlineMs must be a positive integer of milliseconds',
-    );
+  if (approvalDeadlineMs !== undefined) {
+    requireDeadlineMs(approvalDeadlineMs, 'permissions.approvalDeadlineMs');
   }
   return {
     hooks: [...(engine?.hooks ?? []), ...(profile?.hooks ?? [])],

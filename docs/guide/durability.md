@@ -211,12 +211,12 @@ Two more properties worth relying on:
 
 ## Deadlines survive resume
 
-In v1 only escalations carry journaled deadlines. The escalate tool's deadline is journaled as `deadlineAt` on the suspended entry itself, not held in a process timer. On resume the engine reads it back: if the deadline has not arrived, the timer is re-armed for the remainder; if it has already passed and no closing entry exists, a timeout resolution attempt is submitted immediately, applying the configured default decision. The re-armed timer is sliced against the Node timer maximum (2147483647 ms), so a remainder beyond about 24.8 days stays suspended for its full interval instead of resolving by timeout immediately; `deadlineMs` itself must be a positive integer but has no upper bound.
+Two suspension flavors carry journaled deadlines: an escalation always does (its `deadlineMs` is required per spawn), and a tool approval does when the host opts in through `permissions.approvalDeadlineMs` (RV1107). Either way the deadline is journaled as `deadlineAt` on the suspended entry itself, not held in a process timer. On resume the engine reads it back: if the deadline has not arrived, the timer is re-armed for the remainder; if it has already passed and no closing entry exists, a timeout resolution attempt is submitted immediately, applying the configured default decision (escalations) or the typed deny (approvals). The re-armed timer is sliced against the Node timer maximum (2147483647 ms), so a remainder beyond about 24.8 days stays suspended for its full interval instead of resolving by timeout immediately. Both intervals must be positive integers no larger than the deadline ceiling, one hundred years in milliseconds (RV1204): the ceiling is not a wait bound but a date bound, guaranteeing `now + interval` always journals as a valid absolute date. A journaled `deadlineAt` that does not parse as a date refuses typed as journal corruption, at `importRun` intake and again before any timer arms; it never silently resolves the suspension immediately.
 
 | Suspension | Deadline | On timeout |
 |---|---|---|
 | `ctx.awaitExternal` | none in v1; waits until resolved | n/a |
-| Tool approval (`ask` verdict) | none in v1; an open approval waits until resolved, like `awaitExternal` | n/a |
+| Tool approval (`ask` verdict) | optional, the `permissions.approvalDeadlineMs` opt-in (RV1107); absent config waits until resolved | denied with a typed reason (`denied by timeout`) through the same arbiter a live decision uses |
 | Escalation (the escalate tool) | required, explicit per spawn | the configured default decision is applied; absent one, the report is accepted |
 
 Wall clock never decides an outcome by itself: time only influences which resolution attempts appear in the journal, and journal order decides which one wins. Two resumes of the same journal always agree.

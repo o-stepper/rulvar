@@ -18,8 +18,38 @@ import { ConfigError } from './errors.js';
  */
 export const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
+/**
+ * The deadline interval ceiling (RV1204): one hundred years in
+ * milliseconds. A journaled deadline is an absolute ISO date computed
+ * as now + interval, and the Date range ends around the year 275760,
+ * so an unbounded interval (say Number.MAX_SAFE_INTEGER) survives the
+ * positive-integer check and then dies as a generic 'Invalid time
+ * value' at the conversion. The ceiling is NOT a wait bound: sliced
+ * timers honor deadlines far beyond the Node timer maximum, and a
+ * century-long suspension journals as a perfectly valid date.
+ */
+export const MAX_DEADLINE_MS = 3_155_760_000_000;
+
 function refuse(site: string, requirement: string, value: number): never {
   throw new ConfigError(`${site} must be ${requirement}; got ${String(value)}`);
+}
+
+/**
+ * A suspension deadline interval: a positive integer no larger than
+ * {@link MAX_DEADLINE_MS}, so now + interval always journals as a
+ * valid absolute date instead of dying generic at the Date conversion
+ * (RV1204). Shared by the permission chain's approvalDeadlineMs and
+ * the flavor B escalation deadlineMs so both knobs refuse the same
+ * shapes with the same wording.
+ */
+export function requireDeadlineMs(value: number, site: string): void {
+  requirePositiveInteger(value, site);
+  if (value > MAX_DEADLINE_MS) {
+    throw new ConfigError(
+      `${site} ${String(value)} exceeds the ${String(MAX_DEADLINE_MS)} ms deadline ceiling ` +
+        '(one hundred years): a longer interval cannot journal as a valid absolute date',
+    );
+  }
 }
 
 /** An integer >= 1 (counts, caps, and depths). */
