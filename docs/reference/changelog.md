@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+
 ### 1.147.0
 
 #### Patch Changes
@@ -1508,6 +1515,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+
 ### 1.147.0
 
 #### Patch Changes
@@ -2805,6 +2819,23 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.148.0
+
+#### Minor Changes
+
+- c85dac9: The terminal envelope survives the process that produced it, and the invoice states how many provider requests its rows represent (RV1209, RV1210).
+
+  A run this server never held used to answer `GET /runs/:id` with a bare status projection while a live consumer read the whole `TerminalEnvelope`, so the durability story stopped one surface short of the one a host reads after a restart. The non-live response now carries `envelope` too, rebuilt from the journal through the same producer and marked `provenance: 'journal'`: the verdict comes from the journaled run settle (the authority, not the meta projection), the money from the same composed settle-pin fold `GET /runs/:id/cost` runs, and the usage and `agentsSpawned` from the same ledger fold the resume budget seed uses. Two fields are deliberately absent on a rebuilt envelope and the marker is what makes their absence honest: `completion` (the workflow's semantic claim rides its result value, and only that value's digest is journaled) and `error` (the run's terminal wire error is never journaled as the run's own), so absence there means NOT RECORDED, never "the workflow claimed nothing" or "the run did not fail". A live envelope carries no `provenance` at all and keeps its original byte contract. Where nothing durable records a terminal, the body carries a typed `terminalUnavailable: { reason, message }` (`unsettled`, `not-terminal`, or `unknown-workflow`) instead of an envelope; it is its own field, never `error`, because `error` on that body means the run failed. `persistedTerminalEnvelope` is exported, and the terminal-envelope conformance table now drives every row through a restarted server as its final surface.
+
+  The invoice declares the dispatch-versus-wire cardinality (`cardinality: { dispatchRows, wireRequests, multiWireRows, wireIdsMissing }`). One row is one logical dispatch, and a dispatch that absorbed provider-side continuations is billed as several HTTP requests, so a per-request statement has more lines than the export has rows by construction: reconcile a statement line count against `wireRequests`, never `rows.length`. The per-row `wireRequests` behind it comes from the count the adapter reported rather than the length of `wireResponseIds`, because a provider that leaves an absorbed segment unnamed still billed it, and counting ids alone made the invoice contradict the quota window that settles on the same count. Single-wire dispatches carry neither field and stay byte-identical.
+
+  Two limiter fixes ride with it. An abort landing inside an awaited quota reservation now stops the wire: a limiter that queues can hold `reserve` past the dispatch's own abort check, and the engine rechecks the host and budget signals when the reservation resolves, releasing the granted admission rather than reconciling it, because a settlement only ever adds while that call provably never happened. And the unused-continuation release is fail closed on the wire count: only a finish that names its wire set proves which pre-wire grants went unused, so a finish carrying no count releases nothing, instead of reading the absence as one flown wire and handing a hook-granting adapter back exactly the capacity it had consumed.
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
 
 ### 1.147.0
 
@@ -4511,6 +4542,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.148.0
+
+#### Minor Changes
+
+- c85dac9: The terminal envelope survives the process that produced it, and the invoice states how many provider requests its rows represent (RV1209, RV1210).
+
+  A run this server never held used to answer `GET /runs/:id` with a bare status projection while a live consumer read the whole `TerminalEnvelope`, so the durability story stopped one surface short of the one a host reads after a restart. The non-live response now carries `envelope` too, rebuilt from the journal through the same producer and marked `provenance: 'journal'`: the verdict comes from the journaled run settle (the authority, not the meta projection), the money from the same composed settle-pin fold `GET /runs/:id/cost` runs, and the usage and `agentsSpawned` from the same ledger fold the resume budget seed uses. Two fields are deliberately absent on a rebuilt envelope and the marker is what makes their absence honest: `completion` (the workflow's semantic claim rides its result value, and only that value's digest is journaled) and `error` (the run's terminal wire error is never journaled as the run's own), so absence there means NOT RECORDED, never "the workflow claimed nothing" or "the run did not fail". A live envelope carries no `provenance` at all and keeps its original byte contract. Where nothing durable records a terminal, the body carries a typed `terminalUnavailable: { reason, message }` (`unsettled`, `not-terminal`, or `unknown-workflow`) instead of an envelope; it is its own field, never `error`, because `error` on that body means the run failed. `persistedTerminalEnvelope` is exported, and the terminal-envelope conformance table now drives every row through a restarted server as its final surface.
+
+  The invoice declares the dispatch-versus-wire cardinality (`cardinality: { dispatchRows, wireRequests, multiWireRows, wireIdsMissing }`). One row is one logical dispatch, and a dispatch that absorbed provider-side continuations is billed as several HTTP requests, so a per-request statement has more lines than the export has rows by construction: reconcile a statement line count against `wireRequests`, never `rows.length`. The per-row `wireRequests` behind it comes from the count the adapter reported rather than the length of `wireResponseIds`, because a provider that leaves an absorbed segment unnamed still billed it, and counting ids alone made the invoice contradict the quota window that settles on the same count. Single-wire dispatches carry neither field and stay byte-identical.
+
+  Two limiter fixes ride with it. An abort landing inside an awaited quota reservation now stops the wire: a limiter that queues can hold `reserve` past the dispatch's own abort check, and the engine rechecks the host and budget signals when the reservation resolves, releasing the granted admission rather than reconciling it, because a settlement only ever adds while that call provably never happened. And the unused-continuation release is fail closed on the wire count: only a finish that names its wire set proves which pre-wire grants went unused, so a finish carrying no count releases nothing, instead of reading the absence as one flown wire and handing a hook-granting adapter back exactly the capacity it had consumed.
 
 ### 1.147.0
 
@@ -6511,6 +6554,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.148.0
+
 ### 1.147.0
 
 ### 1.146.0
@@ -6909,6 +6954,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+  - @rulvar/anthropic@1.148.0
+  - @rulvar/openai@1.148.0
+  - @rulvar/plan@1.148.0
+  - @rulvar/testing@1.148.0
 
 ### 1.147.0
 
@@ -8588,6 +8644,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+
 ### 1.147.0
 
 #### Patch Changes
@@ -9292,6 +9355,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
 
 ### 1.147.0
 
@@ -10792,6 +10862,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+
 ### 1.147.0
 
 #### Patch Changes
@@ -12203,6 +12280,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+  - eslint-plugin-rulvar@1.148.0
 
 ### 1.147.0
 
@@ -13724,6 +13809,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+  - @rulvar/anthropic@1.148.0
+  - @rulvar/openai@1.148.0
 
 ### 1.147.0
 
@@ -15480,6 +15574,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+
 ### 1.147.0
 
 #### Patch Changes
@@ -16887,6 +16988,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
+
 ### 1.147.0
 
 #### Patch Changes
@@ -17615,6 +17723,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
 
 ### 1.147.0
 
@@ -18975,6 +19090,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.148.0
+
+#### Patch Changes
+
+- Updated dependencies [c85dac9]
+  - @rulvar/core@1.148.0
 
 ### 1.147.0
 
