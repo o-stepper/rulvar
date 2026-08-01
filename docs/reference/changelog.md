@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+
 ### 1.146.0
 
 #### Patch Changes
@@ -1501,6 +1508,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+
 ### 1.146.0
 
 #### Patch Changes
@@ -2791,6 +2805,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
 
 ### 1.146.0
 
@@ -4490,6 +4511,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.147.0
+
+#### Minor Changes
+
+- 6367231: A declared evidence floor can be made binding, and the finalization window can reserve the calls that close it (RV1207, RV1208). Two opt-ins answer the sixteenth comparison run, where a worker spent 108 tool calls, settled `limit` with 10 of its 14 declared evidence entries, and was promoted through terminal-output salvage with the floor waived, so the run reported `status: 'ok'` with `completion: 'partial'` over an unmet contract.
+
+  `acceptance.requireEvidenceFloor: true` makes the declared floor binding: a child that declared an evidence contract it did not meet is never promoted by a salvage arm, so it counts against the policy exactly like an unsalvageable `limit` child (`'all-ok'` rejects; `{ minSuccessful: N }` does not count it toward N). Salvage stays diagnostic: the acceptance roster still records the arm that would have applied and the evidence verdict, marked `floorRequired: true` instead of `waivedBySalvage: true`, the `degradedReasons` name the shortfall with its counts, and the child's output stays visible through the digest and `get_child_result`. A child with no declared contract, or one that met its floor, is untouched.
+
+  `limits.finalizationWindow.reserveForEvidenceDeficit: true` makes the reserved tail evidence-aware: with an evidence contract declared, the effective reserve is the larger of `reserveCalls` and the outstanding deficit plus one summary call, recomputed at every boundary from the same successful-`record_evidence` window the floor refusal and the RV809 deficit trigger read. A fixed reserve can be outgrown by the deficit it was meant to cover; this one cannot, so searching stops while the floor is still closable. The reserve collapses back to `reserveCalls` as entries land and never narrows below it, and the one-time window notice names the live deficit. Both options are off by default and the surrounding behavior is byte-identical without them.
 
 ### 1.146.0
 
@@ -6480,6 +6511,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.147.0
+
 ### 1.146.0
 
 ### 1.145.0
@@ -6876,6 +6909,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+  - @rulvar/anthropic@1.147.0
+  - @rulvar/openai@1.147.0
+  - @rulvar/plan@1.147.0
+  - @rulvar/testing@1.147.0
 
 ### 1.146.0
 
@@ -8544,6 +8588,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+
 ### 1.146.0
 
 #### Patch Changes
@@ -9241,6 +9292,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
 
 ### 1.146.0
 
@@ -10734,6 +10792,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+
 ### 1.146.0
 
 #### Patch Changes
@@ -12138,6 +12203,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+  - eslint-plugin-rulvar@1.147.0
 
 ### 1.146.0
 
@@ -13651,6 +13724,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+  - @rulvar/anthropic@1.147.0
+  - @rulvar/openai@1.147.0
 
 ### 1.146.0
 
@@ -15398,6 +15480,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+
 ### 1.146.0
 
 #### Patch Changes
@@ -16798,6 +16887,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
+
 ### 1.146.0
 
 #### Patch Changes
@@ -17519,6 +17615,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
 
 ### 1.146.0
 
@@ -18872,6 +18975,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.147.0
+
+#### Patch Changes
+
+- Updated dependencies [6367231]
+  - @rulvar/core@1.147.0
 
 ### 1.146.0
 
