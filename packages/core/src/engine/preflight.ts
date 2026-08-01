@@ -777,7 +777,14 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     const role = spec.role ?? 'loop';
     const label = spec.label ?? role;
     const count = spec.count ?? 1;
-    const profile = spec.profile === undefined ? undefined : defaults.profiles?.[spec.profile];
+    // Own properties only (RV1205): a spec naming a prototype member
+    // ('toString') must read as an unknown profile, never resolve one.
+    const profile =
+      spec.profile === undefined ||
+      defaults.profiles === undefined ||
+      !Object.hasOwn(defaults.profiles, spec.profile)
+        ? undefined
+        : defaults.profiles[spec.profile];
     if (spec.profile !== undefined && profile === undefined) {
       say({
         severity: 'error',

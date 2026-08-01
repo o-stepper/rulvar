@@ -1460,9 +1460,19 @@ function filterProfiles(
   if (names === undefined) {
     return registered;
   }
-  const filtered: Record<string, AgentProfile> = {};
+  // Null-prototype (RV1205): the advertised map inherits nothing, so a
+  // later read of a prototype member finds nothing to resolve and an
+  // allowlisted '__proto__' lands as ordinary data instead of hitting
+  // the assignment trap.
+  const filtered = Object.create(null) as Record<string, AgentProfile>;
   for (const name of names) {
-    if (registered[name] !== undefined) {
+    // Own properties only: the registry is a host-provided plain
+    // object, and a bare index read resolves prototype members, so an
+    // allowlist naming 'toString' used to advertise
+    // Object.prototype.toString as a spawnable profile (the sixteenth
+    // experiment, judge repro R3). A prototype name is simply not
+    // registered.
+    if (Object.hasOwn(registered, name) && registered[name] !== undefined) {
       filtered[name] = registered[name];
     }
   }
@@ -2421,7 +2431,14 @@ export function makeOrchestratorWorkflow(
         // would widen the vocabulary the host deliberately limited.
         // Without opts.profiles the advertised set IS the registry and
         // behavior is unchanged.
-        if (opts?.profiles !== undefined && advertisedProfiles[params.agentType] === undefined) {
+        // Own-property reads on both the refusal and the resolution
+        // (RV1205), belt and suspenders: the observable contract is
+        // already held by filterProfiles (which builds a null-prototype
+        // advertised map from own registry entries) and by ctx's own
+        // registration check, so these two reads are the third line,
+        // kept because either of the others could be refactored and a
+        // prototype member must NEVER become a profile.
+        if (opts?.profiles !== undefined && !Object.hasOwn(advertisedProfiles, params.agentType)) {
           throw new ConfigError(
             `agentType '${params.agentType}' is not in this orchestrate's profiles ` +
               `allowlist (advertised: ${Object.keys(advertisedProfiles).sort().join(', ') || 'none'})`,
@@ -2430,7 +2447,9 @@ export function makeOrchestratorWorkflow(
         // The approach signature is computed from the profile-resolved
         // identity inputs available at admission (DEF-3); the toolset and
         // schema registries land in M7-T05 and upgrade the hashes there.
-        const profile = advertisedProfiles[params.agentType];
+        const profile = Object.hasOwn(advertisedProfiles, params.agentType)
+          ? advertisedProfiles[params.agentType]
+          : undefined;
         const profileModel = profile?.model;
         if (
           profileModel !== undefined &&

@@ -220,6 +220,21 @@ describe('importRun hardening (RV1010)', () => {
     return source.engine.exportRun('IMP1');
   };
 
+  it('importRun applies the one safe runId guard before any write (RV1206)', async () => {
+    // The judged gap: import validated only "non-empty string" while
+    // run and resume go through assertSafeRunId, so a bundle could
+    // claim '..', a slashed path, or an over-length id and reach the
+    // stores raw. The import boundary now applies the SAME guard.
+    const target = memoryEngine();
+    for (const runId of ['..', '.', 'a/b', 'a\\b', 'x'.repeat(201)]) {
+      const bundle = { runId, entries: [], blobs: [] };
+      await expect(target.engine.importRun(bundle)).rejects.toThrow(ConfigError);
+      await expect(target.engine.importRun(bundle)).rejects.toThrow(/filesystem-safe|ceiling/);
+    }
+    // Nothing was written for any of them.
+    expect(await target.journal.load('..')).toHaveLength(0);
+  });
+
   it('a blob ref outside the bundle runId namespace refuses before any write', async () => {
     const bundle = await sourceBundle();
     expect(bundle.blobs.length).toBeGreaterThan(0);

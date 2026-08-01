@@ -2192,6 +2192,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       throw new ConfigError('importRun: the bundle must be a RunExport (runId, entries, blobs)');
     }
     const runId = bundle.runId;
+    // The one safe runId guard, at the import boundary too (RV1206):
+    // run and resume already refuse an unsafe id through
+    // assertSafeRunId, but import checked only "non-empty string", so
+    // a bundle could claim '..', a slashed path, or an over-length id
+    // and reach the stores raw (the sixteenth experiment's judge).
+    assertSafeRunId(runId, 'importRun');
     // Intake validation BEFORE any write (RV1010): an import is an
     // all-or-nothing claim, so everything checkable up front refuses
     // up front. Every blob ref must live in the bundle runId's own
