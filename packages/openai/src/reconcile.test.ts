@@ -824,3 +824,104 @@ describe('reconcileStatement: the settleable predicate (RV1006)', () => {
     expect(report.settleable).toBe(false);
   });
 });
+
+describe('reconcileStatement: an empty declared object is not evidence (RV1201)', () => {
+  it("refuses a row declaring usage with no token counts: the sixteenth experiment's judge repro R1", () => {
+    // Before RV1201 this read verdict 'match' with complete coverage and
+    // settleable true: the mere presence of the object counted as
+    // evidence while declaring not a single figure.
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        { kind: 'requests', rows: [{ responseId: 'resp-1', usage: {} }] },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(ConfigError);
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        { kind: 'requests', rows: [{ responseId: 'resp-1', usage: {} }] },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(/resp-1.*usage|usage.*resp-1/);
+  });
+
+  it('refuses a row declaring componentsUsd with no component figures', () => {
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        { kind: 'requests', rows: [{ responseId: 'resp-1', componentsUsd: {} }] },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(ConfigError);
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        { kind: 'requests', rows: [{ responseId: 'resp-1', componentsUsd: {} }] },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(/resp-1.*componentsUsd|componentsUsd.*resp-1/);
+  });
+
+  it('refuses the empty object even beside an honest row: a mixed statement never settles over it', () => {
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        {
+          kind: 'requests',
+          rows: [
+            { responseId: 'resp-1', usd: 3 },
+            { responseId: 'resp-2', usage: {} },
+          ],
+        },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(ConfigError);
+  });
+
+  it('refuses usage whose every field is undefined: declared keys are not counts', () => {
+    expect(() =>
+      reconcileStatement(
+        INVOICE,
+        {
+          kind: 'requests',
+          rows: [{ responseId: 'resp-1', usage: { inputTokens: undefined } }],
+        },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(ConfigError);
+  });
+
+  it('one declared figure is still evidence: a single token count and a single component figure both reconcile', () => {
+    const usageReport = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows: [{ responseId: 'resp-1', usage: { inputTokens: 250_000 } }] },
+      { pricingOf: PRICING_OF },
+    );
+    expect(usageReport.coverage.matchedRows).toBe(1);
+    const componentsReport = reconcileStatement(
+      INVOICE,
+      {
+        kind: 'requests',
+        rows: [{ responseId: 'resp-1', componentsUsd: { input: 1.25 } }],
+      },
+      { pricingOf: PRICING_OF },
+    );
+    expect(componentsReport.coverage.matchedRows).toBe(1);
+  });
+
+  it('a row declaring only its id still joins: presence is coverage, not a figure claim', () => {
+    // The documented partial-declaration model is unchanged: a bare id
+    // row beside an honest one matches without claiming any figure.
+    // Only an AFFIRMATIVELY declared empty object refuses.
+    const report = reconcileStatement(
+      INVOICE,
+      {
+        kind: 'requests',
+        rows: [{ responseId: 'resp-1', usd: 3 }, { responseId: 'resp-2' }],
+      },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.coverage.matchedRows).toBe(2);
+  });
+});

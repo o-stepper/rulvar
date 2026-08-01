@@ -346,6 +346,20 @@ export function reconcileStatement(
             componentsSeen += 1;
           }
         }
+        // An AFFIRMATIVELY declared split with zero figures is not
+        // evidence (RV1201): before this rule `componentsUsd: {}` read
+        // verdict 'match' with complete coverage and settleable true,
+        // because the object's mere presence counted while declaring
+        // nothing (the sixteenth experiment, judge repro R1). A row
+        // that declares no dollar claim at all still joins by id; the
+        // empty CLAIM is what refuses.
+        if (componentsSeen === 0) {
+          throw new ConfigError(
+            `statement reconciliation refused: ${where} declares componentsUsd with no ` +
+              'component figures; an empty object is not evidence: drop the field or ' +
+              'export the split',
+          );
+        }
         // A row carrying BOTH a total and a component split must have
         // them agree (RV1005): the fourteenth experiment fed usd 100
         // beside components summing 1 and read verdict 'match', because
@@ -367,6 +381,7 @@ export function reconcileStatement(
         }
       }
       if (row.usage !== undefined) {
+        let usageSeen = 0;
         for (const field of [
           'inputTokens',
           'cachedInputTokens',
@@ -376,7 +391,16 @@ export function reconcileStatement(
           const count = row.usage[field];
           if (count !== undefined) {
             assertTokenCount(where, `usage.${field}`, count);
+            usageSeen += 1;
           }
+        }
+        // The same rule for token claims (RV1201): `usage: {}` must
+        // never count as settlement-grade evidence.
+        if (usageSeen === 0) {
+          throw new ConfigError(
+            `statement reconciliation refused: ${where} declares usage with no token ` +
+              'counts; an empty object is not evidence: drop the field or export the counts',
+          );
         }
       }
       byId.set(row.responseId, row);
