@@ -2717,6 +2717,10 @@
             "link": "/api/@rulvar/core/functions/childCoveragePrefix.md"
           },
           {
+            "text": "citationTargetsValidator",
+            "link": "/api/@rulvar/core/functions/citationTargetsValidator.md"
+          },
+          {
             "text": "citedValueValidator",
             "link": "/api/@rulvar/core/functions/citedValueValidator.md"
           },
@@ -7397,6 +7401,10 @@
           {
             "text": "childCoveragePrefix",
             "link": "/api/@rulvar/rulvar/functions/childCoveragePrefix.md"
+          },
+          {
+            "text": "citationTargetsValidator",
+            "link": "/api/@rulvar/rulvar/functions/citationTargetsValidator.md"
           },
           {
             "text": "citedValueValidator",

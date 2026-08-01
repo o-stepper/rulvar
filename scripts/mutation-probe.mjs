@@ -1894,6 +1894,53 @@ const MUTATIONS = [
       '      ...(contradictionsFound === undefined || contradictionsFound.length === 0\n        ? {}\n        : { contradictions: contradictionsFound }),',
     test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
   },
+  {
+    id: 'citation-targets-unresolved',
+    doctrine:
+      'a citation the snapshot does not resolve is a refusal (RV1401): tolerated, a fabricated file:line that no sentence asserts a value about counts as provenance, which is the exact shape ghost.ts:0 rode through the seventeenth run',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '        if (options.resolve({ path: parsed[1], line }) === undefined) {\n          unresolved.push(match);\n        }',
+    replace:
+      '        if (options.resolve({ path: parsed[1], line }) === undefined) {\n          void match;\n        }',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'citation-targets-one-based',
+    doctrine:
+      'a line below 1 is refused BEFORE the resolver runs (RV1401): passed through, a sloppy host resolver that answers line 0 turns :0 back into provenance, and the default pattern accepts those digits',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '        if (!Number.isSafeInteger(line) || line < 1) {',
+    replace: '        if (!Number.isSafeInteger(line)) {',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'citation-targets-unparsable',
+    doctrine:
+      'a pattern match that does not parse as path:line is refused, not skipped (RV1401): skipped silently, an unjudgeable citation reads as judged and the fail-closed posture inverts',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '        if (parsed === null) {\n          unparsable.push(match);\n          continue;\n        }',
+    replace: '        if (parsed === null) {\n          continue;\n        }',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'citation-targets-fenced',
+    doctrine:
+      "fencedCode: 'excluded' strips fenced code before the scan (RV1401): ignored, a host whose contract excludes fences is failed on example paths inside them, and the option silently lies",
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: "      const scope = fencedCode === 'excluded' ? stripFencedBlocks(input.text) : input.text;\n      // Fresh RegExp per scan: the 'g' flag makes matching stateful.\n      const seen = new Set<string>();",
+    replace:
+      "      const scope = input.text;\n      // Fresh RegExp per scan: the 'g' flag makes matching stateful.\n      const seen = new Set<string>();",
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'cited-value-whole-token',
+    doctrine:
+      'an asserted value must appear in the cited line as a WHOLE token (RV1402): matched as a substring, a claim of 3 is satisfied by a line saying 30, which is the seventeenth comparison judge repro',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '          const missing = values.filter((value) => !containsToken(haystack, value));',
+    replace: '          const missing = values.filter((value) => !haystack.includes(value));',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
