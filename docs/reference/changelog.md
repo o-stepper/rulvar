@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+
 ### 1.149.0
 
 #### Patch Changes
@@ -1522,6 +1529,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+
 ### 1.149.0
 
 #### Patch Changes
@@ -2833,6 +2847,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
 
 ### 1.149.0
 
@@ -4563,6 +4584,24 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.150.0
+
+#### Minor Changes
+
+- a331211: The settled child pool is checked against itself before anything composes it (RV1301, RV1302, RV1303).
+
+  A fan-out produces N independent children, and nothing in the pipeline compared their claims against EACH OTHER. Acceptance judges each child alone, the finish validators judge the final text mechanically, `citedValueValidator` judges a claim against the SOURCE rather than against another child, and `dedupeClaims` matches on agreement, so it is blind to disagreement by construction. A run where one child read `attempts: 3` at `src/retry.ts:33` and another read `attempts: 5` at the same line put both into the synthesis prompt, the composing model picked one, and the run settled confident with no surface recording that its own evidence had disputed itself. This is the sixteenth comparison judge's P2-1 remainder, deferred at the time as a phase that deserved its own release.
+
+  `orchestrate({ contradictions })` folds the settled evidence pool at the post-fan-in chokepoint: after the accepted acceptance verdict, before any synthesis dispatch. It is bounded in the strongest sense available, a pure fold with no model call, no clock, no host code, and no journal entry of its own, so it costs nothing in the post-fan-in window `reduceCriticalPath` measures and a resume re-derives the identical finding for free. The rule is deliberately narrow, so a finding is always explainable in one sentence: two DIFFERENT children credit the same cited location with different values for the same key. It reads the same span vocabulary the RV1212 validators read (inline-code spans that parse as `path:line` are the anchors, the rest are the values asserted about them) and splits each value at its first `:` or `=` into a key and a reading.
+
+  Three non-findings are as deliberate as the finding. Two keys on one line (`attempts: 3` beside `backoffMs: 100`) are aspects of that line, not a dispute, so the key must match. A span with no separator names something without asserting anything about it, and two such spans can never conflict. And one child holding both readings is narrative inside a single document, not a pool contradiction, while two independent children disagreeing is exactly the signal the pool cannot resolve by itself. The pool judged is the evidence pool `evidenceIndex` indexes, ok children plus salvage-accepted ones, so a dead child's error text can never dispute a real finding.
+
+  `onFound` picks the posture. `'report'` (the default) puts the findings on the acceptance envelope and in an info `log` event and changes nothing else. `'carry'` additionally rides a `CHILD CONTRADICTIONS:` line in the `'single'` synthesis prompt demanding each disagreement be resolved explicitly instead of silently picked, and requires that synthesis (a `ConfigError` at intake otherwise, and the deterministic `'incremental'` reconciliation has no prompt at all). `'fail'` fails the run typed with `data.source` `'orchestrator_contradictions'`, the findings, and the acceptance snapshot the run already earned, BEFORE any synthesis dispatch, so a self-contradicting pool never pays for the invocation that would compose the disagreement away.
+
+  The envelope field distinguishes two facts that look alike: `contradictions` is present whenever the pass was configured and EMPTY when it ran and the pool agreed, while its absence means nothing looked. That is the RV1209 absence doctrine applied to a second surface. `max` bounds the findings (default 20) and `pattern` overrides the anchor shape, refused fail closed at intake on a pattern that can match the empty string. Everything stays byte identical without the option, and a `'carry'` run whose pool agrees emits the identical synthesis prompt bytes as a run without the pass.
+
+  One honest bound: this is the mechanical half. Two children disagreeing in prose, with no shared citation and no shared key, are invisible to it, and closing that needs a bounded model pass with its own budget, journal, and resume semantics, which will consume this same `Contradiction` shape. The pure fold ships first because it is free, deterministic, and reproduces on replay. `findContradictions` is exported from `@rulvar/core` so a host can run the same rule over any pool it holds.
 
 ### 1.149.0
 
@@ -6587,6 +6626,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.150.0
+
 ### 1.149.0
 
 ### 1.148.0
@@ -6989,6 +7030,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+  - @rulvar/anthropic@1.150.0
+  - @rulvar/openai@1.150.0
+  - @rulvar/plan@1.150.0
+  - @rulvar/testing@1.150.0
 
 ### 1.149.0
 
@@ -8690,6 +8742,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+
 ### 1.149.0
 
 #### Patch Changes
@@ -9408,6 +9467,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
 
 ### 1.149.0
 
@@ -10922,6 +10988,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+
 ### 1.149.0
 
 #### Patch Changes
@@ -12347,6 +12420,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+  - eslint-plugin-rulvar@1.150.0
 
 ### 1.149.0
 
@@ -13884,6 +13965,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+  - @rulvar/anthropic@1.150.0
+  - @rulvar/openai@1.150.0
 
 ### 1.149.0
 
@@ -15658,6 +15748,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+
 ### 1.149.0
 
 #### Patch Changes
@@ -17079,6 +17176,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
+
 ### 1.149.0
 
 #### Patch Changes
@@ -17821,6 +17925,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
 
 ### 1.149.0
 
@@ -19195,6 +19306,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.150.0
+
+#### Patch Changes
+
+- Updated dependencies [a331211]
+  - @rulvar/core@1.150.0
 
 ### 1.149.0
 
