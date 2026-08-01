@@ -1,5 +1,15 @@
 # @rulvar/core
 
+## 1.152.0
+
+### Minor Changes
+
+- dd6a616: Rebuild the repository-aware citation surface from scratch (RV1401, RV1402). v1.151.0 first shipped this surface; this release replaces that implementation with a fresh cut of the same declared contract, and the public signature is unchanged.
+
+  `citationTargetsValidator` (RV1401) resolves EVERY citation of the result text against the host's frozen source snapshot, inline code and plain prose alike, with no sentence-level precondition. The seventeenth comparison run's answer carried `ghost.ts:0`, a location no checkout ever held, and the whole configured chain passed it: the citation pattern accepts any digits (a line of 0 included), `evidencePreservedValidator`'s `requireKnown` proves only that some child SAID the string, and `citedValueValidator` resolves a citation only when its sentence asserts an inline value beside it, so a fabricated location nobody asserted anything about counted as provenance and licensed the valid-draft skip. Three refusals, each fail closed: a match of the citation pattern that does not parse as `path:line` with a safe integer line is refused rather than skipped, because the host's own pattern claims it IS a citation; a line below 1 is refused BEFORE the resolver runs, because source lines are 1-based and a sloppy resolver might well answer line 0; and a location the resolver does not know is refused, because a citation nothing resolves is not provenance. Repeated occurrences are judged once, refusal reasons cap at 20 listed offenders, `fencedCode: 'excluded'` strips fenced code before scanning (default `'counted'`), a text carrying no citation at all passes (demanding citations exist is `minMatchesValidator`'s job), and intake is fail closed in the RV610 posture: a pattern that does not compile or that can match the empty string is refused typed. Wired into `finishValidation`, the refusal reaches the `skipWhenDraftValid` gate like every other validator verdict, so a draft carrying a fabricated citation can no longer skip the synthesis it was supposed to earn.
+
+  `citedValueValidator` (RV1402) now matches asserted values as WHOLE tokens instead of substrings. The boundary class is word characters plus the dot: an asserted `3` no longer counts as carried by a line saying `30` or `3.5` (the seventeenth comparison judge's repro), `retry.ts` no longer matches inside `myretry.ts`, and the value itself is matched literally with regex metacharacters escaped.
+
 ## 1.151.0
 
 ### Minor Changes
