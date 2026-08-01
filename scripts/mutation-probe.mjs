@@ -1561,7 +1561,7 @@ const MUTATIONS = [
     doctrine:
       'the deadline timer arms FROM THE ENTRY, live and re-parked alike (RV1107): with the arming block dropped, the journaled deadline never fires in any process and the suspension waits forever despite the opt-in',
     file: 'packages/core/src/engine/external.ts',
-    find: "      if (entry.deadlineAt !== undefined) {\n        const dueAt = Date.parse(entry.deadlineAt) || this.now();\n        waiter.timer = setLongTimeout(\n          () => {\n            void this.submitResolution(entry.seq, {\n              by: 'timeout',\n              value: {\n                decision: 'deny',\n                reason: `the approval deadline ${entry.deadlineAt ?? ''} crossed; denied by timeout`,\n              },\n            }).catch(() => undefined);\n          },\n          dueAt,\n          this.now,\n        );\n      }\n",
+    find: "      if (entry.deadlineAt !== undefined) {\n        // requireParsableDeadline validated the parse before parking.\n        const dueAt = Date.parse(entry.deadlineAt);\n        waiter.timer = setLongTimeout(\n          () => {\n            void this.submitResolution(entry.seq, {\n              by: 'timeout',\n              value: {\n                decision: 'deny',\n                reason: `the approval deadline ${entry.deadlineAt ?? ''} crossed; denied by timeout`,\n              },\n            }).catch(() => undefined);\n          },\n          dueAt,\n          this.now,\n        );\n      }\n",
     replace: '',
     test: 'packages/core/src/engine/approval-deadline.test.ts',
   },
@@ -1573,6 +1573,60 @@ const MUTATIONS = [
     find: '  const approvalDeadlineMs = profile?.approvalDeadlineMs ?? engine?.approvalDeadlineMs;',
     replace:
       '  const approvalDeadlineMs = engine?.approvalDeadlineMs ?? profile?.approvalDeadlineMs;',
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'approval-detached-flavor',
+    doctrine:
+      "the detached resolver validates by the suspension's FLAVOR, never by the deadline's presence (RV1203): with the deadline ternary resurrected, every timed tool approval detached-rejects the plain ApprovalDecision as an escalation decision and the parked approval is unresolvable until its deny-by-timeout (the sixteenth experiment, judge repro R2)",
+    file: 'packages/core/src/engine/external.ts',
+    find: "  const value = entry.value as { toolName?: unknown; flavor?: unknown } | null | undefined;\n  if (value?.flavor === 'approval') {\n    return 'approval';\n  }\n  return entry.deadlineAt !== undefined && value?.toolName === 'escalate' ? 'decision' : 'approval';\n",
+    replace: "  return entry.deadlineAt !== undefined ? 'decision' : 'approval';\n",
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'approval-flavor-marker',
+    doctrine:
+      "every new suspension names its own flavor in the payload (RV1203): with the approval marker dropped, a timed approval on a tool literally named 'escalate' falls to the legacy classification and detached-rejects the ApprovalDecision it must take",
+    file: 'packages/core/src/engine/external.ts',
+    find: "        flavor: 'approval',\n",
+    replace: '',
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'deadline-ceiling',
+    doctrine:
+      "a deadline interval over the ceiling cannot journal as a valid absolute date (RV1204): with the ceiling check disabled, Number.MAX_SAFE_INTEGER compiles and the run dies at the Date conversion with a generic 'Invalid time value' instead of the typed refusal",
+    file: 'packages/core/src/l0/validate-numbers.ts',
+    find: '  if (value > MAX_DEADLINE_MS) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'escalation-deadline-ceiling',
+    doctrine:
+      'the flavor B escalation deadlineMs shares the deadline ceiling (RV1204): with the site validation dropped, an over-range escalation deadline passes intake and dies generic at the ISO conversion instead of refusing typed before any call',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: "        requireDeadlineMs(escalation.deadlineMs, 'escalation.deadlineMs');",
+    replace: '',
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'deadline-corruption-swallow',
+    doctrine:
+      'a journaled deadline that does not parse is corruption and refuses typed before parking (RV1204): with the guard disabled, the mangled byte reaches Date.parse as NaN and the suspension resolves immediately, a silent deny for an approval and a silent default decision for an escalation',
+    file: 'packages/core/src/engine/external.ts',
+    find: '    if (entry.deadlineAt !== undefined && Number.isNaN(Date.parse(entry.deadlineAt))) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'deadline-shape-parse',
+    doctrine:
+      'the journal shape gate refuses a deadline that does not parse where the bundle enters (RV1204): with the rule dropped, importRun accepts a mangled deadlineAt and the corruption is discovered only when a resumed process tries to arm the timer',
+    file: 'packages/core/src/journal/kinds.ts',
+    find: '  if (entry.deadlineAt !== undefined && Number.isNaN(Date.parse(entry.deadlineAt))) {\n    // A deadline that does not parse can never fire correctly: the\n    // shape gate refuses it where the bundle enters (importRun) instead\n    // of letting the corrupt byte reach a timer (RV1204).\n    issues.push(issue(`deadlineAt ${JSON.stringify(entry.deadlineAt)} does not parse as a date`));\n  }\n',
+    replace: '',
     test: 'packages/core/src/engine/approval-deadline.test.ts',
   },
 ];

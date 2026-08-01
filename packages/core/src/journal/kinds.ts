@@ -128,6 +128,12 @@ export function validateEntryShape(entry: JournalEntry): Issue[] {
   if (entry.deadlineAt !== undefined && entry.status !== 'suspended') {
     issues.push(issue('deadlineAt is legal only on suspended entries'));
   }
+  if (entry.deadlineAt !== undefined && Number.isNaN(Date.parse(entry.deadlineAt))) {
+    // A deadline that does not parse can never fire correctly: the
+    // shape gate refuses it where the bundle enters (importRun) instead
+    // of letting the corrupt byte reach a timer (RV1204).
+    issues.push(issue(`deadlineAt ${JSON.stringify(entry.deadlineAt)} does not parse as a date`));
+  }
 
   if (entry.status === 'escalated' && entry.escalation === undefined) {
     issues.push(issue('terminal escalated entries carry the validated EscalationReport'));

@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError } from '../l0/errors.js';
+import { ConfigError, InvalidResolutionError } from '../l0/errors.js';
 import { normalizeEntry, type JournalEntry } from '../l0/entries.js';
 import { compilePermissionChain } from '../runtime/permission-chain.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
@@ -283,4 +283,340 @@ describe('the opt-in approval deadline (RV1107)', () => {
     }
     expect(() => compilePermissionChain({ approvalDeadlineMs: 60_000 })).not.toThrow();
   });
+});
+
+const ESCALATE_ARGS = {
+  kind: 'scope_bigger',
+  scopeDelta: 'the migration spans nine services, not one',
+  revisedEstimate: { usd: 40, turns: 90 },
+  blockers: ['schema ownership unclear'],
+};
+
+function escalatingAdapter() {
+  return scriptedAdapter((_req, call) =>
+    call === 0
+      ? { toolCall: { name: 'escalate', args: ESCALATE_ARGS } }
+      : { text: 'finished normally instead' },
+  );
+}
+
+function flavorBWorkflow(deadlineMs: number) {
+  return defineWorkflow({ name: 'flavor-b-detached' }, async (ctx) => {
+    const result = await ctx.agent('do the migration', {
+      escalation: { flavor: 'B', deadlineMs },
+      result: 'full',
+    });
+    return (result as { status: string }).status;
+  });
+}
+
+/**
+ * A store that serves its journal with the suspended entry's deadlineAt
+ * mangled: the hostile-store arm of the corruption contract. The engine
+ * must refuse typed instead of trusting the bytes into a timer.
+ */
+class MangledDeadlineStore extends InMemoryStore {
+  override async load(runId: string): ReturnType<InMemoryStore['load']> {
+    const entries = await super.load(runId);
+    return entries.map((entry) => {
+      const candidate = entry as { deadlineAt?: string };
+      return candidate.deadlineAt === undefined ? entry : { ...entry, deadlineAt: 'not-a-date' };
+    });
+  }
+}
+
+describe('the detached resolution flavor and the deadline range (RV1203, RV1204)', () => {
+  it('a settled timed approval resolves detached with the SAME ApprovalDecision an untimed one takes', async () => {
+    const executions: string[] = [];
+    const journal = new InMemoryStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const wf = defineWorkflow({ name: 'release' }, async (ctx) =>
+      ctx.agent('ship it', { tools: [deployTool(executions)] }),
+    );
+    const engineA = createEngine({
+      adapters: [approvalScript()],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    const handleA = engineA.run(wf, undefined, { runId: 'detached-allow' });
+    const outcomeA = await handleA.result;
+    expect(outcomeA.status).toBe('suspended');
+    const approval = (await entriesOf(journal, 'detached-allow')).find(
+      (entry) => entry.kind === 'approval',
+    );
+    expect(typeof approval?.deadlineAt).toBe('string');
+
+    // The regression under test (RV1203): the detached path must accept
+    // the plain ApprovalDecision for an ORDINARY tool approval whether
+    // or not the opt-in deadline journaled on it.
+    await handleA.resolveExternal(ExternalRegistry.approvalKey(approval?.seq ?? -1), {
+      decision: 'allow',
+    });
+    const resolutions = (await entriesOf(journal, 'detached-allow')).filter(
+      (entry) => entry.kind === 'resolution',
+    ) as Array<JournalEntry & { resolution?: { by?: string } }>;
+    expect(resolutions).toHaveLength(1);
+    expect(resolutions[0]?.resolution?.by).toBe('external');
+
+    // The resume folds the allow: the tool executes exactly once.
+    const adapterB = scriptedAdapter(() => ({ text: 'release done' }));
+    const engineB = createEngine({
+      adapters: [adapterB],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    const outcomeB = await engineB.resume('detached-allow', wf).result;
+    expect(outcomeB.status).toBe('ok');
+    expect(outcomeB.value).toBe('release done');
+    expect(executions).toEqual(['{"site":"prod"}']);
+  }, 15_000);
+
+  it('a settled timed approval denies detached with a reason the model sees on resume', async () => {
+    const executions: string[] = [];
+    const journal = new InMemoryStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const wf = defineWorkflow({ name: 'release' }, async (ctx) =>
+      ctx.agent('ship it', { tools: [deployTool(executions)] }),
+    );
+    const engineA = createEngine({
+      adapters: [approvalScript()],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    const handleA = engineA.run(wf, undefined, { runId: 'detached-deny' });
+    const outcomeA = await handleA.result;
+    expect(outcomeA.status).toBe('suspended');
+    const approval = (await entriesOf(journal, 'detached-deny')).find(
+      (entry) => entry.kind === 'approval',
+    );
+    await handleA.resolveExternal(ExternalRegistry.approvalKey(approval?.seq ?? -1), {
+      decision: 'deny',
+      reason: 'the operator said no',
+    });
+
+    const adapterB = scriptedAdapter(() => ({ text: 'release done' }));
+    const engineB = createEngine({
+      adapters: [adapterB],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    const outcomeB = await engineB.resume('detached-deny', wf).result;
+    expect(outcomeB.status).toBe('ok');
+    expect(executions).toEqual([]);
+    const toolResult = adapterB.calls[0]?.messages
+      .filter((msg) => msg.role === 'tool')
+      .flatMap((msg) => msg.parts)
+      .find((part) => part.type === 'tool-result') as
+      { result: { error: string }; isError?: boolean } | undefined;
+    expect(toolResult?.isError).toBe(true);
+    expect(toolResult?.result.error).toContain('the operator said no');
+  }, 15_000);
+
+  it('a detached ESCALATION still demands the EscalationDecision: the flavor, not the deadline, picks the validator', async () => {
+    const adapter = escalatingAdapter();
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const handle = engine.run(flavorBWorkflow(600_000), undefined, { runId: 'detached-esc' });
+    const pending = new Promise<number>((resolve) => {
+      handle.on('approval:pending', (event) => {
+        resolve((event as unknown as { entryRef: number }).entryRef);
+      });
+    });
+    const entryRef = await pending;
+    await handle.cancel('operator walked away');
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('cancelled');
+
+    // The plain ApprovalDecision is NOT an escalation decision.
+    await expect(
+      handle.resolveExternal(ExternalRegistry.approvalKey(entryRef), { decision: 'allow' }),
+    ).rejects.toThrowError(InvalidResolutionError);
+    // The EscalationDecision applies detached.
+    await handle.resolveExternal(ExternalRegistry.approvalKey(entryRef), { kind: 'accept' });
+  }, 15_000);
+
+  it("a timed approval on a tool literally NAMED 'escalate' still takes the ApprovalDecision: the journaled flavor, not the name, decides", async () => {
+    // The one case the legacy fallback cannot classify: an ordinary
+    // tool that shares the escalate tool's name AND opted into the
+    // deadline. The explicit flavor journaled on the entry (RV1203)
+    // disambiguates it.
+    const executions: string[] = [];
+    const journal = new InMemoryStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const escalateNamedTool = tool({
+      name: 'escalate',
+      description: 'raises the deployment barrier',
+      parameters: { type: 'object' },
+      needsApproval: true,
+      execute: (input) => {
+        executions.push(JSON.stringify(input));
+        return Promise.resolve('raised');
+      },
+    });
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'escalate', args: { site: 'prod' } } }
+        : { text: 'release done' },
+    );
+    const wf = defineWorkflow({ name: 'release' }, async (ctx) =>
+      ctx.agent('ship it', { tools: [escalateNamedTool] }),
+    );
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    const handle = engine.run(wf, undefined, { runId: 'escalate-named' });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('suspended');
+    const approval = (await entriesOf(journal, 'escalate-named')).find(
+      (entry) => entry.kind === 'approval',
+    );
+    expect(typeof approval?.deadlineAt).toBe('string');
+    await handle.resolveExternal(ExternalRegistry.approvalKey(approval?.seq ?? -1), {
+      decision: 'allow',
+    });
+    const resolutions = (await entriesOf(journal, 'escalate-named')).filter(
+      (entry) => entry.kind === 'resolution',
+    ) as Array<JournalEntry & { resolution?: { by?: string } }>;
+    expect(resolutions).toHaveLength(1);
+    expect(resolutions[0]?.resolution?.by).toBe('external');
+  }, 15_000);
+
+  it('the compile ceiling: a deadline too large to journal as a date refuses typed at both layers', async () => {
+    expect(() =>
+      compilePermissionChain({ approvalDeadlineMs: Number.MAX_SAFE_INTEGER }),
+    ).toThrowError(ConfigError);
+    expect(() =>
+      compilePermissionChain(undefined, { approvalDeadlineMs: Number.MAX_SAFE_INTEGER }),
+    ).toThrowError(ConfigError);
+
+    // Through the engine the refusal is the SAME typed error, never the
+    // generic 'Invalid time value' of an unchecked Date conversion.
+    const executions: string[] = [];
+    const engine = createEngine({
+      adapters: [approvalScript()],
+      defaults: {
+        routing: { loop: 'fake:model' },
+        permissions: { approvalDeadlineMs: Number.MAX_SAFE_INTEGER },
+      },
+    });
+    const wf = defineWorkflow({ name: 'release' }, async (ctx) =>
+      ctx.agent('ship it', { tools: [deployTool(executions)] }),
+    );
+    const outcome = await engine.run(wf, undefined, { runId: 'huge-deadline' }).result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.message).toContain('deadline ceiling');
+    expect(outcome.error?.message).not.toContain('Invalid time value');
+  }, 15_000);
+
+  it('the escalation deadlineMs shares the ceiling: flavor B refuses typed before any call', async () => {
+    const adapter = escalatingAdapter();
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(flavorBWorkflow(Number.MAX_SAFE_INTEGER), undefined, {
+      runId: 'huge-esc-deadline',
+    }).result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.message).toContain('deadline ceiling');
+    expect(outcome.error?.message).not.toContain('Invalid time value');
+  }, 15_000);
+
+  it('importRun refuses a bundle whose journaled deadline does not parse as a date', async () => {
+    const executions: string[] = [];
+    const journal = new InMemoryStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const wf = defineWorkflow({ name: 'release' }, async (ctx) =>
+      ctx.agent('ship it', { tools: [deployTool(executions)] }),
+    );
+    const engineA = createEngine({
+      adapters: [approvalScript()],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    const outcomeA = await engineA.run(wf, undefined, { runId: 'corrupt-bundle' }).result;
+    expect(outcomeA.status).toBe('suspended');
+    const bundle = await engineA.exportRun('corrupt-bundle');
+    const mangled = {
+      ...bundle,
+      entries: bundle.entries.map((entry) =>
+        (entry as { deadlineAt?: string }).deadlineAt === undefined
+          ? entry
+          : { ...entry, deadlineAt: 'not-a-date' },
+      ),
+    };
+    const engineB = createEngine({
+      adapters: [approvalScript()],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    await expect(engineB.importRun(mangled as never)).rejects.toThrowError(ConfigError);
+  }, 15_000);
+
+  it('a store serving a mangled approval deadline gets a typed refusal, not a silent immediate deny', async () => {
+    const executions: string[] = [];
+    const journal = new MangledDeadlineStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const wf = defineWorkflow({ name: 'release' }, async (ctx) =>
+      ctx.agent('ship it', { tools: [deployTool(executions)] }),
+    );
+    const engineA = createEngine({
+      adapters: [approvalScript()],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    const outcomeA = await engineA.run(wf, undefined, { runId: 'corrupt-store' }).result;
+    expect(outcomeA.status).toBe('suspended');
+
+    const adapterB = scriptedAdapter(() => ({ text: 'release done' }));
+    const engineB = createEngine({
+      adapters: [adapterB],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' }, permissions: { approvalDeadlineMs: 600_000 } },
+    });
+    const outcomeB = await engineB.resume('corrupt-store', wf).result;
+    expect(outcomeB.status).toBe('error');
+    expect(outcomeB.error?.message).toContain('does not parse as a date');
+    // No silent deny ever landed and the tool never ran.
+    const resolutions = (await entriesOf(journal, 'corrupt-store')).filter(
+      (entry) => entry.kind === 'resolution',
+    );
+    expect(resolutions).toHaveLength(0);
+    expect(executions).toEqual([]);
+  }, 15_000);
+
+  it('a mangled ESCALATION deadline refuses typed instead of resolving by the default decision immediately', async () => {
+    const journal = new MangledDeadlineStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const adapter = escalatingAdapter();
+    const engineA = createEngine({
+      adapters: [adapter],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const handleA = engineA.run(flavorBWorkflow(600_000), undefined, { runId: 'corrupt-esc' });
+    const pending = new Promise<void>((resolve) => {
+      handleA.on('approval:pending', () => {
+        resolve();
+      });
+    });
+    await pending;
+    await handleA.cancel('park it for later');
+    const outcomeA = await handleA.result;
+    expect(outcomeA.status).toBe('cancelled');
+
+    const adapterB = escalatingAdapter();
+    const engineB = createEngine({
+      adapters: [adapterB],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcomeB = await engineB.resume('corrupt-esc', flavorBWorkflow(600_000)).result;
+    expect(outcomeB.status).toBe('error');
+    expect(outcomeB.error?.message).toContain('does not parse as a date');
+  }, 15_000);
 });

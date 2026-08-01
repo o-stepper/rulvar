@@ -5249,8 +5249,11 @@ interface PermissionConfig {
   * The deadline is journaled ON the suspension entry, so it survives
   * resume and re-arms from the entry, exactly like the flavor B
   * escalation deadline; a racing live decision and the timeout can
-  * never both apply (first-closing-wins). Absent is the historical
-  * contract: the approval waits indefinitely.
+  * never both apply (first-closing-wins). A positive integer no
+  * larger than the deadline ceiling (one hundred years in
+  * milliseconds, RV1204), so now + interval always journals as a
+  * valid absolute date. Absent is the historical contract: the
+  * approval waits indefinitely.
   */
   approvalDeadlineMs?: number;
 }
@@ -8740,6 +8743,16 @@ declare class ExternalRegistry {
     value: Json;
     entryRef: number;
   }>;
+  /**
+  * A journaled deadline that does not parse is corruption: the old
+  * `Date.parse(...) || now` fallback silently turned a mangled byte
+  * into an immediate timeout (an instant deny for an approval, an
+  * instant default decision for an escalation), so both flavors
+  * refuse typed BEFORE parking or arming anything (RV1204). Fresh
+  * appends always carry the ISO the engine itself computed; the
+  * corrupt vector is a replayed entry served by a store.
+  */
+  private requireParsableDeadline;
   /**
   * Submits a resolution attempt for a parked suspension and, when it
   * wins the first-closing-wins fold, settles the in-process waiter with

@@ -85,6 +85,31 @@ export function toApprovalDecision(value: Json): ApprovalDecision {
 }
 
 /**
+ * Classifies a kind-'approval' suspension entry for the detached
+ * resolver (RV1203): both suspension flavors share the journal kind,
+ * and the flavor decides which payload validates (the plain
+ * ApprovalDecision against the EscalationDecision). An escalation is
+ * recognized by its structural invariant, true by construction since
+ * flavor B shipped: awaitDecision requires a deadline and the escalate
+ * tool is the single hardcoded caller, so an escalation entry always
+ * carries deadlineAt AND toolName 'escalate'. The one entry that
+ * shape cannot distinguish, an ordinary tool literally named
+ * 'escalate' that opted into the v1.143.0 approval deadline, names
+ * itself: every approval suspension written since v1.144.0 journals an
+ * explicit `flavor: 'approval'` in its payload. Presence of the
+ * deadline ALONE must never pick the validator again: that is the
+ * regression that made every timed tool approval detached-unresolvable
+ * (the sixteenth experiment, judge repro R2).
+ */
+function detachedApprovalFlavor(entry: JournalEntry): 'approval' | 'decision' {
+  const value = entry.value as { toolName?: unknown; flavor?: unknown } | null | undefined;
+  if (value?.flavor === 'approval') {
+    return 'approval';
+  }
+  return entry.deadlineAt !== undefined && value?.toolName === 'escalate' ? 'decision' : 'approval';
+}
+
+/**
  * Per-run registry of open external suspensions plus the run's activity
  * counter: when every in-flight branch is blocked on suspensions
  * (activity zero, waiters open), the run quiesces into outcome
@@ -355,6 +380,12 @@ export class ExternalRegistry {
       const payload: Record<string, Json> = {
         toolName: options.toolName,
         input: options.input,
+        // The explicit flavor (RV1203): both suspension flavors share
+        // kind 'approval', and the detached resolver must never guess
+        // the payload type from the deadline again, so every new entry
+        // names its own flavor. Legacy entries classify by the
+        // pre-RV1107 invariant instead (see detachedApprovalFlavor).
+        flavor: 'approval',
       };
       if (options.risk !== undefined) {
         payload.risk = options.risk;
@@ -368,6 +399,8 @@ export class ExternalRegistry {
         ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
       });
     }
+
+    this.requireParsableDeadline(entry, 'approval');
 
     return new Promise<ApprovalDecision>((resolve) => {
       const resumeActivity = this.suspendActivity();
@@ -388,7 +421,8 @@ export class ExternalRegistry {
       // so a racing live decision and the timeout never both apply
       // (RV1107; the flavor B machinery, one suspension kind over).
       if (entry.deadlineAt !== undefined) {
-        const dueAt = Date.parse(entry.deadlineAt) || this.now();
+        // requireParsableDeadline validated the parse before parking.
+        const dueAt = Date.parse(entry.deadlineAt);
         waiter.timer = setLongTimeout(
           () => {
             void this.submitResolution(entry.seq, {
@@ -460,10 +494,16 @@ export class ExternalRegistry {
         key: deriveContentKey(identity),
         kind: 'approval',
         spanId: options.spanId,
+        // No flavor marker here, deliberately (RV1203): the escalation
+        // shape IS its identity (a required deadline plus the hardcoded
+        // toolName 'escalate'), an explicit marker would add no
+        // classification power, and the M7/M9 gating cassettes freeze
+        // these exact payload bytes.
         value: { toolName: options.toolName, input: options.input },
         deadlineAt: options.deadlineAt,
       });
     }
+    this.requireParsableDeadline(entry, 'escalation');
     return new Promise<{ value: Json; entryRef: number }>((resolve, reject) => {
       const signal = options.signal;
       const abortError = (): EscalationDecisionAbortedError => {
@@ -535,6 +575,24 @@ export class ExternalRegistry {
       }
       options.onPending?.(entry, replayed);
     });
+  }
+
+  /**
+   * A journaled deadline that does not parse is corruption: the old
+   * `Date.parse(...) || now` fallback silently turned a mangled byte
+   * into an immediate timeout (an instant deny for an approval, an
+   * instant default decision for an escalation), so both flavors
+   * refuse typed BEFORE parking or arming anything (RV1204). Fresh
+   * appends always carry the ISO the engine itself computed; the
+   * corrupt vector is a replayed entry served by a store.
+   */
+  private requireParsableDeadline(entry: JournalEntry, what: string): void {
+    if (entry.deadlineAt !== undefined && Number.isNaN(Date.parse(entry.deadlineAt))) {
+      throw new ConfigError(
+        `${what} deadline ${JSON.stringify(entry.deadlineAt)} on suspended entry ` +
+          `${String(entry.seq)} does not parse as a date; the journal bytes are corrupt`,
+      );
+    }
   }
 
   /**
@@ -676,11 +734,7 @@ export class ExternalRegistry {
     }
     const target = open ?? candidates[candidates.length - 1];
     await this.validatePayload(
-      target.kind === 'approval'
-        ? target.deadlineAt === undefined
-          ? 'approval'
-          : 'decision'
-        : 'external',
+      target.kind === 'approval' ? detachedApprovalFlavor(target) : 'external',
       key,
       value,
       (target.value as { schema?: unknown } | undefined)?.schema as SchemaSpec | undefined,

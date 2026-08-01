@@ -22,7 +22,7 @@ import {
   type WireError,
 } from '../l0/errors.js';
 import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
-import { requireNonNegativeNumber, requirePositiveInteger } from '../l0/validate-numbers.js';
+import { requireDeadlineMs, requireNonNegativeNumber } from '../l0/validate-numbers.js';
 import type { Json } from '../l0/json.js';
 import type { Effort, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { ExecutorRegistry } from '../l0/spi/executor.js';
@@ -1118,10 +1118,12 @@ export function createCtx(
       if (escalation.deadlineMs !== undefined) {
         // A malformed interval (NaN, a negative, a fraction) fails typed
         // BEFORE any LLM call and before any journal entry (v1.34.0
-        // review P2-3). No upper bound: the journaled absolute deadline
-        // is honored through sliced timers, so a suspension may
-        // legitimately wait beyond the Node timer maximum.
-        requirePositiveInteger(escalation.deadlineMs, 'escalation.deadlineMs');
+        // review P2-3). The only upper bound is the deadline ceiling
+        // (RV1204): sliced timers honor waits far beyond the Node timer
+        // maximum, but now + deadlineMs must journal as a valid
+        // absolute date, so an interval the Date range cannot carry
+        // refuses here instead of dying generic at the conversion.
+        requireDeadlineMs(escalation.deadlineMs, 'escalation.deadlineMs');
       }
       if (escalation.minSpendUsd !== undefined) {
         // The gate compares spentSoFar < minSpendUsd, and every
@@ -2542,7 +2544,11 @@ export function createCtx(
             // instead of resolving by timeout immediately (v1.34.0 review
             // P2-2); the durability re-arm promise holds for any interval.
             const registry = internals.external;
-            const dueAt = Date.parse(entry.deadlineAt ?? '') || internals.now();
+            // The registry validated the parse before parking
+            // (requireParsableDeadline, RV1204): a corrupt journaled
+            // deadline refuses typed there instead of the old `|| now`
+            // fallback resolving by the default decision immediately.
+            const dueAt = Date.parse(entry.deadlineAt ?? '');
             timer = setLongTimeout(
               () => {
                 void registry
