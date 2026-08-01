@@ -1629,6 +1629,24 @@ const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/engine/approval-deadline.test.ts',
   },
+  {
+    id: 'statement-empty-usage',
+    doctrine:
+      "an affirmatively declared usage object with zero token counts is not settlement evidence (RV1201): with the rule disabled, `usage: {}` reads verdict match with complete coverage and settleable true on the object's mere presence, the sixteenth experiment's judge repro R1",
+    file: 'packages/openai/src/reconcile.ts',
+    find: '        if (usageSeen === 0) {',
+    replace: '        if (false) {',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
+  {
+    id: 'statement-empty-components',
+    doctrine:
+      'an affirmatively declared componentsUsd split with zero figures is not settlement evidence (RV1201): with the rule disabled, `componentsUsd: {}` counts as a dollar claim while claiming nothing and the statement settles over it',
+    file: 'packages/openai/src/reconcile.ts',
+    find: '        if (componentsSeen === 0) {',
+    replace: '        if (false) {',
+    test: 'packages/openai/src/reconcile.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
