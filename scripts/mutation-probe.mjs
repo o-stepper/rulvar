@@ -403,8 +403,8 @@ const MUTATIONS = [
     doctrine:
       'the server cost endpoint folds through the snapshot composition, not the raw last-pin snapshot (RV611)',
     file: 'packages/cli/src/server.ts',
-    find: '      settleSnapshot === undefined\n        ? currentPriceUsd\n        : settleSnapshot.composedPriceUsd(currentPriceUsd),',
-    replace: '      settleSnapshot?.priceUsd ?? currentPriceUsd,',
+    find: '    return settleSnapshot === undefined\n      ? currentPriceUsd\n      : settleSnapshot.composedPriceUsd(currentPriceUsd);',
+    replace: '    return settleSnapshot?.priceUsd ?? currentPriceUsd;',
     test: 'packages/cli/src/server.test.ts',
   },
   {
@@ -604,8 +604,8 @@ const MUTATIONS = [
     doctrine:
       'the kernel ledger prices per provider call where the records cover the usage: an aggregate re-price lets a long-context tier fire on a phase sum no single request produced, 42.573% high live in the twelfth experiment (RV801)',
     file: 'packages/core/src/journal/replayer.ts',
-    find: '        usd += priceEntryBilling(entry, this.priceUsd).usd;',
-    replace: '        usd += this.priceUsd(entry.servedBy, entry.usage) ?? 0;',
+    find: '      usd += priceEntryBilling(entry, priceUsd).usd;',
+    replace: '      usd += priceUsd(entry.servedBy, entry.usage) ?? 0;',
     test: 'packages/core/src/journal/replayer.test.ts',
   },
   {
@@ -1310,7 +1310,7 @@ const MUTATIONS = [
     doctrine:
       'a granted admission whose wire never left releases back to the window (RV1013): with the flown count inflated to cover every grant, unused admissions stay consumed and the window overstates capacity forever',
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: '            const flown = (wireCount ?? 1) - 1;',
+    find: '            const flown = wireCount === undefined ? granted : wireCount - 1;',
     replace: '            const flown = segmentReservations.length;',
     test: 'packages/core/src/engine/quota-segments.test.ts',
   },
@@ -1700,6 +1700,61 @@ const MUTATIONS = [
     find: "    assertSafeRunId(runId, 'importRun');\n",
     replace: '',
     test: 'packages/core/src/engine/data-protection.test.ts',
+  },
+  {
+    id: 'persisted-terminal-settle-authority',
+    doctrine:
+      'the persisted terminal reads the JOURNALED settle, not the meta projection (RV1209): fall back to the meta status and a fenced-out segment that settled nothing durable reports a terminal it never had, which is the exact honesty the superseded row exists to pin',
+    file: 'packages/core/src/engine/persisted-terminal.ts',
+    find: "  const settle = lastRunSettle(input.entries);\n  if (settle === undefined) {\n    return refuse('unsettled');\n  }",
+    replace:
+      "  const settle = lastRunSettle(input.entries) ?? { runStatus: input.meta?.status ?? 'ok' };",
+    test: 'packages/core/src/engine/persisted-terminal.test.ts',
+  },
+  {
+    id: 'persisted-terminal-provenance',
+    doctrine:
+      'a journal-rebuilt envelope declares that it was rebuilt (RV1209): unmarked, its absent completion and error read as facts the run reported, so a restart silently converts "not recorded" into "the workflow claimed nothing" and "the run did not fail"',
+    file: 'packages/core/src/engine/persisted-terminal.ts',
+    find: "    provenance: 'journal',\n",
+    replace: '',
+    test: 'packages/core/src/engine/persisted-terminal.test.ts',
+  },
+  {
+    id: 'wire-record-reported-count',
+    doctrine:
+      'the provider call record carries the REPORTED wire count, never the id count (RV1210): derived from the ids, an absorption whose segments the provider left unnamed understates its own cardinality, and the invoice then contradicts the quota window that settled on the same count',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '            record.wireRequests = wireCountReported;',
+    replace: '            record.wireRequests = wireIds?.length ?? wireCountReported;',
+    test: 'packages/core/src/engine/wire-units.test.ts',
+  },
+  {
+    id: 'invoice-cardinality-wires',
+    doctrine:
+      'the invoice cardinality counts the requests the provider billed (RV1210): counted off the recorded ids instead, the declaration understates by exactly the unnamed segments and a host reconciling row count against statement lines is handed a mismatch dressed as agreement',
+    file: 'packages/core/src/engine/invoice.ts',
+    find: '    const wires = row.wireRequests ?? 1;',
+    replace: '    const wires = row.wireResponseIds?.length ?? 1;',
+    test: 'packages/core/src/engine/wire-units.test.ts',
+  },
+  {
+    id: 'quota-abort-after-reserve',
+    doctrine:
+      'an abort landing inside the awaited quota reservation stops the wire (RV1210): without the recheck, a limiter that queues holds the call past the abort and the wire leaves anyway, so an aborted run pays for a call it was already told not to make',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          const abandoned = await abortedAfterReserve(quota, decision.reservationId);\n          if (abandoned !== undefined) {\n            return abandoned;\n          }\n',
+    replace: '',
+    test: 'packages/core/src/engine/quota-segments.test.ts',
+  },
+  {
+    id: 'segment-release-fail-closed',
+    doctrine:
+      'an unreported wire count releases NOTHING (RV1210): read as one flown wire, every granted continuation returns to the window, handing a hook-granting adapter that names no count back exactly the capacity RV1013 admitted before its wires left',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '            const flown = wireCount === undefined ? granted : wireCount - 1;',
+    replace: '            const flown = (wireCount ?? 1) - 1;',
+    test: 'packages/core/src/engine/quota-segments.test.ts',
   },
 ];
 

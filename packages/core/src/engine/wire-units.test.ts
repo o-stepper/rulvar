@@ -101,3 +101,72 @@ describe('pause_turn continuations as accounted wire units (RV905)', () => {
     expect(limiter.snapshot().at(0)?.requests).toBe(1);
   });
 });
+
+describe('logical dispatches versus provider wire requests (RV1210)', () => {
+  it('records the reported wire count even where the provider named fewer ids', async () => {
+    const store = new InMemoryStore();
+    // Three wire requests, two ids: the provider left one segment
+    // unnamed. Counting the ids alone understates the cardinality by
+    // exactly the segments the provider did not name, and the quota
+    // window (which reads `count`) and the invoice then disagree.
+    const adapter = scriptedAdapter(() => ({
+      text: 'done',
+      usage: USAGE,
+      providerMetadata: {
+        fake: {
+          responseId: 'msg-3',
+          wireRequests: { count: 3, responseIds: ['msg-1', 'msg-3'] },
+        },
+      },
+    }));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    expect((await engine.run(echo, undefined, { runId: 'WU3' }).result).status).toBe('ok');
+    const entries = await store.load('WU3');
+    const record = entries
+      .filter((entry) => entry.kind === 'agent')
+      .flatMap((entry) => entry.providerCalls ?? [])
+      .at(0);
+    expect(record?.wireRequests).toBe(3);
+    expect(record?.wireResponseIds).toEqual(['msg-1', 'msg-3']);
+    const invoice = invoiceFromJournal(entries, () => undefined);
+    expect(invoice.rows.at(0)?.wireRequests).toBe(3);
+    // The export states the cardinality instead of leaving a host to
+    // discover it as a row-count mismatch against the statement.
+    expect(invoice.cardinality).toEqual({
+      dispatchRows: 1,
+      wireRequests: 3,
+      multiWireRows: 1,
+      wireIdsMissing: 1,
+    });
+  });
+
+  it('a single-wire run declares one dispatch per wire request and no missing ids', async () => {
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [scriptedAdapter(() => ({ text: 'done', usage: USAGE }))],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    expect((await engine.run(echo, undefined, { runId: 'WU4' }).result).status).toBe('ok');
+    const entries = await store.load('WU4');
+    const record = entries
+      .filter((entry) => entry.kind === 'agent')
+      .flatMap((entry) => entry.providerCalls ?? [])
+      .at(0);
+    // Single-wire dispatches stay byte identical: the count rides the
+    // record only where an absorption made it differ from one.
+    expect(record !== undefined && 'wireRequests' in record).toBe(false);
+    const invoice = invoiceFromJournal(entries, () => undefined);
+    expect(invoice.rows.at(0) !== undefined && 'wireRequests' in invoice.rows[0]).toBe(false);
+    expect(invoice.cardinality).toEqual({
+      dispatchRows: 1,
+      wireRequests: 1,
+      multiWireRows: 0,
+      wireIdsMissing: 0,
+    });
+  });
+});

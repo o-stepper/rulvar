@@ -40,6 +40,7 @@ import {
   costReportFromJournal,
   journalPricingSnapshot,
   normalizeEntry,
+  persistedTerminalEnvelope,
   readRunMeta,
   validateSchemaSpec,
   type CostReport,
@@ -458,6 +459,31 @@ export function createServer(options: CreateServerOptions): RulvarServer {
     return readRunMeta(journal, runId);
   }
 
+  /** One run's journal, normalized, ready for any pure fold. */
+  async function foldableEntries(runId: string): Promise<JournalEntry[]> {
+    return (await journal.load(runId)).map((raw) => normalizeEntry(raw));
+  }
+
+  /**
+   * The run's settle pins composed with the host's current table
+   * (RV611), the engine's outcome-mirror rule: pin-covered rows stay
+   * stable against later price-table updates (RV407), the tail past
+   * the last pin prices at the current table, and a tail model the
+   * host prices nowhere surfaces unpriced, never silently at the last
+   * pin's rates. Every offline money surface of this server (the cost
+   * report and the persisted terminal envelope) prices through THIS
+   * one function, so they cannot disagree.
+   */
+  function composedPriceUsd(
+    entries: readonly JournalEntry[],
+  ): (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined {
+    const settleSnapshot = journalPricingSnapshot(entries);
+    const currentPriceUsd = options.priceUsd ?? ((): undefined => undefined);
+    return settleSnapshot === undefined
+      ? currentPriceUsd
+      : settleSnapshot.composedPriceUsd(currentPriceUsd);
+  }
+
   async function startRun(req: Request): Promise<Response> {
     let body: StartRunBody;
     try {
@@ -541,6 +567,22 @@ export function createServer(options: CreateServerOptions): RulvarServer {
     if (meta === undefined) {
       return json(404, { error: { code: 'config', message: `run '${runId}' not found` } });
     }
+    // The persisted terminal (RV1209): a run this process never held is
+    // still a settled run, and the journal that recorded it carries the
+    // terminal. The envelope is rebuilt through the ONE producer, under
+    // the same composed pricing GET /runs/:id/cost uses, so a restart
+    // reads the SAME shape a live consumer holds; where nothing durable
+    // records a terminal, the body carries a typed refusal instead of
+    // dressing the meta projection up as an envelope. `terminal-
+    // Unavailable` is its own field, never `error`: `error` on this
+    // body means the RUN failed.
+    const entries = await foldableEntries(runId);
+    const persisted = persistedTerminalEnvelope({
+      runId,
+      meta,
+      entries,
+      priceUsd: composedPriceUsd(entries),
+    });
     return json(200, {
       runId,
       status: meta.status,
@@ -549,6 +591,11 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       ...(meta.name === undefined ? {} : { name: meta.name }),
       ...(meta.tags === undefined ? {} : { tags: meta.tags }),
       updatedAt: meta.updatedAt,
+      ...(persisted.available
+        ? { envelope: persisted.envelope }
+        : {
+            terminalUnavailable: { reason: persisted.reason, message: persisted.message },
+          }),
     });
   }
 
@@ -889,21 +936,8 @@ export function createServer(options: CreateServerOptions): RulvarServer {
     if (run === undefined && meta === undefined) {
       return json(404, { error: { code: 'config', message: `run '${runId}' not found` } });
     }
-    const entries = (await journal.load(runId)).map((raw) => normalizeEntry(raw));
-    // The run's settle pins compose with the host's current table
-    // (RV611), the engine's outcome-mirror rule: pin-covered rows stay
-    // stable against later price-table updates (RV407), the tail past
-    // the last pin prices at the current table, and a tail model the
-    // host prices nowhere surfaces unpriced, never silently at the
-    // last pin's rates.
-    const settleSnapshot = journalPricingSnapshot(entries);
-    const currentPriceUsd = options.priceUsd ?? ((): undefined => undefined);
-    const report: CostReport = costReportFromJournal(
-      entries,
-      settleSnapshot === undefined
-        ? currentPriceUsd
-        : settleSnapshot.composedPriceUsd(currentPriceUsd),
-    );
+    const entries = await foldableEntries(runId);
+    const report: CostReport = costReportFromJournal(entries, composedPriceUsd(entries));
     return json(200, report);
   }
 

@@ -19,6 +19,11 @@
  * - toOtel completes its export over every terminal path, including
  *   the ones whose handle.result rejects after the stream already
  *   carried the refusal; a leftover span refuses green.
+ * - Every row is read back once more by a RESTARTED server: a fresh
+ *   engine over the same journal, holding nothing of the run (RV1209).
+ *   The persisted envelope carries the same facts marked
+ *   `provenance: 'journal'`, and the row whose settle never landed
+ *   answers with the typed terminal-unavailable instead.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -210,6 +215,12 @@ interface ConformanceRow {
     outcome: 'resolves' | 'rejects-superseded';
     /** The HTTP surface's honesty rule for rejected segments. */
     http: 'envelope' | 'typed-error';
+    /**
+     * The persisted surface after a restart (RV1209): 'envelope' where
+     * the journal records a settle, 'unavailable' where nothing durable
+     * does, which is exactly the fenced-out segment.
+     */
+    restart: 'envelope' | 'unavailable';
   };
 }
 
@@ -241,6 +252,7 @@ const ROWS: ConformanceRow[] = [
       agentsSpawned: 2,
       outcome: 'resolves',
       http: 'envelope',
+      restart: 'envelope',
     },
   },
   {
@@ -273,6 +285,7 @@ const ROWS: ConformanceRow[] = [
       agentsSpawned: 1,
       outcome: 'resolves',
       http: 'envelope',
+      restart: 'envelope',
     },
   },
   {
@@ -312,6 +325,7 @@ const ROWS: ConformanceRow[] = [
       agentsSpawned: 1,
       outcome: 'resolves',
       http: 'envelope',
+      restart: 'envelope',
     },
   },
   {
@@ -336,6 +350,7 @@ const ROWS: ConformanceRow[] = [
       agentsSpawned: 1,
       outcome: 'resolves',
       http: 'envelope',
+      restart: 'envelope',
     },
   },
   {
@@ -359,6 +374,7 @@ const ROWS: ConformanceRow[] = [
       agentsSpawned: 1,
       outcome: 'rejects-superseded',
       http: 'typed-error',
+      restart: 'unavailable',
     },
   },
 ];
@@ -493,14 +509,17 @@ interface HttpDrive {
   body: Record<string, unknown>;
   sseData: Record<string, unknown> | undefined;
   sseEnvelope: TerminalEnvelope | undefined;
+  /** The store the drive wrote, so the restart drive reads THAT journal. */
+  store: InMemoryStore;
 }
 
 /** Drives the row over HTTP: the run status body and the SSE replay. */
 async function driveHttp(row: ConformanceRow): Promise<HttpDrive> {
+  const store = row.store();
   const engine = createEngine({
     adapters: [row.adapter()],
     defaults: { routing: { loop: 'fake:m1' } },
-    stores: { journal: row.store() },
+    stores: { journal: store },
     pricing: PRICING,
   });
   const workflows: WorkflowRegistry = {
@@ -534,7 +553,32 @@ async function driveHttp(row: ConformanceRow): Promise<HttpDrive> {
     body,
     sseData: runEndFrame?.data,
     sseEnvelope: runEndFrame?.data?.envelope as TerminalEnvelope | undefined,
+    store,
   };
+}
+
+/**
+ * The restart drive (RV1209): a FRESH engine and server over the same
+ * journal, which is exactly what a redeploy or a second replica is.
+ * Nothing about the run is live here, so every fact served comes from
+ * the journal the settling segment wrote.
+ */
+async function driveRestart(
+  row: ConformanceRow,
+  store: InMemoryStore,
+  runId: string,
+): Promise<Record<string, unknown>> {
+  const engine = createEngine({
+    adapters: [row.adapter()],
+    defaults: { routing: { loop: 'fake:m1' } },
+    stores: { journal: store },
+    pricing: PRICING,
+  });
+  const workflows: WorkflowRegistry = {
+    [row.wfName]: row.workflow() as unknown as Workflow<never, unknown>,
+  };
+  const server = createServer({ engine, workflows });
+  return bodyOf(await get(server, `/runs/${runId}`));
 }
 
 /** The row's truth-table facts, checked identically against every surface. */
@@ -689,6 +733,41 @@ describe('the terminal envelope conformance table (RV1106)', () => {
         expect(http.body.status).toBe('error');
         expect('envelope' in http.body).toBe(false);
         expect((http.body.error as WireError).code).toBe('superseded');
+      }
+
+      // The restart drive (RV1209): the same row, read back from the
+      // journal alone by a process that never held the run.
+      const restarted = await driveRestart(row, http.store, http.runId);
+      expect(restarted.live).toBe(false);
+      if (row.expected.restart === 'envelope') {
+        expect('terminalUnavailable' in restarted).toBe(false);
+        const persisted = restarted.envelope as TerminalEnvelope;
+        expect(persisted).toBeDefined();
+        // Every fact the journal records survives the restart, priced
+        // by the settle's own pin, and the marker says where it came
+        // from: absent completion and error mean NOT RECORDED here,
+        // never "the workflow claimed nothing".
+        expect(persisted.provenance).toBe('journal');
+        expect('completion' in persisted).toBe(false);
+        expect('error' in persisted).toBe(false);
+        expect(persisted.runId).toBe(http.runId);
+        expect(persisted.workflow).toBe(row.wfName);
+        expect(persisted.status).toBe(row.expected.status);
+        expect(persisted.settled).toBe(true);
+        expect(persisted.totalUsd).toBe(row.expected.totalUsd);
+        expect(persisted.grossUsd).toBe(row.expected.totalUsd);
+        expect(persisted.costByModel).toEqual(row.expected.costByModel);
+        expect(persisted.usage).toEqual(row.expected.usage);
+        expect(persisted.usageApprox).toBe(row.expected.usageApprox);
+        expect(persisted.agentsSpawned).toBe(row.expected.agentsSpawned);
+      } else {
+        // The fenced-out segment settled nothing durable, so the
+        // persisted surface has no terminal to serve and says so.
+        expect('envelope' in restarted).toBe(false);
+        expect(restarted.terminalUnavailable).toEqual({
+          reason: 'unsettled',
+          message: 'no run settle is journaled for this run: nothing durable records a terminal',
+        });
       }
     }, 30_000);
   }

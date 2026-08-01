@@ -3120,6 +3120,46 @@ export async function runAgent<S extends SchemaSpec>(
             },
           },
         });
+        /**
+         * The abort recheck across the AWAITED reservation (RV1210).
+         * `dispatch` checks the signals inside its thunk so a keyed
+         * limiter queue wait cannot outlive an abort, but the quota
+         * reservation is a second unbounded wait past that check: a
+         * limiter that queues holds the call for as long as the window
+         * is full, and an abort landing in there used to be invisible,
+         * so the wire left anyway and the run paid for a call it had
+         * already been told to stop making. A granted admission whose
+         * wire is abandoned here is RELEASED, never reconciled: a
+         * settlement only ever adds (the call happened), while this
+         * call provably did not.
+         */
+        const abortedAfterReserve = async (
+          quota: NonNullable<typeof options.quota>,
+          granted?: string,
+        ): Promise<TurnOutcome | undefined> => {
+          const aborted = abortKind();
+          if (aborted === undefined) {
+            return undefined;
+          }
+          if (granted !== undefined) {
+            // Cleared BEFORE the release so the settlement below can
+            // never also fire for this id.
+            reservationId = undefined;
+            if (quota.release !== undefined) {
+              try {
+                await quota.release(granted);
+              } catch (thrown) {
+                const detail = thrown instanceof Error ? thrown.message : String(thrown);
+                events?.emit({
+                  type: 'log',
+                  level: 'warn',
+                  msg: `the shared quota limiter failed to release an aborted admission: ${detail}`,
+                });
+              }
+            }
+          }
+          return abortedOutcome(aborted);
+        };
         // Reserving is async only when a quota is configured: the
         // unconfigured path returns the streamTurn promise ITSELF, so
         // no extra microtask ever reorders concurrent journal appends
@@ -3155,7 +3195,10 @@ export async function runAgent<S extends SchemaSpec>(
                   `the shared quota limiter failed; dispatching ${target.resolved.ref} ` +
                   `without a reservation (onLimiterError 'allow'): ${detail}`,
               });
-              return streamTurn(target.adapter, req, meteredOptionsFor(target));
+              return (
+                (await abortedAfterReserve(quota)) ??
+                streamTurn(target.adapter, req, meteredOptionsFor(target))
+              );
             }
             return quotaDeniedOutcome({
               infrastructure: `the shared quota limiter failed (onLimiterError 'deny'): ${detail}`,
@@ -3165,6 +3208,10 @@ export async function runAgent<S extends SchemaSpec>(
             return quotaDeniedOutcome(decision);
           }
           reservationId = decision.reservationId;
+          const abandoned = await abortedAfterReserve(quota, decision.reservationId);
+          if (abandoned !== undefined) {
+            return abandoned;
+          }
           if (quota.reserveContinuations !== true) {
             return streamTurn(target.adapter, req, meteredOptionsFor(target));
           }
@@ -3315,7 +3362,14 @@ export async function runAgent<S extends SchemaSpec>(
             outcome.finish !== undefined &&
             options.quota.release !== undefined
           ) {
-            const flown = (wireCount ?? 1) - 1;
+            // Fail closed on a finish that names NO wire set (RV1210):
+            // an absent count used to read as "one wire flew", so every
+            // grant looked unused and went back to the window, handing
+            // a hook-granting adapter that reports no count exactly the
+            // capacity RV1013 admitted. Nothing proves those wires
+            // unused, so nothing is released, the same conservative
+            // direction the no-finish arm above takes.
+            const flown = wireCount === undefined ? granted : wireCount - 1;
             for (const unused of segmentReservations.slice(Math.max(0, flown))) {
               try {
                 await options.quota.release(unused);
@@ -3396,6 +3450,21 @@ export async function runAgent<S extends SchemaSpec>(
               : undefined;
           if (wireIds !== undefined) {
             record.wireResponseIds = wireIds;
+          }
+          // The billed CARDINALITY of this dispatch (RV1210), recorded
+          // from the reported count rather than counted off the ids: a
+          // provider that leaves one absorbed segment unnamed still
+          // made that request, so ids alone understate the row by
+          // exactly the unnamed segments, and the invoice would then
+          // disagree with the quota window, which settles on this same
+          // count.
+          const wireCountReported = wire?.count;
+          if (
+            typeof wireCountReported === 'number' &&
+            Number.isInteger(wireCountReported) &&
+            wireCountReported > 1
+          ) {
+            record.wireRequests = wireCountReported;
           }
           if (outcome.usageApprox) {
             record.usageApprox = true;

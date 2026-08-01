@@ -44,6 +44,7 @@ import {
   type ResumeReport,
 } from './matching.js';
 import type { IdentityInput } from './identity.js';
+import type { AbandonFold } from './disposition.js';
 
 export type ReplayMode = 'scoped' | 'cache' | 'never';
 
@@ -69,6 +70,65 @@ export interface Ledger {
   usage: Usage;
   usd: number;
   agentsSpawned: number;
+}
+
+/**
+ * The budget ledger fold as a PURE function over entries (extracted in
+ * RV1209 so an offline reader folds the identical arithmetic instead
+ * of a lookalike): usage sums over terminal entries once, never twice;
+ * agentsSpawned counts agent dispatches. Dollars fold on the settled
+ * billing basis (RV801): per provider call where the entry's records
+ * cover its usage, the per-slice aggregate otherwise, the same basis
+ * as the CostReport and the invoice.
+ */
+export function foldLedger(
+  entries: readonly JournalEntry[],
+  abandonFold: AbandonFold,
+  priceUsd?: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
+): Ledger {
+  let usage: Usage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  };
+  let usd = 0;
+  let agentsSpawned = 0;
+  for (const entry of entries) {
+    if (
+      entry.kind !== 'resolution' &&
+      entry.kind !== 'abandon' &&
+      abandonFold.isAbandoned(entry.ref ?? entry.seq)
+    ) {
+      // Derived-skipped operations contribute a zero increment
+      // (DEF-1: zero spend inside an abandoned
+      // subtree).
+      continue;
+    }
+    if (entry.kind === 'agent' && entry.status === 'running') {
+      agentsSpawned += 1;
+    }
+    if (entry.status === 'running' || entry.usage === undefined) {
+      continue;
+    }
+    // The canonical adder (RV1001): the settled fold keeps the
+    // cache-write TTL split its entries were priced under, so
+    // run:end usage names the same attribution as the money.
+    usage = sumUsage(usage, entry.usage);
+    // The billing fold (RV504, adopted by the ledger in RV801): a
+    // model whose per-dispatch records cover its usage prices per
+    // provider call, so a nonlinear long-context tier fires per
+    // REQUEST, never on a phase aggregate no single request produced;
+    // an uncovered model keeps the per-slice aggregate basis, and an
+    // entry with no split prices its whole usage at servedBy, as
+    // before. The ledger is a public money surface (run:end, the
+    // resume budget seed), so it folds on the same basis as the
+    // settled CostReport and the invoice.
+    if (priceUsd !== undefined) {
+      usd += priceEntryBilling(entry, priceUsd).usd;
+    }
+  }
+  return { usage, usd, agentsSpawned };
 }
 
 /** Fields common to every append through the kernel. */
@@ -542,50 +602,7 @@ export class Replayer {
    * CostReport and the invoice.
    */
   ledger(): Ledger {
-    let usage: Usage = {
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-    };
-    let usd = 0;
-    let agentsSpawned = 0;
-    const abandonFold = this.foldInternal.abandonFold;
-    for (const entry of this.entries) {
-      if (
-        entry.kind !== 'resolution' &&
-        entry.kind !== 'abandon' &&
-        abandonFold.isAbandoned(entry.ref ?? entry.seq)
-      ) {
-        // Derived-skipped operations contribute a zero increment
-        // (DEF-1: zero spend inside an abandoned
-        // subtree).
-        continue;
-      }
-      if (entry.kind === 'agent' && entry.status === 'running') {
-        agentsSpawned += 1;
-      }
-      if (entry.status === 'running' || entry.usage === undefined) {
-        continue;
-      }
-      // The canonical adder (RV1001): the settled fold keeps the
-      // cache-write TTL split its entries were priced under, so
-      // run:end usage names the same attribution as the money.
-      usage = sumUsage(usage, entry.usage);
-      // The billing fold (RV504, adopted by the ledger in RV801): a
-      // model whose per-dispatch records cover its usage prices per
-      // provider call, so a nonlinear long-context tier fires per
-      // REQUEST, never on a phase aggregate no single request produced;
-      // an uncovered model keeps the per-slice aggregate basis, and an
-      // entry with no split prices its whole usage at servedBy, as
-      // before. The ledger is a public money surface (run:end, the
-      // resume budget seed), so it folds on the same basis as the
-      // settled CostReport and the invoice.
-      if (this.priceUsd !== undefined) {
-        usd += priceEntryBilling(entry, this.priceUsd).usd;
-      }
-    }
-    return { usage, usd, agentsSpawned };
+    return foldLedger(this.entries, this.foldInternal.abandonFold, this.priceUsd);
   }
 
   /** Read-only view of the appended entries, in per-run total order. */

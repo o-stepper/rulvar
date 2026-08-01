@@ -24,6 +24,11 @@ export type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, 'status' | 'error' 
  * (RV1009); absent means the settle held and `settled` reads true. The
  * per-model split is detached, so a consumer mutating the envelope
  * never reaches back into the cost report.
+ *
+ * `provenance: 'journal'` marks a copy rebuilt from the journal after
+ * the run left its process (RV1209). It is the same producer on
+ * purpose: a persisted reader must not assemble a second, subtly
+ * different shape, which is the whole point of the arc.
  */
 export function terminalEnvelopeOf(input: {
   runId: string;
@@ -31,6 +36,7 @@ export function terminalEnvelopeOf(input: {
   outcome: TerminalOutcomeFacts;
   agentsSpawned: number;
   settlement?: { settledReason?: 'superseded' };
+  provenance?: 'journal';
 }): TerminalEnvelope {
   const { outcome } = input;
   const envelope: TerminalEnvelope = {
@@ -53,6 +59,9 @@ export function terminalEnvelopeOf(input: {
   }
   if (input.settlement?.settledReason !== undefined) {
     envelope.settledReason = input.settlement.settledReason;
+  }
+  if (input.provenance !== undefined) {
+    envelope.provenance = input.provenance;
   }
   return envelope;
 }
