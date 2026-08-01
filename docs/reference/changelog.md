@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+
 ### 1.143.0
 
 #### Patch Changes
@@ -1481,6 +1488,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+
 ### 1.143.0
 
 #### Patch Changes
@@ -2751,6 +2765,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
 
 ### 1.143.0
 
@@ -4430,6 +4451,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.144.0
+
+#### Minor Changes
+
+- c11bcd6: Detached resolution picks its validator by the suspension's journaled flavor, and journaled deadlines are range-checked and corruption-checked (RV1203, RV1204). The v1.143.0 opt-in approval deadline made the detached resolver's deadline-presence heuristic wrong: a settled run's TIMED tool approval rejected the plain `{ decision: 'allow' }` as a malformed escalation decision, so nobody could resolve it detached and the parked approval always died at its deny-by-timeout (the sixteenth experiment's judge reproduced it as R2). The detached path now classifies by the suspension's own shape: an escalation is recognized by its structural invariant (a required deadline plus the hardcoded toolName `escalate`, true by construction since flavor B shipped), every approval suspension written since v1.144.0 journals an explicit `flavor: 'approval'` in its payload to pin the one ambiguous name (an ordinary tool literally called `escalate` that opted into the deadline), and the validator follows that flavor, deadline or not. Both deadline knobs (`permissions.approvalDeadlineMs`, the escalation `deadlineMs`) now share a compile-time deadline ceiling of one hundred years in milliseconds, so `now + interval` always journals as a valid absolute date instead of passing the positive-integer check and dying generic with `Invalid time value` at the `Date` conversion (judge repro R4). A journaled `deadlineAt` that does not parse as a date refuses typed as journal corruption, at `importRun` intake (the journal shape gate) and again before any timer arms; the old `Date.parse(...) || now` fallback silently resolved such an entry immediately, an instant deny for an approval and an instant default decision for an escalation.
 
 ### 1.143.0
 
@@ -6406,6 +6433,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.144.0
+
 ### 1.143.0
 
 ### 1.142.0
@@ -6796,6 +6825,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+  - @rulvar/anthropic@1.144.0
+  - @rulvar/openai@1.144.0
+  - @rulvar/plan@1.144.0
+  - @rulvar/testing@1.144.0
 
 ### 1.143.0
 
@@ -8431,6 +8471,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+
 ### 1.143.0
 
 #### Patch Changes
@@ -9108,6 +9155,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
 
 ### 1.143.0
 
@@ -10577,6 +10631,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+
 ### 1.143.0
 
 #### Patch Changes
@@ -11961,6 +12022,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+  - eslint-plugin-rulvar@1.144.0
 
 ### 1.143.0
 
@@ -13451,6 +13520,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+  - @rulvar/anthropic@1.144.0
+  - @rulvar/openai@1.144.0
 
 ### 1.143.0
 
@@ -15171,6 +15249,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+
 ### 1.143.0
 
 #### Patch Changes
@@ -16551,6 +16636,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
+
 ### 1.143.0
 
 #### Patch Changes
@@ -17252,6 +17344,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
 
 ### 1.143.0
 
@@ -18585,6 +18684,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.144.0
+
+#### Patch Changes
+
+- Updated dependencies [c11bcd6]
+  - @rulvar/core@1.144.0
 
 ### 1.143.0
 
