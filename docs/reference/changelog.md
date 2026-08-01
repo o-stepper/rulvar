@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+
 ### 1.145.0
 
 #### Patch Changes
@@ -1494,6 +1501,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+
 ### 1.145.0
 
 #### Patch Changes
@@ -2777,6 +2791,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
 
 ### 1.145.0
 
@@ -4469,6 +4490,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.146.0
+
+#### Minor Changes
+
+- 5d9bbc8: Profile vocabularies are what the host registered, nothing inherited, and `importRun` applies the one safe runId guard (RV1205, RV1206). Every profile map read went through a bare index, which resolves the JavaScript prototype chain: an `agentType` naming `toString`, `constructor`, or `hasOwnProperty` resolved a function as its "profile", passed the `profiles` allowlist, recorded a `spawn:admitted` decision, and burned the slot before dying downstream on the inherited value (the sixteenth experiment's judge reproduced it as R3). All four surfaces now read own properties: the orchestrate advertisement filter (which additionally builds a null-prototype advertised map), the allowlist enforcement and profile resolution at spawn, `ctx.agent`'s agentType registration check, and the preflight spawn-spec resolution. A prototype name is now exactly as unknown as any unregistered name: it refuses typed before admission and consumes nothing. Separately, `engine.importRun` now applies `assertSafeRunId` at its intake, the same guard `engine.run` and `engine.resume` use: an import previously validated only "non-empty string", so a bundle claiming `..`, a slashed path, or an over-length id reached the stores raw.
 
 ### 1.145.0
 
@@ -6453,6 +6480,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.146.0
+
 ### 1.145.0
 
 ### 1.144.0
@@ -6847,6 +6876,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+  - @rulvar/anthropic@1.146.0
+  - @rulvar/openai@1.146.0
+  - @rulvar/plan@1.146.0
+  - @rulvar/testing@1.146.0
 
 ### 1.145.0
 
@@ -8504,6 +8544,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+
 ### 1.145.0
 
 #### Patch Changes
@@ -9194,6 +9241,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
 
 ### 1.145.0
 
@@ -10680,6 +10734,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+
 ### 1.145.0
 
 #### Patch Changes
@@ -12077,6 +12138,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+  - eslint-plugin-rulvar@1.146.0
 
 ### 1.145.0
 
@@ -13582,6 +13651,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+  - @rulvar/anthropic@1.146.0
+  - @rulvar/openai@1.146.0
 
 ### 1.145.0
 
@@ -15320,6 +15398,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+
 ### 1.145.0
 
 #### Patch Changes
@@ -16713,6 +16798,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
+
 ### 1.145.0
 
 #### Patch Changes
@@ -17427,6 +17519,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
 
 ### 1.145.0
 
@@ -18773,6 +18872,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.146.0
+
+#### Patch Changes
+
+- Updated dependencies [5d9bbc8]
+  - @rulvar/core@1.146.0
 
 ### 1.145.0
 
