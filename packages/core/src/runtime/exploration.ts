@@ -365,11 +365,18 @@ export function finalizationWindowNoticeText(
   remaining: number,
   reserve: number,
   budget: FinalizationWindowBudget,
+  /** The outstanding evidence deficit the reserve was widened for (RV1208). */
+  evidenceDeficit?: number,
 ): string {
+  const deficitLine =
+    evidenceDeficit === undefined || evidenceDeficit <= 0
+      ? ''
+      : ` This tail is reserved for your declared evidence floor: record ` +
+        `${String(evidenceDeficit)} more evidence ${evidenceDeficit === 1 ? 'entry' : 'entries'} first.`;
   return (
     `Finalization window: ${String(Math.max(0, remaining))} of the reserved final ` +
     `${String(reserve)} ${budget} remain. Only finalization tools (and the terminal tool) ` +
-    `may execute now; record your evidence and finish with what you have.`
+    `may execute now; record your evidence and finish with what you have.${deficitLine}`
   );
 }
 

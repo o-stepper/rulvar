@@ -395,6 +395,196 @@ describe('partial-child salvage (RV-210 close-out)', () => {
     );
   });
 
+  it('requireEvidenceFloor refuses to promote a below-floor child that salvage would accept (RV1207)', async () => {
+    // The sixteenth experiment's judged P0-4: the budget worker settled
+    // 'limit' with 10 of 14 declared evidence entries and was accepted
+    // through terminal-output salvage with the floor WAIVED, so an
+    // 'all-ok' run reported status ok (completion partial) over an
+    // unmet contract. The opt-in makes the declared floor binding: the
+    // salvage arms still surface the work (roster, digest,
+    // get_child_result), but a below-floor child never counts as
+    // successful, so 'all-ok' rejects.
+    const evidenceRecorder = () =>
+      tool({
+        name: 'record_evidence',
+        description: 'records one evidence entry',
+        parameters: z.strictObject({}),
+        execute: () => Promise.resolve({ recorded: true }),
+      });
+    const profiles = {
+      solid: { description: 'settles ok' },
+      digger: {
+        description: 'records one entry, reports, then burns out',
+        tools: [progressReportTool(), evidenceRecorder(), noop()],
+        limits: { maxTurns: 8, maxToolCalls: 2 },
+        evidenceContract: { minEntries: 2, enforce: 'warn' as const },
+      },
+    };
+    const makeAdapter = () => {
+      let orchTurn = 0;
+      return scriptedAdapter((req): ScriptedTurn => {
+        const agentType = agentTypeOf(req);
+        if (agentType === 'solid') {
+          return { text: 'solid evidence' };
+        }
+        if (agentType === 'digger') {
+          const turn = req.messages.filter((msg) => msg.role === 'tool').length;
+          if (turn === 0) {
+            return { toolCall: { name: 'record_evidence', args: {} } };
+          }
+          if (turn === 1) {
+            return { toolCall: { name: 'report_progress', args: REPORT } };
+          }
+          return { toolCall: { name: 'noop', args: {} } };
+        }
+        orchTurn += 1;
+        if (orchTurn === 1) {
+          return {
+            toolCalls: [
+              { name: 'spawn_agent', args: { agentType: 'solid', prompt: 'task A' } },
+              { name: 'spawn_agent', args: { agentType: 'digger', prompt: 'task B' } },
+            ],
+          };
+        }
+        if (orchTurn === 2) {
+          return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+        }
+        return { toolCall: { name: 'finish', args: { result: 'the merged report' } } };
+      });
+    };
+
+    // Control: without the opt-in the run is accepted, exactly as before.
+    const control = makeInternals({ adapters: [makeAdapter()], routing: ROUTING, profiles });
+    const accepted = (await executeWorkflow(
+      control.internals,
+      makeOrchestratorWorkflow('collect', {
+        acceptance: { childPolicy: 'all-ok', acceptPartialChildren: true },
+      }),
+      undefined,
+    )) as Envelope;
+    expect(accepted.completion).toBe('partial');
+
+    // With the floor required, the same run rejects and NAMES the
+    // contract; the roster still shows the salvage arm, unwaived.
+    const strict = makeInternals({ adapters: [makeAdapter()], routing: ROUTING, profiles });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(
+        strict.internals,
+        makeOrchestratorWorkflow('collect', {
+          acceptance: {
+            childPolicy: 'all-ok',
+            acceptPartialChildren: true,
+            requireEvidenceFloor: true,
+          },
+        }),
+        undefined,
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as {
+      degradedReasons?: string[];
+      acceptanceChildren?: Array<{
+        status: string;
+        salvage?: string;
+        evidence?: { met: boolean; waivedBySalvage?: true; floorRequired?: true };
+      }>;
+    };
+    expect(data.degradedReasons?.join(' ')).toContain('evidence floor');
+    expect(data.degradedReasons?.join(' ')).toContain('1 of 2');
+    const digger = data.acceptanceChildren?.find((child) => child.status === 'limit');
+    // Diagnostic, not promotion: the salvage arm is still recorded, the
+    // floor is marked required, and nothing reads as waived.
+    expect(digger?.salvage).toBe('partial');
+    expect(digger?.evidence?.met).toBe(false);
+    expect(digger?.evidence?.waivedBySalvage).toBeUndefined();
+    expect(digger?.evidence?.floorRequired).toBe(true);
+  });
+
+  it('requireEvidenceFloor leaves a child that MET its floor untouched (RV1207)', async () => {
+    const evidenceRecorder = () =>
+      tool({
+        name: 'record_evidence',
+        description: 'records one evidence entry',
+        parameters: z.strictObject({}),
+        execute: () => Promise.resolve({ recorded: true }),
+      });
+    const profiles = {
+      solid: { description: 'settles ok' },
+      digger: {
+        description: 'records both entries, reports, then burns out',
+        tools: [progressReportTool(), evidenceRecorder(), noop()],
+        limits: { maxTurns: 8, maxToolCalls: 3 },
+        evidenceContract: { minEntries: 2, enforce: 'warn' as const },
+      },
+    };
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      const agentType = agentTypeOf(req);
+      if (agentType === 'solid') {
+        return { text: 'solid evidence' };
+      }
+      if (agentType === 'digger') {
+        const turn = req.messages.filter((msg) => msg.role === 'tool').length;
+        if (turn === 0 || turn === 1) {
+          return { toolCall: { name: 'record_evidence', args: {} } };
+        }
+        if (turn === 2) {
+          return { toolCall: { name: 'report_progress', args: REPORT } };
+        }
+        return { toolCall: { name: 'noop', args: {} } };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'solid', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'digger', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'the merged report' } } };
+    });
+    const { internals } = makeInternals({ adapters: [adapter], routing: ROUTING, profiles });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('collect', {
+        acceptance: {
+          childPolicy: 'all-ok',
+          acceptPartialChildren: true,
+          requireEvidenceFloor: true,
+        },
+      }),
+      undefined,
+    )) as Envelope & {
+      acceptanceChildren?: Array<{
+        status: string;
+        evidence?: { met: boolean; recordedEntries: number };
+      }>;
+    };
+    // The floor was met, so the salvage arm promotes the child exactly
+    // as it did before the opt-in existed.
+    expect(outcome.completion).toBe('partial');
+    const digger = outcome.acceptanceChildren?.find((child) => child.status === 'limit');
+    expect(digger?.evidence).toMatchObject({ met: true, recordedEntries: 2 });
+  });
+
+  it('requireEvidenceFloor is validated typed at intake (RV1207)', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('collect', {
+        acceptance: {
+          childPolicy: 'all-ok',
+          requireEvidenceFloor: 'yes' as unknown as boolean,
+        },
+      }),
+    ).toThrow(ConfigError);
+  });
+
   it('an engine-level resume replays the identical salvage envelope from the journaled decision', async () => {
     const store = new InMemoryStore();
     const transcripts = new InMemoryTranscriptStore();

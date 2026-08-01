@@ -2027,7 +2027,8 @@ type CoreEvents = {
       recordedEntries: number;
       minEntries: number;
       met: boolean;
-      waivedBySalvage?: true;
+      waivedBySalvage?: true; /** RV1207: the floor was required, so the arm did not promote. */
+      floorRequired?: true;
     };
   }>;
   /**
@@ -4520,6 +4521,21 @@ interface UsageLimits {
   finalizationWindow?: {
     /** How many trailing executed calls (or units) the window reserves. */reserveCalls: number; /** Tool names allowed inside the window; default: zero-cost tools. */
     allow?: string[];
+    /**
+    * The evidence-aware reserve (RV1208, the sixteenth comparison
+    * run: a worker spent 108 calls and still settled with 10 of 14
+    * declared evidence entries, because the window reserved a FIXED
+    * tail the deficit had long outgrown). With this true AND an
+    * evidence contract declared on the invocation, the effective
+    * reserve is the larger of `reserveCalls` and the outstanding
+    * deficit plus one summary call, recomputed at every boundary from
+    * the same successful-`record_evidence` window the floor refusal
+    * reads. So searching stops while the floor is still closable, and
+    * the reserve collapses back to `reserveCalls` as entries land.
+    * The one-time notice names the live deficit. Off by default: an
+    * earlier window entry changes recorded model requests.
+    */
+    reserveForEvidenceDeficit?: boolean;
   };
 }
 declare const DEFAULT_MAX_TURNS = 32;
@@ -4555,7 +4571,8 @@ interface EffectiveUsageLimits {
   };
   finalizationWindow?: {
     reserveCalls: number;
-    allow?: string[];
+    allow?: string[]; /** RV1208: widen the reserve to the outstanding evidence deficit plus the summary. */
+    reserveForEvidenceDeficit?: boolean;
   };
 }
 /**
@@ -8044,6 +8061,26 @@ interface OrchestrateAcceptance {
   * decision, so a resume rolls the same verdict forward.
   */
   acceptValidatedTerminalOutputOnLimit?: boolean;
+  /**
+  * The binding evidence floor (RV1207, the sixteenth comparison run;
+  * default false). A salvage arm above accepts a limit child by the
+  * work it carries, which says nothing about the DECLARED evidence
+  * contract: in that run a worker settled 'limit' with 10 of 14
+  * declared entries and was promoted through terminal-output salvage
+  * with the floor waived, so an 'all-ok' run reported status ok
+  * (completion 'partial') over an unmet contract. With this true, a
+  * child that declared an evidence contract it did not meet is NEVER
+  * promoted by a salvage arm: it counts against the policy exactly
+  * like an unsalvageable limit child, so 'all-ok' rejects and
+  * { minSuccessful: N } does not count it toward N. Salvage stays
+  * DIAGNOSTIC: the roster still records the arm that would have
+  * applied and the evidence verdict (marked `floorRequired` instead
+  * of `waivedBySalvage`), the degradedReasons name the shortfall with
+  * its counts, and the child's output stays visible through the
+  * digest and get_child_result exactly as before. A child with no
+  * declared contract, or one that met its floor, is untouched.
+  */
+  requireEvidenceFloor?: boolean;
 }
 /** How many rejected finishes are repaired by default: the plan's repair once. */
 declare const DEFAULT_FINISH_MAX_REPAIRS = 1;
@@ -9388,11 +9425,15 @@ interface CostReport {
 }
 /**
 * One row of the acceptance fold's per-child roster (RV806): the
-* settled status, the salvage arm that accepted the child (absent when
-* none did), and the evidence verdict where the child declared an
-* evidence contract. `waivedBySalvage: true` marks a child whose
-* evidence floor was NOT met but which a salvage arm accepted anyway;
-* gate on it where waived evidence must not pass silently.
+* settled status, the salvage arm that would have accepted the child
+* (absent when none applied), and the evidence verdict where the child
+* declared an evidence contract. `waivedBySalvage: true` marks a child
+* whose evidence floor was NOT met but which a salvage arm accepted
+* anyway; gate on it where waived evidence must not pass silently.
+* `floorRequired: true` marks the opposite verdict under
+* `acceptance.requireEvidenceFloor` (RV1207): the arm applied, the
+* floor was not met, and the child was NOT promoted, so the row is
+* diagnostic and the child counted against the policy.
 */
 interface AcceptanceChildSummary {
   child: string;
@@ -9403,6 +9444,7 @@ interface AcceptanceChildSummary {
     minEntries: number;
     met: boolean;
     waivedBySalvage?: true;
+    floorRequired?: true;
   };
 }
 type RunOutcome<R> = {

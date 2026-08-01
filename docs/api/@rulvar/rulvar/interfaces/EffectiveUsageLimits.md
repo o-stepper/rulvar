@@ -15,9 +15,10 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-checkpointeverytoolcalls"></a> `checkpointEveryToolCalls?` | `number` | RV408 mid-batch checkpoint cadence; absent = per-turn only. | `packages/core/dist/index.d.ts` |
 | <a id="property-finalizationreserve"></a> `finalizationReserve?` | \{ `maxOutputTokens?`: `number`; \} | - | `packages/core/dist/index.d.ts` |
 | `finalizationReserve.maxOutputTokens?` | `number` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-finalizationwindow"></a> `finalizationWindow?` | \{ `allow?`: `string`[]; `reserveCalls`: `number`; \} | - | `packages/core/dist/index.d.ts` |
+| <a id="property-finalizationwindow"></a> `finalizationWindow?` | \{ `allow?`: `string`[]; `reserveCalls`: `number`; `reserveForEvidenceDeficit?`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |
 | `finalizationWindow.allow?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `finalizationWindow.reserveCalls` | `number` | - | `packages/core/dist/index.d.ts` |
+| `finalizationWindow.reserveForEvidenceDeficit?` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxcallspertool"></a> `maxCallsPerTool?` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxnonewevidencecalls"></a> `maxNoNewEvidenceCalls?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxoutputtokensperturn"></a> `maxOutputTokensPerTurn?` | `number` | - | `packages/core/dist/index.d.ts` |

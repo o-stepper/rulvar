@@ -10,7 +10,7 @@
 function validateUsageLimits(limits, site): void;
 ```
 
-Defined in: [packages/core/src/runtime/usage-limits.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/usage-limits.ts#L301)
+Defined in: [packages/core/src/runtime/usage-limits.ts:318](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/usage-limits.ts#L318)
 
 Validates one UsageLimits layer at its intake boundary (v1.34.0
 review P2-3): a malformed field (NaN, Infinity, a negative, a

@@ -1675,6 +1675,24 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
+    id: 'evidence-floor-binding',
+    doctrine:
+      "acceptance.requireEvidenceFloor makes a declared evidence floor binding (RV1207): with the check disabled, a child below its declared floor is promoted by a salvage arm exactly as before and an 'all-ok' run reports ok over an unmet contract (the sixteenth experiment: 10 of 14 entries, waived, completion partial)",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        return requireFloor && evidence !== undefined && !evidence.met;',
+    replace: '        return false;',
+    test: 'packages/core/src/orchestrator/salvage.test.ts',
+  },
+  {
+    id: 'evidence-deficit-reserve',
+    doctrine:
+      'the finalization window reserve covers the outstanding evidence deficit under the opt-in (RV1208): with the widening dropped, the window keeps its fixed tail, the loop searches until the deficit is unclosable, and the child settles below its floor exactly as the sixteenth experiment recorded',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    return deficit === 0\n      ? finalizationWindow.reserveCalls\n      : Math.max(finalizationWindow.reserveCalls, deficit + 1);',
+    replace: '    return finalizationWindow.reserveCalls;',
+    test: 'packages/core/src/runtime/finalization-window.test.ts',
+  },
+  {
     id: 'import-runid-guard',
     doctrine:
       "importRun applies the one safe runId guard at its boundary (RV1206): with the guard dropped, a bundle claiming '..', a slashed path, or an over-length id reaches the stores raw, while engine.run and resume refuse the same id typed",

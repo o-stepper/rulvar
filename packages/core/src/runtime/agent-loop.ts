@@ -1869,6 +1869,37 @@ export async function runAgent<S extends SchemaSpec>(
   let windowEntered = false;
   let windowNoticeFired = false;
   const pendingWindowNotices: string[] = [];
+  /**
+   * The outstanding evidence deficit (RV1208): entries the declared
+   * floor still needs, from the same successful-record_evidence window
+   * the RV507 refusal and the RV809 trigger read, so every surface
+   * counts one way. Zero without a contract or once the floor is met.
+   */
+  const evidenceDeficit = (): number => {
+    const minEntries = options.evidenceContract?.minEntries;
+    return minEntries === undefined ? 0 : Math.max(0, minEntries - countRecordedEvidence(messages));
+  };
+  /**
+   * The effective reserve (RV1208). With reserveForEvidenceDeficit and
+   * a declared contract, the reserved tail is at least the outstanding
+   * deficit plus ONE summary call, so the window binds while the floor
+   * is still closable instead of after a fixed tail the deficit
+   * outgrew. It shrinks back as entries land, and never narrows below
+   * the configured reserve. Absent the opt-in it IS the configured
+   * reserve, byte for byte.
+   */
+  const effectiveReserveCalls = (): number => {
+    if (finalizationWindow === undefined) {
+      return 0;
+    }
+    if (finalizationWindow.reserveForEvidenceDeficit !== true) {
+      return finalizationWindow.reserveCalls;
+    }
+    const deficit = evidenceDeficit();
+    return deficit === 0
+      ? finalizationWindow.reserveCalls
+      : Math.max(finalizationWindow.reserveCalls, deficit + 1);
+  };
   /** The tightest remaining budget and which dimension provides it. */
   const windowRemaining = ():
     { remaining: number; budget: FinalizationWindowBudget } | undefined => {
@@ -1888,9 +1919,7 @@ export async function runAgent<S extends SchemaSpec>(
       return undefined;
     }
     const state = windowRemaining();
-    return state !== undefined && state.remaining <= finalizationWindow.reserveCalls
-      ? state
-      : undefined;
+    return state !== undefined && state.remaining <= effectiveReserveCalls() ? state : undefined;
   };
   /**
    * Marks the entry and queues the one-time notice. Queued, not pushed:
@@ -1907,14 +1936,19 @@ export async function runAgent<S extends SchemaSpec>(
     if (state === undefined) {
       return;
     }
+    const reserve = effectiveReserveCalls();
+    const deficit = evidenceDeficit();
     const commit = (): void => {
       windowEntered = true;
       windowNoticeFired = true;
       pendingWindowNotices.push(
         finalizationWindowNoticeText(
           state.remaining,
-          finalizationWindow.reserveCalls,
+          reserve,
           state.budget,
+          finalizationWindow.reserveForEvidenceDeficit === true && deficit > 0
+            ? deficit
+            : undefined,
         ),
       );
       events?.emit({
@@ -1922,7 +1956,7 @@ export async function runAgent<S extends SchemaSpec>(
         level: 'info',
         msg:
           `finalization window entered: ${String(state.remaining)} of the reserved final ` +
-          `${String(finalizationWindow.reserveCalls)} ${state.budget} remain`,
+          `${String(reserve)} ${state.budget} remain`,
       });
     };
     const durable = options.toolBudgetDurability?.onWindowEntry;
@@ -1938,7 +1972,9 @@ export async function runAgent<S extends SchemaSpec>(
     // and a rejected append must leave nothing marked.
     return durable({
       remaining: state.remaining,
-      reserveCalls: finalizationWindow.reserveCalls,
+      // The reserve that actually bound, deficit-widened or not
+      // (RV1208): the journaled fact must be the one the loop applied.
+      reserveCalls: reserve,
       budget: state.budget,
     }).then(commit);
   };
@@ -2594,7 +2630,8 @@ export async function runAgent<S extends SchemaSpec>(
               errorPart(call, {
                 error: finalizationWindowRefusalText(
                   gatedCall.name,
-                  finalizationWindow.reserveCalls,
+                  // The reserve that bound this refusal (RV1208).
+                  effectiveReserveCalls(),
                   windowState.budget,
                 ),
                 guard: 'finalization-window',

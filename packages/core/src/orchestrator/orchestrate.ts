@@ -248,6 +248,26 @@ export interface OrchestrateAcceptance {
    * decision, so a resume rolls the same verdict forward.
    */
   acceptValidatedTerminalOutputOnLimit?: boolean;
+  /**
+   * The binding evidence floor (RV1207, the sixteenth comparison run;
+   * default false). A salvage arm above accepts a limit child by the
+   * work it carries, which says nothing about the DECLARED evidence
+   * contract: in that run a worker settled 'limit' with 10 of 14
+   * declared entries and was promoted through terminal-output salvage
+   * with the floor waived, so an 'all-ok' run reported status ok
+   * (completion 'partial') over an unmet contract. With this true, a
+   * child that declared an evidence contract it did not meet is NEVER
+   * promoted by a salvage arm: it counts against the policy exactly
+   * like an unsalvageable limit child, so 'all-ok' rejects and
+   * { minSuccessful: N } does not count it toward N. Salvage stays
+   * DIAGNOSTIC: the roster still records the arm that would have
+   * applied and the evidence verdict (marked `floorRequired` instead
+   * of `waivedBySalvage`), the degradedReasons name the shortfall with
+   * its counts, and the child's output stays visible through the
+   * digest and get_child_result exactly as before. A child with no
+   * declared contract, or one that met its floor, is untouched.
+   */
+  requireEvidenceFloor?: boolean;
 }
 
 /** How many rejected finishes are repaired by default: the plan's repair once. */
@@ -857,6 +877,13 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       throw new ConfigError(
         'orchestrate acceptance.acceptValidatedTerminalOutputOnLimit must be a boolean; got ' +
           typeof acceptOutput,
+      );
+    }
+    const requireFloor = (opts.acceptance as { requireEvidenceFloor?: unknown })
+      .requireEvidenceFloor;
+    if (requireFloor !== undefined && typeof requireFloor !== 'boolean') {
+      throw new ConfigError(
+        `orchestrate acceptance.requireEvidenceFloor must be a boolean; got ${typeof requireFloor}`,
       );
     }
     const minSpawned = (opts.acceptance as { minSpawnedChildren?: unknown }).minSpawnedChildren;
@@ -5055,6 +5082,8 @@ export function makeOrchestratorWorkflow(
         record: (typeof sortedRecords)[number],
         status: string,
         salvage?: 'partial' | 'terminal-output',
+        /** RV1207: the arm applied but the declared floor blocked promotion. */
+        floorBlocked?: true,
       ): void => {
         const evidence = record.settled?.evidence;
         childrenSummary.push({
@@ -5066,10 +5095,31 @@ export function makeOrchestratorWorkflow(
             : {
                 evidence: {
                   ...evidence,
-                  ...(salvage !== undefined && !evidence.met ? { waivedBySalvage: true } : {}),
+                  ...(floorBlocked === true
+                    ? { floorRequired: true as const }
+                    : salvage !== undefined && !evidence.met
+                      ? { waivedBySalvage: true as const }
+                      : {}),
                 },
               }),
         });
+      };
+      // The binding evidence floor (RV1207): a child that declared a
+      // contract it did not meet is never PROMOTED by a salvage arm.
+      // The arm still runs for the roster and the degraded note, so the
+      // report stays diagnostic; only the acceptance count changes.
+      const requireFloor = opts.acceptance.requireEvidenceFloor === true;
+      const floorBlocks = (record: (typeof sortedRecords)[number]): boolean => {
+        const evidence = record.settled?.evidence;
+        return requireFloor && evidence !== undefined && !evidence.met;
+      };
+      const noteFloorShortfall = (record: (typeof sortedRecords)[number]): void => {
+        const evidence = record.settled?.evidence;
+        degradedReasons.push(
+          `child ${record.nodeId} is below its declared evidence floor ` +
+            `(${String(evidence?.recordedEntries ?? 0)} of ${String(evidence?.minEntries ?? 0)} ` +
+            'entries recorded) and the acceptance policy requires the evidence floor',
+        );
       };
       for (const record of sortedRecords) {
         const status = record.settled?.status ?? 'running';
@@ -5084,6 +5134,12 @@ export function makeOrchestratorWorkflow(
           record.settled?.output !== null &&
           record.settled?.output !== undefined
         ) {
+          if (floorBlocks(record)) {
+            hardDegraded += 1;
+            noteChild(record, status, 'terminal-output', true);
+            noteFloorShortfall(record);
+            continue;
+          }
           salvagedOutput.push(record.nodeId);
           noteChild(record, status, 'terminal-output');
           degradedReasons.push(
@@ -5093,6 +5149,12 @@ export function makeOrchestratorWorkflow(
           continue;
         }
         if (acceptPartial && status === 'limit' && record.settled?.partial !== undefined) {
+          if (floorBlocks(record)) {
+            hardDegraded += 1;
+            noteChild(record, status, 'partial', true);
+            noteFloorShortfall(record);
+            continue;
+          }
           salvaged.push(record.nodeId);
           noteChild(record, status, 'partial');
           degradedReasons.push(
