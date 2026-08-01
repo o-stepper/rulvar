@@ -1220,7 +1220,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           : { limits: options.budgetDefaults.lineage }),
       },
     });
-    const external = new ExternalRegistry(replayer, (body) => bus.emit(body, rootSpanId));
+    const external = new ExternalRegistry(replayer, (body) => bus.emit(body, rootSpanId), realNow);
     let transcriptCounter = 0;
     // The generation token (RunMeta.genesis): minted once at the fresh
     // start, carried verbatim by every resume segment. Distinguishes a

@@ -6,7 +6,7 @@
 
 # Interface: ApprovalDecision
 
-Defined in: [packages/core/src/engine/external.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L59)
+Defined in: [packages/core/src/engine/external.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L69)
 
 The resolution value shape of a tool-approval suspension (M3-T03).
 
@@ -14,5 +14,5 @@ The resolution value shape of a tool-approval suspension (M3-T03).
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-decision"></a> `decision` | `"allow"` \| `"deny"` | [packages/core/src/engine/external.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L60) |
-| <a id="property-reason"></a> `reason?` | `string` | [packages/core/src/engine/external.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L61) |
+| <a id="property-decision"></a> `decision` | `"allow"` \| `"deny"` | [packages/core/src/engine/external.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L70) |
+| <a id="property-reason"></a> `reason?` | `string` | [packages/core/src/engine/external.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L71) |

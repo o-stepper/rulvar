@@ -13,6 +13,7 @@
  */
 import { compilePermissionPreset } from '../tools/presets.js';
 import { lexShellCommand, matchArgvPattern } from '../tools/shell-matcher.js';
+import { ConfigError } from '../l0/errors.js';
 import type { ToolContext, ToolDef, ToolRisk } from '../l0/spi/toolsource.js';
 
 export type HookVerdict = 'allow' | 'deny' | 'ask' | { modifiedInput: unknown } | undefined;
@@ -57,6 +58,17 @@ export interface PermissionConfig {
   deny?: PermissionRule[];
   ask?: PermissionRule[];
   canUseTool?: CanUseTool;
+  /**
+   * Opt-in deadline for ask verdicts (RV1107): a suspended tool
+   * approval nobody resolves within this many milliseconds is DENIED
+   * by a journaled resolution by 'timeout' instead of waiting forever.
+   * The deadline is journaled ON the suspension entry, so it survives
+   * resume and re-arms from the entry, exactly like the flavor B
+   * escalation deadline; a racing live decision and the timeout can
+   * never both apply (first-closing-wins). Absent is the historical
+   * contract: the approval waits indefinitely.
+   */
+  approvalDeadlineMs?: number;
 }
 
 /**
@@ -77,6 +89,8 @@ export interface CompiledPermissionChain {
   deny: PermissionRule[];
   ask: PermissionRule[];
   canUseTool?: CanUseTool;
+  /** The merged opt-in approval deadline; profile over engine (RV1107). */
+  approvalDeadlineMs?: number;
 }
 
 export type PermissionVerdict = (
@@ -120,11 +134,25 @@ export function compilePermissionChain(
   const deny = [...(engine?.deny ?? []), ...(profile?.deny ?? []), ...preset.deny];
   const ask = [...(engine?.ask ?? []), ...(profile?.ask ?? []), ...preset.ask];
   const canUseTool = profile?.canUseTool ?? engine?.canUseTool;
+  // Most specific wins: a profile deadline overrides the engine's, a
+  // single slot like canUseTool. Validated here so both layers share
+  // one chokepoint: a zero, negative, or fractional deadline would arm
+  // a nonsense timer, so it refuses to compile instead (RV1107).
+  const approvalDeadlineMs = profile?.approvalDeadlineMs ?? engine?.approvalDeadlineMs;
+  if (
+    approvalDeadlineMs !== undefined &&
+    (!Number.isInteger(approvalDeadlineMs) || approvalDeadlineMs <= 0)
+  ) {
+    throw new ConfigError(
+      'permissions.approvalDeadlineMs must be a positive integer of milliseconds',
+    );
+  }
   return {
     hooks: [...(engine?.hooks ?? []), ...(profile?.hooks ?? [])],
     deny,
     ask,
     ...(canUseTool === undefined ? {} : { canUseTool }),
+    ...(approvalDeadlineMs === undefined ? {} : { approvalDeadlineMs }),
   };
 }
 

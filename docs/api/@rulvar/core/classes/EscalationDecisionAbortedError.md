@@ -6,7 +6,7 @@
 
 # Class: EscalationDecisionAbortedError
 
-Defined in: [packages/core/src/engine/external.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L48)
+Defined in: [packages/core/src/engine/external.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L58)
 
 The rejection carrier of an aborted flavor B decision wait (v1.35.0
 review P1): the parked `awaitDecision` observes the branch/run
@@ -29,7 +29,7 @@ resume parks the decision again and the durable deadline still applies.
 new EscalationDecisionAbortedError(message, entryRef): EscalationDecisionAbortedError;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L51)
+Defined in: [packages/core/src/engine/external.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L61)
 
 #### Parameters
 
@@ -52,4 +52,4 @@ Error.constructor
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-entryref"></a> `entryRef` | `readonly` | `number` | [packages/core/src/engine/external.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L49) |
+| <a id="property-entryref"></a> `entryRef` | `readonly` | `number` | [packages/core/src/engine/external.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L59) |

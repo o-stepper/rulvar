@@ -6,13 +6,14 @@
 
 # Interface: CompiledPermissionChain
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L75)
+Defined in: [packages/core/src/runtime/permission-chain.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L87)
 
 ## Properties
 
-| Property | Type | Defined in |
-| ------ | ------ | ------ |
-| <a id="property-ask"></a> `ask` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | [packages/core/src/runtime/permission-chain.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L78) |
-| <a id="property-canusetool"></a> `canUseTool?` | [`CanUseTool`](/api/@rulvar/core/type-aliases/CanUseTool.md) | [packages/core/src/runtime/permission-chain.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L79) |
-| <a id="property-deny"></a> `deny` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | [packages/core/src/runtime/permission-chain.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L77) |
-| <a id="property-hooks"></a> `hooks` | [`PermissionHook`](/api/@rulvar/core/type-aliases/PermissionHook.md)[] | [packages/core/src/runtime/permission-chain.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L76) |
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-approvaldeadlinems"></a> `approvalDeadlineMs?` | `number` | The merged opt-in approval deadline; profile over engine (RV1107). | [packages/core/src/runtime/permission-chain.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L93) |
+| <a id="property-ask"></a> `ask` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | - | [packages/core/src/runtime/permission-chain.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L90) |
+| <a id="property-canusetool"></a> `canUseTool?` | [`CanUseTool`](/api/@rulvar/core/type-aliases/CanUseTool.md) | - | [packages/core/src/runtime/permission-chain.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L91) |
+| <a id="property-deny"></a> `deny` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | - | [packages/core/src/runtime/permission-chain.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L89) |
+| <a id="property-hooks"></a> `hooks` | [`PermissionHook`](/api/@rulvar/core/type-aliases/PermissionHook.md)[] | - | [packages/core/src/runtime/permission-chain.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L88) |

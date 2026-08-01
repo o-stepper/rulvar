@@ -5242,6 +5242,17 @@ interface PermissionConfig {
   deny?: PermissionRule[];
   ask?: PermissionRule[];
   canUseTool?: CanUseTool;
+  /**
+  * Opt-in deadline for ask verdicts (RV1107): a suspended tool
+  * approval nobody resolves within this many milliseconds is DENIED
+  * by a journaled resolution by 'timeout' instead of waiting forever.
+  * The deadline is journaled ON the suspension entry, so it survives
+  * resume and re-arms from the entry, exactly like the flavor B
+  * escalation deadline; a racing live decision and the timeout can
+  * never both apply (first-closing-wins). Absent is the historical
+  * contract: the approval waits indefinitely.
+  */
+  approvalDeadlineMs?: number;
 }
 /**
 * Profile-level permissions.
@@ -5260,6 +5271,8 @@ interface CompiledPermissionChain {
   deny: PermissionRule[];
   ask: PermissionRule[];
   canUseTool?: CanUseTool;
+  /** The merged opt-in approval deadline; profile over engine (RV1107). */
+  approvalDeadlineMs?: number;
 }
 type PermissionVerdict = ({
   verdict: "allow";
@@ -8632,7 +8645,8 @@ declare class ExternalRegistry {
   private quiesceListener?;
   private quiesceScheduled;
   private readonly emitEvent?;
-  constructor(replayer: Replayer, emitEvent?: (body: WorkflowEventBody) => void);
+  private readonly now;
+  constructor(replayer: Replayer, emitEvent?: (body: WorkflowEventBody) => void, now?: () => number);
   /**
   * Live resolution telemetry: applied when the attempt won the
   * first-closing-wins fold, superseded when it lost. Emitted for live
@@ -8689,7 +8703,14 @@ declare class ExternalRegistry {
     spanId: string;
     toolName: string;
     input: Json;
-    risk?: string; /** Called with the suspended entry once it is open (live or re-parked). */
+    risk?: string;
+    /**
+    * The opt-in approval deadline (RV1107), journaled ON the
+    * suspension entry so it survives resume; the armed timer always
+    * reads the ENTRY's deadline, never the caller's config, so a
+    * config change can never move an already-journaled deadline.
+    */
+    deadlineAt?: string; /** Called with the suspended entry once it is open (live or re-parked). */
     onPending?: (entry: JournalEntry, replayed: boolean) => void;
   }): Promise<ApprovalDecision>;
   /**

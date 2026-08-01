@@ -19,6 +19,7 @@ import {
   type SchemaSpec,
 } from '../l0/schema.js';
 import { deriveContentKey } from '../journal/identity.js';
+import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import type { ResolutionBy } from '../l0/entries.js';
 import type { WorkflowEventBody } from '../l0/events.js';
 import type { Replayer } from '../journal/replayer.js';
@@ -33,6 +34,15 @@ interface Waiter {
   prompt?: string;
   schemaSpec?: SchemaSpec;
   resolve: (value: Json) => void;
+  /**
+   * The armed approval deadline (RV1107). Cancelled when a resolution
+   * applies; deliberately NOT cancelled by close(): the deadline is a
+   * durable property of the suspension, so a run parked 'suspended' in
+   * a live process still denies at its deadline, the append landing
+   * through the fold without waking anything. Cross-process races are
+   * settled by the first-closing-wins arbiter.
+   */
+  timer?: LongTimer;
 }
 
 /**
@@ -91,9 +101,16 @@ export class ExternalRegistry {
 
   private readonly emitEvent?: (body: WorkflowEventBody) => void;
 
-  constructor(replayer: Replayer, emitEvent?: (body: WorkflowEventBody) => void) {
+  private readonly now: () => number;
+
+  constructor(
+    replayer: Replayer,
+    emitEvent?: (body: WorkflowEventBody) => void,
+    now: () => number = Date.now,
+  ) {
     this.replayer = replayer;
     this.emitEvent = emitEvent;
+    this.now = now;
   }
 
   /**
@@ -303,6 +320,13 @@ export class ExternalRegistry {
     toolName: string;
     input: Json;
     risk?: string;
+    /**
+     * The opt-in approval deadline (RV1107), journaled ON the
+     * suspension entry so it survives resume; the armed timer always
+     * reads the ENTRY's deadline, never the caller's config, so a
+     * config change can never move an already-journaled deadline.
+     */
+    deadlineAt?: string;
     /** Called with the suspended entry once it is open (live or re-parked). */
     onPending?: (entry: JournalEntry, replayed: boolean) => void;
   }): Promise<ApprovalDecision> {
@@ -341,6 +365,7 @@ export class ExternalRegistry {
         kind: 'approval',
         spanId: options.spanId,
         value: payload,
+        ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
       });
     }
 
@@ -357,6 +382,27 @@ export class ExternalRegistry {
           resolve(toApprovalDecision(value));
         },
       };
+      // The journaled deadline arms here, live or re-parked alike: the
+      // timer re-arms FROM THE ENTRY on resume, sliced against the Node
+      // timer ceiling, and the timeout is a deny THROUGH the arbiter,
+      // so a racing live decision and the timeout never both apply
+      // (RV1107; the flavor B machinery, one suspension kind over).
+      if (entry.deadlineAt !== undefined) {
+        const dueAt = Date.parse(entry.deadlineAt) || this.now();
+        waiter.timer = setLongTimeout(
+          () => {
+            void this.submitResolution(entry.seq, {
+              by: 'timeout',
+              value: {
+                decision: 'deny',
+                reason: `the approval deadline ${entry.deadlineAt ?? ''} crossed; denied by timeout`,
+              },
+            }).catch(() => undefined);
+          },
+          dueAt,
+          this.now,
+        );
+      }
       this.waiters.set(entry.seq, waiter);
       // Notified AFTER registration so a listener may resolve
       // synchronously from the approval:pending event.
@@ -506,6 +552,9 @@ export class ExternalRegistry {
     if (outcome.applied) {
       const waiter = this.waiters.get(entryRef);
       if (waiter !== undefined) {
+        // An applied resolution retires the deadline; cancelling the
+        // firing timer itself is a no-op (RV1107).
+        waiter.timer?.cancel();
         this.waiters.delete(entryRef);
         // A settle that closed the registry while this attempt was in
         // flight keeps the durable append and suppresses the wake: the
@@ -540,6 +589,9 @@ export class ExternalRegistry {
     });
     this.emitResolutionOutcome(waiter.entryRef, 'external', outcome);
     if (outcome.applied) {
+      // The live decision won: the deadline timer must never journal a
+      // losing timeout attempt afterwards (RV1107).
+      waiter.timer?.cancel();
       this.waiters.delete(waiter.entryRef);
       // The wake guard: a settle that closed the registry while this
       // attempt was in flight keeps the durable append and never
