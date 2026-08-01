@@ -202,6 +202,19 @@ describe('preflightEstimate (P2.2)', () => {
     expect(report.spawns[0].servedBy).toBeUndefined();
   });
 
+  it('a prototype name is an unknown profile, never a resolved one (RV1205)', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'x', finish: 'stop' }));
+    for (const name of ['toString', 'constructor', 'hasOwnProperty']) {
+      const report = preflightEstimate({
+        engine: { adapters: [adapter], defaults: { profiles: { real: {} } } },
+        run: { budgetUsd: 0.4 },
+        spawns: [{ label: 'sneak', profile: name, estCost: 0.1 }],
+      });
+      const codes = report.findings.map((finding) => finding.code);
+      expect(codes).toContain('unknown-profile');
+    }
+  });
+
   it('warns that a USD ceiling cannot bound an unpriced model and reserves zero', () => {
     const unpricedCaps = testCaps();
     delete (unpricedCaps as { pricing?: unknown }).pricing;

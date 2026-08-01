@@ -298,6 +298,117 @@ describe('orchestrate (M6-T07/T08)', () => {
     expect(refusalTurn).toContain('worker');
   });
 
+  it('a prototype name is never in the vocabulary: the allowlist reads own properties only (RV1205)', async () => {
+    // The sixteenth experiment's judge repro R3: profiles ['toString']
+    // passed the allowlist through the prototype chain (spawn:admitted
+    // recorded, the slot burned) and the spawn died only later on the
+    // garbage inherited value. Both the filter and the enforcement must
+    // read OWN properties: a prototype name refuses typed BEFORE
+    // admission and burns nothing.
+    const sneakyNames = ['toString', 'constructor', 'hasOwnProperty', '__proto__'];
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'child done' };
+      }
+      orchTurn += 1;
+      if (orchTurn <= sneakyNames.length) {
+        return {
+          toolCall: {
+            name: 'spawn_agent',
+            args: { agentType: sneakyNames[orchTurn - 1], prompt: 'sneak in' },
+          },
+        };
+      }
+      if (orchTurn === sneakyNames.length + 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'real task' } },
+        };
+      }
+      if (orchTurn === sneakyNames.length + 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'survived' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: { worker: { description: 'does one task' } },
+    });
+    // The allowlist REQUEST even names the prototype keys: the filter
+    // must drop them (nothing own to advertise), never resolve them.
+    const wf = makeOrchestratorWorkflow('goal', { profiles: ['worker', ...sneakyNames] });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('survived');
+
+    const entries = await store.load('test-run');
+    // ONE admission decision total (the real worker): every prototype
+    // name refused typed BEFORE admission and burned nothing.
+    expect(admissionEntries(entries)).toHaveLength(1);
+    const childAgents = entries.filter(
+      (e) => e.kind === 'agent' && e.scope.startsWith('agent:') && e.status === 'ok',
+    );
+    expect(childAgents).toHaveLength(1);
+    // Each refusal reached the model naming the allowlist, and the
+    // advertised vocabulary never grew a prototype entry.
+    const orchCallsAll = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    for (let turn = 1; turn <= sneakyNames.length; turn += 1) {
+      const refusalTurn = JSON.stringify(orchCallsAll[turn]?.messages.at(-1)?.parts);
+      expect(refusalTurn).toContain('allowlist');
+    }
+    const spawnTool = orchCallsAll[0]?.tools?.find((tool) => tool.name === 'spawn_agent');
+    expect(spawnTool?.description).not.toContain('toString');
+  });
+
+  it('without an allowlist the advertised set IS the registry, and a prototype name resolves no profile there either (RV1205)', async () => {
+    // The no-allowlist path reads the host's own registry object, which
+    // carries Object.prototype: the profile RESOLUTION must be
+    // own-property too, or a spawn naming 'toString' hands a function
+    // downstream as its profile instead of resolving nothing.
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'child done' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'toString', prompt: 'sneak in' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'real task' } },
+        };
+      }
+      if (orchTurn === 3) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'survived' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: { worker: { description: 'does one task' } },
+    });
+    const wf = makeOrchestratorWorkflow('goal', {});
+    expect(await executeWorkflow(internals, wf, undefined)).toBe('survived');
+
+    // The prototype spawn resolved NO profile: the child refused typed
+    // as an unregistered agentType, and exactly one child ran ok.
+    const entries = await store.load('test-run');
+    const childAgents = entries.filter(
+      (e) => e.kind === 'agent' && e.scope.startsWith('agent:') && e.status === 'ok',
+    );
+    expect(childAgents).toHaveLength(1);
+    const orchCallsAll = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    const afterSneak = JSON.stringify(orchCallsAll[1]?.messages.at(-1)?.parts);
+    expect(afterSneak).toContain('unknown agentType');
+    // The advertised card never offered it.
+    const spawnTool = orchCallsAll[0]?.tools?.find((tool) => tool.name === 'spawn_agent');
+    expect(spawnTool?.description).not.toContain('toString');
+  });
+
   it('admits children under a small run ceiling: the orchestrator reserves its cap, not maxOutputTokens', async () => {
     // Found live by the M12 checkpoint: the
     // default admission reserve of the orchestrator agent (flat here,

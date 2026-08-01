@@ -158,6 +158,18 @@ describe('ctx.agent (M1-T07)', () => {
       ctx.agent('x', { agentType: 'missing' }),
     );
     await expect(executeWorkflow(internals, bad, undefined)).rejects.toThrow('unknown agentType');
+
+    // A prototype name is exactly as unknown as 'missing' (RV1205): the
+    // registration check must read own properties, never resolve
+    // Object.prototype members into "profiles".
+    for (const name of ['toString', 'constructor', 'hasOwnProperty', '__proto__']) {
+      const sneaky = defineWorkflow({ name: `w-${name}` }, async (ctx) =>
+        ctx.agent('x', { agentType: name }),
+      );
+      await expect(executeWorkflow(internals, sneaky, undefined)).rejects.toThrow(
+        'unknown agentType',
+      );
+    }
   });
 });
 

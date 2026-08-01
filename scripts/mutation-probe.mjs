@@ -1270,7 +1270,7 @@ const MUTATIONS = [
     doctrine:
       'opts.profiles is an enforced allowlist at dispatch (RV1011): disarmed, a spawn naming a registered-but-hidden profile by a guessed name proceeds to admission and widens the vocabulary the host limited',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '        if (opts?.profiles !== undefined && advertisedProfiles[params.agentType] === undefined) {',
+    find: '        if (opts?.profiles !== undefined && !Object.hasOwn(advertisedProfiles, params.agentType)) {',
     replace: '        if (false as boolean) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
@@ -1646,6 +1646,42 @@ const MUTATIONS = [
     find: '        if (componentsSeen === 0) {',
     replace: '        if (false) {',
     test: 'packages/openai/src/reconcile.test.ts',
+  },
+  {
+    id: 'profile-filter-prototype',
+    doctrine:
+      'the advertised profile set is built from OWN registry properties (RV1205): with the bare index read restored, an allowlist naming a prototype member copies Object.prototype into the advertised vocabulary and the knowledge card offers it as a spawnable agentType',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '    if (Object.hasOwn(registered, name) && registered[name] !== undefined) {',
+    replace: '    if (registered[name] !== undefined) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'agenttype-prototype',
+    doctrine:
+      "ctx.agent resolves agentType against OWN profile properties (RV1205): with the bare index read restored, agentType 'toString' resolves a function as its profile and the run dies on an unrelated error instead of the typed unknown-agentType refusal",
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '        registry !== undefined && Object.hasOwn(registry, opts.agentType)',
+    replace: '        registry !== undefined && registry[opts.agentType] !== undefined',
+    test: 'packages/core/src/engine/ctx.test.ts',
+  },
+  {
+    id: 'preflight-profile-prototype',
+    doctrine:
+      'preflight resolves a spawn spec profile against OWN properties (RV1205): with the bare index read restored, a spec naming a prototype member reads as a RESOLVED profile and the unknown-profile finding never fires, so the estimate silently plans a spawn that cannot run',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '      !Object.hasOwn(defaults.profiles, spec.profile)',
+    replace: '      defaults.profiles[spec.profile] === undefined',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'import-runid-guard',
+    doctrine:
+      "importRun applies the one safe runId guard at its boundary (RV1206): with the guard dropped, a bundle claiming '..', a slashed path, or an over-length id reaches the stores raw, while engine.run and resume refuse the same id typed",
+    file: 'packages/core/src/engine/engine.ts',
+    find: "    assertSafeRunId(runId, 'importRun');\n",
+    replace: '',
+    test: 'packages/core/src/engine/data-protection.test.ts',
   },
 ];
 

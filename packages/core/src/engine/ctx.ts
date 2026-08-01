@@ -956,7 +956,16 @@ export function createCtx(
     const agentType = opts.agentType ?? '';
     let profile: AgentProfile | undefined;
     if (opts.agentType !== undefined) {
-      profile = internals.defaults.profiles?.[opts.agentType];
+      // Own properties only (RV1205): a bare index read resolves
+      // Object.prototype members, so agentType 'toString' used to slip
+      // past this registration check with a function as its "profile"
+      // and die later on an unrelated error instead of the typed
+      // refusal here.
+      const registry = internals.defaults.profiles;
+      profile =
+        registry !== undefined && Object.hasOwn(registry, opts.agentType)
+          ? registry[opts.agentType]
+          : undefined;
       if (profile === undefined) {
         throw new ConfigError(
           `unknown agentType '${opts.agentType}': register it under defaults.profiles`,
