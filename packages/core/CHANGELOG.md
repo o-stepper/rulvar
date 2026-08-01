@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.143.0
+
+### Minor Changes
+
+- f412169: The opt-in approval deadline (RV1107): `permissions.approvalDeadlineMs` (engine-wide or per profile, most specific wins) journals an absolute deadline on the ask suspension entry, and an approval nobody resolves by then is DENIED by a resolution `by: 'timeout'` through the same first-closing-wins arbiter every live decision uses. The machinery is the flavor B escalation deadline's, one suspension kind over: the timer arms FROM THE ENTRY (so the deadline survives resume and a config change never moves an already-journaled one), a live decision cancels it, the deny fails closed with a typed reason the model sees as the denied tool result, and a run parked `'suspended'` in a live process still denies at its deadline, the resolution appending durably for the next resume to fold. Absent config keeps the documented indefinite wait. The docs gain the deployment boundary section (RV1108): what the engine enforces versus advises, and the IAM, KMS, DLP, case-store, and PII-canary posture that deliberately lives outside the library.
+
 ## 1.142.0
 
 ## 1.141.0
