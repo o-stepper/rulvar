@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+
 ### 1.142.0
 
 #### Patch Changes
@@ -1474,6 +1481,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+
 ### 1.142.0
 
 #### Patch Changes
@@ -2737,6 +2751,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
 
 ### 1.142.0
 
@@ -4409,6 +4430,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.143.0
+
+#### Minor Changes
+
+- f412169: The opt-in approval deadline (RV1107): `permissions.approvalDeadlineMs` (engine-wide or per profile, most specific wins) journals an absolute deadline on the ask suspension entry, and an approval nobody resolves by then is DENIED by a resolution `by: 'timeout'` through the same first-closing-wins arbiter every live decision uses. The machinery is the flavor B escalation deadline's, one suspension kind over: the timer arms FROM THE ENTRY (so the deadline survives resume and a config change never moves an already-journaled one), a live decision cancels it, the deny fails closed with a typed reason the model sees as the denied tool result, and a run parked `'suspended'` in a live process still denies at its deadline, the resolution appending durably for the next resume to fold. Absent config keeps the documented indefinite wait. The docs gain the deployment boundary section (RV1108): what the engine enforces versus advises, and the IAM, KMS, DLP, case-store, and PII-canary posture that deliberately lives outside the library.
 
 ### 1.142.0
 
@@ -6379,6 +6406,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.143.0
+
 ### 1.142.0
 
 ### 1.141.0
@@ -6767,6 +6796,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+  - @rulvar/anthropic@1.143.0
+  - @rulvar/openai@1.143.0
+  - @rulvar/plan@1.143.0
+  - @rulvar/testing@1.143.0
 
 ### 1.142.0
 
@@ -8391,6 +8431,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+
 ### 1.142.0
 
 #### Patch Changes
@@ -9061,6 +9108,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
 
 ### 1.142.0
 
@@ -10523,6 +10577,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+
 ### 1.142.0
 
 #### Patch Changes
@@ -11900,6 +11961,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+  - eslint-plugin-rulvar@1.143.0
 
 ### 1.142.0
 
@@ -13382,6 +13451,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+  - @rulvar/anthropic@1.143.0
+  - @rulvar/openai@1.143.0
 
 ### 1.142.0
 
@@ -15093,6 +15171,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+
 ### 1.142.0
 
 #### Patch Changes
@@ -16466,6 +16551,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
+
 ### 1.142.0
 
 #### Patch Changes
@@ -17160,6 +17252,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
 
 ### 1.142.0
 
@@ -18486,6 +18585,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.143.0
+
+#### Patch Changes
+
+- Updated dependencies [f412169]
+  - @rulvar/core@1.143.0
 
 ### 1.142.0
 
