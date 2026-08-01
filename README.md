@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred twenty seven rounds, verbatim in this repository's history:
+The one hundred twenty eight rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -341,6 +341,7 @@ The one hundred twenty seven rounds, verbatim in this repository's history:
 | v1.143.0      | c11bcd6 (#620): the detached resolver validates by the journaled suspension flavor; both deadline knobs gain the range ceiling and the typed corruption refusal                           | v1.144.0   |
 | v1.144.0      | faf7d95 (#623): an affirmatively declared empty statement claim refuses typed instead of settling as evidence over its own absent figures                                                 | v1.145.0   |
 | v1.145.0      | 5d9bbc8 (#626): profile vocabularies read own properties only, so a prototype agentType burns no slot, and importRun guards its runId                                                     | v1.146.0   |
+| v1.146.0      | 6367231 (#629): a declared evidence floor can bind the acceptance policy, and the finalization window reserves the calls that close it                                                    | v1.147.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
