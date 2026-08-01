@@ -10,7 +10,7 @@
 function evidenceGradeValidator(options?): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:908](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L908)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:899](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L899)
 
 Requires every evidence-GRADE claim to point at an artifact (RV1212).
 A sentence that says `live-observed`, `provider bill`, or

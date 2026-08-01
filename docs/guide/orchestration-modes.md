@@ -432,6 +432,33 @@ Parallel children often report the same finding, and the verbatim repeats ride i
 
 `synthesis.policyFacts: true` (RV709) adds one deterministic `POLICY FACTS:` line to the `'single'` synthesis prompt: a JSON digest of the settled children's durable tool-budget facts, child count and statuses, extension grants summed, and how many children entered their finalization window or spent their finalization reserve, so the composing model can cite the run's own observed evidence instead of underclaiming it. The line folds ONLY from replay-stable material (the settled child results the journal replays verbatim), so a resumed synthesis re-derives identical prompt bytes; off by default, and the prompt stays byte identical when unset, exactly like `dedupeClaims`. The worker-agent `finalize` invocation has the symmetric request-only opt-in on `runAgent` ([agents](/guide/agents)), which additionally carries live quota denial and recovery counters and the recorded spend with its cost basis.
 
+### The bounded contradiction pass
+
+`dedupeClaims` above matches on agreement, which makes it blind to disagreement by construction, and nothing else in the pipeline closes that gap either: acceptance judges each child alone, the finish validators judge the final text mechanically, and [`citedValueValidator`](#validating-the-finish-result) judges a claim against the SOURCE rather than against another child. So a fan-out where one child read `attempts: 3` at `src/retry.ts:33` and another read `attempts: 5` at the same line put both into the synthesis prompt, the composing model picked one, and the run settled confident with nothing anywhere recording that its own evidence pool had disputed itself.
+
+`contradictions` (RV1302) is the pass that closes it, and it is bounded in the strongest sense available: a pure fold over the settled children, no model call, no clock, no host code, and no journal entry, so it costs nothing in the post-fan-in window [`reduceCriticalPath`](/guide/observability#agent-lifecycle) measures and a resume re-derives the identical finding for free. The rule is deliberately narrow, so a finding is always explainable in one sentence: **two DIFFERENT children credit the same cited location with different values for the same key.** It reads the same span vocabulary the RV1212 validators read (inline-code spans that parse as `path:line` are the anchors, the rest are the values asserted about them), splits each value at its first `:` or `=` into a key and a reading, and reports an anchor whose key carries two readings held by two different children.
+
+Three non-findings are as deliberate as the finding. Two different keys on one line (`attempts: 3` beside `backoffMs: 100`) are two aspects of that line, not a dispute, so the key must match. A span with no separator (`attempts` alone) names something without asserting anything about it, and two such spans can never conflict. And one child holding both readings is not a pool contradiction: inside a single document that is usually narrative ("it was 3, it is now 5"), while two independent children disagreeing is exactly the signal the pool cannot resolve by itself. The pool it judges is the evidence pool [`evidenceIndex`](#evidence-symmetry-and-the-draft-gate) indexes, ok children plus salvage-accepted ones, so a dead child's error text can never dispute a real finding.
+
+```ts
+const run = orchestrate(
+  engine,
+  goal,
+  {
+    acceptance: { childPolicy: 'all-ok' },
+    synthesis: {},
+    contradictions: { onFound: 'carry' },
+  },
+  { budgetUsd: 10 },
+);
+```
+
+`onFound` picks what the finding does. `'report'` (the default) puts it on the acceptance envelope and in an info `log` event (`orchestrator contradiction pass`, carrying the child count, the finding count, and the anchors) and changes nothing else. `'carry'` additionally rides a `CHILD CONTRADICTIONS:` line in the `'single'` synthesis prompt with the instruction to resolve each disagreement EXPLICITLY (say which reading holds and why) instead of silently picking one, and requires that synthesis: without the post-fan-in invocation there is no prompt to carry into, and the deterministic `'incremental'` reconciliation has no prompt at all, both a `ConfigError` at intake. `'fail'` fails the run typed with `data.source` `'orchestrator_contradictions'`, the findings, and the acceptance snapshot the run already earned, BEFORE any synthesis dispatch, so a self-contradicting pool never pays for the invocation that would compose the disagreement away.
+
+The envelope field distinguishes two facts that look alike. `contradictions` is present whenever the pass was configured and EMPTY when it ran and the pool agreed; its absence means nothing looked. That is the same absence doctrine the [persisted terminal envelope](/guide/observability#the-terminal-envelope) pins: an absent field records that something was not observed, never that it was observed to be nothing. `max` bounds the findings (default 20) and `pattern` overrides the anchor shape, fail closed at intake on a pattern that can match the empty string. Everything stays byte identical without the option: no fold, no log, no envelope field, and a `'carry'` run whose pool agrees emits the identical synthesis prompt bytes as a run without the pass.
+
+One honest bound: this is the mechanical half. Two children that disagree in prose, without a shared citation and a shared key, are invisible to it, and closing that needs a bounded model pass with its own budget, journal, and resume semantics. The pure fold ships first because it is free, deterministic, and reproduces on replay; `findContradictions` is exported from `@rulvar/core` so a host can run the same rule over any pool it holds.
+
 ### Reading a child's full evidence
 
 The digest an await returns is a wake signal truncated to 400 characters, so an evidence heavy child (a research agent whose report carries dozens of `file:line` citations, say) settles with its findings intact in the journal but only a snippet in the digest. `exposeChildResultTools: true` adds two pure read tools the orchestrator can call AFTER a child settles.
