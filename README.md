@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred thirty one rounds, verbatim in this repository's history:
+The one hundred thirty two rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -345,6 +345,7 @@ The one hundred thirty one rounds, verbatim in this repository's history:
 | v1.147.0      | c85dac9 (#632): the terminal envelope is served from the journal after a restart, and the invoice declares how many wire requests its rows represent                                      | v1.148.0   |
 | v1.148.0      | 08b4537 (#635): the post-fan-in model bucket is profiled, and two validators hold the answer to its own evidence grade and cited values                                                   | v1.149.0   |
 | v1.149.0      | a331211 (#638): the settled child pool is checked against itself: two children reading one cited line differently are named, carried, or fail the run                                     | v1.150.0   |
+| v1.150.0      | 1de0610 (#641): every finish citation must resolve in the host source snapshot (a line of 0 never does), and a cited value counts only as a whole token, never as a substring of 30       | v1.151.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
