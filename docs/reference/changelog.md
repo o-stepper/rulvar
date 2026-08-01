@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+
 ### 1.148.0
 
 #### Patch Changes
@@ -1515,6 +1522,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+
 ### 1.148.0
 
 #### Patch Changes
@@ -2819,6 +2833,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
 
 ### 1.148.0
 
@@ -4542,6 +4563,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.149.0
+
+#### Minor Changes
+
+- 08b4537: The post-fan-in model bucket is profiled, the final answer gets two evidence validators, and the terminal envelope's typed error is detached (RV1211, RV1212, RV1213).
+
+  `PostFanInBreakdown` splits the coordination model bucket three ways. `coordinationModelMsByPhase` keys the activation wall by the activation's OWN invocation role, so a tail spent compacting is distinguishable from a tail spent drafting. `coordinationModelOnlyMs` is that wall with the tool executions NESTED inside it removed, the exact set difference of the two clipped unions rather than a subtraction of sums, because a tool an activation called runs inside the activation's wall and reading the wall as thinking time overstates it by exactly the tool share. `coordinationToolCallsByName` counts the executions beside their milliseconds, so one slow pagination and twenty fast ones stop reading as the same tail. The sixteenth comparison experiment put 222.6 seconds (50.9% of wall) in this bucket with a zero synthesis share, and one number for it could not say what the coordinator was doing.
+
+  Two new finish validators judge the answer's evidence rather than its shape. `evidenceGradeValidator` requires every sentence claiming something is `live-observed`, came from the `provider bill`, or is `production-proven` to name a run id or a `file:line` citation in THAT sentence; the phrase list and the artifact pattern are configurable, and a pattern that can match the empty string is refused typed because it would satisfy every graded claim silently. `citedValueValidator` checks that a cited location actually carries the value its sentence asserts, against a source snapshot the host resolves: within one sentence the inline-code spans that are not citations are the asserted values, each must appear in the cited line (or within `window` lines after it), a location the resolver does not know is a failure rather than a pass, and a sentence that cites without asserting an inline value passes untouched. `resolve` must be pure over a snapshot frozen before the run, like every finish validator.
+
+  `TerminalEnvelope.error` is now a detached copy, its `data` nesting included, exactly like `costByModel`: a consumer that annotates the error it holds can no longer reach back into the outcome the engine still owns.
 
 ### 1.148.0
 
@@ -6554,6 +6587,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.149.0
+
 ### 1.148.0
 
 ### 1.147.0
@@ -6954,6 +6989,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+  - @rulvar/anthropic@1.149.0
+  - @rulvar/openai@1.149.0
+  - @rulvar/plan@1.149.0
+  - @rulvar/testing@1.149.0
 
 ### 1.148.0
 
@@ -8644,6 +8690,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+
 ### 1.148.0
 
 #### Patch Changes
@@ -9355,6 +9408,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
 
 ### 1.148.0
 
@@ -10862,6 +10922,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+
 ### 1.148.0
 
 #### Patch Changes
@@ -12280,6 +12347,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+  - eslint-plugin-rulvar@1.149.0
 
 ### 1.148.0
 
@@ -13809,6 +13884,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+  - @rulvar/anthropic@1.149.0
+  - @rulvar/openai@1.149.0
 
 ### 1.148.0
 
@@ -15574,6 +15658,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+
 ### 1.148.0
 
 #### Patch Changes
@@ -16988,6 +17079,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
+
 ### 1.148.0
 
 #### Patch Changes
@@ -17723,6 +17821,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
 
 ### 1.148.0
 
@@ -19090,6 +19195,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.149.0
+
+#### Patch Changes
+
+- Updated dependencies [08b4537]
+  - @rulvar/core@1.149.0
 
 ### 1.148.0
 
