@@ -118,5 +118,36 @@ describe('post-fan-in decomposition on a live orchestration stream (RV710)', () 
     // synthetic pins hold the 5 percent property at exact arithmetic).
     expect(breakdown.residueShare).toBeDefined();
     expect(breakdown.residueShare ?? 1).toBeLessThanOrEqual(0.2);
+
+    // The model bucket is itself profiled (RV1211): the sixteenth
+    // experiment read 222.6 seconds of coordination model time as one
+    // number, which says nothing about whether the tail is drafting,
+    // repairing, or summarizing. The turns are counted and split by
+    // the activation role that spent them.
+    // The model bucket is itself profiled (RV1211): the sixteenth
+    // experiment read 222.6 seconds of coordination model time as one
+    // number, which is activation WALL and silently contains every
+    // tool the coordinator called inside it.
+    expect(breakdown.coordinationModelMsByPhase.orchestrate).toBeGreaterThanOrEqual(200);
+    // The split accounts for the bucket exactly: no activation lands
+    // in the total without landing under a name.
+    const byPhase = Object.values(breakdown.coordinationModelMsByPhase).reduce(
+      (sum, ms) => sum + ms,
+      0,
+    );
+    expect(byPhase).toBe(breakdown.coordinationModelMs);
+    // The coordinator's own thinking time is the activation wall with
+    // the nested tool executions removed (the exact arithmetic, and
+    // the overlap case a live fixture cannot stage, are pinned
+    // synthetically in synthesis.test.ts).
+    expect(breakdown.coordinationModelOnlyMs).toBeLessThanOrEqual(breakdown.coordinationModelMs);
+    expect(breakdown.coordinationModelOnlyMs).toBeGreaterThanOrEqual(
+      breakdown.coordinationModelMs - breakdown.coordinationToolMs,
+    );
+    // Tool CALLS are counted beside their milliseconds: two sub-ms
+    // pagination calls and one slow one are the same number of
+    // milliseconds and a completely different tail.
+    expect(breakdown.coordinationToolCallsByName.get_child_result).toBe(1);
+    expect(breakdown.coordinationToolCallsByName.finish).toBe(1);
   });
 });

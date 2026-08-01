@@ -6,8 +6,25 @@
  * response, the OTel run attributes) carries THIS object or fields
  * derived from it, so the surfaces cannot disagree by construction.
  */
+import type { WireError } from '../l0/errors.js';
 import type { TerminalEnvelope } from '../l0/terminal-envelope.js';
 import type { RunOutcome } from './run-handle.js';
+
+/**
+ * A total copy of one typed error (RV1213). `data` is `Json` by the
+ * WireError contract, so a JCS-free structured clone reproduces it
+ * exactly; a non-cloneable value (a host that smuggled a function or a
+ * symbol past the type) falls back to the original reference rather
+ * than throwing at the settlement chokepoint, because a terminal must
+ * settle even over a malformed error projection.
+ */
+function detachedError(error: WireError): WireError {
+  try {
+    return structuredClone(error);
+  } catch {
+    return { ...error };
+  }
+}
 
 /** The outcome facts the assembler reads; a structural subset of RunOutcome. */
 export type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, 'status' | 'error' | 'completion'> & {
@@ -52,7 +69,13 @@ export function terminalEnvelopeOf(input: {
     agentsSpawned: input.agentsSpawned,
   };
   if (outcome.error !== undefined) {
-    envelope.error = outcome.error;
+    // Detached exactly like `costByModel` (RV1213): the envelope is a
+    // READING of the terminal, and a consumer that annotates the error
+    // it holds (a message rewrite, a `data` field for its own
+    // pipeline) must never reach back into the outcome the engine
+    // still owns. `data` is Json by contract, so the clone is total
+    // rather than a top-level spread that leaves the nesting shared.
+    envelope.error = detachedError(outcome.error);
   }
   if (outcome.completion !== undefined) {
     envelope.completion = outcome.completion;

@@ -270,6 +270,28 @@ export interface CriticalPath {
 export interface PostFanInBreakdown {
   /** Model activations of coordination spans inside the window. */
   coordinationModelMs: number;
+  /**
+   * The same bucket keyed by the activation's OWN invocation role
+   * ('orchestrate' for the coordinator's drafting and repair turns,
+   * 'summarize' for a compaction pass, 'extract' for a schema pass),
+   * so a tail spent compacting is distinguishable from a tail spent
+   * drafting (RV1211). A zero-duration activation inside the window
+   * still registers its role. The values sum to `coordinationModelMs`
+   * exactly.
+   */
+  coordinationModelMsByPhase: Record<string, number>;
+  /**
+   * Coordination activation wall with the tool executions NESTED
+   * inside it removed: the coordinator's own model time, exactly
+   * (RV1211). `coordinationModelMs` is activation wall, and a tool the
+   * activation called runs inside that wall, so the two buckets
+   * overlap by construction and reading the first as "thinking time"
+   * overstates it. This is the exact set difference of the two clipped
+   * unions, never a subtraction of sums, so overlapping activations
+   * cannot drive it negative. The sixteenth comparison experiment's
+   * 222.6-second tail is the number this field exists to split.
+   */
+  coordinationModelOnlyMs: number;
   /** Tool executions of coordination spans inside the window, summed. */
   coordinationToolMs: number;
   /**
@@ -278,6 +300,14 @@ export interface PostFanInBreakdown {
    * round to 0 on the wall clock but did run here.
    */
   coordinationToolMsByName: Record<string, number>;
+  /**
+   * How many executions of each tool the window holds (RV1211), under
+   * the same touch-the-window rule as the milliseconds beside it. A
+   * coordinator that calls one tool per turn reads its tail's turn
+   * profile straight off this record; the milliseconds alone cannot
+   * separate one slow pagination from twenty fast ones.
+   */
+  coordinationToolCallsByName: Record<string, number>;
   /** Completed 'synthesize' span wall clipped to the window. */
   synthesisMs: number;
   /** Union length of every covered interval above. */
@@ -327,7 +357,7 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   // are). An end event's interval is reconstructed as
   // [ts - durationMs, ts]: durations are differences on the loop's own
   // clock, so the reconstruction holds whatever epoch that clock uses.
-  const coordinationModel: Interval[] = [];
+  const coordinationModel: Array<Interval & { phase: string }> = [];
   const coordinationTools: Array<Interval & { name: string }> = [];
   const synthesisSpans: Interval[] = [];
   const spanOf = (durationMs: number): number =>
@@ -349,7 +379,14 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         break;
       case 'agent:phase:end': {
         if (startBySpan.get(event.spanId)?.role === 'orchestrate') {
-          coordinationModel.push({ from: at - spanOf(event.durationMs), to: at });
+          // The activation's OWN role, not the span's (RV1211): the
+          // span is 'orchestrate' by construction here, while the
+          // phase names what the turn was doing.
+          coordinationModel.push({
+            phase: event.role,
+            from: at - spanOf(event.durationMs),
+            to: at,
+          });
         }
         break;
       }
@@ -400,13 +437,23 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         to: Math.min(interval.to, windowTo),
       };
     };
-    const modelClipped = coordinationModel
-      .map(clip)
-      .filter((interval): interval is Interval => interval !== undefined);
+    // The model bucket profiled by activation role (RV1211), the same
+    // clip-then-key shape the tool bucket already uses.
+    const byPhase: Record<string, number> = {};
+    const modelClipped: Interval[] = [];
+    for (const interval of coordinationModel) {
+      const clipped = clip(interval);
+      if (clipped === undefined) {
+        continue;
+      }
+      byPhase[interval.phase] = (byPhase[interval.phase] ?? 0) + (clipped.to - clipped.from);
+      modelClipped.push(clipped);
+    }
     const synthesisClipped = synthesisSpans
       .map(clip)
       .filter((interval): interval is Interval => interval !== undefined);
     const byName: Record<string, number> = {};
+    const callsByName: Record<string, number> = {};
     const toolsClipped: Interval[] = [];
     for (const interval of coordinationTools) {
       const clipped = clip(interval);
@@ -414,15 +461,25 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         continue;
       }
       byName[interval.name] = (byName[interval.name] ?? 0) + (clipped.to - clipped.from);
+      callsByName[interval.name] = (callsByName[interval.name] ?? 0) + 1;
       toolsClipped.push(clipped);
     }
     const lengthOf = (intervals: Interval[]): number =>
       intervals.reduce((sum, interval) => sum + (interval.to - interval.from), 0);
     const coveredMs = unionLength([...modelClipped, ...toolsClipped, ...synthesisClipped]);
+    // The exact set difference |model \ tools| (RV1211), by inclusion
+    // and exclusion over the two unions: nested tool executions are
+    // removed ONCE, not once per overlapping activation, and the
+    // result can never go negative the way a subtraction of clipped
+    // sums could.
+    const modelOnlyMs = unionLength([...modelClipped, ...toolsClipped]) - unionLength(toolsClipped);
     const breakdown: PostFanInBreakdown = {
       coordinationModelMs: lengthOf(modelClipped),
+      coordinationModelMsByPhase: byPhase,
+      coordinationModelOnlyMs: modelOnlyMs,
       coordinationToolMs: lengthOf(toolsClipped),
       coordinationToolMsByName: byName,
+      coordinationToolCallsByName: callsByName,
       synthesisMs: lengthOf(synthesisClipped),
       coveredMs,
       residueMs: Math.max(0, path.postFanInMs - coveredMs),

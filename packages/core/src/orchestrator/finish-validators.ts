@@ -853,3 +853,241 @@ export function minMatchesValidator(options: {
     },
   };
 }
+
+/**
+ * The default evidence-grade phrases (RV1212, the sixteenth comparison
+ * experiment P2-3). Each asserts the STRONGEST kind of provenance a
+ * report can claim: that something was watched running, that a
+ * provider charged for it, or that it holds up in production. The
+ * sixteenth run's own answer used exactly this register about a
+ * runtime the live run never observed, which is the failure mode the
+ * lint exists to catch.
+ */
+export const DEFAULT_EVIDENCE_GRADE_PHRASES: readonly string[] = [
+  'live-observed',
+  'live observed',
+  'provider bill',
+  'production-proven',
+  'production proven',
+];
+
+/**
+ * The default artifact reference: a run id (ULID-shaped, the ids the
+ * engine mints) or a `path:line` citation.
+ */
+export const DEFAULT_ARTIFACT_PATTERN =
+  '(?:run[ -]?[0-9A-HJKMNP-TV-Z]{6,26}|[\\w./-]+\\.\\w+:\\d+)';
+
+/**
+ * The sentence scope both RV1212 validators judge in: a terminator
+ * followed by whitespace, a blank line, or a list/heading break. Only
+ * `.!?` terminate; a colon or a semicolon does NOT, because the values
+ * these validators read are written as `attempts: 3` and splitting
+ * there would tear a claim away from the citation that supports it.
+ */
+function sentencesOf(text: string): string[] {
+  return text.split(/(?<=[.!?])\s+|\n{2,}|\n(?=\s*[-*#])/u);
+}
+
+/**
+ * Requires every evidence-GRADE claim to point at an artifact (RV1212).
+ * A sentence that says `live-observed`, `provider bill`, or
+ * `production-proven` is claiming the report watched it happen, and a
+ * claim of that grade with nothing to check it against is the most
+ * expensive kind of wrong: the sixteenth comparison run's answer used
+ * the register about a runtime its own live run never observed, and
+ * every reader-side check passed because the text was well formed.
+ * The rule is deliberately local and deterministic: the artifact
+ * reference must appear in the SAME sentence as the phrase (a run id
+ * or a `path:line` citation by default), so moving the evidence three
+ * paragraphs away no longer satisfies the grade. Purely textual: what
+ * the referenced artifact contains is
+ * {@link citedValueValidator}'s question, and whether it exists on
+ * disk is the host's. Default name 'evidence-grade'.
+ */
+export function evidenceGradeValidator(options?: {
+  /** Overrides {@link DEFAULT_EVIDENCE_GRADE_PHRASES}; matched case-insensitively. */
+  phrases?: readonly string[];
+  /** Overrides {@link DEFAULT_ARTIFACT_PATTERN}. */
+  artifactPattern?: string;
+  name?: string;
+}): FinishValidator {
+  const phrases =
+    options?.phrases === undefined
+      ? [...DEFAULT_EVIDENCE_GRADE_PHRASES]
+      : requireNonEmptyStrings(options.phrases, 'evidenceGradeValidator phrases');
+  const artifactPattern = options?.artifactPattern ?? DEFAULT_ARTIFACT_PATTERN;
+  let artifact: RegExp;
+  try {
+    artifact = new RegExp(artifactPattern, '');
+  } catch (thrown) {
+    throw new ConfigError(
+      `evidenceGradeValidator artifactPattern does not compile: ${
+        thrown instanceof Error ? thrown.message : String(thrown)
+      }`,
+    );
+  }
+  // Fail-closed intake (RV610), the evidencePreservedValidator rule: a
+  // pattern that matches the empty string satisfies every sentence and
+  // silently disables the lint it was configured to arm.
+  if (artifact.test('')) {
+    throw new ConfigError(
+      `evidenceGradeValidator artifactPattern must not be able to match the empty string ` +
+        `(it would satisfy every graded claim); got ${JSON.stringify(artifactPattern)}`,
+    );
+  }
+  const lowered = phrases.map((phrase) => phrase.toLowerCase());
+  return {
+    name: options?.name ?? 'evidence-grade',
+    validate: (input) => {
+      const unsupported: string[] = [];
+      for (const sentence of sentencesOf(input.text)) {
+        const haystack = sentence.toLowerCase();
+        const found = lowered.filter((phrase) => haystack.includes(phrase));
+        if (found.length === 0 || new RegExp(artifactPattern, '').test(sentence)) {
+          continue;
+        }
+        for (const phrase of found) {
+          if (!unsupported.includes(phrase)) {
+            unsupported.push(phrase);
+          }
+        }
+      }
+      return unsupported.length === 0
+        ? ok
+        : {
+            ok: false,
+            reasons: [
+              `evidence-grade claims cite no run or repro artifact in their own sentence: ` +
+                `${listCitations(unsupported)}; each such claim must name a run id or a ` +
+                `file:line citation beside it`,
+            ],
+          };
+    },
+  };
+}
+
+/** One resolved citation target: the source line the citation points at. */
+export interface CitationTarget {
+  path: string;
+  line: number;
+}
+
+/**
+ * Requires a cited location to actually carry the value the sentence
+ * asserts (RV1212, the sixteenth comparison experiment P2-2). Citation
+ * counting proves provenance was OFFERED, never that it holds: the
+ * judge's own repro cited `retry.ts:24`, an interface declaration, for
+ * a default that lives nine lines further down, and every
+ * pattern-based check passed. This validator closes the loop with the
+ * host's own source snapshot.
+ *
+ * The rule is deliberate and narrow, so a failure is always
+ * explainable: within one sentence, the inline-code spans that are NOT
+ * citations are the values that sentence asserts about the citations
+ * that are, and each asserted value must appear in the cited line (or
+ * within `window` lines AFTER it, for a value the citation introduces).
+ * A sentence that cites without asserting an inline value passes: the
+ * validator judges assertions, never prose.
+ *
+ * `resolve` is host code and must be PURE over a snapshot the host
+ * froze before the run, exactly like every other finish validator: a
+ * resolver that reads the filesystem live would make a verdict depend
+ * on when it ran and break replay. Returning `undefined` means the
+ * location does not exist in the snapshot, which is itself a failure:
+ * a citation nothing resolves is not provenance. Default name
+ * 'cited-value'.
+ */
+export function citedValueValidator(options: {
+  resolve: (target: CitationTarget) => string | undefined;
+  /** Lines AFTER the cited one that may carry the value; default 0. */
+  window?: number;
+  /** Overrides {@link DEFAULT_CITATION_PATTERN}; must capture `path:line`. */
+  pattern?: string;
+  name?: string;
+}): FinishValidator {
+  if (typeof options.resolve !== 'function') {
+    throw new ConfigError('citedValueValidator resolve must be a function');
+  }
+  const window = options.window ?? 0;
+  if (!Number.isInteger(window) || window < 0) {
+    throw new ConfigError(
+      `citedValueValidator window must be a non negative integer; got ${String(window)}`,
+    );
+  }
+  const pattern = options.pattern ?? DEFAULT_CITATION_PATTERN;
+  try {
+    new RegExp(pattern, 'g');
+  } catch (thrown) {
+    throw new ConfigError(
+      `citedValueValidator pattern does not compile: ${
+        thrown instanceof Error ? thrown.message : String(thrown)
+      }`,
+    );
+  }
+  const CITATION_TAIL = /^(.*):(\d+)$/u;
+  return {
+    name: options.name ?? 'cited-value',
+    validate: (input) => {
+      const reasons: string[] = [];
+      for (const sentence of sentencesOf(input.text)) {
+        // Inline-code spans first: the ones that parse as `path:line`
+        // are the citations, the rest are the values asserted about
+        // them. Both come from the same span vocabulary, so a value
+        // written as prose never enters the judgment.
+        const spans = [...sentence.matchAll(/`([^`]+)`/gu)].map((match) => match[1]);
+        const citations: CitationTarget[] = [];
+        const values: string[] = [];
+        for (const span of spans) {
+          const parsed = CITATION_TAIL.exec(span);
+          const line = parsed === null ? Number.NaN : Number(parsed[2]);
+          if (
+            parsed !== null &&
+            Number.isSafeInteger(line) &&
+            new RegExp(`^${pattern}$`, '').test(span)
+          ) {
+            citations.push({ path: parsed[1], line });
+          } else {
+            values.push(span);
+          }
+        }
+        if (citations.length === 0 || values.length === 0) {
+          continue;
+        }
+        for (const citation of citations) {
+          const lines: string[] = [];
+          let resolved = false;
+          for (let offset = 0; offset <= window; offset += 1) {
+            const source = options.resolve({ path: citation.path, line: citation.line + offset });
+            if (source === undefined) {
+              // A gap inside the window ends the walk: past the end of
+              // a file every further line is absent too, and a
+              // resolver that returns undefined mid-file has already
+              // said this location is not in the snapshot.
+              break;
+            }
+            resolved = true;
+            lines.push(source);
+          }
+          const where = `${citation.path}:${String(citation.line)}`;
+          if (!resolved) {
+            reasons.push(`citation ${where} resolves to no source line`);
+            continue;
+          }
+          const haystack = lines.join('\n');
+          const missing = values.filter((value) => !haystack.includes(value));
+          if (missing.length > 0) {
+            reasons.push(
+              `citation ${where} does not carry the value its sentence asserts` +
+                `${window === 0 ? '' : ` (searched ${String(window + 1)} lines)`}: ` +
+                `${listCitations(missing)}`,
+            );
+          }
+        }
+      }
+      return reasons.length === 0
+        ? ok
+        : { ok: false, reasons: reasons.slice(0, MAX_LISTED_CITATIONS) };
+    },
+  };
+}

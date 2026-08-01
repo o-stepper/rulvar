@@ -510,8 +510,11 @@ describe('reduceCriticalPath (RV-211)', () => {
       workerSpans: 2,
       postFanIn: {
         coordinationModelMs: 0,
+        coordinationModelMsByPhase: {},
+        coordinationModelOnlyMs: 0,
         coordinationToolMs: 0,
         coordinationToolMsByName: {},
+        coordinationToolCallsByName: {},
         synthesisMs: 20,
         coveredMs: 20,
         residueMs: 20,
@@ -575,8 +578,11 @@ describe('reduceCriticalPath (RV-211)', () => {
     // 32 (clipped straddle) + 19 = model; 18 + 0 + 9 = tools; 18 synthesis.
     expect(path.postFanIn).toEqual({
       coordinationModelMs: 51,
+      coordinationModelMsByPhase: { orchestrate: 51 },
+      coordinationModelOnlyMs: 51,
       coordinationToolMs: 27,
       coordinationToolMsByName: { get_child_result: 18, finish: 9 },
+      coordinationToolCallsByName: { get_child_result: 2, finish: 1 },
       synthesisMs: 18,
       coveredMs: 96,
       residueMs: 4,
@@ -613,8 +619,13 @@ describe('reduceCriticalPath (RV-211)', () => {
     const path = reduceCriticalPath(events);
     expect(path.postFanIn).toEqual({
       coordinationModelMs: 30,
+      coordinationModelMsByPhase: { orchestrate: 30 },
+      // The exact set difference: model [110,140] minus tool [130,150]
+      // is [110,130], 20ms, where subtracting the SUMS would say 10.
+      coordinationModelOnlyMs: 20,
       coordinationToolMs: 20,
       coordinationToolMsByName: { get_child_result: 20 },
+      coordinationToolCallsByName: { get_child_result: 1 },
       synthesisMs: 0,
       coveredMs: 40,
       residueMs: 60,
@@ -633,8 +644,11 @@ describe('reduceCriticalPath (RV-211)', () => {
     expect(path.postFanInMs).toBe(0);
     expect(path.postFanIn).toEqual({
       coordinationModelMs: 0,
+      coordinationModelMsByPhase: {},
+      coordinationModelOnlyMs: 0,
       coordinationToolMs: 0,
       coordinationToolMsByName: {},
+      coordinationToolCallsByName: {},
       synthesisMs: 0,
       coveredMs: 0,
       residueMs: 0,

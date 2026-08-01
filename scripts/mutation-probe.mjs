@@ -1467,7 +1467,7 @@ const MUTATIONS = [
     doctrine:
       'the envelope carries the typed error exactly (RV1105): dropped, an error terminal reads status error with no error inside the one shape that promised every fact',
     file: 'packages/core/src/engine/terminal-envelope.ts',
-    find: '  if (outcome.error !== undefined) {\n    envelope.error = outcome.error;\n  }',
+    find: '    envelope.error = detachedError(outcome.error);\n',
     replace: '',
     test: 'packages/core/src/engine/terminal-envelope.test.ts',
   },
@@ -1755,6 +1755,71 @@ const MUTATIONS = [
     find: '            const flown = wireCount === undefined ? granted : wireCount - 1;',
     replace: '            const flown = (wireCount ?? 1) - 1;',
     test: 'packages/core/src/engine/quota-segments.test.ts',
+  },
+  {
+    id: 'envelope-error-detached',
+    doctrine:
+      'the terminal envelope detaches the typed error it carries (RV1213): aliased, a consumer annotating the envelope reaches into the outcome the engine still owns, exactly the aliasing costByModel was detached to prevent',
+    file: 'packages/core/src/engine/terminal-envelope.ts',
+    find: '    envelope.error = detachedError(outcome.error);',
+    replace: '    envelope.error = outcome.error;',
+    test: 'packages/core/src/engine/terminal-envelope.test.ts',
+  },
+  {
+    id: 'postfanin-model-only',
+    doctrine:
+      'the post-fan-in model bucket reports thinking time with the nested tool executions removed (RV1211): left as raw activation wall, the tail reads as pure model time and the tool share is counted twice over',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '      coordinationModelOnlyMs: modelOnlyMs,',
+    replace: '      coordinationModelOnlyMs: lengthOf(modelClipped),',
+    test: 'packages/core/src/orchestrator/synthesis.test.ts',
+  },
+  {
+    id: 'postfanin-model-by-phase',
+    doctrine:
+      'the post-fan-in model bucket splits by the activation role that spent it (RV1211): collapsed to nothing, a tail spent compacting is indistinguishable from a tail spent drafting, which is exactly what the sixteenth experiment could not tell',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '      byPhase[interval.phase] = (byPhase[interval.phase] ?? 0) + (clipped.to - clipped.from);',
+    replace: '',
+    test: 'packages/core/src/orchestrator/critical-path-breakdown.test.ts',
+  },
+  {
+    id: 'postfanin-tool-calls',
+    doctrine:
+      'the post-fan-in window counts tool EXECUTIONS beside their milliseconds (RV1211): dropped, one slow pagination and twenty fast ones read as the same tail',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '      callsByName[interval.name] = (callsByName[interval.name] ?? 0) + 1;',
+    replace: '',
+    test: 'packages/core/src/orchestrator/critical-path-breakdown.test.ts',
+  },
+  {
+    id: 'evidence-grade-sentence-scope',
+    doctrine:
+      'an evidence-grade claim must cite its artifact in its OWN sentence (RV1212): widened to the whole answer, one run id anywhere in the text licenses every live-observed claim in it, which is the shape the sixteenth run shipped',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: "        if (found.length === 0 || new RegExp(artifactPattern, '').test(sentence)) {",
+    replace:
+      "        if (found.length === 0 || new RegExp(artifactPattern, '').test(input.text)) {",
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'cited-value-window-forward',
+    doctrine:
+      'the cited-value window only ever reaches FORWARD from the cited line (RV1212): walked backwards too, a citation is satisfied by a value it points past, and the judge repro (an interface line credited with a default nine lines below it) passes in reverse',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '            const source = options.resolve({ path: citation.path, line: citation.line + offset });',
+    replace:
+      '            const source = options.resolve({ path: citation.path, line: citation.line - offset });',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'cited-value-unresolved',
+    doctrine:
+      'a citation nothing resolves is a failure, not a pass (RV1212): tolerated, a fabricated file:line satisfies the value check by being unverifiable, which inverts the whole contract',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '            reasons.push(`citation ${where} resolves to no source line`);\n            continue;',
+    replace: '            continue;',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
 ];
 

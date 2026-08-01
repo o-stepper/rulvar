@@ -807,6 +807,10 @@
             "link": "/api/@rulvar/core/interfaces/ChildResultPage.md"
           },
           {
+            "text": "CitationTarget",
+            "link": "/api/@rulvar/core/interfaces/CitationTarget.md"
+          },
+          {
             "text": "ClaimValidationOptions",
             "link": "/api/@rulvar/core/interfaces/ClaimValidationOptions.md"
           },
@@ -2247,6 +2251,10 @@
             "link": "/api/@rulvar/core/variables/CURRENT_HASH_VERSION.md"
           },
           {
+            "text": "DEFAULT_ARTIFACT_PATTERN",
+            "link": "/api/@rulvar/core/variables/DEFAULT_ARTIFACT_PATTERN.md"
+          },
+          {
             "text": "DEFAULT_CHILD_BUDGET_FRACTION",
             "link": "/api/@rulvar/core/variables/DEFAULT_CHILD_BUDGET_FRACTION.md"
           },
@@ -2273,6 +2281,10 @@
           {
             "text": "DEFAULT_EVIDENCE_CALLS_PER_ENTRY",
             "link": "/api/@rulvar/core/variables/DEFAULT_EVIDENCE_CALLS_PER_ENTRY.md"
+          },
+          {
+            "text": "DEFAULT_EVIDENCE_GRADE_PHRASES",
+            "link": "/api/@rulvar/core/variables/DEFAULT_EVIDENCE_GRADE_PHRASES.md"
           },
           {
             "text": "DEFAULT_EVIDENCE_MIN_SHARE",
@@ -2677,6 +2689,10 @@
             "link": "/api/@rulvar/core/functions/childCoveragePrefix.md"
           },
           {
+            "text": "citedValueValidator",
+            "link": "/api/@rulvar/core/functions/citedValueValidator.md"
+          },
+          {
             "text": "claimExpired",
             "link": "/api/@rulvar/core/functions/claimExpired.md"
           },
@@ -2819,6 +2835,10 @@
           {
             "text": "evaluateReuse",
             "link": "/api/@rulvar/core/functions/evaluateReuse.md"
+          },
+          {
+            "text": "evidenceGradeValidator",
+            "link": "/api/@rulvar/core/functions/evidenceGradeValidator.md"
           },
           {
             "text": "evidencePreservedValidator",
@@ -5389,6 +5409,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/ChildResultPage.md"
           },
           {
+            "text": "CitationTarget",
+            "link": "/api/@rulvar/rulvar/interfaces/CitationTarget.md"
+          },
+          {
             "text": "ClaimValidationOptions",
             "link": "/api/@rulvar/rulvar/interfaces/ClaimValidationOptions.md"
           },
@@ -6865,6 +6889,10 @@
             "link": "/api/@rulvar/rulvar/variables/CURRENT_HASH_VERSION.md"
           },
           {
+            "text": "DEFAULT_ARTIFACT_PATTERN",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_ARTIFACT_PATTERN.md"
+          },
+          {
             "text": "DEFAULT_CHILD_BUDGET_FRACTION",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_CHILD_BUDGET_FRACTION.md"
           },
@@ -6891,6 +6919,10 @@
           {
             "text": "DEFAULT_EVIDENCE_CALLS_PER_ENTRY",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_CALLS_PER_ENTRY.md"
+          },
+          {
+            "text": "DEFAULT_EVIDENCE_GRADE_PHRASES",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_GRADE_PHRASES.md"
           },
           {
             "text": "DEFAULT_EVIDENCE_MIN_SHARE",
@@ -7307,6 +7339,10 @@
             "link": "/api/@rulvar/rulvar/functions/childCoveragePrefix.md"
           },
           {
+            "text": "citedValueValidator",
+            "link": "/api/@rulvar/rulvar/functions/citedValueValidator.md"
+          },
+          {
             "text": "claimExpired",
             "link": "/api/@rulvar/rulvar/functions/claimExpired.md"
           },
@@ -7449,6 +7485,10 @@
           {
             "text": "evaluateReuse",
             "link": "/api/@rulvar/rulvar/functions/evaluateReuse.md"
+          },
+          {
+            "text": "evidenceGradeValidator",
+            "link": "/api/@rulvar/rulvar/functions/evidenceGradeValidator.md"
           },
           {
             "text": "evidencePreservedValidator",

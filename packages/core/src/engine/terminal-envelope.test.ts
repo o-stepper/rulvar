@@ -271,6 +271,33 @@ describe('terminalEnvelopeOf (RV1105)', () => {
     expect(cost.byModel['fake:m1']).toBe(1.25);
   });
 
+  it('detaches the typed error, its data included, from the outcome it was read from (RV1213)', () => {
+    const error = {
+      code: 'agent',
+      message: 'scripted failure',
+      retryable: false,
+      data: { kind: 'terminal', attempts: [1, 2], detail: { site: 'loop' } },
+    };
+    const envelope = terminalEnvelopeOf({
+      runId: 'r-4',
+      workflow: 'wf',
+      outcome: { ...outcomeFacts, status: 'error' as const, error },
+      agentsSpawned: 0,
+    });
+    expect(envelope.error).toEqual(error);
+    expect(envelope.error).not.toBe(error);
+    // The envelope is a detached READING of the terminal, exactly like
+    // costByModel: a consumer that annotates it must never reach back
+    // into the outcome the engine still holds.
+    const carried = envelope.error as { message: string; data: Record<string, unknown> };
+    carried.message = 'rewritten';
+    (carried.data.detail as Record<string, unknown>).site = 'rewritten';
+    (carried.data.attempts as number[]).push(3);
+    expect(error.message).toBe('scripted failure');
+    expect(error.data.detail.site).toBe('loop');
+    expect(error.data.attempts).toEqual([1, 2]);
+  });
+
   it('carries the refusal facts when the settlement did not hold', () => {
     const plain = terminalEnvelopeOf({
       runId: 'r-3',

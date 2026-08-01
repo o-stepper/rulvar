@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
 import {
+  citedValueValidator,
+  evidenceGradeValidator,
   evidencePreservedValidator,
   headingStructureValidator,
   minMatchesValidator,
@@ -636,5 +638,121 @@ describe('spliceSections (RV808b)', () => {
 
   it('refuses an empty declared set typed', () => {
     expect(() => spliceSections(PRIOR, [], { '## Alpha': 'x' })).toThrow(ConfigError);
+  });
+});
+
+describe('evidenceGradeValidator (RV1212, the sixteenth experiment P2-3)', () => {
+  const GRADED =
+    'The loop is live-observed to retry three times.\n\n' + 'Cost came from the provider bill.\n';
+
+  it('refuses a graded claim that cites no artifact in its own sentence', () => {
+    const verdict = evidenceGradeValidator().validate(text(GRADED));
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons.join(' ')).toContain('live-observed');
+    expect(verdict.reasons.join(' ')).toContain('provider bill');
+  });
+
+  it('accepts the same claims once each sentence carries an artifact reference', () => {
+    const cited =
+      'The loop is live-observed to retry three times (run 01JABC, src/retry.ts:33).\n\n' +
+      'Cost came from the provider bill (run 01JABC).\n';
+    expect(evidenceGradeValidator().validate(text(cited)).ok).toBe(true);
+  });
+
+  it('does not accept an artifact that sits in a different sentence', () => {
+    // The evidence must travel with the claim: a run id three
+    // sentences away is exactly the shape that made the sixteenth
+    // run's answer read as observed when it was not.
+    const separated =
+      'The loop is live-observed to retry three times.\n\n' +
+      'Separately, we also read run 01JABC.\n';
+    expect(evidenceGradeValidator().validate(text(separated)).ok).toBe(false);
+  });
+
+  it('names every graded phrase it found, and passes text that makes no graded claim', () => {
+    expect(evidenceGradeValidator().validate(text('The loop retries three times.')).ok).toBe(true);
+    const verdict = evidenceGradeValidator({ phrases: ['production-proven'] }).validate(
+      text('This path is production-proven.'),
+    );
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) {
+      expect(verdict.reasons[0]).toContain('production-proven');
+    }
+  });
+
+  it('refuses malformed intake typed', () => {
+    expect(() => evidenceGradeValidator({ phrases: [] })).toThrow(ConfigError);
+    expect(() => evidenceGradeValidator({ phrases: [''] })).toThrow(ConfigError);
+    expect(() => evidenceGradeValidator({ artifactPattern: 'x*' })).toThrow(/empty string/);
+    expect(() => evidenceGradeValidator({ artifactPattern: '([' })).toThrow(/does not compile/);
+  });
+});
+
+describe('citedValueValidator (RV1212, the sixteenth experiment P2-2)', () => {
+  // The judge's own repro: retry.ts:24 declares the interface, and the
+  // default attempts: 3 lives at 33.
+  const LINES: Record<number, string> = {
+    24: 'export interface RetryPolicy {',
+    33: '  attempts: 3,',
+  };
+  // A realistic snapshot: every line of the file resolves, most of
+  // them to blanks, and only past the end does the resolver refuse.
+  const resolve = (citation: { path: string; line: number }): string | undefined =>
+    citation.path === 'src/retry.ts' && citation.line >= 1 && citation.line <= 40
+      ? (LINES[citation.line] ?? '')
+      : undefined;
+
+  it('refuses a citation whose line does not carry the value the sentence asserts', () => {
+    const verdict = citedValueValidator({ resolve }).validate(
+      text('The default is `attempts: 3` (`src/retry.ts:24`).'),
+    );
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons[0]).toContain('src/retry.ts:24');
+    expect(verdict.reasons[0]).toContain('attempts: 3');
+  });
+
+  it('accepts the same assertion once it cites the line that carries the value', () => {
+    expect(
+      citedValueValidator({ resolve }).validate(
+        text('The default is `attempts: 3` (`src/retry.ts:33`).'),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it('refuses a citation the resolver cannot resolve at all', () => {
+    const verdict = citedValueValidator({ resolve }).validate(
+      text('The default is `attempts: 3` (`src/retry.ts:900`).'),
+    );
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) {
+      expect(verdict.reasons[0]).toContain('resolves to no source line');
+    }
+  });
+
+  it('searches a window of lines when the host allows one', () => {
+    const windowed = citedValueValidator({ resolve, window: 9 });
+    expect(windowed.validate(text('The default is `attempts: 3` (`src/retry.ts:24`).')).ok).toBe(
+      true,
+    );
+    // The window never reaches backwards past the cited line.
+    expect(windowed.validate(text('The interface is `RetryPolicy` (`src/retry.ts:33`).')).ok).toBe(
+      false,
+    );
+  });
+
+  it('passes sentences that cite without asserting an inline value', () => {
+    expect(citedValueValidator({ resolve }).validate(text('See `src/retry.ts:24`.')).ok).toBe(true);
+  });
+
+  it('refuses malformed intake typed', () => {
+    expect(() => citedValueValidator({ resolve, window: -1 })).toThrow(ConfigError);
+    expect(() => citedValueValidator({ resolve, window: 1.5 })).toThrow(ConfigError);
+    expect(() => citedValueValidator({ resolve: 'no' as never })).toThrow(ConfigError);
   });
 });

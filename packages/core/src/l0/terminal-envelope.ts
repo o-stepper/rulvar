@@ -21,7 +21,9 @@
  *   keeps its absent-means-exact byte contract): `true` means some
  *   priced usage was approximate, so `totalUsd` is a lower bound.
  * - `costByModel` is a detached copy of the settled fold's per-model
- *   split; mutating it never touches the cost report.
+ *   split; mutating it never touches the cost report. Since RV1213
+ *   `error` is detached the same way, `data` nesting included, so the
+ *   whole envelope is a reading a consumer may annotate freely.
  *
  * Docs: https://docs.rulvar.com/guide/observability
  */
