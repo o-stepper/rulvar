@@ -969,13 +969,14 @@ const CITATION_TAIL = /^(.*):(\d+)$/u;
 
 /**
  * True when `value` occurs in `haystack` as a WHOLE token (RV1402, the
- * seventeenth comparison experiment P0-1): substring matching credited
- * `3` against a line that says `30`, so the validator judged agreement
- * where the source said otherwise. The boundary class is word
- * characters plus the dot, so `3` matches neither inside `30` nor
- * inside `3.5`, and `retry.ts` no longer matches inside `myretry.ts`;
- * spaces, punctuation, operators, and the line edges still bound a
- * token.
+ * seventeenth comparison experiment P0-1). Substring matching credited
+ * an asserted `3` against a line that says `30`, so the validator
+ * judged agreement where the source said otherwise. The boundary class
+ * is word characters plus the dot: `3` therefore matches neither
+ * inside `30` nor inside `3.5`, and `retry.ts` no longer matches
+ * inside `myretry.ts`, while spaces, punctuation, operators, and the
+ * line edges still end a token. The value itself is matched literally
+ * (regex metacharacters escaped).
  */
 function containsToken(haystack: string, value: string): boolean {
   const escaped = value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
@@ -996,12 +997,12 @@ function containsToken(haystack: string, value: string): boolean {
  * citations are the values that sentence asserts about the citations
  * that are, and each asserted value must appear in the cited line (or
  * within `window` lines AFTER it, for a value the citation introduces)
- * as a WHOLE token, not a substring (RV1402): judged by `includes`, a
- * claim of `3` was satisfied by a line saying `30`, which is the
- * seventeenth comparison judge's repro. A sentence that cites without
- * asserting an inline value passes: the validator judges assertions,
- * never prose ({@link citationTargetsValidator} is the validator that
- * judges every citation with no such precondition).
+ * as a WHOLE token, never a substring (RV1402): under `includes`, an
+ * asserted `3` was satisfied by a line saying `30`, the seventeenth
+ * comparison judge's repro. A sentence that cites without asserting an
+ * inline value passes: the validator judges assertions, never prose
+ * ({@link citationTargetsValidator} judges every citation with no such
+ * precondition).
  *
  * `resolve` is host code and must be PURE over a snapshot the host
  * froze before the run, exactly like every other finish validator: a
@@ -1105,41 +1106,44 @@ export function citedValueValidator(options: {
 }
 
 /**
- * Resolves EVERY citation in the result text against the host's own
+ * Resolves EVERY citation of the result text against the host's own
  * source snapshot (RV1401, the seventeenth comparison experiment
  * P0-1). The seventeenth run's answer carried `ghost.ts:0`, a location
- * no checkout ever held, and every configured check passed: the
+ * no checkout ever held, and the whole configured chain passed it: the
  * citation pattern accepts any digits (a line of 0 included),
- * `requireKnown` proves only that a child SAID the string, and
- * {@link citedValueValidator} resolves a citation only when its
- * sentence asserts an inline value beside it. A fabricated location
- * that no sentence asserts anything about therefore counted as
+ * `evidencePreservedValidator`'s `requireKnown` proves only that some
+ * child SAID the string, and {@link citedValueValidator} resolves a
+ * citation only when its sentence asserts an inline value beside it,
+ * so a fabricated location nobody asserted anything about counted as
  * provenance and licensed the valid-draft skip. This validator closes
- * the hole at the root: every match of `pattern`, inline code and
- * plain prose alike, is parsed as `path:line` and resolved, with no
- * sentence-level precondition.
+ * the hole at the root: every match of `pattern` in the result text,
+ * inline code and plain prose alike, is parsed as `path:line` and
+ * resolved, with no sentence-level precondition.
  *
- * Three refusals, each fail closed:
+ * Three refusals, each fail closed. A match that does not parse as
+ * `path:line` with a safe integer line is refused rather than skipped:
+ * the host's own pattern claims it IS a citation. A line below 1 is
+ * refused BEFORE the resolver runs: source lines are 1-based, and a
+ * sloppy resolver might well answer line 0. A citation the resolver
+ * does not know is refused, because a citation nothing resolves is not
+ * provenance. Repeated occurrences are judged once, and refusal
+ * reasons list the offenders capped at 20.
  *
- * - a match that does not parse as `path:line` (a custom pattern
- *   matched something the tail cannot split) is refused rather than
- *   skipped, because an unjudgeable citation must never read as
- *   judged;
- * - a line below 1 is refused BEFORE the resolver runs: source lines
- *   are 1-based, `:0` is the exact shape the default pattern lets
- *   through, and a sloppy host resolver might well answer it;
- * - a citation the resolver does not know is refused: a citation
- *   nothing resolves is not provenance.
- *
- * `resolve` is the same host contract {@link citedValueValidator}
- * takes: PURE over a snapshot the host froze before the run
- * (returning undefined for a location outside it), never the live
- * filesystem. Repeated occurrences are judged once. `fencedCode:
- * 'excluded'` strips fenced code before scanning, for hosts whose
- * contracts already exclude it; the default judges the whole text.
- * Intake is fail closed (RV610): a pattern that cannot compile or
- * that can match the empty string is refused typed. Default name
- * 'citation-targets'.
+ * `resolve` is host code and must be PURE over a snapshot the host
+ * froze before the run, exactly like {@link citedValueValidator}'s: a
+ * resolver reading the filesystem live would make a verdict depend on
+ * when it ran and break replay. `fencedCode: 'excluded'` strips fenced
+ * code before scanning (default 'counted'), for hosts whose contracts
+ * already exclude it. A text with no citation at all passes: demanding
+ * citations exist is `minMatchesValidator`'s job, this one demands the
+ * ones present are real. Intake is fail closed (RV610): a pattern that
+ * does not compile or that can match the empty string is refused
+ * typed, and zero-length matches a lookaround produces in context
+ * never enter the pool. Wired into `finishValidation`, the refusal
+ * also reaches the `skipWhenDraftValid` gate (RV510 judges the draft
+ * by the full declared contract), so a draft carrying an unresolvable
+ * citation can no longer skip the synthesis it was supposed to earn.
+ * Default name 'citation-targets'.
  */
 export function citationTargetsValidator(options: {
   resolve: (target: CitationTarget) => string | undefined;
@@ -1153,9 +1157,9 @@ export function citationTargetsValidator(options: {
     throw new ConfigError('citationTargetsValidator resolve must be a function');
   }
   const pattern = options.pattern ?? DEFAULT_CITATION_PATTERN;
-  let compiled: RegExp;
+  let probe: RegExp;
   try {
-    compiled = new RegExp(pattern, '');
+    probe = new RegExp(pattern, '');
   } catch (thrown) {
     throw new ConfigError(
       `citationTargetsValidator pattern does not compile: ${
@@ -1163,40 +1167,43 @@ export function citationTargetsValidator(options: {
       }`,
     );
   }
-  if (compiled.test('')) {
+  // Fail-closed intake (RV610), the evidencePreservedValidator rule: an
+  // empty match can never name a source line, so a pattern able to
+  // produce one would either refuse every text or be skipped silently.
+  if (probe.test('')) {
     throw new ConfigError(
       `citationTargetsValidator pattern must not be able to match the empty string ` +
-        `(an empty match would be judged as a citation); got ${JSON.stringify(pattern)}`,
+        `(an empty match can never name a source line); got ${JSON.stringify(pattern)}`,
     );
   }
-  const fencedCode =
-    options.fencedCode === undefined
-      ? 'counted'
-      : requireFencedCodeMode(options.fencedCode, 'citationTargetsValidator fencedCode');
+  const fencedCode = requireFencedCodeMode(
+    options.fencedCode ?? 'counted',
+    'citationTargetsValidator fencedCode',
+  );
   return {
     name: options.name ?? 'citation-targets',
     validate: (input) => {
       const scope = fencedCode === 'excluded' ? stripFencedBlocks(input.text) : input.text;
-      // Fresh RegExp per scan: the 'g' flag makes matching stateful.
       const seen = new Set<string>();
       const unparsable: string[] = [];
-      const notOneBased: string[] = [];
+      const belowOne: string[] = [];
       const unresolved: string[] = [];
+      // Fresh RegExp per scan: the 'g' flag makes matching stateful.
       for (const match of scope.match(new RegExp(pattern, 'g')) ?? []) {
-        // Zero-length matches never enter the judgment (RV610): a bare
-        // lookaround can produce them past the intake probe.
+        // Zero-length matches never enter (a bare lookaround produces
+        // them in context past the intake probe); repeats judge once.
         if (match.length === 0 || seen.has(match)) {
           continue;
         }
         seen.add(match);
         const parsed = CITATION_TAIL.exec(match);
-        if (parsed === null) {
+        const line = parsed === null ? Number.NaN : Number(parsed[2]);
+        if (parsed === null || !Number.isSafeInteger(line)) {
           unparsable.push(match);
           continue;
         }
-        const line = Number(parsed[2]);
-        if (!Number.isSafeInteger(line) || line < 1) {
-          notOneBased.push(match);
+        if (line < 1) {
+          belowOne.push(match);
           continue;
         }
         if (options.resolve({ path: parsed[1], line }) === undefined) {
@@ -1205,16 +1212,20 @@ export function citationTargetsValidator(options: {
       }
       const reasons: string[] = [];
       if (unparsable.length > 0) {
-        reasons.push(`citations do not parse as path:line: ${listCitations(unparsable)}`);
-      }
-      if (notOneBased.length > 0) {
         reasons.push(
-          `citations do not name a valid 1-based source line: ${listCitations(notOneBased)}`,
+          `citations that do not parse as path:line with a safe line number: ` +
+            listCitations(unparsable),
+        );
+      }
+      if (belowOne.length > 0) {
+        reasons.push(
+          `citations naming a line below 1 (source lines are 1-based): ${listCitations(belowOne)}`,
         );
       }
       if (unresolved.length > 0) {
         reasons.push(
-          `citations resolve to no source line in the host snapshot: ${listCitations(unresolved)}`,
+          `citations resolving to no source line in the host snapshot: ` +
+            listCitations(unresolved),
         );
       }
       return reasons.length === 0 ? ok : { ok: false, reasons };

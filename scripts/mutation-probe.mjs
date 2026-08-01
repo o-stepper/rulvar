@@ -356,8 +356,9 @@ const MUTATIONS = [
     doctrine:
       'a citation pattern that can match the empty string is refused at intake: an empty match is fabricated evidence (RV610)',
     file: 'packages/core/src/orchestrator/finish-validators.ts',
-    find: "  if (probe.test('')) {",
-    replace: '  if (false) {',
+    find: "  if (probe.test('')) {\n    throw new ConfigError(\n      `evidencePreservedValidator pattern must not be able to match the empty string `",
+    replace:
+      '  if (false) {\n    throw new ConfigError(\n      `evidencePreservedValidator pattern must not be able to match the empty string `',
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
   {
@@ -1897,7 +1898,7 @@ const MUTATIONS = [
   {
     id: 'citation-targets-unresolved',
     doctrine:
-      'a citation the snapshot does not resolve is a refusal (RV1401): tolerated, a fabricated file:line that no sentence asserts a value about counts as provenance, which is the exact shape ghost.ts:0 rode through the seventeenth run',
+      'a citation the resolver does not know is REFUSED (RV1401): waved through, a fabricated location like ghost.ts:12 counts as provenance again and licenses the valid-draft skip',
     file: 'packages/core/src/orchestrator/finish-validators.ts',
     find: '        if (options.resolve({ path: parsed[1], line }) === undefined) {\n          unresolved.push(match);\n        }',
     replace:
@@ -1905,37 +1906,39 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
   {
-    id: 'citation-targets-one-based',
+    id: 'citation-targets-line-floor',
     doctrine:
-      'a line below 1 is refused BEFORE the resolver runs (RV1401): passed through, a sloppy host resolver that answers line 0 turns :0 back into provenance, and the default pattern accepts those digits',
+      'a line below 1 is refused BEFORE the resolver runs (RV1401): source lines are 1-based, and a sloppy resolver might well answer ghost.ts:0 with a string',
     file: 'packages/core/src/orchestrator/finish-validators.ts',
-    find: '        if (!Number.isSafeInteger(line) || line < 1) {',
-    replace: '        if (!Number.isSafeInteger(line)) {',
-    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
-  },
-  {
-    id: 'citation-targets-unparsable',
-    doctrine:
-      'a pattern match that does not parse as path:line is refused, not skipped (RV1401): skipped silently, an unjudgeable citation reads as judged and the fail-closed posture inverts',
-    file: 'packages/core/src/orchestrator/finish-validators.ts',
-    find: '        if (parsed === null) {\n          unparsable.push(match);\n          continue;\n        }',
-    replace: '        if (parsed === null) {\n          continue;\n        }',
-    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
-  },
-  {
-    id: 'citation-targets-fenced',
-    doctrine:
-      "fencedCode: 'excluded' strips fenced code before the scan (RV1401): ignored, a host whose contract excludes fences is failed on example paths inside them, and the option silently lies",
-    file: 'packages/core/src/orchestrator/finish-validators.ts',
-    find: "      const scope = fencedCode === 'excluded' ? stripFencedBlocks(input.text) : input.text;\n      // Fresh RegExp per scan: the 'g' flag makes matching stateful.\n      const seen = new Set<string>();",
+    find: '        if (line < 1) {\n          belowOne.push(match);\n          continue;\n        }',
     replace:
-      "      const scope = input.text;\n      // Fresh RegExp per scan: the 'g' flag makes matching stateful.\n      const seen = new Set<string>();",
+      '        if (line < 0) {\n          belowOne.push(match);\n          continue;\n        }',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'citation-targets-unparsable-skip',
+    doctrine:
+      'a pattern match that does not parse as path:line with a safe line is refused, never skipped (RV1401): skipped, a custom-pattern citation nothing can resolve sails through as provenance',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '        if (parsed === null || !Number.isSafeInteger(line)) {\n          unparsable.push(match);\n          continue;\n        }',
+    replace:
+      '        if (parsed === null || !Number.isSafeInteger(line)) {\n          continue;\n        }',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'citation-targets-empty-pattern-intake',
+    doctrine:
+      'a pattern able to match the empty string is refused at intake (RV1401, the RV610 posture): admitted, an empty match can never name a source line and the validator either refuses every text or silently skips',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: "  if (probe.test('')) {\n    throw new ConfigError(\n      `citationTargetsValidator pattern must not be able to match the empty string `",
+    replace:
+      '  if (false) {\n    throw new ConfigError(\n      `citationTargetsValidator pattern must not be able to match the empty string `',
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
   {
     id: 'cited-value-whole-token',
     doctrine:
-      'an asserted value must appear in the cited line as a WHOLE token (RV1402): matched as a substring, a claim of 3 is satisfied by a line saying 30, which is the seventeenth comparison judge repro',
+      'an asserted value must sit in the cited line as a WHOLE token (RV1402): back on substring `includes`, a claim of `3` is satisfied by a line saying `30`, the seventeenth comparison judge repro',
     file: 'packages/core/src/orchestrator/finish-validators.ts',
     find: '          const missing = values.filter((value) => !containsToken(haystack, value));',
     replace: '          const missing = values.filter((value) => !haystack.includes(value));',

@@ -756,171 +756,139 @@ describe('citedValueValidator (RV1212, the sixteenth experiment P2-2)', () => {
     expect(() => citedValueValidator({ resolve, window: 1.5 })).toThrow(ConfigError);
     expect(() => citedValueValidator({ resolve: 'no' as never })).toThrow(ConfigError);
   });
+});
 
-  describe('whole-token value matching (RV1402, the seventeenth experiment P0-1)', () => {
-    // The seventeenth judge's repro: substring matching credited `3`
-    // against a line that says `30`, so the validator judged agreement
-    // where the source said otherwise.
-    const wide = (citation: { path: string; line: number }): string | undefined =>
-      citation.path === 'src/pool.ts' && citation.line === 7 ? '  attempts: 30,' : undefined;
+describe('citedValueValidator whole token matching (RV1402, the seventeenth experiment P0-1)', () => {
+  // The seventeenth judge's repro: substring matching credited an
+  // asserted `3` against a line that says `30`, so the validator
+  // judged agreement where the source said otherwise.
+  const SOURCE: Record<string, string> = {
+    'src/limits.ts:12': 'const maxRetries = 30;',
+    'src/limits.ts:13': 'const backoff = 3.5;',
+    'src/limits.ts:14': 'const attempts = 3;',
+    'src/imports.ts:3': "import { policy } from './myretry.ts';",
+    'src/imports.ts:4': "import { policy } from './retry.ts';",
+    'src/math.ts:8': 'const sum = a+b;',
+    'src/math.ts:9': 'const label = aab;',
+  };
+  const resolve = (citation: { path: string; line: number }): string | undefined =>
+    SOURCE[`${citation.path}:${String(citation.line)}`];
+  const validator = citedValueValidator({ resolve });
 
-    it('refuses a value that appears only inside a longer number', () => {
-      const verdict = citedValueValidator({ resolve: wide }).validate(
-        text('The default is `3` (`src/pool.ts:7`).'),
-      );
-      expect(verdict.ok).toBe(false);
-      if (!verdict.ok) {
-        expect(verdict.reasons[0]).toContain('src/pool.ts:7');
-      }
-    });
+  it('refuses `3` against a line saying `30`: a substring is not the asserted value', () => {
+    const verdict = validator.validate(text('The cap is `3` (`src/limits.ts:12`).'));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? '' : verdict.reasons[0]).toContain('src/limits.ts:12');
+  });
 
-    it('refuses a keyed value whose tail digit continues in the source', () => {
-      // `attempts: 3` IS a substring of `attempts: 30`; only the token
-      // boundary tells the two readings apart.
-      const verdict = citedValueValidator({ resolve: wide }).validate(
-        text('The default is `attempts: 3` (`src/pool.ts:7`).'),
-      );
-      expect(verdict.ok).toBe(false);
-    });
+  it('refuses `3` against `3.5`: the dot joins a token instead of ending one', () => {
+    expect(validator.validate(text('The backoff is `3` (`src/limits.ts:13`).')).ok).toBe(false);
+  });
 
-    it('refuses a value that continues into a decimal, and one buried in a longer name', () => {
-      const decimal = (citation: { path: string; line: number }): string | undefined =>
-        citation.path === 'src/pool.ts' && citation.line === 8 ? '  factor: 3.5,' : undefined;
-      expect(
-        citedValueValidator({ resolve: decimal }).validate(
-          text('The factor is `3` (`src/pool.ts:8`).'),
-        ).ok,
-      ).toBe(false);
-      const dotted = (citation: { path: string; line: number }): string | undefined =>
-        citation.path === 'src/pool.ts' && citation.line === 9 ? "import 'myretry.ts';" : undefined;
-      expect(
-        citedValueValidator({ resolve: dotted }).validate(
-          text('The module is `retry.ts` (`src/pool.ts:9`).'),
-        ).ok,
-      ).toBe(false);
-    });
+  it('accepts `3` where the line carries 3 as its own token', () => {
+    expect(validator.validate(text('The default is `3` (`src/limits.ts:14`).')).ok).toBe(true);
+  });
 
-    it('still accepts a value bounded by punctuation, an operator, or the line edge', () => {
-      expect(
-        citedValueValidator({ resolve: wide }).validate(
-          text('The default is `attempts: 30` (`src/pool.ts:7`).'),
-        ).ok,
-      ).toBe(true);
-      const edge = (citation: { path: string; line: number }): string | undefined =>
-        citation.path === 'src/pool.ts' && citation.line === 10 ? 'retries = 3' : undefined;
-      expect(
-        citedValueValidator({ resolve: edge }).validate(text('Set to `3` (`src/pool.ts:10`).')).ok,
-      ).toBe(true);
-    });
+  it('refuses a dotted name inside a longer one and accepts the exact token', () => {
+    expect(validator.validate(text('Imported from `retry.ts` (`src/imports.ts:3`).')).ok).toBe(
+      false,
+    );
+    expect(validator.validate(text('Imported from `retry.ts` (`src/imports.ts:4`).')).ok).toBe(
+      true,
+    );
+  });
+
+  it('escapes regex metacharacters in the asserted value', () => {
+    expect(validator.validate(text('The sum is `a+b` (`src/math.ts:8`).')).ok).toBe(true);
+    expect(validator.validate(text('The sum is `a+b` (`src/math.ts:9`).')).ok).toBe(false);
   });
 });
 
 describe('citationTargetsValidator (RV1401, the seventeenth experiment P0-1)', () => {
-  // A two-file snapshot: retry.ts has 40 lines, README.md has 5.
+  // The seventeenth run's answer carried `ghost.ts:0`, a location no
+  // checkout ever held, and every configured check passed. This
+  // validator resolves EVERY citation of the result text against the
+  // host snapshot, with no sentence-level precondition.
+  const KNOWN = new Set(['src/auth.ts:10', 'src/auth.ts:11', 'docs/guide.md:4']);
   const calls: { path: string; line: number }[] = [];
   const resolve = (citation: { path: string; line: number }): string | undefined => {
-    calls.push(citation);
-    if (citation.path === 'src/retry.ts' && citation.line >= 1 && citation.line <= 40) {
-      return 'source';
-    }
-    if (citation.path === 'README.md' && citation.line >= 1 && citation.line <= 5) {
-      return 'prose';
-    }
-    return undefined;
+    calls.push({ ...citation });
+    return KNOWN.has(`${citation.path}:${String(citation.line)}`) ? 'source line' : undefined;
   };
 
-  it('refuses a citation the snapshot does not hold, naming it', () => {
-    // The seventeenth run's shape: a prose sentence citing a location
-    // no checkout ever held, with no inline value asserted beside it,
-    // passed every configured validator.
-    const verdict = citationTargetsValidator({ resolve }).validate(
-      text('The grade gate accepts ghost.ts:12 without an artifact.'),
-    );
-    expect(verdict.ok).toBe(false);
-    if (!verdict.ok) {
-      expect(verdict.reasons[0]).toContain('ghost.ts:12');
-      expect(verdict.reasons[0]).toContain('resolve');
-    }
-  });
-
-  it('refuses a zero line as not 1-based WITHOUT consulting the resolver', () => {
-    // A sloppy host resolver might well answer line 0 (an index
-    // arithmetic slip), so the validator must refuse before asking.
+  it('accepts a text whose citations all resolve, judging repeats once', () => {
     calls.length = 0;
-    const phantom = (citation: { path: string; line: number }): string | undefined => {
-      calls.push(citation);
-      return 'phantom';
-    };
-    const verdict = citationTargetsValidator({ resolve: phantom }).validate(
-      text('The validator accepted ghost.ts:0 in the seventeenth run.'),
-    );
-    expect(verdict.ok).toBe(false);
-    if (!verdict.ok) {
-      expect(verdict.reasons[0]).toContain('1-based');
-      expect(verdict.reasons[0]).toContain('ghost.ts:0');
-    }
-    expect(calls).toEqual([]);
-  });
-
-  it('passes when every citation resolves, inline code and plain prose alike', () => {
-    const verdict = citationTargetsValidator({ resolve }).validate(
-      text('See `src/retry.ts:33` and README.md:2 for the contract.'),
+    const validator = citationTargetsValidator({ resolve });
+    expect(validator.name).toBe('citation-targets');
+    const verdict = validator.validate(
+      text('See src/auth.ts:10 and `src/auth.ts:11`; src/auth.ts:10 again (docs/guide.md:4).'),
     );
     expect(verdict).toEqual({ ok: true });
+    expect(calls.filter((c) => c.path === 'src/auth.ts' && c.line === 10)).toHaveLength(1);
   });
 
-  it('judges citations in sentences that assert no inline value', () => {
-    // citedValueValidator skips such sentences by design; this
-    // validator exists precisely because of that precondition.
-    expect(citationTargetsValidator({ resolve }).validate(text('See ghost.ts:12.')).ok).toBe(false);
-  });
-
-  it('dedupes repeated occurrences into one listed citation', () => {
+  it('refuses a fabricated location the resolver does not know', () => {
     const verdict = citationTargetsValidator({ resolve }).validate(
-      text('ghost.ts:12 appears here and ghost.ts:12 appears again.'),
+      text('Proven at src/auth.ts:10 and ghost.ts:12.'),
     );
     expect(verdict.ok).toBe(false);
-    if (!verdict.ok) {
-      expect(verdict.reasons).toHaveLength(1);
-      expect(verdict.reasons[0].match(/ghost\.ts:12/gu)).toHaveLength(1);
-    }
+    const reason = verdict.ok ? '' : verdict.reasons[0];
+    expect(reason).toContain('ghost.ts:12');
+    expect(reason).not.toContain('src/auth.ts:10');
   });
 
-  it("ignores fenced code under fencedCode: 'excluded' and judges it by default", () => {
-    const fenced = 'Prose cites src/retry.ts:33.\n\n```\nexample ghost.ts:12\n```\n';
-    expect(
-      citationTargetsValidator({ resolve, fencedCode: 'excluded' }).validate(text(fenced)).ok,
-    ).toBe(true);
-    expect(citationTargetsValidator({ resolve }).validate(text(fenced)).ok).toBe(false);
-  });
-
-  it('refuses a pattern match that does not parse as path:line instead of skipping it', () => {
-    const verdict = citationTargetsValidator({
-      resolve,
-      pattern: '[\\w./-]+\\.md(?::\\d+)?',
-    }).validate(text('See README.md for the contract.'));
+  it('refuses line 0 before the resolver runs: source lines are 1-based', () => {
+    calls.length = 0;
+    const verdict = citationTargetsValidator({ resolve }).validate(text('Held at ghost.ts:0.'));
     expect(verdict.ok).toBe(false);
-    if (!verdict.ok) {
-      expect(verdict.reasons[0]).toContain('README.md');
-      expect(verdict.reasons[0]).toContain('parse');
-    }
+    expect(verdict.ok ? '' : verdict.reasons[0]).toContain('1-based');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuses a line too large for a safe integer instead of resolving it', () => {
+    calls.length = 0;
+    const digits = '9'.repeat(20);
+    const verdict = citationTargetsValidator({ resolve }).validate(
+      text(`Held at src/auth.ts:${digits}.`),
+    );
+    expect(verdict.ok).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuses a custom-pattern match that does not parse as path:line', () => {
+    const verdict = citationTargetsValidator({ resolve, pattern: 'REF \\d+' }).validate(
+      text('Recorded as REF 12.'),
+    );
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? '' : verdict.reasons[0]).toContain('REF 12');
+  });
+
+  it("fencedCode 'excluded' strips fenced code first; the default still counts it", () => {
+    const body = 'Real src/auth.ts:10.\n```\nghost.ts:12\n```\n';
+    expect(
+      citationTargetsValidator({ resolve, fencedCode: 'excluded' }).validate(text(body)),
+    ).toEqual({ ok: true });
+    expect(citationTargetsValidator({ resolve }).validate(text(body)).ok).toBe(false);
+  });
+
+  it('passes a text carrying no citation at all: counting is another validator', () => {
+    expect(citationTargetsValidator({ resolve }).validate(text('no provenance here'))).toEqual({
+      ok: true,
+    });
+  });
+
+  it('caps the listed citations at 20 and counts the rest', () => {
+    const many = Array.from({ length: 25 }, (_, i) => `src/miss${String(i)}.ts:1`);
+    const verdict = citationTargetsValidator({ resolve }).validate(text(many.join(' ')));
+    expect(verdict.ok ? '' : verdict.reasons[0]).toContain('and 5 more');
   });
 
   it('refuses malformed intake typed', () => {
     expect(() => citationTargetsValidator({ resolve: 'no' as never })).toThrow(ConfigError);
-    expect(() => citationTargetsValidator({ resolve, pattern: '([' })).toThrow(/does not compile/);
-    expect(() => citationTargetsValidator({ resolve, pattern: 'x*' })).toThrow(/empty string/);
-    expect(() => citationTargetsValidator({ resolve, fencedCode: 'stripped' as never })).toThrow(
+    expect(() => citationTargetsValidator({ resolve, pattern: '(' })).toThrow(/does not compile/);
+    expect(() => citationTargetsValidator({ resolve, pattern: '\\d*' })).toThrow(/empty string/);
+    expect(() => citationTargetsValidator({ resolve, fencedCode: 'nope' as never })).toThrow(
       ConfigError,
     );
-  });
-
-  it('caps the listed citations in one reason at 20', () => {
-    const many = Array.from({ length: 25 }, (_, i) => `ghost.ts:${String(i + 1)}`).join(' and ');
-    const verdict = citationTargetsValidator({ resolve }).validate(text(many));
-    expect(verdict.ok).toBe(false);
-    if (!verdict.ok) {
-      expect(verdict.reasons[0]).toContain('and 5 more');
-    }
   });
 });

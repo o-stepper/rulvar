@@ -10,7 +10,7 @@
 function citedValueValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1014](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1014)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1015](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1015)
 
 Requires a cited location to actually carry the value the sentence
 asserts (RV1212, the sixteenth comparison experiment P2-2). Citation
@@ -25,12 +25,12 @@ explainable: within one sentence, the inline-code spans that are NOT
 citations are the values that sentence asserts about the citations
 that are, and each asserted value must appear in the cited line (or
 within `window` lines AFTER it, for a value the citation introduces)
-as a WHOLE token, not a substring (RV1402): judged by `includes`, a
-claim of `3` was satisfied by a line saying `30`, which is the
-seventeenth comparison judge's repro. A sentence that cites without
-asserting an inline value passes: the validator judges assertions,
-never prose ([citationTargetsValidator](/api/@rulvar/core/functions/citationTargetsValidator.md) is the validator that
-judges every citation with no such precondition).
+as a WHOLE token, never a substring (RV1402): under `includes`, an
+asserted `3` was satisfied by a line saying `30`, the seventeenth
+comparison judge's repro. A sentence that cites without asserting an
+inline value passes: the validator judges assertions, never prose
+([citationTargetsValidator](/api/@rulvar/core/functions/citationTargetsValidator.md) judges every citation with no such
+precondition).
 
 `resolve` is host code and must be PURE over a snapshot the host
 froze before the run, exactly like every other finish validator: a
