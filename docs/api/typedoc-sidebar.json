@@ -1047,6 +1047,10 @@
             "link": "/api/@rulvar/core/interfaces/InvocationTable.md"
           },
           {
+            "text": "InvoiceCardinality",
+            "link": "/api/@rulvar/core/interfaces/InvoiceCardinality.md"
+          },
+          {
             "text": "InvoiceExport",
             "link": "/api/@rulvar/core/interfaces/InvoiceExport.md"
           },
@@ -1989,6 +1993,14 @@
             "link": "/api/@rulvar/core/type-aliases/PermissionVerdict.md"
           },
           {
+            "text": "PersistedTerminalRefusal",
+            "link": "/api/@rulvar/core/type-aliases/PersistedTerminalRefusal.md"
+          },
+          {
+            "text": "PersistedTerminalResult",
+            "link": "/api/@rulvar/core/type-aliases/PersistedTerminalResult.md"
+          },
+          {
             "text": "QuotaDecision",
             "link": "/api/@rulvar/core/type-aliases/QuotaDecision.md"
           },
@@ -2845,6 +2857,10 @@
             "link": "/api/@rulvar/core/functions/finishContract.md"
           },
           {
+            "text": "foldLedger",
+            "link": "/api/@rulvar/core/functions/foldLedger.md"
+          },
+          {
             "text": "foldTermination",
             "link": "/api/@rulvar/core/functions/foldTermination.md"
           },
@@ -3059,6 +3075,10 @@
           {
             "text": "parseScopePath",
             "link": "/api/@rulvar/core/functions/parseScopePath.md"
+          },
+          {
+            "text": "persistedTerminalEnvelope",
+            "link": "/api/@rulvar/core/functions/persistedTerminalEnvelope.md"
           },
           {
             "text": "phiInitialOf",
@@ -5609,6 +5629,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/InvocationTable.md"
           },
           {
+            "text": "InvoiceCardinality",
+            "link": "/api/@rulvar/rulvar/interfaces/InvoiceCardinality.md"
+          },
+          {
             "text": "InvoiceExport",
             "link": "/api/@rulvar/rulvar/interfaces/InvoiceExport.md"
           },
@@ -6575,6 +6599,14 @@
             "link": "/api/@rulvar/rulvar/type-aliases/PermissionVerdict.md"
           },
           {
+            "text": "PersistedTerminalRefusal",
+            "link": "/api/@rulvar/rulvar/type-aliases/PersistedTerminalRefusal.md"
+          },
+          {
+            "text": "PersistedTerminalResult",
+            "link": "/api/@rulvar/rulvar/type-aliases/PersistedTerminalResult.md"
+          },
+          {
             "text": "ProgressMode",
             "link": "/api/@rulvar/rulvar/type-aliases/ProgressMode.md"
           },
@@ -7455,6 +7487,10 @@
             "link": "/api/@rulvar/rulvar/functions/finishContract.md"
           },
           {
+            "text": "foldLedger",
+            "link": "/api/@rulvar/rulvar/functions/foldLedger.md"
+          },
+          {
             "text": "foldTermination",
             "link": "/api/@rulvar/rulvar/functions/foldTermination.md"
           },
@@ -7673,6 +7709,10 @@
           {
             "text": "parseScopePath",
             "link": "/api/@rulvar/rulvar/functions/parseScopePath.md"
+          },
+          {
+            "text": "persistedTerminalEnvelope",
+            "link": "/api/@rulvar/rulvar/functions/persistedTerminalEnvelope.md"
           },
           {
             "text": "phiInitialOf",

@@ -60,4 +60,18 @@ export interface TerminalEnvelope {
   usageApprox: boolean;
   /** Agents admitted over the run's lifetime, resume seed included. */
   agentsSpawned: number;
+  /**
+   * Where THIS copy of the envelope was assembled (RV1209). Absent, the
+   * historical byte contract, means the settlement chokepoint built it
+   * from the live outcome, so every field above is the run's own
+   * report. `'journal'` means a process that never held the run rebuilt
+   * it from the journal that recorded the settle (a restart, a second
+   * replica, an offline reader): the money, the usage, the agent count
+   * and the settlement verdict are the SAME facts, but `completion` and
+   * `error` are ABSENT because the journal does not record them, and
+   * absence there means "not recorded", never "the workflow claimed
+   * nothing" or "the run did not fail". A consumer that needs those two
+   * reads them from the live outcome or the run:end event.
+   */
+  provenance?: 'journal';
 }

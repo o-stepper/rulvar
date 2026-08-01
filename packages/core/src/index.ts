@@ -64,6 +64,7 @@ export * from './stores/reconcile.js';
 export * from './stores/jsonl.js';
 export * from './engine/cost-report.js';
 export * from './engine/invoice.js';
+export * from './engine/persisted-terminal.js';
 export {
   journalPricingSnapshot,
   type AppliedPricingRow,

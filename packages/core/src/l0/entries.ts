@@ -147,6 +147,17 @@ export interface ProviderCallRecord {
    * byte-identical.
    */
   wireResponseIds?: string[];
+  /**
+   * How many provider HTTP requests this ONE dispatch made, as the
+   * adapter reported it (RV1210:
+   * `providerMetadata[<adapter id>].wireRequests.count`). Recorded
+   * independently of `wireResponseIds` because a provider may leave a
+   * segment unnamed: counting ids alone understates the cardinality by
+   * exactly those segments, and the quota window (which settles on the
+   * count) would then disagree with the invoice. Absent on single-wire
+   * dispatches, keeping them byte-identical.
+   */
+  wireRequests?: number;
   /** This call's usage exactly, sanitized like every accounted number. */
   usage: Usage;
   /** True when the stream was cut, so the usage is a lower bound. */

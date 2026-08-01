@@ -87,6 +87,13 @@ export interface InvoiceRow {
    * single-wire rows.
    */
   wireResponseIds?: string[];
+  /**
+   * Provider HTTP requests this ONE row represents (RV1210), from the
+   * adapter's reported count rather than the id list: a provider that
+   * left an absorbed segment unnamed still billed it. Absent on
+   * single-wire rows, where the row IS the request.
+   */
+  wireRequests?: number;
   usage: Usage;
   usageApprox?: boolean;
   /**
@@ -161,6 +168,28 @@ export interface InvoicePricingProvenance {
   currentPricingVersion?: string | undefined;
 }
 
+/**
+ * Logical dispatches against provider HTTP requests (RV1210). One row
+ * is one DISPATCH, and a dispatch that absorbed provider-side
+ * continuations (RV905) is billed by the provider as several requests,
+ * so a per-request statement has MORE lines than this export has rows
+ * BY CONSTRUCTION. The counters state that difference instead of
+ * leaving a host to meet it as an unexplained count mismatch: a
+ * reconciliation that compares row count against statement line count
+ * should compare `wireRequests`, and `wireIdsMissing` says how many of
+ * those requests carry no join key at all.
+ */
+export interface InvoiceCardinality {
+  /** Rows folding a real provider call; unattributed remainders excluded. */
+  dispatchRows: number;
+  /** Provider HTTP requests those rows represent, absorbed continuations counted. */
+  wireRequests: number;
+  /** Rows whose dispatch absorbed more than one wire request. */
+  multiWireRows: number;
+  /** Wire requests inside those rows for which no response id was recorded. */
+  wireIdsMissing: number;
+}
+
 /** The machine-readable invoice: rows plus the ledger totals. */
 export interface InvoiceExport {
   rows: InvoiceRow[];
@@ -192,6 +221,8 @@ export interface InvoiceExport {
   unpriced: Array<{ model: string; usage: Usage }>;
   /** Rows whose reconciliation is not 'provider-id-present'. */
   reconciliationFailures: number;
+  /** Dispatch rows against the provider requests they represent (RV1210). */
+  cardinality: InvoiceCardinality;
   /**
    * USD of allocation pools that had a target and no row to carry it
    * (RV605). The dust pass refuses to move such dollars onto another
@@ -216,6 +247,34 @@ const USAGE_FIELDS = [
   'cacheReadTokens',
   'cacheWriteTokens',
 ] as const;
+
+/**
+ * The dispatch/wire counters (RV1210). A row with no reported count is
+ * one wire request, which is what a single-wire dispatch is; a row that
+ * reports a count contributes that many, and the ids it recorded are
+ * subtracted to say how many of those requests carry no join key.
+ */
+function cardinalityOf(rows: readonly InvoiceRow[]): InvoiceCardinality {
+  const cardinality: InvoiceCardinality = {
+    dispatchRows: 0,
+    wireRequests: 0,
+    multiWireRows: 0,
+    wireIdsMissing: 0,
+  };
+  for (const row of rows) {
+    if (row.outcome === 'unattributed') {
+      continue;
+    }
+    cardinality.dispatchRows += 1;
+    const wires = row.wireRequests ?? 1;
+    cardinality.wireRequests += wires;
+    if (wires > 1) {
+      cardinality.multiWireRows += 1;
+      cardinality.wireIdsMissing += Math.max(0, wires - (row.wireResponseIds?.length ?? 0));
+    }
+  }
+  return cardinality;
+}
 
 /**
  * One usage slice minus ITS OWN records' sum, clamped at zero per field
@@ -450,6 +509,7 @@ export function invoiceFromJournal(
         ...(record.wireResponseIds === undefined
           ? {}
           : { wireResponseIds: record.wireResponseIds }),
+        ...(record.wireRequests === undefined ? {} : { wireRequests: record.wireRequests }),
         usage: record.usage,
         ...(record.usageApprox === true ? { usageApprox: true } : {}),
         ...(usageUnknown ? { usageUnknown: true } : {}),
@@ -517,6 +577,9 @@ export function invoiceFromJournal(
   }
   const unallocatedUsd = allocateRows(rows, entries, priceUsd, report.grossUsd);
   const usageApprox = report.usageApprox === true || report.abandoned.usageApprox === true;
+  // Every row EXCEPT the unattributed remainders folds one dispatch: a
+  // remainder is usage no record covers, so it represents no request
+  // this export can count (RV1210).
   const invoice: InvoiceExport = {
     rows,
     totalUsd: report.grossUsd,
@@ -528,6 +591,7 @@ export function invoiceFromJournal(
     unpriced: [...report.unpriced, ...report.abandoned.unpriced],
     reconciliationFailures: rows.filter((row) => row.reconciliation !== 'provider-id-present')
       .length,
+    cardinality: cardinalityOf(rows),
     ...((): { usageUnknownRows?: number } => {
       const count = rows.filter((row) => row.usageUnknown === true).length;
       return count === 0 ? {} : { usageUnknownRows: count };
