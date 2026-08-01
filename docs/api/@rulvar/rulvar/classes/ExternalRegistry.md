@@ -18,7 +18,10 @@ counter: when every in-flight branch is blocked on suspensions
 ### Constructor
 
 ```ts
-new ExternalRegistry(replayer, emitEvent?): ExternalRegistry;
+new ExternalRegistry(
+   replayer, 
+   emitEvent?, 
+   now?): ExternalRegistry;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -29,6 +32,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | ------ | ------ |
 | `replayer` | [`Replayer`](/api/@rulvar/rulvar/classes/Replayer.md) |
 | `emitEvent?` | (`body`) => `void` |
+| `now?` | () => `number` |
 
 #### Returns
 
@@ -69,15 +73,16 @@ is never re-suspended.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | \{ `input`: [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md); `onPending?`: (`entry`, `replayed`) => `void`; `risk?`: `string`; `scope`: `string`; `spanId`: `string`; `toolName`: `string`; \} |
-| `options.input` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) |
-| `options.onPending?` | (`entry`, `replayed`) => `void` |
-| `options.risk?` | `string` |
-| `options.scope` | `string` |
-| `options.spanId` | `string` |
-| `options.toolName` | `string` |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | \{ `deadlineAt?`: `string`; `input`: [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md); `onPending?`: (`entry`, `replayed`) => `void`; `risk?`: `string`; `scope`: `string`; `spanId`: `string`; `toolName`: `string`; \} | - |
+| `options.deadlineAt?` | `string` | The opt-in approval deadline (RV1107), journaled ON the suspension entry so it survives resume; the armed timer always reads the ENTRY's deadline, never the caller's config, so a config change can never move an already-journaled deadline. |
+| `options.input` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - |
+| `options.onPending?` | (`entry`, `replayed`) => `void` | - |
+| `options.risk?` | `string` | - |
+| `options.scope` | `string` | - |
+| `options.spanId` | `string` | - |
+| `options.toolName` | `string` | - |
 
 #### Returns
 

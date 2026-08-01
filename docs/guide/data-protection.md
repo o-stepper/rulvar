@@ -118,6 +118,18 @@ for (const record of trail) {
 
 Feed it entries read through `engine.stores` (or `exportRun(runId).entries`), so an encrypted deployment audits plaintext through the one policy point. The reducer is tolerant across journal vintages: unknown kinds and malformed payloads are skipped, never thrown on.
 
+## The deployment boundary {#the-deployment-boundary}
+
+Rulvar is a library inside YOUR process, not a hardened perimeter, and the honest boundary line matters more than any single feature on either side of it. What the engine ENFORCES is what the journal can prove: the permission chain's verdicts, admission and budget ceilings, the settlement and quota ledgers, fencing of stale segments, tool identity through `toolsetHash`, and the approval and [deadline](/guide/tools#approval-deadline) resolutions above. What it ADVISES it says so in place: domain rules surface in the audit and change no verdict, redaction patterns protect telemetry but not a host that logs raw values itself, and the exploration guards bound waste, not malice. Everything else is deliberately OUTSIDE, and a production deployment should place it there on purpose:
+
+- **Identity and authorization (IAM).** The engine never authenticates a caller: whoever can reach `resolveExternal`, the CLI server routes, or the stores holds that authority. Front them with your identity layer, and journal the approver's identity in the resolution VALUE where the audit needs a principal; `ResolutionBy` records the channel, never a verified identity ([tools](/guide/tools#ask-approvals-surface-to-the-host)).
+- **Key management (KMS).** The [envelope encryption](#envelope-encryption) hooks accept whatever key provider you wire; rotation, escrow, and access policy for those keys belong to the KMS that owns them, not to the library that calls it.
+- **Egress control (DLP).** The no-content telemetry policy and the redaction patterns bound what the ENGINE emits; exports, artifacts, and tool side effects leave through your process, so route `exportRun` output and tool egress through the same DLP posture as any other service of yours.
+- **Case management.** The journal is the durable record of one run; incidents span runs, people, and time. Ship `reduceAuditTrail` output into the case store your responders already use instead of treating journals as the case system.
+- **PII canaries.** Seed synthetic identifiers (a canary email, a canary account number) into fixtures and watch for them at the boundaries you actually fear: the telemetry stream, exports, provider requests. A canary that surfaces where it must not is a boundary regression the type system cannot catch; the [redaction patterns](#redaction-patterns-at-the-telemetry-boundary) are where an engine-side hole would be, and your DLP is where a host-side one would.
+
+The at-least-once tool window, the advisory nature of domain rules, and the unauthenticated resolution channel are documented non-guarantees (see [SECURITY.md](https://github.com/o-stepper/rulvar/blob/main/SECURITY.md)); this section exists so a deployment treats them as inputs to its architecture instead of discovering them in review.
+
 ## Next steps
 
 - [Stores](/guide/stores): the serialization hook contract the encryption rides on.

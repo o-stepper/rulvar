@@ -10,7 +10,7 @@
 function toApprovalDecision(value): ApprovalDecision;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:68](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L68)
+Defined in: [packages/core/src/engine/external.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L78)
 
 Normalizes a resolution value into an ApprovalDecision. Anything that
 is not an explicit allow is a deny: an approval never fails open.

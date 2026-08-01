@@ -1537,6 +1537,44 @@ const MUTATIONS = [
     test: 'packages/cli/src/envelope-conformance.test.ts',
     build: '@rulvar/core',
   },
+  {
+    id: 'approval-deadline-thread',
+    doctrine:
+      'the opt-in approval deadline is journaled ON the suspension entry (RV1107): with the threading dropped, no entry carries a deadline, no timer ever arms, and the approval silently reverts to the indefinite wait the host opted out of',
+    file: 'packages/core/src/engine/external.ts',
+    find: '        ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),\n',
+    replace: '',
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'approval-timeout-failopen',
+    doctrine:
+      'the approval deadline fails CLOSED (RV1107): flipped to allow, an unattended approval quietly authorizes the tool at the deadline, the exact inversion of what a deadline on an approval means',
+    file: 'packages/core/src/engine/external.ts',
+    find: "              value: {\n                decision: 'deny',\n                reason: `the approval deadline ${entry.deadlineAt ?? ''} crossed; denied by timeout`,\n              },",
+    replace:
+      "              value: {\n                decision: 'allow',\n                reason: `the approval deadline ${entry.deadlineAt ?? ''} crossed; denied by timeout`,\n              },",
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'approval-timer-rearm',
+    doctrine:
+      'the deadline timer arms FROM THE ENTRY, live and re-parked alike (RV1107): with the arming block dropped, the journaled deadline never fires in any process and the suspension waits forever despite the opt-in',
+    file: 'packages/core/src/engine/external.ts',
+    find: "      if (entry.deadlineAt !== undefined) {\n        const dueAt = Date.parse(entry.deadlineAt) || this.now();\n        waiter.timer = setLongTimeout(\n          () => {\n            void this.submitResolution(entry.seq, {\n              by: 'timeout',\n              value: {\n                decision: 'deny',\n                reason: `the approval deadline ${entry.deadlineAt ?? ''} crossed; denied by timeout`,\n              },\n            }).catch(() => undefined);\n          },\n          dueAt,\n          this.now,\n        );\n      }\n",
+    replace: '',
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
+  {
+    id: 'approval-deadline-merge',
+    doctrine:
+      'the profile deadline overrides the engine default, most specific wins (RV1107): with the merge inverted, a profile that tightened its approvals to seconds silently waits on the engine-wide deadline instead',
+    file: 'packages/core/src/runtime/permission-chain.ts',
+    find: '  const approvalDeadlineMs = profile?.approvalDeadlineMs ?? engine?.approvalDeadlineMs;',
+    replace:
+      '  const approvalDeadlineMs = engine?.approvalDeadlineMs ?? profile?.approvalDeadlineMs;',
+    test: 'packages/core/src/engine/approval-deadline.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

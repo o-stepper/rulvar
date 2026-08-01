@@ -2063,12 +2063,23 @@ export function createCtx(
                   'tool approvals require the engine run context (createEngine)',
                 );
               }
+              // The opt-in approval deadline (RV1107): computed from the
+              // merged chain at suspension time and journaled ON the
+              // entry; the registry arms the timer from the entry, so
+              // the deadline survives resume and a config change never
+              // moves an already-journaled one.
+              const approvalDeadlineMs = chain.approvalDeadlineMs;
               return internals.external.awaitApproval({
                 scope: agentScope(state.scope, running.seq),
                 spanId: internals.spans.mint(spanId),
                 toolName: call.name,
                 input: verdict.input as Json,
                 ...(def.risk === undefined ? {} : { risk: def.risk }),
+                ...(approvalDeadlineMs === undefined
+                  ? {}
+                  : {
+                      deadlineAt: new Date(internals.now() + approvalDeadlineMs).toISOString(),
+                    }),
                 onPending: (entry, replayed) =>
                   internals.events.emit(
                     { type: 'approval:pending', toolName: call.name, entryRef: entry.seq },
