@@ -1,5 +1,17 @@
 # @rulvar/core
 
+## 1.151.0
+
+### Minor Changes
+
+- 1de0610: Every citation in a finish result can now be resolved against the host's own source snapshot, and cited values match as whole tokens (RV1401, RV1402).
+
+  The seventeenth comparison run shipped an answer carrying `ghost.ts:0`, a location no checkout ever held, and every configured check passed: the citation pattern accepts any digits (a line of 0 included), `evidencePreservedValidator`'s `requireKnown` proves only that a child SAID the string, and `citedValueValidator` resolves a citation only when its sentence asserts an inline value beside it. A fabricated location that no sentence asserted anything about therefore counted as provenance and licensed the valid-draft skip.
+
+  `citationTargetsValidator` closes the hole at the root. Every match of the citation pattern in the result text, inline code and plain prose alike, is parsed as `path:line` and resolved through the same pure `resolve(target)` snapshot contract `citedValueValidator` takes, with no sentence-level precondition. Three refusals, each fail closed: a match that does not parse as `path:line` is refused rather than skipped, a line below 1 is refused BEFORE the resolver runs (source lines are 1-based, and a sloppy host resolver might well answer line 0), and a citation the resolver does not know is refused, because a citation nothing resolves is not provenance. Repeated occurrences are judged once, `fencedCode: 'excluded'` strips fenced code first for hosts whose contracts already exclude it, and intake is fail closed in the RV610 posture: a pattern that cannot compile or can match the empty string is refused typed. Wired into `finishValidation`, the refusal also reaches the `skipWhenDraftValid` gate, so a draft carrying an unresolvable citation can no longer skip the synthesis it was supposed to earn.
+
+  `citedValueValidator` now requires an asserted value to appear in the cited line as a WHOLE token instead of a substring: judged by `includes`, a claim of `3` was satisfied by a line saying `30`, which is the seventeenth judge's repro. The boundary class is word characters plus the dot, so `3` matches neither inside `30` nor inside `3.5`, and `retry.ts` no longer matches inside `myretry.ts`; spaces, punctuation, operators, and the line edges still bound a token.
+
 ## 1.150.0
 
 ### Minor Changes
