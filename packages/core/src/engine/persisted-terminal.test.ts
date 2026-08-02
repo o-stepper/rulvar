@@ -11,11 +11,14 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { normalizeEntry } from '../l0/entries.js';
-import { InMemoryStore } from '../stores/inmemory.js';
+import { normalizeEntry, type JournalEntry } from '../l0/entries.js';
+import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { readRunMeta } from '../stores/meta-lookup.js';
+import { auditRun } from '../stores/reconcile.js';
+import { tool } from '../tools/tool.js';
 import { defineWorkflow } from './ctx.js';
 import { createEngine } from './engine.js';
+import { ExternalRegistry } from './external.js';
 import { persistedTerminalEnvelope } from './persisted-terminal.js';
 import { journalPricingSnapshot } from './pricing-snapshot.js';
 import { scriptedAdapter } from './test-harness.js';
@@ -135,5 +138,91 @@ describe('the persisted terminal envelope (RV1209)', () => {
       return;
     }
     expect(derived.reason).toBe('unknown-workflow');
+  });
+});
+
+describe('the tail-aware persisted terminal (RV1407)', () => {
+  it('a detached resolution appended after the suspended settle blocks the stale envelope, agreeing with the audit', async () => {
+    const store = new InMemoryStore();
+    const deploy = tool({
+      name: 'deploy',
+      description: 'deploys the site',
+      parameters: { type: 'object' },
+      needsApproval: true,
+      execute: () => Promise.resolve('deployed'),
+    });
+    const gated = defineWorkflow({ name: 'persisted-gated' }, async (ctx) =>
+      ctx.agent('ship it', { tools: [deploy] }),
+    );
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'deploy', args: { site: 'prod' } } }
+        : { text: 'released', usage: USAGE },
+    );
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store, transcripts: new InMemoryTranscriptStore() },
+      defaults: { routing: { loop: 'fake:model' } },
+      pricing: PRICING,
+    });
+    const handle = engine.run(gated, undefined, { runId: 'PT5' });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('suspended');
+
+    // The parked run's settle IS servable: 'suspended' is an honest
+    // terminal of its segment and nothing continued past it yet.
+    const parked = await reload(store, 'PT5');
+    const before = persistedTerminalEnvelope({ runId: 'PT5', ...parked });
+    expect(before.available).toBe(true);
+    if (before.available) {
+      expect(before.envelope.status).toBe('suspended');
+    }
+
+    // The detached resolution appends PAST the settle: the run is now
+    // destined to continue, and the old settle is a stale claim.
+    const approval = parked.entries.find((entry) => entry.kind === 'approval');
+    await handle.resolveExternal(ExternalRegistry.approvalKey(approval?.seq ?? -1), {
+      decision: 'allow',
+    });
+    const continued = await reload(store, 'PT5');
+    const derived = persistedTerminalEnvelope({ runId: 'PT5', ...continued });
+    expect(derived.available).toBe(false);
+    if (derived.available) {
+      return;
+    }
+    expect(derived.reason).toBe('not-terminal');
+    expect(derived.message).toContain('past the settle');
+
+    // The audit reads the same journal the same way: entries after the
+    // settle mean the latest segment is not settled.
+    const audit = await auditRun(store, 'PT5');
+    expect(audit.entriesAfterSettle).toBeGreaterThan(0);
+    expect(audit.repairTo).toBe('running');
+  }, 15_000);
+
+  it('a successor entry after the ok settle blocks the stale envelope', async () => {
+    const store = new InMemoryStore();
+    const outcome = await engineOver(store).run(claiming, undefined, { runId: 'PT6' }).result;
+    expect(outcome.status).toBe('ok');
+    const raw = await store.load('PT6');
+    const entries = raw.map((entry) => normalizeEntry(entry));
+    const template = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'run_settle',
+    );
+    const last = entries[entries.length - 1];
+    await store.append('PT6', {
+      ...(template as JournalEntry),
+      seq: (last?.seq ?? 0) + 1,
+      value: { decisionType: 'successor-marker' },
+    });
+    const continued = await reload(store, 'PT6');
+    const derived = persistedTerminalEnvelope({ runId: 'PT6', ...continued });
+    expect(derived.available).toBe(false);
+    if (derived.available) {
+      return;
+    }
+    expect(derived.reason).toBe('not-terminal');
+    expect(derived.message).toContain('past the settle');
   });
 });

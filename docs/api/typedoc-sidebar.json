@@ -3437,6 +3437,10 @@
             "link": "/api/@rulvar/core/functions/usageViolations.md"
           },
           {
+            "text": "validateDetachedResolution",
+            "link": "/api/@rulvar/core/functions/validateDetachedResolution.md"
+          },
+          {
             "text": "validateEditorialCommit",
             "link": "/api/@rulvar/core/functions/validateEditorialCommit.md"
           },
@@ -8137,6 +8141,10 @@
           {
             "text": "usageViolations",
             "link": "/api/@rulvar/rulvar/functions/usageViolations.md"
+          },
+          {
+            "text": "validateDetachedResolution",
+            "link": "/api/@rulvar/rulvar/functions/validateDetachedResolution.md"
           },
           {
             "text": "validateEditorialCommit",
