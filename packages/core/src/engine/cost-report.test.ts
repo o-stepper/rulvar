@@ -990,19 +990,18 @@ describe('accountSpendFromJournal (RV1505)', () => {
   const USAGE = { inputTokens: 100000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
   const price = (_servedBy: string, usage: { inputTokens: number }): number =>
     usage.inputTokens / 1_000_000;
-  const entry = (partial: Record<string, unknown>): JournalEntry =>
-    ({
-      hashVersion: 2,
-      seq: 0,
-      scope: '',
-      key: 'k',
-      ordinal: 0,
-      kind: 'agent',
-      status: 'ok',
-      spanId: 's1',
-      startedAt: '2026-08-03T00:00:00.000Z',
-      ...partial,
-    });
+  const entry = (partial: Record<string, unknown>): JournalEntry => ({
+    hashVersion: 2,
+    seq: 0,
+    scope: '',
+    key: 'k',
+    ordinal: 0,
+    kind: 'agent',
+    status: 'ok',
+    spanId: 's1',
+    startedAt: '2026-08-03T00:00:00.000Z',
+    ...partial,
+  });
 
   it('folds direct spend per account and propagates it up the admission tree', () => {
     const entries: JournalEntry[] = [
