@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+
 ### 1.156.0
 
 #### Patch Changes
@@ -1571,6 +1578,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+
 ### 1.156.0
 
 #### Patch Changes
@@ -2931,6 +2945,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
 
 ### 1.156.0
 
@@ -4714,6 +4735,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.157.0
+
+#### Minor Changes
+
+- 1883421: Hold ok children to their declared evidence floor, declare the cost basis on every money surface, and document the terminal contract for consumers (RV1412, RV1413, RV1414). The sixth and final PR of the seventeenth plan.
+
+  The ok-child evidence floor (RV1412). RV1207 made a declared evidence contract binding for the salvage arms, but a child that settled 'ok' below its declared floor sailed through acceptance behind a clean headline: its roster row said `met: false` while `completion` said 'complete' and `degradedReasons` stayed empty. The shortfall is now a degradation note by default, so the completion claim stays honest ('partial', never 'complete' over an unmet declared contract) while the verdict and the status counts stay exactly what they were, and the envelope, the `run:end` lift, and the `RunOutcome` mirror carry `belowFloorOkChildren` naming such children machine-readably. Under the existing `acceptance.requireEvidenceFloor` flag the floor binds for ok children exactly as it does for the salvage arms: the child counts against the policy ('all-ok' rejects, `{ minSuccessful: N }` does not count it), its roster row is marked `floorRequired: true`, and in an accepted run it stays out of the contradiction pool and the synthesis evidence index, read from the decision's own roster rows so live and resume derive the same pool. What neither mode changes: `childStatusCounts` stays factual and the child's output stays visible through the digest and `get_child_result`. Deliberately out of scope: the pre-acceptance finish validators keep reading ok children's citations as evidence, because validation runs before the verdict and paid journaled text is real either way.
+
+  The cost provenance marker (RV1413). Every dollar the engine reports is journaled usage priced at the CALLER'S pricing table, never a provider statement, and the seventeenth comparison run's "$4.79" read as an invoice figure precisely because nothing said otherwise. `CostReport.basis` and `TerminalEnvelope.costBasis` now declare `'locally-estimated'` as a literal, stamped by both report builders and at the envelope's one producer (journal rebuilds included), mirroring `InvoiceExport.pricingBasis`. No field is renamed; reconcile real bills through the invoice export and `reconcileStatement`, which carry their own provenance.
+
+  The terminal contract for consumers (RV1414). A new documentation section pins the doctrine the vocabulary was built for: `status` is transport, `completion` is the work's own claim, the acceptance verdict is a policy over statuses, and none of them, alone or together, authorizes a side effect. Effects during the run belong to tools behind the permission chain and approvals; effects after the run belong to the consumer's own policy over the terminal facts, read from the settled authority (the persisted envelope or its typed refusal), with the money read as what `costBasis` declares and absence read by each field's absence doctrine.
 
 ### 1.156.0
 
@@ -6814,6 +6847,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.157.0
+
 ### 1.156.0
 
 ### 1.155.0
@@ -7230,6 +7265,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+  - @rulvar/anthropic@1.157.0
+  - @rulvar/openai@1.157.0
+  - @rulvar/plan@1.157.0
+  - @rulvar/testing@1.157.0
 
 ### 1.156.0
 
@@ -9008,6 +9054,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+
 ### 1.156.0
 
 #### Patch Changes
@@ -9775,6 +9828,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
 
 ### 1.156.0
 
@@ -11338,6 +11398,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+
 ### 1.156.0
 
 #### Patch Changes
@@ -12812,6 +12879,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+  - eslint-plugin-rulvar@1.157.0
 
 ### 1.156.0
 
@@ -14405,6 +14480,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+  - @rulvar/anthropic@1.157.0
+  - @rulvar/openai@1.157.0
 
 ### 1.156.0
 
@@ -16242,6 +16326,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+
 ### 1.156.0
 
 #### Patch Changes
@@ -17712,6 +17803,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
+
 ### 1.156.0
 
 #### Patch Changes
@@ -18503,6 +18601,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
 
 ### 1.156.0
 
@@ -19926,6 +20031,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.157.0
+
+#### Patch Changes
+
+- Updated dependencies [1883421]
+  - @rulvar/core@1.157.0
 
 ### 1.156.0
 
