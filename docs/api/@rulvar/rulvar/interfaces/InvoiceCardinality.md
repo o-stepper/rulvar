@@ -24,5 +24,5 @@ those requests carry no join key at all.
 | ------ | ------ | ------ | ------ |
 | <a id="property-dispatchrows"></a> `dispatchRows` | `number` | Rows folding a real provider call; unattributed remainders excluded. | `packages/core/dist/index.d.ts` |
 | <a id="property-multiwirerows"></a> `multiWireRows` | `number` | Rows whose dispatch absorbed more than one wire request. | `packages/core/dist/index.d.ts` |
-| <a id="property-wireidsmissing"></a> `wireIdsMissing` | `number` | Wire requests inside those rows for which no response id was recorded. | `packages/core/dist/index.d.ts` |
+| <a id="property-wireidsmissing"></a> `wireIdsMissing` | `number` | Wire requests with no recorded join key, across EVERY dispatch row (RV1410): a multi-wire row contributes the requests its id set left unnamed, and a single-wire row contributes its one request when neither `responseId` nor an id set names it. Failed requests count like any other: the provider may have billed them, and a statement line cannot be joined to a row that has no id either way. | `packages/core/dist/index.d.ts` |
 | <a id="property-wirerequests"></a> `wireRequests` | `number` | Provider HTTP requests those rows represent, absorbed continuations counted. | `packages/core/dist/index.d.ts` |

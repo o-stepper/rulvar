@@ -251,6 +251,55 @@ describe('turn-boundary checkpoints through ctx.agent (M3-T02)', () => {
     expect(adapter.calls).toHaveLength(3);
   });
 
+  it('a poisoned turns counter is never restored: the dispatch reruns from the top (RV1409)', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const key = await spawnKey();
+    const seed = makeInternals({ adapters: [], transcripts });
+    const running = await seed.internals.replayer.appendRunning({
+      scope: '',
+      key,
+      kind: 'agent',
+      spanId: 's0',
+    });
+    // A store-side corruption (or a hostile writer with store access)
+    // flipped the paid-turns counter negative: restoring it would
+    // credit the maxTurns ceiling with turns nobody paid.
+    await transcripts.put(
+      checkpointRefFor('test-run', running.seq),
+      encodeCheckpoint({ ...midFlightCheckpoint(), turns: -2 }),
+    );
+    const prior = await seed.store.load('test-run');
+
+    const adapter = scriptedAdapter(() => ({ text: 'sunny twice' }));
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      priorEntries: prior,
+      transcripts,
+    });
+    const ctx = createCtx(internals);
+    const output = await ctx.agent(PROMPT, { tools: [lookup] });
+    expect(output).toBe('sunny twice');
+    // The garbage counter refuses the whole checkpoint at decode, so
+    // the dispatch reruns from the top (at-least-once floor) instead of
+    // seeding the loop's limit arithmetic with a counter nobody paid:
+    // the one live request opens with the bare prompt, not the restored
+    // five-message history, and the terminal folds only the live turn.
+    expect(adapter.calls).toHaveLength(1);
+    expect(adapter.calls[0]?.messages).toHaveLength(1);
+
+    await internals.replayer.flush();
+    const terminal = internals.replayer
+      .snapshot()
+      .find((e) => e.kind === 'agent' && e.status === 'ok');
+    expect(terminal?.usage).toEqual({
+      inputTokens: 10,
+      outputTokens: 5,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+  });
+
   it('a replayed agent recovers turns and re-emits tool events from its checkpoint', async () => {
     const transcripts = new InMemoryTranscriptStore();
     const adapter = scriptedAdapter((_req, call) =>

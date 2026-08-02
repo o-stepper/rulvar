@@ -186,7 +186,15 @@ export interface InvoiceCardinality {
   wireRequests: number;
   /** Rows whose dispatch absorbed more than one wire request. */
   multiWireRows: number;
-  /** Wire requests inside those rows for which no response id was recorded. */
+  /**
+   * Wire requests with no recorded join key, across EVERY dispatch row
+   * (RV1410): a multi-wire row contributes the requests its id set
+   * left unnamed, and a single-wire row contributes its one request
+   * when neither `responseId` nor an id set names it. Failed requests
+   * count like any other: the provider may have billed them, and a
+   * statement line cannot be joined to a row that has no id either
+   * way.
+   */
   wireIdsMissing: number;
 }
 
@@ -252,7 +260,13 @@ const USAGE_FIELDS = [
  * The dispatch/wire counters (RV1210). A row with no reported count is
  * one wire request, which is what a single-wire dispatch is; a row that
  * reports a count contributes that many, and the ids it recorded are
- * subtracted to say how many of those requests carry no join key.
+ * subtracted to say how many of those requests carry no join key. The
+ * single-wire arm (RV1410): the row IS its one request and its join
+ * key is the row's own `responseId`, so an id-less single-wire row is
+ * one missing key. Counting misses only inside multi-wire rows read an
+ * id-less single-wire fleet as fully joined (`wireIdsMissing: 0`)
+ * while every row-level verdict said missing-provider-id: the
+ * aggregate contradicted its own rows.
  */
 function cardinalityOf(rows: readonly InvoiceRow[]): InvoiceCardinality {
   const cardinality: InvoiceCardinality = {
@@ -271,6 +285,8 @@ function cardinalityOf(rows: readonly InvoiceRow[]): InvoiceCardinality {
     if (wires > 1) {
       cardinality.multiWireRows += 1;
       cardinality.wireIdsMissing += Math.max(0, wires - (row.wireResponseIds?.length ?? 0));
+    } else if (row.responseId === undefined && (row.wireResponseIds?.length ?? 0) === 0) {
+      cardinality.wireIdsMissing += 1;
     }
   }
   return cardinality;

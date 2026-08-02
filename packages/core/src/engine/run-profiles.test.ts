@@ -50,3 +50,22 @@ describe('RunProfile presets (M5-T07)', () => {
     }
   });
 });
+
+describe('the preset lookup is own-property only (RV1411)', () => {
+  it('prototype names resolve to no profile', () => {
+    // A plain-object lookup inherits Object.prototype: `toString` and
+    // friends came back as functions TYPED as RunProfile, so a host
+    // resolving a user-supplied profile name got a non-profile value
+    // instead of the undefined its unknown-name refusal keys on (the
+    // CLI silently accepted `--profile toString` as an empty profile).
+    for (const name of ['toString', 'constructor', 'hasOwnProperty', 'valueOf', '__proto__']) {
+      expect(runProfile(name), `'${name}' resolved to a profile`).toBeUndefined();
+    }
+  });
+
+  it('the shipped roster still resolves to its own entries', () => {
+    for (const name of ['fast', 'standard', 'deep', 'ultra']) {
+      expect(runProfile(name)).toBe(RUN_PROFILES[name]);
+    }
+  });
+});

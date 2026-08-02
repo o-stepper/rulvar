@@ -4101,11 +4101,14 @@ declare function encodeCheckpoint(state: CheckpointState): Uint8Array;
 /**
 * Decodes a checkpoint blob. Returns undefined for an empty blob, an
 * unknown format byte, unparseable JSON, a top-level payload that is
-* not an object (RV1008: `null`, a number, a string, an array), or a
+* not an object (RV1008: `null`, a number, a string, an array), a
 * parseable payload whose nested message structure is malformed
-* (RV804): a resume never trusts a checkpoint it cannot decode, and it
-* never throws; the dangling dispatch reruns from the top instead
-* (at-least-once is the documented floor).
+* (RV804), or one whose required counters are not non-negative finite
+* numbers (RV1409: `turns`, `toolCallsUsed`, `schemaAttempts`, the
+* usage fields, the compaction points): a resume never trusts a
+* checkpoint it cannot decode, and it never throws; the dangling
+* dispatch reruns from the top instead (at-least-once is the
+* documented floor).
 */
 declare function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined;
 //#endregion
@@ -10894,7 +10897,15 @@ interface InvoiceCardinality {
   wireRequests: number;
   /** Rows whose dispatch absorbed more than one wire request. */
   multiWireRows: number;
-  /** Wire requests inside those rows for which no response id was recorded. */
+  /**
+  * Wire requests with no recorded join key, across EVERY dispatch row
+  * (RV1410): a multi-wire row contributes the requests its id set
+  * left unnamed, and a single-wire row contributes its one request
+  * when neither `responseId` nor an id set names it. Failed requests
+  * count like any other: the provider may have billed them, and a
+  * statement line cannot be joined to a row that has no id either
+  * way.
+  */
   wireIdsMissing: number;
 }
 /** The machine-readable invoice: rows plus the ledger totals. */

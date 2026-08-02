@@ -109,11 +109,14 @@ export function encodeCheckpoint(state: CheckpointState): Uint8Array {
 /**
  * Decodes a checkpoint blob. Returns undefined for an empty blob, an
  * unknown format byte, unparseable JSON, a top-level payload that is
- * not an object (RV1008: `null`, a number, a string, an array), or a
+ * not an object (RV1008: `null`, a number, a string, an array), a
  * parseable payload whose nested message structure is malformed
- * (RV804): a resume never trusts a checkpoint it cannot decode, and it
- * never throws; the dangling dispatch reruns from the top instead
- * (at-least-once is the documented floor).
+ * (RV804), or one whose required counters are not non-negative finite
+ * numbers (RV1409: `turns`, `toolCallsUsed`, `schemaAttempts`, the
+ * usage fields, the compaction points): a resume never trusts a
+ * checkpoint it cannot decode, and it never throws; the dangling
+ * dispatch reruns from the top instead (at-least-once is the
+ * documented floor).
  */
 export function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined {
   if (blob.length < 2 || blob[0] !== CHECKPOINT_FORMAT_V1) {
@@ -134,6 +137,44 @@ export function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined 
   }
   const parsed = raw as CheckpointState;
   if (parsed.v !== 1 || !Array.isArray(parsed.messages)) {
+    return undefined;
+  }
+  // The restored counters seed the loop's limit arithmetic and the
+  // budget (RV1409): `turns` gates maxTurns, `toolCallsUsed` gates the
+  // tool budget, and the usage fields are reported as paid spend. A
+  // negative, non-finite, or non-numeric counter was never produced by
+  // a boundary write (JSON delivers the NaN corruption as null and
+  // 1e999 as Infinity), so the blob as a whole is untrustworthy and
+  // the dispatch reruns from the top, exactly like one that does not
+  // parse. Deliberately NOT judged here: the Usage invariant, integer
+  // rules, and TTL splits. Checkpoints written before those invariants
+  // shipped are honest evidence of paid work, and the restore path
+  // sanitizes them exactly as it always has.
+  const countLike = (value: unknown): boolean =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0;
+  if (
+    !countLike(parsed.turns) ||
+    !countLike(parsed.toolCallsUsed) ||
+    !countLike(parsed.schemaAttempts)
+  ) {
+    return undefined;
+  }
+  const usage: unknown = parsed.usage;
+  if (typeof usage !== 'object' || usage === null || Array.isArray(usage)) {
+    return undefined;
+  }
+  const usageRecord = usage as Record<string, unknown>;
+  for (const field of ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens']) {
+    if (!countLike(usageRecord[field])) {
+      return undefined;
+    }
+  }
+  for (const field of ['reasoningTokens', 'cacheWrite5mTokens', 'cacheWrite1hTokens']) {
+    if (usageRecord[field] !== undefined && !countLike(usageRecord[field])) {
+      return undefined;
+    }
+  }
+  if (!Array.isArray(parsed.compaction) || parsed.compaction.some((point) => !countLike(point))) {
     return undefined;
   }
   // The structural half of the same contract (RV804): a parseable blob
