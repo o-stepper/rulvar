@@ -2136,6 +2136,44 @@ const MUTATIONS = [
       '      void value;\n      const outcome: ResolutionOutcome = await replayer.resolveSuspended(target.seq, {',
     test: 'packages/cli/src/server.test.ts',
   },
+  {
+    id: 'checkpoint-counter-guard',
+    doctrine:
+      'the decoder refuses garbage restored counters instead of seeding limit arithmetic with them (RV1409): waved through, a negative turns credits the maxTurns ceiling with turns nobody paid and the dispatch resumes on numbers no boundary write produced',
+    file: 'packages/core/src/journal/checkpoint.ts',
+    find: '  if (\n    !countLike(parsed.turns) ||\n    !countLike(parsed.toolCallsUsed) ||\n    !countLike(parsed.schemaAttempts)\n  ) {\n    return undefined;\n  }',
+    replace: '  if (false) {\n    return undefined;\n  }',
+    test: 'packages/core/src/journal/checkpoint.test.ts',
+  },
+  {
+    id: 'checkpoint-usage-guard',
+    doctrine:
+      'the decoder validates every required usage field of a restored checkpoint (RV1409): skipped, garbage token counts flow into the budget as paid spend instead of refusing the blob and rerunning from the top',
+    file: 'packages/core/src/journal/checkpoint.ts',
+    find: "  for (const field of ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens']) {\n    if (!countLike(usageRecord[field])) {\n      return undefined;\n    }\n  }",
+    replace:
+      '  for (const field of [] as string[]) {\n    if (!countLike(usageRecord[field])) {\n      return undefined;\n    }\n  }',
+    test: 'packages/core/src/journal/checkpoint.test.ts',
+  },
+  {
+    id: 'invoice-cardinality-single-wire',
+    doctrine:
+      'an id-less single-wire row is one wire request with no join key (RV1410): skipped, a fleet of single-wire dispatches with no recorded response ids reads as fully joined while every row-level verdict says missing-provider-id',
+    file: 'packages/core/src/engine/invoice.ts',
+    find: '    } else if (row.responseId === undefined && (row.wireResponseIds?.length ?? 0) === 0) {\n      cardinality.wireIdsMissing += 1;\n    }',
+    replace:
+      '    } else if (row.responseId === undefined && false) {\n      cardinality.wireIdsMissing += 1;\n    }',
+    test: 'packages/core/src/engine/wire-units.test.ts',
+  },
+  {
+    id: 'run-profile-own-property',
+    doctrine:
+      'the shipped preset lookup is own-property only (RV1411): a prototype lookup hands back inherited object names as if they were profiles, and the CLI silently accepts --profile toString instead of the typed unknown-profile refusal',
+    file: 'packages/core/src/engine/run-profiles.ts',
+    find: '  return Object.hasOwn(RUN_PROFILES, name) ? RUN_PROFILES[name] : undefined;',
+    replace: '  return RUN_PROFILES[name];',
+    test: 'packages/core/src/engine/run-profiles.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

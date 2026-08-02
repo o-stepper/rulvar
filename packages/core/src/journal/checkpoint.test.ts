@@ -101,19 +101,23 @@ describe('structural decode validation (RV804)', () => {
     // The twelfth experiment's reproduction: {v:1,messages:[{}]} passed
     // the top-level guard and the message map then died on
     // msg.parts.map, a raw TypeError out of a function whose contract
-    // is "cannot parse means undefined and the dispatch reruns".
-    expect(decodeCheckpoint(blobOf({ v: 1, messages: [{}], turns: 0 }))).toBeUndefined();
-    expect(decodeCheckpoint(blobOf({ v: 1, messages: [null] }))).toBeUndefined();
-    expect(decodeCheckpoint(blobOf({ v: 1, messages: ['garbage'] }))).toBeUndefined();
+    // is "cannot parse means undefined and the dispatch reruns". Every
+    // payload rides an otherwise-valid state so ONLY the structural
+    // walk can be the refusal: since the counter validation shipped
+    // (RV1409), a counterless minimal payload is refused before the
+    // walk runs and no longer exercises it.
+    expect(decodeCheckpoint(blobOf({ ...state(), messages: [{}] }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), messages: [null] }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), messages: ['garbage'] }))).toBeUndefined();
     expect(
-      decodeCheckpoint(blobOf({ v: 1, messages: [{ role: 'user', parts: 'not-an-array' }] })),
+      decodeCheckpoint(blobOf({ ...state(), messages: [{ role: 'user', parts: 'not-an-array' }] })),
     ).toBeUndefined();
-    expect(decodeCheckpoint(blobOf({ v: 1, messages: [{ parts: [] }] }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), messages: [{ parts: [] }] }))).toBeUndefined();
     expect(
-      decodeCheckpoint(blobOf({ v: 1, messages: [{ role: 'user', parts: [null] }] })),
+      decodeCheckpoint(blobOf({ ...state(), messages: [{ role: 'user', parts: [null] }] })),
     ).toBeUndefined();
     expect(
-      decodeCheckpoint(blobOf({ v: 1, messages: [{ role: 'user', parts: [{}] }] })),
+      decodeCheckpoint(blobOf({ ...state(), messages: [{ role: 'user', parts: [{}] }] })),
     ).toBeUndefined();
   });
 
@@ -177,5 +181,97 @@ describe('top-level decode guard (RV1008)', () => {
 
   it('a valid round-trip is unchanged by the guard', () => {
     expect(decodeCheckpoint(encodeCheckpoint(state()))).toEqual(state());
+  });
+});
+
+describe('restored counter validation (RV1409)', () => {
+  const rawBlob = (text: string): Uint8Array => {
+    const bytes = Buffer.from(text, 'utf8');
+    const blob = new Uint8Array(bytes.length + 1);
+    blob[0] = CHECKPOINT_FORMAT_V1;
+    blob.set(bytes, 1);
+    return blob;
+  };
+
+  it('a poisoned turns counter refuses the whole checkpoint', () => {
+    // A negative restored turns counter CREDITS the maxTurns ceiling
+    // with turns nobody paid; a non-number poisons the comparison and
+    // the increment. None of these was ever written by a legitimate
+    // boundary write, so the blob is untrustworthy as a whole.
+    expect(decodeCheckpoint(blobOf({ ...state(), turns: -3 }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), turns: '3' }))).toBeUndefined();
+    // JSON.stringify(NaN) encodes to null: the NaN corruption arrives
+    // at the decoder as a null counter.
+    expect(decodeCheckpoint(blobOf({ ...state(), turns: null }))).toBeUndefined();
+    // JSON has no Infinity literal, but 1e999 parses to it.
+    expect(
+      decodeCheckpoint(
+        rawBlob(JSON.stringify({ ...state(), turns: 0 }).replace('"turns":0', '"turns":1e999')),
+      ),
+    ).toBeUndefined();
+  });
+
+  it('the sibling counters refuse alike: toolCallsUsed and schemaAttempts', () => {
+    expect(decodeCheckpoint(blobOf({ ...state(), toolCallsUsed: -1 }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), toolCallsUsed: 'many' }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), schemaAttempts: null }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), schemaAttempts: -2 }))).toBeUndefined();
+  });
+
+  it('garbage usage fields refuse the whole checkpoint', () => {
+    const usage = state().usage;
+    expect(decodeCheckpoint(blobOf({ ...state(), usage: null }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), usage: 42 }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), usage: [usage] }))).toBeUndefined();
+    expect(
+      decodeCheckpoint(
+        blobOf({
+          v: 1,
+          messages: [],
+          turns: 0,
+          toolCallsUsed: 0,
+          schemaAttempts: 0,
+          compaction: [],
+        }),
+      ),
+    ).toBeUndefined();
+    expect(
+      decodeCheckpoint(blobOf({ ...state(), usage: { ...usage, inputTokens: -5 } })),
+    ).toBeUndefined();
+    expect(
+      decodeCheckpoint(blobOf({ ...state(), usage: { ...usage, outputTokens: '1' } })),
+    ).toBeUndefined();
+    expect(
+      decodeCheckpoint(blobOf({ ...state(), usage: { ...usage, cacheReadTokens: null } })),
+    ).toBeUndefined();
+    // A present optional field obeys the same rule; an absent one is legal.
+    expect(
+      decodeCheckpoint(blobOf({ ...state(), usage: { ...usage, reasoningTokens: -1 } })),
+    ).toBeUndefined();
+  });
+
+  it('a non-array compaction, or garbage points inside it, refuse', () => {
+    expect(decodeCheckpoint(blobOf({ ...state(), compaction: 5 }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), compaction: [null] }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), compaction: [-1] }))).toBeUndefined();
+    expect(decodeCheckpoint(blobOf({ ...state(), compaction: [2] }))).toEqual(
+      state({ compaction: [2] }),
+    );
+  });
+
+  it('legacy non-normalized usage still decodes: repair is the loop, refusal is for garbage', () => {
+    // The Usage invariant (cache subsets within inputTokens) and the
+    // integer rules are sanitize-on-restore territory: checkpoints
+    // written before those invariants shipped are trustworthy evidence
+    // of paid work, just non-normalized. The decoder refuses only what
+    // no legitimate writer ever produced.
+    const invariantViolating = state({
+      usage: { inputTokens: 5, outputTokens: 1, cacheReadTokens: 10, cacheWriteTokens: 0 },
+    });
+    expect(decodeCheckpoint(encodeCheckpoint(invariantViolating))).toEqual(invariantViolating);
+    const fractional = state({
+      usage: { inputTokens: 10.5, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    });
+    expect(decodeCheckpoint(encodeCheckpoint(fractional))).toEqual(fractional);
   });
 });

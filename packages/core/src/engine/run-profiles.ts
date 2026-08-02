@@ -67,5 +67,9 @@ export const RUN_PROFILES: Record<string, RunProfile> = {
 
 /** Looks up a shipped RunProfile by name; undefined for unknown names. */
 export function runProfile(name: string): RunProfile | undefined {
-  return RUN_PROFILES[name];
+  // Own property only (RV1411): the presets are a plain object, and an
+  // inherited name (`toString`, `constructor`) is not a profile. Hosts
+  // key their unknown-name refusal on the undefined, so a prototype
+  // lookup silently accepted such names as empty profiles.
+  return Object.hasOwn(RUN_PROFILES, name) ? RUN_PROFILES[name] : undefined;
 }

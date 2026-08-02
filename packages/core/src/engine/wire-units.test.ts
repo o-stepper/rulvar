@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import type { JournalEntry } from '../l0/entries.js';
 import { memoryQuotaLimiter } from '../model/quota.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { defineWorkflow } from './ctx.js';
@@ -147,7 +148,13 @@ describe('logical dispatches versus provider wire requests (RV1210)', () => {
   it('a single-wire run declares one dispatch per wire request and no missing ids', async () => {
     const store = new InMemoryStore();
     const engine = createEngine({
-      adapters: [scriptedAdapter(() => ({ text: 'done', usage: USAGE }))],
+      adapters: [
+        scriptedAdapter(() => ({
+          text: 'done',
+          usage: USAGE,
+          providerMetadata: { fake: { responseId: 'msg-only' } },
+        })),
+      ],
       stores: { journal: store },
       defaults: { routing: { loop: 'fake:model' } },
     });
@@ -167,6 +174,87 @@ describe('logical dispatches versus provider wire requests (RV1210)', () => {
       wireRequests: 1,
       multiWireRows: 0,
       wireIdsMissing: 0,
+    });
+  });
+});
+
+describe('single-wire join coverage (RV1410)', () => {
+  it('a single-wire request with no recorded response id counts as a missing join key', async () => {
+    const store = new InMemoryStore();
+    // The adapter surfaced no response id at all: the run's one wire
+    // request has no join key against a per-request statement. Counting
+    // missing ids only inside multi-wire rows read this run as fully
+    // joined (`wireIdsMissing: 0`) while its row-level verdict said
+    // missing-provider-id: the aggregate contradicted its own rows.
+    const engine = createEngine({
+      adapters: [scriptedAdapter(() => ({ text: 'done', usage: USAGE }))],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    expect((await engine.run(echo, undefined, { runId: 'WU5' }).result).status).toBe('ok');
+    const invoice = invoiceFromJournal(await store.load('WU5'), () => undefined);
+    expect(invoice.rows.at(0)?.reconciliation).toBe('missing-provider-id');
+    expect(invoice.reconciliationFailures).toBe(1);
+    expect(invoice.cardinality).toEqual({
+      dispatchRows: 1,
+      wireRequests: 1,
+      multiWireRows: 0,
+      wireIdsMissing: 1,
+    });
+  });
+
+  it('failed single-wire requests without ids count too: the statement cannot join them either', () => {
+    // One dispatch with an id, one failed with none, one ok with none.
+    // The failed request still hit the provider (prompt processing may
+    // have been billed before the failure), so a join-coverage counter
+    // that skips it undercounts the requests a statement line can fail
+    // to match.
+    const usage = { inputTokens: 100, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const entry = {
+      hashVersion: 2,
+      spanId: 's0',
+      startedAt: '2026-08-02T00:00:00.000Z',
+      seq: 1,
+      scope: '',
+      key: 'agent:x',
+      ordinal: 0,
+      kind: 'agent',
+      status: 'ok',
+      servedBy: 'fake:model',
+      usage: { ...usage, inputTokens: 300, outputTokens: 30 },
+      providerCalls: [
+        {
+          ordinal: 1,
+          role: 'loop',
+          servedBy: 'fake:model',
+          attempt: 1,
+          outcome: 'ok',
+          responseId: 'resp-1',
+          usage,
+        },
+        {
+          ordinal: 2,
+          role: 'loop',
+          servedBy: 'fake:model',
+          attempt: 2,
+          outcome: 'error',
+          errorCode: 'agent',
+          usage,
+        },
+        { ordinal: 3, role: 'loop', servedBy: 'fake:model', attempt: 3, outcome: 'ok', usage },
+      ],
+    } as unknown as JournalEntry;
+    const invoice = invoiceFromJournal([entry], () => undefined);
+    expect(invoice.rows.map((row) => row.reconciliation)).toEqual([
+      'provider-id-present',
+      'unconfirmed',
+      'missing-provider-id',
+    ]);
+    expect(invoice.cardinality).toEqual({
+      dispatchRows: 3,
+      wireRequests: 3,
+      multiWireRows: 0,
+      wireIdsMissing: 2,
     });
   });
 });
