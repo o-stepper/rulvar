@@ -196,6 +196,8 @@ const permissions: PermissionConfig = {
 
 **The terminal default** is allow, unless the tool declares `needsApproval: true`, in which case the verdict is ask.
 
+**`strictApprovals`** (RV1507) is the opt-in monotonic composition for platform profiles. The decisive `'allow'` above is deliberate for tests and trusted hosts, and it is also a fail-open hazard: one blanket `canUseTool` (or one allowing hook) silently retires every `needsApproval` declaration in the toolset. With `strictApprovals: true`, an ALLOW from a hook or from `canUseTool` over a `needsApproval` tool falls through instead of deciding, so the terminal default still asks; `deny` and `ask` keep their power (tightening stays decisive), `{ modifiedInput }` still applies, and tools without the declaration keep the historical composition byte for byte. The flag merges monotonically across the engine and profile layers: either level arms it, a profile cannot loosen an engine-armed mode, and a non-boolean value is a `ConfigError` at compile, so a stray `'true'` string can never silently disarm the mode it names.
+
 The three verdicts mean:
 
 | Verdict | Effect |

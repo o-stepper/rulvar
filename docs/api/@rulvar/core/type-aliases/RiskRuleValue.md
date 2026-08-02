@@ -10,7 +10,7 @@
 type RiskRuleValue = ToolRisk | "undeclared";
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L37)
+Defined in: [packages/core/src/runtime/permission-chain.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L38)
 
 Declarative rule tables (no closures). `'undeclared'` in risk
 position matches every tool WITHOUT declared risk: presets treat the

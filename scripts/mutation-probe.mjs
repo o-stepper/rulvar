@@ -2316,6 +2316,34 @@ const MUTATIONS = [
     replace: '      cursor = undefined;',
     test: 'packages/core/src/engine/cost-report.test.ts',
   },
+  {
+    id: 'flavorb-default-required',
+    doctrine:
+      "flavor B requires an explicit defaultDecision at intake (RV1506): without the refusal, the deadline's expiry applies an engine-invented accept and an unattended scope escalation resolves fail open",
+    file: 'packages/core/src/engine/ctx.ts',
+    find: "      if (escalation.flavor === 'B' && escalation.defaultDecision === undefined) {",
+    replace: '      if (false && escalation.defaultDecision === undefined) {',
+    test: 'packages/core/src/engine/ctx-escalation.test.ts',
+  },
+  {
+    id: 'strict-approvals-hold',
+    doctrine:
+      'strictApprovals makes a generic allow fall through for needsApproval tools (RV1507): disarmed, one blanket canUseTool silently retires every declared approval requirement',
+    file: 'packages/core/src/runtime/permission-chain.ts',
+    find: '  const strictHold = chain.strictApprovals === true && def.needsApproval === true;',
+    replace: '  const strictHold = false;',
+    test: 'packages/core/src/runtime/permission-chain.test.ts',
+  },
+  {
+    id: 'strict-approvals-monotonic-or',
+    doctrine:
+      'the strict flag merges as OR across layers (RV1507): under AND, a profile without the flag silently loosens an engine-armed safety posture',
+    file: 'packages/core/src/runtime/permission-chain.ts',
+    find: '  const strictApprovals = engine?.strictApprovals === true || profile?.strictApprovals === true;',
+    replace:
+      '  const strictApprovals = engine?.strictApprovals === true && profile?.strictApprovals === true;',
+    test: 'packages/core/src/runtime/permission-chain.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -1153,6 +1153,22 @@ export function createCtx(
         // Flavor B requires an explicit deadlineMs.
         throw new ConfigError("escalation flavor 'B' requires an explicit deadlineMs");
       }
+      if (escalation.flavor === 'B' && escalation.defaultDecision === undefined) {
+        // The deadline's expiry APPLIES the default decision, and the
+        // engine-invented accept resolved the timeout fail open: an
+        // unattended scope escalation was silently granted (RV1506,
+        // the seventeenth comparison benchmark's hardening ask).
+        // Enabling flavor B now requires the host to SAY what a
+        // timeout means; there is no engine default. The tool-approval
+        // channel already holds the opposite posture (an unattended
+        // approval DENIES at its deadline, RV1107), so this closes the
+        // one timeout that resolved open.
+        throw new ConfigError(
+          "escalation flavor 'B' requires an explicit defaultDecision: the deadline's " +
+            'expiry applies it, and an engine-invented accept would resolve the timeout ' +
+            "fail open; declare { kind: 'cancel' } (or the decision your policy means)",
+        );
+      }
     }
 
     // The toolset snapshot is captured at spawn time and hashed into the
@@ -2523,7 +2539,9 @@ export function createCtx(
       if (deadlineMs === undefined) {
         throw new ConfigError("flavor 'B' escalation requires an explicit deadlineMs");
       }
-      // An absent defaultDecision canonicalizes to accept at the timeout.
+      // Intake requires the decision for flavor B since RV1506, so the
+      // historical accept fallback below is unreachable through
+      // ctx.agent; it stays as the belt for internals-driven callers.
       const defaultDecision: EscalationDecision = escalation.defaultDecision ?? {
         kind: 'accept',
       };

@@ -14,7 +14,7 @@ function evaluatePermission(
 ctx?): Promise<PermissionVerdict>;
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L266)
+Defined in: [packages/core/src/runtime/permission-chain.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L300)
 
 Evaluates the chain for one dispatch, or OFFLINE against a
 hypothetical call by tool name (the dry-run API: nothing executes;

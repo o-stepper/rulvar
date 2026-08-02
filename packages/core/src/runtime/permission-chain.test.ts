@@ -173,3 +173,81 @@ describe('permission chain (M3-T03)', () => {
     expect(chain.ask).toEqual([{ risk: ['write', 'network', 'execute'] }, { risk: 'undeclared' }]);
   });
 });
+
+/**
+ * The strict approval composition (RV1507, the eighteenth improvement
+ * plan). The chain's documented order lets a generic host allow (a
+ * hook or canUseTool) clear a needsApproval: true tool, which is a
+ * deliberate composition for tests and trusted hosts and a fail-open
+ * hazard for a platform profile: the seventeenth comparison benchmark
+ * asked for a monotonic mode where a blanket allow cannot silently
+ * retire a declared approval requirement.
+ */
+describe('strictApprovals (RV1507)', () => {
+  const needy = { name: 'deploy', needsApproval: true } as const;
+
+  it('a generic canUseTool allow no longer clears a needsApproval tool', async () => {
+    const chain = compilePermissionChain({ strictApprovals: true, canUseTool: () => 'allow' });
+    const verdict = await evaluatePermission(chain, needy, {}, ctx);
+    expect(verdict).toMatchObject({ verdict: 'ask', decidedBy: 'default' });
+    // A tool without the declaration keeps the historical composition.
+    const plain = await evaluatePermission(chain, plainTool, {}, ctx);
+    expect(plain).toMatchObject({ verdict: 'allow', decidedBy: 'canUseTool' });
+  });
+
+  it('a hook allow falls through identically, while deny and modifiedInput keep their power', async () => {
+    const allowing = compilePermissionChain({ strictApprovals: true, hooks: [() => 'allow'] });
+    expect(await evaluatePermission(allowing, needy, {}, ctx)).toMatchObject({
+      verdict: 'ask',
+      decidedBy: 'default',
+    });
+    const denying = compilePermissionChain({
+      strictApprovals: true,
+      hooks: [() => 'deny'],
+      canUseTool: () => 'allow',
+    });
+    // Tightening verdicts stay decisive: strict mode is monotonic, not inert.
+    expect(await evaluatePermission(denying, needy, {}, ctx)).toMatchObject({
+      verdict: 'deny',
+      decidedBy: 'hook',
+    });
+    const modifying = compilePermissionChain({
+      strictApprovals: true,
+      hooks: [(_tool, input) => ({ modifiedInput: { ...(input as object), pinned: true } })],
+    });
+    const modified = await evaluatePermission(modifying, needy, { arg: 1 }, ctx);
+    expect(modified).toMatchObject({ verdict: 'ask', decidedBy: 'default' });
+    expect(modified.input).toEqual({ arg: 1, pinned: true });
+  });
+
+  it('the flag merges monotonically: either level arms it', async () => {
+    const engineArmed = compilePermissionChain(
+      { strictApprovals: true },
+      { canUseTool: () => 'allow' },
+    );
+    expect(await evaluatePermission(engineArmed, needy, {}, ctx)).toMatchObject({
+      verdict: 'ask',
+    });
+    const profileArmed = compilePermissionChain(
+      { canUseTool: () => 'allow' },
+      { strictApprovals: true },
+    );
+    expect(await evaluatePermission(profileArmed, needy, {}, ctx)).toMatchObject({
+      verdict: 'ask',
+    });
+    // A profile cannot LOOSEN an engine-armed strict mode.
+    const looseProfile = compilePermissionChain(
+      { strictApprovals: true },
+      { strictApprovals: false, canUseTool: () => 'allow' },
+    );
+    expect(await evaluatePermission(looseProfile, needy, {}, ctx)).toMatchObject({
+      verdict: 'ask',
+    });
+  });
+
+  it('a non-boolean flag refuses at compile, fail closed', () => {
+    expect(() =>
+      compilePermissionChain({ strictApprovals: 'yes' as unknown as boolean }),
+    ).toThrow();
+  });
+});

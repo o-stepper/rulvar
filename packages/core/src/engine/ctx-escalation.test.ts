@@ -64,6 +64,25 @@ describe('terminal escalated status (M3-T07, BREAKING)', () => {
     expect(adapter.calls).toHaveLength(0);
   });
 
+  it("flavor 'B' without an explicit defaultDecision is a ConfigError before any call (RV1506)", async () => {
+    // The deadline's expiry APPLIES the default decision, and an
+    // engine-invented accept resolved the timeout fail open (the
+    // seventeenth comparison benchmark's P0 hardening ask). Enabling
+    // flavor B now requires the host to say what a timeout means.
+    const adapter = escalatingAdapter();
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+    });
+    await expect(
+      createCtx(internals).agent('go', {
+        escalation: { flavor: 'B', deadlineMs: 60_000 },
+        result: 'full',
+      }),
+    ).rejects.toThrow(/defaultDecision/);
+    expect(adapter.calls).toHaveLength(0);
+  });
+
   it('flavor A: the worker terminates escalated with a runtime-completed, validated report', async () => {
     const adapter = escalatingAdapter();
     const { internals } = makeInternals({
@@ -314,7 +333,7 @@ describe('terminal escalated status (M3-T07, BREAKING)', () => {
     const events: RecordedEvents = recorded;
     const result = fullResult(
       await createCtx(internals).agent('do the migration', {
-        escalation: { flavor: 'B', deadlineMs: 60_000 },
+        escalation: { flavor: 'B', deadlineMs: 60_000, defaultDecision: { kind: 'cancel' } },
         result: 'full',
       }),
     );
