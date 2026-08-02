@@ -1247,7 +1247,7 @@ describe('offline resolution picks the validator by flavor (RV1408)', () => {
   } {
     const escalating = defineWorkflow({ name: 'escalating' }, async (ctx) => {
       const result = await ctx.agent('do the migration', {
-        escalation: { flavor: 'B', deadlineMs: 600_000 },
+        escalation: { flavor: 'B', deadlineMs: 600_000, defaultDecision: { kind: 'cancel' } },
         result: 'full',
       });
       return (result as { status: string }).status;

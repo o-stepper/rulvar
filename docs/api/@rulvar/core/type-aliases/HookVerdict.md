@@ -17,4 +17,4 @@ type HookVerdict =
   | undefined;
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L19)
+Defined in: [packages/core/src/runtime/permission-chain.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L20)

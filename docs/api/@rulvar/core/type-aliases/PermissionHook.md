@@ -12,7 +12,7 @@ type PermissionHook = (toolName, input, ctx) =>
 | Promise<HookVerdict>;
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:21](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L21)
+Defined in: [packages/core/src/runtime/permission-chain.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L22)
 
 ## Parameters
 

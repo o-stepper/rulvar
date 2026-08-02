@@ -13,6 +13,7 @@
  */
 import { compilePermissionPreset } from '../tools/presets.js';
 import { lexShellCommand, matchArgvPattern } from '../tools/shell-matcher.js';
+import { ConfigError } from '../l0/errors.js';
 import { requireDeadlineMs } from '../l0/validate-numbers.js';
 import type { ToolContext, ToolDef, ToolRisk } from '../l0/spi/toolsource.js';
 
@@ -59,6 +60,23 @@ export interface PermissionConfig {
   ask?: PermissionRule[];
   canUseTool?: CanUseTool;
   /**
+   * Opt-in monotonic approval composition (RV1507, the eighteenth
+   * improvement plan). The chain's documented order lets a generic
+   * allow (a hook or canUseTool) clear a `needsApproval: true` tool,
+   * which is deliberate for tests and trusted hosts and a fail-open
+   * hazard for a platform profile. With this set, an ALLOW verdict
+   * from a hook or from canUseTool over a needsApproval tool falls
+   * through instead of deciding, so the terminal default still asks;
+   * deny and ask verdicts keep their power (tightening stays
+   * decisive), input modification still applies, and tools without the
+   * declaration keep the historical composition byte for byte. Merges
+   * monotonically across the engine and profile layers: either level
+   * arms it and a profile cannot loosen an engine-armed mode. A
+   * non-boolean value refuses at compile (the RV610 posture: a stray
+   * 'true' string must never silently disarm the mode it names).
+   */
+  strictApprovals?: boolean;
+  /**
    * Opt-in deadline for ask verdicts (RV1107): a suspended tool
    * approval nobody resolves within this many milliseconds is DENIED
    * by a journaled resolution by 'timeout' instead of waiting forever.
@@ -92,6 +110,8 @@ export interface CompiledPermissionChain {
   deny: PermissionRule[];
   ask: PermissionRule[];
   canUseTool?: CanUseTool;
+  /** The monotonic OR of both layers' strictApprovals (RV1507). */
+  strictApprovals?: boolean;
   /** The merged opt-in approval deadline; profile over engine (RV1107). */
   approvalDeadlineMs?: number;
 }
@@ -137,6 +157,19 @@ export function compilePermissionChain(
   const deny = [...(engine?.deny ?? []), ...(profile?.deny ?? []), ...preset.deny];
   const ask = [...(engine?.ask ?? []), ...(profile?.ask ?? []), ...preset.ask];
   const canUseTool = profile?.canUseTool ?? engine?.canUseTool;
+  // The strict flag merges monotonically (RV1507): either layer arms
+  // it and a profile cannot loosen an engine-armed mode, because a
+  // safety posture that a child config can silently retire is not a
+  // posture. Non-boolean values refuse at compile (RV610).
+  for (const [layer, value] of [
+    ['permissions.strictApprovals', engine?.strictApprovals],
+    ['profile permissions.strictApprovals', profile?.strictApprovals],
+  ] as const) {
+    if (value !== undefined && typeof value !== 'boolean') {
+      throw new ConfigError(`${layer} must be a boolean when given; got ${JSON.stringify(value)}`);
+    }
+  }
+  const strictApprovals = engine?.strictApprovals === true || profile?.strictApprovals === true;
   // Most specific wins: a profile deadline overrides the engine's, a
   // single slot like canUseTool. Validated here so both layers share
   // one chokepoint: a zero, negative, or fractional deadline would arm
@@ -152,6 +185,7 @@ export function compilePermissionChain(
     deny,
     ask,
     ...(canUseTool === undefined ? {} : { canUseTool }),
+    ...(strictApprovals ? { strictApprovals: true } : {}),
     ...(approvalDeadlineMs === undefined ? {} : { approvalDeadlineMs }),
   };
 }
@@ -275,11 +309,19 @@ export async function evaluatePermission(
   const advisory = advisoryMatches(chain, def.name);
   const withAdvisory = (verdict: PermissionVerdict): PermissionVerdict =>
     advisory.length === 0 ? verdict : { ...verdict, advisory };
+  // The monotonic mode (RV1507): with strictApprovals armed, a generic
+  // ALLOW over a needsApproval tool falls through instead of deciding,
+  // so the terminal default still asks; deny and ask keep their power.
+  const strictHold = chain.strictApprovals === true && def.needsApproval === true;
 
   let effective = input;
   for (const hook of chain.hooks) {
     const verdict = await hook(def.name, effective, context);
     if (verdict === undefined) {
+      continue;
+    }
+    if (verdict === 'allow' && strictHold) {
+      // RV1507: the allow neither decides nor stops later hooks.
       continue;
     }
     if (verdict === 'allow' || verdict === 'deny' || verdict === 'ask') {
@@ -304,13 +346,17 @@ export async function evaluatePermission(
   if (chain.canUseTool !== undefined) {
     const verdict = await chain.canUseTool(def.name, effective, context);
     if (verdict === 'allow') {
-      // Decisive, including for needsApproval: true tools.
-      return withAdvisory({ verdict: 'allow', decidedBy: 'canUseTool', input: effective });
-    }
-    if (verdict === 'deny') {
+      if (!strictHold) {
+        // Decisive, including for needsApproval: true tools.
+        return withAdvisory({ verdict: 'allow', decidedBy: 'canUseTool', input: effective });
+      }
+      // RV1507: the allow falls through to the terminal default,
+      // which asks for exactly the tools that declared the need.
+    } else if (verdict === 'deny') {
       return withAdvisory({ verdict: 'deny', decidedBy: 'canUseTool', input: effective });
+    } else {
+      effective = verdict.modifiedInput;
     }
-    effective = verdict.modifiedInput;
   }
   if (def.needsApproval) {
     return withAdvisory({ verdict: 'ask', decidedBy: 'default', input: effective });

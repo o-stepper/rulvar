@@ -303,7 +303,7 @@ function escalatingAdapter() {
 function flavorBWorkflow(deadlineMs: number) {
   return defineWorkflow({ name: 'flavor-b-detached' }, async (ctx) => {
     const result = await ctx.agent('do the migration', {
-      escalation: { flavor: 'B', deadlineMs },
+      escalation: { flavor: 'B', deadlineMs, defaultDecision: { kind: 'cancel' } },
       result: 'full',
     });
     return (result as { status: string }).status;

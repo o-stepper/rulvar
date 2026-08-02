@@ -10,7 +10,7 @@
 function countsAgainstLimit(kind): boolean;
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L184)
+Defined in: [packages/core/src/runtime/escalation.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L191)
 
 countsAgainstLimit derivation (XF-06): true iff
 scope_bigger; scope_different and blocked_with_evidence are exempt and

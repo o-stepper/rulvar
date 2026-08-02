@@ -56,7 +56,14 @@ export interface EscalationOptions {
   flavor?: 'A' | 'B';
   /** Flavor B suspension deadline; REQUIRED for flavor B (Appendix A). */
   deadlineMs?: number;
-  /** Applied by the timeout resolution (by: 'timeout'); default accept. */
+  /**
+   * Applied by the timeout resolution (by: 'timeout'); REQUIRED for
+   * flavor B since RV1506: the deadline's expiry applies it, and the
+   * historical engine default of accept resolved an unattended scope
+   * escalation fail open. Declare what a timeout means
+   * ({ kind: 'cancel' } is the conservative posture); there is no
+   * engine default anymore.
+   */
   defaultDecision?: EscalationDecision;
   /**
    * In-run minimum spend before scope_bigger; default 0 (M3-T09). A

@@ -4282,7 +4282,14 @@ interface EscalationOptions {
   flavor?: "A" | "B";
   /** Flavor B suspension deadline; REQUIRED for flavor B (Appendix A). */
   deadlineMs?: number;
-  /** Applied by the timeout resolution (by: 'timeout'); default accept. */
+  /**
+  * Applied by the timeout resolution (by: 'timeout'); REQUIRED for
+  * flavor B since RV1506: the deadline's expiry applies it, and the
+  * historical engine default of accept resolved an unattended scope
+  * escalation fail open. Declare what a timeout means
+  * ({ kind: 'cancel' } is the conservative posture); there is no
+  * engine default anymore.
+  */
   defaultDecision?: EscalationDecision;
   /**
   * In-run minimum spend before scope_bigger; default 0 (M3-T09). A
@@ -5356,6 +5363,23 @@ interface PermissionConfig {
   ask?: PermissionRule[];
   canUseTool?: CanUseTool;
   /**
+  * Opt-in monotonic approval composition (RV1507, the eighteenth
+  * improvement plan). The chain's documented order lets a generic
+  * allow (a hook or canUseTool) clear a `needsApproval: true` tool,
+  * which is deliberate for tests and trusted hosts and a fail-open
+  * hazard for a platform profile. With this set, an ALLOW verdict
+  * from a hook or from canUseTool over a needsApproval tool falls
+  * through instead of deciding, so the terminal default still asks;
+  * deny and ask verdicts keep their power (tightening stays
+  * decisive), input modification still applies, and tools without the
+  * declaration keep the historical composition byte for byte. Merges
+  * monotonically across the engine and profile layers: either level
+  * arms it and a profile cannot loosen an engine-armed mode. A
+  * non-boolean value refuses at compile (the RV610 posture: a stray
+  * 'true' string must never silently disarm the mode it names).
+  */
+  strictApprovals?: boolean;
+  /**
   * Opt-in deadline for ask verdicts (RV1107): a suspended tool
   * approval nobody resolves within this many milliseconds is DENIED
   * by a journaled resolution by 'timeout' instead of waiting forever.
@@ -5387,6 +5411,8 @@ interface CompiledPermissionChain {
   deny: PermissionRule[];
   ask: PermissionRule[];
   canUseTool?: CanUseTool;
+  /** The monotonic OR of both layers' strictApprovals (RV1507). */
+  strictApprovals?: boolean;
   /** The merged opt-in approval deadline; profile over engine (RV1107). */
   approvalDeadlineMs?: number;
 }

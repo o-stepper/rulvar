@@ -29,10 +29,10 @@ type PermissionVerdict =
 };
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L99)
+Defined in: [packages/core/src/runtime/permission-chain.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L119)
 
 ## Type Declaration
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `advisory?` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | Advisory domain-rule matches: reported in the tool:end audit fields, never enforced in the current release. | [packages/core/src/runtime/permission-chain.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L118) |
+| `advisory?` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | Advisory domain-rule matches: reported in the tool:end audit fields, never enforced in the current release. | [packages/core/src/runtime/permission-chain.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L138) |

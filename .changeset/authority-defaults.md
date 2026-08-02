@@ -1,0 +1,9 @@
+---
+'@rulvar/core': minor
+---
+
+Require an explicit flavor B default decision and add the monotonic approval composition (RV1506, RV1507). The third PR of the eighteenth plan. BREAKING for flavor B configurations that omitted `defaultDecision`.
+
+The explicit timeout meaning (RV1506). Flavor B escalation suspends the worker under a journaled deadline, and the deadline's expiry APPLIES the `defaultDecision`; when none was declared the engine invented `accept`, so an unattended scope escalation resolved fail open, the seventeenth comparison benchmark's top authority hardening ask. Enabling flavor B now requires an explicit `defaultDecision` beside the already-required `deadlineMs`, a `ConfigError` before any LLM call; there is no engine default. The tool-approval channel already holds the opposite posture (an unattended approval DENIES at its `approvalDeadlineMs`), so `{ kind: 'cancel' }` is the declaration that makes both timeouts close the same way. Migration is one line on each flavor B config; the runtime semantics of a declared decision are unchanged, and a racing live decision still wins first-closed.
+
+The monotonic approval composition (RV1507). The permission chain's documented order lets a generic ALLOW (a hook or `canUseTool`) clear a `needsApproval: true` tool, which is deliberate for tests and trusted hosts and a fail-open hazard for a platform profile. `permissions.strictApprovals: true` makes such an allow fall through instead of deciding, so the terminal default still asks for exactly the tools that declared the need; deny and ask keep their power, `{ modifiedInput }` still applies, tools without the declaration keep the historical composition byte for byte, and the flag merges as OR across the engine and profile layers, so a profile cannot loosen an engine-armed mode. A non-boolean value refuses at compile.
