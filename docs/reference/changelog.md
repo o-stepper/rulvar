@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+
 ### 1.155.0
 
 #### Patch Changes
@@ -1564,6 +1571,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+
 ### 1.155.0
 
 #### Patch Changes
@@ -2917,6 +2931,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
 
 ### 1.155.0
 
@@ -4693,6 +4714,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.156.0
+
+#### Minor Changes
+
+- 537144e: Validate every restored counter at the checkpoint decode boundary, count single-wire rows in the invoice join-coverage aggregate, and resolve run profiles by own property (RV1409, RV1410, RV1411).
+
+  `decodeCheckpoint` now refuses a blob whose required counters are not non-negative finite numbers: `turns`, `toolCallsUsed`, `schemaAttempts`, every usage field (the optional ones when present), and the compaction points (RV1409). Those counters seed the loop's limit arithmetic and are reported to the budget as paid spend, and none of the refused shapes was ever produced by a boundary write (JSON delivers the NaN corruption as `null` and `1e999` as `Infinity`), so the blob as a whole is untrustworthy and the dangling dispatch reruns from the top, exactly like a blob that does not parse. Before this shipped, a store-side corruption or a hostile writer could restore `turns: -2` and credit the `maxTurns` ceiling with turns nobody paid. Deliberately not judged at decode: the Usage invariant, integer rules, and TTL splits. Checkpoints written before those invariants shipped are honest evidence of paid work and still decode; the restore path sanitizes them exactly as it always has.
+
+  `InvoiceCardinality.wireIdsMissing` now counts the requests across EVERY dispatch row that carry no join key (RV1410). A single-wire row is its one request, joined by the row's own `responseId`, so an id-less single-wire row contributes one missing key; failed requests count like any other, because the provider may have billed them and a statement line cannot be joined to a row with no id either way. Before this shipped the counter looked only inside multi-wire rows, so a fleet of single-wire dispatches whose adapter surfaced no response ids read as fully joined (`wireIdsMissing: 0`) while every row-level verdict said `missing-provider-id`: the aggregate contradicted its own rows.
+
+  `runProfile()` resolves the shipped preset roster by own property (RV1411, the last prototype-sensitive surface of the RV1205 class): an inherited object name (`toString`, `constructor`, `__proto__`) is not a profile and now returns `undefined`, the value hosts key their unknown-name refusal on. The CLI's `--profile toString` becomes the typed unknown-profile `ConfigError` naming the shipped roster instead of a silently accepted empty profile.
 
 ### 1.155.0
 
@@ -6781,6 +6814,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.156.0
+
 ### 1.155.0
 
 ### 1.154.0
@@ -7195,6 +7230,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+  - @rulvar/anthropic@1.156.0
+  - @rulvar/openai@1.156.0
+  - @rulvar/plan@1.156.0
+  - @rulvar/testing@1.156.0
 
 ### 1.155.0
 
@@ -8962,6 +9008,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+
 ### 1.155.0
 
 #### Patch Changes
@@ -9722,6 +9775,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
 
 ### 1.155.0
 
@@ -11278,6 +11338,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+
 ### 1.155.0
 
 #### Patch Changes
@@ -12745,6 +12812,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+  - eslint-plugin-rulvar@1.156.0
 
 ### 1.155.0
 
@@ -14330,6 +14405,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+  - @rulvar/anthropic@1.156.0
+  - @rulvar/openai@1.156.0
 
 ### 1.155.0
 
@@ -16158,6 +16242,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+
 ### 1.155.0
 
 #### Patch Changes
@@ -17621,6 +17712,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
+
 ### 1.155.0
 
 #### Patch Changes
@@ -18405,6 +18503,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
 
 ### 1.155.0
 
@@ -19821,6 +19926,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.156.0
+
+#### Patch Changes
+
+- Updated dependencies [537144e]
+  - @rulvar/core@1.156.0
 
 ### 1.155.0
 
