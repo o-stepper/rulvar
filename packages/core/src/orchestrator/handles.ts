@@ -26,6 +26,57 @@ export interface TaskDigest {
   outputSummary: string;
   costUsd: number;
   artifactsIndex: string[];
+  /**
+   * The child's replay-stable execution facts (RV1503), present only
+   * under the `executionFacts` opt-in: what the run itself observed,
+   * so the composing root can grade `live-observed` honestly instead
+   * of erasing its own run. See {@link executionFactsOf}.
+   */
+  facts?: ChildExecutionFacts;
+}
+
+/**
+ * One child's execution facts, folded ONLY from replay-stable settled
+ * material (RV1503): the journaled per-dispatch reconciliation records
+ * and the journaled usage, which a resumed run restores verbatim.
+ * Dollars are deliberately absent: replay re-prices from the CURRENT
+ * price table, so a money figure here would drift across resumes while
+ * these counters cannot.
+ */
+export interface ChildExecutionFacts {
+  /** Provider HTTP requests the child's dispatches made (RV1210 semantics). */
+  wireRequests: number;
+  /** Wire requests no response id names (the invoice cardinality rule). */
+  wireIdsMissing: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Folds one settled child's replay-stable execution facts (RV1503).
+ * Per dispatch record: the wire count is the adapter-reported
+ * `wireRequests` when present, else the absorbed id list's length,
+ * else one (a single-wire dispatch); the named side counts the
+ * absorbed ids or the single `responseId`, clamped by the wire count
+ * (RV1410: a keyless single-wire row contributes one missing id).
+ * Pure over the settled result, so live and resumed folds agree byte
+ * for byte.
+ */
+export function executionFactsOf(result: AgentResult<unknown>): ChildExecutionFacts {
+  let wireRequests = 0;
+  let named = 0;
+  for (const call of result.providerCalls ?? []) {
+    const ids = call.wireResponseIds?.length ?? (call.responseId === undefined ? 0 : 1);
+    const wires = call.wireRequests ?? Math.max(call.wireResponseIds?.length ?? 0, 1);
+    wireRequests += wires;
+    named += Math.min(ids, wires);
+  }
+  return {
+    wireRequests,
+    wireIdsMissing: wireRequests - named,
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+  };
 }
 
 /**
@@ -56,6 +107,8 @@ export interface ChildResultPage {
   hasMore: boolean;
   /** The child's artifacts, id and kind, so the model knows what `read_child_artifact` can fetch. */
   artifacts: Array<{ id: string; kind: string; label?: string }>;
+  /** The child's execution facts (RV1503), under the `executionFacts` opt-in only. */
+  facts?: ChildExecutionFacts;
 }
 
 /**
@@ -169,8 +222,16 @@ export function summarizeOutput(result: AgentResult<unknown>): string {
   return truncateToBudget(raw, WAKE_SUMMARY_RENDER_BUDGET_CHARS);
 }
 
-/** Folds one settled child into its digest (spawn-ordinal ordering is the caller's). */
-export function digestOf(record: SpawnRecord, result: AgentResult<unknown>): TaskDigest {
+/**
+ * Folds one settled child into its digest (spawn-ordinal ordering is
+ * the caller's). `includeFacts` (RV1503) appends the replay-stable
+ * execution facts; absent or false keeps the digest byte identical.
+ */
+export function digestOf(
+  record: SpawnRecord,
+  result: AgentResult<unknown>,
+  includeFacts?: boolean,
+): TaskDigest {
   return {
     nodeId: record.nodeId,
     logicalTaskId: record.logicalTaskId,
@@ -178,6 +239,7 @@ export function digestOf(record: SpawnRecord, result: AgentResult<unknown>): Tas
     outputSummary: summarizeOutput(result),
     costUsd: result.costUsd,
     artifactsIndex: (result.artifacts ?? []).map((artifact) => artifact.id),
+    ...(includeFacts === true ? { facts: executionFactsOf(result) } : {}),
   };
 }
 

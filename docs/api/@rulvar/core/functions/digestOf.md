@@ -7,12 +7,17 @@
 # Function: digestOf()
 
 ```ts
-function digestOf(record, result): TaskDigest;
+function digestOf(
+   record, 
+   result, 
+   includeFacts?): TaskDigest;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L173)
+Defined in: [packages/core/src/orchestrator/handles.ts:230](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L230)
 
-Folds one settled child into its digest (spawn-ordinal ordering is the caller's).
+Folds one settled child into its digest (spawn-ordinal ordering is
+the caller's). `includeFacts` (RV1503) appends the replay-stable
+execution facts; absent or false keeps the digest byte identical.
 
 ## Parameters
 
@@ -20,6 +25,7 @@ Folds one settled child into its digest (spawn-ordinal ordering is the caller's)
 | ------ | ------ |
 | `record` | [`SpawnRecord`](/api/@rulvar/core/interfaces/SpawnRecord.md) |
 | `result` | [`AgentResult`](/api/@rulvar/core/interfaces/AgentResult.md)\&lt;`unknown`\&gt; |
+| `includeFacts?` | `boolean` |
 
 ## Returns
 

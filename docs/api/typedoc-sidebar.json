@@ -799,6 +799,10 @@
             "link": "/api/@rulvar/core/interfaces/ChildArtifactPage.md"
           },
           {
+            "text": "ChildExecutionFacts",
+            "link": "/api/@rulvar/core/interfaces/ChildExecutionFacts.md"
+          },
+          {
             "text": "ChildIdentityInput",
             "link": "/api/@rulvar/core/interfaces/ChildIdentityInput.md"
           },
@@ -809,6 +813,26 @@
           {
             "text": "CitationTarget",
             "link": "/api/@rulvar/core/interfaces/CitationTarget.md"
+          },
+          {
+            "text": "ClaimContradictionFinding",
+            "link": "/api/@rulvar/core/interfaces/ClaimContradictionFinding.md"
+          },
+          {
+            "text": "ClaimPair",
+            "link": "/api/@rulvar/core/interfaces/ClaimPair.md"
+          },
+          {
+            "text": "ClaimPairOptions",
+            "link": "/api/@rulvar/core/interfaces/ClaimPairOptions.md"
+          },
+          {
+            "text": "ClaimPairsFold",
+            "link": "/api/@rulvar/core/interfaces/ClaimPairsFold.md"
+          },
+          {
+            "text": "ClaimPoolReading",
+            "link": "/api/@rulvar/core/interfaces/ClaimPoolReading.md"
           },
           {
             "text": "ClaimValidationOptions",
@@ -1201,6 +1225,14 @@
           {
             "text": "OrchestrateAcceptance",
             "link": "/api/@rulvar/core/interfaces/OrchestrateAcceptance.md"
+          },
+          {
+            "text": "OrchestrateClaimConsistency",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateClaimConsistency.md"
+          },
+          {
+            "text": "OrchestrateClaimConsistencyMeta",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateClaimConsistencyMeta.md"
           },
           {
             "text": "OrchestrateContradictions",
@@ -2275,6 +2307,10 @@
             "link": "/api/@rulvar/core/variables/CURRENT_HASH_VERSION.md"
           },
           {
+            "text": "DEFAULT_ANCHOR_PATTERN",
+            "link": "/api/@rulvar/core/variables/DEFAULT_ANCHOR_PATTERN.md"
+          },
+          {
             "text": "DEFAULT_ARTIFACT_PATTERN",
             "link": "/api/@rulvar/core/variables/DEFAULT_ARTIFACT_PATTERN.md"
           },
@@ -2293,6 +2329,10 @@
           {
             "text": "DEFAULT_CITATION_SAMPLE",
             "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_SAMPLE.md"
+          },
+          {
+            "text": "DEFAULT_CLAIM_JUDGE_MAX_TURNS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_CLAIM_JUDGE_MAX_TURNS.md"
           },
           {
             "text": "DEFAULT_COMPACTION_THRESHOLD",
@@ -2331,6 +2371,10 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_CHILDREN_PER_NODE.md"
           },
           {
+            "text": "DEFAULT_MAX_CLAIM_PAIRS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_MAX_CLAIM_PAIRS.md"
+          },
+          {
             "text": "DEFAULT_MAX_CONTRADICTIONS",
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_CONTRADICTIONS.md"
           },
@@ -2347,8 +2391,16 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_OSCILLATIONS_PER_KEY.md"
           },
           {
+            "text": "DEFAULT_MAX_PAIR_EXCERPT_CHARS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_MAX_PAIR_EXCERPT_CHARS.md"
+          },
+          {
             "text": "DEFAULT_MAX_PINNED_WORKTREES",
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_PINNED_WORKTREES.md"
+          },
+          {
+            "text": "DEFAULT_MAX_POOL_PER_PAIR",
+            "link": "/api/@rulvar/core/variables/DEFAULT_MAX_POOL_PER_PAIR.md"
           },
           {
             "text": "DEFAULT_MAX_REVISIONS_PER_RUN",
@@ -2885,6 +2937,10 @@
             "link": "/api/@rulvar/core/functions/executeWorkflow.md"
           },
           {
+            "text": "executionFactsOf",
+            "link": "/api/@rulvar/core/functions/executionFactsOf.md"
+          },
+          {
             "text": "exhaustionCodeOf",
             "link": "/api/@rulvar/core/functions/exhaustionCodeOf.md"
           },
@@ -3123,6 +3179,10 @@
           {
             "text": "orchestratorAdmissionEstCostUsd",
             "link": "/api/@rulvar/core/functions/orchestratorAdmissionEstCostUsd.md"
+          },
+          {
+            "text": "pairDraftClaims",
+            "link": "/api/@rulvar/core/functions/pairDraftClaims.md"
           },
           {
             "text": "parallelScope",
@@ -5445,6 +5505,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/ChildArtifactPage.md"
           },
           {
+            "text": "ChildExecutionFacts",
+            "link": "/api/@rulvar/rulvar/interfaces/ChildExecutionFacts.md"
+          },
+          {
             "text": "ChildIdentityInput",
             "link": "/api/@rulvar/rulvar/interfaces/ChildIdentityInput.md"
           },
@@ -5455,6 +5519,26 @@
           {
             "text": "CitationTarget",
             "link": "/api/@rulvar/rulvar/interfaces/CitationTarget.md"
+          },
+          {
+            "text": "ClaimContradictionFinding",
+            "link": "/api/@rulvar/rulvar/interfaces/ClaimContradictionFinding.md"
+          },
+          {
+            "text": "ClaimPair",
+            "link": "/api/@rulvar/rulvar/interfaces/ClaimPair.md"
+          },
+          {
+            "text": "ClaimPairOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/ClaimPairOptions.md"
+          },
+          {
+            "text": "ClaimPairsFold",
+            "link": "/api/@rulvar/rulvar/interfaces/ClaimPairsFold.md"
+          },
+          {
+            "text": "ClaimPoolReading",
+            "link": "/api/@rulvar/rulvar/interfaces/ClaimPoolReading.md"
           },
           {
             "text": "ClaimValidationOptions",
@@ -5851,6 +5935,14 @@
           {
             "text": "OrchestrateAcceptance",
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateAcceptance.md"
+          },
+          {
+            "text": "OrchestrateClaimConsistency",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateClaimConsistency.md"
+          },
+          {
+            "text": "OrchestrateClaimConsistencyMeta",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateClaimConsistencyMeta.md"
           },
           {
             "text": "OrchestrateContradictions",
@@ -6957,6 +7049,10 @@
             "link": "/api/@rulvar/rulvar/variables/CURRENT_HASH_VERSION.md"
           },
           {
+            "text": "DEFAULT_ANCHOR_PATTERN",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_ANCHOR_PATTERN.md"
+          },
+          {
             "text": "DEFAULT_ARTIFACT_PATTERN",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_ARTIFACT_PATTERN.md"
           },
@@ -6975,6 +7071,10 @@
           {
             "text": "DEFAULT_CITATION_SAMPLE",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_SAMPLE.md"
+          },
+          {
+            "text": "DEFAULT_CLAIM_JUDGE_MAX_TURNS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_CLAIM_JUDGE_MAX_TURNS.md"
           },
           {
             "text": "DEFAULT_COMPACTION_THRESHOLD",
@@ -7013,6 +7113,10 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_CHILDREN_PER_NODE.md"
           },
           {
+            "text": "DEFAULT_MAX_CLAIM_PAIRS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_CLAIM_PAIRS.md"
+          },
+          {
             "text": "DEFAULT_MAX_CONTRADICTIONS",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_CONTRADICTIONS.md"
           },
@@ -7029,8 +7133,16 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_OSCILLATIONS_PER_KEY.md"
           },
           {
+            "text": "DEFAULT_MAX_PAIR_EXCERPT_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_PAIR_EXCERPT_CHARS.md"
+          },
+          {
             "text": "DEFAULT_MAX_PINNED_WORKTREES",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_PINNED_WORKTREES.md"
+          },
+          {
+            "text": "DEFAULT_MAX_POOL_PER_PAIR",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_POOL_PER_PAIR.md"
           },
           {
             "text": "DEFAULT_MAX_REVISIONS_PER_RUN",
@@ -7579,6 +7691,10 @@
             "link": "/api/@rulvar/rulvar/functions/executeWorkflow.md"
           },
           {
+            "text": "executionFactsOf",
+            "link": "/api/@rulvar/rulvar/functions/executionFactsOf.md"
+          },
+          {
             "text": "exhaustionCodeOf",
             "link": "/api/@rulvar/rulvar/functions/exhaustionCodeOf.md"
           },
@@ -7821,6 +7937,10 @@
           {
             "text": "orchestratorAdmissionEstCostUsd",
             "link": "/api/@rulvar/rulvar/functions/orchestratorAdmissionEstCostUsd.md"
+          },
+          {
+            "text": "pairDraftClaims",
+            "link": "/api/@rulvar/rulvar/functions/pairDraftClaims.md"
           },
           {
             "text": "parallelScope",

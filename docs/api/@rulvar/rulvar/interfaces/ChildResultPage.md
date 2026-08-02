@@ -28,6 +28,7 @@ journal state, so a resume reproduces it with no new spend.
 | ------ | ------ | ------ | ------ |
 | <a id="property-artifacts"></a> `artifacts` | \{ `id`: `string`; `kind`: `string`; `label?`: `string`; \}[] | The child's artifacts, id and kind, so the model knows what `read_child_artifact` can fetch. | `packages/core/dist/index.d.ts` |
 | <a id="property-content"></a> `content` | `string` | The page: `content.length` is at most the requested (clamped) maxChars. | `packages/core/dist/index.d.ts` |
+| <a id="property-facts"></a> `facts?` | [`ChildExecutionFacts`](/api/@rulvar/rulvar/interfaces/ChildExecutionFacts.md) | The child's execution facts (RV1503), under the `executionFacts` opt-in only. | `packages/core/dist/index.d.ts` |
 | <a id="property-handle"></a> `handle` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-hasmore"></a> `hasMore` | `boolean` | True when more characters remain past this page; call again with a higher offset. | `packages/core/dist/index.d.ts` |
 | <a id="property-offset"></a> `offset` | `number` | The character offset this page starts at, counted from zero. | `packages/core/dist/index.d.ts` |

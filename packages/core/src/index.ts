@@ -104,6 +104,7 @@ export * from './orchestrator/spawn-tools.js';
 export * from './orchestrator/orchestrate.js';
 export * from './orchestrator/claims.js';
 export * from './orchestrator/contradictions.js';
+export * from './orchestrator/consistency.js';
 export * from './orchestrator/wake.js';
 export * from './engine/ctx.js';
 export type { ExecKeyDerivation } from './runtime/executor.js';
