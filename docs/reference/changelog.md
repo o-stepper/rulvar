@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+
 ### 1.153.0
 
 #### Patch Changes
@@ -1550,6 +1557,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+
 ### 1.153.0
 
 #### Patch Changes
@@ -2889,6 +2903,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
 
 ### 1.153.0
 
@@ -4647,6 +4668,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.154.0
+
+#### Minor Changes
+
+- 9259f24: Reserve the tail of the turns axis and project it in preflight (RV1405, RV1406). The seventeenth comparison experiment's worker burned `maxTurns` 28 at 66 of 96 executed tool calls and settled `limit` with no finalize phase, because the finalization reserve fires on tool-budget limiters and the finalization window watches tool-budget counts, and nothing watched the turns. The new opt-in `limits.finalizationTurns: { reserveTurns, allow? }` extends the SAME window regime to the turns dimension: once the remaining turns against `maxTurns` drop to `reserveTurns`, non-allowlisted calls receive the typed window refusal, the one-time notice names the turns arithmetic, and the terminal tool stays admitted. The regime keeps one allowlist (`finalizationWindow.allow`, else `finalizationTurns.allow`, else the zero-cost tools); with both dimensions inside their reserves the smaller remaining binds, and the notice, every refusal, and the RV509 decision entry (`budget: 'turns'`) all name the binding dimension's own reserve. The tail lives INSIDE `maxTurns` (the ceiling stays a ceiling), the RV1208 deficit widening stays calls-only, repair-turn grants are deliberately not counted, resume re-arms identically, and configuring the reserve alone makes the `toolBudget` snapshot (and the policy-facts window line) present so a turns-only run has a home for `finalizationWindowEntered`. Preflight gains the turns-axis projection `turns-bind-before-tool-budget` (RV1406): when `maxTurns` fits fewer serial executed calls (one per turn plus the final answer turn) than the effective executed-call ceiling, extension grants included, the finding says the turns axis binds first, as a warning without the reserve and an info with it, never a stop; and `finalization-turns-covers-max-turns` (warning) when `reserveTurns` is not below `maxTurns`.
 
 ### 1.153.0
 
@@ -6723,6 +6750,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.154.0
+
 ### 1.153.0
 
 ### 1.152.0
@@ -7133,6 +7162,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+  - @rulvar/anthropic@1.154.0
+  - @rulvar/openai@1.154.0
+  - @rulvar/plan@1.154.0
+  - @rulvar/testing@1.154.0
 
 ### 1.153.0
 
@@ -8878,6 +8918,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+
 ### 1.153.0
 
 #### Patch Changes
@@ -9624,6 +9671,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
 
 ### 1.153.0
 
@@ -11166,6 +11220,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+
 ### 1.153.0
 
 #### Patch Changes
@@ -12619,6 +12680,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+  - eslint-plugin-rulvar@1.154.0
 
 ### 1.153.0
 
@@ -14188,6 +14257,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+  - @rulvar/anthropic@1.154.0
+  - @rulvar/openai@1.154.0
 
 ### 1.153.0
 
@@ -15998,6 +16076,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+
 ### 1.153.0
 
 #### Patch Changes
@@ -17447,6 +17532,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
+
 ### 1.153.0
 
 #### Patch Changes
@@ -18217,6 +18309,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
 
 ### 1.153.0
 
@@ -19619,6 +19718,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.154.0
+
+#### Patch Changes
+
+- Updated dependencies [9259f24]
+  - @rulvar/core@1.154.0
 
 ### 1.153.0
 
