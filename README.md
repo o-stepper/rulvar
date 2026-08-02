@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred thirty six rounds, verbatim in this repository's history:
+The one hundred thirty seven rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -350,6 +350,7 @@ The one hundred thirty six rounds, verbatim in this repository's history:
 | v1.152.0      | d8bebcb (#647): the contradiction pass and the evidence index judge the ACCEPTED roster, carry disables the valid draft skip, and the max bound names its truncation                      | v1.153.0   |
 | v1.153.0      | 9259f24 (#650): the finalization window regime gains the turns axis: a reserved tail inside maxTurns naming its own reserve, and preflight projects the serial turns floor per spawn      | v1.154.0   |
 | v1.154.0      | 49b08a7 (#653): the persisted terminal refuses a settle the journal ran past, and offline resolution applies the engine own flavor-aware validator instead of a lookalike                 | v1.155.0   |
+| v1.155.0      | 537144e (#656): the checkpoint decoder refuses garbage restored counters, single-wire rows count in join coverage, and profile lookups answer by own property                             | v1.156.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
