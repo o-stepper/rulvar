@@ -2222,6 +2222,73 @@ const MUTATIONS = [
     replace: "    costBasis: 'locally-guessed' as never,",
     test: 'packages/core/src/engine/terminal-envelope.test.ts',
   },
+  {
+    id: 'claim-pair-intersection',
+    doctrine:
+      'a claim pair requires INTERSECTING spans of the same file (RV1501): without the guard, a draft sentence pairs with every sentence citing the file anywhere, and the judge drowns in non-pairs',
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: '        if (reading.end < anchor.start || reading.start > anchor.end) {\n          continue;\n        }',
+    replace:
+      '        if (false && (reading.end < anchor.start || reading.start > anchor.end)) {\n          continue;\n        }',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-pair-agreement-drop',
+    doctrine:
+      'verbatim agreement is no pair (RV1501): a draft sentence containing the pool sentence restates it, and paying a judge to confirm a copy is the flood the caps exist to prevent',
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: '        if (full.includes(reading.full) || reading.full.includes(full)) {\n          continue;\n        }',
+    replace:
+      '        if (false && (full.includes(reading.full) || reading.full.includes(full))) {\n          continue;\n        }',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-judge-empty-pairs',
+    doctrine:
+      'no pairs means no judge dispatch (RV1502): the fold looked and paired nothing, and paying a model to confirm an empty list would bill every clean run for the pass',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (fold.pairs.length === 0) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-fail-before-synthesis',
+    doctrine:
+      "judged findings under 'fail' stop the run BEFORE any synthesis dispatch (RV1502): a draft contradicting its own pool never pays to have the inversion composed away",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (onFound !== 'fail' || findings.length === 0) {\n        return;\n      }",
+    replace: '      if (true) {\n        return;\n      }',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-carry-skip-block',
+    doctrine:
+      "non-empty claim findings under 'carry' disable the valid-draft skip (RV1502, the RV1404 invariant): the draft was composed without the CLAIM CONTRADICTIONS line, so skipping the synthesis means nothing was ever asked to resolve the inversion",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "          const claimCarryBlocked =\n            opts?.claimConsistency?.onFound === 'carry' &&\n            claimFindingsFound !== undefined &&\n            claimFindingsFound.length > 0;",
+    replace:
+      "          const claimCarryBlocked =\n            opts?.claimConsistency?.onFound === 'carry' &&\n            claimFindingsFound !== undefined &&\n            claimFindingsFound.length > 9999;",
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-judge-failure-honesty',
+    doctrine:
+      'a dead judge is named on the meta, never converted into agreement (RV1502): without the guard, a failed invocation reports an empty finding list, which claims the pool agreed when nothing was judged',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (judged.status !== 'ok' || judged.output === null || judged.output === undefined) {",
+    replace:
+      "      if (false && (judged.status !== 'ok' || judged.output === null || judged.output === undefined)) {",
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'execution-facts-opt-in',
+    doctrine:
+      'execution facts appear ONLY under the executionFacts opt-in (RV1503): tool result bytes enter the window and the window is journal identity, so unauthorized facts change every historical byte',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '    const executionFactsEnabled = opts?.executionFacts === true;',
+    replace: '    const executionFactsEnabled = true;',
+    test: 'packages/core/src/orchestrator/runfacts.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

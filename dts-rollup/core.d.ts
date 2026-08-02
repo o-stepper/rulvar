@@ -7530,6 +7530,115 @@ declare function citationTargetsValidator(options: {
   name?: string;
 }): FinishValidator;
 //#endregion
+//#region src/orchestrator/contradictions.d.ts
+/** One child's serialized output as the pass reads it. */
+interface ContradictionSource {
+  /** The child's node identity, the same one acceptance reasons use. */
+  readonly nodeId: string;
+  /** The child's full output serialized, the pool the validators judge. */
+  readonly text: string;
+}
+/** One reading of a disputed key, with everyone who reported it. */
+interface ContradictionClaim {
+  /** The value asserted for the key, verbatim after the separator. */
+  value: string;
+  /** Children asserting it, in first-seen (spawn) order; never empty. */
+  nodeIds: string[];
+  /**
+  * The first sentence that asserted it, whitespace-collapsed and cut
+  * to `maxExcerptChars`. An excerpt, never a quotation: it exists so a
+  * reader can find the claim, not so a machine can re-parse it.
+  */
+  excerpt: string;
+}
+/** One cited location two children read differently. */
+interface Contradiction {
+  /** The cited location both readings point at, e.g. 'src/retry.ts:33'. */
+  anchor: string;
+  /** The key both readings name, e.g. 'attempts'. */
+  key: string;
+  /** Every reading of that key at that anchor, in first-seen order. */
+  claims: ContradictionClaim[];
+}
+interface ContradictionOptions {
+  /** Overrides {@link DEFAULT_CITATION_PATTERN} for the anchors. */
+  pattern?: string;
+  /** Bound on returned contradictions; default 20. */
+  max?: number;
+  /** Bound on each claim's excerpt; default 200. */
+  maxExcerptChars?: number;
+}
+declare const DEFAULT_MAX_CONTRADICTIONS = 20;
+declare const DEFAULT_MAX_EXCERPT_CHARS = 200;
+/**
+* Folds the settled children's outputs into the contradictions they
+* hold against each other. Pure and deterministic: the output depends
+* only on the input order and bytes, so a resumed run re-derives it
+* without journaling anything.
+*/
+declare function findContradictions(rows: readonly ContradictionSource[], options?: ContradictionOptions): Contradiction[];
+//#endregion
+//#region src/orchestrator/consistency.d.ts
+/**
+* The default anchor shape: the finish validators' citation pattern
+* extended with an optional `-end` line range, because composed dossiers
+* routinely cite spans (`src/exec.ts:256-296`) where the single-line
+* pattern would silently read only the first line.
+*/
+declare const DEFAULT_ANCHOR_PATTERN: string;
+/** One pool sentence read against a draft sentence, with its reporter. */
+interface ClaimPoolReading {
+  /** The child's node identity, the same one acceptance reasons use. */
+  nodeId: string;
+  /**
+  * The pool sentence, whitespace-collapsed and cut to
+  * `maxExcerptChars`. An excerpt, never a quotation: it exists so a
+  * judge (or a reader) can hold the two readings against each other,
+  * not so a machine can re-parse it.
+  */
+  excerpt: string;
+}
+/** One draft assertion paired with the pool readings of its anchor. */
+interface ClaimPair {
+  /** The draft-side citation verbatim, e.g. 'src/exec.ts:256-296'. */
+  anchor: string;
+  /** The citing draft sentence, collapsed and cut like the readings. */
+  draftExcerpt: string;
+  /** The pool sentences citing an intersecting span, first-seen order. */
+  pool: ClaimPoolReading[];
+}
+interface ClaimPairOptions {
+  /** Overrides {@link DEFAULT_ANCHOR_PATTERN} for both sides. */
+  pattern?: string;
+  /** Bound on returned pairs; default {@link DEFAULT_MAX_CLAIM_PAIRS}. */
+  max?: number;
+  /** Bound on each pair's pool readings; default {@link DEFAULT_MAX_POOL_PER_PAIR}. */
+  maxPoolPerPair?: number;
+  /** Bound on each excerpt; default {@link DEFAULT_MAX_PAIR_EXCERPT_CHARS}. */
+  maxExcerptChars?: number;
+}
+/** What the fold produced, beside the pairs themselves. */
+interface ClaimPairsFold {
+  /** The pairs, in draft first-seen order, capped at `max`. */
+  pairs: ClaimPair[];
+  /** True when more pairs existed than `max` allowed to report. */
+  truncated: boolean;
+  /** Draft sentences carrying at least one parsable anchor. */
+  draftCitingSentences: number;
+}
+declare const DEFAULT_MAX_CLAIM_PAIRS = 40;
+declare const DEFAULT_MAX_POOL_PER_PAIR = 3;
+declare const DEFAULT_MAX_PAIR_EXCERPT_CHARS = 400;
+/**
+* Folds the composed draft against the settled pool it composed from:
+* every draft sentence citing an anchor is paired with the pool
+* sentences citing an intersecting span of the same file, verbatim
+* agreement dropped. Pure and deterministic: the output depends only on
+* the input order and bytes, so a resumed run re-derives it without
+* journaling anything (the `findContradictions` precedent).
+*/
+declare function pairDraftClaims(draftText: string, rows: readonly ContradictionSource[], options?: ClaimPairOptions): ClaimPairsFold;
+//#endregion
 //#region src/orchestrator/output-contract.d.ts
 /** The golden citation sample used with {@link DEFAULT_CITATION_PATTERN}. */
 declare const DEFAULT_CITATION_SAMPLE = "docs/output-contract.md:1";
@@ -7711,7 +7820,41 @@ interface TaskDigest {
   outputSummary: string;
   costUsd: number;
   artifactsIndex: string[];
+  /**
+  * The child's replay-stable execution facts (RV1503), present only
+  * under the `executionFacts` opt-in: what the run itself observed,
+  * so the composing root can grade `live-observed` honestly instead
+  * of erasing its own run. See {@link executionFactsOf}.
+  */
+  facts?: ChildExecutionFacts;
 }
+/**
+* One child's execution facts, folded ONLY from replay-stable settled
+* material (RV1503): the journaled per-dispatch reconciliation records
+* and the journaled usage, which a resumed run restores verbatim.
+* Dollars are deliberately absent: replay re-prices from the CURRENT
+* price table, so a money figure here would drift across resumes while
+* these counters cannot.
+*/
+interface ChildExecutionFacts {
+  /** Provider HTTP requests the child's dispatches made (RV1210 semantics). */
+  wireRequests: number;
+  /** Wire requests no response id names (the invoice cardinality rule). */
+  wireIdsMissing: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+/**
+* Folds one settled child's replay-stable execution facts (RV1503).
+* Per dispatch record: the wire count is the adapter-reported
+* `wireRequests` when present, else the absorbed id list's length,
+* else one (a single-wire dispatch); the named side counts the
+* absorbed ids or the single `responseId`, clamped by the wire count
+* (RV1410: a keyless single-wire row contributes one missing id).
+* Pure over the settled result, so live and resumed folds agree byte
+* for byte.
+*/
+declare function executionFactsOf(result: AgentResult<unknown>): ChildExecutionFacts;
 /**
 * One page of a settled child's FULL output, returned by the opt-in
 * `get_child_result` tool. The digest is a wake signal truncated to 400
@@ -7744,6 +7887,8 @@ interface ChildResultPage {
     kind: string;
     label?: string;
   }>;
+  /** The child's execution facts (RV1503), under the `executionFacts` opt-in only. */
+  facts?: ChildExecutionFacts;
 }
 /**
 * One page of a settled child's artifact CONTENT, returned by the opt-in
@@ -7834,8 +7979,12 @@ declare const WAKE_SUMMARY_RENDER_BUDGET_CHARS = 400;
 * spawn ordinal; the LLM distillation upgrade is M7 territory).
 */
 declare function summarizeOutput(result: AgentResult<unknown>): string;
-/** Folds one settled child into its digest (spawn-ordinal ordering is the caller's). */
-declare function digestOf(record: SpawnRecord, result: AgentResult<unknown>): TaskDigest;
+/**
+* Folds one settled child into its digest (spawn-ordinal ordering is
+* the caller's). `includeFacts` (RV1503) appends the replay-stable
+* execution facts; absent or false keeps the digest byte identical.
+*/
+declare function digestOf(record: SpawnRecord, result: AgentResult<unknown>, includeFacts?: boolean): TaskDigest;
 /** The journaled spawn-admission payload the runtime writes and recovers. */
 interface SpawnAdmissionValue {
   decisionType: "spawn-admission";
@@ -8327,6 +8476,12 @@ declare const DEFAULT_SYNTHESIS_MAX_TURNS = 4;
 */
 declare const DEFAULT_SYNTHESIS_NOTE_MAX_TURNS = 2;
 /**
+* Default maxTurns of the claim-consistency judge invocation
+* (RV1502): one structured-output turn plus headroom for schema
+* repair exchanges.
+*/
+declare const DEFAULT_CLAIM_JUDGE_MAX_TURNS = 3;
+/**
 * The opt in deterministic validation of the orchestrator finish result
 * (the v1.40.0 improvement plan's RV-204 slice). Every SCHEMA valid
 * finish({ result }) call first passes the configured host validators;
@@ -8559,6 +8714,23 @@ interface OrchestrateOptions {
   */
   exposeChildResultTools?: boolean;
   /**
+  * Opt in per-child execution facts on the await digests and the
+  * child result page (RV1503, the eighteenth improvement plan). The
+  * seventeenth comparison run graded its whole dossier
+  * `live-observed: нет` while the harness had just watched 118 wire
+  * requests settle, because no surface ever showed the composing root
+  * what its run actually executed. With this set, every TaskDigest an
+  * await returns (and every `get_child_result` page) carries
+  * `facts`: wire request and missing-response-id counts folded from
+  * the journaled per-dispatch reconciliation records, plus the
+  * journaled token totals ({@link executionFactsOf}), all
+  * replay-stable by construction. Dollars are deliberately absent
+  * (replay re-prices from the current table). Off by default: tool
+  * result bytes enter the window, and the window is journal identity,
+  * so the historical bytes stay exact without the opt-in.
+  */
+  executionFacts?: boolean;
+  /**
   * The opt in post-fan-in synthesis invocation (RV-211): with this set,
   * the coordination loop's finish({ result }) becomes a DRAFT, and a
   * SEPARATE fresh invocation with role 'synthesize' (its own model,
@@ -8584,6 +8756,23 @@ interface OrchestrateOptions {
   * {@link OrchestrateContradictions}.
   */
   contradictions?: OrchestrateContradictions;
+  /**
+  * The opt-in claim-consistency pass (RV1501/RV1502, the eighteenth
+  * improvement plan). The contradiction pass compares the children
+  * against EACH OTHER; nothing compares the COMPOSED text against the
+  * pool it composed from, so a root that inverts a child's finding
+  * while citing the child's own span passes every mechanical check
+  * (the seventeenth comparison run shipped exactly that inversion
+  * over `subprocess.ts:256-296`). With this set, the accepted draft's
+  * citing sentences are paired with the pool sentences reading an
+  * intersecting span of the same file ({@link pairDraftClaims}, a
+  * pure fold), and ONE bounded judge invocation rules on the pairs.
+  * The judge is a PAID model call, journaled like any agent entry, so
+  * a resume replays its verdict with zero adapter calls; when the
+  * fold pairs nothing, no judge is ever dispatched. See
+  * {@link OrchestrateClaimConsistency}.
+  */
+  claimConsistency?: OrchestrateClaimConsistency;
 }
 /**
 * The bounded contradiction pass's knobs (RV1302). The pass itself is a
@@ -8630,6 +8819,80 @@ interface OrchestrateContradictionsMeta {
   truncated: boolean;
 }
 /**
+* The claim-consistency pass's knobs (RV1501/RV1502). The pairing half
+* is a PURE fold ({@link pairDraftClaims}) over the accepted draft and
+* the same settled pool the contradiction pass judges, so it costs
+* nothing and journals nothing. The judge half is ONE bounded
+* structured-output invocation under role 'synthesize' (the routing
+* key picks its model unless `judge.model` overrides), dispatched only
+* when the fold produced at least one pair; its verdict is an ordinary
+* journaled agent entry, so a resumed run replays it with zero paid
+* calls and the derived findings are byte identical.
+*/
+interface OrchestrateClaimConsistency {
+  /**
+  * What a judged contradiction does. 'report' (the default) puts the
+  * findings on the acceptance envelope and in an info log, and
+  * changes nothing else. 'carry' additionally names them in the
+  * 'single' synthesis prompt with the instruction to resolve each
+  * explicitly (a ConfigError without that synthesis, the
+  * contradictions precedent), and non-empty findings block the
+  * `skipWhenDraftValid` gate: a draft contradicting its own pool
+  * never earns the skip. 'fail' fails the run typed with
+  * `data.source` 'orchestrator_claim_consistency' BEFORE any
+  * synthesis dispatch; the judge itself has already been paid, which
+  * is the honest minimum for a semantic verdict. A judge that does
+  * not settle ok is named on the meta (`judgeFailed`) and fails the
+  * run only under 'fail': a gate armed to stop the run must not pass
+  * silently when its judge dies.
+  */
+  onFound?: "report" | "carry" | "fail";
+  /** The judge invocation's own knobs; the routing chain applies otherwise. */
+  judge?: {
+    /** Model override for the judge invocation. */model?: ModelSpec; /** Canonical effort of the judge invocation. */
+    effort?: Effort; /** UsageLimits of the judge invocation; default { maxTurns: 3 }. */
+    limits?: UsageLimits; /** Admission estimate for the judge invocation, like AgentOpts.estCost. */
+    estCost?: number;
+  };
+  /** Overrides {@link DEFAULT_ANCHOR_PATTERN} for both sides; fail-closed at intake. */
+  pattern?: string;
+  /** Bound on judged pairs; default {@link DEFAULT_MAX_CLAIM_PAIRS}. */
+  max?: number;
+  /** Bound on each pair's pool readings; default {@link DEFAULT_MAX_POOL_PER_PAIR}. */
+  maxPoolPerPair?: number;
+  /** Bound on each excerpt; default {@link DEFAULT_MAX_PAIR_EXCERPT_CHARS}. */
+  maxExcerptChars?: number;
+}
+/** One judged contradiction: the pair plus the judge's one-sentence reason. */
+interface ClaimContradictionFinding extends ClaimPair {
+  reason: string;
+}
+/**
+* What the claim-consistency pass looked at, beside its findings.
+* Rides the acceptance envelope as `claimConsistencyMeta` whenever the
+* pass is configured, exactly like `contradictionsMeta`: `[]` plus
+* this meta says "the fold paired `pairs` sentences and the judge
+* cleared them", while an absent pair of fields says nothing looked.
+* `judgeInvoked` false records that no pair existed to judge, and
+* `judgeFailed` names a judge invocation that did not settle ok, in
+* which case `claimContradictions` is absent: nothing was judged, and
+* an empty list would claim the pool agreed.
+*/
+interface OrchestrateClaimConsistencyMeta {
+  /** How many accepted children the fold read. */
+  poolChildren: number;
+  /** Draft sentences carrying at least one parsable anchor. */
+  draftCitingSentences: number;
+  /** Pairs the fold produced (and the judge ruled on, when invoked). */
+  pairs: number;
+  /** True when more pairs existed than `max` allowed to judge. */
+  truncated: boolean;
+  /** True when the judge invocation was dispatched. */
+  judgeInvoked: boolean;
+  /** Present when the judge invocation did not settle ok. */
+  judgeFailed?: true;
+}
+/**
 * The synthesis invocation's own knobs (RV-211). Everything else about
 * the invocation is deterministic: the prompt derives from the journaled
 * draft and the settled child digest, the toolset is the single finish
@@ -8665,6 +8928,18 @@ interface OrchestrateSynthesis {
   * when unset (prompt bytes are journal identity).
   */
   policyFacts?: boolean;
+  /**
+  * Opt-in RUN FACTS line in the 'single' synthesis prompt (RV1503),
+  * the policyFacts sibling: the aggregate of the settled children's
+  * replay-stable execution facts ({@link executionFactsOf}: wire
+  * requests, missing response ids, token totals, statuses), so the
+  * composing model can grade `live-observed` truthfully instead of
+  * erasing the run it is part of. The line names its own boundary
+  * (harness-observed, not production evidence). Folded ONLY from
+  * journal-replayed material; off by default, and the prompt stays
+  * byte identical when unset.
+  */
+  runFacts?: boolean;
   /**
   * Admission estimate for the synthesize invocation, like
   * AgentOpts.estCost: under a tight orchestrator cap the default
@@ -11687,54 +11962,6 @@ declare function buildOrchestratorTools(runtime: OrchestratorRuntime, profileCar
   sectionalFinish?: boolean;
 }): ToolDef[];
 //#endregion
-//#region src/orchestrator/contradictions.d.ts
-/** One child's serialized output as the pass reads it. */
-interface ContradictionSource {
-  /** The child's node identity, the same one acceptance reasons use. */
-  readonly nodeId: string;
-  /** The child's full output serialized, the pool the validators judge. */
-  readonly text: string;
-}
-/** One reading of a disputed key, with everyone who reported it. */
-interface ContradictionClaim {
-  /** The value asserted for the key, verbatim after the separator. */
-  value: string;
-  /** Children asserting it, in first-seen (spawn) order; never empty. */
-  nodeIds: string[];
-  /**
-  * The first sentence that asserted it, whitespace-collapsed and cut
-  * to `maxExcerptChars`. An excerpt, never a quotation: it exists so a
-  * reader can find the claim, not so a machine can re-parse it.
-  */
-  excerpt: string;
-}
-/** One cited location two children read differently. */
-interface Contradiction {
-  /** The cited location both readings point at, e.g. 'src/retry.ts:33'. */
-  anchor: string;
-  /** The key both readings name, e.g. 'attempts'. */
-  key: string;
-  /** Every reading of that key at that anchor, in first-seen order. */
-  claims: ContradictionClaim[];
-}
-interface ContradictionOptions {
-  /** Overrides {@link DEFAULT_CITATION_PATTERN} for the anchors. */
-  pattern?: string;
-  /** Bound on returned contradictions; default 20. */
-  max?: number;
-  /** Bound on each claim's excerpt; default 200. */
-  maxExcerptChars?: number;
-}
-declare const DEFAULT_MAX_CONTRADICTIONS = 20;
-declare const DEFAULT_MAX_EXCERPT_CHARS = 200;
-/**
-* Folds the settled children's outputs into the contradictions they
-* hold against each other. Pure and deterministic: the output depends
-* only on the input order and bytes, so a resumed run re-derives it
-* without journaling anything.
-*/
-declare function findContradictions(rows: readonly ContradictionSource[], options?: ContradictionOptions): Contradiction[];
-//#endregion
 //#region src/engine/events.d.ts
 /**
 * The distance between the telemetry counter bases of two consecutive
@@ -12075,4 +12302,4 @@ interface SandboxBridge {
 declare const SANDBOX_AGENT_OPT_KEYS: readonly string[];
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, AcceptanceChildSummary, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, type AppliedPricingRow, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildIdentityInput, ChildResultPage, CitationTarget, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, Contradiction, ContradictionClaim, ContradictionOptions, ContradictionSource, type CoreEvents, CostAttribution, CostAttributionFacts, type CostBasis, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DEFAULT_ARTIFACT_PATTERN, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_PATTERN, DEFAULT_CITATION_SAMPLE, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_CALLS_PER_ENTRY, DEFAULT_EVIDENCE_GRADE_PHRASES, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_EVIDENCE_OVERHEAD_CALLS, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_CONTRADICTIONS, DEFAULT_MAX_DEPTH, DEFAULT_MAX_EXCERPT_CHARS, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DataKeyProvider, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DocumentedRates, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryBillingFold, EntryBillingUnit, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, EvidenceContract, type EvidenceRef, type ExecKeyDerivation, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINISH_SCHEMA, FINISH_SECTIONAL_SCHEMA, FINISH_TOOL_NAME, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FencedCodeMode, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, type FinalizationWindowBudget, FinishContract, FinishContractCitations, FinishContractGoldenReject, FinishContractManifest, FinishInfo, FinishSelfTestFailure, FinishSelfTestFixtures, FinishSelfTestReport, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceCardinality, InvoiceExport, InvoicePricingProvenance, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalPricingSnapshot, JournalSerializationContext, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_DEPTH_CEILING, MAX_RUN_ID_LENGTH, MAX_TIMER_DELAY_MS, MatchResult, McpConfig, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateAcceptance, OrchestrateContradictions, OrchestrateContradictionsMeta, OrchestrateOptions, OrchestrateSynthesis, OrchestrateSynthesisSkipReason, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PersistedTerminalRefusal, PersistedTerminalResult, type PhaseRow, PhaseTarget, type PinnedPricingSegment, PipelineCollected, PipelineOpts, PlanInvariantError, type PostFanInBreakdown, PreflightAdmissionRow, PreflightFinding, PreflightInput, PreflightOrchestratorSpec, PreflightReport, PreflightSpawnReport, PreflightSpawnSpec, PreflightToolCeiling, PriceTable, PricedComponent, PricedComponents, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, RateLimitObservation, ReconcileOptions, ReconcileResult, RefEntryAppender, RefEntryClassification, RefusalInfo, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, SectionMatchMode, Semaphore, SerializationHook, Settled, SettlementError, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, type StreamHooks, StructuredOutputTier, SupersededError, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, type TerminalEnvelope, TerminalOutcomeFacts, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, type ToolBudgetSummary, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, assertSafeRunId, atCompactionThreshold, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, citationTargetsValidator, citedValueValidator, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compareRates, compilePermissionChain, compilePermissionPreset, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispatchProjectionReserveUsd, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidenceGradeValidator, evidencePreservedValidator, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, findContradictions, finishContract, foldLedger, foldTermination, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, headingStructureValidator, identityJcs, implementationAgentProfile, invoiceFromJournal, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, journalPricingSnapshot, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, orchestratorAdmissionEstCostUsd, parallelScope, parseModelRef, parseScopePath, persistedTerminalEnvelope, phiInitialOf, pipelineScope, planNodeScope, preflightEstimate, priceComponentsOf, priceEntryBilling, priceEntryUsage, priceUsdOf, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualRequestsDelta, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleKey, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reduceAuditTrail, reduceCriticalPath, reduceInvocationTable, registryKeyRing, remeasureQueue, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredSectionsValidator, researchAgentProfile, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, sectionCitationsValidator, selectStructuredOutputTier, selfTestFinishValidation, shouldCompact, snapshotQuotaRules, snapshotUsage, spawnDepthOf, spliceSections, stripFencedBlocks, sumUsage, summarizeInstruction, summarizeOutput, terminalEnvelopeOf, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, usageViolations, validateDetachedResolution, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateUsageLimits, wordCountValidator, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, AcceptanceChildSummary, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, type AppliedPricingRow, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildExecutionFacts, ChildIdentityInput, ChildResultPage, CitationTarget, type ClaimClass, ClaimContradictionFinding, type ClaimOp, ClaimPair, ClaimPairOptions, ClaimPairsFold, ClaimPoolReading, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, Contradiction, ContradictionClaim, ContradictionOptions, ContradictionSource, type CoreEvents, CostAttribution, CostAttributionFacts, type CostBasis, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DEFAULT_ANCHOR_PATTERN, DEFAULT_ARTIFACT_PATTERN, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_PATTERN, DEFAULT_CITATION_SAMPLE, DEFAULT_CLAIM_JUDGE_MAX_TURNS, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_CALLS_PER_ENTRY, DEFAULT_EVIDENCE_GRADE_PHRASES, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_EVIDENCE_OVERHEAD_CALLS, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_CLAIM_PAIRS, DEFAULT_MAX_CONTRADICTIONS, DEFAULT_MAX_DEPTH, DEFAULT_MAX_EXCERPT_CHARS, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PAIR_EXCERPT_CHARS, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_POOL_PER_PAIR, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DataKeyProvider, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DocumentedRates, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryBillingFold, EntryBillingUnit, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, EvidenceContract, type EvidenceRef, type ExecKeyDerivation, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINISH_SCHEMA, FINISH_SECTIONAL_SCHEMA, FINISH_TOOL_NAME, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FencedCodeMode, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, type FinalizationWindowBudget, FinishContract, FinishContractCitations, FinishContractGoldenReject, FinishContractManifest, FinishInfo, FinishSelfTestFailure, FinishSelfTestFixtures, FinishSelfTestReport, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceCardinality, InvoiceExport, InvoicePricingProvenance, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalPricingSnapshot, JournalSerializationContext, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_DEPTH_CEILING, MAX_RUN_ID_LENGTH, MAX_TIMER_DELAY_MS, MatchResult, McpConfig, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateAcceptance, OrchestrateClaimConsistency, OrchestrateClaimConsistencyMeta, OrchestrateContradictions, OrchestrateContradictionsMeta, OrchestrateOptions, OrchestrateSynthesis, OrchestrateSynthesisSkipReason, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PersistedTerminalRefusal, PersistedTerminalResult, type PhaseRow, PhaseTarget, type PinnedPricingSegment, PipelineCollected, PipelineOpts, PlanInvariantError, type PostFanInBreakdown, PreflightAdmissionRow, PreflightFinding, PreflightInput, PreflightOrchestratorSpec, PreflightReport, PreflightSpawnReport, PreflightSpawnSpec, PreflightToolCeiling, PriceTable, PricedComponent, PricedComponents, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, RateLimitObservation, ReconcileOptions, ReconcileResult, RefEntryAppender, RefEntryClassification, RefusalInfo, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, SectionMatchMode, Semaphore, SerializationHook, Settled, SettlementError, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, type StreamHooks, StructuredOutputTier, SupersededError, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, type TerminalEnvelope, TerminalOutcomeFacts, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, type ToolBudgetSummary, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, assertSafeRunId, atCompactionThreshold, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, citationTargetsValidator, citedValueValidator, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compareRates, compilePermissionChain, compilePermissionPreset, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispatchProjectionReserveUsd, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidenceGradeValidator, evidencePreservedValidator, executeWorkflow, executionFactsOf, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, findContradictions, finishContract, foldLedger, foldTermination, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, headingStructureValidator, identityJcs, implementationAgentProfile, invoiceFromJournal, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, journalPricingSnapshot, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, orchestratorAdmissionEstCostUsd, pairDraftClaims, parallelScope, parseModelRef, parseScopePath, persistedTerminalEnvelope, phiInitialOf, pipelineScope, planNodeScope, preflightEstimate, priceComponentsOf, priceEntryBilling, priceEntryUsage, priceUsdOf, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualRequestsDelta, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleKey, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reduceAuditTrail, reduceCriticalPath, reduceInvocationTable, registryKeyRing, remeasureQueue, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredSectionsValidator, researchAgentProfile, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, sectionCitationsValidator, selectStructuredOutputTier, selfTestFinishValidation, shouldCompact, snapshotQuotaRules, snapshotUsage, spawnDepthOf, spliceSections, stripFencedBlocks, sumUsage, summarizeInstruction, summarizeOutput, terminalEnvelopeOf, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, usageViolations, validateDetachedResolution, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateUsageLimits, wordCountValidator, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };

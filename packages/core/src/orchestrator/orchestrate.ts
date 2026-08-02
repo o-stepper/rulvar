@@ -60,6 +60,7 @@ import type { AdmissionDecision } from './admission.js';
 import { dedupeRepeatedClaims, type RepeatedClaim } from './claims.js';
 import {
   digestOf,
+  executionFactsOf,
   WAKE_SUMMARY_RENDER_BUDGET_CHARS,
   type ChildArtifactPage,
   type ChildResultPage,
@@ -90,6 +91,8 @@ import {
   type Contradiction,
   type ContradictionSource,
 } from './contradictions.js';
+import { DEFAULT_MAX_CLAIM_PAIRS, pairDraftClaims, type ClaimPair } from './consistency.js';
+import type { SchemaSpec } from '../l0/schema.js';
 import {
   selfTestFinishValidation,
   type FinishContract,
@@ -301,6 +304,41 @@ export const DEFAULT_SYNTHESIS_MAX_TURNS = 4;
  * so it needs less headroom than the full synthesis invocation.
  */
 export const DEFAULT_SYNTHESIS_NOTE_MAX_TURNS = 2;
+
+/**
+ * Default maxTurns of the claim-consistency judge invocation
+ * (RV1502): one structured-output turn plus headroom for schema
+ * repair exchanges.
+ */
+export const DEFAULT_CLAIM_JUDGE_MAX_TURNS = 3;
+
+/**
+ * The judge invocation's output schema (RV1502): one row per judged
+ * contradiction, naming the zero-based pair index and one short
+ * reason. Static on purpose: schemaHash enters identity, and a schema
+ * derived from the pair count would re-key the invocation on every
+ * pool change without buying any validation the defensive row check
+ * does not already perform.
+ */
+const CLAIM_JUDGE_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['contradictions'],
+  properties: {
+    contradictions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['pair', 'reason'],
+        properties: {
+          pair: { type: 'integer', minimum: 0 },
+          reason: { type: 'string', minLength: 1 },
+        },
+      },
+    },
+  },
+};
 
 /**
  * The opt in deterministic validation of the orchestrator finish result
@@ -541,6 +579,23 @@ export interface OrchestrateOptions {
    */
   exposeChildResultTools?: boolean;
   /**
+   * Opt in per-child execution facts on the await digests and the
+   * child result page (RV1503, the eighteenth improvement plan). The
+   * seventeenth comparison run graded its whole dossier
+   * `live-observed: нет` while the harness had just watched 118 wire
+   * requests settle, because no surface ever showed the composing root
+   * what its run actually executed. With this set, every TaskDigest an
+   * await returns (and every `get_child_result` page) carries
+   * `facts`: wire request and missing-response-id counts folded from
+   * the journaled per-dispatch reconciliation records, plus the
+   * journaled token totals ({@link executionFactsOf}), all
+   * replay-stable by construction. Dollars are deliberately absent
+   * (replay re-prices from the current table). Off by default: tool
+   * result bytes enter the window, and the window is journal identity,
+   * so the historical bytes stay exact without the opt-in.
+   */
+  executionFacts?: boolean;
+  /**
    * The opt in post-fan-in synthesis invocation (RV-211): with this set,
    * the coordination loop's finish({ result }) becomes a DRAFT, and a
    * SEPARATE fresh invocation with role 'synthesize' (its own model,
@@ -566,6 +621,23 @@ export interface OrchestrateOptions {
    * {@link OrchestrateContradictions}.
    */
   contradictions?: OrchestrateContradictions;
+  /**
+   * The opt-in claim-consistency pass (RV1501/RV1502, the eighteenth
+   * improvement plan). The contradiction pass compares the children
+   * against EACH OTHER; nothing compares the COMPOSED text against the
+   * pool it composed from, so a root that inverts a child's finding
+   * while citing the child's own span passes every mechanical check
+   * (the seventeenth comparison run shipped exactly that inversion
+   * over `subprocess.ts:256-296`). With this set, the accepted draft's
+   * citing sentences are paired with the pool sentences reading an
+   * intersecting span of the same file ({@link pairDraftClaims}, a
+   * pure fold), and ONE bounded judge invocation rules on the pairs.
+   * The judge is a PAID model call, journaled like any agent entry, so
+   * a resume replays its verdict with zero adapter calls; when the
+   * fold pairs nothing, no judge is ever dispatched. See
+   * {@link OrchestrateClaimConsistency}.
+   */
+  claimConsistency?: OrchestrateClaimConsistency;
 }
 
 /**
@@ -615,6 +687,87 @@ export interface OrchestrateContradictionsMeta {
 }
 
 /**
+ * The claim-consistency pass's knobs (RV1501/RV1502). The pairing half
+ * is a PURE fold ({@link pairDraftClaims}) over the accepted draft and
+ * the same settled pool the contradiction pass judges, so it costs
+ * nothing and journals nothing. The judge half is ONE bounded
+ * structured-output invocation under role 'synthesize' (the routing
+ * key picks its model unless `judge.model` overrides), dispatched only
+ * when the fold produced at least one pair; its verdict is an ordinary
+ * journaled agent entry, so a resumed run replays it with zero paid
+ * calls and the derived findings are byte identical.
+ */
+export interface OrchestrateClaimConsistency {
+  /**
+   * What a judged contradiction does. 'report' (the default) puts the
+   * findings on the acceptance envelope and in an info log, and
+   * changes nothing else. 'carry' additionally names them in the
+   * 'single' synthesis prompt with the instruction to resolve each
+   * explicitly (a ConfigError without that synthesis, the
+   * contradictions precedent), and non-empty findings block the
+   * `skipWhenDraftValid` gate: a draft contradicting its own pool
+   * never earns the skip. 'fail' fails the run typed with
+   * `data.source` 'orchestrator_claim_consistency' BEFORE any
+   * synthesis dispatch; the judge itself has already been paid, which
+   * is the honest minimum for a semantic verdict. A judge that does
+   * not settle ok is named on the meta (`judgeFailed`) and fails the
+   * run only under 'fail': a gate armed to stop the run must not pass
+   * silently when its judge dies.
+   */
+  onFound?: 'report' | 'carry' | 'fail';
+  /** The judge invocation's own knobs; the routing chain applies otherwise. */
+  judge?: {
+    /** Model override for the judge invocation. */
+    model?: ModelSpec;
+    /** Canonical effort of the judge invocation. */
+    effort?: Effort;
+    /** UsageLimits of the judge invocation; default { maxTurns: 3 }. */
+    limits?: UsageLimits;
+    /** Admission estimate for the judge invocation, like AgentOpts.estCost. */
+    estCost?: number;
+  };
+  /** Overrides {@link DEFAULT_ANCHOR_PATTERN} for both sides; fail-closed at intake. */
+  pattern?: string;
+  /** Bound on judged pairs; default {@link DEFAULT_MAX_CLAIM_PAIRS}. */
+  max?: number;
+  /** Bound on each pair's pool readings; default {@link DEFAULT_MAX_POOL_PER_PAIR}. */
+  maxPoolPerPair?: number;
+  /** Bound on each excerpt; default {@link DEFAULT_MAX_PAIR_EXCERPT_CHARS}. */
+  maxExcerptChars?: number;
+}
+
+/** One judged contradiction: the pair plus the judge's one-sentence reason. */
+export interface ClaimContradictionFinding extends ClaimPair {
+  reason: string;
+}
+
+/**
+ * What the claim-consistency pass looked at, beside its findings.
+ * Rides the acceptance envelope as `claimConsistencyMeta` whenever the
+ * pass is configured, exactly like `contradictionsMeta`: `[]` plus
+ * this meta says "the fold paired `pairs` sentences and the judge
+ * cleared them", while an absent pair of fields says nothing looked.
+ * `judgeInvoked` false records that no pair existed to judge, and
+ * `judgeFailed` names a judge invocation that did not settle ok, in
+ * which case `claimContradictions` is absent: nothing was judged, and
+ * an empty list would claim the pool agreed.
+ */
+export interface OrchestrateClaimConsistencyMeta {
+  /** How many accepted children the fold read. */
+  poolChildren: number;
+  /** Draft sentences carrying at least one parsable anchor. */
+  draftCitingSentences: number;
+  /** Pairs the fold produced (and the judge ruled on, when invoked). */
+  pairs: number;
+  /** True when more pairs existed than `max` allowed to judge. */
+  truncated: boolean;
+  /** True when the judge invocation was dispatched. */
+  judgeInvoked: boolean;
+  /** Present when the judge invocation did not settle ok. */
+  judgeFailed?: true;
+}
+
+/**
  * The synthesis invocation's own knobs (RV-211). Everything else about
  * the invocation is deterministic: the prompt derives from the journaled
  * draft and the settled child digest, the toolset is the single finish
@@ -650,6 +803,18 @@ export interface OrchestrateSynthesis {
    * when unset (prompt bytes are journal identity).
    */
   policyFacts?: boolean;
+  /**
+   * Opt-in RUN FACTS line in the 'single' synthesis prompt (RV1503),
+   * the policyFacts sibling: the aggregate of the settled children's
+   * replay-stable execution facts ({@link executionFactsOf}: wire
+   * requests, missing response ids, token totals, statuses), so the
+   * composing model can grade `live-observed` truthfully instead of
+   * erasing the run it is part of. The line names its own boundary
+   * (harness-observed, not production evidence). Folded ONLY from
+   * journal-replayed material; off by default, and the prompt stays
+   * byte identical when unset.
+   */
+  runFacts?: boolean;
   /**
    * Admission estimate for the synthesize invocation, like
    * AgentOpts.estCost: under a tight orchestrator cap the default
@@ -1319,10 +1484,15 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         `orchestrate synthesis.instructions must be a string; got ${typeof synthesis.instructions}`,
       );
     }
-    const facts = synthesis as { policyFacts?: unknown };
+    const facts = synthesis as { policyFacts?: unknown; runFacts?: unknown };
     if (facts.policyFacts !== undefined && typeof facts.policyFacts !== 'boolean') {
       throw new ConfigError(
         `orchestrate synthesis.policyFacts must be a boolean; got ${typeof facts.policyFacts}`,
+      );
+    }
+    if (facts.runFacts !== undefined && typeof facts.runFacts !== 'boolean') {
+      throw new ConfigError(
+        `orchestrate synthesis.runFacts must be a boolean; got ${typeof facts.runFacts}`,
       );
     }
     if (synthesis.estCost !== undefined) {
@@ -1397,6 +1567,124 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         )}`,
       );
     }
+  }
+  if (opts.claimConsistency !== undefined) {
+    const consistency = opts.claimConsistency as {
+      onFound?: unknown;
+      judge?: unknown;
+      pattern?: unknown;
+      max?: unknown;
+      maxPoolPerPair?: unknown;
+      maxExcerptChars?: unknown;
+    };
+    if (typeof consistency !== 'object' || Array.isArray(consistency)) {
+      throw new ConfigError(
+        `orchestrate claimConsistency must be an object; got ${JSON.stringify(
+          opts.claimConsistency,
+        )}`,
+      );
+    }
+    const onFound = consistency.onFound ?? 'report';
+    if (onFound !== 'report' && onFound !== 'carry' && onFound !== 'fail') {
+      throw new ConfigError(
+        "orchestrate claimConsistency.onFound must be 'report', 'carry' or 'fail'; got " +
+          JSON.stringify(consistency.onFound),
+      );
+    }
+    if (onFound === 'carry') {
+      if (opts.synthesis === undefined) {
+        throw new ConfigError(
+          "orchestrate claimConsistency.onFound 'carry' requires synthesis: without the " +
+            'post-fan-in invocation there is no prompt to carry the findings into; use ' +
+            "'report' or 'fail'",
+        );
+      }
+      if (opts.synthesis.mode === 'incremental') {
+        throw new ConfigError(
+          "orchestrate claimConsistency.onFound 'carry' needs a 'single' synthesis: the " +
+            "deterministic 'incremental' reconciliation has no prompt for the findings to ride",
+        );
+      }
+    }
+    if (consistency.pattern !== undefined) {
+      if (typeof consistency.pattern !== 'string') {
+        throw new ConfigError(
+          `orchestrate claimConsistency.pattern must be a string; got ${typeof consistency.pattern}`,
+        );
+      }
+      let probe: RegExp;
+      try {
+        probe = new RegExp(consistency.pattern, '');
+      } catch (thrown) {
+        throw new ConfigError(
+          'orchestrate claimConsistency.pattern does not compile: ' +
+            (thrown instanceof Error ? thrown.message : String(thrown)),
+        );
+      }
+      // The RV610 posture, exactly like the contradiction pass: a
+      // pattern matching the empty string floods the fold instead of
+      // arming it.
+      if (probe.test('')) {
+        throw new ConfigError(
+          'orchestrate claimConsistency.pattern must not be able to match the empty string; ' +
+            `got ${JSON.stringify(consistency.pattern)}`,
+        );
+      }
+    }
+    for (const [label, bound] of [
+      ['max', consistency.max],
+      ['maxPoolPerPair', consistency.maxPoolPerPair],
+      ['maxExcerptChars', consistency.maxExcerptChars],
+    ] as const) {
+      if (bound !== undefined && (!Number.isInteger(bound) || (bound as number) < 1)) {
+        throw new ConfigError(
+          `orchestrate claimConsistency.${label} must be a positive integer; got ` +
+            JSON.stringify(bound),
+        );
+      }
+    }
+    if (consistency.judge !== undefined) {
+      const judge = consistency.judge as {
+        effort?: unknown;
+        limits?: unknown;
+        estCost?: unknown;
+      };
+      if (typeof judge !== 'object' || judge === null || Array.isArray(judge)) {
+        throw new ConfigError(
+          `orchestrate claimConsistency.judge must be an object; got ${JSON.stringify(
+            consistency.judge,
+          )}`,
+        );
+      }
+      if (
+        judge.effort !== undefined &&
+        !['low', 'medium', 'high', 'xhigh', 'max'].includes(judge.effort as string)
+      ) {
+        throw new ConfigError(
+          "orchestrate claimConsistency.judge.effort must be one of 'low' | 'medium' | " +
+            `'high' | 'xhigh' | 'max'; got ${JSON.stringify(judge.effort)}`,
+        );
+      }
+      if (judge.limits !== undefined) {
+        validateUsageLimits(
+          judge.limits as UsageLimits,
+          'orchestrate claimConsistency.judge.limits',
+        );
+      }
+      if (judge.estCost !== undefined) {
+        requireNonNegativeNumber(
+          judge.estCost as number,
+          'orchestrate claimConsistency.judge.estCost',
+        );
+      }
+    }
+  }
+  if (opts.executionFacts !== undefined && typeof opts.executionFacts !== 'boolean') {
+    // The RV610 posture: the opt-in authorizes new tool-result bytes,
+    // and a stray 'true' string must not silently disarm it.
+    throw new ConfigError(
+      `orchestrate executionFacts must be a boolean; got ${typeof opts.executionFacts}`,
+    );
   }
   const spec = opts.budget;
   if (spec === undefined) {
@@ -2545,6 +2833,10 @@ export function makeOrchestratorWorkflow(
       return extras === undefined ? digest : { ...digest, ...extras };
     };
 
+    // The executionFacts opt-in (RV1503), captured once: runtime
+    // methods with their own `opts` parameter shadow the workflow
+    // options.
+    const executionFactsEnabled = opts?.executionFacts === true;
     const orchestratorRuntime: OrchestratorRuntime = {
       async spawn(params: SpawnAgentParams): Promise<{ handle: number }> {
         await recoveryDone;
@@ -2741,7 +3033,10 @@ export function makeOrchestratorWorkflow(
         const first = await Promise.race(
           waited.map(async (record) => ({ record, result: await record.result })),
         );
-        return digestOf(first.record, first.result);
+        // The executionFacts opt-in (RV1503) rides the await digests:
+        // tool result bytes are journal identity, so the flag is what
+        // authorizes them.
+        return digestOf(first.record, first.result, executionFactsEnabled);
       },
       async awaitAll(handles: number[]): Promise<TaskDigest[]> {
         await recoveryDone;
@@ -2752,7 +3047,11 @@ export function makeOrchestratorWorkflow(
           }
           return record;
         });
-        return Promise.all(waited.map(async (record) => digestOf(record, await record.result)));
+        return Promise.all(
+          waited.map(async (record) =>
+            digestOf(record, await record.result, executionFactsEnabled),
+          ),
+        );
       },
       async waitForEvents(rawTriggers: unknown): Promise<unknown> {
         await recoveryDone;
@@ -2952,6 +3251,8 @@ export function makeOrchestratorWorkflow(
             kind: artifact.kind,
             ...(artifact.label === undefined ? {} : { label: artifact.label }),
           })),
+          // The executionFacts opt-in (RV1503), the await digests' rule.
+          ...(executionFactsEnabled ? { facts: executionFactsOf(settled) } : {}),
         };
       },
       async readChildArtifact(
@@ -4293,6 +4594,16 @@ export function makeOrchestratorWorkflow(
     /** Set beside {@link contradictionsFound}, always as a pair (RV1404). */
     let contradictionsMeta: OrchestrateContradictionsMeta | undefined;
     /**
+     * The claim-consistency findings (RV1502): undefined until the pass
+     * ran (or when it is not configured), an array once the judge ruled
+     * (empty = every pair cleared), and left undefined with
+     * `claimConsistencyMeta.judgeFailed` when the judge invocation did
+     * not settle ok, because an empty list would claim the pool agreed.
+     */
+    let claimFindingsFound: ClaimContradictionFinding[] | undefined;
+    /** Set whenever the pass ran, findings or not (the RV1404 pairing). */
+    let claimConsistencyMeta: OrchestrateClaimConsistencyMeta | undefined;
+    /**
      * The salvage arms the acceptance decision counted (RV1403), set on
      * the accepted path AFTER the decision, fresh or rolled forward
      * from the journal, so live and resume read the same lists; a
@@ -4426,6 +4737,217 @@ export function makeOrchestratorWorkflow(
             contradictionsMeta: contradictionsMeta as unknown as Json,
             // The acceptance snapshot the run already earned (cycle 73):
             // the fan-out work IS complete, the failure is downstream.
+            ...(snapshot ?? {}),
+          },
+        },
+      );
+    };
+
+    /**
+     * The claim-consistency pass (RV1501/RV1502): pairs the accepted
+     * draft's citing sentences with the settled pool (a pure fold,
+     * free) and lets ONE bounded judge invocation rule on the pairs.
+     * Sits at the same post-fan-in chokepoint as the contradiction
+     * pass, strictly AFTER it (the pure fold fails first, so a
+     * self-contradicting pool never pays for the judge) and BEFORE any
+     * synthesis dispatch. The judge is an ordinary journaled agent
+     * entry, so a resume replays the verdict with zero paid calls and
+     * this pass journals nothing of its own.
+     */
+    const runClaimConsistencyPass = async (
+      draft: unknown,
+      snapshot?: Record<string, Json>,
+    ): Promise<void> => {
+      const spec = opts?.claimConsistency;
+      if (spec === undefined) {
+        return;
+      }
+      // A REPLAYED root returns before the async recovery has rebuilt
+      // `records`, exactly like the contradiction pass above.
+      await recoveryDone;
+      const acceptedRoster = acceptedRosterNow();
+      const pool: ContradictionSource[] = [];
+      for (const record of [...byOrdinal.values()].sort(
+        (a, b) => a.spawnOrdinal - b.spawnOrdinal,
+      )) {
+        const settled = record.settled;
+        if (settled === undefined) {
+          continue;
+        }
+        // The ACCEPTED roster exactly, the contradiction pass's own
+        // membership rule (RV1403): what the decision counted, ok
+        // children plus both salvage arms; without acceptance, the ok
+        // children. A dead child's error text is not evidence. Named
+        // `inPool` (not `accepted`) so the contradiction pass keeps the
+        // only occurrence of its own doctrine bytes.
+        const inPool =
+          acceptedRoster === undefined
+            ? settled.status === 'ok'
+            : acceptedRoster.has(record.nodeId);
+        if (!inPool) {
+          continue;
+        }
+        pool.push({ nodeId: record.nodeId, text: serializeChildOutput(settled) });
+      }
+      const draftText = typeof draft === 'string' ? draft : JSON.stringify(draft ?? null);
+      const fold = pairDraftClaims(draftText, pool, {
+        ...(spec.pattern === undefined ? {} : { pattern: spec.pattern }),
+        max: spec.max ?? DEFAULT_MAX_CLAIM_PAIRS,
+        ...(spec.maxPoolPerPair === undefined ? {} : { maxPoolPerPair: spec.maxPoolPerPair }),
+        ...(spec.maxExcerptChars === undefined ? {} : { maxExcerptChars: spec.maxExcerptChars }),
+      });
+      const onFound = spec.onFound ?? 'report';
+      const metaBase = {
+        poolChildren: pool.length,
+        draftCitingSentences: fold.draftCitingSentences,
+        pairs: fold.pairs.length,
+        truncated: fold.truncated,
+      };
+      const announce = (): void => {
+        internals.events.emit(
+          {
+            type: 'log',
+            level: (claimFindingsFound?.length ?? 0) === 0 ? 'debug' : 'info',
+            msg: 'orchestrator claim consistency pass',
+            data: {
+              children: pool.length,
+              pairs: fold.pairs.length,
+              findings: claimFindingsFound?.length ?? 0,
+              truncated: fold.truncated,
+              onFound,
+              judgeInvoked: claimConsistencyMeta?.judgeInvoked ?? false,
+              ...(claimConsistencyMeta?.judgeFailed === true ? { judgeFailed: true } : {}),
+            },
+          },
+          callingState.spanId,
+        );
+      };
+      if (fold.pairs.length === 0) {
+        // Nothing to judge is a verdict of its own: the fold looked and
+        // paired nothing, and no judge invocation is ever dispatched.
+        claimFindingsFound = [];
+        claimConsistencyMeta = { ...metaBase, judgeInvoked: false };
+        announce();
+        return;
+      }
+      const judgePrompt = [
+        'You are the claim-consistency judge of an orchestrated run. Each PAIR below holds ' +
+          'one sentence of the COMPOSED DRAFT beside the settled child sentences citing an ' +
+          'intersecting span of the same file. Report ONLY real contradictions: a pair whose ' +
+          'draft sentence asserts about the cited location something a pool reading denies ' +
+          '(an inverted behavior, a negated default, a different value). Restating, ' +
+          'summarizing, or narrowing a reading is NOT a contradiction. Answer with ' +
+          '{ contradictions: [{ pair, reason }] }: pair is the zero-based PAIR index and ' +
+          'reason is one short sentence naming the disagreement; an empty array means every ' +
+          'pair agrees.',
+        `PAIRS: ${JSON.stringify(
+          fold.pairs.map((pair, index) => ({
+            pair: index,
+            anchor: pair.anchor,
+            draft: pair.draftExcerpt,
+            pool: pair.pool,
+          })),
+        )}`,
+      ].join('\n');
+      const judgeState: CtxScopeState = { ...callingState };
+      if (orchestratorAccount !== undefined) {
+        judgeState.budgetScope = orchestratorAccount;
+      }
+      const judgeOpts: AgentOpts & { result: 'full' } = {
+        role: 'synthesize',
+        result: 'full',
+        label: 'claim-consistency-judge',
+        schema: CLAIM_JUDGE_SCHEMA,
+        limits: spec.judge?.limits ?? { maxTurns: DEFAULT_CLAIM_JUDGE_MAX_TURNS },
+        ...(spec.judge?.model === undefined ? {} : { model: spec.judge.model }),
+        ...(spec.judge?.effort === undefined ? {} : { effort: spec.judge.effort }),
+        ...(spec.judge?.estCost === undefined ? {} : { estCost: spec.judge.estCost }),
+      };
+      const judged = await runtime.runInScope(judgeState, () =>
+        (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+          judgePrompt,
+          judgeOpts,
+        ),
+      );
+      if (judged.status !== 'ok' || judged.output === null || judged.output === undefined) {
+        // The judge died: nothing was judged, and saying "no findings"
+        // would claim the pool agreed. The meta names the failure; only
+        // the 'fail' posture turns it into a run failure, because a
+        // gate armed to stop the run must not pass silently when its
+        // judge cannot rule.
+        claimConsistencyMeta = { ...metaBase, judgeInvoked: true, judgeFailed: true };
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg: 'orchestrator claim consistency judge failed',
+            data: {
+              status: judged.status,
+              ...(judged.errorMessage === undefined ? {} : { error: judged.errorMessage }),
+            },
+          },
+          callingState.spanId,
+        );
+        if (onFound === 'fail') {
+          throw new FailRunError(
+            'the claim-consistency judge did not settle ok ' +
+              `(status '${judged.status}'), so the armed fail posture cannot pass the draft`,
+            {
+              data: {
+                source: 'orchestrator_claim_consistency',
+                judgeStatus: judged.status,
+                claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+                ...(snapshot ?? {}),
+              },
+            },
+          );
+        }
+        return;
+      }
+      // The judged rows, validated shape by shape (the lift posture): a
+      // malformed or out-of-range row is dropped, a repeated pair index
+      // keeps its first reason, and the findings sort by pair index so
+      // the envelope order is the fold's, never the model's.
+      const rows = (judged.output as { contradictions?: unknown }).contradictions;
+      const byPair = new Map<number, string>();
+      if (Array.isArray(rows)) {
+        for (const row of rows) {
+          const candidate = row as { pair?: unknown; reason?: unknown };
+          if (
+            typeof candidate.pair !== 'number' ||
+            !Number.isInteger(candidate.pair) ||
+            candidate.pair < 0 ||
+            candidate.pair >= fold.pairs.length ||
+            typeof candidate.reason !== 'string' ||
+            candidate.reason.length === 0 ||
+            byPair.has(candidate.pair)
+          ) {
+            continue;
+          }
+          byPair.set(candidate.pair, candidate.reason);
+        }
+      }
+      const findings: ClaimContradictionFinding[] = [...byPair.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([index, reason]) => ({ ...fold.pairs[index], reason }));
+      claimFindingsFound = findings;
+      claimConsistencyMeta = { ...metaBase, judgeInvoked: true };
+      announce();
+      if (onFound !== 'fail' || findings.length === 0) {
+        return;
+      }
+      throw new FailRunError(
+        `the claim-consistency judge found ${String(findings.length)} contradiction` +
+          `${findings.length === 1 ? '' : 's'} between the draft and the settled child pool: ` +
+          findings.map((finding) => `${finding.anchor} (${finding.reason})`).join('; '),
+        {
+          data: {
+            source: 'orchestrator_claim_consistency',
+            claimContradictions: findings as unknown as Json,
+            claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+            // The acceptance snapshot the run already earned (cycle
+            // 73): the fan-out work IS complete, the failure is
+            // downstream.
             ...(snapshot ?? {}),
           },
         },
@@ -4655,18 +5177,28 @@ export function makeOrchestratorWorkflow(
             opts?.contradictions?.onFound === 'carry' &&
             contradictionsFound !== undefined &&
             contradictionsFound.length > 0;
-          if (failed.length === 0 && carryBlocked) {
+          // The claim-consistency carry joins the same invariant
+          // (RV1502): judged findings the synthesis was never asked
+          // to resolve must not be skipped over either.
+          const claimCarryBlocked =
+            opts?.claimConsistency?.onFound === 'carry' &&
+            claimFindingsFound !== undefined &&
+            claimFindingsFound.length > 0;
+          if (failed.length === 0 && (carryBlocked || claimCarryBlocked)) {
             internals.events.emit(
               {
                 type: 'log',
                 level: 'info',
                 msg: 'orchestrator synthesis skip blocked by contradictions',
-                data: { contradictions: contradictionsFound?.length ?? 0 },
+                data: {
+                  contradictions: contradictionsFound?.length ?? 0,
+                  claimFindings: claimFindingsFound?.length ?? 0,
+                },
               },
               callingState.spanId,
             );
           }
-          if (failed.length === 0 && !carryBlocked) {
+          if (failed.length === 0 && !carryBlocked && !claimCarryBlocked) {
             const skipEntry = await internals.replayer.appendSinglePhase({
               scope: callingState.scope,
               key: skipKey,
@@ -4879,6 +5411,20 @@ export function makeOrchestratorWorkflow(
                 'reading holds and why it does) instead of silently picking one. ' +
                 JSON.stringify(contradictionsFound),
             ]),
+        // The carried draft/pool disagreement (RV1502), under onFound
+        // 'carry' only and only when the judge actually found
+        // something: the prompt stays byte identical for a clean
+        // verdict, exactly like the CHILD CONTRADICTIONS line above.
+        ...(opts?.claimConsistency?.onFound !== 'carry' ||
+        claimFindingsFound === undefined ||
+        claimFindingsFound.length === 0
+          ? []
+          : [
+              'CLAIM CONTRADICTIONS: the composed draft contradicts the settled child pool ' +
+                'at these cited locations; resolve each one EXPLICITLY in the final result ' +
+                '(say which reading holds and why) instead of keeping the inverted claim. ' +
+                JSON.stringify(claimFindingsFound),
+            ]),
         // The opt-in policy-facts line (RV709): folded ONLY from
         // replay-stable material (the settled child results' durable
         // tool-budget subsets, which the journal replays verbatim), so
@@ -4914,6 +5460,47 @@ export function makeOrchestratorWorkflow(
                   finalizationWindowsEntered: windowsEntered,
                   finalizationReservesUsed: reservesUsed,
                 })}`;
+              })(),
+            ]
+          : []),
+        // The opt-in RUN FACTS line (RV1503), the policyFacts sibling:
+        // the aggregate of the settled children's replay-stable
+        // execution facts, so the composing model can grade
+        // `live-observed` truthfully instead of erasing the run it is
+        // part of. Folded ONLY from journal-replayed material
+        // (providerCalls and usage restore verbatim; dollars are
+        // deliberately absent because replay re-prices from the
+        // current table), so a resumed synthesis re-derives identical
+        // prompt bytes; the line exists exactly under the opt-in.
+        ...(spec.runFacts === true
+          ? [
+              ((): string => {
+                const byStatus: Record<string, number> = {};
+                let wireRequests = 0;
+                let wireIdsMissing = 0;
+                let inputTokens = 0;
+                let outputTokens = 0;
+                for (const [, record] of settledEntries) {
+                  const settled = record.settled as AgentResult<unknown>;
+                  byStatus[settled.status] = (byStatus[settled.status] ?? 0) + 1;
+                  const facts = executionFactsOf(settled);
+                  wireRequests += facts.wireRequests;
+                  wireIdsMissing += facts.wireIdsMissing;
+                  inputTokens += facts.inputTokens;
+                  outputTokens += facts.outputTokens;
+                }
+                return `RUN FACTS: ${JSON.stringify({
+                  children: settledEntries.length,
+                  byStatus: Object.fromEntries(
+                    Object.keys(byStatus)
+                      .sort()
+                      .map((status) => [status, byStatus[status]]),
+                  ),
+                  wireRequests,
+                  wireIdsMissing,
+                  inputTokens,
+                  outputTokens,
+                })} (live-observed by this run's own harness; production evidence it is not)`;
               })(),
             ]
           : []),
@@ -5360,6 +5947,7 @@ export function makeOrchestratorWorkflow(
       // against, but the chokepoint is the same one: the pass runs
       // before the synthesis dispatch it may cancel.
       await runContradictionPass();
+      await runClaimConsistencyPass(result.output);
       try {
         return await runSynthesis(result.output);
       } catch (thrown) {
@@ -5730,6 +6318,22 @@ export function makeOrchestratorWorkflow(
         ? {}
         : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
     });
+    // The claim-consistency pass follows at the same chokepoint
+    // (RV1502), strictly after the pure pool fold: a pool that
+    // contradicts ITSELF fails before anything pays for a judge, and a
+    // draft that contradicts its pool fails before anything pays for a
+    // synthesis.
+    await runClaimConsistencyPass(result.output, {
+      completion: decision.completion,
+      childStatusCounts: decision.childStatusCounts,
+      degradedReasons: decision.degradedReasons,
+      ...(decision.salvagedPartialChildren === undefined
+        ? {}
+        : { salvagedPartialChildren: decision.salvagedPartialChildren }),
+      ...(decision.salvagedTerminalOutputChildren === undefined
+        ? {}
+        : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+    });
     // Synthesis runs strictly AFTER the accepted verdict: a rejected run
     // never pays for a synthesis invocation (RV-211).
     let synthesizedFinal: unknown;
@@ -5806,6 +6410,20 @@ export function makeOrchestratorWorkflow(
         : {
             contradictions: contradictionsFound,
             contradictionsMeta: contradictionsMeta as unknown as Json,
+          }),
+      // The claim-consistency pass (RV1502): present whenever the pass
+      // ran, EMPTY when the judge cleared every pair. A dead judge
+      // leaves `claimContradictions` absent while the meta names
+      // `judgeFailed`: nothing was judged, and an empty list would
+      // claim the pool agreed (the RV1209 provenance doctrine, absence
+      // means NOT RECORDED).
+      ...(claimConsistencyMeta === undefined
+        ? {}
+        : {
+            ...(claimFindingsFound === undefined
+              ? {}
+              : { claimContradictions: claimFindingsFound }),
+            claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
           }),
     };
   });
