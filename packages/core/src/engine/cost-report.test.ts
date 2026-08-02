@@ -21,7 +21,7 @@ import type { JournalEntry, ProviderCallRecord } from '../l0/entries.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import { makeOrchestratorWorkflow } from '../orchestrator/orchestrate.js';
 import { createEngine } from './engine.js';
-import { buildCostReport, costReportFromJournal } from './cost-report.js';
+import { accountSpendFromJournal, buildCostReport, costReportFromJournal } from './cost-report.js';
 import { priceEntryBilling } from '../l0/entries.js';
 import { scriptedAdapter, testCaps, type ScriptedTurn } from './test-harness.js';
 
@@ -977,5 +977,84 @@ describe('the cost provenance marker (RV1413)', () => {
       1.5,
     );
     expect(liveReport.basis).toBe('locally-estimated');
+  });
+});
+
+/**
+ * The per-account journal fold (RV1505): the sub-account resume seed
+ * derives each scope's INCLUSIVE spend from the same settled entries
+ * the root seed folds, with the account tree read from the journaled
+ * spawn-admission decisions.
+ */
+describe('accountSpendFromJournal (RV1505)', () => {
+  const USAGE = { inputTokens: 100000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const price = (_servedBy: string, usage: { inputTokens: number }): number =>
+    usage.inputTokens / 1_000_000;
+  const entry = (partial: Record<string, unknown>): JournalEntry =>
+    ({
+      hashVersion: 2,
+      seq: 0,
+      scope: '',
+      key: 'k',
+      ordinal: 0,
+      kind: 'agent',
+      status: 'ok',
+      spanId: 's1',
+      startedAt: '2026-08-03T00:00:00.000Z',
+      ...partial,
+    });
+
+  it('folds direct spend per account and propagates it up the admission tree', () => {
+    const entries: JournalEntry[] = [
+      entry({
+        seq: 1,
+        kind: 'decision',
+        key: 'admission',
+        value: {
+          decisionType: 'spawn-admission',
+          childScope: 'agent:5',
+          parentAccountScope: 'orch:1',
+        },
+      }),
+      entry({
+        seq: 2,
+        usage: USAGE,
+        servedBy: 'fake:model',
+        costAttribution: { agentType: 'w', role: 'loop', budgetAccount: 'agent:5' },
+      }),
+      entry({
+        seq: 3,
+        usage: USAGE,
+        servedBy: 'fake:model',
+        costAttribution: { agentType: 'o', role: 'orchestrate', budgetAccount: 'orch:1' },
+      }),
+      entry({
+        seq: 4,
+        usage: USAGE,
+        servedBy: 'fake:model',
+        costAttribution: { agentType: 'r', role: 'loop', budgetAccount: 'run' },
+      }),
+    ];
+    const spend = accountSpendFromJournal(entries, price);
+    expect(spend['agent:5']).toBeCloseTo(0.1, 10);
+    // The parent holds its own turn plus the child's, inclusively.
+    expect(spend['orch:1']).toBeCloseTo(0.2, 10);
+    expect(spend.run).toBeCloseTo(0.3, 10);
+  });
+
+  it('legacy entries without attribution fold under the root, and abandoned ones fold nowhere', () => {
+    const entries: JournalEntry[] = [
+      entry({ seq: 1, usage: USAGE, servedBy: 'fake:model' }),
+      entry({
+        seq: 2,
+        ref: 1,
+        kind: 'abandon',
+        abandon: { target: 1, authorizedBy: 1, reason: 'test' },
+        status: 'ok',
+      }),
+    ];
+    const spend = accountSpendFromJournal(entries, price);
+    // The single usage entry was abandoned: nothing folds anywhere.
+    expect(spend['run'] ?? 0).toBe(0);
   });
 });

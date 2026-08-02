@@ -15,6 +15,7 @@ type RunMeta = {
   genesis?: string;
   hashVersionHigh?: number;
   hashVersionLow?: number;
+  maxInFlightExposureUsd?: number;
   name?: string;
   runId: string;
   segments?: number;
@@ -41,7 +42,7 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L93)
+Defined in: [packages/core/src/l0/spi/store.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L105)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
@@ -68,7 +69,7 @@ checks).
 optional argsProvided?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L74)
+Defined in: [packages/core/src/l0/spi/store.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L86)
 
 Whether the run started with defined args. Engine-recorded at
 genesis and preserved verbatim by every later segment (a resume
@@ -104,7 +105,7 @@ resumed run to uncapped.
 optional execKeyDerivation?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L123)
+Defined in: [packages/core/src/l0/spi/store.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L135)
 
 Which isolated-executor idempotency key derivation this run uses
 (RV403), for its WHOLE life: stamped at the fresh start by the
@@ -130,7 +131,7 @@ at-least-once fold of a redispatched call for a version 2 run.
 optional genesis?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L105)
+Defined in: [packages/core/src/l0/spi/store.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L117)
 
 Unique token minted at the run's fresh start (genesis) and preserved
 verbatim by every later segment, so two runs that reuse the same
@@ -164,6 +165,26 @@ Defined in: [packages/core/src/l0/spi/store.ts:35](https://github.com/o-stepper/
 
 ***
 
+### maxInFlightExposureUsd?
+
+```ts
+optional maxInFlightExposureUsd?: number;
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L62)
+
+The opt-in in-flight exposure cap
+(RunOptions.maxInFlightExposureUsd), recorded at genesis so resume
+restores the original invocation's cap (RV1504): the option used
+to be per-invocation and unrecorded, and a resumed segment
+silently ran WITHOUT the exposure bound, the seventeenth
+comparison benchmark's top FinOps gap. Absent when the run started
+without one. Stores must round-trip the field (the conformance kit
+checks); a store that drops it degrades a resumed run to uncapped
+exposure.
+
+***
+
 ### name?
 
 ```ts
@@ -190,7 +211,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/
 optional segments?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L62)
+Defined in: [packages/core/src/l0/spi/store.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L74)
 
 Count of execution segments this run has STARTED (a fresh start
 writes 1; every resume writes prior + 1, durably, BEFORE the

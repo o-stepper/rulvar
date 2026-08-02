@@ -20,8 +20,11 @@
  * is seeded from the settled journal fold (the per-call billing basis
  * and per-segment pricing pins of outcome.cost.totalUsd, RV801) while
  * sub-accounts restart empty (their reserves are recovered from
- * spawn-admission decision entries); the per-account historical fold
- * completes with DEF-7 in M7.
+ * spawn-admission decision entries); `accountSpendFromJournal` (RV1505)
+ * folds the same entries per account for hosts and audits, and seeding
+ * it into re-opened accounts waits on a seed-aware rerun re-admission
+ * (the orchestrate agent re-admits with exact-fill arithmetic that any
+ * spend-at-reopen would break), the recorded DEF-7 remainder.
  *
  * Full contract: https://docs.rulvar.com/guide/budgets
  */

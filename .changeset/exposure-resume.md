@@ -1,0 +1,10 @@
+---
+'@rulvar/core': minor
+'@rulvar/store-conformance': minor
+---
+
+Record the in-flight exposure cap in RunMeta and restore it on every resume, and fold each budget account's settled spend for audits (RV1504, RV1505 first half). The second PR of the eighteenth plan.
+
+The durable exposure cap (RV1504). `RunOptions.maxInFlightExposureUsd` was operational and per-invocation, so a resumed segment silently ran WITHOUT the exposure bound the original invocation declared, the seventeenth comparison benchmark's top FinOps gap. The cap now follows the ceiling's exact rule: recorded in `RunMeta` at genesis, restored by every resume, no `ResumeOptions` field to override it, absence stays absent (a run started uncapped stays uncapped, a pre-field journal resumes exactly as before), and the store conformance kit holds stores to the round-trip. One honest asymmetry is documented rather than papered over: `limits` stay per-invocation, so a resumed segment that does not re-supply them prices turn estimates from the model's full output allowance, and a tight restored cap then refuses dispatches the original clamped estimates admitted; that direction is fail closed, never silent uncapping.
+
+The per-account audit fold (RV1505, the audit half). `accountSpendFromJournal`, exported from `@rulvar/core`, folds the same settled entries the cost report folds into each budget account's INCLUSIVE spend, with the account tree read from the journaled spawn-admission decisions, so a host can hold any orchestrator cap or child allowance against what its subtree actually spent on a plain stored journal. Abandoned subtrees and unpriced slices contribute zero, exactly like the net total. Seeding the fold into re-opened accounts on resume is deliberately NOT wired yet: a rerun of a journaled invocation re-admits with exact-fill arithmetic today, so spend-at-reopen would refuse the continuation of the very work the money was spent on; the reopen seeding lands together with a seed-aware rerun re-admission, and the docs name the remaining amnesia instead of hiding it.

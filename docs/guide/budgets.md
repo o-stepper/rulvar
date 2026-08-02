@@ -241,11 +241,39 @@ refusal is transient, so it never marks the run exhausted and never severs a
 stream. Worst concurrent overshoot past the cap is thereby the estimate error
 of the in-flight turns, not one whole turn per agent. The cap is off by
 default (wire traffic and journals stay byte-identical), applies at the run
-root, reserves zero for models without a price row exactly as they debit
-zero, and is operational per invocation like `limits`: a resumed segment runs
-without it. [Preflight](#the-preflight-estimator) reports a configured cap as
+root, and reserves zero for models without a price row exactly as they debit
+zero. Since RV1504 the cap is recorded in `RunMeta` at genesis and restored on
+every resume, exactly the ceiling's rule: the seventeenth comparison benchmark
+named the silent uncapping of resumed segments its top FinOps gap, and a run
+now keeps the exposure bound its original invocation declared for its whole
+life, with `ResumeOptions` deliberately carrying no field to override it. A
+run started without the cap stays uncapped, a journal recorded before the
+field shipped (or read through a store that drops optional `RunMeta` fields)
+resumes uncapped exactly as before, and the conformance kit holds stores to
+the round-trip. One honest asymmetry remains: `limits` stay operational per
+invocation, so a resumed segment that does not re-supply them prices its turn
+estimates from the model's full output allowance, and a tight restored cap
+then refuses dispatches the original segment's clamped estimates would have
+admitted; that direction is fail closed, never silent uncapping.
+[Preflight](#the-preflight-estimator) reports a configured cap as
 the `in-flight-exposure-cap` finding beside the `overshoot-exposure` number it
 bounds.
+
+### Auditing spend per budget account
+
+`accountSpendFromJournal` (RV1505, the audit half of the DEF-7 remainder)
+folds the same settled entries the cost report folds into each budget
+account's INCLUSIVE spend, with the account tree read from the journaled
+spawn-admission decisions, so a host can hold any orchestrator cap or child
+allowance against what its subtree actually spent, after the fact and on a
+plain stored journal. Abandoned subtrees contribute zero and unpriced slices
+contribute zero, exactly like the net total. What it deliberately does NOT do
+yet is seed re-opened accounts on resume: a rerun of a journaled invocation
+re-admits with exact-fill arithmetic today, so spend-at-reopen would refuse
+the continuation of the very work the money was spent on; the reopen seeding
+lands together with a seed-aware rerun re-admission, and until then a resumed
+sub-account's projected admissions keep the historical amnesia the fold makes
+visible.
 
 ### The one thing the ceiling cannot bound: a model with no price
 

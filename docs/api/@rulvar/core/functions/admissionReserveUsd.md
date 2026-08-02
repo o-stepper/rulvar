@@ -10,7 +10,7 @@
 function admissionReserveUsd(options): number;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L83)
+Defined in: [packages/core/src/engine/budget.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L86)
 
 The admission reserve for a spawn: opts.estCost, else profile.estCost,
 else price(countTokens(input) + one turn's worth of output), else the

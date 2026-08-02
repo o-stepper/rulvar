@@ -2645,6 +2645,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "accountSpendFromJournal",
+            "link": "/api/@rulvar/core/functions/accountSpendFromJournal.md"
+          },
+          {
             "text": "admissionReserveUsd",
             "link": "/api/@rulvar/core/functions/admissionReserveUsd.md"
           },
@@ -7394,6 +7398,10 @@
         "text": "Functions",
         "collapsed": true,
         "items": [
+          {
+            "text": "accountSpendFromJournal",
+            "link": "/api/@rulvar/rulvar/functions/accountSpendFromJournal.md"
+          },
           {
             "text": "admissionReserveUsd",
             "link": "/api/@rulvar/rulvar/functions/admissionReserveUsd.md"

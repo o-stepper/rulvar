@@ -2289,6 +2289,33 @@ const MUTATIONS = [
     replace: '    const executionFactsEnabled = true;',
     test: 'packages/core/src/orchestrator/runfacts.test.ts',
   },
+  {
+    id: 'exposure-cap-genesis-record',
+    doctrine:
+      'the in-flight exposure cap is recorded in RunMeta at genesis (RV1504): unrecorded, every resumed segment silently drops the bound the original invocation declared',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '              ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),\n              ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),',
+    replace: '              ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),',
+    test: 'packages/core/src/engine/in-flight-exposure.test.ts',
+  },
+  {
+    id: 'exposure-cap-resume-restore',
+    doctrine:
+      'the recorded exposure cap travels back in on resume (RV1504): without the restore, the meta field is decoration and the resumed segment runs uncapped exactly as before the fix',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "        ...(typeof meta?.maxInFlightExposureUsd === 'number'\n          ? { maxInFlightExposureUsd: meta.maxInFlightExposureUsd }\n          : {}),",
+    replace: '        ...({}),',
+    test: 'packages/core/src/engine/in-flight-exposure.test.ts',
+  },
+  {
+    id: 'account-fold-inclusive',
+    doctrine:
+      "the per-account fold is INCLUSIVE up the admission tree (RV1505): without the parent walk, an orchestrator cap's audited spend omits every child it paid for",
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: '      cursor = cursor === ROOT_ACCOUNT ? undefined : (parents.get(cursor) ?? ROOT_ACCOUNT);',
+    replace: '      cursor = undefined;',
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
