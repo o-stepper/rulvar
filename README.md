@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred thirty four rounds, verbatim in this repository's history:
+The one hundred thirty five rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -348,6 +348,7 @@ The one hundred thirty four rounds, verbatim in this repository's history:
 | v1.150.0      | 1de0610 (#641): every finish citation must resolve in the host source snapshot (a line of 0 never does), and a cited value counts only as a whole token, never as a substring of 30       | v1.151.0   |
 | v1.151.0      | dd6a616 (#644): the citation surface rebuilt from scratch over a reset tree: the three fail-closed refusals and the whole token match re-land with the public signature byte identical    | v1.152.0   |
 | v1.152.0      | d8bebcb (#647): the contradiction pass and the evidence index judge the ACCEPTED roster, carry disables the valid draft skip, and the max bound names its truncation                      | v1.153.0   |
+| v1.153.0      | 9259f24 (#650): the finalization window regime gains the turns axis: a reserved tail inside maxTurns naming its own reserve, and preflight projects the serial turns floor per spawn      | v1.154.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
