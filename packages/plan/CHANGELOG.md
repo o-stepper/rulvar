@@ -1,5 +1,12 @@
 # @rulvar/plan
 
+## 1.153.0
+
+### Patch Changes
+
+- Updated dependencies [d8bebcb]
+  - @rulvar/core@1.153.0
+
 ## 1.152.0
 
 ### Patch Changes

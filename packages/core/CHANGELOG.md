@@ -1,5 +1,17 @@
 # @rulvar/core
 
+## 1.153.0
+
+### Minor Changes
+
+- d8bebcb: The contradiction pass and every evidence pool judge the ACCEPTED roster, and the carry posture becomes an invariant (RV1403, RV1404).
+
+  The seventeenth comparison run exposed both halves. Its pass judged five of six accepted children, because a limit child accepted as a structured partial carried no terminal output and the pool's eligibility only knew the output arm; and its `onFound: 'carry'` configuration would have silently carried nothing had the pool disputed itself, because a valid draft skipped the synthesis the carry line was supposed to ride.
+
+  RV1403 makes the roster the acceptance decision counted the one pool every downstream surface reads. The contradiction pass and the synthesis `evidenceIndex` judge the ok children plus both salvage arms, taken from the decision itself (fresh or rolled forward from the journal, so live and resume derive the same set): an accepted structured partial's rival reading can now dispute the pool and its citations index, while a child blocked by the binding evidence floor (RV1207) stays out even when it carries a validated terminal output, because a reading the policy refused to count must not steer what composes the result. The finish validation snapshot predicts the same arms: a partial-accepted child is marked with the new `FinishValidationChild.salvageablePartial` (so `evidencePreservedValidator` counts the accepted partial's citations and `requireKnown` no longer flags an honest quote of it as fabricated), and a below-floor child is no longer marked `salvageableOutput`, mirroring exactly what acceptance will do.
+
+  RV1404 adds two honesty guarantees. Non-empty findings under `'carry'` disable the `skipWhenDraftValid` gate for that draft, announced in an info log (`orchestrator synthesis skip blocked by contradictions`); a clean pool keeps the skip byte for byte, and a skip already journaled stays the authority on resume. And the envelope gains `contradictionsMeta` beside `contradictions`, present exactly when the pass is configured: `poolChildren` says how many accepted children were judged, and `truncated` says whether more contradictions existed than `max` allowed to report, so a capped findings list can never read as a complete one. The pass log event carries the same flag, and the `'fail'` posture's typed error data carries the meta beside the findings.
+
 ## 1.152.0
 
 ### Minor Changes
