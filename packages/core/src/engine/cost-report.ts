@@ -77,6 +77,7 @@ export function buildCostReport(
     reserveUsedUsd: 0,
   };
   const report: CostReport = {
+    basis: 'locally-estimated',
     totalUsd,
     grossUsd: totalUsd + abandoned.usd,
     abandoned,
@@ -213,6 +214,10 @@ export function costReportFromJournal(
     }
   }
   const report: CostReport = {
+    // The provenance marker (RV1413): both builders stamp the same
+    // literal, so a journal fold and a live accumulation report their
+    // dollars under the same declared basis.
+    basis: 'locally-estimated',
     totalUsd,
     grossUsd: totalUsd + abandonedUsd,
     abandoned: {

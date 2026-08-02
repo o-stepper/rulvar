@@ -16,6 +16,7 @@ One run terminal, the same on every surface (RV1105).
 | ------ | ------ | ------ | ------ |
 | <a id="property-agentsspawned"></a> `agentsSpawned` | `number` | Agents admitted over the run's lifetime, resume seed included. | `packages/core/dist/index.d.ts` |
 | <a id="property-completion"></a> `completion?` | `"partial"` \| `"rejected"` \| `"complete"` | The semantic completion claim, when the workflow made one. | `packages/core/dist/index.d.ts` |
+| <a id="property-costbasis"></a> `costBasis` | `"locally-estimated"` | Where the dollars above come from (RV1413): journaled usage priced at the CALLER'S pricing table (declared rates or adapter caps), never a provider statement. Always `'locally-estimated'` today, declared as a literal so finance tooling never has to guess, mirroring `InvoiceExport.pricingBasis`; reconcile real bills through the invoice export and `reconcileStatement`, which carry their own provenance. | `packages/core/dist/index.d.ts` |
 | <a id="property-costbymodel"></a> `costByModel` | `Record`\&lt;`string`, `number`\&gt; | The per-model split of totalUsd, keyed by canonical ModelRef. | `packages/core/dist/index.d.ts` |
 | <a id="property-error"></a> `error?` | [`WireError`](/api/@rulvar/rulvar/type-aliases/WireError.md) | The typed error, exactly the outcome's, when status is 'error'. | `packages/core/dist/index.d.ts` |
 | <a id="property-grossusd"></a> `grossUsd` | `number` | The gross figure with abandoned subtrees included (P1.3). | `packages/core/dist/index.d.ts` |

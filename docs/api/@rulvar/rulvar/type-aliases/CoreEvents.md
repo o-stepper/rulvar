@@ -26,6 +26,7 @@ type CoreEvents =
      salvage?: "partial" | "terminal-output";
      status: string;
   }[];
+  belowFloorOkChildren?: string[];
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   degradedReasons?: string[];
@@ -115,6 +116,7 @@ Run lifecycle and core telemetry (M1 subset).
      salvage?: "partial" | "terminal-output";
      status: string;
   }[];
+  belowFloorOkChildren?: string[];
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   degradedReasons?: string[];
@@ -133,6 +135,7 @@ Run lifecycle and core telemetry (M1 subset).
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | `acceptanceChildren?` | \{ `child`: `string`; `evidence?`: \{ `floorRequired?`: `true`; `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \}; `salvage?`: `"partial"` \| `"terminal-output"`; `status`: `string`; \}[] | The per-child acceptance roster (RV806): status, salvage arm, and the evidence verdict where the child declared a contract; same lift and posture as the fields above. | `packages/core/dist/index.d.ts` |
+| `belowFloorOkChildren?` | `string`[] | Children that settled 'ok' below their declared evidence floor (RV1412); same lift. Under the default their shortfall is a degradation note and the verdict is untouched; under `acceptance.requireEvidenceFloor` they also counted against the policy. | `packages/core/dist/index.d.ts` |
 | `childStatusCounts?` | `Record`\&lt;`string`, `number`\&gt; | Settled child statuses by status name, lifted from the same envelope (or typed error data) when it carries a valid record of nonnegative integers. Absent otherwise. | `packages/core/dist/index.d.ts` |
 | `completion?` | `"complete"` \| `"partial"` \| `"rejected"` | The semantic completion lift (RV-207 tail): present when the workflow reported semantic completion through the completion envelope contract: an `ok`/`exhausted` run whose result value is an object carrying a valid `completion` literal, or an `error` run whose typed error data carries one (the orchestrator acceptance path emits both). Transport status says whether the run ran; completion says whether the work is COMPLETE: an accepted degraded run is `status: 'ok'` with `completion: 'partial'`. Replay recomputes the same value from the re-executed workflow, so the field is identical live and replayed. Absent when the workflow makes no completion claim. | `packages/core/dist/index.d.ts` |
 | `degradedReasons?` | `string`[] | Per-child degradation notes, lifted from the same envelope (or typed error data) when it carries a valid string array (the fifth experiment, cycle 75). An empty array is the workflow's claim of zero degradation; absence means no claim. The outcome mirror spreads the SAME lift, so the surfaces cannot disagree. | `packages/core/dist/index.d.ts` |

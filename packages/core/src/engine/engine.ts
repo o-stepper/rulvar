@@ -561,6 +561,7 @@ function liftRunCompletion(candidate: unknown):
       degradedReasons?: string[];
       salvagedPartialChildren?: string[];
       salvagedTerminalOutputChildren?: string[];
+      belowFloorOkChildren?: string[];
       acceptanceChildren?: AcceptanceChildSummary[];
     }
   | undefined {
@@ -577,6 +578,7 @@ function liftRunCompletion(candidate: unknown):
     degradedReasons?: string[];
     salvagedPartialChildren?: string[];
     salvagedTerminalOutputChildren?: string[];
+    belowFloorOkChildren?: string[];
     acceptanceChildren?: AcceptanceChildSummary[];
   } = { completion };
   const counts = (candidate as { childStatusCounts?: unknown }).childStatusCounts;
@@ -614,6 +616,13 @@ function liftRunCompletion(candidate: unknown):
   const salvagedTerminalOutputChildren = liftStringList('salvagedTerminalOutputChildren');
   if (salvagedTerminalOutputChildren !== undefined) {
     lifted.salvagedTerminalOutputChildren = salvagedTerminalOutputChildren;
+  }
+  // Ok children below their declared evidence floor (RV1412), same
+  // posture as the salvage lists: a valid string array mirrors,
+  // anything malformed drops silently.
+  const belowFloorOkChildren = liftStringList('belowFloorOkChildren');
+  if (belowFloorOkChildren !== undefined) {
+    lifted.belowFloorOkChildren = belowFloorOkChildren;
   }
   // The per-child acceptance roster (RV806), same posture: a valid
   // array of child rows mirrors, anything malformed drops silently.
@@ -1725,6 +1734,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.salvagedTerminalOutputChildren !== undefined) {
           outcomeFacts.salvagedTerminalOutputChildren = lifted.salvagedTerminalOutputChildren;
+        }
+        if (lifted.belowFloorOkChildren !== undefined) {
+          outcomeFacts.belowFloorOkChildren = lifted.belowFloorOkChildren;
         }
         if (lifted.acceptanceChildren !== undefined) {
           outcomeFacts.acceptanceChildren = lifted.acceptanceChildren;

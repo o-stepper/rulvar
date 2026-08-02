@@ -110,6 +110,7 @@ function envelopeFor(runId: string, totalUsd: number): TerminalEnvelope {
     settled: true,
     totalUsd,
     grossUsd: totalUsd,
+    costBasis: 'locally-estimated',
     costByModel: {},
     usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
     usageApprox: false,

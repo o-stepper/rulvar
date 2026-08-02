@@ -954,3 +954,28 @@ describe('the exported live builder refuses non-finite numbers (RV705)', () => {
     ).toThrow(ConfigError);
   });
 });
+
+describe('the cost provenance marker (RV1413)', () => {
+  it('both builders stamp the report locally estimated', () => {
+    // Every dollar in this report is journaled usage priced at the
+    // caller's CURRENT pricing table, never a provider statement; the
+    // seventeenth comparison run's "$4.79" read as an invoice figure
+    // precisely because nothing on the report said otherwise. The
+    // marker is a declared literal, mirroring InvoiceExport's
+    // pricingBasis, so finance tooling never has to guess.
+    const journalReport = costReportFromJournal([], () => undefined);
+    expect(journalReport.basis).toBe('locally-estimated');
+    const liveReport = buildCostReport(
+      {
+        byModel: new Map([['fake:m', 1.5]]),
+        byPhase: new Map([['', 1.5]]),
+        byAgentType: new Map([['worker', 1.5]]),
+        byRole: new Map<InvocationRole, number>([['loop', 1.5]]),
+        unpriced: [],
+        orchestrator: { spentUsd: 0, wakes: 0, forcedFinish: false, reserveUsedUsd: 0 },
+      },
+      1.5,
+    );
+    expect(liveReport.basis).toBe('locally-estimated');
+  });
+});

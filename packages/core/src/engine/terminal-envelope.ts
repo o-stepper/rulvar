@@ -63,6 +63,11 @@ export function terminalEnvelopeOf(input: {
     settled: input.settlement === undefined,
     totalUsd: outcome.cost.totalUsd,
     grossUsd: outcome.cost.grossUsd,
+    // The money's provenance (RV1413), stamped at the ONE producer so
+    // the live outcome, the event, the HTTP response, and the journal
+    // rebuild all carry it: these dollars are locally estimated at the
+    // caller's pricing table, never a provider statement.
+    costBasis: 'locally-estimated',
     costByModel: { ...outcome.cost.byModel },
     usage: { ...outcome.usage },
     usageApprox: outcome.cost.usageApprox === true,

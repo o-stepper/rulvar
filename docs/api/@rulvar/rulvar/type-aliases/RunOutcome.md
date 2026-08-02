@@ -9,6 +9,7 @@
 ```ts
 type RunOutcome<R> = {
   acceptanceChildren?: AcceptanceChildSummary[];
+  belowFloorOkChildren?: string[];
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   cost: CostReport;
@@ -53,6 +54,22 @@ comparison run accepted two below-floor children through salvage
 and the outcome showed it only as name lists; this is the machine
 verdict. Replay-stable: the roster is journaled inside the single
 acceptance decision.
+
+***
+
+### belowFloorOkChildren?
+
+```ts
+optional belowFloorOkChildren?: string[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Children that settled 'ok' below their declared evidence floor
+(RV1412); same lift and posture. A fact list in both modes: under
+the default their shortfall is a degradation note and the verdict
+is untouched; under `acceptance.requireEvidenceFloor` they also
+counted against the policy.
 
 ***
 

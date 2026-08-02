@@ -610,6 +610,10 @@ function checkFacts(envelope: TerminalEnvelope, row: ConformanceRow, runId: stri
   expect(envelope.usage).toEqual(expected.usage);
   expect(envelope.usageApprox).toBe(expected.usageApprox);
   expect(envelope.agentsSpawned).toBe(expected.agentsSpawned);
+  // The cost provenance marker (RV1413) rides EVERY surface the same:
+  // the dollars above are locally estimated at the caller's pricing
+  // table, never a provider statement, restart rebuilds included.
+  expect(envelope.costBasis).toBe('locally-estimated');
 }
 
 /**

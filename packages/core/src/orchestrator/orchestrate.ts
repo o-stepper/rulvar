@@ -272,6 +272,16 @@ export interface OrchestrateAcceptance {
    * its counts, and the child's output stays visible through the
    * digest and get_child_result exactly as before. A child with no
    * declared contract, or one that met its floor, is untouched.
+   *
+   * Since RV1412 the same flag binds the floor for OK children too: a
+   * child that settled 'ok' below its declared floor counts against
+   * the policy ('all-ok' rejects; `{ minSuccessful: N }` does not
+   * count it toward N), its roster row is marked `floorRequired`, and
+   * `belowFloorOkChildren` lists it. WITHOUT the flag such a child is
+   * visible but uncounted: the shortfall is a degradation note (so
+   * completion honestly reads 'partial', never 'complete' over an
+   * unmet declared contract), the list is present, and the verdict is
+   * exactly what it was before this shipped.
    */
   requireEvidenceFloor?: boolean;
 }
@@ -4289,8 +4299,9 @@ export function makeOrchestratorWorkflow(
      * floor-blocked child never entered them. Undefined when no
      * acceptance is configured.
      */
-    let acceptedSalvage: { partial: readonly string[]; output: readonly string[] } | undefined =
-      undefined;
+    let acceptedSalvage:
+      | { partial: readonly string[]; output: readonly string[]; excludedOk: readonly string[] }
+      | undefined = undefined;
     /**
      * The nodeIds the acceptance decision counted as successes (RV1403):
      * ok children plus both salvage arms. Derived LAZILY because the ok
@@ -4298,6 +4309,11 @@ export function makeOrchestratorWorkflow(
      * on a replayed root: every caller first awaits `recoveryDone`,
      * exactly like the synthesis prompt fold. Undefined without
      * acceptance, in which case the pools fall back to the ok children.
+     * An ok child the binding evidence floor excluded from the policy
+     * count (RV1412) is excluded here too, from the DECISION's own
+     * roster rows (`floorRequired` on an ok row), so live and resume
+     * derive the same pool: a reading the policy refused to count must
+     * not steer what composes the result, exactly the RV1403 line.
      */
     const acceptedRosterNow = (): ReadonlySet<string> | undefined => {
       if (acceptedSalvage === undefined) {
@@ -4308,6 +4324,9 @@ export function makeOrchestratorWorkflow(
         if (record.settled?.status === 'ok') {
           roster.add(record.nodeId);
         }
+      }
+      for (const node of acceptedSalvage.excludedOk) {
+        roster.delete(node);
       }
       for (const node of acceptedSalvage.partial) {
         roster.add(node);
@@ -5385,6 +5404,16 @@ export function makeOrchestratorWorkflow(
        */
       synthesisSkipped?: OrchestrateSynthesisSkipReason;
       /**
+       * Children that settled 'ok' BELOW their declared evidence floor
+       * (RV1412), a fact list in both modes: present whenever such
+       * children exist, absent otherwise (and on decisions written
+       * before this shipped). Under the default the verdict is
+       * untouched and the shortfall is a degradation note; under
+       * `requireEvidenceFloor` these children also count against the
+       * policy, exactly like the salvage arms under RV1207.
+       */
+      belowFloorOkChildren?: string[];
+      /**
        * The per-child machine roster (RV806): status, salvage arm, and
        * the evidence verdict where the child declared a contract,
        * `waivedBySalvage` marking a below-floor child a salvage arm
@@ -5412,6 +5441,11 @@ export function makeOrchestratorWorkflow(
       const degradedReasons: string[] = [];
       const salvaged: string[] = [];
       const salvagedOutput: string[] = [];
+      // Ok children below their declared evidence floor (RV1412): a
+      // fact list in both modes, and under requireEvidenceFloor also
+      // the children the policy count excludes.
+      const belowFloorOk: string[] = [];
+      let okGatedBelowFloor = 0;
       // Degradations the policy still counts: with acceptPartialChildren
       // a limit child carrying a structured partial moves to `salvaged`
       // instead (RV-210 close-out) and keeps only its degradedReasons
@@ -5477,6 +5511,34 @@ export function makeOrchestratorWorkflow(
         const status = record.settled?.status ?? 'running';
         childStatusCounts[status] = (childStatusCounts[status] ?? 0) + 1;
         if (status === 'ok') {
+          // The ok-child evidence floor (RV1412): RV1207 bound the
+          // floor for the salvage arms, but a child that settled 'ok'
+          // below its declared floor sailed through with a clean
+          // headline (the roster row said met: false while completion
+          // said 'complete'). The shortfall is a degradation note by
+          // default, so the completion claim stays honest; the verdict
+          // changes only under the same opt-in flag, where the child
+          // counts against the policy exactly like a floor-blocked
+          // salvage arm. The status count above stays factual either
+          // way, and the child's output stays visible everywhere.
+          const evidence = record.settled?.evidence;
+          if (evidence !== undefined && !evidence.met) {
+            belowFloorOk.push(record.nodeId);
+            if (requireFloor) {
+              hardDegraded += 1;
+              okGatedBelowFloor += 1;
+              noteChild(record, status, undefined, true);
+              noteFloorShortfall(record);
+            } else {
+              noteChild(record, status);
+              degradedReasons.push(
+                `child ${record.nodeId} settled 'ok' below its declared evidence floor ` +
+                  `(${String(evidence.recordedEntries)} of ${String(evidence.minEntries)} ` +
+                  'entries recorded)',
+              );
+            }
+            continue;
+          }
           noteChild(record, status);
           continue;
         }
@@ -5539,7 +5601,13 @@ export function makeOrchestratorWorkflow(
         rosterMet &&
         (childPolicy === 'all-ok'
           ? hardDegraded === 0
-          : (childStatusCounts.ok ?? 0) + salvaged.length + salvagedOutput.length >=
+          : // The status count stays factual; under requireEvidenceFloor
+            // the gated below-floor ok children are excluded from the
+            // POLICY comparison only (RV1412).
+            (childStatusCounts.ok ?? 0) -
+              okGatedBelowFloor +
+              salvaged.length +
+              salvagedOutput.length >=
             childPolicy.minSuccessful);
       decision = {
         decisionType: 'orchestrator_acceptance',
@@ -5553,6 +5621,7 @@ export function makeOrchestratorWorkflow(
           : { minSpawnedChildren: minSpawned, spawnedChildren: sortedRecords.length }),
         ...(salvaged.length === 0 ? {} : { salvagedPartialChildren: salvaged }),
         ...(salvagedOutput.length === 0 ? {} : { salvagedTerminalOutputChildren: salvagedOutput }),
+        ...(belowFloorOk.length === 0 ? {} : { belowFloorOkChildren: belowFloorOk }),
         children: childrenSummary,
         // A rejected verdict skips a configured synthesis step by design
         // (RV-211): the machine reason rides the decision (11.4), so the
@@ -5618,6 +5687,9 @@ export function makeOrchestratorWorkflow(
             ...(decision.salvagedTerminalOutputChildren === undefined
               ? {}
               : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+            ...(decision.belowFloorOkChildren === undefined
+              ? {}
+              : { belowFloorOkChildren: decision.belowFloorOkChildren }),
             ...(decision.children === undefined
               ? {}
               : { acceptanceChildren: decision.children as unknown as Json }),
@@ -5636,6 +5708,12 @@ export function makeOrchestratorWorkflow(
     acceptedSalvage = {
       partial: decision.salvagedPartialChildren ?? [],
       output: decision.salvagedTerminalOutputChildren ?? [],
+      // Ok children the binding floor excluded from the policy count
+      // (RV1412), read from the decision's own roster rows so a resume
+      // derives the identical pool without consulting live options.
+      excludedOk: (decision.children ?? [])
+        .filter((row) => row.status === 'ok' && row.evidence?.floorRequired === true)
+        .map((row) => row.child),
     };
     // The contradiction pass sits between the accepted verdict and the
     // synthesis dispatch (RV1302): a rejected run never reaches it, and
@@ -5671,6 +5749,9 @@ export function makeOrchestratorWorkflow(
         ...(decision.salvagedTerminalOutputChildren === undefined
           ? {}
           : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+        ...(decision.belowFloorOkChildren === undefined
+          ? {}
+          : { belowFloorOkChildren: decision.belowFloorOkChildren }),
         ...(decision.children === undefined
           ? {}
           : { acceptanceChildren: decision.children as unknown as Json }),
@@ -5689,6 +5770,12 @@ export function makeOrchestratorWorkflow(
       ...(decision.salvagedTerminalOutputChildren === undefined
         ? {}
         : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+      // Ok children below their declared evidence floor (RV1412):
+      // absent when none, so every pre-existing envelope stays byte
+      // identical.
+      ...(decision.belowFloorOkChildren === undefined
+        ? {}
+        : { belowFloorOkChildren: decision.belowFloorOkChildren }),
       // The per-child machine roster (RV806): absent on decisions
       // journaled before it shipped, so those envelopes stay byte
       // identical.

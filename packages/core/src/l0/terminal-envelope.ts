@@ -54,6 +54,16 @@ export interface TerminalEnvelope {
   totalUsd: number;
   /** The gross figure with abandoned subtrees included (P1.3). */
   grossUsd: number;
+  /**
+   * Where the dollars above come from (RV1413): journaled usage priced
+   * at the CALLER'S pricing table (declared rates or adapter caps),
+   * never a provider statement. Always `'locally-estimated'` today,
+   * declared as a literal so finance tooling never has to guess,
+   * mirroring `InvoiceExport.pricingBasis`; reconcile real bills
+   * through the invoice export and `reconcileStatement`, which carry
+   * their own provenance.
+   */
+  costBasis: 'locally-estimated';
   /** The per-model split of totalUsd, keyed by canonical ModelRef. */
   costByModel: Record<string, number>;
   /** The run's usage aggregate, TTL attribution included. */
