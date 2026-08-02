@@ -1,5 +1,12 @@
 # @rulvar/store-sqlite
 
+## 1.160.0
+
+### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+
 ## 1.159.0
 
 ### Patch Changes

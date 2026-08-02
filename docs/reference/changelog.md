@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+
 ### 1.159.0
 
 #### Patch Changes
@@ -1592,6 +1599,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+
 ### 1.159.0
 
 #### Patch Changes
@@ -2973,6 +2987,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
 
 ### 1.159.0
 
@@ -4777,6 +4798,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.160.0
+
+#### Minor Changes
+
+- 1c6f0d0: Require an explicit flavor B default decision and add the monotonic approval composition (RV1506, RV1507). The third PR of the eighteenth plan. BREAKING for flavor B configurations that omitted `defaultDecision`.
+
+  The explicit timeout meaning (RV1506). Flavor B escalation suspends the worker under a journaled deadline, and the deadline's expiry APPLIES the `defaultDecision`; when none was declared the engine invented `accept`, so an unattended scope escalation resolved fail open, the seventeenth comparison benchmark's top authority hardening ask. Enabling flavor B now requires an explicit `defaultDecision` beside the already-required `deadlineMs`, a `ConfigError` before any LLM call; there is no engine default. The tool-approval channel already holds the opposite posture (an unattended approval DENIES at its `approvalDeadlineMs`), so `{ kind: 'cancel' }` is the declaration that makes both timeouts close the same way. Migration is one line on each flavor B config; the runtime semantics of a declared decision are unchanged, and a racing live decision still wins first-closed.
+
+  The monotonic approval composition (RV1507). The permission chain's documented order lets a generic ALLOW (a hook or `canUseTool`) clear a `needsApproval: true` tool, which is deliberate for tests and trusted hosts and a fail-open hazard for a platform profile. `permissions.strictApprovals: true` makes such an allow fall through instead of deciding, so the terminal default still asks for exactly the tools that declared the need; deny and ask keep their power, `{ modifiedInput }` still applies, tools without the declaration keep the historical composition byte for byte, and the flag merges as OR across the engine and profile layers, so a profile cannot loosen an engine-armed mode. A non-boolean value refuses at compile.
 
 ### 1.159.0
 
@@ -6911,6 +6942,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.160.0
+
 ### 1.159.0
 
 ### 1.158.0
@@ -7333,6 +7366,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+  - @rulvar/anthropic@1.160.0
+  - @rulvar/openai@1.160.0
+  - @rulvar/plan@1.160.0
+  - @rulvar/testing@1.160.0
 
 ### 1.159.0
 
@@ -9144,6 +9188,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+
 ### 1.159.0
 
 #### Patch Changes
@@ -9932,6 +9983,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
 
 ### 1.159.0
 
@@ -11516,6 +11574,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+
 ### 1.159.0
 
 #### Patch Changes
@@ -13011,6 +13076,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+  - eslint-plugin-rulvar@1.160.0
 
 ### 1.159.0
 
@@ -14628,6 +14701,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+  - @rulvar/anthropic@1.160.0
+  - @rulvar/openai@1.160.0
 
 ### 1.159.0
 
@@ -16492,6 +16574,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+
 ### 1.159.0
 
 #### Minor Changes
@@ -17991,6 +18080,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
+
 ### 1.159.0
 
 #### Patch Changes
@@ -18803,6 +18899,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
 
 ### 1.159.0
 
@@ -20247,6 +20350,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.160.0
+
+#### Patch Changes
+
+- Updated dependencies [1c6f0d0]
+  - @rulvar/core@1.160.0
 
 ### 1.159.0
 
