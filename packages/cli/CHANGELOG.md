@@ -1,5 +1,16 @@
 # @rulvar/cli
 
+## 1.155.0
+
+### Minor Changes
+
+- 49b08a7: Make the persisted terminal tail-aware and give offline authorities the engine's own resolution validator (RV1407, RV1408). The persisted terminal (RV1209) served the journaled settle even when the journal had CONTINUED past it, so a restarted reader could hold yesterday's envelope over a run that a detached resolution had already destined to resume, or that a successor segment was actively working, while `auditRun` derived a non-terminal status from exactly that evidence. `persistedTerminalEnvelope` now refuses `not-terminal` whenever entries follow the last settle, with a message naming the continuation (count and settle seq), so the persisted surface and the audit read one journal one way; the conformance table pins the new refusal (settled-then-continued) beside the five terminal paths. And the CLI server's offline resolution used a lookalike validator that demanded the plain `{ decision }` from EVERY kind-'approval' suspension: a legitimate `EscalationDecision` for a flavor B escalation was refused, and a wrong-shaped plain approval payload was waved into the journal. The new export `validateDetachedResolution` is the engine's own detached validation (the RV1203 flavor classifier, both payload arms, the pinned schema) as one function; the engine's detached path and the CLI offline path now call the same bytes, so an escalation resolves offline with its OWN payload exactly as detached-live, and an invalid one is refused typed before anything is journaled.
+
+### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+
 ## 1.154.0
 
 ### Patch Changes
