@@ -24,6 +24,16 @@ export interface PendingExternal {
 /** Full contract: https://docs.rulvar.com/guide/observability. */
 export interface CostReport {
   /**
+   * Where every dollar of this report comes from (RV1413): journaled
+   * usage priced at the CALLER'S pricing table (declared rates or
+   * adapter caps), never a provider statement. Always
+   * `'locally-estimated'` today, declared as a literal so finance
+   * tooling never has to guess, mirroring `InvoiceExport.pricingBasis`;
+   * reconcile real bills through the invoice export and
+   * `reconcileStatement`, which carry their own provenance.
+   */
+  basis: 'locally-estimated';
+  /**
    * The NET ledger: priced terminal usage with abandoned subtrees
    * contributing zero (their spend is a sunk cost of branches the
    * orchestrator discarded, not of the work the run kept). The
@@ -98,7 +108,11 @@ export interface CostReport {
  * `floorRequired: true` marks the opposite verdict under
  * `acceptance.requireEvidenceFloor` (RV1207): the arm applied, the
  * floor was not met, and the child was NOT promoted, so the row is
- * diagnostic and the child counted against the policy.
+ * diagnostic and the child counted against the policy. Since RV1412 an
+ * OK row can carry `floorRequired` too: the child settled 'ok' below
+ * its declared floor and the same flag excluded it from the policy
+ * count (without the flag such a row keeps `met: false` unmarked, and
+ * the child rides `belowFloorOkChildren` with a degradation note).
  */
 export interface AcceptanceChildSummary {
   child: string;
@@ -158,6 +172,14 @@ export type RunOutcome<R> = {
    * 'limit'; same lift and posture.
    */
   salvagedTerminalOutputChildren?: string[];
+  /**
+   * Children that settled 'ok' below their declared evidence floor
+   * (RV1412); same lift and posture. A fact list in both modes: under
+   * the default their shortfall is a degradation note and the verdict
+   * is untouched; under `acceptance.requireEvidenceFloor` they also
+   * counted against the policy.
+   */
+  belowFloorOkChildren?: string[];
   /**
    * The per-child machine roster of the acceptance fold (RV806), lifted
    * from the same envelope (or typed error data) under the same

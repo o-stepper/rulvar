@@ -96,6 +96,11 @@ describe('the terminal envelope (RV1105)', () => {
     expect(outcome.envelope.usage).toEqual(outcome.usage);
     expect(outcome.envelope.usageApprox).toBe(false);
     expect(outcome.envelope.agentsSpawned).toBe(2);
+    // The money's provenance (RV1413): these dollars are journaled
+    // usage priced at the caller's table, never a provider statement,
+    // and the envelope says so instead of leaving a reader to guess.
+    expect(outcome.envelope.costBasis).toBe('locally-estimated');
+    expect(outcome.cost.basis).toBe('locally-estimated');
     expect('error' in outcome.envelope).toBe(false);
     expect('completion' in outcome.envelope).toBe(false);
     expect('settledReason' in outcome.envelope).toBe(false);
@@ -252,6 +257,7 @@ describe('terminalEnvelopeOf (RV1105)', () => {
       settled: true,
       totalUsd: 1.25,
       grossUsd: 1.5,
+      costBasis: 'locally-estimated',
       costByModel: { 'fake:m1': 1.25 },
       usage: outcomeFacts.usage,
       usageApprox: false,

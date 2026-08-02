@@ -1488,6 +1488,16 @@ interface TerminalEnvelope {
   totalUsd: number;
   /** The gross figure with abandoned subtrees included (P1.3). */
   grossUsd: number;
+  /**
+  * Where the dollars above come from (RV1413): journaled usage priced
+  * at the CALLER'S pricing table (declared rates or adapter caps),
+  * never a provider statement. Always `'locally-estimated'` today,
+  * declared as a literal so finance tooling never has to guess,
+  * mirroring `InvoiceExport.pricingBasis`; reconcile real bills
+  * through the invoice export and `reconcileStatement`, which carry
+  * their own provenance.
+  */
+  costBasis: "locally-estimated";
   /** The per-model split of totalUsd, keyed by canonical ModelRef. */
   costByModel: Record<string, number>;
   /** The run's usage aggregate, TTL attribution included. */
@@ -2014,6 +2024,14 @@ type CoreEvents = {
   degradedReasons?: string[]; /** Children accepted by acceptPartialChildren; same lift. */
   salvagedPartialChildren?: string[]; /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
   salvagedTerminalOutputChildren?: string[];
+  /**
+  * Children that settled 'ok' below their declared evidence floor
+  * (RV1412); same lift. Under the default their shortfall is a
+  * degradation note and the verdict is untouched; under
+  * `acceptance.requireEvidenceFloor` they also counted against
+  * the policy.
+  */
+  belowFloorOkChildren?: string[];
   /**
   * Present and false ONLY when nothing durable records this
   * terminal: a settlement write failed (the run_settle journal
@@ -8282,6 +8300,16 @@ interface OrchestrateAcceptance {
   * its counts, and the child's output stays visible through the
   * digest and get_child_result exactly as before. A child with no
   * declared contract, or one that met its floor, is untouched.
+  *
+  * Since RV1412 the same flag binds the floor for OK children too: a
+  * child that settled 'ok' below its declared floor counts against
+  * the policy ('all-ok' rejects; `{ minSuccessful: N }` does not
+  * count it toward N), its roster row is marked `floorRequired`, and
+  * `belowFloorOkChildren` lists it. WITHOUT the flag such a child is
+  * visible but uncounted: the shortfall is a degradation note (so
+  * completion honestly reads 'partial', never 'complete' over an
+  * unmet declared contract), the list is present, and the verdict is
+  * exactly what it was before this shipped.
   */
   requireEvidenceFloor?: boolean;
 }
@@ -9629,6 +9657,16 @@ interface PendingExternal {
 /** Full contract: https://docs.rulvar.com/guide/observability. */
 interface CostReport {
   /**
+  * Where every dollar of this report comes from (RV1413): journaled
+  * usage priced at the CALLER'S pricing table (declared rates or
+  * adapter caps), never a provider statement. Always
+  * `'locally-estimated'` today, declared as a literal so finance
+  * tooling never has to guess, mirroring `InvoiceExport.pricingBasis`;
+  * reconcile real bills through the invoice export and
+  * `reconcileStatement`, which carry their own provenance.
+  */
+  basis: "locally-estimated";
+  /**
   * The NET ledger: priced terminal usage with abandoned subtrees
   * contributing zero (their spend is a sunk cost of branches the
   * orchestrator discarded, not of the work the run kept). The
@@ -9707,7 +9745,11 @@ interface CostReport {
 * `floorRequired: true` marks the opposite verdict under
 * `acceptance.requireEvidenceFloor` (RV1207): the arm applied, the
 * floor was not met, and the child was NOT promoted, so the row is
-* diagnostic and the child counted against the policy.
+* diagnostic and the child counted against the policy. Since RV1412 an
+* OK row can carry `floorRequired` too: the child settled 'ok' below
+* its declared floor and the same flag excluded it from the policy
+* count (without the flag such a row keeps `met: false` unmarked, and
+* the child rides `belowFloorOkChildren` with a degradation note).
 */
 interface AcceptanceChildSummary {
   child: string;
@@ -9765,6 +9807,14 @@ type RunOutcome<R> = {
   * 'limit'; same lift and posture.
   */
   salvagedTerminalOutputChildren?: string[];
+  /**
+  * Children that settled 'ok' below their declared evidence floor
+  * (RV1412); same lift and posture. A fact list in both modes: under
+  * the default their shortfall is a degradation note and the verdict
+  * is untouched; under `acceptance.requireEvidenceFloor` they also
+  * counted against the policy.
+  */
+  belowFloorOkChildren?: string[];
   /**
   * The per-child machine roster of the acceptance fold (RV806), lifted
   * from the same envelope (or typed error data) under the same

@@ -18,6 +18,7 @@ Full contract: https://docs.rulvar.com/guide/observability.
 | `abandoned.unpriced` | \{ `model`: `string`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); \}[] | - | `packages/core/dist/index.d.ts` |
 | `abandoned.usageApprox?` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `abandoned.usd` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-basis"></a> `basis` | `"locally-estimated"` | Where every dollar of this report comes from (RV1413): journaled usage priced at the CALLER'S pricing table (declared rates or adapter caps), never a provider statement. Always `'locally-estimated'` today, declared as a literal so finance tooling never has to guess, mirroring `InvoiceExport.pricingBasis`; reconcile real bills through the invoice export and `reconcileStatement`, which carry their own provenance. | `packages/core/dist/index.d.ts` |
 | <a id="property-byagenttype"></a> `byAgentType` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-bymodel"></a> `byModel` | `Record`\&lt;`string`, `number`\&gt; | Keyed by canonical ModelRef 'adapterId:model'. | `packages/core/dist/index.d.ts` |
 | <a id="property-byphase"></a> `byPhase` | `Record`\&lt;`string`, `number`\&gt; | ctx.phase names; phase is structural for this map. | `packages/core/dist/index.d.ts` |

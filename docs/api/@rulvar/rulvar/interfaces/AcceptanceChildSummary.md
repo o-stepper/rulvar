@@ -17,7 +17,11 @@ anyway; gate on it where waived evidence must not pass silently.
 `floorRequired: true` marks the opposite verdict under
 `acceptance.requireEvidenceFloor` (RV1207): the arm applied, the
 floor was not met, and the child was NOT promoted, so the row is
-diagnostic and the child counted against the policy.
+diagnostic and the child counted against the policy. Since RV1412 an
+OK row can carry `floorRequired` too: the child settled 'ok' below
+its declared floor and the same flag excluded it from the policy
+count (without the flag such a row keeps `met: false` unmarked, and
+the child rides `belowFloorOkChildren` with a degradation note).
 
 ## Properties
 

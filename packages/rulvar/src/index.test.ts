@@ -67,6 +67,7 @@ describe('@rulvar/rulvar umbrella (M1-T10)', () => {
           settled: true,
           totalUsd: 0.0123,
           grossUsd: 0.0123,
+          costBasis: 'locally-estimated',
           costByModel: { 'fake:model': 0.0123 },
           usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
           usageApprox: false,

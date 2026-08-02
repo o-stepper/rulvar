@@ -385,6 +385,7 @@ describe('handle sources and lifecycle', () => {
   }
 
   const COST: CostReport = {
+    basis: 'locally-estimated',
     totalUsd: 0.021,
     grossUsd: 0.021,
     abandoned: { usd: 0, unpriced: [] },

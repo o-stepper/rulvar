@@ -63,6 +63,14 @@ export type CoreEvents =
       /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
       salvagedTerminalOutputChildren?: string[];
       /**
+       * Children that settled 'ok' below their declared evidence floor
+       * (RV1412); same lift. Under the default their shortfall is a
+       * degradation note and the verdict is untouched; under
+       * `acceptance.requireEvidenceFloor` they also counted against
+       * the policy.
+       */
+      belowFloorOkChildren?: string[];
+      /**
        * Present and false ONLY when nothing durable records this
        * terminal: a settlement write failed (the run_settle journal
        * append or the terminal RunMeta projection, RV907), or the

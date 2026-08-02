@@ -2174,6 +2174,54 @@ const MUTATIONS = [
     replace: '  return RUN_PROFILES[name];',
     test: 'packages/core/src/engine/run-profiles.test.ts',
   },
+  {
+    id: 'acceptance-ok-floor-visibility',
+    doctrine:
+      "an ok child below its DECLARED evidence floor is a degradation the headline must name (RV1412): skipped, completion claims 'complete' and degradedReasons stays empty over an unmet contract, the roster row alone whispering met: false",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          const evidence = record.settled?.evidence;\n          if (evidence !== undefined && !evidence.met) {\n            belowFloorOk.push(record.nodeId);',
+    replace:
+      '          const evidence = record.settled?.evidence;\n          if (false && evidence !== undefined && !evidence.met) {\n            belowFloorOk.push(record.nodeId);',
+    test: 'packages/core/src/orchestrator/salvage.test.ts',
+  },
+  {
+    id: 'acceptance-ok-floor-gate',
+    doctrine:
+      "requireEvidenceFloor binds the declared floor for OK children exactly like the salvage arms (RV1412): with the gate arm dead, a below-floor ok child counts as a policy success, 'all-ok' accepts and minSuccessful counts it",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '            belowFloorOk.push(record.nodeId);\n            if (requireFloor) {\n              hardDegraded += 1;\n              okGatedBelowFloor += 1;',
+    replace:
+      '            belowFloorOk.push(record.nodeId);\n            if (requireFloor && false) {\n              hardDegraded += 1;\n              okGatedBelowFloor += 1;',
+    test: 'packages/core/src/orchestrator/salvage.test.ts',
+  },
+  {
+    id: 'accepted-pool-floor-exclusion',
+    doctrine:
+      'an ok child the policy refused to count must not steer what composes the result (RV1412, the RV1403 line): with the exclusion dead, its reading re-enters the contradiction pool and the synthesis evidence index of an accepted run',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      for (const node of acceptedSalvage.excludedOk) {\n        roster.delete(node);\n      }',
+    replace: '      for (const node of [] as string[]) {\n        roster.delete(node);\n      }',
+    test: 'packages/core/src/orchestrator/salvage.test.ts',
+  },
+  {
+    id: 'cost-report-basis',
+    doctrine:
+      "the cost report declares its dollars locally estimated at the caller's table (RV1413): unstamped, a management estimate reads as an invoice figure, the seventeenth run's $4.79 defect",
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: "    // The provenance marker (RV1413): both builders stamp the same\n    // literal, so a journal fold and a live accumulation report their\n    // dollars under the same declared basis.\n    basis: 'locally-estimated',",
+    replace:
+      "    // The provenance marker (RV1413): both builders stamp the same\n    // literal, so a journal fold and a live accumulation report their\n    // dollars under the same declared basis.\n    basis: 'locally-guessed' as never,",
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
+    id: 'envelope-cost-basis',
+    doctrine:
+      'the terminal envelope carries the cost basis on every surface through its ONE producer (RV1413): unstamped there, the outcome, the event, the HTTP response, and the journal rebuild all serve dollars with no declared provenance',
+    file: 'packages/core/src/engine/terminal-envelope.ts',
+    find: "    costBasis: 'locally-estimated',",
+    replace: "    costBasis: 'locally-guessed' as never,",
+    test: 'packages/core/src/engine/terminal-envelope.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

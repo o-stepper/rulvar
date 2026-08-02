@@ -666,3 +666,236 @@ describe('partial-child salvage (RV-210 close-out)', () => {
     expect(replayAdapter.calls).toEqual([]);
   });
 });
+
+/**
+ * The ok-child evidence floor (RV1412). RV1207 made the declared floor
+ * binding for the SALVAGE arms, but a child that settled 'ok' below its
+ * declared floor sailed through acceptance with a clean headline: the
+ * roster row said met: false while completion said 'complete' and
+ * degradedReasons stayed empty, and requireEvidenceFloor never judged
+ * it. Visibility is the default (the shortfall is a degradation note,
+ * the children are listed machine-readably); the verdict changes only
+ * under the existing opt-in flag.
+ */
+describe('the ok-child evidence floor (RV1412)', () => {
+  const evidenceRecorder = () =>
+    tool({
+      name: 'record_evidence',
+      description: 'records one evidence entry',
+      parameters: z.strictObject({}),
+      execute: () => Promise.resolve({ recorded: true }),
+    });
+  const floorProfiles = () => ({
+    solid: { description: 'settles ok' },
+    digger: {
+      description: 'records evidence then answers ok',
+      tools: [evidenceRecorder()],
+      evidenceContract: { minEntries: 2, enforce: 'warn' as const },
+    },
+  });
+  const makeAdapter = (recordings: number) => {
+    let orchTurn = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      const agentType = agentTypeOf(req);
+      if (agentType === 'solid') {
+        return { text: 'solid evidence' };
+      }
+      if (agentType === 'digger') {
+        const turn = req.messages.filter((msg) => msg.role === 'tool').length;
+        if (turn < recordings) {
+          return { toolCall: { name: 'record_evidence', args: {} } };
+        }
+        return { text: 'dug and answered' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'solid', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'digger', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'the merged report' } } };
+    });
+  };
+  type FloorEnvelope = Envelope & {
+    belowFloorOkChildren?: string[];
+    acceptanceChildren?: Array<{
+      child: string;
+      status: string;
+      evidence?: {
+        met: boolean;
+        recordedEntries: number;
+        minEntries: number;
+        floorRequired?: true;
+        waivedBySalvage?: true;
+      };
+    }>;
+  };
+
+  it('an ok child below its declared floor is visible on the accepted envelope by default', async () => {
+    const { internals } = makeInternals({
+      adapters: [makeAdapter(1)],
+      routing: ROUTING,
+      profiles: floorProfiles(),
+    });
+    const envelope = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('collect', { acceptance: { childPolicy: 'all-ok' } }),
+      undefined,
+    )) as FloorEnvelope;
+    // The verdict is untouched (accepted, both children count), but the
+    // headline stops claiming a clean completion over an unmet declared
+    // contract: the shortfall is a degradation note, so completion reads
+    // 'partial', and the children are listed machine-readably.
+    expect(envelope.completion).toBe('partial');
+    expect(envelope.childStatusCounts.ok).toBe(2);
+    expect(envelope.degradedReasons.join(' ')).toContain("settled 'ok' below its declared");
+    expect(envelope.degradedReasons.join(' ')).toContain('1 of 2');
+    const okRow = envelope.acceptanceChildren?.find((row) => row.evidence !== undefined);
+    expect(okRow?.status).toBe('ok');
+    expect(okRow?.evidence).toMatchObject({ met: false, recordedEntries: 1, minEntries: 2 });
+    expect(okRow?.evidence?.floorRequired).toBeUndefined();
+    expect(okRow?.evidence?.waivedBySalvage).toBeUndefined();
+    expect(envelope.belowFloorOkChildren).toEqual([okRow?.child]);
+  });
+
+  it('requireEvidenceFloor makes the ok floor binding: all-ok rejects', async () => {
+    const { internals } = makeInternals({
+      adapters: [makeAdapter(1)],
+      routing: ROUTING,
+      profiles: floorProfiles(),
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(
+        internals,
+        makeOrchestratorWorkflow('collect', {
+          acceptance: { childPolicy: 'all-ok', requireEvidenceFloor: true },
+        }),
+        undefined,
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as FloorEnvelope;
+    expect(data.degradedReasons?.join(' ')).toContain('evidence floor');
+    expect(data.degradedReasons?.join(' ')).toContain('requires the evidence floor');
+    expect(data.belowFloorOkChildren).toHaveLength(1);
+    const okRow = data.acceptanceChildren?.find((row) => row.evidence !== undefined);
+    // Diagnostic roster, binding verdict: the row keeps its ok status
+    // and its counts, the floor is marked required, nothing is waived.
+    expect(okRow?.status).toBe('ok');
+    expect(okRow?.evidence?.met).toBe(false);
+    expect(okRow?.evidence?.floorRequired).toBe(true);
+    expect(okRow?.evidence?.waivedBySalvage).toBeUndefined();
+  });
+
+  it('minSuccessful does not count a below-floor ok child under the gate', async () => {
+    const accepted = makeInternals({
+      adapters: [makeAdapter(1)],
+      routing: ROUTING,
+      profiles: floorProfiles(),
+    });
+    const control = (await executeWorkflow(
+      accepted.internals,
+      makeOrchestratorWorkflow('collect', {
+        acceptance: { childPolicy: { minSuccessful: 2 } },
+      }),
+      undefined,
+    )) as FloorEnvelope;
+    expect(control.completion).toBe('partial');
+
+    const strict = makeInternals({
+      adapters: [makeAdapter(1)],
+      routing: ROUTING,
+      profiles: floorProfiles(),
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(
+        strict.internals,
+        makeOrchestratorWorkflow('collect', {
+          acceptance: { childPolicy: { minSuccessful: 2 }, requireEvidenceFloor: true },
+        }),
+        undefined,
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    // Only the solid child counts toward the minimum: the below-floor
+    // ok child is a status fact, never a policy success.
+    expect(thrown).toBeInstanceOf(FailRunError);
+  });
+
+  it('a met floor stays byte-identical: no note, no list, completion complete', async () => {
+    const { internals } = makeInternals({
+      adapters: [makeAdapter(2)],
+      routing: ROUTING,
+      profiles: floorProfiles(),
+    });
+    const envelope = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('collect', {
+        acceptance: { childPolicy: 'all-ok', requireEvidenceFloor: true },
+      }),
+      undefined,
+    )) as FloorEnvelope;
+    expect(envelope.completion).toBe('complete');
+    expect(envelope.degradedReasons).toEqual([]);
+    expect('belowFloorOkChildren' in envelope).toBe(false);
+    const okRow = envelope.acceptanceChildren?.find((row) => row.evidence !== undefined);
+    expect(okRow?.evidence).toMatchObject({ met: true, recordedEntries: 2 });
+  });
+
+  it('the accepted pool excludes an ok child the gate refused to count', async () => {
+    // The RV1403 line: a reading the policy refused to count must not
+    // steer what composes the result. Under the gate with minSuccessful
+    // met by the solid child, the run is accepted but the below-floor
+    // ok child stays OUT of the contradiction pool, and the meta says
+    // so machine-readably.
+    const { internals } = makeInternals({
+      adapters: [makeAdapter(1)],
+      routing: ROUTING,
+      profiles: floorProfiles(),
+    });
+    const envelope = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('collect', {
+        acceptance: { childPolicy: { minSuccessful: 1 }, requireEvidenceFloor: true },
+        contradictions: {},
+      }),
+      undefined,
+    )) as FloorEnvelope & { contradictionsMeta?: { poolChildren: number } };
+    expect(envelope.completion).toBe('partial');
+    expect(envelope.belowFloorOkChildren).toHaveLength(1);
+    expect(envelope.contradictionsMeta?.poolChildren).toBe(1);
+  });
+
+  it('the engine lift mirrors belowFloorOkChildren onto the outcome and run:end', async () => {
+    const engine = createEngine({
+      adapters: [makeAdapter(1)],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: { routing: ROUTING, profiles: floorProfiles() },
+    });
+    const handle = engine.run(
+      makeOrchestratorWorkflow('collect', { acceptance: { childPolicy: 'all-ok' } }),
+      undefined,
+      { runId: 'FLOOR-LIFT' },
+    );
+    let eventList: unknown;
+    handle.on('run:end', (event) => {
+      eventList = (event as { belowFloorOkChildren?: unknown }).belowFloorOkChildren;
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.belowFloorOkChildren).toHaveLength(1);
+    expect(eventList).toEqual(outcome.belowFloorOkChildren);
+  });
+});
