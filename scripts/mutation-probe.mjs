@@ -766,10 +766,10 @@ const MUTATIONS = [
   {
     id: 'evidence-index-pool',
     doctrine:
-      'the EVIDENCE INDEX extracts citations ONLY from evidence-pool children (ok and salvage-accepted): an indexed citation from a failed child is one the validators would reject as fabricated (RV808b)',
+      'the EVIDENCE INDEX extracts citations ONLY from the accepted roster (RV808b, RV1403): an indexed citation from a failed child is one the validators would reject as fabricated',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "                const eligible =\n                  settled.status === 'ok' ||",
-    replace: '                const eligible =\n                  true ||',
+    find: "                const eligible =\n                  acceptedRoster === undefined\n                    ? settled.status === 'ok'\n                    : acceptedRoster.has(record.nodeId);",
+    replace: '                const eligible = true;',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
@@ -1861,10 +1861,10 @@ const MUTATIONS = [
   {
     id: 'contradiction-evidence-pool',
     doctrine:
-      "the pass judges the EVIDENCE pool only (RV1302): widened to every settled child, a dead child's error text disputes a real finding, and a run fails on a claim nothing accepted",
+      "the pass judges the ACCEPTED roster only (RV1302, RV1403): widened to every settled child, a dead child's error text disputes a real finding, and a run fails on a claim nothing accepted",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "        if (\n          settled === undefined ||\n          !(\n            settled.status === 'ok' ||",
-    replace: '        if (\n          settled === undefined ||\n          !(\n            true ||',
+    find: "        const accepted =\n          acceptedRoster === undefined\n            ? settled.status === 'ok'\n            : acceptedRoster.has(record.nodeId);",
+    replace: '        const accepted = true;',
     test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
   },
   {
@@ -1872,7 +1872,7 @@ const MUTATIONS = [
     doctrine:
       "the 'fail' posture actually fails the run BEFORE the synthesis dispatch (RV1302): degraded to a report, a self-contradicting pool pays for the invocation that composes the disagreement away and settles ok",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "      if (onFound !== 'fail' || found.length === 0) {\n        return;\n      }",
+    find: "      if (onFound !== 'fail' || contradictionsFound.length === 0) {\n        return;\n      }",
     replace: '      return;',
     test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
   },
@@ -1890,10 +1890,77 @@ const MUTATIONS = [
     doctrine:
       'an EMPTY findings list rides the envelope (RV1302): dropped as if absent, "the pass ran and the pool agreed" becomes indistinguishable from "nothing looked", which is exactly the absence doctrine RV1209 pinned',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '      ...(contradictionsFound === undefined ? {} : { contradictions: contradictionsFound }),',
+    find: '      ...(contradictionsFound === undefined\n        ? {}\n        : {\n            contradictions: contradictionsFound,\n            contradictionsMeta: contradictionsMeta as unknown as Json,\n          }),',
     replace:
-      '      ...(contradictionsFound === undefined || contradictionsFound.length === 0\n        ? {}\n        : { contradictions: contradictionsFound }),',
+      '      ...(contradictionsFound === undefined || contradictionsFound.length === 0\n        ? {}\n        : {\n            contradictions: contradictionsFound,\n            contradictionsMeta: contradictionsMeta as unknown as Json,\n          }),',
     test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
+  {
+    id: 'contradiction-accepted-partial',
+    doctrine:
+      'a structured partial the acceptance policy counted is IN the pool (RV1403): dropped from the roster, the seventeenth run judges five of six accepted children again and a rival partial can never dispute anything',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      for (const node of acceptedSalvage.partial) {\n        roster.add(node);\n      }',
+    replace: '      for (const node of acceptedSalvage.partial) {\n        void node;\n      }',
+    test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
+  {
+    id: 'contradiction-floor-blocked-out',
+    doctrine:
+      'a floor-blocked child stays OUT of the pool (RV1403): let back in, a reading the acceptance policy refused to count disputes the accepted pool, which is a promotion RV1207 exists to forbid',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (!accepted) {\n          continue;\n        }',
+    replace:
+      "        if (!accepted && settled.status !== 'limit') {\n          continue;\n        }",
+    test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
+  {
+    id: 'contradiction-carry-locks-skip',
+    doctrine:
+      "non-empty findings under 'carry' disable the valid-draft skip (RV1404): skipped anyway, the carry promise silently no-ops because nothing was ever asked to resolve the dispute",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "          const carryBlocked =\n            opts?.contradictions?.onFound === 'carry' &&\n            contradictionsFound !== undefined &&\n            contradictionsFound.length > 0;",
+    replace:
+      "          const carryBlocked =\n            opts?.contradictions?.onFound === 'carry' &&\n            contradictionsFound !== undefined &&\n            contradictionsFound.length > 9999;",
+    test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
+  {
+    id: 'contradiction-truncated-marker',
+    doctrine:
+      'the truncation the max bound applies is NAMED (RV1404): silenced, a capped findings list is indistinguishable from a complete one and the bound quietly hides the remainder',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      const truncated = found.length > limit;',
+    replace: '      const truncated = false;',
+    test: 'packages/core/src/orchestrator/contradiction-pass.test.ts',
+  },
+  {
+    id: 'salvage-prediction-floor',
+    doctrine:
+      'the salvage prediction respects the binding floor (RV1403): ignored, a below-floor child the arms will never count is marked salvageable and its text enters the validators cited evidence pool',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (\n        opts?.acceptance?.requireEvidenceFloor === true &&\n        settled.evidence !== undefined &&\n        !settled.evidence.met\n      ) {',
+    replace:
+      '      if (\n        opts?.acceptance?.requireEvidenceFloor === true &&\n        settled.evidence !== undefined &&\n        !settled.evidence.met &&\n        false\n      ) {',
+    test: 'packages/core/src/orchestrator/salvage-output.test.ts',
+  },
+  {
+    id: 'salvage-prediction-partial',
+    doctrine:
+      'the partial arm is predicted like the output arm (RV1403): dropped, an accepted partial child is never marked and an orchestrator quoting the partial the policy accepted reads as fabricating citations',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (opts?.acceptance?.acceptPartialChildren === true && settled.partial !== undefined) {\n        return 'partial';\n      }",
+    replace:
+      '      if (opts?.acceptance?.acceptPartialChildren === true && settled.partial !== undefined) {\n        return undefined;\n      }',
+    test: 'packages/core/src/orchestrator/salvage.test.ts',
+  },
+  {
+    id: 'salvageable-partial-pool',
+    doctrine:
+      "evidencePreservedValidator pools a marked salvageablePartial child (RV1403): unpooled, the accepted partial's citations stay unknown and requireKnown flags an honest quote as fabricated",
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: "        if (\n          child.status !== 'ok' &&\n          child.salvageableOutput !== true &&\n          child.salvageablePartial !== true\n        ) {",
+    replace: "        if (child.status !== 'ok' && child.salvageableOutput !== true) {",
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
   {
     id: 'citation-targets-unresolved',

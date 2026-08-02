@@ -8,6 +8,7 @@
  * pool the pass judges, and the intake refusals.
  */
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import type { ChatRequest } from '../l0/messages.js';
 import { ConfigError, FailRunError } from '../l0/errors.js';
@@ -15,6 +16,8 @@ import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
+import { progressReportTool } from '../tools/progress.js';
+import { tool } from '../tools/tool.js';
 
 import { makeOrchestratorWorkflow } from './orchestrate.js';
 
@@ -100,6 +103,104 @@ function harness(children: readonly ScriptedTurn[]) {
 
 const DISPUTED = [{ text: READS_THREE }, { text: READS_FIVE }];
 
+const noop = () =>
+  tool({
+    name: 'noop',
+    description: 'does nothing',
+    parameters: z.strictObject({}),
+    execute: () => Promise.resolve('noop'),
+  });
+
+/**
+ * Profiles for the accepted-roster pool tests (RV1403): 'stuck' reports
+ * a rival partial and burns out, 'floorReserve' answers the rival
+ * through its finalization reserve while below its declared floor.
+ */
+const MIXED_PROFILES = {
+  solid: { description: 'settles ok' },
+  stuck: {
+    description: 'reports a rival partial, then burns out',
+    tools: [progressReportTool(), noop()],
+    limits: { maxTurns: 8, maxToolCalls: 2 },
+  },
+  floorReserve: {
+    description: 'burns out below its declared floor, answers via the reserve',
+    tools: [noop()],
+    limits: { maxTurns: 8, maxToolCalls: 1, finalizationReserve: {} },
+    evidenceContract: { minEntries: 2, enforce: 'warn' as const },
+  },
+};
+const SCHEMAS = { verdict: z.strictObject({ verdict: z.string(), sources: z.number() }) };
+
+function lastUserTextOf(req: ChatRequest): string {
+  for (let i = req.messages.length - 1; i >= 0; i -= 1) {
+    const msg = req.messages[i];
+    if (msg?.role === 'user') {
+      const part = msg.parts.find((p) => p.type === 'text');
+      return (part as { text?: string } | undefined)?.text ?? '';
+    }
+  }
+  return '';
+}
+
+/**
+ * Spawns the given profiles: 'solid' settles ok reading three, 'stuck'
+ * leaves a structured partial reading five, 'floorReserve' answers a
+ * validated terminal output reading five with 0 of 2 evidence entries.
+ */
+function mixedHarness(spawns: readonly { agentType: string; outputSchemaRef?: string }[]) {
+  let orchTurn = 0;
+  const coordination = scriptedAdapter((req): ScriptedTurn => {
+    const agentType = agentTypeOf(req);
+    if (agentType === 'solid') {
+      return { text: READS_THREE };
+    }
+    if (agentType === 'stuck') {
+      const turn = req.messages.filter((msg) => msg.role === 'tool').length;
+      if (turn === 0) {
+        return {
+          toolCall: {
+            name: 'report_progress',
+            args: { facts: [READS_FIVE], evidence: ['src/retry.ts:33'], questions: [] },
+          },
+        };
+      }
+      return { toolCall: { name: 'noop', args: {} } };
+    }
+    if (agentType === 'floorReserve') {
+      if (lastUserTextOf(req).includes('The tool budget is exhausted')) {
+        return { text: JSON.stringify({ verdict: READS_FIVE, sources: 5 }) };
+      }
+      return {
+        toolCalls: [
+          { name: 'noop', args: {} },
+          { name: 'noop', args: {} },
+        ],
+      };
+    }
+    orchTurn += 1;
+    if (orchTurn === 1) {
+      return {
+        toolCalls: spawns.map((spawn) => ({
+          name: 'spawn_agent',
+          args: { ...spawn, prompt: 'go' },
+        })),
+      };
+    }
+    if (orchTurn === 2) {
+      return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+    }
+    return { toolCall: { name: 'finish', args: { result: 'draft: the default is three' } } };
+  });
+  const { internals, events } = makeInternals({
+    adapters: [coordination],
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', extract: 'fake:model' },
+    profiles: MIXED_PROFILES,
+    schemas: SCHEMAS,
+  });
+  return { internals, events };
+}
+
 describe('the bounded contradiction pass (RV1302)', () => {
   it('reports a pool contradiction on the acceptance envelope and in a log', async () => {
     const { internals, events } = harness(DISPUTED);
@@ -135,8 +236,10 @@ describe('the bounded contradiction pass (RV1302)', () => {
       }),
       undefined,
     )) as Record<string, unknown>;
-    // An EMPTY list is a fact: the pass ran and the pool agreed.
+    // An EMPTY list is a fact: the pass ran and the pool agreed. The
+    // meta beside it says how much was looked at (RV1404).
     expect(withPass.contradictions).toEqual([]);
+    expect(withPass.contradictionsMeta).toEqual({ poolChildren: 2, truncated: false });
 
     const bare = harness(agreeing);
     const withoutPass = (await executeWorkflow(
@@ -148,6 +251,7 @@ describe('the bounded contradiction pass (RV1302)', () => {
     )) as Record<string, unknown>;
     // An ABSENT field is a different fact: nothing looked.
     expect('contradictions' in withoutPass).toBe(false);
+    expect('contradictionsMeta' in withoutPass).toBe(false);
   });
 
   it('carries the contradictions into the single-mode synthesis prompt', async () => {
@@ -292,5 +396,125 @@ describe('the bounded contradiction pass (RV1302)', () => {
     expect(() => makeOrchestratorWorkflow('goal', { contradictions: { max: 0 } })).toThrow(
       ConfigError,
     );
+  });
+});
+
+describe('the accepted-roster pool and the carry invariant (RV1403, RV1404)', () => {
+  it('the pool includes a salvage-accepted structured partial', async () => {
+    // The seventeenth comparison run: five ok children plus one limit
+    // child accepted as a structured partial, and the pass judged FIVE.
+    // The partial is part of the accepted result set, so a rival claim
+    // inside it must be able to dispute the pool.
+    const { internals } = mixedHarness([{ agentType: 'solid' }, { agentType: 'stuck' }]);
+    const wf = makeOrchestratorWorkflow('read the retry policy', {
+      acceptance: { childPolicy: 'all-ok', acceptPartialChildren: true },
+      contradictions: {},
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      completion?: string;
+      contradictions?: { anchor: string; claims: { value: string }[] }[];
+      contradictionsMeta?: { poolChildren: number; truncated: boolean };
+    };
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.contradictions).toHaveLength(1);
+    expect(outcome.contradictions?.[0]?.anchor).toBe('src/retry.ts:33');
+    expect(outcome.contradictions?.[0]?.claims.map((claim) => claim.value)).toEqual(['3', '5']);
+    expect(outcome.contradictionsMeta).toEqual({ poolChildren: 2, truncated: false });
+  });
+
+  it('the pool excludes a floor-blocked child even with a validated terminal output', async () => {
+    // The acceptance policy refused to count this child (RV1207), so
+    // its reading cannot dispute the pool either: a rejected child's
+    // text influencing the synthesis inputs would be a promotion.
+    const { internals } = mixedHarness([
+      { agentType: 'solid' },
+      { agentType: 'floorReserve', outputSchemaRef: 'verdict' },
+    ]);
+    const wf = makeOrchestratorWorkflow('read the retry policy', {
+      acceptance: {
+        childPolicy: { minSuccessful: 1 },
+        acceptValidatedTerminalOutputOnLimit: true,
+        requireEvidenceFloor: true,
+      },
+      contradictions: {},
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      contradictions?: unknown[];
+      contradictionsMeta?: { poolChildren: number; truncated: boolean };
+      degradedReasons?: string[];
+    };
+    expect(outcome.degradedReasons?.join(' ')).toContain('evidence floor');
+    expect(outcome.contradictions).toEqual([]);
+    expect(outcome.contradictionsMeta).toEqual({ poolChildren: 1, truncated: false });
+  });
+
+  it("non-empty findings under 'carry' disable the valid-draft skip", async () => {
+    // With the skip, the carry promise silently no-ops: the draft was
+    // composed without the CHILD CONTRADICTIONS line, and skipping the
+    // synthesis means nothing was ever asked to resolve the dispute.
+    const { internals, events, synthesis } = harness(DISPUTED);
+    const wf = makeOrchestratorWorkflow('read the retry policy', {
+      acceptance: { childPolicy: 'all-ok' },
+      finishValidation: { validators: [{ name: 'always-ok', validate: () => ({ ok: true }) }] },
+      synthesis: { skipWhenDraftValid: true },
+      contradictions: { onFound: 'carry' },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      synthesisSkipped?: string;
+    };
+    expect(synthesis.calls).toHaveLength(1);
+    const prompt = synthesis.calls[0] === undefined ? '' : textOf(synthesis.calls[0]);
+    expect(prompt).toContain('CHILD CONTRADICTIONS:');
+    expect(outcome.synthesisSkipped).toBeUndefined();
+    const blocked = events
+      .ofType('log')
+      .find(
+        (event) =>
+          (event as { msg?: string }).msg ===
+          'orchestrator synthesis skip blocked by contradictions',
+      ) as { data?: { contradictions?: number } } | undefined;
+    expect(blocked?.data?.contradictions).toBe(1);
+  });
+
+  it("a clean pool keeps the valid-draft skip under 'carry'", async () => {
+    const { internals, synthesis } = harness([{ text: READS_THREE }, { text: READS_THREE }]);
+    const wf = makeOrchestratorWorkflow('read the retry policy', {
+      acceptance: { childPolicy: 'all-ok' },
+      finishValidation: { validators: [{ name: 'always-ok', validate: () => ({ ok: true }) }] },
+      synthesis: { skipWhenDraftValid: true },
+      contradictions: { onFound: 'carry' },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      synthesisSkipped?: string;
+      contradictions?: unknown[];
+    };
+    expect(synthesis.calls).toHaveLength(0);
+    expect(outcome.synthesisSkipped).toBe('synthesis_skipped_by_valid_draft');
+    expect(outcome.contradictions).toEqual([]);
+  });
+
+  it('the truncation the max bound applies is named, never silent', async () => {
+    const TWO_A =
+      'The retry default is `attempts: 3` (`src/retry.ts:33`). ' +
+      'The backoff is `backoffMs: 100` (`src/retry.ts:40`).';
+    const TWO_B =
+      'The retry default is `attempts: 5` (`src/retry.ts:33`). ' +
+      'The backoff is `backoffMs: 200` (`src/retry.ts:40`).';
+    const { internals, events } = harness([{ text: TWO_A }, { text: TWO_B }]);
+    const wf = makeOrchestratorWorkflow('read the retry policy', {
+      acceptance: { childPolicy: 'all-ok' },
+      contradictions: { max: 1 },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      contradictions?: unknown[];
+      contradictionsMeta?: { poolChildren: number; truncated: boolean };
+    };
+    expect(outcome.contradictions).toHaveLength(1);
+    expect(outcome.contradictionsMeta).toEqual({ poolChildren: 2, truncated: true });
+    const log = events
+      .ofType('log')
+      .find((event) => (event as { msg?: string }).msg === 'orchestrator contradiction pass') as
+      { data?: { truncated?: boolean } } | undefined;
+    expect(log?.data?.truncated).toBe(true);
   });
 });

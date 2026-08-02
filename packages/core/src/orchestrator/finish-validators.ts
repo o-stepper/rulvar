@@ -36,12 +36,27 @@ export interface FinishValidationChild {
    * Present and true ONLY when acceptance.acceptValidatedTerminalOutputOnLimit
    * is configured and this child settled 'limit' CARRYING a terminal
    * output (the finalization reserve summary that, for a schema child,
-   * already validated against the declared output schema). Acceptance
-   * will count such a child as a success, so evidencePreservedValidator
-   * treats its text as part of the cited evidence pool. Absent in every
-   * other configuration, keeping the old pool exactly.
+   * already validated against the declared output schema) that the
+   * acceptance arms WILL count: under acceptance.requireEvidenceFloor a
+   * below-floor child is never promoted (RV1207), so it is never marked
+   * either (RV1403). Acceptance counts a marked child as a success, so
+   * evidencePreservedValidator treats its text as part of the cited
+   * evidence pool. Absent in every other configuration, keeping the old
+   * pool exactly.
    */
   readonly salvageableOutput?: boolean;
+  /**
+   * The partial-arm twin of `salvageableOutput` (RV1403): present and
+   * true ONLY when acceptance.acceptPartialChildren is configured and
+   * this child settled 'limit' CARRYING a structured partial the
+   * acceptance arms WILL count (the output arm wins when both apply,
+   * and a below-floor child under requireEvidenceFloor is never
+   * marked). The accepted partial IS part of the composed result, so
+   * its citations are evidence: without the mark, an orchestrator
+   * quoting a partial the policy accepted was flagged by `requireKnown`
+   * as fabricating citations.
+   */
+  readonly salvageablePartial?: boolean;
 }
 
 /** What a {@link FinishValidator} judges. */
@@ -653,13 +668,19 @@ export function evidencePreservedValidator(options?: {
       // Fresh RegExp per scan: the 'g' flag makes matching stateful.
       const cited = new Set<string>();
       for (const child of input.children ?? []) {
-        // A salvage-accepted limit output is evidence too (the 1.64.0
-        // experiment review, P0.4): the runtime marks salvageableOutput
-        // only under acceptance.acceptValidatedTerminalOutputOnLimit,
-        // so every other configuration keeps the exact old pool, and
-        // with requireKnown the orchestrator quoting a salvaged child
-        // is no longer flagged as fabricating citations.
-        if (child.status !== 'ok' && child.salvageableOutput !== true) {
+        // A salvage-accepted limit child is evidence too (the 1.64.0
+        // experiment review, P0.4; the partial arm since RV1403): the
+        // runtime marks salvageableOutput and salvageablePartial only
+        // under their acceptance options and only for children the
+        // arms will actually count, so every other configuration keeps
+        // the exact old pool, and with requireKnown the orchestrator
+        // quoting a salvaged child is no longer flagged as fabricating
+        // citations.
+        if (
+          child.status !== 'ok' &&
+          child.salvageableOutput !== true &&
+          child.salvageablePartial !== true
+        ) {
           continue;
         }
         for (const match of child.text.match(new RegExp(pattern, globalFlags)) ?? []) {

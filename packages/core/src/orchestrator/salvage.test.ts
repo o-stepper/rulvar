@@ -172,6 +172,50 @@ describe('partial-child salvage (RV-210 close-out)', () => {
     });
   });
 
+  it('acceptPartialChildren marks salvageablePartial on the children snapshot (RV1403)', async () => {
+    // The prediction mirrors the acceptance arms: a partial-bearing
+    // limit child the policy WILL count is marked, so
+    // evidencePreservedValidator treats its citations as evidence and
+    // a finish quoting the accepted partial is not called fabricated.
+    const run = async (acceptPartial: boolean) => {
+      const captures: { prompt?: string; digest?: string } = {};
+      let captured: readonly {
+        nodeId: string;
+        status: string;
+        salvageablePartial?: boolean;
+      }[] = [];
+      const { internals } = makeInternals({
+        adapters: [salvageAdapter('stuck', captures)],
+        routing: ROUTING,
+        profiles: PROFILES,
+      });
+      const wf = makeOrchestratorWorkflow('collect', {
+        acceptance: {
+          childPolicy: { minSuccessful: 1 },
+          ...(acceptPartial ? { acceptPartialChildren: true } : {}),
+        },
+        finishValidation: {
+          validators: [
+            {
+              name: 'capture',
+              validate: (input) => {
+                captured = input.children ?? [];
+                return { ok: true };
+              },
+            },
+          ],
+        },
+      });
+      await executeWorkflow(internals, wf, undefined);
+      return captured;
+    };
+    const marked = await run(true);
+    expect(marked[1]?.status).toBe('limit');
+    expect(marked[1]?.salvageablePartial).toBe(true);
+    const unmarked = await run(false);
+    expect(unmarked[1]?.salvageablePartial).toBeUndefined();
+  });
+
   it('a limit child WITHOUT a partial still rejects, salvage or not', async () => {
     const captures: { prompt?: string; digest?: string } = {};
     const { internals } = makeInternals({

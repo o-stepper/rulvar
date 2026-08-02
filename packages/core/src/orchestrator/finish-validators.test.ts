@@ -161,6 +161,34 @@ describe('evidencePreservedValidator', () => {
     });
   });
 
+  it('counts a salvage-accepted partial child only when marked (RV1403)', () => {
+    const validator = evidencePreservedValidator({ requireKnown: true });
+    const partialChild = {
+      handle: 3,
+      nodeId: 'n3',
+      status: 'limit',
+      text: '{"error":"turn budget exhausted","partial":{"facts":["cache.ts:12 doubles at dawn"]}}',
+      salvageablePartial: true,
+    };
+    // Marked: the accepted partial IS evidence, so quoting it passes.
+    expect(
+      validator.validate({
+        result: 'summary citing cache.ts:12',
+        text: 'summary citing cache.ts:12',
+        children: [partialChild],
+      }).ok,
+    ).toBe(true);
+    // Unmarked: the pool is empty and the quote reads as fabricated.
+    const { salvageablePartial: _dropped, ...unmarked } = partialChild;
+    expect(
+      validator.validate({
+        result: 'summary citing cache.ts:12',
+        text: 'summary citing cache.ts:12',
+        children: [unmarked],
+      }).ok,
+    ).toBe(false);
+  });
+
   it('requireNonEmptyPool refuses the empty known pool instead of passing vacuously (RV507)', () => {
     const strict = evidencePreservedValidator({ requireNonEmptyPool: true });
     // An ok child that produced NO citation used to make the whole
