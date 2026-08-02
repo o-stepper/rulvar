@@ -456,6 +456,59 @@ describe('terminal-output salvage (P0.4 + P1.1)', () => {
     expect(unmarked[1]?.text).toContain('cache.ts:12 doubles at dawn');
   });
 
+  it('requireEvidenceFloor unmarks the below-floor child on the children snapshot (RV1403)', async () => {
+    // The prediction respects the binding floor exactly as the arms do
+    // (RV1207): a below-floor child is never counted by acceptance, so
+    // its text must not enter the validators' cited evidence pool as if
+    // it were, and the same child stays marked when the floor is not
+    // required.
+    const run = async (requireFloor: boolean) => {
+      const captures: { prompt?: string; digest?: string } = {};
+      let captured: readonly {
+        nodeId: string;
+        status: string;
+        salvageableOutput?: boolean;
+      }[] = [];
+      const { internals } = makeInternals({
+        adapters: [salvageOutputAdapter('reserve', captures)],
+        routing: ROUTING,
+        profiles: {
+          ...PROFILES,
+          reserve: {
+            ...PROFILES.reserve,
+            evidenceContract: { minEntries: 2, enforce: 'warn' as const },
+          },
+        },
+        schemas: SCHEMAS,
+      });
+      const wf = makeOrchestratorWorkflow('collect', {
+        acceptance: {
+          childPolicy: { minSuccessful: 1 },
+          acceptValidatedTerminalOutputOnLimit: true,
+          ...(requireFloor ? { requireEvidenceFloor: true } : {}),
+        },
+        finishValidation: {
+          validators: [
+            {
+              name: 'capture',
+              validate: (input) => {
+                captured = input.children ?? [];
+                return { ok: true };
+              },
+            },
+          ],
+        },
+      });
+      await executeWorkflow(internals, wf, undefined);
+      return captured;
+    };
+    const floored = await run(true);
+    expect(floored[1]?.status).toBe('limit');
+    expect(floored[1]?.salvageableOutput).toBeUndefined();
+    const waived = await run(false);
+    expect(waived[1]?.salvageableOutput).toBe(true);
+  });
+
   it('rejects a non-boolean acceptValidatedTerminalOutputOnLimit at intake', () => {
     expect(() =>
       makeOrchestratorWorkflow('goal', {

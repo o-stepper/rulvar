@@ -85,6 +85,7 @@ import {
   type FinishValidator,
 } from './finish-validators.js';
 import {
+  DEFAULT_MAX_CONTRADICTIONS,
   findContradictions,
   type Contradiction,
   type ContradictionSource,
@@ -585,6 +586,22 @@ export interface OrchestrateContradictions {
   pattern?: string;
   /** Bound on reported contradictions; default {@link DEFAULT_MAX_CONTRADICTIONS}. */
   max?: number;
+}
+
+/**
+ * What the contradiction pass looked at, beside its findings (RV1404).
+ * Rides the acceptance envelope as `contradictionsMeta` whenever the
+ * pass is configured, exactly like `contradictions` itself: `[]` plus
+ * this meta says "the pass judged `poolChildren` accepted children and
+ * the pool agreed", while an absent pair says nothing looked. The
+ * `truncated` flag makes the `max` bound honest: without it, a capped
+ * list is indistinguishable from a complete one.
+ */
+export interface OrchestrateContradictionsMeta {
+  /** How many accepted children the pass actually judged. */
+  poolChildren: number;
+  /** True when more contradictions existed than `max` allowed to report. */
+  truncated: boolean;
 }
 
 /**
@@ -3223,26 +3240,60 @@ export function makeOrchestratorWorkflow(
      * validateFinish survives; on replay the snapshot is never rebuilt
      * because the entry is read by call id there.
      */
+    /**
+     * The salvage arm acceptance WILL apply to a limit child, mirrored
+     * from the acceptance loop's own arms (RV1403): the output arm wins
+     * over the partial arm, and under requireEvidenceFloor a child
+     * below its declared floor is never predicted as salvageable,
+     * exactly as RV1207 never lets an arm promote it. A prediction
+     * because it runs at finish-validation time, BEFORE the acceptance
+     * decision exists; the decision itself stays the authority for the
+     * roster the pools read.
+     */
+    const predictedSalvage = (
+      settled: AgentResult<unknown> | undefined,
+    ): 'terminal-output' | 'partial' | undefined => {
+      if (settled?.status !== 'limit') {
+        return undefined;
+      }
+      if (
+        opts?.acceptance?.requireEvidenceFloor === true &&
+        settled.evidence !== undefined &&
+        !settled.evidence.met
+      ) {
+        return undefined;
+      }
+      if (
+        opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true &&
+        settled.output !== null &&
+        settled.output !== undefined
+      ) {
+        return 'terminal-output';
+      }
+      if (opts?.acceptance?.acceptPartialChildren === true && settled.partial !== undefined) {
+        return 'partial';
+      }
+      return undefined;
+    };
     const validationChildren = (): FinishValidationInput['children'] => {
-      const salvageOutputOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
       return [...byOrdinal.values()]
         .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
-        .map((record) => ({
-          handle: record.handle,
-          nodeId: record.nodeId,
-          status: record.settled?.status ?? 'running',
-          text: record.settled === undefined ? '' : serializeChildOutput(record.settled),
-          // The salvage marker (P0.4): set only under the acceptance
-          // option, for a limit child whose terminal output acceptance
-          // WILL count as a success, so evidencePreservedValidator
-          // includes its text in the cited pool.
-          ...(salvageOutputOn &&
-          record.settled?.status === 'limit' &&
-          record.settled.output !== null &&
-          record.settled.output !== undefined
-            ? { salvageableOutput: true }
-            : {}),
-        }));
+        .map((record) => {
+          // The salvage markers (P0.4; the partial twin and the floor
+          // guard since RV1403): set only for a limit child an
+          // acceptance arm WILL count as a success, so
+          // evidencePreservedValidator includes its text in the cited
+          // pool and never a rejected child's.
+          const salvage = predictedSalvage(record.settled);
+          return {
+            handle: record.handle,
+            nodeId: record.nodeId,
+            status: record.settled?.status ?? 'running',
+            text: record.settled === undefined ? '' : serializeChildOutput(record.settled),
+            ...(salvage === 'terminal-output' ? { salvageableOutput: true } : {}),
+            ...(salvage === 'partial' ? { salvageablePartial: true } : {}),
+          };
+        });
     };
     /**
      * The sectional repair state of ONE gated invocation (RV808b): the
@@ -4229,6 +4280,43 @@ export function makeOrchestratorWorkflow(
      * (nothing looked), which is why the envelope distinguishes them.
      */
     let contradictionsFound: Contradiction[] | undefined;
+    /** Set beside {@link contradictionsFound}, always as a pair (RV1404). */
+    let contradictionsMeta: OrchestrateContradictionsMeta | undefined;
+    /**
+     * The salvage arms the acceptance decision counted (RV1403), set on
+     * the accepted path AFTER the decision, fresh or rolled forward
+     * from the journal, so live and resume read the same lists; a
+     * floor-blocked child never entered them. Undefined when no
+     * acceptance is configured.
+     */
+    let acceptedSalvage: { partial: readonly string[]; output: readonly string[] } | undefined =
+      undefined;
+    /**
+     * The nodeIds the acceptance decision counted as successes (RV1403):
+     * ok children plus both salvage arms. Derived LAZILY because the ok
+     * children come from `byOrdinal`, which the async recovery rebuilds
+     * on a replayed root: every caller first awaits `recoveryDone`,
+     * exactly like the synthesis prompt fold. Undefined without
+     * acceptance, in which case the pools fall back to the ok children.
+     */
+    const acceptedRosterNow = (): ReadonlySet<string> | undefined => {
+      if (acceptedSalvage === undefined) {
+        return undefined;
+      }
+      const roster = new Set<string>();
+      for (const record of byOrdinal.values()) {
+        if (record.settled?.status === 'ok') {
+          roster.add(record.nodeId);
+        }
+      }
+      for (const node of acceptedSalvage.partial) {
+        roster.add(node);
+      }
+      for (const node of acceptedSalvage.output) {
+        roster.add(node);
+      }
+      return roster;
+    };
     /**
      * Folds the settled evidence pool through {@link findContradictions}
      * at the post-fan-in chokepoint: after the accepted acceptance
@@ -4246,56 +4334,66 @@ export function makeOrchestratorWorkflow(
       // A REPLAYED root returns before the async recovery has rebuilt
       // `records`, exactly like the synthesis prompt fold below.
       await recoveryDone;
-      const salvageOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
+      const acceptedRoster = acceptedRosterNow();
       const pool: ContradictionSource[] = [];
       for (const record of [...byOrdinal.values()].sort(
         (a, b) => a.spawnOrdinal - b.spawnOrdinal,
       )) {
         const settled = record.settled;
-        // The evidenceIndex eligibility exactly: ok children plus
-        // salvage-accepted ones. A dead child's error text is not
-        // evidence, so it can never contradict a real finding.
-        if (
-          settled === undefined ||
-          !(
-            settled.status === 'ok' ||
-            (salvageOn &&
-              settled.status === 'limit' &&
-              settled.output !== null &&
-              settled.output !== undefined)
-          )
-        ) {
+        if (settled === undefined) {
+          continue;
+        }
+        // The ACCEPTED roster exactly (RV1403): with an acceptance
+        // decision on record, membership is what the decision counted,
+        // ok children plus both salvage arms, so a structured partial
+        // the policy accepted can dispute the pool and a floor-blocked
+        // child never can; without acceptance, the ok children. A dead
+        // child's error text is not evidence either way.
+        const accepted =
+          acceptedRoster === undefined
+            ? settled.status === 'ok'
+            : acceptedRoster.has(record.nodeId);
+        if (!accepted) {
           continue;
         }
         pool.push({ nodeId: record.nodeId, text: serializeChildOutput(settled) });
       }
+      // One group past the bound is probed for deliberately (RV1404):
+      // the fold caps at `max`, and a result AT the cap would otherwise
+      // be indistinguishable from a complete one, so the report could
+      // never say it truncated.
+      const limit = dispute.max ?? DEFAULT_MAX_CONTRADICTIONS;
       const found = findContradictions(pool, {
         ...(dispute.pattern === undefined ? {} : { pattern: dispute.pattern }),
-        ...(dispute.max === undefined ? {} : { max: dispute.max }),
+        max: limit + 1,
       });
-      contradictionsFound = found;
+      const truncated = found.length > limit;
+      contradictionsFound = truncated ? found.slice(0, limit) : found;
+      contradictionsMeta = { poolChildren: pool.length, truncated };
       const onFound = dispute.onFound ?? 'report';
       internals.events.emit(
         {
           type: 'log',
-          level: found.length === 0 ? 'debug' : 'info',
+          level: contradictionsFound.length === 0 ? 'debug' : 'info',
           msg: 'orchestrator contradiction pass',
           data: {
             children: pool.length,
-            contradictions: found.length,
+            contradictions: contradictionsFound.length,
+            truncated,
             onFound,
-            anchors: found.map((entry) => entry.anchor),
+            anchors: contradictionsFound.map((entry) => entry.anchor),
           },
         },
         callingState.spanId,
       );
-      if (onFound !== 'fail' || found.length === 0) {
+      if (onFound !== 'fail' || contradictionsFound.length === 0) {
         return;
       }
+      const named = contradictionsFound;
       throw new FailRunError(
-        `the orchestrator contradiction pass found ${String(found.length)} contradiction` +
-          `${found.length === 1 ? '' : 's'} in the settled child pool: ` +
-          found
+        `the orchestrator contradiction pass found ${String(named.length)} contradiction` +
+          `${named.length === 1 ? '' : 's'} in the settled child pool: ` +
+          named
             .map(
               (entry) =>
                 `${entry.anchor} is read differently for '${entry.key}' (` +
@@ -4305,7 +4403,8 @@ export function makeOrchestratorWorkflow(
         {
           data: {
             source: 'orchestrator_contradictions',
-            contradictions: found as unknown as Json,
+            contradictions: named as unknown as Json,
+            contradictionsMeta: contradictionsMeta as unknown as Json,
             // The acceptance snapshot the run already earned (cycle 73):
             // the fan-out work IS complete, the failure is downstream.
             ...(snapshot ?? {}),
@@ -4525,7 +4624,30 @@ export function makeOrchestratorWorkflow(
               failed.map((row) => row.name),
             );
           }
-          if (failed.length === 0) {
+          // The carry invariant (RV1404): non-empty findings under
+          // 'carry' make the skip a silent no-op of the carry promise,
+          // because the draft was composed without the CHILD
+          // CONTRADICTIONS line and skipping the synthesis means
+          // nothing was ever asked to resolve the dispute. The LIVE
+          // gate therefore never skips over them; a skip already
+          // journaled stays the authority on resume, like every
+          // journaled decision.
+          const carryBlocked =
+            opts?.contradictions?.onFound === 'carry' &&
+            contradictionsFound !== undefined &&
+            contradictionsFound.length > 0;
+          if (failed.length === 0 && carryBlocked) {
+            internals.events.emit(
+              {
+                type: 'log',
+                level: 'info',
+                msg: 'orchestrator synthesis skip blocked by contradictions',
+                data: { contradictions: contradictionsFound?.length ?? 0 },
+              },
+              callingState.spanId,
+            );
+          }
+          if (failed.length === 0 && !carryBlocked) {
             const skipEntry = await internals.replayer.appendSinglePhase({
               scope: callingState.scope,
               key: skipKey,
@@ -4623,12 +4745,12 @@ export function makeOrchestratorWorkflow(
       /**
        * The structured evidence index rows (RV808b): deterministic
        * per-child citation extraction over the SAME serialized outputs
-       * the validators judge, citations taken only from the evidence
-       * pool (ok and salvage-accepted children, the exact
-       * evidencePreservedValidator eligibility), so nothing indexed is
-       * a citation the validators would reject as fabricated. Folded
-       * only from replay-stable settled results (the policyFacts
-       * precedent).
+       * the validators judge, citations taken only from the ACCEPTED
+       * roster (RV1403: ok children plus the salvage arms the decision
+       * counted, a floor-blocked child never among them), so nothing
+       * indexed is a citation the validators would reject as
+       * fabricated. Folded only from replay-stable settled results
+       * (the policyFacts precedent).
        */
       const indexSpec = spec.evidenceIndex;
       const evidenceIndexRows =
@@ -4641,16 +4763,18 @@ export function makeOrchestratorWorkflow(
                   : (indexSpec.pattern ?? DEFAULT_CITATION_PATTERN);
               const flags = indexSpec === true ? '' : (indexSpec.flags ?? '');
               const globalFlags = flags.includes('g') ? flags : `${flags}g`;
-              const salvageOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
+              const acceptedRoster = acceptedRosterNow();
               return settledEntries.map(([handle, record]) => {
                 const settled = record.settled as AgentResult<unknown>;
                 const text = serializeChildOutput(settled);
+                // The ACCEPTED roster (RV1403), exactly the pool the
+                // contradiction pass judges: an accepted structured
+                // partial's citations index, a floor-blocked child's
+                // never do, and without acceptance the ok children.
                 const eligible =
-                  settled.status === 'ok' ||
-                  (salvageOn &&
-                    settled.status === 'limit' &&
-                    settled.output !== null &&
-                    settled.output !== undefined);
+                  acceptedRoster === undefined
+                    ? settled.status === 'ok'
+                    : acceptedRoster.has(record.nodeId);
                 const citations: string[] = [];
                 if (eligible) {
                   const distinct = new Set<string>();
@@ -5504,6 +5628,15 @@ export function makeOrchestratorWorkflow(
         },
       );
     }
+    // The ACCEPTED salvage lists (RV1403), from the decision itself,
+    // fresh or rolled forward, so the journal stays the authority on
+    // resume and a floor-blocked child, which never entered them, never
+    // enters the roster. The contradiction pass and the synthesis
+    // evidence index judge exactly the roster these lists complete.
+    acceptedSalvage = {
+      partial: decision.salvagedPartialChildren ?? [],
+      output: decision.salvagedTerminalOutputChildren ?? [],
+    };
     // The contradiction pass sits between the accepted verdict and the
     // synthesis dispatch (RV1302): a rejected run never reaches it, and
     // under 'fail' a self-contradicting pool never pays for the
@@ -5581,7 +5714,12 @@ export function makeOrchestratorWorkflow(
       // distinction is the point: an absent field says nothing looked,
       // and an empty list says something looked and found nothing (the
       // RV1209 provenance doctrine, absence means NOT RECORDED).
-      ...(contradictionsFound === undefined ? {} : { contradictions: contradictionsFound }),
+      ...(contradictionsFound === undefined
+        ? {}
+        : {
+            contradictions: contradictionsFound,
+            contradictionsMeta: contradictionsMeta as unknown as Json,
+          }),
     };
   });
 }

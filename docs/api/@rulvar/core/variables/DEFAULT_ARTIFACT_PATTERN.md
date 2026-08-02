@@ -10,7 +10,7 @@
 const DEFAULT_ARTIFACT_PATTERN: "(?:run[ -]?[0-9A-HJKMNP-TV-Z]{6,26}|[\w./-]+\.\w+:\d+)" = '(?:run[ -]?[0-9A-HJKMNP-TV-Z]{6,26}|[\w./-]+\.\w+:\d+)';
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:880](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L880)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:901](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L901)
 
 The default artifact reference: a run id (ULID-shaped, the ids the
 engine mints) or a `path:line` citation.
