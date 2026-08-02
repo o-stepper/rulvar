@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred thirty nine rounds, verbatim in this repository's history:
+The one hundred forty rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -353,6 +353,7 @@ The one hundred thirty nine rounds, verbatim in this repository's history:
 | v1.155.0      | 537144e (#656): the checkpoint decoder refuses garbage restored counters, single-wire rows count in join coverage, and profile lookups answer by own property                             | v1.156.0   |
 | v1.156.0      | 1883421 (#659): ok children answer for their declared evidence floor, every money surface declares its locally estimated basis, and the terminal contract for consumers is doctrine       | v1.157.0   |
 | v1.157.0      | a266bc7 (#662): the composed draft answers to the pool it composed from through a bounded claim judge, and the run reads its own execution facts instead of erasing them                  | v1.158.0   |
+| v1.158.0      | e881c8b (#665): the in-flight exposure cap is recorded at genesis and restored on every resume, and each budget account's settled spend folds inclusively for audits                      | v1.159.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
