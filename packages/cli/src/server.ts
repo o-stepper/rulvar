@@ -34,7 +34,6 @@
  */
 import {
   ConfigError,
-  InvalidResolutionError,
   RulvarError,
   Replayer,
   costReportFromJournal,
@@ -42,7 +41,7 @@ import {
   normalizeEntry,
   persistedTerminalEnvelope,
   readRunMeta,
-  validateSchemaSpec,
+  validateDetachedResolution,
   type CostReport,
   type Engine,
   type JournalEntry,
@@ -56,7 +55,6 @@ import {
   type RunMeta,
   type RunOptions,
   type RunOutcome,
-  type SchemaSpec,
   type Usage,
   type WireError,
   type Workflow,
@@ -878,27 +876,13 @@ export function createServer(options: CreateServerOptions): RulvarServer {
           resumed: false,
         });
       }
-      // Mirror the live path's validation so an invalid payload fails the
-      // request instead of poisoning the journal (the fold remains the
-      // authority at resume).
-      if (target.kind === 'approval') {
-        const decision = (value as { decision?: unknown } | null)?.decision;
-        if (decision !== 'allow' && decision !== 'deny') {
-          throw new InvalidResolutionError(
-            `approval '${key}' resolves with { decision: 'allow' | 'deny', reason? }`,
-          );
-        }
-      }
-      const pinnedSchema = (target.value as { schema?: unknown } | undefined)?.schema;
-      if (pinnedSchema !== undefined) {
-        const validation = await validateSchemaSpec(pinnedSchema as SchemaSpec, value);
-        if (!validation.valid) {
-          throw new InvalidResolutionError(
-            `resolution for '${key}' does not validate against the pinned schema: ` +
-              validation.issues.map((issue) => issue.message).join('; '),
-          );
-        }
-      }
+      // The ENGINE'S own detached validation (RV1408), not a lookalike:
+      // the flavor picks the payload arm (an escalation resolves with
+      // its EscalationDecision, a plain approval with the
+      // ApprovalDecision), the pinned schema still guards, and an
+      // invalid payload fails the request instead of poisoning the
+      // journal (the fold remains the authority at resume).
+      await validateDetachedResolution(target, key, value);
       const outcome: ResolutionOutcome = await replayer.resolveSuspended(target.seq, {
         by: 'external',
         value,

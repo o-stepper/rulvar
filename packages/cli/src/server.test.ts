@@ -1238,3 +1238,81 @@ describe('a tracked run whose result REJECTS (cycle 83)', () => {
     expect(text).toMatch(/lease/i);
   });
 });
+
+describe('offline resolution picks the validator by flavor (RV1408)', () => {
+  function assembleEscalating(): {
+    server: RulvarServer;
+    engine: Engine;
+    escalating: Workflow<never, unknown>;
+  } {
+    const escalating = defineWorkflow({ name: 'escalating' }, async (ctx) => {
+      const result = await ctx.agent('do the migration', {
+        escalation: { flavor: 'B', deadlineMs: 600_000 },
+        result: 'full',
+      });
+      return (result as { status: string }).status;
+    }) as unknown as Workflow<never, unknown>;
+    let turns = 0;
+    const adapter = new FakeAdapter({
+      agents: {
+        '*': () => {
+          turns += 1;
+          return turns === 1
+            ? fakeToolCalls({
+                name: 'escalate',
+                args: {
+                  kind: 'scope_bigger',
+                  scopeDelta: 'the migration spans nine services, not one',
+                  revisedEstimate: { usd: 40, turns: 90 },
+                  blockers: ['schema ownership unclear'],
+                },
+              })
+            : 'finished normally instead';
+        },
+      },
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new SqliteStore({ path: ':memory:' }) },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    const server = createServer({ engine, workflows: { escalating } });
+    return { server, engine, escalating };
+  }
+
+  it('an offline escalation resolves with its OWN payload, and the plain approval payload is refused typed', async () => {
+    const { server, engine, escalating } = assembleEscalating();
+    // Started OUTSIDE the server, so the resolution takes the offline
+    // path. A flavor B park HOLDS activity (the armed deadline makes the
+    // run self-resolving), so the offline shape is the cancelled owner
+    // with the suspension entry still open for resume.
+    const handle = engine.run(escalating as unknown as Workflow<unknown, unknown>, undefined);
+    const pending = new Promise<number>((resolve) => {
+      handle.on('approval:pending', (event) => {
+        resolve((event as unknown as { entryRef: number }).entryRef);
+      });
+    });
+    const entryRef = await pending;
+    await handle.cancel('operator walked away');
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('cancelled');
+    const key = `approval:${String(entryRef)}`;
+
+    // The plain ApprovalDecision is NOT an escalation decision: the
+    // offline authority must refuse it typed instead of appending a
+    // payload the escalation consumer cannot read.
+    const poisoned = await post(server, `/runs/${handle.runId}/external/${key}`, {
+      decision: 'allow',
+    });
+    expect(poisoned.status).toBe(400);
+    const poisonedBody = await bodyOf(poisoned);
+    expect(JSON.stringify(poisonedBody)).toContain('EscalationDecision');
+
+    // The EscalationDecision applies offline, exactly as detached-live.
+    const resolved = await post(server, `/runs/${handle.runId}/external/${key}`, {
+      kind: 'accept',
+    });
+    expect(resolved.status).toBe(200);
+    expect(await bodyOf(resolved)).toMatchObject({ applied: true, resumed: false });
+  }, 15_000);
+});

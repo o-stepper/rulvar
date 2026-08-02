@@ -2098,6 +2098,44 @@ const MUTATIONS = [
       '      limits.finalizationTurns !== undefined &&\n      limits.finalizationTurns.reserveTurns > limits.maxTurns\n    ) {',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'persisted-terminal-tail',
+    doctrine:
+      'a settle the journal ran PAST is a stale claim, not the terminal (RV1407): served anyway, a restarted reader holds yesterday envelope over a run a detached resolution already destined to continue, while auditRun derives non-terminal from the same bytes',
+    file: 'packages/core/src/engine/persisted-terminal.ts',
+    find: '  const tail = input.entries.filter((entry) => entry.seq > settle.seq).length;\n  if (tail > 0) {',
+    replace:
+      '  const tail = input.entries.filter((entry) => entry.seq > settle.seq).length;\n  if (tail > 9999) {',
+    test: 'packages/core/src/engine/persisted-terminal.test.ts',
+  },
+  {
+    id: 'detached-resolution-flavor',
+    doctrine:
+      'the detached validator classifies a kind-approval entry by its RV1203 flavor (RV1408): collapsed to the plain arm, a flavor B escalation is unresolvable offline and a wrong-shaped approval payload poisons the journal, the sixteenth experiment R2 shape at the exported surface',
+    file: 'packages/core/src/engine/external.ts',
+    find: "    target.kind === 'approval' ? detachedApprovalFlavor(target) : 'external',",
+    replace: "    target.kind === 'approval' ? 'approval' : 'external',",
+    test: 'packages/core/src/engine/detached-resolution.test.ts',
+  },
+  {
+    id: 'detached-resolution-schema-arm',
+    doctrine:
+      'the pinned schema guards every resolution surface through the ONE shared arms implementation (RV1408): dropped there, a payload violating the suspension-time schema appends on every path at once',
+    file: 'packages/core/src/engine/external.ts',
+    find: '  if (schemaSpec !== undefined) {\n    const validation = await validateSchemaSpec(schemaSpec, value);',
+    replace: '  if (false) {\n    const validation = await validateSchemaSpec(schemaSpec, value);',
+    test: 'packages/core/src/engine/detached-resolution.test.ts',
+  },
+  {
+    id: 'offline-resolve-engine-validator',
+    doctrine:
+      "the CLI offline append applies the ENGINE'S detached validation, not a lookalike (RV1408): skipped, a wrong-shaped payload lands in the journal and the escalation consumer meets it at resume",
+    file: 'packages/cli/src/server.ts',
+    find: '      await validateDetachedResolution(target, key, value);\n      const outcome: ResolutionOutcome = await replayer.resolveSuspended(target.seq, {',
+    replace:
+      '      void value;\n      const outcome: ResolutionOutcome = await replayer.resolveSuspended(target.seq, {',
+    test: 'packages/cli/src/server.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

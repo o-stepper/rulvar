@@ -19,6 +19,6 @@ type PersistedTerminalResult =
 };
 ```
 
-Defined in: [packages/core/src/engine/persisted-terminal.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/persisted-terminal.ts#L54)
+Defined in: [packages/core/src/engine/persisted-terminal.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/persisted-terminal.ts#L58)
 
 The reconstruction verdict: an envelope, or a typed refusal.

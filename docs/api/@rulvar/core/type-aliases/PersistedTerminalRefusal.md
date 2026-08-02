@@ -10,13 +10,17 @@
 type PersistedTerminalRefusal = "unsettled" | "not-terminal" | "unknown-workflow";
 ```
 
-Defined in: [packages/core/src/engine/persisted-terminal.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/persisted-terminal.ts#L51)
+Defined in: [packages/core/src/engine/persisted-terminal.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/persisted-terminal.ts#L55)
 
 Why no persisted terminal could be served. `unsettled`: the journal
 carries no run settle, so nothing durable records a terminal (a run
 still in flight elsewhere, a segment fenced out by a successor
 (RV1009), or a settlement write that failed). `not-terminal`: the
-journaled settle records a status that is not one, which is a run
-whose latest segment is still running. `unknown-workflow`: nothing
-names the workflow the terminal belongs to, and an envelope that
-invented one would be a lie on its most-read field.
+journaled settle is not the journal's last word, either because it
+records a status that is not terminal (a run whose latest segment is
+still running) or because entries continued PAST it (RV1407: a
+detached resolution awaiting its resume, or a successor segment over
+a stale settle), which is exactly the evidence `auditRun` derives a
+non-terminal status from. `unknown-workflow`: nothing names the
+workflow the terminal belongs to, and an envelope that invented one
+would be a lie on its most-read field.

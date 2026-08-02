@@ -43,10 +43,14 @@ import { terminalEnvelopeOf } from './terminal-envelope.js';
  * carries no run settle, so nothing durable records a terminal (a run
  * still in flight elsewhere, a segment fenced out by a successor
  * (RV1009), or a settlement write that failed). `not-terminal`: the
- * journaled settle records a status that is not one, which is a run
- * whose latest segment is still running. `unknown-workflow`: nothing
- * names the workflow the terminal belongs to, and an envelope that
- * invented one would be a lie on its most-read field.
+ * journaled settle is not the journal's last word, either because it
+ * records a status that is not terminal (a run whose latest segment is
+ * still running) or because entries continued PAST it (RV1407: a
+ * detached resolution awaiting its resume, or a successor segment over
+ * a stale settle), which is exactly the evidence `auditRun` derives a
+ * non-terminal status from. `unknown-workflow`: nothing names the
+ * workflow the terminal belongs to, and an envelope that invented one
+ * would be a lie on its most-read field.
  */
 export type PersistedTerminalRefusal = 'unsettled' | 'not-terminal' | 'unknown-workflow';
 
@@ -70,8 +74,11 @@ const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   'suspended',
 ]);
 
-function refuse(reason: PersistedTerminalRefusal): PersistedTerminalResult {
-  return { available: false, reason, message: REFUSAL_MESSAGES[reason] };
+function refuse(
+  reason: PersistedTerminalRefusal,
+  message: string = REFUSAL_MESSAGES[reason],
+): PersistedTerminalResult {
+  return { available: false, reason, message };
 }
 
 /**
@@ -93,6 +100,20 @@ export function persistedTerminalEnvelope(input: {
   }
   if (!TERMINAL_STATUSES.has(settle.runStatus)) {
     return refuse('not-terminal');
+  }
+  // The tail rule (RV1407): a settle the journal ran past is a stale
+  // claim, not the run's terminal. Any entry after the last settle (a
+  // detached resolution awaiting its resume, a successor segment over
+  // a stale settle) is exactly the evidence auditRun derives a
+  // non-terminal status from, and the persisted surface must read the
+  // same journal the same way instead of serving yesterday's envelope.
+  const tail = input.entries.filter((entry) => entry.seq > settle.seq).length;
+  if (tail > 0) {
+    return refuse(
+      'not-terminal',
+      `the journal continued ${String(tail)} entr${tail === 1 ? 'y' : 'ies'} past the settle ` +
+        `at seq ${String(settle.seq)}: the latest segment is not settled`,
+    );
   }
   const workflow = input.meta?.workflowName;
   if (workflow === undefined) {

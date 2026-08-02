@@ -110,6 +110,79 @@ function detachedApprovalFlavor(entry: JournalEntry): 'approval' | 'decision' {
 }
 
 /**
+ * The payload arms of every resolution surface (throws, journals
+ * nothing): the plain ApprovalDecision, the flavor B EscalationDecision,
+ * and the pinned schema. ONE implementation on purpose: the live waiter
+ * path, the engine's detached path, and every offline authority validate
+ * the same bytes the same way.
+ */
+async function validatePayloadArms(
+  kind: 'external' | 'approval' | 'decision',
+  key: string,
+  value: Json,
+  schemaSpec?: SchemaSpec,
+): Promise<void> {
+  if (kind === 'approval') {
+    const decision = (value as { decision?: unknown } | null)?.decision;
+    if (decision !== 'allow' && decision !== 'deny') {
+      throw new InvalidResolutionError(
+        `approval '${key}' resolves with { decision: 'allow' | 'deny', reason? }`,
+      );
+    }
+  }
+  if (kind === 'decision') {
+    const decisionKind = (value as { kind?: unknown } | null)?.kind;
+    if (
+      decisionKind !== 'retry' &&
+      decisionKind !== 'decompose' &&
+      decisionKind !== 'cancel' &&
+      decisionKind !== 'accept'
+    ) {
+      throw new InvalidResolutionError(
+        `escalation '${key}' resolves with an EscalationDecision ` +
+          "({ kind: 'retry' | 'decompose' | 'cancel' | 'accept', ... })",
+      );
+    }
+  }
+  if (schemaSpec !== undefined) {
+    const validation = await validateSchemaSpec(schemaSpec, value);
+    if (!validation.valid) {
+      throw new InvalidResolutionError(
+        `resolution for '${key}' does not validate against the pinned schema: ` +
+          validation.issues.map((issue: Issue) => issue.message).join('; '),
+        { data: { issues: validation.issues.map((issue) => issue.message) } },
+      );
+    }
+  }
+}
+
+/**
+ * The detached resolution validator (RV1408): classifies the target
+ * entry exactly as the engine's own detached path does (a kind-'approval'
+ * entry by its RV1203 flavor, an external by its kind), then applies the
+ * shared payload arms and the pinned schema. Exported for offline
+ * authorities (the CLI server's lease-guarded append is the first): an
+ * escalation must resolve with its OWN EscalationDecision payload
+ * offline exactly as detached-live, and a lookalike validator that
+ * demanded the plain ApprovalDecision from every approval-kind entry
+ * both refused legitimate escalation decisions and waved wrong-shaped
+ * ones into the journal. Throws InvalidResolutionError; journals
+ * nothing.
+ */
+export async function validateDetachedResolution(
+  target: JournalEntry,
+  key: string,
+  value: Json,
+): Promise<void> {
+  await validatePayloadArms(
+    target.kind === 'approval' ? detachedApprovalFlavor(target) : 'external',
+    key,
+    value,
+    (target.value as { schema?: unknown } | undefined)?.schema as SchemaSpec | undefined,
+  );
+}
+
+/**
  * Per-run registry of open external suspensions plus the run's activity
  * counter: when every in-flight branch is blocked on suspensions
  * (activity zero, waiters open), the run quiesces into outcome
@@ -669,38 +742,7 @@ export class ExternalRegistry {
     value: Json,
     schemaSpec?: SchemaSpec,
   ): Promise<void> {
-    if (kind === 'approval') {
-      const decision = (value as { decision?: unknown } | null)?.decision;
-      if (decision !== 'allow' && decision !== 'deny') {
-        throw new InvalidResolutionError(
-          `approval '${key}' resolves with { decision: 'allow' | 'deny', reason? }`,
-        );
-      }
-    }
-    if (kind === 'decision') {
-      const decisionKind = (value as { kind?: unknown } | null)?.kind;
-      if (
-        decisionKind !== 'retry' &&
-        decisionKind !== 'decompose' &&
-        decisionKind !== 'cancel' &&
-        decisionKind !== 'accept'
-      ) {
-        throw new InvalidResolutionError(
-          `escalation '${key}' resolves with an EscalationDecision ` +
-            "({ kind: 'retry' | 'decompose' | 'cancel' | 'accept', ... })",
-        );
-      }
-    }
-    if (schemaSpec !== undefined) {
-      const validation = await validateSchemaSpec(schemaSpec, value);
-      if (!validation.valid) {
-        throw new InvalidResolutionError(
-          `resolution for '${key}' does not validate against the pinned schema: ` +
-            validation.issues.map((issue: Issue) => issue.message).join('; '),
-          { data: { issues: validation.issues.map((issue) => issue.message) } },
-        );
-      }
-    }
+    await validatePayloadArms(kind, key, value, schemaSpec);
   }
 
   /**
@@ -733,12 +775,7 @@ export class ExternalRegistry {
       );
     }
     const target = open ?? candidates[candidates.length - 1];
-    await this.validatePayload(
-      target.kind === 'approval' ? detachedApprovalFlavor(target) : 'external',
-      key,
-      value,
-      (target.value as { schema?: unknown } | undefined)?.schema as SchemaSpec | undefined,
-    );
+    await validateDetachedResolution(target, key, value);
     const outcome = await this.replayer.resolveSuspended(target.seq, {
       by: 'external',
       value,

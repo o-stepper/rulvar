@@ -32,6 +32,7 @@ import {
   defineWorkflow,
   InMemoryStore,
   LeaseHeldError,
+  normalizeEntry,
   RUN_SETTLE_DECISION_TYPE,
   SupersededError,
   type ChatEvent,
@@ -781,6 +782,37 @@ describe('the terminal envelope conformance table (RV1106)', () => {
       'superseded',
     ]);
   });
+
+  it('settled-then-continued: a journal that ran past the settle refuses the persisted terminal (RV1407)', async () => {
+    const row = ROWS[0];
+    const http = await driveHttp(row);
+    // Before the tail exists the restart serves the envelope: the pin
+    // that the refusal below is really about the continuation.
+    const before = await driveRestart(row, http.store, http.runId);
+    expect('terminalUnavailable' in before).toBe(false);
+
+    // A successor segment appends past the settle (the stale-settle
+    // shape auditRun names): the recorded terminal is no longer the
+    // latest word on this run.
+    const entries = (await http.store.load(http.runId)).map((raw) => normalizeEntry(raw));
+    const template = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        RUN_SETTLE_DECISION_TYPE,
+    );
+    const last = entries[entries.length - 1];
+    await http.store.append(http.runId, {
+      ...(template as JournalEntry),
+      seq: (last?.seq ?? 0) + 1,
+      value: { decisionType: 'successor-marker' },
+    });
+
+    const restarted = await driveRestart(row, http.store, http.runId);
+    expect('envelope' in restarted).toBe(false);
+    const unavailable = restarted.terminalUnavailable as { reason?: string; message?: string };
+    expect(unavailable.reason).toBe('not-terminal');
+    expect(unavailable.message).toContain('past the settle');
+  }, 30_000);
 });
 
 describe('toOtel over an unsettled terminal (RV1106)', () => {
