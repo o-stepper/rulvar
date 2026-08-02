@@ -49,6 +49,18 @@ export type RunMeta = {
    */
   budgetUsd?: number;
   /**
+   * The opt-in in-flight exposure cap
+   * (RunOptions.maxInFlightExposureUsd), recorded at genesis so resume
+   * restores the original invocation's cap (RV1504): the option used
+   * to be per-invocation and unrecorded, and a resumed segment
+   * silently ran WITHOUT the exposure bound, the seventeenth
+   * comparison benchmark's top FinOps gap. Absent when the run started
+   * without one. Stores must round-trip the field (the conformance kit
+   * checks); a store that drops it degrades a resumed run to uncapped
+   * exposure.
+   */
+  maxInFlightExposureUsd?: number;
+  /**
    * Count of execution segments this run has STARTED (a fresh start
    * writes 1; every resume writes prior + 1, durably, BEFORE the
    * segment emits its first event). The engine derives each segment's

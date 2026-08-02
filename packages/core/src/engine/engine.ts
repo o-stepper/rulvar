@@ -325,9 +325,13 @@ export interface RunOptions {
    * settles as a budget error. Worst concurrent overshoot past the cap
    * is thereby the estimate error of the in-flight turns, not one
    * whole turn per agent. Absent by default: wire traffic, journals,
-   * and hooks stay byte-identical. Operational and per-invocation like
-   * `limits`: not recorded in RunMeta, so a resumed segment runs
-   * without it.
+   * and hooks stay byte-identical. Recorded in RunMeta at genesis
+   * (RV1504) and restored on every resume, the budgetUsd rule: the cap
+   * used to be per-invocation and unrecorded, so a resumed segment
+   * silently ran without the bound the original invocation declared
+   * (the seventeenth comparison benchmark's top FinOps gap). A run
+   * started without the cap stays uncapped for its whole life, and
+   * ResumeOptions deliberately has no field to override it.
    */
   maxInFlightExposureUsd?: number;
   /** Run-level defaults merged over engine defaults. */
@@ -978,6 +982,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
      */
     budgetUsd?: number;
     /**
+     * The RunMeta-recorded in-flight exposure cap (RV1504), the
+     * budgetUsd rule exactly: a resumed run keeps the original
+     * invocation's cap, ResumeOptions deliberately has no field to
+     * override it, and absence stays absent (a run started uncapped
+     * resumes uncapped, and a store that dropped the field degrades
+     * honestly rather than inventing a bound).
+     */
+    maxInFlightExposureUsd?: number;
+    /**
      * Execution segments started before this one (RunMeta.segments;
      * 1 when the field predates v1.23 journals). Seeds this segment's
      * event seq and span-id base so telemetry counters stay strictly
@@ -1110,12 +1123,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // from RunOptions, a resumed run restores the RunMeta-recorded
     // value, and no API can change it after start.
     const ceilingUsd = opts?.budgetUsd ?? resumeCtx?.budgetUsd;
+    // The exposure cap follows the SAME rule since RV1504: a fresh run
+    // takes it from RunOptions, a resumed run restores the
+    // RunMeta-recorded value, and a run started without one stays
+    // uncapped for its whole life.
+    const exposureCapUsd = opts?.maxInFlightExposureUsd ?? resumeCtx?.maxInFlightExposureUsd;
     const makeBudget = (): RunBudget =>
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
-        ...(opts?.maxInFlightExposureUsd === undefined
-          ? {}
-          : { maxInFlightExposureUsd: opts.maxInFlightExposureUsd }),
+        ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
         lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
         events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
         priceUsd,
@@ -1379,6 +1395,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
               ...(opts?.name === undefined ? {} : { name: opts.name }),
               ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
               ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
+              ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
               ...(argsBinding.argsProvided === undefined
                 ? {}
                 : { argsProvided: argsBinding.argsProvided }),
@@ -2117,6 +2134,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // The recorded B0 travels back in: journals whose store dropped
         // the field (or predates it) resume uncapped, exactly as before.
         ...(typeof meta?.budgetUsd === 'number' ? { budgetUsd: meta.budgetUsd } : {}),
+        // The recorded exposure cap travels back in the same way
+        // (RV1504); absence stays absent, so a pre-field run resumes
+        // exactly as it always did.
+        ...(typeof meta?.maxInFlightExposureUsd === 'number'
+          ? { maxInFlightExposureUsd: meta.maxInFlightExposureUsd }
+          : {}),
         // Metas that predate the segments field (or a crash before the
         // first putMeta) count as ONE prior segment: the new base still
         // clears every realistic pre-upgrade seq (v1.22.0 review P1-2).

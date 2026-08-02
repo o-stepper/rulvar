@@ -15,7 +15,7 @@ type RunFilter = {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L126)
+Defined in: [packages/core/src/l0/spi/store.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L138)
 
 ## Properties
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:126](https://github.com/o-stepper
 optional name?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L138)
+Defined in: [packages/core/src/l0/spi/store.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L150)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:138](https://github.com/o-stepper
 optional status?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L127)
+Defined in: [packages/core/src/l0/spi/store.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L139)
 
 ***
 
@@ -45,7 +45,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:127](https://github.com/o-stepper
 optional statuses?: string[];
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L136)
+Defined in: [packages/core/src/l0/spi/store.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L148)
 
 Match any of these statuses (the resumable candidate sweep asks for
 `['running', 'suspended']` in one query). Advisory optimization, not
@@ -62,4 +62,4 @@ satisfies either.
 optional tags?: string[];
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L137)
+Defined in: [packages/core/src/l0/spi/store.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L149)

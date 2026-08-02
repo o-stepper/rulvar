@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
+import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { createEngine } from './engine.js';
 import { defineWorkflow } from './ctx.js';
 import { scriptedAdapter } from './test-harness.js';
@@ -120,5 +121,116 @@ describe('RunOptions.maxInFlightExposureUsd (RV711)', () => {
     expect(() =>
       engine.run(CONCURRENT_WF, undefined, { maxInFlightExposureUsd: Number.NaN }),
     ).toThrow(ConfigError);
+  });
+});
+
+/**
+ * The cap survives resume (RV1504, the eighteenth improvement plan).
+ * The option used to be per-invocation and unrecorded, so a resumed
+ * segment ran WITHOUT the exposure bound the original invocation
+ * declared: the seventeenth comparison benchmark named the silent
+ * uncapping its top FinOps gap. The cap is now recorded in RunMeta at
+ * genesis, exactly like budgetUsd, and travels back in on resume;
+ * ResumeOptions deliberately has no field to override it.
+ */
+describe('the exposure cap on resume (RV1504)', () => {
+  const LIMITS = { maxOutputTokensPerTurn: 100 };
+
+  /**
+   * One settled agent, a host crash point, then the concurrent wave.
+   * The turn limits ride the AGENT calls, not RunOptions: run-level
+   * limits are per-invocation and deliberately unrecorded, so pinning
+   * the estimate to the calls is what keeps it identical across the
+   * two segments this test spans.
+   */
+  const phasedWorkflow = (crash: { now: boolean }) =>
+    defineWorkflow({ name: 'phased' }, async (ctx) => {
+      const full = { result: 'full', limits: LIMITS } as const;
+      const first = await ctx.agent('probe', full);
+      if (crash.now) {
+        throw new Error('host crash between the phases');
+      }
+      const wave = await Promise.allSettled([
+        ctx.agent('wave probe', full),
+        ctx.agent('wave probe', full),
+        ctx.agent('wave probe', full),
+      ]);
+      return {
+        first: first.status,
+        wave: wave.map((settled) =>
+          settled.status === 'fulfilled'
+            ? { status: settled.value.status, errorMessage: settled.value.errorMessage }
+            : { status: 'rejected', errorMessage: String(settled.reason) },
+        ),
+      };
+    });
+
+  function storedEngine() {
+    const store = new InMemoryStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const make = () => {
+      const adapter = scriptedAdapter(() => ({ hangMs: 150, text: 'ok' }));
+      return {
+        adapter,
+        engine: createEngine({
+          adapters: [adapter],
+          concurrency: { perRun: 4 },
+          stores: { journal: store, transcripts },
+          defaults: { routing: { loop: 'fake:model' } },
+        }),
+      };
+    };
+    return { store, make };
+  }
+
+  it('records the cap at genesis and a resumed segment enforces it without re-supply', async () => {
+    const { store, make } = storedEngine();
+    const crash = { now: true };
+    const wf = phasedWorkflow(crash);
+    const first = await make().engine.run(wf, undefined, {
+      runId: 'CAPPED',
+      maxInFlightExposureUsd: 0.0025,
+    }).result;
+    expect(first.status).toBe('error');
+    // The cap is durable meta now, the budgetUsd rule.
+    const meta = (await store.listRuns()).find((candidate) => candidate.runId === 'CAPPED');
+    expect(meta?.maxInFlightExposureUsd).toBe(0.0025);
+
+    crash.now = false;
+    const { adapter, engine } = make();
+    const resumed = await engine.resume('CAPPED', wf).result;
+    expect(resumed.status).toBe('ok');
+    const value = resumed.value as {
+      first: string;
+      wave: Array<{ status: string; errorMessage?: string }>;
+    };
+    expect(value.first).toBe('ok');
+    const statuses = value.wave.map((entry) => entry.status).sort();
+    // The restored cap admits two concurrent estimates and refuses the
+    // third, exactly what the original invocation declared; nothing
+    // re-supplied it on resume.
+    expect(statuses).toEqual(['ok', 'ok', 'rejected']);
+    const refused = value.wave.find((entry) => entry.status === 'rejected');
+    expect(refused?.errorMessage).toContain('in flight exposure cap reached');
+    expect(refused?.errorMessage).toContain('maxInFlightExposureUsd');
+    // The first agent replayed (one journaled call), the wave ran live:
+    // exactly two admitted dispatches in the resume segment.
+    expect(adapter.calls).toHaveLength(2);
+  });
+
+  it('a meta without the field resumes uncapped, exactly as before', async () => {
+    const { make } = storedEngine();
+    const crash = { now: true };
+    const wf = phasedWorkflow(crash);
+    const first = await make().engine.run(wf, undefined, {
+      runId: 'LEGACY',
+    }).result;
+    expect(first.status).toBe('error');
+
+    crash.now = false;
+    const resumed = await make().engine.resume('LEGACY', wf).result;
+    expect(resumed.status).toBe('ok');
+    const value = resumed.value as { wave: Array<{ status: string }> };
+    expect(value.wave.map((entry) => entry.status)).toEqual(['ok', 'ok', 'ok']);
   });
 });

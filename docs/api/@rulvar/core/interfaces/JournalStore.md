@@ -6,7 +6,7 @@
 
 # Interface: JournalStore
 
-Defined in: [packages/core/src/l0/spi/store.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L141)
+Defined in: [packages/core/src/l0/spi/store.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L153)
 
 ## Extended by
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:141](https://github.com/o-stepper
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-fencedwrites"></a> `fencedWrites?` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), optional exactly like `getMeta` and `leaseTtlMs`: a store declaring `fencedWrites: true` PROMISES that every mutation carrying a lease (`append`, `putMeta`, `delete`) verifies it is the CURRENT holder for the run the mutation targets, atomically with the mutation itself, and rejects with the typed LeaseHeldError leaving nothing mutated when it is not (stale epoch, foreign owner, expired, or a lease whose runId is not the mutation's run). The engine threads the segment's lease into every one of these writes on a leased resume, so over a declaring store a superseded worker cannot overwrite run meta or delete run state, exactly as it already cannot append. A mutation carrying NO lease keeps the single-writer semantics unchanged. Stores written before this capability are unaffected: without the marker the extra argument is ignored and hosts know the surface is advisory. | [packages/core/src/l0/spi/store.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L164) |
+| <a id="property-fencedwrites"></a> `fencedWrites?` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), optional exactly like `getMeta` and `leaseTtlMs`: a store declaring `fencedWrites: true` PROMISES that every mutation carrying a lease (`append`, `putMeta`, `delete`) verifies it is the CURRENT holder for the run the mutation targets, atomically with the mutation itself, and rejects with the typed LeaseHeldError leaving nothing mutated when it is not (stale epoch, foreign owner, expired, or a lease whose runId is not the mutation's run). The engine threads the segment's lease into every one of these writes on a leased resume, so over a declaring store a superseded worker cannot overwrite run meta or delete run state, exactly as it already cannot append. A mutation carrying NO lease keeps the single-writer semantics unchanged. Stores written before this capability are unaffected: without the marker the extra argument is ignored and hosts know the surface is advisory. | [packages/core/src/l0/spi/store.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L176) |
 
 ## Methods
 
@@ -30,7 +30,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L142)
+Defined in: [packages/core/src/l0/spi/store.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L154)
 
 #### Parameters
 
@@ -52,7 +52,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:142](https://github.com/o-stepper
 delete(runId, lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L146)
+Defined in: [packages/core/src/l0/spi/store.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L158)
 
 #### Parameters
 
@@ -73,7 +73,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:146](https://github.com/o-stepper
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L145)
+Defined in: [packages/core/src/l0/spi/store.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L157)
 
 #### Parameters
 
@@ -93,7 +93,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:145](https://github.com/o-stepper
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L143)
+Defined in: [packages/core/src/l0/spi/store.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L155)
 
 #### Parameters
 
@@ -113,7 +113,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:143](https://github.com/o-stepper
 putMeta(m, lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L144)
+Defined in: [packages/core/src/l0/spi/store.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L156)
 
 #### Parameters
 

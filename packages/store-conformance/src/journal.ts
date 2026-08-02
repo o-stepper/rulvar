@@ -406,6 +406,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             name: 'wf-a',
             tags: ['team:core'],
             budgetUsd: 12.5,
+            maxInFlightExposureUsd: 0.07,
             segments: 3,
             argsProvided: true,
             argsHash: 'a'.repeat(64),
@@ -418,6 +419,14 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           roundTripped?.budgetUsd === 12.5,
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (budgetUsd)',
+        );
+        // The exposure cap (RV1504): a store that drops it silently
+        // uncaps a resumed run's in-flight exposure, the budgetUsd
+        // failure mode exactly.
+        ensure(
+          roundTripped?.maxInFlightExposureUsd === 0.07,
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (maxInFlightExposureUsd)',
         );
         ensure(
           roundTripped?.segments === 3,

@@ -26,6 +26,7 @@
  */
 import { buildAbandonFold } from '../journal/disposition.js';
 import { priceEntryBilling, type JournalEntry } from '../l0/entries.js';
+import { ROOT_ACCOUNT } from './budget.js';
 import { requireFiniteNumbersDeep } from '../l0/validate-numbers.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import type { CostAttribution } from './ctx.js';
@@ -247,4 +248,71 @@ export function costReportFromJournal(
   // published report must never carry Infinity or NaN.
   requireFiniteNumbersDeep(report, 'costReport');
   return report;
+}
+
+/**
+ * The per-account settled fold (RV1505, the DEF-7 remainder): each
+ * budget account's INCLUSIVE spend from the same entries, skips, and
+ * per-request pricing the net CostReport folds, with the account tree
+ * read from the journaled spawn-admission decisions
+ * (childScope -> parentAccountScope). A scope with no journaled edge
+ * folds under the root, which is where its spend already lands. This
+ * is the AUDIT half of the DEF-7 remainder: a host can hold any
+ * account's accumulated spend against its cap after the fact. Seeding
+ * it into re-opened accounts on resume is deliberately NOT wired yet:
+ * the orchestrate agent re-admits a rerun with exact-fill arithmetic
+ * (spent + proposed reserve vs the ceiling), so any spend-at-reopen
+ * would refuse the continuation of work the money was already spent
+ * ON; the reopen seeding lands together with a seed-aware rerun
+ * re-admission. Unpriced slices contribute zero, exactly like the net
+ * total, and an admission-edge cycle (a corrupt journal) terminates
+ * the walk instead of spinning.
+ */
+export function accountSpendFromJournal(
+  entries: readonly JournalEntry[],
+  priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
+): Record<string, number> {
+  const abandonFold = buildAbandonFold(entries);
+  const parents = new Map<string, string>();
+  const direct = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.kind === 'decision') {
+      const value = entry.value as
+        { decisionType?: string; childScope?: unknown; parentAccountScope?: unknown } | undefined;
+      if (
+        value?.decisionType === 'spawn-admission' &&
+        typeof value.childScope === 'string' &&
+        typeof value.parentAccountScope === 'string'
+      ) {
+        parents.set(value.childScope, value.parentAccountScope);
+      }
+    }
+    if (
+      entry.kind !== 'resolution' &&
+      entry.kind !== 'abandon' &&
+      abandonFold.isAbandoned(entry.ref ?? entry.seq)
+    ) {
+      // The provider billed these attempts, but they fold into the
+      // abandoned ledger, never into any account's admissible spend,
+      // exactly the net-total rule.
+      continue;
+    }
+    if (entry.status === 'running' || entry.usage === undefined) {
+      continue;
+    }
+    const priced = priceEntryBilling(entry, priceUsd);
+    const account = entry.costAttribution?.budgetAccount ?? ROOT_ACCOUNT;
+    direct.set(account, (direct.get(account) ?? 0) + priced.usd);
+  }
+  const inclusive: Record<string, number> = Object.create(null) as Record<string, number>;
+  for (const [account, usd] of direct) {
+    let cursor: string | undefined = account;
+    const visited = new Set<string>();
+    while (cursor !== undefined && !visited.has(cursor)) {
+      visited.add(cursor);
+      inclusive[cursor] = (inclusive[cursor] ?? 0) + usd;
+      cursor = cursor === ROOT_ACCOUNT ? undefined : (parents.get(cursor) ?? ROOT_ACCOUNT);
+    }
+  }
+  return { ...inclusive };
 }

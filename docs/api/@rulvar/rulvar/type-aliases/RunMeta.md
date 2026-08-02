@@ -15,6 +15,7 @@ type RunMeta = {
   genesis?: string;
   hashVersionHigh?: number;
   hashVersionLow?: number;
+  maxInFlightExposureUsd?: number;
   name?: string;
   runId: string;
   segments?: number;
@@ -161,6 +162,26 @@ optional hashVersionLow?: number;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### maxInFlightExposureUsd?
+
+```ts
+optional maxInFlightExposureUsd?: number;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The opt-in in-flight exposure cap
+(RunOptions.maxInFlightExposureUsd), recorded at genesis so resume
+restores the original invocation's cap (RV1504): the option used
+to be per-invocation and unrecorded, and a resumed segment
+silently ran WITHOUT the exposure bound, the seventeenth
+comparison benchmark's top FinOps gap. Absent when the run started
+without one. Stores must round-trip the field (the conformance kit
+checks); a store that drops it degrades a resumed run to uncapped
+exposure.
 
 ***
 
