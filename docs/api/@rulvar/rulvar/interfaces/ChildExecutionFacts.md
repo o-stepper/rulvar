@@ -1,0 +1,25 @@
+[**Rulvar API reference**](../../../index.md)
+
+***
+
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / ChildExecutionFacts
+
+# Interface: ChildExecutionFacts
+
+Defined in: `packages/core/dist/index.d.ts`
+
+One child's execution facts, folded ONLY from replay-stable settled
+material (RV1503): the journaled per-dispatch reconciliation records
+and the journaled usage, which a resumed run restores verbatim.
+Dollars are deliberately absent: replay re-prices from the CURRENT
+price table, so a money figure here would drift across resumes while
+these counters cannot.
+
+## Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-inputtokens"></a> `inputTokens` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-outputtokens"></a> `outputTokens` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-wireidsmissing"></a> `wireIdsMissing` | `number` | Wire requests no response id names (the invoice cardinality rule). | `packages/core/dist/index.d.ts` |
+| <a id="property-wirerequests"></a> `wireRequests` | `number` | Provider HTTP requests the child's dispatches made (RV1210 semantics). | `packages/core/dist/index.d.ts` |

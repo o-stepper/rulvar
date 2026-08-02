@@ -12,11 +12,12 @@ The per-child digest handed to the orchestrator.
 
 ## Properties
 
-| Property | Type | Defined in |
-| ------ | ------ | ------ |
-| <a id="property-artifactsindex"></a> `artifactsIndex` | `string`[] | [packages/core/src/orchestrator/handles.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L28) |
-| <a id="property-costusd"></a> `costUsd` | `number` | [packages/core/src/orchestrator/handles.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L27) |
-| <a id="property-logicaltaskid"></a> `logicalTaskId` | `string` | [packages/core/src/orchestrator/handles.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L24) |
-| <a id="property-nodeid"></a> `nodeId` | `string` | [packages/core/src/orchestrator/handles.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L23) |
-| <a id="property-outputsummary"></a> `outputSummary` | `string` | [packages/core/src/orchestrator/handles.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L26) |
-| <a id="property-status"></a> `status` | `string` | [packages/core/src/orchestrator/handles.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L25) |
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-artifactsindex"></a> `artifactsIndex` | `string`[] | - | [packages/core/src/orchestrator/handles.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L28) |
+| <a id="property-costusd"></a> `costUsd` | `number` | - | [packages/core/src/orchestrator/handles.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L27) |
+| <a id="property-facts"></a> `facts?` | [`ChildExecutionFacts`](/api/@rulvar/core/interfaces/ChildExecutionFacts.md) | The child's replay-stable execution facts (RV1503), present only under the `executionFacts` opt-in: what the run itself observed, so the composing root can grade `live-observed` honestly instead of erasing its own run. See [executionFactsOf](/api/@rulvar/core/functions/executionFactsOf.md). | [packages/core/src/orchestrator/handles.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L35) |
+| <a id="property-logicaltaskid"></a> `logicalTaskId` | `string` | - | [packages/core/src/orchestrator/handles.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L24) |
+| <a id="property-nodeid"></a> `nodeId` | `string` | - | [packages/core/src/orchestrator/handles.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L23) |
+| <a id="property-outputsummary"></a> `outputSummary` | `string` | - | [packages/core/src/orchestrator/handles.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L26) |
+| <a id="property-status"></a> `status` | `string` | - | [packages/core/src/orchestrator/handles.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L25) |

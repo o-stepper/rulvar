@@ -1,7 +1,7 @@
 /**
  * The execution self-facts surfaces (RV1503, the eighteenth
  * improvement plan). The seventeenth comparison run graded the entire
- * dossier `live-observed: нет` while its own harness had just watched
+ * dossier `live-observed: no` while its own harness had just watched
  * 118 wire requests settle, because no surface ever showed the
  * composing root what its run actually executed. These tests pin the
  * two opt-ins: `executionFacts` (replay-stable per-child facts on the

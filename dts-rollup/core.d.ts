@@ -8717,7 +8717,7 @@ interface OrchestrateOptions {
   * Opt in per-child execution facts on the await digests and the
   * child result page (RV1503, the eighteenth improvement plan). The
   * seventeenth comparison run graded its whole dossier
-  * `live-observed: нет` while the harness had just watched 118 wire
+  * `live-observed: no` while the harness had just watched 118 wire
   * requests settle, because no surface ever showed the composing root
   * what its run actually executed. With this set, every TaskDigest an
   * await returns (and every `get_child_result` page) carries
