@@ -4296,8 +4296,8 @@ declare function validateEscalationReport(report: EscalationReport): Promise<Iss
 declare function countsAgainstLimit(kind: EscalationKind): boolean;
 //#endregion
 //#region src/runtime/exploration.d.ts
-/** The budget dimension a finalization window statement names (RV302). */
-type FinalizationWindowBudget = "tool calls" | "tool units";
+/** The budget dimension a finalization window statement names (RV302; 'turns' since RV1405). */
+type FinalizationWindowBudget = "tool calls" | "tool units" | "turns";
 //#endregion
 //#region src/runtime/no-progress.d.ts
 /**
@@ -4572,6 +4572,29 @@ interface UsageLimits {
     */
     reserveForEvidenceDeficit?: boolean;
   };
+  /**
+  * The turns-axis finalization reserve (RV1405, the seventeenth
+  * comparison experiment: a worker burned maxTurns 28 at 66 of 96
+  * executed tool calls and settled `limit` with no finalize phase,
+  * because every finalization mechanism watched the tool budget). Once
+  * the remaining turns against `maxTurns` drop to `reserveTurns`, the
+  * SAME finalization-window regime engages on the turns dimension:
+  * non-allowlisted calls receive the typed window refusal, the model
+  * is told once to record its evidence and finish, and the terminal
+  * tool stays admitted. The regime has one allowlist:
+  * `finalizationWindow.allow` when declared, else `allow` here, else
+  * the zero-cost tools. Unlike `finalizationReserve` this grants no
+  * turn past the ceiling: the reserved tail lives INSIDE `maxTurns`,
+  * so the ceiling stays a ceiling. Repair-turn grants are deliberately
+  * not counted (they exist only for schema-dead terminal exchanges,
+  * which already sit inside finalization), keeping the arithmetic
+  * conservative. Off by default: the refusals and the notice enter
+  * the conversation, so enabling it changes recorded model requests.
+  */
+  finalizationTurns?: {
+    /** How many trailing turns of `maxTurns` the reserve keeps. */reserveTurns: number; /** Tool names allowed inside the reserve; `finalizationWindow.allow` outranks it. */
+    allow?: string[];
+  };
 }
 declare const DEFAULT_MAX_TURNS = 32;
 declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 12e4;
@@ -4608,6 +4631,11 @@ interface EffectiveUsageLimits {
     reserveCalls: number;
     allow?: string[]; /** RV1208: widen the reserve to the outstanding evidence deficit plus the summary. */
     reserveForEvidenceDeficit?: boolean;
+  };
+  /** RV1405: the trailing turns of maxTurns reserved for the finalization regime. */
+  finalizationTurns?: {
+    reserveTurns: number;
+    allow?: string[];
   };
 }
 /**

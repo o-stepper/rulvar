@@ -195,6 +195,31 @@ export interface UsageLimits {
      */
     reserveForEvidenceDeficit?: boolean;
   };
+  /**
+   * The turns-axis finalization reserve (RV1405, the seventeenth
+   * comparison experiment: a worker burned maxTurns 28 at 66 of 96
+   * executed tool calls and settled `limit` with no finalize phase,
+   * because every finalization mechanism watched the tool budget). Once
+   * the remaining turns against `maxTurns` drop to `reserveTurns`, the
+   * SAME finalization-window regime engages on the turns dimension:
+   * non-allowlisted calls receive the typed window refusal, the model
+   * is told once to record its evidence and finish, and the terminal
+   * tool stays admitted. The regime has one allowlist:
+   * `finalizationWindow.allow` when declared, else `allow` here, else
+   * the zero-cost tools. Unlike `finalizationReserve` this grants no
+   * turn past the ceiling: the reserved tail lives INSIDE `maxTurns`,
+   * so the ceiling stays a ceiling. Repair-turn grants are deliberately
+   * not counted (they exist only for schema-dead terminal exchanges,
+   * which already sit inside finalization), keeping the arithmetic
+   * conservative. Off by default: the refusals and the notice enter
+   * the conversation, so enabling it changes recorded model requests.
+   */
+  finalizationTurns?: {
+    /** How many trailing turns of `maxTurns` the reserve keeps. */
+    reserveTurns: number;
+    /** Tool names allowed inside the reserve; `finalizationWindow.allow` outranks it. */
+    allow?: string[];
+  };
 }
 
 export const DEFAULT_MAX_TURNS = 32;
@@ -230,6 +255,11 @@ export interface EffectiveUsageLimits {
     allow?: string[];
     /** RV1208: widen the reserve to the outstanding evidence deficit plus the summary. */
     reserveForEvidenceDeficit?: boolean;
+  };
+  /** RV1405: the trailing turns of maxTurns reserved for the finalization regime. */
+  finalizationTurns?: {
+    reserveTurns: number;
+    allow?: string[];
   };
 }
 
@@ -299,6 +329,10 @@ export function mergeUsageLimits(
   const finalizationWindow = pick('finalizationWindow');
   if (finalizationWindow !== undefined) {
     merged.finalizationWindow = finalizationWindow;
+  }
+  const finalizationTurns = pick('finalizationTurns');
+  if (finalizationTurns !== undefined) {
+    merged.finalizationTurns = finalizationTurns;
   }
   return merged;
 }
@@ -451,6 +485,26 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
         if (typeof name !== 'string' || name.length === 0) {
           throw new ConfigError(
             `${site}.finalizationWindow.allow[${String(index)}] must be a nonempty tool name`,
+          );
+        }
+      }
+    }
+  }
+  if (limits.finalizationTurns !== undefined) {
+    const reserve: unknown = limits.finalizationTurns;
+    if (typeof reserve !== 'object' || reserve === null || Array.isArray(reserve)) {
+      throw new ConfigError(`${site}.finalizationTurns must be { reserveTurns, allow? }`);
+    }
+    const { reserveTurns, allow } = reserve as { reserveTurns?: unknown; allow?: unknown };
+    requirePositiveInteger(reserveTurns as number, `${site}.finalizationTurns.reserveTurns`);
+    if (allow !== undefined) {
+      if (!Array.isArray(allow)) {
+        throw new ConfigError(`${site}.finalizationTurns.allow must be an array of tool names`);
+      }
+      for (const [index, name] of allow.entries()) {
+        if (typeof name !== 'string' || name.length === 0) {
+          throw new ConfigError(
+            `${site}.finalizationTurns.allow[${String(index)}] must be a nonempty tool name`,
           );
         }
       }

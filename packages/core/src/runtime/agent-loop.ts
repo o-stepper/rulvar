@@ -1864,8 +1864,15 @@ export async function runAgent<S extends SchemaSpec>(
    * typed refusal that consumes nothing. The run that motivated it
    * recorded 10 of 14 evidence entries before the cap: one summary turn
    * cannot dump a backlog, a reserved tail of bookkeeping calls can.
+   * Since RV1405 the SAME regime watches the turns axis: with
+   * finalizationTurns configured, remaining turns at or under
+   * reserveTurns enter the window too (the seventeenth experiment's
+   * worker burned maxTurns 28 at 66 of 96 calls with no finalize
+   * phase, because every mechanism watched only the tool budget).
    */
   const finalizationWindow = limits.finalizationWindow;
+  const finalizationTurns = limits.finalizationTurns;
+  const windowConfigured = finalizationWindow !== undefined || finalizationTurns !== undefined;
   let windowEntered = false;
   let windowNoticeFired = false;
   const pendingWindowNotices: string[] = [];
@@ -1914,12 +1921,39 @@ export async function runAgent<S extends SchemaSpec>(
     }
     return best;
   };
+  /**
+   * The reserve of the dimension that binds: the turns reserve is its
+   * own number (RV1405), never the deficit-widened calls reserve, so
+   * every notice, refusal, and journal entry names the arithmetic that
+   * actually applied.
+   */
+  const reserveFor = (budget: FinalizationWindowBudget): number =>
+    budget === 'turns' ? (finalizationTurns?.reserveTurns ?? 0) : effectiveReserveCalls();
+  /**
+   * Whichever configured dimension is inside its reserve; with both in,
+   * the smaller remaining is the binding one. The turns arithmetic is
+   * deliberately blind to repair-turn grants: those exist only for
+   * schema-dead terminal exchanges, which already sit inside
+   * finalization, so the conservative count is the honest posture.
+   */
   const windowActive = (): { remaining: number; budget: FinalizationWindowBudget } | undefined => {
-    if (finalizationWindow === undefined) {
-      return undefined;
+    let best: { remaining: number; budget: FinalizationWindowBudget } | undefined;
+    if (finalizationWindow !== undefined) {
+      const state = windowRemaining();
+      if (state !== undefined && state.remaining <= effectiveReserveCalls()) {
+        best = state;
+      }
     }
-    const state = windowRemaining();
-    return state !== undefined && state.remaining <= effectiveReserveCalls() ? state : undefined;
+    if (finalizationTurns !== undefined) {
+      const remaining = Math.max(0, limits.maxTurns - turns);
+      if (
+        remaining <= finalizationTurns.reserveTurns &&
+        (best === undefined || remaining < best.remaining)
+      ) {
+        best = { remaining, budget: 'turns' };
+      }
+    }
+    return best;
   };
   /**
    * Marks the entry and queues the one-time notice. Queued, not pushed:
@@ -1929,14 +1963,14 @@ export async function runAgent<S extends SchemaSpec>(
    * the notice (already in the restored messages) never re-fires.
    */
   const maybeMarkWindowEntry = (): void | Promise<void> => {
-    if (finalizationWindow === undefined || windowNoticeFired) {
+    if (!windowConfigured || windowNoticeFired) {
       return;
     }
     const state = windowActive();
     if (state === undefined) {
       return;
     }
-    const reserve = effectiveReserveCalls();
+    const reserve = reserveFor(state.budget);
     const deficit = evidenceDeficit();
     const commit = (): void => {
       windowEntered = true;
@@ -1946,7 +1980,11 @@ export async function runAgent<S extends SchemaSpec>(
           state.remaining,
           reserve,
           state.budget,
-          finalizationWindow.reserveForEvidenceDeficit === true && deficit > 0
+          // The deficit line belongs to the widened CALLS reserve
+          // (RV1208); a turns entry never widened anything.
+          state.budget !== 'turns' &&
+            finalizationWindow?.reserveForEvidenceDeficit === true &&
+            deficit > 0
             ? deficit
             : undefined,
         ),
@@ -1989,7 +2027,7 @@ export async function runAgent<S extends SchemaSpec>(
    * block, so the exits are structurally exempt rather than listed.
    */
   const windowAllows = (name: string): boolean => {
-    const allow = finalizationWindow?.allow;
+    const allow = finalizationWindow?.allow ?? finalizationTurns?.allow;
     if (allow !== undefined) {
       return allow.includes(name);
     }
@@ -2162,7 +2200,7 @@ export async function runAgent<S extends SchemaSpec>(
     // the window was entered this invocation, and the flags say so.
     if (
       windowActive() !== undefined ||
-      (finalizationWindow !== undefined && durableRestored?.finalizationWindowEntered === true)
+      (windowConfigured && durableRestored?.finalizationWindowEntered === true)
     ) {
       windowEntered = true;
       windowNoticeFired = true;
@@ -2600,7 +2638,7 @@ export async function runAgent<S extends SchemaSpec>(
       // right answer to budget pressure while headroom lasts, and the
       // window binds only when the grant would not clear it or is
       // denied.
-      if (finalizationWindow !== undefined) {
+      if (windowConfigured) {
         const entry = maybeMarkWindowEntry();
         if (entry !== undefined) {
           await entry;
@@ -2609,6 +2647,7 @@ export async function runAgent<S extends SchemaSpec>(
         if (windowState !== undefined && !windowAllows(gatedCall.name)) {
           if (
             windowState.budget === 'tool calls' &&
+            finalizationWindow !== undefined &&
             extension !== undefined &&
             windowState.remaining + extension.increment > finalizationWindow.reserveCalls
           ) {
@@ -2630,8 +2669,9 @@ export async function runAgent<S extends SchemaSpec>(
               errorPart(call, {
                 error: finalizationWindowRefusalText(
                   gatedCall.name,
-                  // The reserve that bound this refusal (RV1208).
-                  effectiveReserveCalls(),
+                  // The reserve that bound this refusal (RV1208), in
+                  // the binding dimension's own number (RV1405).
+                  reserveFor(windowState.budget),
                   windowState.budget,
                 ),
                 guard: 'finalization-window',
@@ -4301,7 +4341,7 @@ export async function runAgent<S extends SchemaSpec>(
           }
           lines.push(budgetLine);
         }
-        if (finalizationWindow !== undefined) {
+        if (windowConfigured) {
           lines.push(`finalization window: ${windowEntered ? 'entered' : 'not entered'}`);
         }
         const spend = recordedSpend();
@@ -4688,12 +4728,15 @@ export async function runAgent<S extends SchemaSpec>(
     result.exploration = guard.summary(toolCallsUsed);
   }
   // The pressure snapshot (RV304): present exactly when a tool budget
-  // limiter or the extension is configured, so unbounded loops (and
-  // every pre-existing envelope) stay byte identical.
+  // limiter, the extension, or the turns reserve (RV1405: pressure
+  // configuration too, and finalizationWindowEntered needs a home in a
+  // turns-only run) is configured, so unbounded loops (and every
+  // pre-existing envelope) stay byte identical.
   if (
     limits.maxToolCalls !== undefined ||
     limits.toolUnits !== undefined ||
-    extension !== undefined
+    extension !== undefined ||
+    finalizationTurns !== undefined
   ) {
     const toolBudget: ToolBudgetSummary = { used: toolCallsUsed };
     const cap = effectiveMaxToolCalls();

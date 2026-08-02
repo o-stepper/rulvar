@@ -1948,3 +1948,74 @@ describe('rates verification age on the spawn report (RV814)', () => {
     expect('ratesVerifiedAt' in (undated.spawns[0] ?? {})).toBe(false);
   });
 });
+
+describe('the turns-axis projection (RV1406, the seventeenth comparison experiment)', () => {
+  const reportFor = (limits: Record<string, unknown>) => {
+    const adapter = scriptedAdapter(() => ({ text: 'x', finish: 'stop' }));
+    return preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      spawns: [{ label: 'burner', limits }],
+    });
+  };
+
+  it('warns when maxTurns binds before the tool budget and no turns reserve exists', () => {
+    // The seventeenth experiment's worker: maxTurns 28 expired at 66 of
+    // 96 executed tool calls, with no finalize phase on the turns axis.
+    const report = reportFor({ maxTurns: 28, maxToolCalls: 96 });
+    const finding = report.findings.find((f) => f.code === 'turns-bind-before-tool-budget');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('burner');
+    expect(finding?.message).toContain('maxTurns 28');
+    expect(finding?.message).toContain('27 serial executed tool calls');
+    expect(finding?.message).toContain('96');
+    expect(finding?.message).toContain('finalizationTurns');
+  });
+
+  it('downgrades to info when the turns reserve is configured', () => {
+    const report = reportFor({
+      maxTurns: 28,
+      maxToolCalls: 96,
+      finalizationTurns: { reserveTurns: 3 },
+    });
+    const findings = report.findings.filter((f) => f.code === 'turns-bind-before-tool-budget');
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.severity).toBe('info');
+  });
+
+  it('stays silent when the turns axis covers the serial spend, or when no tool budget exists', () => {
+    const covered = reportFor({ maxTurns: 32, maxToolCalls: 31 });
+    expect(covered.findings.filter((f) => f.code === 'turns-bind-before-tool-budget')).toHaveLength(
+      0,
+    );
+    const bound = reportFor({ maxTurns: 32, maxToolCalls: 32 });
+    expect(bound.findings.filter((f) => f.code === 'turns-bind-before-tool-budget')).toHaveLength(
+      1,
+    );
+    const unbounded = reportFor({ maxTurns: 5 });
+    expect(
+      unbounded.findings.filter((f) => f.code === 'turns-bind-before-tool-budget'),
+    ).toHaveLength(0);
+  });
+
+  it('projects against the fully extended cap, like every other tool-budget projection', () => {
+    const report = reportFor({
+      maxTurns: 10,
+      maxToolCalls: 4,
+      toolBudgetExtension: { increment: 6, maxExtensions: 1 },
+    });
+    const finding = report.findings.find((f) => f.code === 'turns-bind-before-tool-budget');
+    expect(finding?.message).toContain('maxTurns 10');
+    expect(finding?.message).toContain('10-call executed ceiling');
+  });
+
+  it('warns when the turns reserve is not below maxTurns', () => {
+    const covering = reportFor({ maxTurns: 4, finalizationTurns: { reserveTurns: 4 } });
+    const finding = covering.findings.find((f) => f.code === 'finalization-turns-covers-max-turns');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('reserveTurns 4');
+    const sane = reportFor({ maxTurns: 4, finalizationTurns: { reserveTurns: 3 } });
+    expect(
+      sane.findings.filter((f) => f.code === 'finalization-turns-covers-max-turns'),
+    ).toHaveLength(0);
+  });
+});
