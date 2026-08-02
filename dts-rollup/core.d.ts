@@ -1076,6 +1076,19 @@ type RunMeta = {
   */
   maxInFlightExposureUsd?: number;
   /**
+  * The opt-in strict pre-egress pricing gate
+  * (RunOptions.strictPricing canonicalized, RV1508), recorded at
+  * genesis so resume restores the posture: a FinOps gate a resumed
+  * segment silently drops is not a gate. Absent when the run started
+  * without it. Stores must round-trip the field (the conformance kit
+  * checks); a store that drops it degrades a resumed run to unpriced
+  * dispatch.
+  */
+  strictPricing?: {
+    maxRatesAgeDays?: number;
+    allowUnpriced?: string[];
+  };
+  /**
   * Count of execution segments this run has STARTED (a fresh start
   * writes 1; every resume writes prior + 1, durably, BEFORE the
   * segment emits its first event). The engine derives each segment's
@@ -4946,6 +4959,12 @@ interface BudgetHooks {
   * reservation lives exactly as long as the wire call it covers.
   * Undefined result = nothing reserved (the cap resolved inert).
   */
+  /**
+  * The strict pre-egress pricing gate (RV1508): wired only when
+  * RunOptions.strictPricing armed it; throws typed BEFORE the wire
+  * call for a model whose price row is missing, malformed, or stale.
+  */
+  assertPricedDispatch?: (servedBy: ModelRef) => void;
   admitTurnExposure?: (servedBy: ModelRef, estimatedInputTokens: number, plannedOutputTokens: number) => (() => void) | undefined;
   /** Live usage accounting; layer 3 may respond by aborting `signal`. */
   onUsage(usage: Usage, servedBy: ModelRef): void;
@@ -5825,6 +5844,17 @@ declare class RunBudget {
   private readonly accounts;
   private usageInternal;
   private agentsSpawnedInternal;
+  /**
+  * The strict pre-egress pricing gate config (RV1508); undefined means
+  * the surface is inert and {@link assertPricedDispatch} never binds.
+  */
+  readonly strictPricing?: {
+    maxRatesAgeDays?: number;
+    allowUnpriced?: readonly string[];
+  };
+  private readonly now;
+  /** Models this run already vetted; a price table is fixed per run. */
+  private readonly pricedDispatchVetted;
   private exhaustedInternal;
   /** Live dispatch estimates held by reserveTurnExposure (RV711). */
   private inFlightExposureUsd;
@@ -5850,6 +5880,19 @@ declare class RunBudget {
       usage: Usage;
       agentsSpawned: number;
     };
+    /**
+    * The strict pre-egress pricing gate (RV1508): armed, every paid
+    * dispatch must resolve a well-formed price row for its serving
+    * model BEFORE the wire call, or the dispatch refuses typed. See
+    * {@link RunBudget.assertPricedDispatch} for the exact refusals.
+    * Absent by default: the surface is inert and dispatch behavior is
+    * byte identical.
+    */
+    strictPricing?: {
+      maxRatesAgeDays?: number;
+      allowUnpriced?: readonly string[];
+    }; /** Clock for the freshness bound; injectable for tests. */
+    now?: () => number;
   });
   private get root();
   /** The account chain from `scope` up to and including the root. */
@@ -5877,6 +5920,24 @@ declare class RunBudget {
   * the error path.
   */
   exhaustionDiagnostics(scope: string): BudgetExhaustionDiagnostics;
+  /**
+  * The strict pre-egress pricing gate (RV1508): called at the dispatch
+  * chokepoint, strictly BEFORE the wire call and before any exposure
+  * hold, whenever `strictPricing` is armed. Refusals, each a typed
+  * ConfigError naming the model and the defect: no price row resolves
+  * (an unpriced model debits nothing, so every ceiling silently fails
+  * to bound it); a malformed row (a non-finite or negative rate, a
+  * malformed long-context tier), because arithmetic over it disarms
+  * the very comparisons the mode exists to keep honest; and, only
+  * when `maxRatesAgeDays` is declared, a row whose `ratesVerifiedAt`
+  * is absent, unparsable, or older than the bound, because a stale
+  * price bounds the ceiling with yesterday's truth. `allowUnpriced`
+  * is the explicit exception for models the host KNOWS are free
+  * (exact refs, no patterns). A model is vetted once per run: the
+  * price table is fixed for the run's life, so the verdict cannot
+  * drift between turns. Inert without the config, byte for byte.
+  */
+  assertPricedDispatch(servedBy: ModelRef): void;
   accountView(scope: string): BudgetAccountView | undefined;
   /**
   * The admission remainder of one account: ceiling minus spend minus
@@ -6928,6 +6989,25 @@ interface RunOptions {
   * ResumeOptions deliberately has no field to override it.
   */
   maxInFlightExposureUsd?: number;
+  /**
+  * The opt-in strict pre-egress pricing gate (RV1508): every paid
+  * dispatch must resolve a well-formed price row for its serving
+  * model BEFORE the wire call, or the dispatch refuses typed
+  * (ConfigError naming the model and the defect). `true` demands
+  * presence and well-formedness; the object form adds
+  * `maxRatesAgeDays` (a row must carry a fresh `ratesVerifiedAt`)
+  * and `allowUnpriced` (exact model refs the host KNOWS are free,
+  * the explicit exception). Recorded in RunMeta at genesis and
+  * restored on every resume, the exposure cap's rule (RV1504): a
+  * FinOps posture a resumed segment silently drops is not a posture.
+  * Absent by default: dispatch behavior stays byte identical, and an
+  * unpriced model keeps debiting nothing, the documented ceiling
+  * hole this mode exists to close.
+  */
+  strictPricing?: boolean | {
+    maxRatesAgeDays?: number;
+    allowUnpriced?: readonly string[];
+  };
   /** Run-level defaults merged over engine defaults. */
   limits?: UsageLimits;
   /**

@@ -277,3 +277,97 @@ describe('the in-flight exposure reservation (RV711)', () => {
     expect(() => new RunBudget({ maxInFlightExposureUsd: Number.NaN })).toThrow(ConfigError);
   });
 });
+
+/**
+ * The strict pre-egress pricing gate (RV1508, the eighteenth
+ * improvement plan). Dollars come from the price table, and a model
+ * absent from it debits NOTHING, so every ceiling silently fails to
+ * bound it; the seventeenth comparison benchmark asked for a mode
+ * where missing, malformed, or stale pricing REFUSES the paid
+ * dispatch instead of pricing it at zero.
+ */
+describe('the strict pre-egress pricing gate (RV1508)', () => {
+  const FRESH: Pricing = {
+    inputUsdPerMTok: 1,
+    outputUsdPerMTok: 10,
+    ratesVerifiedAt: '2026-08-01',
+  };
+
+  function strictBudget(options: {
+    pricing?: Record<string, Pricing>;
+    strictPricing?: { maxRatesAgeDays?: number; allowUnpriced?: readonly string[] };
+    nowMs?: number;
+  }): RunBudget {
+    return new RunBudget({
+      pricingOf: (servedBy) => options.pricing?.[servedBy],
+      strictPricing: options.strictPricing ?? {},
+      ...(options.nowMs === undefined ? {} : { now: () => options.nowMs as number }),
+    });
+  }
+
+  it('refuses a dispatch whose model has no price row, typed', () => {
+    const budget = strictBudget({ pricing: {} });
+    expect(() => budget.assertPricedDispatch('fake:model')).toThrow(ConfigError);
+    expect(() => budget.assertPricedDispatch('fake:model')).toThrow(/no price row/);
+  });
+
+  it('refuses a malformed row (NaN rate, malformed tier), typed', () => {
+    const nan = strictBudget({
+      pricing: { 'fake:model': { inputUsdPerMTok: Number.NaN, outputUsdPerMTok: 10 } },
+    });
+    expect(() => nan.assertPricedDispatch('fake:model')).toThrow(ConfigError);
+    const tier = strictBudget({
+      pricing: {
+        'fake:model': {
+          inputUsdPerMTok: 1,
+          outputUsdPerMTok: 10,
+          tiers: [{ aboveInputTokens: 200_000, inputMultiplier: Number.NaN, outputMultiplier: 1 }],
+        },
+      },
+    });
+    expect(() => tier.assertPricedDispatch('fake:model')).toThrow(ConfigError);
+  });
+
+  it('binds freshness only when maxRatesAgeDays is declared', () => {
+    const nowMs = Date.parse('2026-08-03T00:00:00Z');
+    const stale = strictBudget({
+      pricing: { 'fake:model': { ...FRESH, ratesVerifiedAt: '2026-06-01' } },
+      strictPricing: { maxRatesAgeDays: 30 },
+      nowMs,
+    });
+    expect(() => stale.assertPricedDispatch('fake:model')).toThrow(/stale/);
+    const undated = strictBudget({
+      pricing: { 'fake:model': { inputUsdPerMTok: 1, outputUsdPerMTok: 10 } },
+      strictPricing: { maxRatesAgeDays: 30 },
+      nowMs,
+    });
+    expect(() => undated.assertPricedDispatch('fake:model')).toThrow(/ratesVerifiedAt/);
+    const fresh = strictBudget({
+      pricing: { 'fake:model': FRESH },
+      strictPricing: { maxRatesAgeDays: 30 },
+      nowMs,
+    });
+    expect(() => fresh.assertPricedDispatch('fake:model')).not.toThrow();
+    // Without the declared bound, an undated row passes: freshness is
+    // an explicit contract, never a guessed default.
+    const lax = strictBudget({
+      pricing: { 'fake:model': { inputUsdPerMTok: 1, outputUsdPerMTok: 10 } },
+    });
+    expect(() => lax.assertPricedDispatch('fake:model')).not.toThrow();
+  });
+
+  it('allowUnpriced is the explicit exception, exact refs only', () => {
+    const budget = strictBudget({
+      pricing: {},
+      strictPricing: { allowUnpriced: ['local:llama'] },
+    });
+    expect(() => budget.assertPricedDispatch('local:llama')).not.toThrow();
+    expect(() => budget.assertPricedDispatch('fake:model')).toThrow(ConfigError);
+  });
+
+  it('an unarmed budget keeps the surface inert', () => {
+    const budget = new RunBudget({ pricingOf: () => undefined });
+    expect(budget.strictPricing).toBeUndefined();
+    expect(() => budget.assertPricedDispatch('fake:model')).not.toThrow();
+  });
+});

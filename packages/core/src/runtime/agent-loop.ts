@@ -340,6 +340,12 @@ export interface BudgetHooks {
    * reservation lives exactly as long as the wire call it covers.
    * Undefined result = nothing reserved (the cap resolved inert).
    */
+  /**
+   * The strict pre-egress pricing gate (RV1508): wired only when
+   * RunOptions.strictPricing armed it; throws typed BEFORE the wire
+   * call for a model whose price row is missing, malformed, or stale.
+   */
+  assertPricedDispatch?: (servedBy: ModelRef) => void;
   admitTurnExposure?: (
     servedBy: ModelRef,
     estimatedInputTokens: number,
@@ -3114,6 +3120,11 @@ export async function runAgent<S extends SchemaSpec>(
         // the layer-2b output bound.
         let releaseExposure: (() => void) | undefined;
         const admitExposure = (req: ChatRequest): void => {
+          // The strict pricing gate (RV1508) shares the dispatch
+          // chokepoint: armed, it refuses an unpriced, malformed, or
+          // stale-priced model BEFORE the wire call and before any
+          // exposure hold.
+          options.budget?.assertPricedDispatch?.(target.resolved.ref);
           const admit = options.budget?.admitTurnExposure;
           if (admit === undefined) {
             return;

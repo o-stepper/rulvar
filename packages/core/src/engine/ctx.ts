@@ -2201,6 +2201,15 @@ export function createCtx(
         // The in-flight exposure admission (RV711): wired ONLY when the
         // cap is configured, so the default hooks object stays
         // byte-identical in shape and the loop's default path inert.
+        // The strict pricing gate (RV1508): wired ONLY when armed, the
+        // exposure admission's rule, so the default hooks object and
+        // the loop's default path stay byte identical.
+        ...(internals.budget.strictPricing === undefined
+          ? {}
+          : {
+              assertPricedDispatch: (servedBy: ModelRef) =>
+                internals.budget.assertPricedDispatch(servedBy),
+            }),
         ...(internals.budget.maxInFlightExposureUsd === undefined
           ? {}
           : {

@@ -27,17 +27,21 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; \} | - |
+| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `now?`: () => `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; `strictPricing?`: \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \}; \} | - |
 | `options.ceilingUsd?` | `number` | - |
 | `options.events?` | [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md) | - |
 | `options.lifetimeSpawnCap?` | `number` | - |
 | `options.maxInFlightExposureUsd?` | `number` | - |
+| `options.now?` | () => `number` | - |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |
 | `options.pricingOf?` | (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined` | - |
 | `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume seed, folded from the persisted journal (the settled per-call fold, RV801): spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
 | `options.seed.agentsSpawned` | `number` | - |
 | `options.seed.usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - |
 | `options.seed.usd` | `number` | - |
+| `options.strictPricing?` | \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \} | The strict pre-egress pricing gate (RV1508): armed, every paid dispatch must resolve a well-formed price row for its serving model BEFORE the wire call, or the dispatch refuses typed. See [RunBudget.assertPricedDispatch](/api/@rulvar/rulvar/classes/RunBudget.md#assertpriceddispatch) for the exact refusals. Absent by default: the surface is inert and dispatch behavior is byte identical. |
+| `options.strictPricing.allowUnpriced?` | readonly `string`[] | - |
+| `options.strictPricing.maxRatesAgeDays?` | `number` | - |
 
 #### Returns
 
@@ -49,6 +53,9 @@ Defined in: `packages/core/dist/index.d.ts`
 | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable after start. Undefined means no USD ceiling. | `packages/core/dist/index.d.ts` |
 | <a id="property-maxinflightexposureusd"></a> `maxInFlightExposureUsd?` | `readonly` | `number` | The opt-in in-flight exposure cap (RV711). Undefined means the reservation surface is inert and reserveTurnExposure never binds. | `packages/core/dist/index.d.ts` |
+| <a id="property-strictpricing"></a> `strictPricing?` | `readonly` | \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \} | The strict pre-egress pricing gate config (RV1508); undefined means the surface is inert and [assertPricedDispatch](/api/@rulvar/rulvar/classes/RunBudget.md#assertpriceddispatch) never binds. | `packages/core/dist/index.d.ts` |
+| `strictPricing.allowUnpriced?` | `public` | readonly `string`[] | - | `packages/core/dist/index.d.ts` |
+| `strictPricing.maxRatesAgeDays?` | `public` | `number` | - | `packages/core/dist/index.d.ts` |
 
 ## Accessors
 
@@ -216,6 +223,42 @@ headroom is shared money that projected admission must protect.
 #### Returns
 
 `number` \| `undefined`
+
+***
+
+### assertPricedDispatch()
+
+```ts
+assertPricedDispatch(servedBy): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The strict pre-egress pricing gate (RV1508): called at the dispatch
+chokepoint, strictly BEFORE the wire call and before any exposure
+hold, whenever `strictPricing` is armed. Refusals, each a typed
+ConfigError naming the model and the defect: no price row resolves
+(an unpriced model debits nothing, so every ceiling silently fails
+to bound it); a malformed row (a non-finite or negative rate, a
+malformed long-context tier), because arithmetic over it disarms
+the very comparisons the mode exists to keep honest; and, only
+when `maxRatesAgeDays` is declared, a row whose `ratesVerifiedAt`
+is absent, unparsable, or older than the bound, because a stale
+price bounds the ceiling with yesterday's truth. `allowUnpriced`
+is the explicit exception for models the host KNOWS are free
+(exact refs, no patterns). A model is vetted once per run: the
+price table is fixed for the run's life, so the verdict cannot
+drift between turns. Inert without the config, byte for byte.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `servedBy` | `` `${string}:${string}` `` |
+
+#### Returns
+
+`void`
 
 ***
 

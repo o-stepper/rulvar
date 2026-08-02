@@ -2344,6 +2344,33 @@ const MUTATIONS = [
       '  const strictApprovals = engine?.strictApprovals === true && profile?.strictApprovals === true;',
     test: 'packages/core/src/runtime/permission-chain.test.ts',
   },
+  {
+    id: 'pricing-gate-armed',
+    doctrine:
+      'the strict pricing gate binds when armed (RV1508): disarmed, an unpriced model keeps debiting nothing and every ceiling silently fails to bound it',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    const config = this.strictPricing;\n    if (config === undefined || this.pricedDispatchVetted.has(servedBy)) {\n      return;\n    }',
+    replace: '    const config = this.strictPricing;\n    if (true) {\n      return;\n    }',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'pricing-gate-chokepoint',
+    doctrine:
+      'the gate fires at the dispatch chokepoint BEFORE the wire call (RV1508): unwired there, the unit surface passes while every real dispatch sails through unpriced',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          options.budget?.assertPricedDispatch?.(target.resolved.ref);',
+    replace: '          void target.resolved.ref;',
+    test: 'packages/core/src/engine/pricinggate.test.ts',
+  },
+  {
+    id: 'pricing-gate-meta-record',
+    doctrine:
+      'the pricing posture is recorded in RunMeta at genesis (RV1508): unrecorded, a resumed segment silently drops the gate, the exposure-cap failure mode exactly',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '              ...(strictPricing === undefined ? {} : { strictPricing }),',
+    replace: '              ...({}),',
+    test: 'packages/core/src/engine/pricinggate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

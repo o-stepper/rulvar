@@ -61,6 +61,16 @@ export type RunMeta = {
    */
   maxInFlightExposureUsd?: number;
   /**
+   * The opt-in strict pre-egress pricing gate
+   * (RunOptions.strictPricing canonicalized, RV1508), recorded at
+   * genesis so resume restores the posture: a FinOps gate a resumed
+   * segment silently drops is not a gate. Absent when the run started
+   * without it. Stores must round-trip the field (the conformance kit
+   * checks); a store that drops it degrades a resumed run to unpriced
+   * dispatch.
+   */
+  strictPricing?: { maxRatesAgeDays?: number; allowUnpriced?: string[] };
+  /**
    * Count of execution segments this run has STARTED (a fresh start
    * writes 1; every resume writes prior + 1, durably, BEFORE the
    * segment emits its first event). The engine derives each segment's

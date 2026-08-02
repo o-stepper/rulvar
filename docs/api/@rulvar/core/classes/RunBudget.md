@@ -21,23 +21,27 @@ spawn-admission decision entries, M6).
 new RunBudget(options): RunBudget;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L195)
+Defined in: [packages/core/src/engine/budget.ts:203](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L203)
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/core/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/core/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/core/type-aliases/Usage.md); `usd`: `number`; \}; \} | - |
+| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/core/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `now?`: () => `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/core/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/core/type-aliases/Usage.md); `usd`: `number`; \}; `strictPricing?`: \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \}; \} | - |
 | `options.ceilingUsd?` | `number` | - |
 | `options.events?` | [`RuntimeEventSink`](/api/@rulvar/core/interfaces/RuntimeEventSink.md) | - |
 | `options.lifetimeSpawnCap?` | `number` | - |
 | `options.maxInFlightExposureUsd?` | `number` | The opt-in in-flight exposure cap (RV711); see reserveTurnExposure. |
+| `options.now?` | () => `number` | Clock for the freshness bound; injectable for tests. |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |
 | `options.pricingOf?` | (`servedBy`) => [`Pricing`](/api/@rulvar/core/interfaces/Pricing.md) \| `undefined` | Raw price-row resolution for the layer-2b output bound. |
 | `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/core/type-aliases/Usage.md); `usd`: `number`; \} | The resume seed, folded from the persisted journal (the settled per-call fold, RV801): spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
 | `options.seed.agentsSpawned` | `number` | - |
 | `options.seed.usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | - |
 | `options.seed.usd` | `number` | - |
+| `options.strictPricing?` | \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \} | The strict pre-egress pricing gate (RV1508): armed, every paid dispatch must resolve a well-formed price row for its serving model BEFORE the wire call, or the dispatch refuses typed. See [RunBudget.assertPricedDispatch](/api/@rulvar/core/classes/RunBudget.md#assertpriceddispatch) for the exact refusals. Absent by default: the surface is inert and dispatch behavior is byte identical. |
+| `options.strictPricing.allowUnpriced?` | readonly `string`[] | - |
+| `options.strictPricing.maxRatesAgeDays?` | `number` | - |
 
 #### Returns
 
@@ -49,6 +53,9 @@ Defined in: [packages/core/src/engine/budget.ts:195](https://github.com/o-steppe
 | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable after start. Undefined means no USD ceiling. | [packages/core/src/engine/budget.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L174) |
 | <a id="property-maxinflightexposureusd"></a> `maxInFlightExposureUsd?` | `readonly` | `number` | The opt-in in-flight exposure cap (RV711). Undefined means the reservation surface is inert and reserveTurnExposure never binds. | [packages/core/src/engine/budget.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L179) |
+| <a id="property-strictpricing"></a> `strictPricing?` | `readonly` | \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \} | The strict pre-egress pricing gate config (RV1508); undefined means the surface is inert and [assertPricedDispatch](/api/@rulvar/core/classes/RunBudget.md#assertpriceddispatch) never binds. | [packages/core/src/engine/budget.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L191) |
+| `strictPricing.allowUnpriced?` | `public` | readonly `string`[] | - | [packages/core/src/engine/budget.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L191) |
+| `strictPricing.maxRatesAgeDays?` | `public` | `number` | - | [packages/core/src/engine/budget.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L191) |
 
 ## Accessors
 
@@ -60,7 +67,7 @@ Defined in: [packages/core/src/engine/budget.ts:195](https://github.com/o-steppe
 get committedReserveUsd(): number;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:470](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L470)
+Defined in: [packages/core/src/engine/budget.ts:603](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L603)
 
 ##### Returns
 
@@ -76,7 +83,7 @@ Defined in: [packages/core/src/engine/budget.ts:470](https://github.com/o-steppe
 get exhausted(): boolean;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:456](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L456)
+Defined in: [packages/core/src/engine/budget.ts:589](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L589)
 
 ##### Returns
 
@@ -92,7 +99,7 @@ Defined in: [packages/core/src/engine/budget.ts:456](https://github.com/o-steppe
 get signal(): AbortSignal;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:447](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L447)
+Defined in: [packages/core/src/engine/budget.ts:580](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L580)
 
 Layer 3 ceiling signal of the run root; live streams sever through it.
 
@@ -110,7 +117,7 @@ Layer 3 ceiling signal of the run root; live streams sever through it.
 get spawnHeadroom(): number;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:475](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L475)
+Defined in: [packages/core/src/engine/budget.ts:608](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L608)
 
 Spawn headroom under the engine lifetime cap (embedded in admission verdicts).
 
@@ -128,7 +135,7 @@ accountView(scope):
   | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L376)
+Defined in: [packages/core/src/engine/budget.ts:509](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L509)
 
 #### Parameters
 
@@ -149,7 +156,7 @@ Defined in: [packages/core/src/engine/budget.ts:376](https://github.com/o-steppe
 admitRecovered(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:567](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L567)
+Defined in: [packages/core/src/engine/budget.ts:700](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L700)
 
 Resume roll-forward: commits a reserve recovered from a journaled
 spawn-admission decision entry without re-evaluating admission
@@ -174,7 +181,7 @@ spawn-admission decision entry without re-evaluating admission
 admitSpawn(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:553](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L553)
+Defined in: [packages/core/src/engine/budget.ts:686](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L686)
 
 #### Parameters
 
@@ -195,7 +202,7 @@ Defined in: [packages/core/src/engine/budget.ts:553](https://github.com/o-steppe
 allowanceHeadroomOf(scope): number | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:428](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L428)
+Defined in: [packages/core/src/engine/budget.ts:561](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L561)
 
 The tightest allowance headroom on the chain of `scope`: the minimum
 remainder across 'child-allowance' accounts. An allowance ceiling
@@ -219,13 +226,49 @@ headroom is shared money that projected admission must protect.
 
 ***
 
+### assertPricedDispatch()
+
+```ts
+assertPricedDispatch(servedBy): void;
+```
+
+Defined in: [packages/core/src/engine/budget.ts:441](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L441)
+
+The strict pre-egress pricing gate (RV1508): called at the dispatch
+chokepoint, strictly BEFORE the wire call and before any exposure
+hold, whenever `strictPricing` is armed. Refusals, each a typed
+ConfigError naming the model and the defect: no price row resolves
+(an unpriced model debits nothing, so every ceiling silently fails
+to bound it); a malformed row (a non-finite or negative rate, a
+malformed long-context tier), because arithmetic over it disarms
+the very comparisons the mode exists to keep honest; and, only
+when `maxRatesAgeDays` is declared, a row whose `ratesVerifiedAt`
+is absent, unparsable, or older than the bound, because a stale
+price bounds the ceiling with yesterday's truth. `allowUnpriced`
+is the explicit exception for models the host KNOWS are free
+(exact refs, no patterns). A model is vetted once per run: the
+price table is fixed for the run's life, so the verdict cannot
+drift between turns. Inert without the config, byte for byte.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `servedBy` | `` `${string}:${string}` `` |
+
+#### Returns
+
+`void`
+
+***
+
 ### beforeTurn()
 
 ```ts
 beforeTurn(accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:742](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L742)
+Defined in: [packages/core/src/engine/budget.ts:875](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L875)
 
 Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched.
 
@@ -247,7 +290,7 @@ Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is
 commitFinalizeReserve(scope, reserveUsd): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:583](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L583)
+Defined in: [packages/core/src/engine/budget.ts:716](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L716)
 
 Registers the orchestrator finalize reserve (DEF-7):
 absolute dollars set on the named account AND the run root, so
@@ -275,7 +318,7 @@ Idempotent: re-registering on resume keeps the journaled amount.
 commitSynthesisReserve(scope, reserveUsd): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:622](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L622)
+Defined in: [packages/core/src/engine/budget.ts:755](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L755)
 
 Registers the synthesis payload reserve (the sixth comparison
 experiment, cycle 76): absolute dollars held on the orchestrator
@@ -307,7 +350,7 @@ re-registering adjusts the root by the delta.
 exhaustionDiagnostics(scope): BudgetExhaustionDiagnostics;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L338)
+Defined in: [packages/core/src/engine/budget.ts:386](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L386)
 
 The diagnostic projection behind a ceiling error: the first CLOSED
 account (projected commitments included, exactly the layer-1
@@ -337,7 +380,7 @@ the error path.
 markExhausted(): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:465](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L465)
+Defined in: [packages/core/src/engine/budget.ts:598](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L598)
 
 Marks the run exhausted without a ceiling event: the orchestrator
 finalize fallback maps to outcome 'exhausted' with the synthesized
@@ -358,7 +401,7 @@ maxAffordableOutputTokens(
    accountScope?): number | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:792](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L792)
+Defined in: [packages/core/src/engine/budget.ts:925](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L925)
 
 #### Parameters
 
@@ -383,7 +426,7 @@ onUsage(
    accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:814](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L814)
+Defined in: [packages/core/src/engine/budget.ts:947](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L947)
 
 Live accounting; spend propagates from `accountScope` to every
 ancestor. Crossing a ceiling severs the crossing account's subtree
@@ -410,7 +453,7 @@ in-flight agent; providers bill severed streams).
 openAccount(scope, options): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L289)
+Defined in: [packages/core/src/engine/budget.ts:337](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L337)
 
 Opens a child sub-account under `parentScope`.
 Re-opening an existing scope is the resume roll-forward path: the
@@ -439,7 +482,7 @@ recorded ceiling wins once and the accumulated state is kept.
 openCallMeter(servedBy, accountScope?): (delta) => void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:850](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L850)
+Defined in: [packages/core/src/engine/budget.ts:983](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L983)
 
 The per-call marginal meter (RV1101). One meter covers ONE provider
 call (the settled fold's billing basis, RV801): the loop feeds it
@@ -477,7 +520,7 @@ single call crossed: each call opens its own meter (RV504).
 refuseSpawnIfInfeasible(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:502](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L502)
+Defined in: [packages/core/src/engine/budget.ts:635](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L635)
 
 The refusal arm of admitSpawn as a standalone check (RV904): throws
 exactly the refusal admitSpawn would throw for this reserve (the
@@ -508,7 +551,7 @@ arithmetic so the two can never disagree about a refusal.
 releaseFinalizeReserve(scope): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:601](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L601)
+Defined in: [packages/core/src/engine/budget.ts:734](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L734)
 
 The forced finish CONSUMES its reserve (DEF-7
 reserve-survives-run-exhaustion): once the cap decision is durable
@@ -535,7 +578,7 @@ frozen past the cap, so nothing else can take it.
 releaseReserve(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:655](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L655)
+Defined in: [packages/core/src/engine/budget.ts:788](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L788)
 
 The reserve is replaced by real spend when the spawn settles.
 
@@ -558,7 +601,7 @@ The reserve is replaced by real spend when the spawn settles.
 releaseSynthesisReserve(scope): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:639](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L639)
+Defined in: [packages/core/src/engine/budget.ts:772](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L772)
 
 The synthesis dispatch consumes its reserve; see commitSynthesisReserve.
 
@@ -580,7 +623,7 @@ The synthesis dispatch consumes its reserve; see commitSynthesisReserve.
 remainderOf(scope): number | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:402](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L402)
+Defined in: [packages/core/src/engine/budget.ts:535](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L535)
 
 The admission remainder of one account: ceiling minus spend minus
 committed reserves minus the finalize reserve (DEF-7: childBudget
@@ -604,7 +647,7 @@ fractions never eat finalization money). Undefined when uncapped.
 remaining(): Spend | null;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:937](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L937)
+Defined in: [packages/core/src/engine/budget.ts:1070](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L1070)
 
 Null when the run has no USD ceiling.
 
@@ -620,7 +663,7 @@ Null when the run has no USD ceiling.
 remainingUsd(accountScope?): number | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:780](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L780)
+Defined in: [packages/core/src/engine/budget.ts:913](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L913)
 
 The tightest chain headroom of `accountScope` in plain USD (RV301):
 exactly the remaining money the output clamp below prices, before
@@ -649,7 +692,7 @@ reserveTurnExposure(
    plannedOutputTokens): (() => void) | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:687](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L687)
+Defined in: [packages/core/src/engine/budget.ts:820](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L820)
 
 The in-flight exposure reservation (RV711). The per-turn guard
 below checks money already SPENT, so N concurrent turns each pass
@@ -695,7 +738,7 @@ lifetime reserve and its own turn exposure would double-count.
 signalOf(scope): AbortSignal | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:452](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L452)
+Defined in: [packages/core/src/engine/budget.ts:585](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L585)
 
 The layer-3 signal of one sub-account's subtree, when it exists.
 
@@ -717,7 +760,7 @@ The layer-3 signal of one sub-account's subtree, when it exists.
 spent(): Spend;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:928](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L928)
+Defined in: [packages/core/src/engine/budget.ts:1061](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L1061)
 
 #### Returns
 

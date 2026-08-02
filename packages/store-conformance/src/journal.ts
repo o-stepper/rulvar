@@ -407,6 +407,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             tags: ['team:core'],
             budgetUsd: 12.5,
             maxInFlightExposureUsd: 0.07,
+            strictPricing: { maxRatesAgeDays: 30, allowUnpriced: ['local:llama'] },
             segments: 3,
             argsProvided: true,
             argsHash: 'a'.repeat(64),
@@ -427,6 +428,15 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           roundTripped?.maxInFlightExposureUsd === 0.07,
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (maxInFlightExposureUsd)',
+        );
+        // The pricing gate (RV1508): a store that drops it degrades a
+        // resumed run to unpriced dispatch, the same silent-loosening
+        // failure mode as the exposure cap.
+        ensure(
+          roundTripped?.strictPricing?.maxRatesAgeDays === 30 &&
+            roundTripped.strictPricing.allowUnpriced?.[0] === 'local:llama',
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (strictPricing)',
         );
         ensure(
           roundTripped?.segments === 3,

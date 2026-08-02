@@ -20,6 +20,10 @@ type RunMeta = {
   runId: string;
   segments?: number;
   status: string;
+  strictPricing?: {
+     allowUnpriced?: string[];
+     maxRatesAgeDays?: number;
+  };
   tags?: string[];
   updatedAt: string;
   workflowHash?: string;
@@ -42,7 +46,7 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L105)
+Defined in: [packages/core/src/l0/spi/store.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L115)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
@@ -69,7 +73,7 @@ checks).
 optional argsProvided?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L86)
+Defined in: [packages/core/src/l0/spi/store.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L96)
 
 Whether the run started with defined args. Engine-recorded at
 genesis and preserved verbatim by every later segment (a resume
@@ -105,7 +109,7 @@ resumed run to uncapped.
 optional execKeyDerivation?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L135)
+Defined in: [packages/core/src/l0/spi/store.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L145)
 
 Which isolated-executor idempotency key derivation this run uses
 (RV403), for its WHOLE life: stamped at the fresh start by the
@@ -131,7 +135,7 @@ at-least-once fold of a redispatched call for a version 2 run.
 optional genesis?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L117)
+Defined in: [packages/core/src/l0/spi/store.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L127)
 
 Unique token minted at the run's fresh start (genesis) and preserved
 verbatim by every later segment, so two runs that reuse the same
@@ -211,7 +215,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/
 optional segments?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L74)
+Defined in: [packages/core/src/l0/spi/store.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L84)
 
 Count of execution segments this run has STARTED (a fresh start
 writes 1; every resume writes prior + 1, durably, BEFORE the
@@ -232,6 +236,39 @@ status: string;
 ```
 
 Defined in: [packages/core/src/l0/spi/store.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L31)
+
+***
+
+### strictPricing?
+
+```ts
+optional strictPricing?: {
+  allowUnpriced?: string[];
+  maxRatesAgeDays?: number;
+};
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L72)
+
+The opt-in strict pre-egress pricing gate
+(RunOptions.strictPricing canonicalized, RV1508), recorded at
+genesis so resume restores the posture: a FinOps gate a resumed
+segment silently drops is not a gate. Absent when the run started
+without it. Stores must round-trip the field (the conformance kit
+checks); a store that drops it degrades a resumed run to unpriced
+dispatch.
+
+#### allowUnpriced?
+
+```ts
+optional allowUnpriced?: string[];
+```
+
+#### maxRatesAgeDays?
+
+```ts
+optional maxRatesAgeDays?: number;
+```
 
 ***
 
