@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+
 ### 1.154.0
 
 #### Patch Changes
@@ -1557,6 +1564,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+
 ### 1.154.0
 
 #### Patch Changes
@@ -2903,6 +2917,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.155.0
+
+#### Minor Changes
+
+- 49b08a7: Make the persisted terminal tail-aware and give offline authorities the engine's own resolution validator (RV1407, RV1408). The persisted terminal (RV1209) served the journaled settle even when the journal had CONTINUED past it, so a restarted reader could hold yesterday's envelope over a run that a detached resolution had already destined to resume, or that a successor segment was actively working, while `auditRun` derived a non-terminal status from exactly that evidence. `persistedTerminalEnvelope` now refuses `not-terminal` whenever entries follow the last settle, with a message naming the continuation (count and settle seq), so the persisted surface and the audit read one journal one way; the conformance table pins the new refusal (settled-then-continued) beside the five terminal paths. And the CLI server's offline resolution used a lookalike validator that demanded the plain `{ decision }` from EVERY kind-'approval' suspension: a legitimate `EscalationDecision` for a flavor B escalation was refused, and a wrong-shaped plain approval payload was waved into the journal. The new export `validateDetachedResolution` is the engine's own detached validation (the RV1203 flavor classifier, both payload arms, the pinned schema) as one function; the engine's detached path and the CLI offline path now call the same bytes, so an escalation resolves offline with its OWN payload exactly as detached-live, and an invalid one is refused typed before anything is journaled.
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
 
 ### 1.154.0
 
@@ -4668,6 +4693,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.155.0
+
+#### Minor Changes
+
+- 49b08a7: Make the persisted terminal tail-aware and give offline authorities the engine's own resolution validator (RV1407, RV1408). The persisted terminal (RV1209) served the journaled settle even when the journal had CONTINUED past it, so a restarted reader could hold yesterday's envelope over a run that a detached resolution had already destined to resume, or that a successor segment was actively working, while `auditRun` derived a non-terminal status from exactly that evidence. `persistedTerminalEnvelope` now refuses `not-terminal` whenever entries follow the last settle, with a message naming the continuation (count and settle seq), so the persisted surface and the audit read one journal one way; the conformance table pins the new refusal (settled-then-continued) beside the five terminal paths. And the CLI server's offline resolution used a lookalike validator that demanded the plain `{ decision }` from EVERY kind-'approval' suspension: a legitimate `EscalationDecision` for a flavor B escalation was refused, and a wrong-shaped plain approval payload was waved into the journal. The new export `validateDetachedResolution` is the engine's own detached validation (the RV1203 flavor classifier, both payload arms, the pinned schema) as one function; the engine's detached path and the CLI offline path now call the same bytes, so an escalation resolves offline with its OWN payload exactly as detached-live, and an invalid one is refused typed before anything is journaled.
 
 ### 1.154.0
 
@@ -6750,6 +6781,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.155.0
+
 ### 1.154.0
 
 ### 1.153.0
@@ -7162,6 +7195,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+  - @rulvar/anthropic@1.155.0
+  - @rulvar/openai@1.155.0
+  - @rulvar/plan@1.155.0
+  - @rulvar/testing@1.155.0
 
 ### 1.154.0
 
@@ -8918,6 +8962,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+
 ### 1.154.0
 
 #### Patch Changes
@@ -9671,6 +9722,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
 
 ### 1.154.0
 
@@ -11220,6 +11278,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+
 ### 1.154.0
 
 #### Patch Changes
@@ -12680,6 +12745,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+  - eslint-plugin-rulvar@1.155.0
 
 ### 1.154.0
 
@@ -14257,6 +14330,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+  - @rulvar/anthropic@1.155.0
+  - @rulvar/openai@1.155.0
 
 ### 1.154.0
 
@@ -16076,6 +16158,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+
 ### 1.154.0
 
 #### Patch Changes
@@ -17532,6 +17621,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
+
 ### 1.154.0
 
 #### Patch Changes
@@ -18309,6 +18405,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
 
 ### 1.154.0
 
@@ -19718,6 +19821,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.155.0
+
+#### Patch Changes
+
+- Updated dependencies [49b08a7]
+  - @rulvar/core@1.155.0
 
 ### 1.154.0
 
