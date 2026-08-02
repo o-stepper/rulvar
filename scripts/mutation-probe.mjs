@@ -2011,6 +2011,93 @@ const MUTATIONS = [
     replace: '          const missing = values.filter((value) => !haystack.includes(value));',
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
+  {
+    id: 'finalization-turns-dimension',
+    doctrine:
+      'remaining turns at or under reserveTurns enter the finalization window (RV1405): with the dimension dead, a turn-capped worker burns maxTurns mid-work with no finalize phase, the seventeenth experiment shape',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '      const remaining = Math.max(0, limits.maxTurns - turns);\n      if (\n        remaining <= finalizationTurns.reserveTurns &&',
+    replace:
+      '      const remaining = Math.max(0, limits.maxTurns - turns);\n      if (\n        false &&\n        remaining <= finalizationTurns.reserveTurns &&',
+    test: 'packages/core/src/runtime/finalization-turns.test.ts',
+  },
+  {
+    id: 'finalization-turns-own-reserve',
+    doctrine:
+      'the notice, the refusal, and the journal entry name the BINDING dimension its own reserve (RV1405): collapsed to the calls reserve, a turns entry reports arithmetic that never applied',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "  const reserveFor = (budget: FinalizationWindowBudget): number =>\n    budget === 'turns' ? (finalizationTurns?.reserveTurns ?? 0) : effectiveReserveCalls();",
+    replace:
+      '  const reserveFor = (budget: FinalizationWindowBudget): number =>\n    effectiveReserveCalls();',
+    test: 'packages/core/src/runtime/finalization-turns.test.ts',
+  },
+  {
+    id: 'finalization-turns-allow-fallback',
+    doctrine:
+      "the turns reserve's own allowlist governs when the window declares none (RV1405): dropped, a turns-only worker cannot record evidence inside its reserved tail and the posture walls off the bookkeeping it exists for",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    const allow = finalizationWindow?.allow ?? finalizationTurns?.allow;',
+    replace: '    const allow = finalizationWindow?.allow;',
+    test: 'packages/core/src/runtime/finalization-turns.test.ts',
+  },
+  {
+    id: 'finalization-turns-presence',
+    doctrine:
+      'configuring the turns reserve alone makes the toolBudget snapshot present (RV1405): dropped, a turns-only run has no home for finalizationWindowEntered and the entered regime is invisible on the envelope',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    extension !== undefined ||\n    finalizationTurns !== undefined\n  ) {',
+    replace: '    extension !== undefined\n  ) {',
+    test: 'packages/core/src/runtime/finalization-turns.test.ts',
+  },
+  {
+    id: 'finalization-turns-resume',
+    doctrine:
+      'a segment restored inside the turns reserve re-arms silently (RV1405, the RV302 posture): with the live re-derivation dead, the resumed loop re-announces the notice the pre-kill segment already carried',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    if (\n      windowActive() !== undefined ||\n      (windowConfigured && durableRestored?.finalizationWindowEntered === true)\n    ) {',
+    replace:
+      '    if (\n      (windowConfigured && durableRestored?.finalizationWindowEntered === true)\n    ) {',
+    test: 'packages/core/src/runtime/finalization-turns.test.ts',
+  },
+  {
+    id: 'finalization-turns-intake',
+    doctrine:
+      'a malformed reserveTurns is a typed ConfigError at intake (RV1405, the intake posture): waved through, a zero or fractional reserve reaches the loop arithmetic instead of failing before any journal entry',
+    file: 'packages/core/src/runtime/usage-limits.ts',
+    find: '    const { reserveTurns, allow } = reserve as { reserveTurns?: unknown; allow?: unknown };\n    requirePositiveInteger(reserveTurns as number, `${site}.finalizationTurns.reserveTurns`);',
+    replace:
+      '    const { reserveTurns, allow } = reserve as { reserveTurns?: unknown; allow?: unknown };\n    void reserveTurns;',
+    test: 'packages/core/src/runtime/finalization-turns.test.ts',
+  },
+  {
+    id: 'turns-bind-projection',
+    doctrine:
+      'preflight projects the turns axis per spawn (RV1406): silenced, maxTurns 28 against a 96-call ceiling is invisible before the paid run, exactly the seventeenth experiment hole',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '    if (\n      executedToolCallCeiling !== null &&\n      executedToolCallCeiling > 0 &&\n      limits.maxTurns < executedToolCallCeiling + 1\n    ) {',
+    replace:
+      '    if (\n      executedToolCallCeiling !== null &&\n      executedToolCallCeiling > 0 &&\n      limits.maxTurns < executedToolCallCeiling - 9999\n    ) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'turns-bind-severity',
+    doctrine:
+      'the turns projection WARNS while no turns reserve exists and is transparency once one does (RV1406): flattened to info, the silent mid-work limit reads as fine print',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "        severity: limits.finalizationTurns === undefined ? 'warning' : 'info',\n        code: 'turns-bind-before-tool-budget',",
+    replace: "        severity: 'info',\n        code: 'turns-bind-before-tool-budget',",
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'finalization-turns-covers-boundary',
+    doctrine:
+      'a turns reserve EQUAL to maxTurns already governs from the very first turn (RV1405): relaxed to strictly-above, the boundary config ships silently postured for its whole life',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '      limits.finalizationTurns !== undefined &&\n      limits.finalizationTurns.reserveTurns >= limits.maxTurns\n    ) {',
+    replace:
+      '      limits.finalizationTurns !== undefined &&\n      limits.finalizationTurns.reserveTurns > limits.maxTurns\n    ) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

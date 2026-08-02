@@ -10,4 +10,4 @@
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS: 120000 = 120_000;
 ```
 
-Defined in: [packages/core/src/runtime/usage-limits.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/usage-limits.ts#L201)
+Defined in: [packages/core/src/runtime/usage-limits.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/usage-limits.ts#L226)

@@ -430,7 +430,7 @@ const engine = createEngine({
 | [FailoverTrigger](/api/@rulvar/rulvar/type-aliases/FailoverTrigger.md) | Transport-level failover triggers; budget is explicitly excluded. |
 | [FallbackTrigger](/api/@rulvar/rulvar/type-aliases/FallbackTrigger.md) | The degenerate fallback triggers. |
 | [FencedCodeMode](/api/@rulvar/rulvar/type-aliases/FencedCodeMode.md) | Whether fenced code participates in textual validation (cycle 74): 'counted' is the historical behavior; 'excluded' removes fenced code blocks (see [stripFencedBlocks](/api/@rulvar/rulvar/functions/stripFencedBlocks.md)) before matching, counting, or slicing, so code samples can neither satisfy a section marker nor inflate word and citation counts. |
-| [FinalizationWindowBudget](/api/@rulvar/rulvar/type-aliases/FinalizationWindowBudget.md) | The budget dimension a finalization window statement names (RV302). |
+| [FinalizationWindowBudget](/api/@rulvar/rulvar/type-aliases/FinalizationWindowBudget.md) | The budget dimension a finalization window statement names (RV302; 'turns' since RV1405). |
 | [FinishInfo](/api/@rulvar/rulvar/type-aliases/FinishInfo.md) | Typed finish outcomes. A refusal MUST surface as a typed finish outcome carrying the provider stop details; it MUST NOT be projected to a null output silently. |
 | [FinishValidationVerdict](/api/@rulvar/rulvar/type-aliases/FinishValidationVerdict.md) | The verdict of one validator over one finish attempt. |
 | [Gate](/api/@rulvar/rulvar/type-aliases/Gate.md) | Ladder acceptance gates. Spot-check sibling selection is strictly via ctx.random, never Math.random. |

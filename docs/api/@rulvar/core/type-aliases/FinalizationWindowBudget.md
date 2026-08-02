@@ -7,9 +7,9 @@
 # Type Alias: FinalizationWindowBudget
 
 ```ts
-type FinalizationWindowBudget = "tool calls" | "tool units";
+type FinalizationWindowBudget = "tool calls" | "tool units" | "turns";
 ```
 
 Defined in: [packages/core/src/runtime/exploration.ts:358](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/exploration.ts#L358)
 
-The budget dimension a finalization window statement names (RV302).
+The budget dimension a finalization window statement names (RV302; 'turns' since RV1405).

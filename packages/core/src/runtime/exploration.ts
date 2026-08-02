@@ -354,8 +354,8 @@ export function toolBudgetExtensionNoticeText(
   );
 }
 
-/** The budget dimension a finalization window statement names (RV302). */
-export type FinalizationWindowBudget = 'tool calls' | 'tool units';
+/** The budget dimension a finalization window statement names (RV302; 'turns' since RV1405). */
+export type FinalizationWindowBudget = 'tool calls' | 'tool units' | 'turns';
 
 /**
  * The one-time model-visible window notice (RV302). Deterministic for

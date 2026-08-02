@@ -1076,6 +1076,52 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         }
       }
     }
+    // The turns-axis reserve (RV1405) config smell, mirroring
+    // finalization-window-covers-cap: a reserve at or above maxTurns
+    // governs from the very first turn.
+    if (
+      limits.finalizationTurns !== undefined &&
+      limits.finalizationTurns.reserveTurns >= limits.maxTurns
+    ) {
+      say({
+        severity: 'warning',
+        code: 'finalization-turns-covers-max-turns',
+        message:
+          `spawn '${label}': finalizationTurns.reserveTurns ` +
+          `${String(limits.finalizationTurns.reserveTurns)} is not below maxTurns ` +
+          `${String(limits.maxTurns)}, so the finalization regime governs from the very ` +
+          `first turn and nothing but the allowlisted finalization tools ever executes`,
+        spawn: label,
+      });
+    }
+    // The turns-axis projection (RV1406, the seventeenth comparison
+    // experiment: a worker burned maxTurns 28 at 66 of 96 executed
+    // calls and settled 'limit' with no finalize phase on the turns
+    // axis). One executed call per turn plus the final no-tool answer
+    // turn is the serial floor; parallel batches can stretch it, so
+    // this is visibility, never a stop: the 29th projected turn of
+    // that worker WAS the legitimate summary turn.
+    if (
+      executedToolCallCeiling !== null &&
+      executedToolCallCeiling > 0 &&
+      limits.maxTurns < executedToolCallCeiling + 1
+    ) {
+      say({
+        severity: limits.finalizationTurns === undefined ? 'warning' : 'info',
+        code: 'turns-bind-before-tool-budget',
+        message:
+          `spawn '${label}': maxTurns ${String(limits.maxTurns)} fits at most ` +
+          `${String(limits.maxTurns - 1)} serial executed tool calls plus the final answer ` +
+          `turn, below the ${String(executedToolCallCeiling)}-call executed ceiling: the ` +
+          `turns axis binds first unless calls batch` +
+          (limits.finalizationTurns === undefined
+            ? `, and no turns-axis finalization exists: expiry is a silent hard 'limit' ` +
+              `mid-work; reserve a finalization tail with limits.finalizationTurns`
+            : `; limits.finalizationTurns reserves the final ` +
+              `${String(limits.finalizationTurns.reserveTurns)} turns for finalization`),
+        spawn: label,
+      });
+    }
     // The bare cap warning (RV305): the seventh comparison experiment
     // starved two mandatory workers at a naked 84-call cap while 38% of
     // the ceiling sat unspent; the reserve-plus-salvage combination is

@@ -185,4 +185,34 @@ describe('the finalize policy-facts digest (RV709)', () => {
     expect(digest).not.toContain('quota:');
     expect(digest).toContain('finalization window: entered');
   });
+
+  it('a turns-only reserve is window configuration too, so the line appears (RV1405)', async () => {
+    const loopAdapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCall: { name: 'lookup', args: { topic: 'x' } } } : { text: 'notes' },
+    );
+    const finalizeAdapter = scriptedAdapter(() => ({ text: 'final' }), { id: 'strong' });
+    const result = await runAgent({
+      prompt: 'research',
+      adapter: loopAdapter,
+      resolved: loopResolved,
+      // No tool budget at all: the reserve watches the turns axis only,
+      // and the run finishes far above it, so the honest value is 'not
+      // entered', present because the machinery is configured.
+      limits: mergeUsageLimits({
+        maxTurns: 12,
+        finalizationTurns: { reserveTurns: 2 },
+      }),
+      tools: runtimeOf([lookup]),
+      finalize: { adapter: finalizeAdapter, resolved: finalizeResolved },
+      policyFacts: true,
+      events: recordingSink(),
+    });
+    expect(result.status).toBe('ok');
+    const digest = textOf((finalizeAdapter.calls[0]?.messages ?? []).at(-2));
+    expect(digest).toContain('POLICY FACTS');
+    expect(digest).toContain('finalization window: not entered');
+    // No tool budget limiter: the budget line stays absent even with
+    // the turns reserve configured.
+    expect(digest).not.toContain('tool budget:');
+  });
 });

@@ -15,6 +15,9 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-checkpointeverytoolcalls"></a> `checkpointEveryToolCalls?` | `number` | RV408 mid-batch checkpoint cadence; absent = per-turn only. | `packages/core/dist/index.d.ts` |
 | <a id="property-finalizationreserve"></a> `finalizationReserve?` | \{ `maxOutputTokens?`: `number`; \} | - | `packages/core/dist/index.d.ts` |
 | `finalizationReserve.maxOutputTokens?` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-finalizationturns"></a> `finalizationTurns?` | \{ `allow?`: `string`[]; `reserveTurns`: `number`; \} | RV1405: the trailing turns of maxTurns reserved for the finalization regime. | `packages/core/dist/index.d.ts` |
+| `finalizationTurns.allow?` | `string`[] | - | `packages/core/dist/index.d.ts` |
+| `finalizationTurns.reserveTurns` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-finalizationwindow"></a> `finalizationWindow?` | \{ `allow?`: `string`[]; `reserveCalls`: `number`; `reserveForEvidenceDeficit?`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |
 | `finalizationWindow.allow?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `finalizationWindow.reserveCalls` | `number` | - | `packages/core/dist/index.d.ts` |
