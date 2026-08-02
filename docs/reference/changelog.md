@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+
 ### 1.157.0
 
 #### Patch Changes
@@ -1578,6 +1585,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+
 ### 1.157.0
 
 #### Patch Changes
@@ -2945,6 +2959,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
 
 ### 1.157.0
 
@@ -4735,6 +4756,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.158.0
+
+#### Minor Changes
+
+- a266bc7: Hold the composed draft to the pool it composed from, with a bounded model judge over anchor-paired claims, and show the run its own execution facts (RV1501, RV1502, RV1503). The first PR of the eighteenth plan.
+
+  The claim pairing fold (RV1501). The seventeenth comparison run's security child read `packages/executor/src/subprocess.ts:256-296` correctly (a failed audit write does not mask success), and the ROOT inverted the claim in the final draft while citing the very same span; every configured check passed because each judged the draft alone, never against the pool that contradicted it. `pairDraftClaims`, exported from `@rulvar/core`, is the pure half that closes the gap: every draft sentence citing an anchor (`path:line` or `path:start-end`, the citation pattern extended with a range suffix) is paired with the accepted pool sentences citing an intersecting span of the same file, verbatim agreement dropped, everything bounded (pair cap, per-pair pool cap, excerpt cap) and fail closed at intake, deterministic and journal-free like `findContradictions`.
+
+  The claim-consistency judge (RV1502). `orchestrate({ claimConsistency })` wires the fold to the post-fan-in chokepoint, strictly after the contradiction pass and before any synthesis dispatch, and rules on the pairs with ONE bounded structured-output invocation under role 'synthesize' (`judge.model`/`judge.effort`/`judge.limits`/`judge.estCost` override the routing chain). No pairs means no judge dispatch. The verdict is an ordinary journaled agent entry, so a resume replays it with zero paid calls. `onFound` speaks the contradiction pass's vocabulary: 'report' puts `claimContradictions` and `claimConsistencyMeta` on the acceptance envelope, 'carry' rides a `CLAIM CONTRADICTIONS:` line in the single-mode synthesis prompt and blocks the valid-draft skip while findings stand, and 'fail' fails the run typed with `data.source` 'orchestrator_claim_consistency' before anything pays to compose the inversion away. A dead judge is a named fact (`judgeFailed` on the meta, findings absent, never an empty list that would claim agreement) and fails the run only under 'fail'.
+
+  The execution self-facts (RV1503). The same run graded its whole dossier `live-observed: no` while the harness had just watched 118 wire requests settle, because no surface ever showed the composing model what its run executed. `executionFacts: true` puts a replay-stable `facts` block (wire requests, missing response ids, journaled token totals; dollars deliberately absent because replay re-prices) on every await `TaskDigest` and every `get_child_result` page, and `synthesis.runFacts: true` folds the aggregate `RUN FACTS:` line into the synthesis prompt, naming its own boundary: live-observed by this run's own harness, production evidence it is not. Both off by default, byte-identical surfaces without them.
 
 ### 1.157.0
 
@@ -6847,6 +6880,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.158.0
+
 ### 1.157.0
 
 ### 1.156.0
@@ -7265,6 +7300,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+  - @rulvar/anthropic@1.158.0
+  - @rulvar/openai@1.158.0
+  - @rulvar/plan@1.158.0
+  - @rulvar/testing@1.158.0
 
 ### 1.157.0
 
@@ -9054,6 +9100,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+
 ### 1.157.0
 
 #### Patch Changes
@@ -9828,6 +9881,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
 
 ### 1.157.0
 
@@ -11398,6 +11458,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+
 ### 1.157.0
 
 #### Patch Changes
@@ -12879,6 +12946,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+  - eslint-plugin-rulvar@1.158.0
 
 ### 1.157.0
 
@@ -14480,6 +14555,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+  - @rulvar/anthropic@1.158.0
+  - @rulvar/openai@1.158.0
 
 ### 1.157.0
 
@@ -16326,6 +16410,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+
 ### 1.157.0
 
 #### Patch Changes
@@ -17803,6 +17894,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
+
 ### 1.157.0
 
 #### Patch Changes
@@ -18601,6 +18699,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
 
 ### 1.157.0
 
@@ -20031,6 +20136,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.158.0
+
+#### Patch Changes
+
+- Updated dependencies [a266bc7]
+  - @rulvar/core@1.158.0
 
 ### 1.157.0
 
