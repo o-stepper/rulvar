@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+
 ### 1.169.0
 
 #### Patch Changes
@@ -1661,6 +1668,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+
 ### 1.169.0
 
 #### Patch Changes
@@ -3111,6 +3125,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
 
 ### 1.169.0
 
@@ -5000,6 +5021,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.170.0
+
+#### Minor Changes
+
+- 86e4c06: Name the MCP session posture: per-request auth refresh and the drift policy (RV1516, the P1 tail).
+
+  The auth story and the drift story of an `mcp()` source get host-owned contracts. `http.headers` (streamable-http only, forbidden typed elsewhere) injects headers into every wire request through a wrapped fetch; the hook form is awaited before each send, which makes it the refresh point for rotating tokens, with no reconnect and no library-invented 401 retry. `drift` names what a listChanged notification means: `'rekey'` is the documented default (the changed list re-keys subsequently spawned agents), and `'refuse'` fails closed: the notification poisons the source, every later `tools()` refuses typed, and only `close()` clears it, so importing a changed list is always a deliberate host action. In-flight spawn snapshots are untouched either way, and the two refusal layers compose with the toolset attestation: refuse at the source vs refuse at the spawn.
 
 ### 1.169.0
 
@@ -7228,6 +7257,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.170.0
+
 ### 1.169.0
 
 ### 1.168.0
@@ -7670,6 +7701,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+  - @rulvar/anthropic@1.170.0
+  - @rulvar/openai@1.170.0
+  - @rulvar/plan@1.170.0
+  - @rulvar/testing@1.170.0
 
 ### 1.169.0
 
@@ -9590,6 +9632,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+
 ### 1.169.0
 
 #### Patch Changes
@@ -10455,6 +10504,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
 
 ### 1.169.0
 
@@ -12108,6 +12164,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+
 ### 1.169.0
 
 #### Patch Changes
@@ -13672,6 +13735,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+  - eslint-plugin-rulvar@1.170.0
 
 ### 1.169.0
 
@@ -15368,6 +15439,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+  - @rulvar/anthropic@1.170.0
+  - @rulvar/openai@1.170.0
 
 ### 1.169.0
 
@@ -17321,6 +17401,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+
 ### 1.169.0
 
 #### Patch Changes
@@ -18897,6 +18984,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+
 ### 1.169.0
 
 #### Patch Changes
@@ -19778,6 +19872,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
 
 ### 1.169.0
 
@@ -21291,6 +21392,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.170.0
+
+#### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
 
 ### 1.169.0
 

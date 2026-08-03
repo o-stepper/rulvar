@@ -1,5 +1,12 @@
 # @rulvar/executor
 
+## 1.170.0
+
+### Patch Changes
+
+- Updated dependencies [86e4c06]
+  - @rulvar/core@1.170.0
+
 ## 1.169.0
 
 ### Patch Changes
