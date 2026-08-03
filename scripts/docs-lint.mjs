@@ -235,6 +235,10 @@ const EXACTLY_ONCE_MESSAGE =
 const EXACTLY_ONCE_ALLOWLIST = new Map([
   ['guide/durability.md', new Set(['at-least-once-dispatch-exactly-once-pay'])],
   ['guide/isolated-executor.md', new Set(['the-guarantee-matrix', 'what-the-ledger-is-not'])],
+  // The production-profiles page repeats the ledger's denial list
+  // verbatim (a negation, not a claim), inside its isolated-patch
+  // posture.
+  ['guide/production-profiles.md', new Set(['isolated-patch'])],
 ]);
 const COMMENT_LINE = /^\s*(?:\/\/|\/?\*)/u;
 
