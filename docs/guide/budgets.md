@@ -275,6 +275,26 @@ lands together with a seed-aware rerun re-admission, and until then a resumed
 sub-account's projected admissions keep the historical amnesia the fold makes
 visible.
 
+### The strict pre-egress pricing gate
+
+`RunOptions.strictPricing` (RV1508) closes the unpriced-model hole below for
+runs that must not tolerate it. Armed (`true`, or the object form), every paid
+dispatch must resolve a well-formed price row for its serving model BEFORE the
+wire call, at the same dispatch chokepoint the exposure admission holds, or
+the dispatch refuses with a typed `ConfigError` naming the model and the
+defect: no row resolves, a rate is non-finite or negative, or a long-context
+tier is malformed. `maxRatesAgeDays` additionally demands a fresh
+`ratesVerifiedAt` on the row (absent, unparsable, or older than the bound
+refuses), because a stale price bounds the ceiling with yesterday's truth; the
+freshness bound binds only when declared. `allowUnpriced` lists the exact
+model refs the host KNOWS are free (a local model is honestly unpriced), the
+one explicit exception. Each model is vetted once per run, since the price
+table is fixed for the run's life. The posture is recorded in `RunMeta` at
+genesis and restored on every resume, the exposure cap's rule (RV1504), with
+the store conformance kit holding stores to the round-trip; off by default,
+dispatch behavior stays byte identical, and the hole below stays the
+documented honest answer.
+
 ### The one thing the ceiling cannot bound: a model with no price
 
 All three layers work in dollars, and dollars come from the price table. A model

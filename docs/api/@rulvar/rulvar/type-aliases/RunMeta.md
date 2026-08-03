@@ -20,6 +20,10 @@ type RunMeta = {
   runId: string;
   segments?: number;
   status: string;
+  strictPricing?: {
+     allowUnpriced?: string[];
+     maxRatesAgeDays?: number;
+  };
   tags?: string[];
   updatedAt: string;
   workflowHash?: string;
@@ -232,6 +236,39 @@ status: string;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### strictPricing?
+
+```ts
+optional strictPricing?: {
+  allowUnpriced?: string[];
+  maxRatesAgeDays?: number;
+};
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The opt-in strict pre-egress pricing gate
+(RunOptions.strictPricing canonicalized, RV1508), recorded at
+genesis so resume restores the posture: a FinOps gate a resumed
+segment silently drops is not a gate. Absent when the run started
+without it. Stores must round-trip the field (the conformance kit
+checks); a store that drops it degrades a resumed run to unpriced
+dispatch.
+
+#### allowUnpriced?
+
+```ts
+optional allowUnpriced?: string[];
+```
+
+#### maxRatesAgeDays?
+
+```ts
+optional maxRatesAgeDays?: number;
+```
 
 ***
 

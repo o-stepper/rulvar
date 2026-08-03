@@ -184,6 +184,14 @@ export class RunBudget {
   private readonly accounts = new Map<string, AccountState>();
   private usageInternal: Usage = { ...ZERO_USAGE };
   private agentsSpawnedInternal = 0;
+  /**
+   * The strict pre-egress pricing gate config (RV1508); undefined means
+   * the surface is inert and {@link assertPricedDispatch} never binds.
+   */
+  readonly strictPricing?: { maxRatesAgeDays?: number; allowUnpriced?: readonly string[] };
+  private readonly now: () => number = () => Date.now();
+  /** Models this run already vetted; a price table is fixed per run. */
+  private readonly pricedDispatchVetted = new Set<string>();
   private exhaustedInternal = false;
   /** Live dispatch estimates held by reserveTurnExposure (RV711). */
   private inFlightExposureUsd = 0;
@@ -208,6 +216,17 @@ export class RunBudget {
      * this seed and add no increments.
      */
     seed?: { usd: number; usage: Usage; agentsSpawned: number };
+    /**
+     * The strict pre-egress pricing gate (RV1508): armed, every paid
+     * dispatch must resolve a well-formed price row for its serving
+     * model BEFORE the wire call, or the dispatch refuses typed. See
+     * {@link RunBudget.assertPricedDispatch} for the exact refusals.
+     * Absent by default: the surface is inert and dispatch behavior is
+     * byte identical.
+     */
+    strictPricing?: { maxRatesAgeDays?: number; allowUnpriced?: readonly string[] };
+    /** Clock for the freshness bound; injectable for tests. */
+    now?: () => number;
   }) {
     if (options.ceilingUsd !== undefined) {
       requireValidCeiling(options.ceilingUsd, 'budget ceiling');
@@ -226,6 +245,35 @@ export class RunBudget {
     }
     if (options.pricingOf !== undefined) {
       this.pricingOf = options.pricingOf;
+    }
+    if (options.strictPricing !== undefined) {
+      const { maxRatesAgeDays, allowUnpriced } = options.strictPricing;
+      if (
+        maxRatesAgeDays !== undefined &&
+        (!Number.isInteger(maxRatesAgeDays) || maxRatesAgeDays < 1)
+      ) {
+        throw new ConfigError(
+          `strictPricing.maxRatesAgeDays must be a positive integer; got ${String(
+            maxRatesAgeDays,
+          )}`,
+        );
+      }
+      if (allowUnpriced !== undefined) {
+        for (const ref of allowUnpriced) {
+          if (typeof ref !== 'string' || ref === '') {
+            throw new ConfigError(
+              'strictPricing.allowUnpriced must be an array of non-empty model refs',
+            );
+          }
+        }
+      }
+      this.strictPricing = {
+        ...(maxRatesAgeDays === undefined ? {} : { maxRatesAgeDays }),
+        ...(allowUnpriced === undefined ? {} : { allowUnpriced: [...allowUnpriced] }),
+      };
+    }
+    if (options.now !== undefined) {
+      this.now = options.now;
     }
     const root: AccountState = {
       scope: ROOT_ACCOUNT,
@@ -371,6 +419,91 @@ export class RunBudget {
       };
     }
     return diagnostics;
+  }
+
+  /**
+   * The strict pre-egress pricing gate (RV1508): called at the dispatch
+   * chokepoint, strictly BEFORE the wire call and before any exposure
+   * hold, whenever `strictPricing` is armed. Refusals, each a typed
+   * ConfigError naming the model and the defect: no price row resolves
+   * (an unpriced model debits nothing, so every ceiling silently fails
+   * to bound it); a malformed row (a non-finite or negative rate, a
+   * malformed long-context tier), because arithmetic over it disarms
+   * the very comparisons the mode exists to keep honest; and, only
+   * when `maxRatesAgeDays` is declared, a row whose `ratesVerifiedAt`
+   * is absent, unparsable, or older than the bound, because a stale
+   * price bounds the ceiling with yesterday's truth. `allowUnpriced`
+   * is the explicit exception for models the host KNOWS are free
+   * (exact refs, no patterns). A model is vetted once per run: the
+   * price table is fixed for the run's life, so the verdict cannot
+   * drift between turns. Inert without the config, byte for byte.
+   */
+  assertPricedDispatch(servedBy: ModelRef): void {
+    const config = this.strictPricing;
+    if (config === undefined || this.pricedDispatchVetted.has(servedBy)) {
+      return;
+    }
+    if (config.allowUnpriced?.includes(servedBy) === true) {
+      this.pricedDispatchVetted.add(servedBy);
+      return;
+    }
+    const row = this.pricingOf?.(servedBy);
+    if (row === undefined) {
+      throw new ConfigError(
+        `strict pricing refused the dispatch: no price row resolves for '${servedBy}', so ` +
+          'it would debit nothing against every ceiling; add the model to the price table ' +
+          'or declare it in strictPricing.allowUnpriced',
+      );
+    }
+    const rates: Array<[string, number | undefined]> = [
+      ['inputUsdPerMTok', row.inputUsdPerMTok],
+      ['outputUsdPerMTok', row.outputUsdPerMTok],
+      ['cacheReadUsdPerMTok', row.cacheReadUsdPerMTok],
+      ['cacheWriteUsdPerMTok', row.cacheWriteUsdPerMTok],
+      ['cacheWrite1hUsdPerMTok', row.cacheWrite1hUsdPerMTok],
+    ];
+    for (const [name, rate] of rates) {
+      if (rate !== undefined && (!Number.isFinite(rate) || rate < 0)) {
+        throw new ConfigError(
+          `strict pricing refused the dispatch: the price row for '${servedBy}' carries a ` +
+            `malformed ${name} (${String(rate)})`,
+        );
+      }
+    }
+    for (const tier of row.tiers ?? []) {
+      if (
+        !Number.isFinite(tier.aboveInputTokens) ||
+        !Number.isFinite(tier.inputMultiplier) ||
+        !Number.isFinite(tier.outputMultiplier) ||
+        tier.inputMultiplier < 0 ||
+        tier.outputMultiplier < 0
+      ) {
+        throw new ConfigError(
+          `strict pricing refused the dispatch: the price row for '${servedBy}' carries a ` +
+            'malformed long-context tier',
+        );
+      }
+    }
+    if (config.maxRatesAgeDays !== undefined) {
+      if (row.ratesVerifiedAt === undefined) {
+        throw new ConfigError(
+          `strict pricing refused the dispatch: the price row for '${servedBy}' carries no ` +
+            'ratesVerifiedAt while strictPricing.maxRatesAgeDays demands a dated ' +
+            'verification',
+        );
+      }
+      const verifiedMs = Date.parse(row.ratesVerifiedAt);
+      const ageMs = this.now() - verifiedMs;
+      if (!Number.isFinite(verifiedMs) || ageMs > config.maxRatesAgeDays * 86_400_000) {
+        throw new ConfigError(
+          `strict pricing refused the dispatch: the price row for '${servedBy}' is stale ` +
+            `(ratesVerifiedAt ${row.ratesVerifiedAt}, bound ${String(
+              config.maxRatesAgeDays,
+            )} days)`,
+        );
+      }
+    }
+    this.pricedDispatchVetted.add(servedBy);
   }
 
   accountView(scope: string): BudgetAccountView | undefined {

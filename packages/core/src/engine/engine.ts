@@ -334,6 +334,22 @@ export interface RunOptions {
    * ResumeOptions deliberately has no field to override it.
    */
   maxInFlightExposureUsd?: number;
+  /**
+   * The opt-in strict pre-egress pricing gate (RV1508): every paid
+   * dispatch must resolve a well-formed price row for its serving
+   * model BEFORE the wire call, or the dispatch refuses typed
+   * (ConfigError naming the model and the defect). `true` demands
+   * presence and well-formedness; the object form adds
+   * `maxRatesAgeDays` (a row must carry a fresh `ratesVerifiedAt`)
+   * and `allowUnpriced` (exact model refs the host KNOWS are free,
+   * the explicit exception). Recorded in RunMeta at genesis and
+   * restored on every resume, the exposure cap's rule (RV1504): a
+   * FinOps posture a resumed segment silently drops is not a posture.
+   * Absent by default: dispatch behavior stays byte identical, and an
+   * unpriced model keeps debiting nothing, the documented ceiling
+   * hole this mode exists to close.
+   */
+  strictPricing?: boolean | { maxRatesAgeDays?: number; allowUnpriced?: readonly string[] };
   /** Run-level defaults merged over engine defaults. */
   limits?: UsageLimits;
   /**
@@ -991,6 +1007,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
      */
     maxInFlightExposureUsd?: number;
     /**
+     * The RunMeta-recorded strict pricing gate (RV1508), the exposure
+     * cap's rule: restored verbatim, no ResumeOptions override,
+     * absence stays absent.
+     */
+    strictPricing?: { maxRatesAgeDays?: number; allowUnpriced?: string[] };
+    /**
      * Execution segments started before this one (RunMeta.segments;
      * 1 when the field predates v1.23 journals). Seeds this segment's
      * event seq and span-id base so telemetry counters stay strictly
@@ -1042,6 +1064,18 @@ export function createEngine(options: CreateEngineOptions): Engine {
     }
     if (opts?.maxInFlightExposureUsd !== undefined) {
       requireNonNegativeNumber(opts.maxInFlightExposureUsd, 'RunOptions.maxInFlightExposureUsd');
+    }
+    if (
+      opts?.strictPricing !== undefined &&
+      typeof opts.strictPricing !== 'boolean' &&
+      (typeof opts.strictPricing !== 'object' ||
+        opts.strictPricing === null ||
+        Array.isArray(opts.strictPricing))
+    ) {
+      throw new ConfigError(
+        'RunOptions.strictPricing must be a boolean or an options object; got ' +
+          JSON.stringify(opts.strictPricing),
+      );
     }
     if (opts?.limits !== undefined) {
       validateUsageLimits(opts.limits, 'RunOptions.limits');
@@ -1128,10 +1162,30 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // RunMeta-recorded value, and a run started without one stays
     // uncapped for its whole life.
     const exposureCapUsd = opts?.maxInFlightExposureUsd ?? resumeCtx?.maxInFlightExposureUsd;
+    // The strict pricing gate follows the same recording rule (RV1508):
+    // a fresh run canonicalizes RunOptions (true means the bare
+    // object), a resumed run restores the RunMeta-recorded shape
+    // verbatim.
+    const strictPricing =
+      opts?.strictPricing === undefined
+        ? resumeCtx?.strictPricing
+        : opts.strictPricing === true
+          ? {}
+          : opts.strictPricing === false
+            ? undefined
+            : {
+                ...(opts.strictPricing.maxRatesAgeDays === undefined
+                  ? {}
+                  : { maxRatesAgeDays: opts.strictPricing.maxRatesAgeDays }),
+                ...(opts.strictPricing.allowUnpriced === undefined
+                  ? {}
+                  : { allowUnpriced: [...opts.strictPricing.allowUnpriced] }),
+              };
     const makeBudget = (): RunBudget =>
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
         ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
+        ...(strictPricing === undefined ? {} : { strictPricing, now: realNow }),
         lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
         events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
         priceUsd,
@@ -1396,6 +1450,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
               ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
               ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
               ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
+              ...(strictPricing === undefined ? {} : { strictPricing }),
               ...(argsBinding.argsProvided === undefined
                 ? {}
                 : { argsProvided: argsBinding.argsProvided }),
@@ -2139,6 +2194,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // exactly as it always did.
         ...(typeof meta?.maxInFlightExposureUsd === 'number'
           ? { maxInFlightExposureUsd: meta.maxInFlightExposureUsd }
+          : {}),
+        // The recorded pricing gate travels back in the same way
+        // (RV1508); absence stays absent.
+        ...(typeof meta?.strictPricing === 'object' && meta.strictPricing !== null
+          ? { strictPricing: meta.strictPricing }
           : {}),
         // Metas that predate the segments field (or a crash before the
         // first putMeta) count as ONE prior segment: the new base still
