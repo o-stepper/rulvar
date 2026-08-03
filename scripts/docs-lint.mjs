@@ -234,7 +234,7 @@ const EXACTLY_ONCE_MESSAGE =
 /** @type {Map<string, Set<string>>} */
 const EXACTLY_ONCE_ALLOWLIST = new Map([
   ['guide/durability.md', new Set(['at-least-once-dispatch-exactly-once-pay'])],
-  ['guide/isolated-executor.md', new Set(['the-guarantee-matrix'])],
+  ['guide/isolated-executor.md', new Set(['the-guarantee-matrix', 'what-the-ledger-is-not'])],
 ]);
 const COMMENT_LINE = /^\s*(?:\/\/|\/?\*)/u;
 

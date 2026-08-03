@@ -34,8 +34,9 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `dir`: `string`; \} |
+| `options` | \{ `dir`: `string`; `repairOnLoad?`: `boolean`; \} |
 | `options.dir` | `string` |
+| `options.repairOnLoad?` | `boolean` |
 
 #### Returns
 

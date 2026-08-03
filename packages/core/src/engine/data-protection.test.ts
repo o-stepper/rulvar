@@ -424,3 +424,68 @@ describe('the audit trail reducer', () => {
     expect(trail.map((r) => r.seq)).toEqual([...trail.map((r) => r.seq)].sort((a, b) => a - b));
   });
 });
+
+/**
+ * The import closure report (RV1511). The intake validated shapes,
+ * namespaces, and the runId, but nothing held the ENTRIES' own
+ * references against the blobs the bundle actually carries: a torn
+ * bundle imported whole and the missing transcript surfaced only when
+ * something later tried to read it.
+ */
+describe('importRun closure (RV1511)', () => {
+  const memoryEngine = (
+    journal = new InMemoryStore({ quiet: true }),
+    transcripts = new InMemoryTranscriptStore(),
+  ) => ({
+    journal,
+    transcripts,
+    engine: createEngine({
+      adapters: [piiAdapter()],
+      stores: { journal, transcripts },
+      defaults: { routing: { loop: 'fake:model' } },
+    }),
+  });
+  const sourceBundle = async () => {
+    const source = memoryEngine();
+    await source.engine.run(piiWf, undefined, { runId: 'IMP2' }).result;
+    return source.engine.exportRun('IMP2');
+  };
+
+  it('a closed bundle reports an empty unresolved list', async () => {
+    const bundle = await sourceBundle();
+    const target = memoryEngine();
+    const report = await target.engine.importRun(bundle);
+    expect(report.unresolvedRefs).toEqual([]);
+  });
+
+  it('reports unresolved refs by default and still imports (the historical permissive shape)', async () => {
+    const bundle = await sourceBundle();
+    expect(bundle.blobs.length).toBeGreaterThan(0);
+    const dropped = bundle.blobs[0]?.ref;
+    const torn = { ...bundle, blobs: bundle.blobs.slice(1) };
+    const target = memoryEngine();
+    const report = await target.engine.importRun(torn);
+    expect(report.unresolvedRefs).toContain(dropped);
+    expect((await target.journal.load('IMP2')).length).toBeGreaterThan(0);
+  });
+
+  it('requireClosure refuses typed BEFORE any write, naming the refs', async () => {
+    const bundle = await sourceBundle();
+    const torn = { ...bundle, blobs: bundle.blobs.slice(1) };
+    const target = memoryEngine();
+    await expect(target.engine.importRun(torn, { requireClosure: true })).rejects.toThrow(
+      /unresolved/,
+    );
+    expect(await target.journal.load('IMP2')).toHaveLength(0);
+    expect(await target.transcripts.list('IMP2')).toHaveLength(0);
+  });
+
+  it('a duplicate blob ref refuses always: last-write-wins is not an import', async () => {
+    const bundle = await sourceBundle();
+    const first = bundle.blobs[0];
+    const dup = { ...bundle, blobs: [...bundle.blobs, first] };
+    const target = memoryEngine();
+    await expect(target.engine.importRun(dup)).rejects.toThrow(/twice/);
+    expect(await target.journal.load('IMP2')).toHaveLength(0);
+  });
+});

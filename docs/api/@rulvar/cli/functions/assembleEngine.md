@@ -14,14 +14,15 @@ Defined in: [packages/cli/src/engine-assembly.ts:64](https://github.com/o-steppe
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | \{ `config`: [`CliConfig`](/api/@rulvar/cli/interfaces/CliConfig.md); `cwd`: `string`; `module?`: [`LoadedWorkflowModule`](/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md); `profile?`: `string`; `storePath?`: `string`; \} |
-| `options.config` | [`CliConfig`](/api/@rulvar/cli/interfaces/CliConfig.md) |
-| `options.cwd` | `string` |
-| `options.module?` | [`LoadedWorkflowModule`](/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md) |
-| `options.profile?` | `string` |
-| `options.storePath?` | `string` |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | \{ `config`: [`CliConfig`](/api/@rulvar/cli/interfaces/CliConfig.md); `cwd`: `string`; `module?`: [`LoadedWorkflowModule`](/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md); `profile?`: `string`; `repairOnLoad?`: `boolean`; `storePath?`: `string`; \} | - |
+| `options.config` | [`CliConfig`](/api/@rulvar/cli/interfaces/CliConfig.md) | - |
+| `options.cwd` | `string` | - |
+| `options.module?` | [`LoadedWorkflowModule`](/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md) | - |
+| `options.profile?` | `string` | - |
+| `options.repairOnLoad?` | `boolean` | RV1512: disarm the JSONL torn-tail repair on load (audit reads). |
+| `options.storePath?` | `string` | - |
 
 ## Returns
 

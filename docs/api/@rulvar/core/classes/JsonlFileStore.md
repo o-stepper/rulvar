@@ -28,14 +28,15 @@ missing run resolves `undefined`, never a rejection.
 new JsonlFileStore(options): JsonlFileStore;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L123)
+Defined in: [packages/core/src/stores/jsonl.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L135)
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `dir`: `string`; \} |
+| `options` | \{ `dir`: `string`; `repairOnLoad?`: `boolean`; \} |
 | `options.dir` | `string` |
+| `options.repairOnLoad?` | `boolean` |
 
 #### Returns
 
@@ -49,7 +50,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:123](https://github.com/o-stepper
 append(runId, e): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L136)
+Defined in: [packages/core/src/stores/jsonl.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L149)
 
 #### Parameters
 
@@ -74,7 +75,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:136](https://github.com/o-stepper
 delete(runId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L300)
+Defined in: [packages/core/src/stores/jsonl.ts:315](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L315)
 
 #### Parameters
 
@@ -98,7 +99,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:300](https://github.com/o-stepper
 getMeta(runId): Promise<RunMeta | undefined>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:272](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L272)
+Defined in: [packages/core/src/stores/jsonl.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L287)
 
 #### Parameters
 
@@ -122,7 +123,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:272](https://github.com/o-stepper
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:284](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L284)
+Defined in: [packages/core/src/stores/jsonl.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L299)
 
 #### Parameters
 
@@ -146,7 +147,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:284](https://github.com/o-stepper
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L172)
+Defined in: [packages/core/src/stores/jsonl.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L185)
 
 #### Parameters
 
@@ -170,7 +171,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:172](https://github.com/o-stepper
 putMeta(m): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L263)
+Defined in: [packages/core/src/stores/jsonl.ts:278](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L278)
 
 #### Parameters
 

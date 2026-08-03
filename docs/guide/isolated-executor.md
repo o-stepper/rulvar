@@ -171,6 +171,17 @@ Who provides what, stated once and flatly (RV508, the ninth comparison experimen
 
 Read the rows bottom-up when something external went wrong: the receipt says what happened, the ledger says what was attempted, the journal says what was paid, and no layer above pretends to close a gap a lower layer left open.
 
+## What the ledger is NOT
+
+The vocabulary above earns an explicit denial list (RV1513, closing the eighteenth plan's documentation line), because the seventeenth comparison run's own dossier inverted exactly these facts while citing the sources that state them.
+
+- **Not a transactional outbox.** The intent append and the external effect are two operations with a power-loss window between them; the two-phase capability turns that window into an ORPHAN INTENT, the reconciliation signal, never into atomicity. A business outbox with exactly-once delivery is the host's system, built with the target's idempotency keys and receipts.
+- **Not authorization.** A ledger row records that a dispatch happened or was intended; it approves nothing. Authority lives in the permission chain, approvals, and the host's own policy over terminal facts.
+- **Not exactly-once.** The stable idempotency key helps the PROVIDER deduplicate; the guarantee ends at the provider's dedup window and semantics. The host's reconciliation of every orphan intent against provider receipts stays mandatory before any retry or compensation.
+- **Not always on.** Both `ledger` and its `intent` capability are OPTIONAL: without a ledger the executor keeps its historical behavior byte for byte, and without `intent` the ledger keeps the single-record contract. A deployment that needs the two-phase window closed must configure it and staff the reconciliation.
+
+What the ledger IS: the forensic seam that makes every external effect attributable (approval, intent, outcome, timing, idempotency key), and the one place a reconciliation worker can start from after a crash. A failed outcome write is loud by design: the settle epilogue converts it into the typed `ledger` refusal, because an effect whose outcome could not be audited must not report success silently.
+
 ## Conformance
 
 `executorConformance` is the executable shared-contract battery any command-based executor must pass, mirroring the [store conformance kit](/guide/stores):

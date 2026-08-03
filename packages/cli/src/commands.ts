@@ -533,10 +533,20 @@ export async function runsAuditCommand(argv: string[], context: CommandContext):
   const parsed = parseCommand(GRAMMAR['runs audit'], argv);
   const store = parsed.values.store as string | undefined;
   const repair = parsed.values.repair === true;
+  // The verify-only read (RV1512): --no-load-repair opens the default
+  // JSONL store with the torn-tail repair disarmed, so the audit
+  // never rewrites the journal it is verifying. Meaningless beside
+  // --repair, which exists to rewrite: refused typed.
+  const noLoadRepair = parsed.values['no-load-repair'] === true;
+  if (noLoadRepair && repair) {
+    context.io.err('runs audit: --no-load-repair and --repair contradict; pick one');
+    return 1;
+  }
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
     ...(store === undefined ? {} : { storePath: store }),
+    ...(noLoadRepair ? { repairOnLoad: false } : {}),
     cwd: context.cwd,
   });
   const audits = await auditRuns(assembled.store);

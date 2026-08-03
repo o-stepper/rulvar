@@ -138,12 +138,12 @@ The full walk-through, with the OpenAI variant and the crash and edit-and-rerun 
 
 `@rulvar/rulvar` is the batteries-included umbrella: the core engine, both first-class adapters,
 recommended model defaults, and two terminal progress renderers (the live per-agent tree and the
-minimal line printer). Sixteen packages ship in total, fifteen in
-lockstep at a single version. Full map and dependency graph:
+minimal line printer). Seventeen package names ship in total (sixteen packages plus the unscoped
+pointer), fifteen in lockstep at a single version. Full map and dependency graph:
 [reference/packages](https://docs.rulvar.com/reference/packages).
 
 <details>
-<summary>All sixteen packages</summary>
+<summary>All seventeen package names</summary>
 
 | Package                     | What it is                                                                                                       |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------- |

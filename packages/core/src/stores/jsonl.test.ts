@@ -272,3 +272,43 @@ describe('FileTranscriptStore path containment (v1.36.0 review SEC-P1)', () => {
     await expect(store.put('..', bytes('x'))).rejects.toBeInstanceOf(JournalOrderViolation);
   });
 });
+
+/**
+ * The verify-only load (RV1512). The A1 salvage model repairs a torn
+ * trailing line ON LOAD, which is right for an owner about to append
+ * and wrong for an auditor: a "verification" read that rewrites the
+ * artifact it verifies destroys the evidence of the tear.
+ */
+describe('repairOnLoad: false (RV1512)', () => {
+  it('serves the salvageable records without touching the file bytes', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-verify-'));
+    const writer = new JsonlFileStore({ dir });
+    await writer.append('TORN', {
+      hashVersion: 2,
+      seq: 0,
+      scope: '',
+      key: 'k',
+      ordinal: 0,
+      kind: 'agent',
+      status: 'ok',
+      spanId: 's1',
+      startedAt: '2026-08-03T00:00:00.000Z',
+    });
+    const file = join(dir, 'TORN.jsonl');
+    appendFileSync(file, '{"hashVersion":2,"seq":1,"scope":"","key":"k2","ordi');
+    const before = readFileSync(file, 'utf8');
+
+    const auditor = new JsonlFileStore({ dir, repairOnLoad: false });
+    const entries = await auditor.load('TORN');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.seq).toBe(0);
+    // The tear is still on disk, byte for byte: evidence, not damage.
+    expect(readFileSync(file, 'utf8')).toBe(before);
+
+    // The default owner path repairs exactly as before.
+    const owner = new JsonlFileStore({ dir });
+    const repaired = await owner.load('TORN');
+    expect(repaired).toHaveLength(1);
+    expect(readFileSync(file, 'utf8')).not.toBe(before);
+  });
+});

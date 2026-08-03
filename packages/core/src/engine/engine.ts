@@ -533,7 +533,21 @@ export interface Engine {
    * when the run already exists in the target store, so an import can
    * never interleave with live history.
    */
-  importRun(bundle: RunExport): Promise<void>;
+  /**
+   * Imports an exportRun bundle into this engine's stores. Returns the
+   * closure report (RV1511): every transcript, checkpoint, artifact,
+   * and workflow-source ref the ENTRIES (and meta) reference that no
+   * bundle blob carries. The default import stays permissive (the
+   * historical shape: retention and pruning legitimately drop blobs
+   * their entries still name) and the report makes the gap visible;
+   * `requireClosure: true` refuses typed BEFORE any write instead. A
+   * duplicate blob ref in the bundle always refuses: last-write-wins
+   * is not an import.
+   */
+  importRun(
+    bundle: RunExport,
+    options?: { requireClosure?: boolean },
+  ): Promise<{ unresolvedRefs: string[] }>;
 }
 
 /** The portable bundle exportRun produces and importRun consumes (RV-217). */
@@ -2274,7 +2288,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
   }
 
   /** Import under the original runId; refuses an existing run (RV-217). */
-  async function importRun(bundle: RunExport): Promise<void> {
+  async function importRun(
+    bundle: RunExport,
+    options?: { requireClosure?: boolean },
+  ): Promise<{ unresolvedRefs: string[] }> {
     const raw: unknown = bundle;
     if (
       typeof raw !== 'object' ||
@@ -2299,6 +2316,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // namespace: transcript refs are runId-prefixed by construction,
     // and a crafted bundle for run A must never overwrite run B's
     // blobs through a foreign ref.
+    const availableRefs = new Set<string>();
     for (const blob of bundle.blobs) {
       const ref: unknown = (blob as { ref?: unknown } | undefined)?.ref;
       if (typeof ref !== 'string' || !ref.startsWith(`${runId}/`)) {
@@ -2307,6 +2325,16 @@ export function createEngine(options: CreateEngineOptions): Engine {
             `('${runId}/...'); a bundle imports only its own run's blobs`,
         );
       }
+      if (availableRefs.has(ref)) {
+        // Two blobs claiming one ref cannot both be the record
+        // (RV1511): a torn or hand-edited bundle must refuse instead
+        // of silently letting the last write win.
+        throw new ConfigError(
+          `importRun: the bundle carries blob ref '${ref}' twice; a duplicate ref is a torn ` +
+            'or edited bundle, never a valid export',
+        );
+      }
+      availableRefs.add(ref);
     }
     // Every entry must pass the journal codec's shape validation (the
     // same registry the replayer folds with): an import that appends
@@ -2324,6 +2352,48 @@ export function createEngine(options: CreateEngineOptions): Engine {
         );
       }
     });
+    // The closure report (RV1511): every ref the entries (and meta)
+    // reference, held against the blobs the bundle actually carries.
+    // Permissive by default because retention and checkpoint pruning
+    // legitimately drop blobs their entries still name; the report
+    // makes the gap visible, and requireClosure turns it into the
+    // typed refusal a strict host wants, BEFORE any write.
+    const referencedRefs = new Set<string>();
+    for (const entry of bundle.entries) {
+      const record = entry as {
+        transcriptRef?: unknown;
+        checkpointRef?: unknown;
+        artifacts?: unknown;
+      };
+      if (typeof record.transcriptRef === 'string') {
+        referencedRefs.add(record.transcriptRef);
+      }
+      if (typeof record.checkpointRef === 'string') {
+        referencedRefs.add(record.checkpointRef);
+      }
+      if (Array.isArray(record.artifacts)) {
+        for (const artifact of record.artifacts) {
+          const ref = (artifact as { ref?: unknown } | undefined)?.ref;
+          if (typeof ref === 'string') {
+            referencedRefs.add(ref);
+          }
+        }
+      }
+    }
+    const sourceRef = (bundle.meta as { workflowSourceRef?: unknown } | undefined)
+      ?.workflowSourceRef;
+    if (typeof sourceRef === 'string') {
+      referencedRefs.add(sourceRef);
+    }
+    const unresolvedRefs = [...referencedRefs].filter((ref) => !availableRefs.has(ref));
+    if (options?.requireClosure === true && unresolvedRefs.length > 0) {
+      const listed = unresolvedRefs.slice(0, 10).join(', ');
+      throw new ConfigError(
+        `importRun: ${String(unresolvedRefs.length)} referenced ref(s) are unresolved in the ` +
+          `bundle under requireClosure (${listed}${unresolvedRefs.length > 10 ? ', ...' : ''}); ` +
+          'a strict import demands the blobs its entries name',
+      );
+    }
     const existingMeta = await readRunMeta(journal, runId);
     const existingEntries = await journal.load(runId);
     const existingBlobs = await transcripts.list(runId);
@@ -2346,6 +2416,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       if (bundle.meta !== undefined) {
         await journal.putMeta({ ...bundle.meta, runId });
       }
+      return { unresolvedRefs };
     } catch (failed) {
       try {
         for (const ref of await transcripts.list(runId)) {
