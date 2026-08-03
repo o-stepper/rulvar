@@ -10839,6 +10839,28 @@ interface McpConfig {
     listMs?: number;
     callMs?: number;
   };
+  /**
+  * streamable-http only (RV1516): headers injected into EVERY wire
+  * request through a wrapped fetch. The hook form is awaited before
+  * each send, so it IS the refresh point: rotate a token in the hook
+  * and the next request carries it, with no reconnect and no
+  * library-invented 401 retry (transport failures surface exactly as
+  * before; the engine's RetryPolicy owns retries).
+  */
+  http?: {
+    headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);
+  };
+  /**
+  * What a listChanged notification means for THIS source (RV1516).
+  * 'rekey' is the documented default: the session cache invalidates
+  * and subsequently spawned agents import the changed list under a new
+  * toolsetHash. 'refuse' fails closed instead: the notification
+  * poisons the source, every later tools() call refuses typed, and
+  * only close() (a deliberate host reset) clears it. In-flight spawn
+  * snapshots are untouched either way. Composes with the toolset
+  * attestation: refuse at the source vs refuse at the spawn.
+  */
+  drift?: "rekey" | "refuse";
 }
 /**
 * The ToolSource returned by {@link mcp}: the frozen ToolSource seam

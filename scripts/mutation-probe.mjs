@@ -2601,6 +2601,24 @@ const MUTATIONS = [
     test: 'packages/core/src/tools/mcp-bounds.test.ts',
   },
   {
+    id: 'mcp-auth-refresh',
+    doctrine:
+      'the http.headers hook is consulted per REQUEST before send (RV1516): freezing it to an empty record strips authentication from the wire and kills the rotation contract that makes token refresh reconnect-free',
+    file: 'packages/core/src/tools/mcp.ts',
+    find: "    const extra = typeof headersOption === 'function' ? await headersOption() : headersOption;",
+    replace: '    const extra = {};',
+    test: 'packages/core/src/tools/mcp-posture.test.ts',
+  },
+  {
+    id: 'mcp-drift-refuse',
+    doctrine:
+      "drift 'refuse' poisons the source on a listChanged (RV1516): dropping the poison write turns fail-closed into silent re-keying, and a swapped tool list imports on the next spawn as if the host had approved it",
+    file: 'packages/core/src/tools/mcp.ts',
+    find: '        poisoned = true;',
+    replace: '        poisoned = poisoned;',
+    test: 'packages/core/src/tools/mcp-posture.test.ts',
+  },
+  {
     id: 'attestation-shape-validation',
     doctrine:
       'a malformed attestation is refused typed at createEngine (RV1514): skipping the hash shape check lets a truncated or uppercased pin ride into every spawn and refuse each one with a mismatch that no re-recording can satisfy',
