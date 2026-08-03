@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+
 ### 1.167.0
 
 #### Patch Changes
@@ -1647,6 +1654,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+
 ### 1.167.0
 
 #### Patch Changes
@@ -3083,6 +3097,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
 
 ### 1.167.0
 
@@ -4958,6 +4979,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.168.0
+
+#### Minor Changes
+
+- ebba79a: Pin a profile's toolset with an attestation and refuse drift typed at spawn time (RV1514, the P1 tail).
+
+  Provider-side drift of an imported tool's description or schema re-keys new spawns silently by design, so a poisoned MCP tool description still reached the model, just under a new content key. `AgentProfile.toolsetAttestation` now pins the hash itself: a spawn whose resolved toolset hashes to anything else refuses with a typed `ConfigError` before any provider call or budget admission. `attestToolset()` records the pin from a resolution (the aggregate `toolsetHash` plus per-tool `toolContractHash` values, both exported), and the refusal names the drift (`changed` / `missing` / `unexpected` tools with both hashes) when the per-tool hashes are present, or lists the resolved per-tool hashes so a stale pin can be corrected from the refusal itself. The pin binds the spawn's RESOLVED toolset, so a call-level tools override and the opt-in escalate tool drift it deliberately; the attestation shape is validated at `createEngine` (64 lowercase hex chars, tool names inside the tool-name pattern), and unattested profiles keep today's re-keying behavior byte for byte.
 
 ### 1.167.0
 
@@ -7170,6 +7199,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.168.0
+
 ### 1.167.0
 
 ### 1.166.0
@@ -7608,6 +7639,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+  - @rulvar/anthropic@1.168.0
+  - @rulvar/openai@1.168.0
+  - @rulvar/plan@1.168.0
+  - @rulvar/testing@1.168.0
 
 ### 1.167.0
 
@@ -9506,6 +9548,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+
 ### 1.167.0
 
 #### Patch Changes
@@ -10357,6 +10406,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
 
 ### 1.167.0
 
@@ -11996,6 +12052,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+
 ### 1.167.0
 
 #### Patch Changes
@@ -13546,6 +13609,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+  - eslint-plugin-rulvar@1.168.0
 
 ### 1.167.0
 
@@ -15226,6 +15297,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+  - @rulvar/anthropic@1.168.0
+  - @rulvar/openai@1.168.0
 
 ### 1.167.0
 
@@ -17161,6 +17241,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+
 ### 1.167.0
 
 #### Patch Changes
@@ -18723,6 +18810,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
+
 ### 1.167.0
 
 #### Patch Changes
@@ -19590,6 +19684,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
 
 ### 1.167.0
 
@@ -21089,6 +21190,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.168.0
+
+#### Patch Changes
+
+- Updated dependencies [ebba79a]
+  - @rulvar/core@1.168.0
 
 ### 1.167.0
 
