@@ -9,6 +9,7 @@
 ```ts
 function lastRunSettle(entries): 
   | {
+  completion?: "partial" | "rejected" | "complete";
   outputHash?: string;
   runStatus: RunStatus;
   seq: number;
@@ -32,6 +33,7 @@ none).
 ## Returns
 
   \| \{
+  `completion?`: `"partial"` \| `"rejected"` \| `"complete"`;
   `outputHash?`: `string`;
   `runStatus`: [`RunStatus`](/api/@rulvar/rulvar/type-aliases/RunStatus.md);
   `seq`: `number`;

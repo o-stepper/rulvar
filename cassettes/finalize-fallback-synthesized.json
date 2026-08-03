@@ -569,7 +569,8 @@
         "decisionType": "run_settle",
         "runStatus": "exhausted",
         "segment": 1,
-        "outputHash": "hash-0020-------------------------------------------------------"
+        "outputHash": "hash-0020-------------------------------------------------------",
+        "completion": "partial"
       },
       "endedAt": "2026-02-01T00:00:00.000Z"
     }

@@ -88,12 +88,45 @@ describe('the persisted terminal envelope (RV1209)', () => {
     expect(derived.envelope.usage).toEqual(outcome.envelope.usage);
     expect(derived.envelope.usageApprox).toBe(outcome.envelope.usageApprox);
     expect(derived.envelope.agentsSpawned).toBe(outcome.envelope.agentsSpawned);
-    // The two facts the journal never records stay ABSENT, and the
-    // marker says why: absence here means "not recorded", never "the
-    // workflow claimed nothing".
+    // The semantic completion survives the restart too, read back
+    // from the lift the settle recorded beside its output digest (the
+    // persisted-terminal tail); the error remains the one fact the
+    // journal never records as the run's own.
     expect(derived.envelope.provenance).toBe('journal');
-    expect('completion' in derived.envelope).toBe(false);
+    expect(derived.envelope.completion).toBe(outcome.envelope.completion);
     expect('error' in derived.envelope).toBe(false);
+  });
+
+  it('a settle written before the lift rode it stays honestly absent', async () => {
+    const store = new InMemoryStore();
+    await engineOver(store).run(claiming, undefined, { runId: 'PT-LEGACY' }).result;
+    const { entries, meta, priceUsd } = await reload(store, 'PT-LEGACY');
+    // A pre-lift journal, byte for byte: strip the recorded lift from
+    // the settle value, exactly what an older engine wrote.
+    const legacy = entries.map((entry) => {
+      const value = entry.value as { decisionType?: string } | undefined;
+      if (value?.decisionType !== 'run_settle') {
+        return entry;
+      }
+      const {
+        completion: _c,
+        childStatusCounts: _n,
+        ...rest
+      } = entry.value as Record<string, unknown>;
+      return { ...entry, value: rest } as typeof entry;
+    });
+    const derived = persistedTerminalEnvelope({
+      runId: 'PT-LEGACY',
+      meta,
+      entries: legacy,
+      priceUsd,
+    });
+    expect(derived.available).toBe(true);
+    if (!derived.available) {
+      return;
+    }
+    expect('completion' in derived.envelope).toBe(false);
+    expect(derived.envelope.provenance).toBe('journal');
   });
 
   it('a live assembly carries no provenance marker: absent means assembled at the settle', async () => {

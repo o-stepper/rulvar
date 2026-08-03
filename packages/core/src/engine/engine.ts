@@ -1912,6 +1912,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
                 runStatus: status,
                 segment: segmentsBefore + 1,
                 ...(outputHash === undefined ? {} : { outputHash }),
+                // The semantic completion lift rides the settle it
+                // belongs to (the persisted-terminal tail): the digest
+                // above proves WHICH value settled, these fields
+                // record what the workflow CLAIMED about it, so an
+                // offline reader recovers the completion the live
+                // consumer saw. Additive, the outputHash precedent;
+                // pure replays append no settle, so a replayed lift
+                // never overwrites the live baseline.
+                ...(lifted === undefined ? {} : lifted),
                 ...(appliedPricing === undefined || options.pricing === undefined
                   ? {}
                   : {

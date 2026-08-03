@@ -17,13 +17,17 @@
  *   journal with no settle proves no terminal, and this module refuses
  *   with a typed reason instead of dressing the meta projection up as
  *   an envelope.
- * - Two envelope fields are NOT recoverable and are therefore absent:
- *   `completion` (the workflow's semantic claim rides its result value,
- *   and only the value's digest is journaled) and `error` (the run's
- *   terminal wire error is the thrown error's projection, journaled
- *   per operation, never as the run's own). `provenance: 'journal'`
- *   marks every rebuilt copy so their absence reads as "not recorded",
- *   which is what it is.
+ * - `completion` is recoverable exactly when the settle recorded the
+ *   semantic lift beside its output digest (the persisted-terminal
+ *   tail): the digest proves WHICH value settled, the lift records
+ *   what the workflow CLAIMED about it, and this module reads the
+ *   claim back instead of re-deriving it from a value the journal
+ *   only digests. A settle written before the lift rode it stays
+ *   absent. `error` remains NOT recoverable (the run's terminal wire
+ *   error is the thrown error's projection, journaled per operation,
+ *   never as the run's own). `provenance: 'journal'` marks every
+ *   rebuilt copy so absence reads as "not recorded", which is what it
+ *   is.
  *
  * The assembly goes through `terminalEnvelopeOf`, the ONE producer, so
  * a persisted reader can never drift into a second lookalike shape.
@@ -125,6 +129,12 @@ export function persistedTerminalEnvelope(input: {
     workflow,
     outcome: {
       status: settle.runStatus as TerminalEnvelope['status'],
+      // The semantic completion, when the settle recorded the lift
+      // (the persisted-terminal tail): the one envelope field that
+      // used to be unrecoverable by construction. A settle written
+      // before the lift rode it stays absent, which still honestly
+      // reads "not recorded" under provenance 'journal'.
+      ...(settle.completion === undefined ? {} : { completion: settle.completion }),
       usage: ledger.usage,
       cost: costReportFromJournal(input.entries, input.priceUsd),
     },
