@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+
 ### 1.168.0
 
 #### Patch Changes
@@ -1654,6 +1661,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+
 ### 1.168.0
 
 #### Patch Changes
@@ -3097,6 +3111,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
 
 ### 1.168.0
 
@@ -4979,6 +5000,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.169.0
+
+#### Minor Changes
+
+- 623b2ae: Bound the MCP import surface: the tools/list sweep, per-tool schema bytes, and per-source timeouts (RV1515, the P1 tail).
+
+  An MCP server sits across a trust boundary, and three of its behaviors were unbounded on the host side. `mcp()` now takes three opt-in bounds: `maxTools` caps the tools/list sweep itself (checked after each page against the accumulated WIRE tools, pre-filter, so a hostile server cannot stream past it and an allow list cannot admit past it), `maxSchemaBytes` caps each admitted tool's serialized inputSchema plus outputSchema (the allow/deny filter runs first, so a denied tool's schema bomb costs nothing), and `timeouts` bounds the latencies: `connectMs` races the handshake and releases the client (and a stdio child) on expiry with a typed refusal, while `listMs` and `callMs` ride the SDK request timeout per page and per call, tightening the SDK's own 60s default; a call timeout surfaces as that tool's error result and never propagates past policy. Every bound refuses typed with the measured value and the declared cap in the message; absent bounds preserve the previous behavior byte for byte.
 
 ### 1.168.0
 
@@ -7199,6 +7228,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.169.0
+
 ### 1.168.0
 
 ### 1.167.0
@@ -7639,6 +7670,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+  - @rulvar/anthropic@1.169.0
+  - @rulvar/openai@1.169.0
+  - @rulvar/plan@1.169.0
+  - @rulvar/testing@1.169.0
 
 ### 1.168.0
 
@@ -9548,6 +9590,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+
 ### 1.168.0
 
 #### Patch Changes
@@ -10406,6 +10455,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
 
 ### 1.168.0
 
@@ -12052,6 +12108,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+
 ### 1.168.0
 
 #### Patch Changes
@@ -13609,6 +13672,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+  - eslint-plugin-rulvar@1.169.0
 
 ### 1.168.0
 
@@ -15297,6 +15368,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+  - @rulvar/anthropic@1.169.0
+  - @rulvar/openai@1.169.0
 
 ### 1.168.0
 
@@ -17241,6 +17321,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+
 ### 1.168.0
 
 #### Patch Changes
@@ -18810,6 +18897,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
+
 ### 1.168.0
 
 #### Patch Changes
@@ -19684,6 +19778,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
 
 ### 1.168.0
 
@@ -21190,6 +21291,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.169.0
+
+#### Patch Changes
+
+- Updated dependencies [623b2ae]
+  - @rulvar/core@1.169.0
 
 ### 1.168.0
 
