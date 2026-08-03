@@ -200,7 +200,7 @@ The toolset snapshot for a given agent spawn is captured at spawn time and stays
 Two consequences follow:
 
 - A `listChanged` notification from the server invalidates the session's tool-list cache, affecting subsequently spawned agents only. A mid-run `listChanged` never mutates an in-flight agent's toolset. The invalidation also survives racing the list fetch itself: a notification that lands while `tools/list` is in flight keeps that fetch from being pinned as the cache, so the next snapshot refetches.
-- Server-side drift of a tool's description or `inputSchema` changes `toolsetHash` and therefore the content key of new spawns. This is intended: a journal is never replayed against a changed contract. It is also why MCP-heavy workflows should pin their server versions; an upgraded server silently invalidates replay for new spawns of agents that import it.
+- Server-side drift of a tool's description or `inputSchema` changes `toolsetHash` and therefore the content key of new spawns. This is intended: a journal is never replayed against a changed contract. It is also why MCP-heavy workflows should pin their server versions; an upgraded server silently invalidates replay for new spawns of agents that import it. A re-key makes drift visible, not refused: to hold a profile's spawns to a recorded hash and refuse the drift typed at spawn time, pin the profile with a [toolset attestation](/guide/tools#the-toolset-attestation).
 
 ::: tip Idempotent server tools resume cleanly
 Tool execution between a tool's side effect and the turn-boundary checkpoint write is at-least-once on crash and resume. Prefer MCP servers whose mutating tools are idempotent, and gate the rest with `approval`.

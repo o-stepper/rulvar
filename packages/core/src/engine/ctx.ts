@@ -109,7 +109,12 @@ import {
 } from '../runtime/usage-limits.js';
 import { buildToolContext } from '../tools/context.js';
 import { latestProgressReport } from '../tools/progress.js';
-import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
+import {
+  enforceToolsetAttestation,
+  resolveToolset,
+  type ToolsetAttestation,
+  type ToolsOption,
+} from '../tools/toolset-hash.js';
 import {
   deriveExecIdempotencyKey,
   deriveExecIdempotencyKeyV2,
@@ -152,6 +157,16 @@ export interface AgentProfile {
   effort?: Effort;
   /** Toolset default; the resolved snapshot enters identity via toolsetHash. */
   tools?: ToolsOption;
+  /**
+   * The attested toolset pin (RV1514): when present, every spawn of
+   * this profile must resolve its toolset to EXACTLY this hash, or the
+   * spawn refuses typed before any provider call. Record the pin with
+   * `attestToolset()`; the per-tool hashes it records turn the
+   * refusal into a named diff. The pin binds the spawn's RESOLVED
+   * toolset, so call-level tool overrides and the opt-in escalate tool
+   * drift it by design.
+   */
+  toolsetAttestation?: ToolsetAttestation;
   /** Chain layers merged over engine defaults. */
   permissions?: AgentProfilePermissions;
   /** Isolation default; the RESOLVED value enters identity. */
@@ -1188,6 +1203,15 @@ export function createCtx(
       // declaring an unregistered tag fails typed here, at spawn time.
       internals.executors === undefined ? undefined : new Set(Object.keys(internals.executors)),
     );
+
+    if (profile?.toolsetAttestation !== undefined) {
+      // The pin binds the spawn's RESOLVED toolset (RV1514): call-level
+      // tool overrides, registered names, and the opt-in escalate tool
+      // land in the same hash by design, so any of them drifting from
+      // the attested resolution refuses here, before any provider call
+      // or budget admission.
+      enforceToolsetAttestation(agentType, profile.toolsetAttestation, toolset);
+    }
 
     // Role trigger protocol (M4-T01; predicates in model/roles.ts):
     // extract fires separately

@@ -12,6 +12,7 @@ Everything on this page composes features documented elsewhere; nothing here is 
 The posture for investigation workloads: incident triage, repository research, audit sweeps. The run may read anything it is pointed at and must change nothing.
 
 - Give agents read-only toolsets: the [repository research toolset](/guide/tools#the-repository-research-toolset) is built for exactly this shape, and its `record_evidence` entries feed the [claim-consistency pool](/guide/orchestration-modes#the-claim-consistency-pass) so conclusions stay tied to what was actually read.
+- Pin each profile's toolset with a [toolset attestation](/guide/tools#the-toolset-attestation), so a drifted or poisoned tool description refuses typed at spawn time instead of silently re-keying into the run.
 - Compile [permissions](/guide/tools#the-permission-chain) with a deny-by-default preset and `strictApprovals: true`, so a blanket allow from a hook can never silently clear a tool that declared `needsApproval`.
 - Declare [evidence contracts](/guide/agents#the-recommended-tool-budget-posture) on the reading agents and hold acceptance to them with `requireEvidenceFloor`, so a child that read too little cannot be promoted into the roster that steers synthesis.
 - Bound the money before the first call: a run [budget ceiling](/guide/budgets), the [in-flight exposure cap](/guide/budgets#the-opt-in-in-flight-exposure-cap), and the [strict pricing gate](/guide/budgets#the-strict-pre-egress-pricing-gate) together refuse surprise spend instead of reporting it afterward.

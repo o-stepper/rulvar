@@ -352,18 +352,33 @@ export function schemaHashOfSpec(spec: SchemaSpec | undefined): string {
 export function toolsetHash(contracts: ToolContract[]): string {
   const canonical = [...contracts]
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
-    .map((contract) => {
-      const tuple: Record<string, unknown> = {
-        name: contract.name,
-        description: contract.description,
-        parameters: canonicalizeSchema(contract.parameters),
-      };
-      if (contract.version !== undefined) {
-        tuple.version = contract.version;
-      }
-      return tuple;
-    });
+    .map((contract) => contractTuple(contract));
   return sha256Hex(jcsSerialize(canonical));
+}
+
+/** The canonical hash tuple of ONE tool contract (an element of toolsetHash's array). */
+function contractTuple(contract: ToolContract): Record<string, unknown> {
+  const tuple: Record<string, unknown> = {
+    name: contract.name,
+    description: contract.description,
+    parameters: canonicalizeSchema(contract.parameters),
+  };
+  if (contract.version !== undefined) {
+    tuple.version = contract.version;
+  }
+  return tuple;
+}
+
+/**
+ * toolContractHash = sha256 over the JCS-canonical tuple of ONE tool
+ * contract: exactly one element of toolsetHash's array, so a per-tool
+ * hash identifies WHICH contract drifted when an attested toolsetHash
+ * stops matching (RV1514). Same tuple rule as the aggregate: the
+ * description is part of the contract, and an absent version
+ * participates as absent.
+ */
+export function toolContractHash(contract: ToolContract): string {
+  return sha256Hex(jcsSerialize(contractTuple(contract)));
 }
 
 /** Result of validating a value against a SchemaSpec. */

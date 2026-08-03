@@ -1663,6 +1663,10 @@
             "link": "/api/@rulvar/core/interfaces/ToolRuntime.md"
           },
           {
+            "text": "ToolsetAttestation",
+            "link": "/api/@rulvar/core/interfaces/ToolsetAttestation.md"
+          },
+          {
             "text": "ToolSource",
             "link": "/api/@rulvar/core/interfaces/ToolSource.md"
           },
@@ -2705,6 +2709,10 @@
             "link": "/api/@rulvar/core/functions/atCompactionThreshold.md"
           },
           {
+            "text": "attestToolset",
+            "link": "/api/@rulvar/core/functions/attestToolset.md"
+          },
+          {
             "text": "auditRun",
             "link": "/api/@rulvar/core/functions/auditRun.md"
           },
@@ -2911,6 +2919,10 @@
           {
             "text": "encodeCheckpoint",
             "link": "/api/@rulvar/core/functions/encodeCheckpoint.md"
+          },
+          {
+            "text": "enforceToolsetAttestation",
+            "link": "/api/@rulvar/core/functions/enforceToolsetAttestation.md"
           },
           {
             "text": "entryUsageSlices",
@@ -3493,6 +3505,10 @@
             "link": "/api/@rulvar/core/functions/toolContract.md"
           },
           {
+            "text": "toolContractHash",
+            "link": "/api/@rulvar/core/functions/toolContractHash.md"
+          },
+          {
             "text": "toolsetHash",
             "link": "/api/@rulvar/core/functions/toolsetHash.md"
           },
@@ -3543,6 +3559,10 @@
           {
             "text": "validateTerminationLimits",
             "link": "/api/@rulvar/core/functions/validateTerminationLimits.md"
+          },
+          {
+            "text": "validateToolsetAttestation",
+            "link": "/api/@rulvar/core/functions/validateToolsetAttestation.md"
           },
           {
             "text": "validateUsageLimits",
@@ -6401,6 +6421,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/ToolRuntime.md"
           },
           {
+            "text": "ToolsetAttestation",
+            "link": "/api/@rulvar/rulvar/interfaces/ToolsetAttestation.md"
+          },
+          {
             "text": "ToolSource",
             "link": "/api/@rulvar/rulvar/interfaces/ToolSource.md"
           },
@@ -7467,6 +7491,10 @@
             "link": "/api/@rulvar/rulvar/functions/atCompactionThreshold.md"
           },
           {
+            "text": "attestToolset",
+            "link": "/api/@rulvar/rulvar/functions/attestToolset.md"
+          },
+          {
             "text": "auditRun",
             "link": "/api/@rulvar/rulvar/functions/auditRun.md"
           },
@@ -7673,6 +7701,10 @@
           {
             "text": "encodeCheckpoint",
             "link": "/api/@rulvar/rulvar/functions/encodeCheckpoint.md"
+          },
+          {
+            "text": "enforceToolsetAttestation",
+            "link": "/api/@rulvar/rulvar/functions/enforceToolsetAttestation.md"
           },
           {
             "text": "entryUsageSlices",
@@ -8267,6 +8299,10 @@
             "link": "/api/@rulvar/rulvar/functions/toolContract.md"
           },
           {
+            "text": "toolContractHash",
+            "link": "/api/@rulvar/rulvar/functions/toolContractHash.md"
+          },
+          {
             "text": "toolsetHash",
             "link": "/api/@rulvar/rulvar/functions/toolsetHash.md"
           },
@@ -8317,6 +8353,10 @@
           {
             "text": "validateTerminationLimits",
             "link": "/api/@rulvar/rulvar/functions/validateTerminationLimits.md"
+          },
+          {
+            "text": "validateToolsetAttestation",
+            "link": "/api/@rulvar/rulvar/functions/validateToolsetAttestation.md"
           },
           {
             "text": "validateUsageLimits",

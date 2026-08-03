@@ -105,6 +105,33 @@ The consequences are exactly what you want for durable runs:
 
 The same contract discipline governs imported MCP tools: server-side drift of a description or input schema changes `toolsetHash` for new spawns, which is intended behavior. See [MCP](/guide/mcp) for why you should pin server versions.
 
+### The toolset attestation {#the-toolset-attestation}
+
+Re-keying makes drift *visible* after the fact; it does not stop a drifted toolset from running. For imported tools that is a real exposure: a compromised or upgraded MCP server that swaps a tool's description (the classic tool-poisoning shape) still reaches the model on the next spawn, just under a new content key. An attested profile closes that gap by pinning the hash itself:
+
+```ts
+import { attestToolset, resolveToolset } from '@rulvar/core';
+
+// Record the pin once, from a resolution you trust (dev machine, CI):
+const resolution = await resolveToolset([searchTool, github], { runId: 'attest' });
+const attestation = attestToolset(resolution);
+// => { hash: '9f2d…', tools: { search: '1a2b…', github_get_issue: '77aa…' } }
+
+// Declare it on the profile; every spawn is now held to it:
+const engine = createEngine({
+  adapters: [anthropic()],
+  defaults: {
+    profiles: {
+      researcher: { tools: [searchTool, github], toolsetAttestation: attestation },
+    },
+  },
+});
+```
+
+A spawn of an attested profile whose toolset resolves to any other hash refuses with a typed `ConfigError` before any provider call or budget admission. The refusal names the drift when the attestation carries per-tool hashes (`changed: search (attested 1a2b…, resolved 8c9d…)`, `missing: fetch_page`, `unexpected: escalate`); a bare `{ hash }` pin still refuses and lists the resolved per-tool hashes, so a stale pin can be corrected from the refusal itself. `attestToolset()` always records the per-tool hashes; prefer keeping them.
+
+The pin binds the spawn's *resolved* toolset, not the profile's declaration: a call-level `tools` override, a registered name expanding differently, and the opt-in escalate tool all land in the same hash, so each of them drifting is refused the same way. If a change is intended (a deliberate server upgrade, a new tool), re-record the pin with `attestToolset()` and ship the new attestation alongside it. The shape is validated at `createEngine` time: the aggregate hash and every per-tool hash must be 64 lowercase hex characters, and a malformed attestation is a typed error naming the profile path. Unattested profiles keep today's behavior: drift re-keys new spawns silently.
+
 ## Attaching tools to agents
 
 Toolsets attach per spawn through `AgentOpts.tools` (which wins over the profile default) or per profile through `AgentProfile.tools`. The option accepts `ToolDef` values, `ToolSource` values (what [`mcp()`](/guide/mcp) returns), and registered toolset names, in any mix. A string entry names a toolset registered under engine `defaults.toolsets` and means the same thing everywhere a tools option is taken (direct calls, profiles, and the sandbox dialect); it expands through the same canonical resolution as directly passed values, so the resolved contracts land in `toolsetHash` and the spawn identity identically. An unknown name is a typed `ConfigError` at spawn time, before any provider call; nothing outside the declared registry is reachable by name, and registry values themselves hold only `ToolDef` and `ToolSource` entries (never other names, so registries cannot cycle). The dynamic orchestrator's `toolsetRef` spawn parameter draws from the same registry (see [orchestration modes](/guide/orchestration-modes)):

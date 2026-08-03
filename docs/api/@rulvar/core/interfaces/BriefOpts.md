@@ -6,7 +6,7 @@
 
 # Interface: BriefOpts
 
-Defined in: [packages/core/src/engine/ctx.ts:602](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L602)
+Defined in: [packages/core/src/engine/ctx.ts:617](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L617)
 
 Options of ctx.brief (concrete shape fixed in M6-T10): the content to
 distill plus an optional instruction;
@@ -17,7 +17,7 @@ defaults.routing.summarize, a profile, or the explicit model.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-agenttype"></a> `agentType?` | `string` | [packages/core/src/engine/ctx.ts:606](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L606) |
-| <a id="property-content"></a> `content` | `string` | [packages/core/src/engine/ctx.ts:603](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L603) |
-| <a id="property-instruction"></a> `instruction?` | `string` | [packages/core/src/engine/ctx.ts:604](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L604) |
-| <a id="property-model"></a> `model?` | [`ModelSpec`](/api/@rulvar/core/type-aliases/ModelSpec.md) | [packages/core/src/engine/ctx.ts:605](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L605) |
+| <a id="property-agenttype"></a> `agentType?` | `string` | [packages/core/src/engine/ctx.ts:621](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L621) |
+| <a id="property-content"></a> `content` | `string` | [packages/core/src/engine/ctx.ts:618](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L618) |
+| <a id="property-instruction"></a> `instruction?` | `string` | [packages/core/src/engine/ctx.ts:619](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L619) |
+| <a id="property-model"></a> `model?` | [`ModelSpec`](/api/@rulvar/core/type-aliases/ModelSpec.md) | [packages/core/src/engine/ctx.ts:620](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L620) |
