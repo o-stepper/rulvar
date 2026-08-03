@@ -6,7 +6,7 @@
 
 # Interface: CostAttributionFacts
 
-Defined in: [packages/core/src/l0/entries.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L181)
+Defined in: [packages/core/src/l0/entries.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L187)
 
 Cost-attribution facts a live run knows at settlement and a pure
 journal fold cannot re-derive: the innermost phase name at the call
@@ -21,8 +21,8 @@ before the field shipped fold under the documented fallback buckets
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-agenttype"></a> `agentType?` | `string` | [packages/core/src/l0/entries.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L183) |
-| <a id="property-budgetaccount"></a> `budgetAccount?` | `string` | [packages/core/src/l0/entries.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L185) |
-| <a id="property-finalizereserve"></a> `finalizeReserve?` | `boolean` | [packages/core/src/l0/entries.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L186) |
-| <a id="property-phase"></a> `phase?` | `string` | [packages/core/src/l0/entries.ts:182](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L182) |
-| <a id="property-role"></a> `role?` | [`InvocationRole`](/api/@rulvar/core/type-aliases/InvocationRole.md) | [packages/core/src/l0/entries.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L184) |
+| <a id="property-agenttype"></a> `agentType?` | `string` | [packages/core/src/l0/entries.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L189) |
+| <a id="property-budgetaccount"></a> `budgetAccount?` | `string` | [packages/core/src/l0/entries.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L191) |
+| <a id="property-finalizereserve"></a> `finalizeReserve?` | `boolean` | [packages/core/src/l0/entries.ts:192](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L192) |
+| <a id="property-phase"></a> `phase?` | `string` | [packages/core/src/l0/entries.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L188) |
+| <a id="property-role"></a> `role?` | [`InvocationRole`](/api/@rulvar/core/type-aliases/InvocationRole.md) | [packages/core/src/l0/entries.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L190) |

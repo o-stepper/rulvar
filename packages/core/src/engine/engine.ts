@@ -98,6 +98,7 @@ import {
 import { validateRetryPolicy, type RetryPolicy } from '../model/retry.js';
 import { KeyedLimiter } from '../model/concurrency.js';
 import {
+  DEFAULT_MAX_QUOTA_DENIALS,
   validateEngineQuotaConfig,
   type EngineQuotaConfig,
   type EngineQuotaRuntime,
@@ -961,6 +962,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           ...(options.quota.tenant === undefined ? {} : { tenant: options.quota.tenant }),
           onLimiterError: options.quota.onLimiterError ?? 'deny',
           reserveContinuations: options.quota.reserveContinuations ?? false,
+          maxDenials: options.quota.maxDenials ?? DEFAULT_MAX_QUOTA_DENIALS,
           ...(options.quota.declaredRules === undefined
             ? {}
             : { declaredRules: options.quota.declaredRules }),

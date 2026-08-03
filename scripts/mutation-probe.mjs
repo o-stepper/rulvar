@@ -2627,6 +2627,34 @@ const MUTATIONS = [
     replace: '  if (false) {',
     test: 'packages/core/src/tools/attestation.test.ts',
   },
+  {
+    id: 'retry-namespace-transport-gate',
+    doctrine:
+      'a pre-wire quota denial never increments transportRetries (RV1601): dropping the gate re-exports denials as agent:end retryCount, the exact conflation the eighteenth comparison benchmark caught against an invoice with zero provider error rows',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "            if (outcome.quotaDenied !== true) {\n              // A denial stays in the quotaDenials namespace alone: the\n              // event below still names it (data.source\n              // 'quota-limiter'), but retryCount reads clean against\n              // the provider ledger.\n              transportRetries += 1;\n            }",
+    replace: '            transportRetries += 1;',
+    test: 'packages/core/src/engine/quota.test.ts',
+  },
+  {
+    id: 'retry-namespace-attempt-ordinal',
+    doctrine:
+      'a denied turn advances the denial budget, never `tries` (RV1601): reverting to the unconditional increment shifts ProviderCallRecord.attempt past 1 with no attempt-1 sibling and lets a busy window exhaust the transport budget before the wire ever opens',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '        if (outcome.quotaDenied === true) {\n          denialTurns += 1;\n        } else {\n          tries += 1;\n        }',
+    replace:
+      '        tries += 1;\n        if (outcome.quotaDenied === true) {\n          denialTurns += 1;\n        }',
+    test: 'packages/core/src/engine/quota.test.ts',
+  },
+  {
+    id: 'retry-namespace-denial-bound',
+    doctrine:
+      'denied turns retry against their OWN maxDenials budget (RV1601): an off-by-one on the bound makes the loop tolerate one extra denial per target, and the reservation count stops matching the declared budget',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '            ? denialTurns < maxDenials',
+    replace: '            ? denialTurns <= maxDenials',
+    test: 'packages/core/src/engine/quota.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

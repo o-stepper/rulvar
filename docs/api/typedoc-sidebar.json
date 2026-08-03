@@ -2407,6 +2407,10 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_POOL_PER_PAIR.md"
           },
           {
+            "text": "DEFAULT_MAX_QUOTA_DENIALS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_MAX_QUOTA_DENIALS.md"
+          },
+          {
             "text": "DEFAULT_MAX_REVISIONS_PER_RUN",
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_REVISIONS_PER_RUN.md"
           },
@@ -7175,6 +7179,10 @@
           {
             "text": "DEFAULT_MAX_POOL_PER_PAIR",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_POOL_PER_PAIR.md"
+          },
+          {
+            "text": "DEFAULT_MAX_QUOTA_DENIALS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_QUOTA_DENIALS.md"
           },
           {
             "text": "DEFAULT_MAX_REVISIONS_PER_RUN",

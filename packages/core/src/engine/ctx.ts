@@ -2414,6 +2414,7 @@ export function createCtx(
           quota.limiter.reconcile(reservationId, usage, actual),
         onLimiterError: quota.onLimiterError,
         reserveContinuations: quota.reserveContinuations,
+        maxDenials: quota.maxDenials,
       };
       const limiterRelease = quota.limiter.release?.bind(quota.limiter);
       if (limiterRelease !== undefined) {

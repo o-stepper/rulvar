@@ -572,6 +572,7 @@ const engine = createEngine({
 | [DEFAULT\_MAX\_PAIR\_EXCERPT\_CHARS](/api/@rulvar/rulvar/variables/DEFAULT_MAX_PAIR_EXCERPT_CHARS.md) | - |
 | [DEFAULT\_MAX\_PINNED\_WORKTREES](/api/@rulvar/rulvar/variables/DEFAULT_MAX_PINNED_WORKTREES.md) | Appendix A: the shared pin cap (park/unpark and retainWorktree). |
 | [DEFAULT\_MAX\_POOL\_PER\_PAIR](/api/@rulvar/rulvar/variables/DEFAULT_MAX_POOL_PER_PAIR.md) | - |
+| [DEFAULT\_MAX\_QUOTA\_DENIALS](/api/@rulvar/rulvar/variables/DEFAULT_MAX_QUOTA_DENIALS.md) | The default [EngineQuotaConfig.maxDenials](/api/@rulvar/rulvar/interfaces/EngineQuotaConfig.md#property-maxdenials): generous next to the transport default of 3 tries because a denial is a WAIT, not a failure signal, yet finite because nothing else bounds the pre-wire loop (the per-agent timeout is checked between turns, not inside a dispatch). |
 | [DEFAULT\_MAX\_REVISIONS\_PER\_RUN](/api/@rulvar/rulvar/variables/DEFAULT_MAX_REVISIONS_PER_RUN.md) | Appendix A committed defaults for the countable resources. |
 | [DEFAULT\_MAX\_TOTAL\_SPAWNS](/api/@rulvar/rulvar/variables/DEFAULT_MAX_TOTAL_SPAWNS.md) | - |
 | [DEFAULT\_MAX\_TURNS](/api/@rulvar/rulvar/variables/DEFAULT_MAX_TURNS.md) | - |

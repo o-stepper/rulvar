@@ -41,6 +41,7 @@ import {
 } from '../l0/usage.js';
 import type { ProviderAdapter, StreamHooks } from '../l0/spi/provider.js';
 import type { QuotaDecision, QuotaReservationRequest } from '../l0/spi/quota.js';
+import { DEFAULT_MAX_QUOTA_DENIALS } from '../model/quota.js';
 import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
 import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
@@ -186,9 +187,14 @@ export interface AgentResult<T> {
   abortClass?: AbortClass;
   /**
    * Transport retries across the span's phase activations, present only
-   * when greater than zero. Live telemetry only: the ctx layer surfaces
-   * it as `agent:end` retryCount; it is never journaled, so a replayed
-   * result omits it (absent means "zero or unknown").
+   * when greater than zero. Counts retries of DISPATCHED attempts only
+   * (RV1601): a pre-wire quota denial never increments it, so this
+   * number can be read against the provider ledger without correction
+   * (the eighteenth comparison benchmark exported 21 denials under this
+   * name over an invoice with zero provider error rows). Live telemetry
+   * only: the ctx layer surfaces it as `agent:end` retryCount; it is
+   * never journaled, so a replayed result omits it (absent means "zero
+   * or unknown").
    */
   transportRetries?: number;
   /**
@@ -575,12 +581,14 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * failover takeovers alike, in every phase). A denial becomes a
    * synthetic rate-limit-class WireError the retry and failover
    * engine treats exactly like a provider 429, except no wire call
-   * was paid: retryAfterMs drives the interruptible backoff, attempts
-   * stay bounded by RetryPolicy, and exhaustion fails over (the
-   * takeover reserves under its own model). Granted reservations are
-   * reconciled with the attempt's actual usage after the outcome
-   * settles. Live-only by construction: replayed calls never reach
-   * this seam, and nothing here is journaled.
+   * was paid: retryAfterMs drives the interruptible backoff, denied
+   * turns stay bounded by their OWN `maxDenials` budget (RV1601;
+   * RetryPolicy.attempts counts dispatched tries only), and
+   * exhaustion of either budget fails over (the takeover reserves
+   * under its own model). Granted reservations are reconciled with
+   * the attempt's actual usage after the outcome settles. Live-only
+   * by construction: replayed calls never reach this seam, and
+   * nothing here is journaled.
    */
   quota?: {
     reserve: (request: QuotaReservationRequest) => Promise<QuotaDecision>;
@@ -593,6 +601,8 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     onLimiterError: 'deny' | 'allow';
     /** Pre-wire continuation admission (RV1013); default post-hoc. */
     reserveContinuations?: boolean;
+    /** The per-target denial retry budget (RV1601); default 8. */
+    maxDenials?: number;
     /** Cancels an unused admission; absent = window age-out. */
     release?: (reservationId: string) => Promise<void>;
   };
@@ -3167,6 +3177,16 @@ export async function runAgent<S extends SchemaSpec>(
     for (;;) {
       const target = site.chain[site.cursor.index] ?? site.chain[0];
       let tries = 0;
+      // The denial retry budget of THIS target (RV1601): a pre-wire
+      // quota denial is a WAIT on the window, not evidence against the
+      // provider, so it spends its own bounded budget and leaves
+      // `tries` (and with it RetryPolicy.attempts and the ledger's
+      // 1-based attempt ordinal) to dispatched attempts only. The
+      // eighteenth comparison benchmark hit the old conflation live:
+      // 21 denials exported as transport retries, and post-denial
+      // success rows reading attempt=2 with no attempt=1 sibling.
+      let denialTurns = 0;
+      const maxDenials = options.quota?.maxDenials ?? DEFAULT_MAX_QUOTA_DENIALS;
       inner: for (;;) {
         // The reservation of THIS attempt; a fresh attempt (retry or
         // failover takeover) reserves anew, exactly as each wire call
@@ -3644,7 +3664,11 @@ export async function runAgent<S extends SchemaSpec>(
             });
           }
         }
-        tries += 1;
+        if (outcome.quotaDenied === true) {
+          denialTurns += 1;
+        } else {
+          tries += 1;
+        }
         const retryClass =
           outcome.aborted === 'idle'
             ? 'transport'
@@ -3655,7 +3679,11 @@ export async function runAgent<S extends SchemaSpec>(
           return { outcome, target };
         }
         usageApprox = usageApprox || outcome.usageApprox;
-        if (retryOn.includes(retryClass) && tries < retryPolicy.attempts) {
+        // Each cause retries against ITS budget (RV1601); exhaustion of
+        // either falls through to the same failover trigger below.
+        const retryBudgetLeft =
+          outcome.quotaDenied === true ? denialTurns < maxDenials : tries < retryPolicy.attempts;
+        if (retryOn.includes(retryClass) && retryBudgetLeft) {
           // An abort that already landed makes the retry moot: return
           // the aborted outcome without emitting a willRetry promise
           // the loop is not going to keep.
@@ -3666,7 +3694,13 @@ export async function runAgent<S extends SchemaSpec>(
           const retryAfter = (outcome.wireError?.data as { retryAfterMs?: unknown } | undefined)
             ?.retryAfterMs;
           if (outcome.wireError !== undefined) {
-            transportRetries += 1;
+            if (outcome.quotaDenied !== true) {
+              // A denial stays in the quotaDenials namespace alone: the
+              // event below still names it (data.source
+              // 'quota-limiter'), but retryCount reads clean against
+              // the provider ledger.
+              transportRetries += 1;
+            }
             events?.emit({
               type: 'agent:error',
               agentType,
@@ -3678,7 +3712,7 @@ export async function runAgent<S extends SchemaSpec>(
           await backoffWait(
             retryDelayMs(
               retryPolicy,
-              tries - 1,
+              outcome.quotaDenied === true ? denialTurns - 1 : tries - 1,
               typeof retryAfter === 'number' ? retryAfter : undefined,
               retryRandom,
             ),
