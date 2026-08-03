@@ -13,14 +13,14 @@ type EscalatedResult<T> = AgentResult<T> & {
 };
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:293](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L293)
+Defined in: [packages/core/src/runtime/agent-loop.ts:302](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L302)
 
 ## Type Declaration
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `escalation` | [`EscalationReport`](/api/@rulvar/core/interfaces/EscalationReport.md) | [packages/core/src/runtime/agent-loop.ts:295](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L295) |
-| `status` | `"escalated"` | [packages/core/src/runtime/agent-loop.ts:294](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L294) |
+| `escalation` | [`EscalationReport`](/api/@rulvar/core/interfaces/EscalationReport.md) | [packages/core/src/runtime/agent-loop.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L304) |
+| `status` | `"escalated"` | [packages/core/src/runtime/agent-loop.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L303) |
 
 ## Type Parameters
 

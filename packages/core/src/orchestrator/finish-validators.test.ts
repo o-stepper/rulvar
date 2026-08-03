@@ -6,6 +6,7 @@ import {
   citedValueValidator,
   evidenceGradeValidator,
   evidencePreservedValidator,
+  formatCharacterValidator,
   headingStructureValidator,
   minMatchesValidator,
   requiredFieldsValidator,
@@ -918,5 +919,51 @@ describe('citationTargetsValidator (RV1401, the seventeenth experiment P0-1)', (
     expect(() => citationTargetsValidator({ resolve, fencedCode: 'nope' as never })).toThrow(
       ConfigError,
     );
+  });
+});
+
+/**
+ * The invisible format character lint (RV1509). The seventeenth
+ * comparison run's answer carried five U+200B characters immediately
+ * before hidden-file citations, and every configured check passed
+ * because the citation regex simply excluded the invisible byte from
+ * the match: the literal text was not byte-identical to any repo path,
+ * and nothing said so.
+ */
+describe('formatCharacterValidator (RV1509)', () => {
+  it('rejects a zero-width character with its codepoint, index, and context', () => {
+    const validator = formatCharacterValidator();
+    const text = 'A citation [​.github/workflows/ci.yml:82] rides here.';
+    const verdict = validator.validate({ result: text, text });
+    expect(verdict.ok).toBe(false);
+    const reasons = (verdict as { reasons: string[] }).reasons;
+    expect(reasons.join(' ')).toContain('U+200B');
+    expect(reasons.join(' ')).toContain('index 12');
+    expect(reasons.join(' ')).toContain('.github');
+  });
+
+  it('passes clean text and lists each distinct character once with a count', () => {
+    const validator = formatCharacterValidator();
+    const clean = validator.validate({ result: 'plain text', text: 'plain text' });
+    expect(clean.ok).toBe(true);
+    const text = 'a​b​c⁠d';
+    const verdict = validator.validate({ result: text, text });
+    const reasons = (verdict as { reasons: string[] }).reasons;
+    expect(reasons).toHaveLength(2);
+    expect(reasons[0]).toContain('U+200B');
+    expect(reasons[0]).toContain('2 occurrence');
+    expect(reasons[1]).toContain('U+2060');
+  });
+
+  it('an allow list admits exactly the named characters', () => {
+    const validator = formatCharacterValidator({ allow: ['‍'] });
+    const joined = 'emoji joiner ‍ only';
+    expect(validator.validate({ result: joined, text: joined }).ok).toBe(true);
+    const mixed = 'joiner ‍ and zwsp ​';
+    expect(validator.validate({ result: mixed, text: mixed }).ok).toBe(false);
+  });
+
+  it('refuses a non format character in the allow list, fail closed', () => {
+    expect(() => formatCharacterValidator({ allow: ['x'] })).toThrow(ConfigError);
   });
 });

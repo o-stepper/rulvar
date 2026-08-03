@@ -1253,3 +1253,77 @@ export function citationTargetsValidator(options: {
     },
   };
 }
+
+/**
+ * Rejects invisible Unicode format characters in the result text
+ * (RV1509, the eighteenth improvement plan). The seventeenth
+ * comparison run's answer carried five U+200B characters immediately
+ * before hidden-file citations, and every configured check passed:
+ * the citation pattern's boundary class simply excluded the invisible
+ * byte from the match, so the extracted citations were clean while
+ * the LITERAL text was not byte-identical to any repository path. A
+ * format character in a dossier is at best copy-paste rot and at
+ * worst a smuggling channel, so the default is to reject the whole
+ * category (Unicode `Cf`: zero-width spaces and joiners, the word
+ * joiner, the BOM, bidi controls, soft hyphens), each distinct
+ * character listed once with its codepoint, first index, occurrence
+ * count, and a short visible-context excerpt, so the repair turn can
+ * find the exact bytes. `allow` admits specific characters for hosts
+ * whose content legitimately needs them (bidi marks in RTL prose);
+ * every allow entry must itself be a single `Cf` character, refused
+ * typed otherwise (the RV610 posture: a typo in the allow list must
+ * not silently widen it). Purely textual and deterministic. Default
+ * name 'format-characters'.
+ */
+export function formatCharacterValidator(options?: {
+  /** Single `Cf` characters to admit; everything else still rejects. */
+  allow?: readonly string[];
+  name?: string;
+}): FinishValidator {
+  const allow = new Set<string>();
+  for (const entry of options?.allow ?? []) {
+    if (typeof entry !== 'string' || [...entry].length !== 1 || !/^\p{Cf}$/u.test(entry)) {
+      throw new ConfigError(
+        `formatCharacterValidator allow entries must each be a single Unicode format (Cf) ` +
+          `character; got ${JSON.stringify(entry)}`,
+      );
+    }
+    allow.add(entry);
+  }
+  const codepointOf = (char: string): string =>
+    `U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}`;
+  return {
+    name: options?.name ?? 'format-characters',
+    validate: (input) => {
+      const seen = new Map<string, { first: number; count: number }>();
+      for (const match of input.text.matchAll(/\p{Cf}/gu)) {
+        const char = match[0];
+        if (allow.has(char)) {
+          continue;
+        }
+        const prior = seen.get(char);
+        if (prior === undefined) {
+          seen.set(char, { first: match.index, count: 1 });
+        } else {
+          prior.count += 1;
+        }
+      }
+      if (seen.size === 0) {
+        return { ok: true };
+      }
+      const reasons = [...seen.entries()].map(([char, found]) => {
+        const context = input.text
+          .slice(Math.max(0, found.first - 12), found.first + 13)
+          .replace(/\p{Cf}/gu, '')
+          .replace(/\s+/gu, ' ');
+        return (
+          `invisible format character ${codepointOf(char)} at index ${String(found.first)} ` +
+          `(${String(found.count)} occurrence${found.count === 1 ? '' : 's'}), ` +
+          `visible context '${context}'; format characters make literal citations ` +
+          `unresolvable and are rejected byte for byte`
+        );
+      });
+      return { ok: false, reasons: reasons.slice(0, MAX_LISTED_CITATIONS) };
+    },
+  };
+}

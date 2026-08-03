@@ -192,6 +192,15 @@ export interface AgentResult<T> {
    */
   transportRetries?: number;
   /**
+   * Pre-wire quota-limiter denials, split by dimension, with the
+   * recovered count (RV1510). A denial never reached the provider and
+   * never billed; conflating it with transportRetries misread the
+   * seventeenth comparison benchmark's telemetry. Live telemetry only,
+   * exactly like transportRetries: never journaled, absent on a
+   * replayed result, absent means "zero or unknown".
+   */
+  quotaDenials?: { total: number; requests: number; tokens: number; recovered: number };
+  /**
    * Provider-reported rate limits observed on this invocation's 429s
    * (the v1.71 experiment review, P0.5): one entry per (provider,
    * model), the latest observation winning, parsed by the adapters
@@ -1532,6 +1541,10 @@ export async function runAgent<S extends SchemaSpec>(
   // journal identity, exactly like transportRetries.
   let quotaDenials = 0;
   let quotaRecoveries = 0;
+  // The dimension split (RV1510): a pre-wire quota denial is not a
+  // provider retry, and the exported namespaces must never conflate.
+  let quotaDenialsRequests = 0;
+  let quotaDenialsTokens = 0;
   const rateLimitObservations = new Map<string, RateLimitObservation>();
   type OpenPhase = {
     invocation: number;
@@ -3437,6 +3450,16 @@ export async function runAgent<S extends SchemaSpec>(
         }
         if (outcome.quotaDenied === true) {
           quotaDenials += 1;
+          // Classified by the limiter's own reason vocabulary: the
+          // requests dimension names requestsPerMinute, everything
+          // else is a token-window denial (RV1510).
+          const denialReason = (outcome.wireError?.data as { reason?: unknown } | undefined)
+            ?.reason;
+          if (typeof denialReason === 'string' && denialReason.includes('requestsPerMinute')) {
+            quotaDenialsRequests += 1;
+          } else {
+            quotaDenialsTokens += 1;
+          }
           deniedEpisode = true;
         } else if (deniedEpisode && outcome.neverDispatched !== true) {
           // A granted attempt after a denied one, whatever the wire
@@ -4812,6 +4835,19 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (transportRetries > 0) {
     result.transportRetries = transportRetries;
+  }
+  if (quotaDenials > 0) {
+    // Live telemetry only, the transportRetries rule (RV1510): never
+    // journaled, absent on a replayed result, and absent means "zero
+    // or unknown". The split is what keeps the namespaces honest: the
+    // seventeenth comparison benchmark exported one conflated number
+    // and 17 pre-wire denials read as 17 provider retries.
+    result.quotaDenials = {
+      total: quotaDenials,
+      requests: quotaDenialsRequests,
+      tokens: quotaDenialsTokens,
+      recovered: quotaRecoveries,
+    };
   }
   if (rateLimitObservations.size > 0) {
     result.rateLimitObservations = [...rateLimitObservations.values()];

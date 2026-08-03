@@ -2985,6 +2985,10 @@
             "link": "/api/@rulvar/core/functions/foldTermination.md"
           },
           {
+            "text": "formatCharacterValidator",
+            "link": "/api/@rulvar/core/functions/formatCharacterValidator.md"
+          },
+          {
             "text": "formatRePrompt",
             "link": "/api/@rulvar/core/functions/formatRePrompt.md"
           },
@@ -7741,6 +7745,10 @@
           {
             "text": "foldTermination",
             "link": "/api/@rulvar/rulvar/functions/foldTermination.md"
+          },
+          {
+            "text": "formatCharacterValidator",
+            "link": "/api/@rulvar/rulvar/functions/formatCharacterValidator.md"
           },
           {
             "text": "formatRePrompt",
