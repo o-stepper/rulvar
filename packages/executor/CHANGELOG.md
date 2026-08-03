@@ -1,5 +1,11 @@
 # @rulvar/executor
 
+## 1.167.0
+
+### Patch Changes
+
+- @rulvar/core@1.167.0
+
 ## 1.166.0
 
 ### Patch Changes
