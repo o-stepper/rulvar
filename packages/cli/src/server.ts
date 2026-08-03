@@ -539,17 +539,29 @@ export function createServer(options: CreateServerOptions): RulvarServer {
           status: 'error',
           workflow: run.workflowName,
           live: true,
+          // The SSE capability flag (the P1 tail): events are
+          // process-local telemetry, so the machine answer to "would
+          // GET /runs/:id/events stream anything here" is exactly
+          // liveness, stated as a field instead of documented prose.
+          capabilities: { events: true },
           error: run.rejection,
         });
       }
       if (outcome === undefined) {
-        return json(200, { runId, status: 'running', workflow: run.workflowName, live: true });
+        return json(200, {
+          runId,
+          status: 'running',
+          workflow: run.workflowName,
+          live: true,
+          capabilities: { events: true },
+        });
       }
       return json(200, {
         runId,
         status: outcome.status,
         workflow: run.workflowName,
         live: true,
+        capabilities: { events: true },
         ...(outcome.value === undefined ? {} : { value: outcome.value }),
         ...(outcome.error === undefined ? {} : { error: outcome.error }),
         pending: outcome.pending,
@@ -585,6 +597,10 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       runId,
       status: meta.status,
       live: false,
+      // Not live here: the events endpoint would answer an immediately
+      // closing comment stream, and the flag says so before a client
+      // ever connects.
+      capabilities: { events: false },
       ...(meta.workflowName === undefined ? {} : { workflow: meta.workflowName }),
       ...(meta.name === undefined ? {} : { name: meta.name }),
       ...(meta.tags === undefined ? {} : { tags: meta.tags }),

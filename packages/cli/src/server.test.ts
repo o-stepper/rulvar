@@ -255,6 +255,10 @@ describe('createServer (M8-T01)', () => {
     expect(started.headers.get('location')).toBe(`/runs/${runId}`);
 
     const suspended = await untilStatus(server, runId, 'suspended');
+    // A live run answers the SSE capability machine-readably: the
+    // events endpoint would stream THIS run's telemetry here.
+    expect(suspended.live).toBe(true);
+    expect(suspended.capabilities).toEqual({ events: true });
     expect(suspended.pending).toEqual([
       expect.objectContaining({ key: 'editor-approval', prompt: 'ship it?' }),
     ]);
@@ -454,7 +458,14 @@ describe('createServer (M8-T01)', () => {
 
     // The status route serves it from the store, honestly not live.
     const status = await bodyOf(await get(server, `/runs/${first.runId}`));
-    expect(status).toMatchObject({ status: 'suspended', live: false, workflow: 'gated' });
+    expect(status).toMatchObject({
+      status: 'suspended',
+      live: false,
+      workflow: 'gated',
+      // The SSE capability flag: not live here, so the events endpoint
+      // would stream nothing, and the body says so machine-readably.
+      capabilities: { events: false },
+    });
 
     // The events route closes immediately with a comment: process-local
     // telemetry does not exist for this run here.
