@@ -14,7 +14,7 @@ type Spend = {
 };
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L39)
+Defined in: [packages/core/src/engine/budget.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L42)
 
 ## Properties
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/engine/budget.ts:39](https://github.com/o-stepper
 agentsSpawned: number;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L39)
+Defined in: [packages/core/src/engine/budget.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L42)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/engine/budget.ts:39](https://github.com/o-stepper
 usage: Usage;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L39)
+Defined in: [packages/core/src/engine/budget.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L42)
 
 ***
 
@@ -44,4 +44,4 @@ Defined in: [packages/core/src/engine/budget.ts:39](https://github.com/o-stepper
 usd: number;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L39)
+Defined in: [packages/core/src/engine/budget.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L42)

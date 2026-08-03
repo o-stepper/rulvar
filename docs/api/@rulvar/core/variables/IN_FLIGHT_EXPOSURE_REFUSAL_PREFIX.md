@@ -10,7 +10,7 @@
 const IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX: "in flight exposure cap reached" = 'in flight exposure cap reached';
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L51)
+Defined in: [packages/core/src/engine/budget.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L54)
 
 The message prefix of an in-flight exposure refusal (RV711): the
 single producer is reserveTurnExposure below, and the ctx layer's

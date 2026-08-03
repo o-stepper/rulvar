@@ -16,15 +16,18 @@
  * sub-account per admitted child workflow (and, from M7, the orchestrator
  * account and plan/NodeId accounts). A child's spend propagates to ALL
  * ancestors up to the run root; the root ceiling remains the true
- * invariant. Sub-account spend is per-process state: on resume the root
- * is seeded from the settled journal fold (the per-call billing basis
- * and per-segment pricing pins of outcome.cost.totalUsd, RV801) while
- * sub-accounts restart empty (their reserves are recovered from
- * spawn-admission decision entries); `accountSpendFromJournal` (RV1505)
- * folds the same entries per account for hosts and audits, and seeding
- * it into re-opened accounts waits on a seed-aware rerun re-admission
- * (the orchestrate agent re-admits with exact-fill arithmetic that any
- * spend-at-reopen would break), the recorded DEF-7 remainder.
+ * invariant. On resume the root is seeded from the settled journal fold
+ * (the per-call billing basis and per-segment pricing pins of
+ * outcome.cost.totalUsd, RV801) and every re-opened sub-account from
+ * the per-account rows of the SAME fold (`accountSpendFromJournal`,
+ * RV1505, closing the DEF-7 remainder), with reserves recovered from
+ * spawn-admission decision entries, so a resumed segment makes the
+ * admission and per-turn decisions a continuous run would have made.
+ * The seed is safe for continuations because reruns of journaled
+ * invocations re-admit as RECOVERED (admitRecovered, the
+ * recoverInFlight rule at the dispatch layer): projected admission
+ * gates NEW work only and never re-evaluates the ceiling against the
+ * recorded spend of the very work being rerun.
  *
  * Full contract: https://docs.rulvar.com/guide/budgets
  */
@@ -182,6 +185,8 @@ export class RunBudget {
   private readonly priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
   private readonly pricingOf?: (servedBy: ModelRef) => Pricing | undefined;
   private readonly accounts = new Map<string, AccountState>();
+  /** Per-scope inclusive settled spend applied when the scope re-opens (RV1505). */
+  private readonly seededAccountSpend = new Map<string, number>();
   private usageInternal: Usage = { ...ZERO_USAGE };
   private agentsSpawnedInternal = 0;
   /**
@@ -213,9 +218,22 @@ export class RunBudget {
      * The resume seed, folded from the persisted journal (the settled
      * per-call fold, RV801): spend is never
      * reset and never double-counted; replayed entries are already inside
-     * this seed and add no increments.
+     * this seed and add no increments. `accounts` carries the
+     * per-account rows of the same fold (`accountSpendFromJournal`,
+     * RV1505): each scope's INCLUSIVE settled spend, applied when the
+     * scope re-opens, so sub-account history survives resume instead
+     * of restarting at zero. The root row is ignored: the root seeds
+     * from `usd`, which is the same settled fold by construction.
+     * Orchestrator-cap accounts are exempt (see openAccount): the cap
+     * is a per-segment coordination bound and the documented resume
+     * after a budget-cancelled root continues past it by design.
      */
-    seed?: { usd: number; usage: Usage; agentsSpawned: number };
+    seed?: {
+      usd: number;
+      usage: Usage;
+      agentsSpawned: number;
+      accounts?: Readonly<Record<string, number>>;
+    };
     /**
      * The strict pre-egress pricing gate (RV1508): armed, every paid
      * dispatch must resolve a well-formed price row for its serving
@@ -300,6 +318,25 @@ export class RunBudget {
       root.spentUsd = options.seed.usd;
       this.usageInternal = sanitizeUsage(options.seed.usage);
       this.agentsSpawnedInternal = options.seed.agentsSpawned;
+      if (options.seed.accounts !== undefined) {
+        // The per-account half of the seed (RV1505): held to the same
+        // poisoned-journal rule as the root figure above, per row and
+        // naming the account, before any of it can disarm a ceiling
+        // comparison. The root row is skipped, not validated: the root
+        // already seeded from seed.usd, the same settled fold.
+        for (const [scope, usd] of Object.entries(options.seed.accounts)) {
+          if (scope === ROOT_ACCOUNT) {
+            continue;
+          }
+          if (!Number.isFinite(usd) || usd < 0) {
+            throw new ConfigError(
+              `budget account seed for '${scope}' is not a finite nonnegative USD amount: ` +
+                String(usd),
+            );
+          }
+          this.seededAccountSpend.set(scope, usd);
+        }
+      }
     }
   }
 
@@ -355,7 +392,16 @@ export class RunBudget {
     }
     const account: AccountState = {
       scope,
-      spentUsd: 0,
+      // A re-opened scope resumes from its journaled inclusive spend
+      // (RV1505); a scope with no settled history starts at zero, and
+      // ancestors already carry their own inclusive rows, so nothing
+      // propagates at open time. The orchestrator cap is EXEMPT: it is
+      // a per-segment coordination bound whose durable truth is the
+      // journaled cap decision plus the root seed, and the documented
+      // mode (c) recovery (resume after a budget-cancelled root) exists
+      // precisely to continue past a crossed cap under the root
+      // ceiling; seeding it would refuse the recovery it bounds.
+      spentUsd: options.kind === 'orchestrator-cap' ? 0 : (this.seededAccountSpend.get(scope) ?? 0),
       committedReserveUsd: 0,
       finalizeReserveUsd: options.finalizeReserveUsd ?? 0,
       synthesisReserveUsd: 0,

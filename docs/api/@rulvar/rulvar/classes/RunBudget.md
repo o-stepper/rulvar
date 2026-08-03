@@ -27,7 +27,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `now?`: () => `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; `strictPricing?`: \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \}; \} | - |
+| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `now?`: () => `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `accounts?`: `Readonly`\&lt;`Record`\&lt;`string`, `number`\&gt;\&gt;; `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; `strictPricing?`: \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \}; \} | - |
 | `options.ceilingUsd?` | `number` | - |
 | `options.events?` | [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md) | - |
 | `options.lifetimeSpawnCap?` | `number` | - |
@@ -35,7 +35,8 @@ Defined in: `packages/core/dist/index.d.ts`
 | `options.now?` | () => `number` | - |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |
 | `options.pricingOf?` | (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined` | - |
-| `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume seed, folded from the persisted journal (the settled per-call fold, RV801): spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
+| `options.seed?` | \{ `accounts?`: `Readonly`\&lt;`Record`\&lt;`string`, `number`\&gt;\&gt;; `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume seed, folded from the persisted journal (the settled per-call fold, RV801): spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. `accounts` carries the per-account rows of the same fold (`accountSpendFromJournal`, RV1505): each scope's INCLUSIVE settled spend, applied when the scope re-opens, so sub-account history survives resume instead of restarting at zero. The root row is ignored: the root seeds from `usd`, which is the same settled fold by construction. Orchestrator-cap accounts are exempt (see openAccount): the cap is a per-segment coordination bound and the documented resume after a budget-cancelled root continues past it by design. |
+| `options.seed.accounts?` | `Readonly`\&lt;`Record`\&lt;`string`, `number`\&gt;\&gt; | - |
 | `options.seed.agentsSpawned` | `number` | - |
 | `options.seed.usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - |
 | `options.seed.usd` | `number` | - |
