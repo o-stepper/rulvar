@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+
 ### 1.165.0
 
 #### Patch Changes
@@ -1634,6 +1641,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+
 ### 1.165.0
 
 #### Patch Changes
@@ -3057,6 +3071,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
 
 ### 1.165.0
 
@@ -4913,6 +4934,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.166.0
+
+#### Minor Changes
+
+- d8262c3: Record the semantic completion lift in the run settle and read it back on the persisted terminal (the persisted-terminal tail of the P1 list).
+
+  The persisted terminal (RV1209) documented its own gap: `completion` was unrecoverable by construction, because the workflow's semantic claim rides its result value and only the value's DIGEST is journaled. An offline reader, a restarted server, or a second replica saw the transport status and the money but never whether the work was COMPLETE, which is the one field the consumers doctrine (RV1414) says to gate on beside status.
+
+  The settle now records the lift it already computed. The engine lifts the completion envelope once at the settlement chokepoint (RV-207); the same object now rides the journaled `run_settle` decision value flat beside the output digest (`completion`, `childStatusCounts`, `degradedReasons`, the salvage lists, `belowFloorOkChildren`, `acceptanceChildren`), the outputHash precedent: additive, appended only by segments that computed the value, so a pure replay never overwrites the live baseline. `lastRunSettle` parses the literal back defensively, and `persistedTerminalEnvelope` passes it through the one producer, so a rebuilt envelope carries the same `completion` the live consumer saw. A settle written before the lift rode it stays honestly absent under `provenance: 'journal'` (absence means NOT RECORDED), and the run's own `error` remains the one deliberately unrecoverable field.
+
+  The six plan gating cassettes whose settles gained the recorded lift are re-recorded, and the frozen-fixture lock is refreshed through its ceremony (hashVersion-bump): the settle VALUE grew richer while the identity profile and every hash rule stay untouched, so replay identity is unchanged and the re-recorded fixtures are the same scenarios with the lift visible in their settle rows.
 
 ### 1.165.0
 
@@ -7111,6 +7144,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.166.0
+
 ### 1.165.0
 
 ### 1.164.0
@@ -7545,6 +7580,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+  - @rulvar/anthropic@1.166.0
+  - @rulvar/openai@1.166.0
+  - @rulvar/plan@1.166.0
+  - @rulvar/testing@1.166.0
 
 ### 1.165.0
 
@@ -9422,6 +9468,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+
 ### 1.165.0
 
 #### Patch Changes
@@ -10260,6 +10313,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
 
 ### 1.165.0
 
@@ -11886,6 +11946,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+
 ### 1.165.0
 
 #### Patch Changes
@@ -13423,6 +13490,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+  - eslint-plugin-rulvar@1.166.0
 
 ### 1.165.0
 
@@ -15088,6 +15163,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+  - @rulvar/anthropic@1.166.0
+  - @rulvar/openai@1.166.0
 
 ### 1.165.0
 
@@ -17006,6 +17090,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+
 ### 1.165.0
 
 #### Patch Changes
@@ -18555,6 +18646,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
+
 ### 1.165.0
 
 #### Patch Changes
@@ -19409,6 +19507,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
 
 ### 1.165.0
 
@@ -20895,6 +21000,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.166.0
+
+#### Patch Changes
+
+- Updated dependencies [d8262c3]
+  - @rulvar/core@1.166.0
 
 ### 1.165.0
 
