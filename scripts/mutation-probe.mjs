@@ -2565,6 +2565,42 @@ const MUTATIONS = [
     test: 'packages/core/src/tools/attestation.test.ts',
   },
   {
+    id: 'mcp-list-sweep-cap',
+    doctrine:
+      'maxTools bounds the tools/list sweep ITSELF, pre-filter (RV1515): neutering the page check lets a hostile server stream pages forever, and an allow list is powerless because filtering happens after the sweep',
+    file: 'packages/core/src/tools/mcp.ts',
+    find: '      if (cfg.maxTools !== undefined && tools.length > cfg.maxTools) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
+  },
+  {
+    id: 'mcp-schema-byte-cap',
+    doctrine:
+      "maxSchemaBytes refuses an admitted tool's oversized schema typed (RV1515): neutering the comparison ships the schema bomb into the toolset snapshot and every prompt that renders it",
+    file: 'packages/core/src/tools/mcp.ts',
+    find: '    if (bytes > cfg.maxSchemaBytes) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
+  },
+  {
+    id: 'mcp-call-timeout',
+    doctrine:
+      "callMs rides the SDK request timeout per tools/call (RV1515): dropping the passthrough leaves a hanging tool on the SDK's 60s default, which burns the finalization window before the model ever sees the error",
+    file: 'packages/core/src/tools/mcp.ts',
+    find: '          cfg.timeouts?.callMs === undefined ? undefined : { timeout: cfg.timeouts.callMs },',
+    replace: '          undefined,',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
+  },
+  {
+    id: 'mcp-connect-timeout',
+    doctrine:
+      'connectMs races the transport handshake and releases the client on expiry (RV1515): dropping the race leaves a silent server holding the handshake (and a stdio child) for the SDK default instead of the declared bound',
+    file: 'packages/core/src/tools/mcp.ts',
+    find: '          await Promise.race([attach(), expired]);',
+    replace: '          await attach();',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
+  },
+  {
     id: 'attestation-shape-validation',
     doctrine:
       'a malformed attestation is refused typed at createEngine (RV1514): skipping the hash shape check lets a truncated or uppercased pin ride into every spawn and refuse each one with a mismatch that no re-recording can satisfy',

@@ -39,6 +39,32 @@ export interface McpConfig {
   approval?: boolean | Record<string, boolean>;
   /** Host-supplied risk labels for imported tools. */
   risk?: Record<string, ToolRisk>;
+  /**
+   * Cap on WIRE tools accepted from the tools/list sweep (RV1515),
+   * checked after each page, PRE-filter: the sweep itself is the
+   * resource being bounded, so allow/deny cannot admit past it. A
+   * server that streams more refuses typed. Positive integer; absent =
+   * unbounded (today's behavior).
+   */
+  maxTools?: number;
+  /**
+   * Per ADMITTED tool (allow/deny filter first): the UTF-8 byte length
+   * of the serialized inputSchema plus outputSchema when present
+   * (RV1515). An oversized tool refuses the resolution typed, naming
+   * the tool and its measured bytes; deny the tool or raise the cap.
+   * Positive integer; absent = unbounded.
+   */
+  maxSchemaBytes?: number;
+  /**
+   * Per-source latency bounds (RV1515). connectMs races the transport
+   * handshake (on expiry the client, and for stdio its child, is
+   * released and the refusal is typed). listMs and callMs ride the SDK
+   * request timeout per tools/list page and per tools/call; without
+   * them the SDK's own 60s default request timeout applies. A call
+   * timeout surfaces as the tool's error result, never past policy.
+   * Each a positive finite number of milliseconds.
+   */
+  timeouts?: { connectMs?: number; listMs?: number; callMs?: number };
 }
 
 interface WireTool {
@@ -72,7 +98,28 @@ export interface McpToolSource extends ToolSource {
   close(): Promise<void>;
 }
 
+function validateBounds(cfg: McpConfig): void {
+  const positiveInt = (key: 'maxTools' | 'maxSchemaBytes'): void => {
+    const value = cfg[key];
+    if (value !== undefined && (!Number.isInteger(value) || value <= 0)) {
+      throw new ConfigError(`mcp: '${key}' must be a positive integer, got ${String(value)}`);
+    }
+  };
+  positiveInt('maxTools');
+  positiveInt('maxSchemaBytes');
+  for (const key of ['connectMs', 'listMs', 'callMs'] as const) {
+    const value = cfg.timeouts?.[key];
+    if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+      throw new ConfigError(
+        `mcp: 'timeouts.${key}' must be a positive finite number of milliseconds, ` +
+          `got ${String(value)}`,
+      );
+    }
+  }
+}
+
 function validateConfig(cfg: McpConfig): void {
+  validateBounds(cfg);
   const forbid = (key: 'command' | 'args' | 'url' | 'server'): void => {
     if (cfg[key] !== undefined) {
       throw new ConfigError(
@@ -169,7 +216,7 @@ export function mcp(cfg: McpConfig): McpToolSource {
 
   const connect = async (): Promise<Client> => {
     const client = new Client({ name: 'rulvar', version: '1.0.0' });
-    try {
+    const attach = async (): Promise<void> => {
       if (cfg.transport === 'stdio') {
         const transport = new StdioClientTransport({
           command: cfg.command ?? '',
@@ -184,6 +231,29 @@ export function mcp(cfg: McpConfig): McpToolSource {
         const server = cfg.server as { connect(transport: unknown): Promise<void> };
         await server.connect(serverTransport);
         await client.connect(clientTransport);
+      }
+    };
+    try {
+      const budgetMs = cfg.timeouts?.connectMs;
+      if (budgetMs === undefined) {
+        await attach();
+      } else {
+        // The race rejection lands in the same catch as any attach
+        // failure, so the client (and a stdio child) is released on
+        // expiry exactly like on a failed handshake (RV1515).
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const expired = new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(
+              new ConfigError(`mcp: connect to '${sourceIdOf(cfg)}' timed out after ${budgetMs}ms`),
+            );
+          }, budgetMs);
+        });
+        try {
+          await Promise.race([attach(), expired]);
+        } finally {
+          clearTimeout(timer);
+        }
       }
     } catch (error) {
       // The SDK wires the transport onto the client before the
@@ -205,14 +275,43 @@ export function mcp(cfg: McpConfig): McpToolSource {
   const listAll = async (client: Client): Promise<WireTool[]> => {
     const tools: WireTool[] = [];
     let cursor: string | undefined;
+    const listOptions =
+      cfg.timeouts?.listMs === undefined ? undefined : { timeout: cfg.timeouts.listMs };
     do {
-      const page = await client.listTools(cursor === undefined ? {} : { cursor });
+      const page = await client.listTools(cursor === undefined ? {} : { cursor }, listOptions);
       tools.push(...(page.tools as unknown as WireTool[]));
+      if (cfg.maxTools !== undefined && tools.length > cfg.maxTools) {
+        // The sweep is bounded BEFORE the next page fetch and before any
+        // filtering: the resource being capped is the sweep itself, so a
+        // hostile server cannot stream past it and allow/deny cannot
+        // admit past it (RV1515).
+        throw new ConfigError(
+          `mcp: tools/list of '${sourceIdOf(cfg)}' returned at least ${tools.length} wire ` +
+            `tools, over the declared maxTools ${cfg.maxTools}; raise the cap or trim the server`,
+        );
+      }
       cursor = page.nextCursor;
       // An empty cursor is exhaustion: a server echoing '' forever would
       // otherwise spin this loop on microtasks and starve the event loop.
     } while (cursor !== undefined && cursor !== '');
     return tools;
+  };
+
+  const enforceSchemaBytes = (wire: WireTool): void => {
+    if (cfg.maxSchemaBytes === undefined) {
+      return;
+    }
+    const bytes = Buffer.byteLength(
+      JSON.stringify(wire.inputSchema) +
+        (wire.outputSchema === undefined ? '' : JSON.stringify(wire.outputSchema)),
+      'utf8',
+    );
+    if (bytes > cfg.maxSchemaBytes) {
+      throw new ConfigError(
+        `mcp: tool '${wire.name}' declares ${bytes} bytes of schema, over the declared ` +
+          `maxSchemaBytes ${cfg.maxSchemaBytes}; deny the tool or raise the cap`,
+      );
+    }
   };
 
   const needsApprovalFor = (originalName: string): boolean => {
@@ -243,10 +342,17 @@ export function mcp(cfg: McpConfig): McpToolSource {
       needsApproval: needsApprovalFor(wire.name),
       ...(risk === undefined ? {} : { risk }),
       execute: async (input) => {
-        const result = (await client.callTool({
-          name: wire.name,
-          arguments: (input ?? {}) as Record<string, unknown>,
-        })) as CallToolResult;
+        const result = (await client.callTool(
+          {
+            name: wire.name,
+            arguments: (input ?? {}) as Record<string, unknown>,
+          },
+          undefined,
+          // callMs rides the SDK request timeout; its expiry throws here
+          // and surfaces as this tool's error result, never past policy
+          // (RV1515). Without it the SDK's 60s default applies.
+          cfg.timeouts?.callMs === undefined ? undefined : { timeout: cfg.timeouts.callMs },
+        )) as CallToolResult;
         if (result.isError === true) {
           // isError maps to an error tool result surfaced to the model;
           // it never throws past policy.
@@ -295,6 +401,12 @@ export function mcp(cfg: McpConfig): McpToolSource {
         const admitted = wireTools.filter(
           (wire) => !denySet.has(wire.name) && (allowSet === undefined || allowSet.has(wire.name)),
         );
+        for (const wire of admitted) {
+          // Bounded after the filter: a denied tool's schema costs the
+          // toolset nothing, so only what would enter the snapshot is
+          // measured (RV1515).
+          enforceSchemaBytes(wire);
+        }
         const defs = admitted.map((wire) => toDef(client, wire));
         if (generation === fetchedAt) {
           cache = defs;
