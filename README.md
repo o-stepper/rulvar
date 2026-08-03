@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred forty eight rounds, verbatim in this repository's history:
+The one hundred forty nine rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -362,6 +362,7 @@ The one hundred forty eight rounds, verbatim in this repository's history:
 | v1.164.0      | 6391274 (#683): recorded evidence entries survive the terminal and replay, and the claim pool pairs the draft against what the child actually recorded                                    | v1.165.0   |
 | v1.165.0      | d8262c3 (#686): the run settle records the semantic completion lift and the persisted terminal reads the claim back after any restart                                                     | v1.166.0   |
 | v1.166.0      | 59765b1 (#689): every run status body answers the SSE capability machine-readably instead of promising a stream that closes empty                                                         | v1.167.0   |
+| v1.167.0      | ebba79a (#693): agent profiles pin an attested toolset hash, and a drifted or poisoned tool contract refuses typed at spawn instead of re-keying silently                                 | v1.168.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
