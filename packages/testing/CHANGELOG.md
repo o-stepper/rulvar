@@ -1,5 +1,12 @@
 # @rulvar/testing
 
+## 1.163.0
+
+### Patch Changes
+
+- Updated dependencies [e8d9ada]
+  - @rulvar/core@1.163.0
+
 ## 1.162.0
 
 ### Patch Changes
