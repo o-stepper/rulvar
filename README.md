@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred forty six rounds, verbatim in this repository's history:
+The one hundred forty seven rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -360,6 +360,7 @@ The one hundred forty six rounds, verbatim in this repository's history:
 | v1.162.0      | e8d9ada (#677): the import bundle reports its reference closure, audit reads stop rewriting the journals they verify, and the ledger docs deny what it never was                          | v1.163.0   |
 | v1.163.0      | 9f2dda9 (#680): budget account history survives resume, journaled reruns re-admit as recovered, and the orchestrator cap re-arms by design                                                | v1.164.0   |
 | v1.164.0      | 6391274 (#683): recorded evidence entries survive the terminal and replay, and the claim pool pairs the draft against what the child actually recorded                                    | v1.165.0   |
+| v1.165.0      | d8262c3 (#686): the run settle records the semantic completion lift and the persisted terminal reads the claim back after any restart                                                     | v1.166.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
