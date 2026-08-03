@@ -408,3 +408,67 @@ describe('quota drift telemetry (the v1.71 experiment review, P0.5 resized)', ()
     ).toThrow(ConfigError);
   });
 });
+
+/**
+ * The quota denial namespaces on the result surface (RV1510). The
+ * seventeenth comparison benchmark exported one conflated "retries"
+ * number, and 17 pre-wire quota denials read as 17 provider retries;
+ * the result now names the pre-wire denials per dimension, beside the
+ * transportRetries the provider actually saw.
+ */
+describe('the quota denial namespaces on the result (RV1510)', () => {
+  const denyOnceThenGrant = (reason: string): QuotaLimiter => {
+    let call = 0;
+    return {
+      reserve: () => {
+        call += 1;
+        if (call === 1) {
+          return Promise.resolve({ granted: false, retryAfterMs: 1, reason });
+        }
+        return Promise.resolve({ granted: true, reservationId: `r${String(call)}` });
+      },
+      reconcile: () => Promise.resolve(),
+    };
+  };
+
+  it('a requests-window denial lands in the requests dimension, live telemetry only', async () => {
+    const adapter = answeringAdapter();
+    const outcome = await engineWith(adapter, {
+      limiter: denyOnceThenGrant('requestsPerMinute 36 exhausted'),
+    }).run(askWf, undefined).result;
+    expect(outcome.status).toBe('ok');
+    const result = (
+      outcome as {
+        value: {
+          quotaDenials?: { total: number; requests: number; tokens: number; recovered: number };
+        };
+      }
+    ).value;
+    expect(result.quotaDenials).toEqual({ total: 1, requests: 1, tokens: 0, recovered: 1 });
+    // The denial never reached the wire: exactly one paid call.
+    expect(adapter.calls.length).toBe(1);
+  });
+
+  it('a token-window denial lands in the tokens dimension', async () => {
+    const adapter = answeringAdapter();
+    const outcome = await engineWith(adapter, {
+      limiter: denyOnceThenGrant('tokensPerMinute 90000 exhausted'),
+    }).run(askWf, undefined).result;
+    expect(outcome.status).toBe('ok');
+    const result = (
+      outcome as {
+        value: { quotaDenials?: { total: number; requests: number; tokens: number } };
+      }
+    ).value;
+    expect(result.quotaDenials).toMatchObject({ total: 1, requests: 0, tokens: 1 });
+    expect(adapter.calls.length).toBe(1);
+  });
+
+  it('stays absent without denials, the transportRetries rule', async () => {
+    const limiter = memoryQuotaLimiter([{ requestsPerMinute: 100 }]);
+    const outcome = await engineWith(answeringAdapter(), { limiter }).run(askWf, undefined).result;
+    expect(outcome.status).toBe('ok');
+    const result = (outcome as { value: { quotaDenials?: unknown } }).value;
+    expect(result.quotaDenials).toBeUndefined();
+  });
+});

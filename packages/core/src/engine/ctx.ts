@@ -2796,6 +2796,9 @@ export function createCtx(
         ...(result.transportRetries !== undefined && result.transportRetries > 0
           ? { retryCount: result.transportRetries }
           : {}),
+        // The pre-wire denial namespaces (RV1510), the retryCount rule:
+        // live telemetry only, a replayed agent:end omits it.
+        ...(result.quotaDenials === undefined ? {} : { quotaDenials: result.quotaDenials }),
         // Present live whenever any exploration guard limit was
         // configured (RV-210); journaled only with the guard abort.
         ...(result.exploration === undefined ? {} : { exploration: result.exploration }),

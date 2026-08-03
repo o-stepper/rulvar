@@ -2371,6 +2371,33 @@ const MUTATIONS = [
     replace: '              ...({}),',
     test: 'packages/core/src/engine/pricinggate.test.ts',
   },
+  {
+    id: 'format-characters-category',
+    doctrine:
+      'the format-character lint scans the whole Cf category (RV1509): narrowed, an invisible byte beside a citation passes every check while the literal path stops resolving',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '      for (const match of input.text.matchAll(/\\p{Cf}/gu)) {',
+    replace: '      for (const match of input.text.matchAll(/\\p{Cs}/gu)) {',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'quota-denial-dimension-split',
+    doctrine:
+      'pre-wire quota denials split by dimension (RV1510): conflated, a requests-window wait is indistinguishable from a token-window wait and both read as provider retries',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "          if (typeof denialReason === 'string' && denialReason.includes('requestsPerMinute')) {\n            quotaDenialsRequests += 1;\n          } else {\n            quotaDenialsTokens += 1;\n          }",
+    replace: '          quotaDenialsTokens += 1;\n          void denialReason;',
+    test: 'packages/core/src/engine/quota.test.ts',
+  },
+  {
+    id: 'quota-denials-live-surface',
+    doctrine:
+      'the denial namespaces ride the result only when denials happened (RV1510): unconditionally present, every clean result grows a zero block and the absence doctrine breaks',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '  if (quotaDenials > 0) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/quota.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
