@@ -2651,8 +2651,9 @@ const MUTATIONS = [
     doctrine:
       'denied turns retry against their OWN maxDenials budget (RV1601): an off-by-one on the bound makes the loop tolerate one extra denial per target, and the reservation count stops matching the declared budget',
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: '            ? denialTurns < maxDenials',
-    replace: '            ? denialTurns <= maxDenials',
+    find: '          outcome.quotaDenied === true ? denialTurns < maxDenials : tries < retryPolicy.attempts;',
+    replace:
+      '          outcome.quotaDenied === true ? denialTurns <= maxDenials : tries < retryPolicy.attempts;',
     test: 'packages/core/src/engine/quota.test.ts',
   },
 ];
