@@ -4767,6 +4767,7 @@ export function makeOrchestratorWorkflow(
       await recoveryDone;
       const acceptedRoster = acceptedRosterNow();
       const pool: ContradictionSource[] = [];
+      let poolChildren = 0;
       for (const record of [...byOrdinal.values()].sort(
         (a, b) => a.spawnOrdinal - b.spawnOrdinal,
       )) {
@@ -4787,7 +4788,28 @@ export function makeOrchestratorWorkflow(
         if (!inPool) {
           continue;
         }
+        poolChildren += 1;
         pool.push({ nodeId: record.nodeId, text: serializeChildOutput(settled) });
+        // The recorded evidence entries of the same child (the RV1501
+        // entries plumbing): a second pool source per accepted child,
+        // one sentence per entry with its citation in the anchor
+        // syntax, so the draft pairs against what the child RECORDED
+        // even when its composed output paraphrases it away. Restored
+        // from the terminal on resume, so live and resumed pools pair
+        // identically.
+        const recorded = settled.evidenceEntries ?? [];
+        if (recorded.length > 0) {
+          pool.push({
+            nodeId: record.nodeId,
+            text: recorded
+              .map(
+                (entry) =>
+                  `${entry.claim.replace(/\.\s*$/u, '')}` +
+                  `${entry.citation === undefined ? '' : ` (\`${entry.citation}\`)`}.`,
+              )
+              .join(' '),
+          });
+        }
       }
       const draftText = typeof draft === 'string' ? draft : JSON.stringify(draft ?? null);
       const fold = pairDraftClaims(draftText, pool, {
@@ -4798,7 +4820,9 @@ export function makeOrchestratorWorkflow(
       });
       const onFound = spec.onFound ?? 'report';
       const metaBase = {
-        poolChildren: pool.length,
+        // Children, not pool sources: the entries source of a child does
+        // not double-count it.
+        poolChildren,
         draftCitingSentences: fold.draftCitingSentences,
         pairs: fold.pairs.length,
         truncated: fold.truncated,
@@ -4810,7 +4834,7 @@ export function makeOrchestratorWorkflow(
             level: (claimFindingsFound?.length ?? 0) === 0 ? 'debug' : 'info',
             msg: 'orchestrator claim consistency pass',
             data: {
-              children: pool.length,
+              children: poolChildren,
               pairs: fold.pairs.length,
               findings: claimFindingsFound?.length ?? 0,
               truncated: fold.truncated,

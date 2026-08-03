@@ -1413,6 +1413,16 @@ export function createCtx(
       if (terminal?.artifacts !== undefined) {
         result.artifacts = terminal.artifacts as unknown as Artifact[];
       }
+      if (terminal?.evidence !== undefined) {
+        // The evidence verdict and the recorded entry content restore
+        // verbatim (the RV1501 entries plumbing): a replayed result
+        // reports the same verdict and the same recorded claims the
+        // live one did, with zero adapter calls.
+        result.evidence = terminal.evidence;
+      }
+      if (terminal?.evidenceEntries !== undefined) {
+        result.evidenceEntries = terminal.evidenceEntries;
+      }
       if (terminal?.providerCalls !== undefined) {
         // The reconciliation ledger restores verbatim (P1.3): a
         // replayed result names the same wire calls and response ids
@@ -2755,6 +2765,16 @@ export function createCtx(
     }
     if (result.artifacts !== undefined) {
       terminalPatch.artifacts = result.artifacts;
+    }
+    // The evidence verdict and the recorded entry content ride the
+    // terminal (the RV1501 entries plumbing), so replay restores both
+    // without the window and a resumed orchestrator pairs its claim
+    // pools against what the child actually recorded.
+    if (result.evidence !== undefined) {
+      terminalPatch.evidence = result.evidence;
+    }
+    if (result.evidenceEntries !== undefined) {
+      terminalPatch.evidenceEntries = [...result.evidenceEntries];
     }
     if (result.abortClass !== undefined) {
       // An engine-decided abort replays on every resume: memoizeOutcome

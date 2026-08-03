@@ -2470,6 +2470,46 @@ const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/engine/accountseed.test.ts',
   },
+  {
+    id: 'entries-window-collection',
+    doctrine:
+      'the loop collects the recorded evidence entry content from the same window as the counter (RV1501 entries plumbing): collapsed, the terminal carries nothing and no claim pool can pair against what the child recorded',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '  const collectedEvidence = collectRecordedEvidence(messages);',
+    replace: '  const collectedEvidence = [];',
+    test: 'packages/core/src/orchestrator/evidenceentries.test.ts',
+  },
+  {
+    id: 'entries-terminal-value',
+    doctrine:
+      'the recorded entry content rides the agent terminal (RV1501 entries plumbing): dropped, replay has nothing to restore and a resumed pool silently loses what the child recorded',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: `    if (result.evidenceEntries !== undefined) {
+      terminalPatch.evidenceEntries = [...result.evidenceEntries];
+    }`,
+    replace: '',
+    test: 'packages/core/src/orchestrator/evidenceentries.test.ts',
+  },
+  {
+    id: 'entries-replay-restore',
+    doctrine:
+      'replay restores the recorded entry content verbatim (RV1501 entries plumbing): dropped, a resumed orchestrate pairs a poorer pool than the live run it replays',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: `      if (terminal?.evidenceEntries !== undefined) {
+        result.evidenceEntries = terminal.evidenceEntries;
+      }`,
+    replace: '',
+    test: 'packages/core/src/orchestrator/evidenceentries.test.ts',
+  },
+  {
+    id: 'entries-pool-source',
+    doctrine:
+      'the claim pool reads a second source per accepted child from its recorded entries (RV1501 entries plumbing): dropped, a draft contradicting the recorded reading pairs nothing when the composed output paraphrased it away, the benchmark inversion shape',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        const recorded = settled.evidenceEntries ?? [];',
+    replace: '        const recorded = [];',
+    test: 'packages/core/src/orchestrator/evidenceentries.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

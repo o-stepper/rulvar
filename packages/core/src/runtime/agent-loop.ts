@@ -239,6 +239,17 @@ export interface AgentResult<T> {
    */
   evidence?: { recordedEntries: number; minEntries: number; met: boolean };
   /**
+   * The recorded evidence entry CONTENT (the RV1501 entries plumbing):
+   * each successful `record_evidence` execution's claim plus its file
+   * or file:lines citation, in record order, bounded at collection
+   * (40 entries, 400 chars per claim). Present whenever the window
+   * carries at least one successful execution, contract or not; the
+   * ctx layer journals it on the terminal and replay restores it, so
+   * the orchestrator's claim pools pair the draft against what the
+   * child actually recorded on live and resumed runs alike.
+   */
+  evidenceEntries?: Array<{ claim: string; citation?: string }>;
+  /**
    * The structured terminal partial (RV-210 close-out): the LAST
    * successful `report_progress` call of the invocation, present only on
    * a 'limit' terminal (cap expiry or an engine-decided abort) whose
@@ -399,6 +410,64 @@ function countRecordedEvidence(messages: readonly Msg[]): number {
       ).length,
     0,
   );
+}
+
+/** Collection bounds of the recorded entry content (the pair caps). */
+const MAX_COLLECTED_EVIDENCE_ENTRIES = 40;
+const MAX_COLLECTED_EVIDENCE_CLAIM_CHARS = 400;
+
+/**
+ * The CONTENT behind the counter above (the RV1501 entries plumbing):
+ * for each successful `record_evidence` execution, the recorded claim
+ * plus its file or file:lines citation, paired call-to-result by id
+ * and held to the SAME result-`recorded` rule, so the content and the
+ * count can never disagree about which executions exist. Bounded:
+ * entries past the cap are dropped in record order, a claim past the
+ * char cap is truncated, and a result whose call args carry no
+ * non-empty string claim contributes nothing.
+ */
+function collectRecordedEvidence(
+  messages: readonly Msg[],
+): Array<{ claim: string; citation?: string }> {
+  const argsById = new Map<string, unknown>();
+  for (const message of messages) {
+    for (const part of message.parts) {
+      if (part.type === 'tool-call' && part.name === 'record_evidence') {
+        argsById.set(part.id, part.args);
+      }
+    }
+  }
+  const entries: Array<{ claim: string; citation?: string }> = [];
+  for (const message of messages) {
+    for (const part of message.parts) {
+      if (
+        part.type !== 'tool-result' ||
+        part.name !== 'record_evidence' ||
+        (part.result as { recorded?: unknown } | undefined)?.recorded !== true
+      ) {
+        continue;
+      }
+      if (entries.length >= MAX_COLLECTED_EVIDENCE_ENTRIES) {
+        return entries;
+      }
+      const args = argsById.get(part.id) as
+        { claim?: unknown; file?: unknown; lines?: unknown } | undefined;
+      if (typeof args?.claim !== 'string' || args.claim === '') {
+        continue;
+      }
+      const citation =
+        typeof args.file === 'string' && args.file !== ''
+          ? typeof args.lines === 'string' && args.lines !== ''
+            ? `${args.file}:${args.lines}`
+            : args.file
+          : undefined;
+      entries.push({
+        claim: args.claim.slice(0, MAX_COLLECTED_EVIDENCE_CLAIM_CHARS),
+        ...(citation === undefined ? {} : { citation }),
+      });
+    }
+  }
+  return entries;
 }
 
 /** One model-issued tool call as the loop dispatches it. */
@@ -4739,6 +4808,14 @@ export async function runAgent<S extends SchemaSpec>(
       minEntries: evidenceFloor.minEntries,
       met: recordedEvidenceEntries >= evidenceFloor.minEntries,
     };
+  }
+  // The recorded entry content (the RV1501 entries plumbing): present
+  // whenever the window carries successful executions, contract or
+  // not, so the claim pools can pair against it; runs without
+  // record_evidence stay byte identical.
+  const collectedEvidence = collectRecordedEvidence(messages);
+  if (collectedEvidence.length > 0) {
+    result.evidenceEntries = collectedEvidence;
   }
   // The reconciliation ledger (P1.3): present whenever the invocation
   // made (or restored) at least one wire call; a fully replayed

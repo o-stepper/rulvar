@@ -16,6 +16,15 @@ type JournalEntry = {
   endedAt?: string;
   error?: WireError;
   escalation?: Json;
+  evidence?: {
+     met: boolean;
+     minEntries: number;
+     recordedEntries: number;
+  };
+  evidenceEntries?: {
+     citation?: string;
+     claim: string;
+  }[];
   hashVersion: HashVersion;
   key: string;
   kind: EntryKind;
@@ -54,7 +63,7 @@ by a per-run queue.
 optional abandon?: AbandonPayload;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:563](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L563)
+Defined in: [packages/core/src/l0/entries.ts:583](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L583)
 
 Only when kind === 'abandon'.
 
@@ -105,7 +114,7 @@ like usageByModel.
 optional deadlineAt?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:572](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L572)
+Defined in: [packages/core/src/l0/entries.ts:592](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L592)
 
 On suspended entries: the journaled deadline.
 
@@ -117,7 +126,7 @@ On suspended entries: the journaled deadline.
 optional endedAt?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:575](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L575)
+Defined in: [packages/core/src/l0/entries.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L595)
 
 ***
 
@@ -137,11 +146,84 @@ Defined in: [packages/core/src/l0/entries.ts:494](https://github.com/o-stepper/r
 optional escalation?: Json;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:559](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L559)
+Defined in: [packages/core/src/l0/entries.ts:579](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L579)
 
 Terminal escalated entries ONLY: the schema-validated
 EscalationReport with runtime-filled costToDate and salvage; replay
 synthesizes the byte-identical report from here (DEF-1).
+
+***
+
+### evidence?
+
+```ts
+optional evidence?: {
+  met: boolean;
+  minEntries: number;
+  recordedEntries: number;
+};
+```
+
+Defined in: [packages/core/src/l0/entries.ts:561](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L561)
+
+Terminal agent entries: the evidence verdict under a declared
+contract (RV806), journaled so replay restores
+AgentResult.evidence without re-deriving a window it no longer
+holds (the RV1501 entries plumbing). Policy, never identity,
+exactly like usageByModel.
+
+#### met
+
+```ts
+met: boolean;
+```
+
+#### minEntries
+
+```ts
+minEntries: number;
+```
+
+#### recordedEntries
+
+```ts
+recordedEntries: number;
+```
+
+***
+
+### evidenceEntries?
+
+```ts
+optional evidenceEntries?: {
+  citation?: string;
+  claim: string;
+}[];
+```
+
+Defined in: [packages/core/src/l0/entries.ts:573](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L573)
+
+Terminal agent entries: the recorded evidence entry CONTENT (the
+RV1501 entries plumbing): each successful record_evidence
+execution's claim plus its file or file:lines citation, in record
+order, bounded at collection time (40 entries, 400 chars per
+claim). Rides the terminal payload so replay reconstructs
+AgentResult.evidenceEntries without live calls and a resumed
+orchestrator pairs its claim pools against what the child
+actually recorded, exactly like a live run. Policy, never
+identity.
+
+#### citation?
+
+```ts
+optional citation?: string;
+```
+
+#### claim
+
+```ts
+claim: string;
+```
 
 ***
 
@@ -183,7 +265,7 @@ Defined in: [packages/core/src/l0/entries.ts:491](https://github.com/o-stepper/r
 optional memoizeOutcome?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:570](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L570)
+Defined in: [packages/core/src/l0/entries.ts:590](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L590)
 
 Policy field on agent entries, fixed in the payload at dispatch
 time: the M2 predicate reads
@@ -242,7 +324,7 @@ the seq of the running entry.
 optional resolution?: ResolutionPayload;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:561](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L561)
+Defined in: [packages/core/src/l0/entries.ts:581](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L581)
 
 Only when kind === 'resolution'.
 
@@ -288,7 +370,7 @@ Who actually served (failover changes only this, never the key).
 spanId: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:573](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L573)
+Defined in: [packages/core/src/l0/entries.ts:593](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L593)
 
 ***
 
@@ -298,7 +380,7 @@ Defined in: [packages/core/src/l0/entries.ts:573](https://github.com/o-stepper/r
 startedAt: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:574](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L574)
+Defined in: [packages/core/src/l0/entries.ts:594](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L594)
 
 ***
 

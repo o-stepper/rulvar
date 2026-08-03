@@ -172,6 +172,10 @@ export interface TerminalPatch {
   checkpointRef?: string;
   /** Terminal agent entries: Artifact list. */
   artifacts?: unknown;
+  /** Terminal agent entries: the evidence verdict; see JournalEntry. */
+  evidence?: { recordedEntries: number; minEntries: number; met: boolean };
+  /** Terminal agent entries: recorded evidence entry content; see JournalEntry. */
+  evidenceEntries?: Array<{ claim: string; citation?: string }>;
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
   /**
@@ -561,6 +565,12 @@ export class Replayer {
       }
       if (patch.checkpointRef !== undefined) {
         entry.checkpointRef = patch.checkpointRef;
+      }
+      if (patch.evidence !== undefined) {
+        entry.evidence = patch.evidence;
+      }
+      if (patch.evidenceEntries !== undefined) {
+        entry.evidenceEntries = patch.evidenceEntries;
       }
       if (patch.artifacts !== undefined) {
         entry.artifacts = toJournalValue(patch.artifacts, 'terminal artifacts');
