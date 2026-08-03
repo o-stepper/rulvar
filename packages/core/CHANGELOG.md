@@ -1,5 +1,15 @@
 # @rulvar/core
 
+## 1.164.0
+
+### Minor Changes
+
+- 9f2dda9: Seed re-opened budget accounts from the settled journal fold and re-admit reruns of journaled invocations as recovered (RV1505, closing the DEF-7 remainder the eighteenth plan recorded).
+
+  The recovered rerun (the unblock). The reserve recovery rule already said reserves are recovered from the journal and never re-estimated, but the dispatch itself still re-cleared projected admission live: a rerun of a journaled invocation (a dangling dispatch, or a non-replayable terminal retried by resume) was held to spent plus a fresh reserve against the ceiling, and the resume seed already carries the dollars that invocation's prior attempt burned. At an exact-fill ceiling this refused the continuation of the very work the money was spent on, with the ROOT seed alone, before any account seeding: a rerun after an error terminal resumed 'exhausted' with zero provider calls. The ctx.agent dispatch layer now follows the recoverInFlight rule: journaled reruns commit their reserve through admitRecovered, the pre-count feasibility floor gates NEW work only, and the per-turn guard, the pre-dispatch output bound, and the severing signal still bound every dollar a rerun actually spends.
+
+  The per-account seed (the reopened half). With reruns safe, the engine now seeds every re-opened sub-account from the per-account rows of the SAME settled fold the root already seeds from (`accountSpendFromJournal`, RunBudget `seed.accounts`), so a resumed segment admits new work and prices its turns against the history a continuous run would have accumulated. Before the seed, sub-account spend was per-process amnesia: a resumed child re-opened at zero and could silently overspend the very allowance its admission verdict recorded. Two deliberate exemptions keep the seed honest: the root row is ignored (the root seeds from the same fold's total, byte for byte as before), and orchestrator-cap accounts re-arm per segment, because the cap is a per-segment coordination bound and the documented resume after a budget-cancelled root exists precisely to continue past a crossed cap under the root ceiling. A malformed seeded row (non-finite or negative) refuses loud at construction, naming the account, exactly the root seed's poisoned-journal rule.
+
 ## 1.163.0
 
 ### Minor Changes
