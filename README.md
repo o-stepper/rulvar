@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred forty two rounds, verbatim in this repository's history:
+The one hundred forty three rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -356,6 +356,7 @@ The one hundred forty two rounds, verbatim in this repository's history:
 | v1.158.0      | e881c8b (#665): the in-flight exposure cap is recorded at genesis and restored on every resume, and each budget account's settled spend folds inclusively for audits                      | v1.159.0   |
 | v1.159.0      | 1c6f0d0 (#668): flavor B demands its timeout meaning declared instead of inventing accept, and strictApprovals holds a blanket allow to the declared ask                                  | v1.160.0   |
 | v1.160.0      | d4547b7 (#671): the strict pricing gate refuses unpriced, malformed, and stale-priced dispatches before the wire, recorded at genesis and restored on resume                              | v1.161.0   |
+| v1.161.0      | 2031e82 (#674): invisible format characters reject with their exact bytes named, and pre-wire quota denials split from provider retries on the result surface                             | v1.162.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
