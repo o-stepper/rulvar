@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+
 ### 1.160.0
 
 #### Patch Changes
@@ -1599,6 +1606,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+
 ### 1.160.0
 
 #### Patch Changes
@@ -2987,6 +3001,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
 
 ### 1.160.0
 
@@ -4798,6 +4819,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.161.0
+
+#### Minor Changes
+
+- d4547b7: Refuse unpriced, malformed, and stale-priced dispatches before the wire under the opt-in strict pricing gate (RV1508). The fourth PR of the eighteenth plan.
+
+  Dollars come from the price table, and a model absent from it debits NOTHING, so every USD ceiling silently fails to bound it; the docs called that hole honest, and the seventeenth comparison benchmark asked for a mode that closes it. `RunOptions.strictPricing` arms the gate: every paid dispatch must resolve a well-formed price row for its serving model BEFORE the wire call, at the same dispatch chokepoint the exposure admission holds, or the dispatch refuses with a typed `ConfigError` naming the model and the defect (no row, a non-finite or negative rate, a malformed long-context tier). `maxRatesAgeDays` additionally demands a fresh `ratesVerifiedAt` on the row, binding only when declared; `allowUnpriced` lists the exact model refs the host KNOWS are free, the one explicit exception. Each model vets once per run, since the price table is fixed for the run's life.
+
+  The posture follows the exposure cap's durability rule (RV1504): canonicalized and recorded in `RunMeta` at genesis, restored by every resume with no `ResumeOptions` override, absence stays absent, and the store conformance kit holds stores to the round-trip, because a FinOps gate a resumed segment silently drops is not a gate.
 
 ### 1.160.0
 
@@ -6942,6 +6973,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.161.0
+
 ### 1.160.0
 
 ### 1.159.0
@@ -7366,6 +7399,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+  - @rulvar/anthropic@1.161.0
+  - @rulvar/openai@1.161.0
+  - @rulvar/plan@1.161.0
+  - @rulvar/testing@1.161.0
 
 ### 1.160.0
 
@@ -9188,6 +9232,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+
 ### 1.160.0
 
 #### Patch Changes
@@ -9983,6 +10034,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
 
 ### 1.160.0
 
@@ -11574,6 +11632,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+
 ### 1.160.0
 
 #### Patch Changes
@@ -13076,6 +13141,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+  - eslint-plugin-rulvar@1.161.0
 
 ### 1.160.0
 
@@ -14701,6 +14774,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+  - @rulvar/anthropic@1.161.0
+  - @rulvar/openai@1.161.0
 
 ### 1.160.0
 
@@ -16574,6 +16656,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.161.0
+
+#### Minor Changes
+
+- d4547b7: Refuse unpriced, malformed, and stale-priced dispatches before the wire under the opt-in strict pricing gate (RV1508). The fourth PR of the eighteenth plan.
+
+  Dollars come from the price table, and a model absent from it debits NOTHING, so every USD ceiling silently fails to bound it; the docs called that hole honest, and the seventeenth comparison benchmark asked for a mode that closes it. `RunOptions.strictPricing` arms the gate: every paid dispatch must resolve a well-formed price row for its serving model BEFORE the wire call, at the same dispatch chokepoint the exposure admission holds, or the dispatch refuses with a typed `ConfigError` naming the model and the defect (no row, a non-finite or negative rate, a malformed long-context tier). `maxRatesAgeDays` additionally demands a fresh `ratesVerifiedAt` on the row, binding only when declared; `allowUnpriced` lists the exact model refs the host KNOWS are free, the one explicit exception. Each model vets once per run, since the price table is fixed for the run's life.
+
+  The posture follows the exposure cap's durability rule (RV1504): canonicalized and recorded in `RunMeta` at genesis, restored by every resume with no `ResumeOptions` override, absence stays absent, and the store conformance kit holds stores to the round-trip, because a FinOps gate a resumed segment silently drops is not a gate.
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+
 ### 1.160.0
 
 #### Patch Changes
@@ -18080,6 +18177,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
+
 ### 1.160.0
 
 #### Patch Changes
@@ -18899,6 +19003,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
 
 ### 1.160.0
 
@@ -20350,6 +20461,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.161.0
+
+#### Patch Changes
+
+- Updated dependencies [d4547b7]
+  - @rulvar/core@1.161.0
 
 ### 1.160.0
 
