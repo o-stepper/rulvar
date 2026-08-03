@@ -994,6 +994,33 @@ type JournalEntry = {
   */
   artifacts?: Json;
   /**
+  * Terminal agent entries: the evidence verdict under a declared
+  * contract (RV806), journaled so replay restores
+  * AgentResult.evidence without re-deriving a window it no longer
+  * holds (the RV1501 entries plumbing). Policy, never identity,
+  * exactly like usageByModel.
+  */
+  evidence?: {
+    recordedEntries: number;
+    minEntries: number;
+    met: boolean;
+  };
+  /**
+  * Terminal agent entries: the recorded evidence entry CONTENT (the
+  * RV1501 entries plumbing): each successful record_evidence
+  * execution's claim plus its file or file:lines citation, in record
+  * order, bounded at collection time (40 entries, 400 chars per
+  * claim). Rides the terminal payload so replay reconstructs
+  * AgentResult.evidenceEntries without live calls and a resumed
+  * orchestrator pairs its claim pools against what the child
+  * actually recorded, exactly like a live run. Policy, never
+  * identity.
+  */
+  evidenceEntries?: Array<{
+    claim: string;
+    citation?: string;
+  }>;
+  /**
   * Terminal escalated entries ONLY: the schema-validated
   * EscalationReport with runtime-filled costToDate and salvage; replay
   * synthesizes the byte-identical report from here (DEF-1).
@@ -3472,6 +3499,17 @@ interface TerminalPatch {
   checkpointRef?: string;
   /** Terminal agent entries: Artifact list. */
   artifacts?: unknown;
+  /** Terminal agent entries: the evidence verdict; see JournalEntry. */
+  evidence?: {
+    recordedEntries: number;
+    minEntries: number;
+    met: boolean;
+  };
+  /** Terminal agent entries: recorded evidence entry content; see JournalEntry. */
+  evidenceEntries?: Array<{
+    claim: string;
+    citation?: string;
+  }>;
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
   /**
@@ -4867,6 +4905,20 @@ interface AgentResult<T> {
     minEntries: number;
     met: boolean;
   };
+  /**
+  * The recorded evidence entry CONTENT (the RV1501 entries plumbing):
+  * each successful `record_evidence` execution's claim plus its file
+  * or file:lines citation, in record order, bounded at collection
+  * (40 entries, 400 chars per claim). Present whenever the window
+  * carries at least one successful execution, contract or not; the
+  * ctx layer journals it on the terminal and replay restores it, so
+  * the orchestrator's claim pools pair the draft against what the
+  * child actually recorded on live and resumed runs alike.
+  */
+  evidenceEntries?: Array<{
+    claim: string;
+    citation?: string;
+  }>;
   /**
   * The structured terminal partial (RV-210 close-out): the LAST
   * successful `report_progress` call of the invocation, present only on

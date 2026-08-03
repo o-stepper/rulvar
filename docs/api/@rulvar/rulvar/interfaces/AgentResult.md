@@ -30,6 +30,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | `evidence.met` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `evidence.minEntries` | `number` | - | `packages/core/dist/index.d.ts` |
 | `evidence.recordedEntries` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-evidenceentries"></a> `evidenceEntries?` | \{ `citation?`: `string`; `claim`: `string`; \}[] | The recorded evidence entry CONTENT (the RV1501 entries plumbing): each successful `record_evidence` execution's claim plus its file or file:lines citation, in record order, bounded at collection (40 entries, 400 chars per claim). Present whenever the window carries at least one successful execution, contract or not; the ctx layer journals it on the terminal and replay restores it, so the orchestrator's claim pools pair the draft against what the child actually recorded on live and resumed runs alike. | `packages/core/dist/index.d.ts` |
 | <a id="property-evidencefloor"></a> `evidenceFloor?` | \{ `minEntries`: `number`; `recordedEntries`: `number`; \} | The evidence floor refusal detail (RV507): present ONLY when an enforced contract refused an otherwise-ok settle. The ctx layer folds it into the journaled terminal error data and memoizes the outcome (the refusal is deterministic from the paid transcript, so a rerun would only re-pay the same bounded failure). | `packages/core/dist/index.d.ts` |
 | `evidenceFloor.minEntries` | `number` | - | `packages/core/dist/index.d.ts` |
 | `evidenceFloor.recordedEntries` | `number` | - | `packages/core/dist/index.d.ts` |

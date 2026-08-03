@@ -552,6 +552,26 @@ export type JournalEntry = {
    */
   artifacts?: Json;
   /**
+   * Terminal agent entries: the evidence verdict under a declared
+   * contract (RV806), journaled so replay restores
+   * AgentResult.evidence without re-deriving a window it no longer
+   * holds (the RV1501 entries plumbing). Policy, never identity,
+   * exactly like usageByModel.
+   */
+  evidence?: { recordedEntries: number; minEntries: number; met: boolean };
+  /**
+   * Terminal agent entries: the recorded evidence entry CONTENT (the
+   * RV1501 entries plumbing): each successful record_evidence
+   * execution's claim plus its file or file:lines citation, in record
+   * order, bounded at collection time (40 entries, 400 chars per
+   * claim). Rides the terminal payload so replay reconstructs
+   * AgentResult.evidenceEntries without live calls and a resumed
+   * orchestrator pairs its claim pools against what the child
+   * actually recorded, exactly like a live run. Policy, never
+   * identity.
+   */
+  evidenceEntries?: Array<{ claim: string; citation?: string }>;
+  /**
    * Terminal escalated entries ONLY: the schema-validated
    * EscalationReport with runtime-filled costToDate and salvage; replay
    * synthesizes the byte-identical report from here (DEF-1).

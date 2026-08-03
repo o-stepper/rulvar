@@ -6,7 +6,7 @@
 
 # Class: Replayer
 
-Defined in: [packages/core/src/journal/replayer.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L191)
+Defined in: [packages/core/src/journal/replayer.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L195)
 
 Per-run journal kernel front end. Everything is per instance: no module
 state anywhere.
@@ -19,7 +19,7 @@ state anywhere.
 new Replayer(options): Replayer;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L210)
+Defined in: [packages/core/src/journal/replayer.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L214)
 
 #### Parameters
 
@@ -53,7 +53,7 @@ Defined in: [packages/core/src/journal/replayer.ts:210](https://github.com/o-ste
 get fold(): ResolutionFold;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:370](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L370)
+Defined in: [packages/core/src/journal/replayer.ts:374](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L374)
 
 The DEF-4 fold over this run's journal (prior plus live appends).
 
@@ -71,7 +71,7 @@ The DEF-4 fold over this run's journal (prior plus live appends).
 get invalidatedSeqs(): ReadonlySet<number>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L347)
+Defined in: [packages/core/src/journal/replayer.ts:351](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L351)
 
 ##### Returns
 
@@ -85,7 +85,7 @@ Defined in: [packages/core/src/journal/replayer.ts:347](https://github.com/o-ste
 abandonBranch(attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:417](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L417)
+Defined in: [packages/core/src/journal/replayer.ts:421](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L421)
 
 #### Parameters
 
@@ -105,7 +105,7 @@ Defined in: [packages/core/src/journal/replayer.ts:417](https://github.com/o-ste
 appendRefEntry(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:375](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L375)
+Defined in: [packages/core/src/journal/replayer.ts:379](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L379)
 
 Ref-entry append used by the ResolutionArbiter; O2-checked by shape validation.
 
@@ -133,7 +133,7 @@ Ref-entry append used by the ResolutionArbiter; O2-checked by shape validation.
 appendRunning(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:479](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L479)
+Defined in: [packages/core/src/journal/replayer.ts:483](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L483)
 
 Two-phase dispatch: the running entry (kinds agent, step, child).
 `value` is legal on child dispatches only: the child payload
@@ -159,7 +159,7 @@ never enter identity.
 appendSinglePhase(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:449](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L449)
+Defined in: [packages/core/src/journal/replayer.ts:453](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L453)
 
 Single-phase fact entries: rand, decisions, termination facts.
 
@@ -181,7 +181,7 @@ Single-phase fact entries: rand, decisions, termination facts.
 appendSuspended(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:579](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L579)
+Defined in: [packages/core/src/journal/replayer.ts:589](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L589)
 
 Suspended kinds (external, approval): appended once, closed by ref-entries (M2).
 
@@ -203,7 +203,7 @@ Suspended kinds (external, approval): appended once, closed by ref-entries (M2).
 appendTerminal(runningSeq, patch): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:505](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L505)
+Defined in: [packages/core/src/journal/replayer.ts:509](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L509)
 
 Two-phase completion: a terminal entry referencing the running entry
 by ref. Scope, key, ordinal, kind, and hashVersion are inherited from
@@ -229,7 +229,7 @@ the pair shares one ordinal because it is one logical operation).
 flush(): Promise<void>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:618](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L618)
+Defined in: [packages/core/src/journal/replayer.ts:628](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L628)
 
 Resolves when every append enqueued so far has persisted. Deterministic
 shims journal fire-and-forget; the engine awaits this before settling a
@@ -247,7 +247,7 @@ run.
 invalidate(seq): void;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:343](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L343)
+Defined in: [packages/core/src/journal/replayer.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L347)
 
 invalidate/retry: explicit unpinning of a
 memoized failure; the invalidated entry reruns on this resume. The
@@ -271,7 +271,7 @@ safety boundary is an open question.
 ledger(): Ledger;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:604](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L604)
+Defined in: [packages/core/src/journal/replayer.ts:614](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L614)
 
 The budget ledger fold: usage sums over terminal entries once, never twice; agentsSpawned
 counts agent dispatches. Dollars fold on the settled billing basis
@@ -294,7 +294,7 @@ match(
    mode): MatchResult;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L300)
+Defined in: [packages/core/src/journal/replayer.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L304)
 
 Forward-matches one live call against the prior journal. Fresh
 runs always miss; the M2-T06 predicate is injected
@@ -320,7 +320,7 @@ through setDisposition once folds are built.
 registerAlias(donorPrefix, targetPrefix): void;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:334](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L334)
+Defined in: [packages/core/src/journal/replayer.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L338)
 
 Registers a node.link scope-prefix rewrite (DEF-5):
 donorPrefix forward-matches into targetPrefix at every nested level.
@@ -345,7 +345,7 @@ Idempotent; the alias map is rebuilt by fold on resume.
 resolveSuspended(target, attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:409](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L409)
+Defined in: [packages/core/src/journal/replayer.ts:413](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L413)
 
 Submits a resolution attempt through the per-target FIFO arbiter.
 Losing attempts are journaled noops.
@@ -369,7 +369,7 @@ Losing attempts are journaled noops.
 resumeReport(): ResumeReport;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:351](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L351)
+Defined in: [packages/core/src/journal/replayer.ts:355](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L355)
 
 #### Returns
 
@@ -383,7 +383,7 @@ Defined in: [packages/core/src/journal/replayer.ts:351](https://github.com/o-ste
 setAliasDisposition(disposition): void;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L325)
+Defined in: [packages/core/src/journal/replayer.ts:329](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L329)
 
 The disposition for alias-sourced candidates (DEF-5):
 bypasses the abandon overlay so donor entries regain their
@@ -407,7 +407,7 @@ pre-abandon terminal status when matched through the alias.
 setDisposition(disposition): void;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:316](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L316)
+Defined in: [packages/core/src/journal/replayer.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L320)
 
 #### Parameters
 
@@ -427,7 +427,7 @@ Defined in: [packages/core/src/journal/replayer.ts:316](https://github.com/o-ste
 snapshot(): readonly JournalEntry[];
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:609](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L609)
+Defined in: [packages/core/src/journal/replayer.ts:619](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L619)
 
 Read-only view of the appended entries, in per-run total order.
 
@@ -443,7 +443,7 @@ readonly [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md)[]
 suspensionState(target): SuspensionState;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:426](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L426)
+Defined in: [packages/core/src/journal/replayer.ts:430](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L430)
 
 Pure fold view, snapshot-pinned.
 
