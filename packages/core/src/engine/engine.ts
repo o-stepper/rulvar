@@ -43,7 +43,7 @@ import { validateEntryShape } from '../journal/kinds.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { validateSchemaSpec, type SchemaSpec } from '../l0/schema.js';
 import { jcsSerialize } from '../l0/jcs.js';
-import type { ToolsOption } from '../tools/toolset-hash.js';
+import { validateToolsetAttestation, type ToolsOption } from '../tools/toolset-hash.js';
 import { normalizeEntry, type JournalEntry } from '../l0/entries.js';
 import { Replayer } from '../journal/replayer.js';
 import {
@@ -929,6 +929,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       validateEvidenceContract(
         profile.evidenceContract,
         `createEngine defaults.profiles['${name}'].evidenceContract`,
+      );
+    }
+    if (profile.toolsetAttestation !== undefined) {
+      validateToolsetAttestation(
+        profile.toolsetAttestation,
+        `createEngine defaults.profiles['${name}'].toolsetAttestation`,
       );
     }
   }

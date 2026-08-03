@@ -2537,6 +2537,42 @@ const MUTATIONS = [
     replace: '      capabilities: { events: true },',
     test: 'packages/cli/src/server.test.ts',
   },
+  {
+    id: 'attestation-spawn-binding',
+    doctrine:
+      "an attested profile's spawn is HELD to the pin at the resolveToolset seam (RV1514): dropping the enforcement call lets a drifted (poisoned) toolset reach the model under a new content key, which is exactly the silent re-key the attestation exists to refuse",
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '      enforceToolsetAttestation(agentType, profile.toolsetAttestation, toolset);',
+    replace: '      void toolset;',
+    test: 'packages/core/src/tools/attestation.test.ts',
+  },
+  {
+    id: 'attestation-hash-comparison',
+    doctrine:
+      'the attestation refuses on the AGGREGATE hash comparison itself (RV1514): inverting it to always-match turns the pin into decoration and every drifted toolset spawns cleanly',
+    file: 'packages/core/src/tools/toolset-hash.ts',
+    find: '  if (resolved.hash === attestation.hash) {',
+    replace: '  if (true) {',
+    test: 'packages/core/src/tools/attestation.test.ts',
+  },
+  {
+    id: 'attestation-diff-naming',
+    doctrine:
+      'a drift refusal NAMES the changed tool with both contract hashes (RV1514): a bare name hides which side moved, and the operator cannot correct a stale pin from the refusal',
+    file: 'packages/core/src/tools/toolset-hash.ts',
+    find: '        changed.push(`${name} (attested ${hash}, resolved ${now})`);',
+    replace: '        changed.push(name);',
+    test: 'packages/core/src/tools/attestation.test.ts',
+  },
+  {
+    id: 'attestation-shape-validation',
+    doctrine:
+      'a malformed attestation is refused typed at createEngine (RV1514): skipping the hash shape check lets a truncated or uppercased pin ride into every spawn and refuse each one with a mismatch that no re-recording can satisfy',
+    file: 'packages/core/src/tools/toolset-hash.ts',
+    find: "  if (typeof attestation.hash !== 'string' || !SHA256_HEX_PATTERN.test(attestation.hash)) {",
+    replace: '  if (false) {',
+    test: 'packages/core/src/tools/attestation.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
