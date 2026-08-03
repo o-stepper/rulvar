@@ -78,27 +78,36 @@ one at a time, not catalogs.
 ### importRun()
 
 ```ts
-importRun(bundle): Promise<void>;
+importRun(bundle, options?): Promise<{
+  unresolvedRefs: string[];
+}>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:536](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L536)
+Defined in: [packages/core/src/engine/engine.ts:547](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L547)
 
-Imports a bundle produced by exportRun, under its ORIGINAL runId
-(transcript refs and journal fields embed it; rewriting ids is
-deliberately out of scope). Writes through Engine.stores, so an
-encrypting target re-encrypts under its own policy. Refuses typed
-when the run already exists in the target store, so an import can
-never interleave with live history.
+Imports an exportRun bundle into this engine's stores. Returns the
+closure report (RV1511): every transcript, checkpoint, artifact,
+and workflow-source ref the ENTRIES (and meta) reference that no
+bundle blob carries. The default import stays permissive (the
+historical shape: retention and pruning legitimately drop blobs
+their entries still name) and the report makes the gap visible;
+`requireClosure: true` refuses typed BEFORE any write instead. A
+duplicate blob ref in the bundle always refuses: last-write-wins
+is not an import.
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `bundle` | [`RunExport`](/api/@rulvar/core/interfaces/RunExport.md) |
+| `options?` | \{ `requireClosure?`: `boolean`; \} |
+| `options.requireClosure?` | `boolean` |
 
 #### Returns
 
-`Promise`\&lt;`void`\&gt;
+`Promise`\<\{
+  `unresolvedRefs`: `string`[];
+\}\>
 
 ***
 

@@ -187,6 +187,7 @@ interface AssembledCli {
   currentPricingVersion?: string;
 }
 declare function assembleEngine(options: {
+  /** RV1512: disarm the JSONL torn-tail repair on load (audit reads). */repairOnLoad?: boolean;
   config: CliConfig;
   module?: LoadedWorkflowModule;
   storePath?: string;

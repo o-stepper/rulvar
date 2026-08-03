@@ -62,6 +62,8 @@ export interface AssembledCli {
 }
 
 export function assembleEngine(options: {
+  /** RV1512: disarm the JSONL torn-tail repair on load (audit reads). */
+  repairOnLoad?: boolean;
   config: CliConfig;
   module?: LoadedWorkflowModule;
   storePath?: string;
@@ -87,7 +89,15 @@ export function assembleEngine(options: {
   }
   const store: JournalStore =
     engineOptions.stores?.journal ??
-    new JsonlFileStore({ dir: resolve(options.cwd, options.storePath ?? DEFAULT_STORE_DIR) });
+    new JsonlFileStore({
+      dir: resolve(options.cwd, options.storePath ?? DEFAULT_STORE_DIR),
+      // The verify-only load (RV1512): an audit that must not rewrite
+      // the artifact it verifies opens the default store with the
+      // torn-tail repair disarmed. Applies only to the store THIS
+      // assembly builds; a config-supplied journal store owns its own
+      // semantics.
+      ...(options.repairOnLoad === false ? { repairOnLoad: false } : {}),
+    });
   const workflows: WorkflowRegistry = {
     ...config.workflows,
     ...module?.workflows,

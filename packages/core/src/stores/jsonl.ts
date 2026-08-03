@@ -120,8 +120,21 @@ export class JsonlFileStore implements MetaLookupStore {
    */
   private readonly lastSeq = new Map<string, number>();
 
-  constructor(options: { dir: string }) {
+  /**
+   * The verify-only load switch (RV1512): with `repairOnLoad: false`,
+   * `load` serves the salvageable records WITHOUT rewriting the file,
+   * so an auditor's "verification" read never destroys the evidence
+   * of a tear it found. The default keeps the owner semantics byte
+   * for byte: a torn tail repairs on load exactly as documented in
+   * the A1 model above. Mutations (`append`, `putMeta`, `delete`)
+   * are unaffected by the flag; an auditor that must not write simply
+   * does not call them.
+   */
+  private readonly repairOnLoad: boolean;
+
+  constructor(options: { dir: string; repairOnLoad?: boolean }) {
     this.dir = options.dir;
+    this.repairOnLoad = options.repairOnLoad !== false;
     mkdirSync(this.dir, { recursive: true });
   }
 
@@ -200,7 +213,9 @@ export class JsonlFileStore implements MetaLookupStore {
           for (const value of splitConcatenatedJson(line).whole) {
             entries.push(value as JournalEntry);
           }
-          this.repairTornTail(runId, entries);
+          if (this.repairOnLoad) {
+            this.repairTornTail(runId, entries);
+          }
           break;
         }
         throw new JournalOrderViolation(

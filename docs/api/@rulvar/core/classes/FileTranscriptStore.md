@@ -6,7 +6,7 @@
 
 # Class: FileTranscriptStore
 
-Defined in: [packages/core/src/stores/jsonl.ts:323](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L323)
+Defined in: [packages/core/src/stores/jsonl.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L338)
 
 File-backed TranscriptStore (M6-T02): blobs (transcripts, checkpoints,
 persisted CompiledWorkflow sources) as one file per ref under `dir`,
@@ -33,7 +33,7 @@ could read, write, or delete `.bin` files outside `dir`.
 new FileTranscriptStore(options): FileTranscriptStore;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:326](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L326)
+Defined in: [packages/core/src/stores/jsonl.ts:341](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L341)
 
 #### Parameters
 
@@ -54,7 +54,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:326](https://github.com/o-stepper
 delete(ref): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:414](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L414)
+Defined in: [packages/core/src/stores/jsonl.ts:429](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L429)
 
 Deletes one blob; a missing ref is a no-op, never an error (M8-T04
 amendment, OQ-20: retention is impossible without blob deletion).
@@ -83,7 +83,7 @@ never a store obligation.
 get(ref): Promise<Bytes | null>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:370](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L370)
+Defined in: [packages/core/src/stores/jsonl.ts:385](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L385)
 
 #### Parameters
 
@@ -107,7 +107,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:370](https://github.com/o-stepper
 list(runId): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:382](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L382)
+Defined in: [packages/core/src/stores/jsonl.ts:397](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L397)
 
 #### Parameters
 
@@ -131,7 +131,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:382](https://github.com/o-stepper
 put(ref, blob): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:361](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L361)
+Defined in: [packages/core/src/stores/jsonl.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L376)
 
 #### Parameters
 

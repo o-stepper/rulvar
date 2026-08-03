@@ -82,7 +82,7 @@ export const GRAMMAR: {
   'runs audit': {
     command: 'runs audit',
     positionals: [],
-    flags: [STORE, { name: 'repair' }],
+    flags: [STORE, { name: 'repair' }, { name: 'no-load-repair' }],
   },
   inspect: { command: 'inspect', positionals: ['<runId>'], flags: [STORE] },
   invoice: { command: 'invoice', positionals: ['<runId>'], flags: [STORE, { name: 'json' }] },

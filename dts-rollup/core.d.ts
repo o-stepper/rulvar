@@ -7164,7 +7164,22 @@ interface Engine {
   * when the run already exists in the target store, so an import can
   * never interleave with live history.
   */
-  importRun(bundle: RunExport): Promise<void>;
+  /**
+  * Imports an exportRun bundle into this engine's stores. Returns the
+  * closure report (RV1511): every transcript, checkpoint, artifact,
+  * and workflow-source ref the ENTRIES (and meta) reference that no
+  * bundle blob carries. The default import stays permissive (the
+  * historical shape: retention and pruning legitimately drop blobs
+  * their entries still name) and the report makes the gap visible;
+  * `requireClosure: true` refuses typed BEFORE any write instead. A
+  * duplicate blob ref in the bundle always refuses: last-write-wins
+  * is not an import.
+  */
+  importRun(bundle: RunExport, options?: {
+    requireClosure?: boolean;
+  }): Promise<{
+    unresolvedRefs: string[];
+  }>;
 }
 /** The portable bundle exportRun produces and importRun consumes (RV-217). */
 interface RunExport {
@@ -11138,8 +11153,20 @@ declare class JsonlFileStore implements MetaLookupStore {
   * design: cross-process writers are the lease seam's job.
   */
   private readonly lastSeq;
+  /**
+  * The verify-only load switch (RV1512): with `repairOnLoad: false`,
+  * `load` serves the salvageable records WITHOUT rewriting the file,
+  * so an auditor's "verification" read never destroys the evidence
+  * of a tear it found. The default keeps the owner semantics byte
+  * for byte: a torn tail repairs on load exactly as documented in
+  * the A1 model above. Mutations (`append`, `putMeta`, `delete`)
+  * are unaffected by the flag; an auditor that must not write simply
+  * does not call them.
+  */
+  private readonly repairOnLoad;
   constructor(options: {
     dir: string;
+    repairOnLoad?: boolean;
   });
   private journalPath;
   private metaPath;

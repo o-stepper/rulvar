@@ -33,7 +33,7 @@ rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--profile 
 rulvar resume <runId> [--args JSON] [--store PATH] [--dry-run] [--allow-args-change] [--strict]
 rulvar replay <runId> [--args JSON] [--store PATH] [--assert-no-live] [--compare-output-hash]
 rulvar runs ls [--store PATH]
-rulvar runs audit [--store PATH] [--repair]
+rulvar runs audit [--store PATH] [--repair] [--no-load-repair]
 rulvar inspect <runId> [--store PATH]
 rulvar invoice <runId> [--store PATH] [--json]
 rulvar plan "<goal>" [--planning-budget-usd N] [--budget-usd N] [--allow-unbounded] [--dry-run]

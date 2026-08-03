@@ -2398,6 +2398,33 @@ const MUTATIONS = [
     replace: '  if (false) {',
     test: 'packages/core/src/engine/quota.test.ts',
   },
+  {
+    id: 'import-closure-strict',
+    doctrine:
+      'requireClosure refuses an unresolved ref BEFORE any write (RV1511): disarmed, a torn bundle imports whole and the missing transcript surfaces only when something later reads it',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '    if (options?.requireClosure === true && unresolvedRefs.length > 0) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/data-protection.test.ts',
+  },
+  {
+    id: 'import-duplicate-blob-ref',
+    doctrine:
+      'a duplicate blob ref refuses always (RV1511): last-write-wins over transcript bytes is a torn or edited bundle, never a valid export',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      if (availableRefs.has(ref)) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/data-protection.test.ts',
+  },
+  {
+    id: 'jsonl-verify-only-load',
+    doctrine:
+      'repairOnLoad: false serves the salvage WITHOUT rewriting the file (RV1512): forced on, an audit read destroys the evidence of the very tear it found',
+    file: 'packages/core/src/stores/jsonl.ts',
+    find: '          if (this.repairOnLoad) {\n            this.repairTornTail(runId, entries);\n          }',
+    replace: '          this.repairTornTail(runId, entries);',
+    test: 'packages/core/src/stores/jsonl.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
