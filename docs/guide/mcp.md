@@ -222,6 +222,24 @@ try {
 
 For a one shot script the `finally` is not optional hygiene: a stdio child and its pipes keep the Node.js event loop alive, so a process that skips `close()` finishes its workflow and then never exits. `close()` is idempotent, resolves even when the connection never succeeded, and resets the source, so a later `tools()` call connects afresh. A long lived host keeps one source per server, reuses it across runs, and closes it at shutdown. Closing while a run is in flight fails that run's MCP tool calls, so close after the runs settle, not during them.
 
+## Bounds
+
+An MCP server sits on the other side of a trust boundary, and three of its behaviors used to be unbounded on the host side: how many tools the `tools/list` sweep may stream, how large an imported schema may be, and how long the handshake and each request may take (the SDK's own 60-second default request timeout was the only backstop). All three bounds are opt-in config on `mcp()`; leaving them out preserves the previous behavior exactly:
+
+```ts
+const github = mcp({
+  transport: 'stdio',
+  command: 'github-mcp-server',
+  maxTools: 64, // cap the tools/list sweep itself
+  maxSchemaBytes: 16384, // per admitted tool, input plus output schema
+  timeouts: { connectMs: 3000, listMs: 5000, callMs: 30000 },
+});
+```
+
+- **`maxTools`** bounds the sweep, not the toolset: it is checked against the accumulated *wire* tools after each page, before `allow`/`deny` filtering, because the sweep is the resource being protected. A server that streams past the cap is refused with a typed `ConfigError` naming the count and the cap; an `allow` list cannot admit past it.
+- **`maxSchemaBytes`** is measured per *admitted* tool (the filter runs first, so a denied tool's oversized schema costs nothing): the UTF-8 byte length of the serialized `inputSchema` plus `outputSchema` when present. An oversized tool refuses the resolution, naming the tool and its measured bytes; deny the tool or raise the cap.
+- **`timeouts.connectMs`** races the transport handshake; on expiry the client, and for stdio its spawned child, is released, and the refusal is a typed `ConfigError`. `listMs` and `callMs` ride the SDK request timeout per `tools/list` page and per `tools/call`; a call timeout surfaces as that tool's error result to the model, exactly like a server-reported `isError`, and never propagates past policy.
+
 ## Failure behavior
 
 Configuration problems fail early with a typed `ConfigError`; runtime problems become error tool results the model can react to. Nothing an MCP server does can throw past policy out of the agent loop.

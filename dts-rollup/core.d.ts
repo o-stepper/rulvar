@@ -10809,6 +10809,36 @@ interface McpConfig {
   approval?: boolean | Record<string, boolean>;
   /** Host-supplied risk labels for imported tools. */
   risk?: Record<string, ToolRisk>;
+  /**
+  * Cap on WIRE tools accepted from the tools/list sweep (RV1515),
+  * checked after each page, PRE-filter: the sweep itself is the
+  * resource being bounded, so allow/deny cannot admit past it. A
+  * server that streams more refuses typed. Positive integer; absent =
+  * unbounded (today's behavior).
+  */
+  maxTools?: number;
+  /**
+  * Per ADMITTED tool (allow/deny filter first): the UTF-8 byte length
+  * of the serialized inputSchema plus outputSchema when present
+  * (RV1515). An oversized tool refuses the resolution typed, naming
+  * the tool and its measured bytes; deny the tool or raise the cap.
+  * Positive integer; absent = unbounded.
+  */
+  maxSchemaBytes?: number;
+  /**
+  * Per-source latency bounds (RV1515). connectMs races the transport
+  * handshake (on expiry the client, and for stdio its child, is
+  * released and the refusal is typed). listMs and callMs ride the SDK
+  * request timeout per tools/list page and per tools/call; without
+  * them the SDK's own 60s default request timeout applies. A call
+  * timeout surfaces as the tool's error result, never past policy.
+  * Each a positive finite number of milliseconds.
+  */
+  timeouts?: {
+    connectMs?: number;
+    listMs?: number;
+    callMs?: number;
+  };
 }
 /**
 * The ToolSource returned by {@link mcp}: the frozen ToolSource seam
