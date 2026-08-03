@@ -2528,6 +2528,15 @@ const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/engine/persisted-terminal.test.ts',
   },
+  {
+    id: 'server-events-capability',
+    doctrine:
+      'the status body answers the SSE capability machine-readably (the P1 tail): events are process-local, and a non-live status claiming events support sends every client into an empty stream it was promised would carry telemetry',
+    file: 'packages/cli/src/server.ts',
+    find: '      capabilities: { events: false },',
+    replace: '      capabilities: { events: true },',
+    test: 'packages/cli/src/server.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
