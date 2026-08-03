@@ -10,7 +10,7 @@
 function runAgent<S>(options): Promise<AgentResult<Out<S>>>;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:1530](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L1530)
+Defined in: [packages/core/src/runtime/agent-loop.ts:1540](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L1540)
 
 Runs one agent to a typed AgentResult. Never throws past policy: every
 failure mode becomes a typed status on the result.

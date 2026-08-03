@@ -120,11 +120,12 @@ const engine = createEngine({
   stores: { journal: new InMemoryStore({ quiet: true }) },
   defaults: {
     routing: { loop: 'fake:model' },
-    // attempts 1: a denial is terminal immediately, so a denied child
-    // never waits out the real window remainder.
     retry: { attempts: 1, backoff: { initialMs: 1, factor: 1, maxMs: 1 } },
   },
-  quota: { limiter },
+  // maxDenials 1: a denial is terminal immediately, so a denied child
+  // never waits out the real window remainder (RV1601: denials spend
+  // their own budget, not retry.attempts).
+  quota: { limiter, maxDenials: 1 },
 });
 const wf = defineWorkflow({ name: 'ask' }, (ctx) => ctx.agent('go', { result: 'full' }));
 const outcome = await engine.run(wf, undefined).result;

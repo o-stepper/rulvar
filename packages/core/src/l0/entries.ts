@@ -121,7 +121,13 @@ export interface ProviderCallRecord {
   /** The invocation phase that paid the call. */
   role: InvocationRole;
   servedBy: ModelRef;
-  /** 1-based try number on the serving target; retries increment it. */
+  /**
+   * 1-based DISPATCHED try number on the serving target; transport
+   * retries increment it, a pre-wire quota denial never does (RV1601),
+   * so the recorded attempts of one (role, target) series are always
+   * dense from 1 and an attempt=2 row proves a prior dispatched try
+   * with its own record.
+   */
   attempt: number;
   /**
    * 'ok' = a terminal finish; 'error' = a wire failure after dispatch

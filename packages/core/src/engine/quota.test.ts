@@ -12,12 +12,12 @@ import { describe, expect, it } from 'vitest';
 import { ConfigError } from '../l0/errors.js';
 import type { ChatEvent, ChatRequest, Usage } from '../l0/messages.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
-import type { QuotaLimiter, QuotaReservationRequest } from '../l0/spi/quota.js';
+import type { QuotaDecision, QuotaLimiter, QuotaReservationRequest } from '../l0/spi/quota.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { QUOTA_WINDOW_MS, memoryQuotaLimiter } from '../model/quota.js';
 import { defineWorkflow } from './ctx.js';
 import { createEngine } from './engine.js';
-import { testCaps } from './test-harness.js';
+import { scriptedAdapter, testCaps } from './test-harness.js';
 
 const fastRetry = { attempts: 2, backoff: { initialMs: 1, factor: 1, maxMs: 1 } };
 
@@ -470,5 +470,176 @@ describe('the quota denial namespaces on the result (RV1510)', () => {
     expect(outcome.status).toBe('ok');
     const result = (outcome as { value: { quotaDenials?: unknown } }).value;
     expect(result.quotaDenials).toBeUndefined();
+  });
+});
+
+describe('the retry namespace separation (RV1601, the eighteenth comparison benchmark)', () => {
+  type NamespacedResult = {
+    status: string;
+    error?: { kind: string };
+    servedBy?: string;
+    transportRetries?: number;
+    quotaDenials?: { total: number; requests: number; tokens: number; recovered: number };
+    providerCalls?: Array<{ attempt: number; outcome: string }>;
+  };
+  const valueOf = (outcome: unknown): NamespacedResult =>
+    (outcome as { value: NamespacedResult }).value;
+  const denyThenGrant = (denials: number, reason: string): QuotaLimiter & { reserves: number } => {
+    const limiter = {
+      reserves: 0,
+      reserve: (): Promise<QuotaDecision> => {
+        limiter.reserves += 1;
+        if (limiter.reserves <= denials) {
+          return Promise.resolve({ granted: false, retryAfterMs: 1, reason });
+        }
+        return Promise.resolve({ granted: true, reservationId: `r${String(limiter.reserves)}` });
+      },
+      reconcile: () => Promise.resolve(),
+    };
+    return limiter;
+  };
+
+  it('a recovered denial is not a transport retry: retryCount stays absent, the record says attempt 1', async () => {
+    const adapter = answeringAdapter();
+    const handle = engineWith(adapter, {
+      limiter: denyThenGrant(1, 'requestsPerMinute 9 exhausted'),
+    }).run(askWf, undefined);
+    const errors: Array<{ willRetry?: boolean; source?: unknown }> = [];
+    const ends: Array<{ retryCount?: number }> = [];
+    void (async () => {
+      for await (const event of handle.events) {
+        if (event.type === 'agent:error') {
+          errors.push({
+            willRetry: event.willRetry,
+            source: (event.error.data as { source?: unknown } | undefined)?.source,
+          });
+        }
+        if (event.type === 'agent:end') {
+          ends.push({ retryCount: event.retryCount });
+        }
+      }
+    })();
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    const result = valueOf(outcome);
+    expect(result.status).toBe('ok');
+    // The denial stays in ITS namespace: no transport retry was made.
+    expect(result.transportRetries).toBeUndefined();
+    expect(result.quotaDenials).toEqual({ total: 1, requests: 1, tokens: 0, recovered: 1 });
+    // The one dispatched call is try number one on the serving target;
+    // the pre-wire denial never advanced the ordinal.
+    expect(result.providerCalls).toHaveLength(1);
+    expect(result.providerCalls?.[0]).toMatchObject({ attempt: 1, outcome: 'ok' });
+    expect(adapter.calls.length).toBe(1);
+    // The denial is still diagnosable on the stream, named by its layer.
+    expect(errors).toEqual([{ willRetry: true, source: 'quota-limiter' }]);
+    expect(ends).toHaveLength(1);
+    expect(ends[0]?.retryCount).toBeUndefined();
+  });
+
+  it('denials do not consume the transport retry budget', async () => {
+    // Three consecutive denials under attempts 2: the old conflation
+    // exhausted the transport budget before the wire ever opened.
+    const adapter = answeringAdapter();
+    const limiter = denyThenGrant(3, 'tokensPerMinute 1000 exhausted');
+    const outcome = await engineWith(adapter, { limiter }).run(askWf, undefined).result;
+    expect(outcome.status).toBe('ok');
+    const result = valueOf(outcome);
+    expect(result.status).toBe('ok');
+    expect(adapter.calls.length).toBe(1);
+    // One denial EPISODE recovered, three denials counted.
+    expect(result.quotaDenials).toEqual({ total: 3, requests: 0, tokens: 3, recovered: 1 });
+    expect(result.transportRetries).toBeUndefined();
+  });
+
+  it('a denial, a transport failure, and a success keep their namespaces and ordinals apart', async () => {
+    const transient = {
+      code: 'agent',
+      message: 'down',
+      retryable: true,
+      data: { kind: 'transport' as const },
+    };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { error: transient }
+        : {
+            text: 'answered',
+            usage: { inputTokens: 12, outputTokens: 7, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          },
+    );
+    const outcome = await engineWith(adapter, {
+      limiter: denyThenGrant(1, 'requestsPerMinute 9 exhausted'),
+    }).run(askWf, undefined).result;
+    expect(outcome.status).toBe('ok');
+    const result = valueOf(outcome);
+    expect(result.status).toBe('ok');
+    // The ledger enumerates the two DISPATCHED tries, 1-based; the
+    // denial sits only in its own counters.
+    expect(result.providerCalls?.map((row) => [row.attempt, row.outcome])).toEqual([
+      [1, 'error'],
+      [2, 'ok'],
+    ]);
+    expect(result.transportRetries).toBe(1);
+    expect(result.quotaDenials).toEqual({ total: 1, requests: 1, tokens: 0, recovered: 1 });
+  });
+
+  it('the denial budget is its own bound: maxDenials reservations, then the rate-limit terminal', async () => {
+    // maxDenials 3 above attempts 2 discriminates the bounds: the old
+    // conflation stopped at two reservations.
+    const adapter = answeringAdapter();
+    const limiter = denyThenGrant(Number.POSITIVE_INFINITY, 'requestsPerMinute 9 exhausted');
+    const outcome = await engineWith(adapter, { limiter, maxDenials: 3 }).run(askWf, undefined)
+      .result;
+    expect(outcome.status).toBe('ok');
+    const result = valueOf(outcome);
+    expect(result.status).toBe('error');
+    expect(result.error?.kind).toBe('rate-limit');
+    expect(limiter.reserves).toBe(3);
+    expect(adapter.calls.length).toBe(0);
+    expect(result.quotaDenials).toMatchObject({ total: 3, recovered: 0 });
+    expect(result.transportRetries).toBeUndefined();
+  });
+
+  it('an exhausted denial budget still fails over: the fallback serves under its own model', async () => {
+    const seen: QuotaReservationRequest[] = [];
+    const limiter: QuotaLimiter = {
+      reserve: (request) => {
+        seen.push(request);
+        if (request.provider === 'primary') {
+          return Promise.resolve({ granted: false, retryAfterMs: 1, reason: 'window full' });
+        }
+        return Promise.resolve({ granted: true, reservationId: `r${String(seen.length)}` });
+      },
+      reconcile: () => Promise.resolve(),
+    };
+    const primary = answeringAdapter('primary');
+    const backup = answeringAdapter('backup');
+    const engine = createEngine({
+      adapters: [primary, backup],
+      stores: { journal: new InMemoryStore({ quiet: true }) },
+      defaults: {
+        routing: { loop: { model: 'primary:model', fallbacks: ['backup:model-b'] } },
+        retry: fastRetry,
+      },
+      quota: { limiter, maxDenials: 1 },
+    });
+    const outcome = await engine.run(askWf, undefined).result;
+    expect(outcome.status).toBe('ok');
+    const result = valueOf(outcome);
+    expect(result.status).toBe('ok');
+    expect(result.servedBy).toBe('backup:model-b');
+    expect(primary.calls.length).toBe(0);
+    expect(backup.calls.length).toBe(1);
+    expect(seen.filter((request) => request.provider === 'primary')).toHaveLength(1);
+  });
+
+  it('maxDenials validates at createEngine intake', () => {
+    const limiter: QuotaLimiter = {
+      reserve: () => Promise.resolve({ granted: true, reservationId: 'r1' }),
+      reconcile: () => Promise.resolve(),
+    };
+    for (const maxDenials of [0, -1, 1.5]) {
+      expect(() => engineWith(answeringAdapter(), { limiter, maxDenials })).toThrow(ConfigError);
+    }
   });
 });

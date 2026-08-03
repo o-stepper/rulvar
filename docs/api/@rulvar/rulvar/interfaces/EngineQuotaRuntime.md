@@ -16,6 +16,7 @@ The resolved engine-side quota runtime threaded into every run.
 | ------ | ------ | ------ | ------ |
 | <a id="property-declaredrules"></a> `declaredRules?` | readonly [`QuotaRule`](/api/@rulvar/rulvar/interfaces/QuotaRule.md)[] | The declared rule mirror for drift telemetry; see [EngineQuotaConfig](/api/@rulvar/rulvar/interfaces/EngineQuotaConfig.md). | `packages/core/dist/index.d.ts` |
 | <a id="property-limiter"></a> `limiter` | [`QuotaLimiter`](/api/@rulvar/rulvar/interfaces/QuotaLimiter.md) | - | `packages/core/dist/index.d.ts` |
+| <a id="property-maxdenials"></a> `maxDenials` | `number` | The per-target denial retry budget (RV1601); see [EngineQuotaConfig](/api/@rulvar/rulvar/interfaces/EngineQuotaConfig.md). | `packages/core/dist/index.d.ts` |
 | <a id="property-onlimitererror"></a> `onLimiterError` | `"allow"` \| `"deny"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-reservecontinuations"></a> `reserveContinuations` | `boolean` | Pre-wire continuation admission (RV1013); see [EngineQuotaConfig](/api/@rulvar/rulvar/interfaces/EngineQuotaConfig.md). | `packages/core/dist/index.d.ts` |
 | <a id="property-tenant"></a> `tenant?` | `string` | - | `packages/core/dist/index.d.ts` |

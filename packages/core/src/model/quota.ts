@@ -490,6 +490,19 @@ export interface EngineQuotaConfig {
    */
   reserveContinuations?: boolean;
   /**
+   * The denial retry budget (RV1601): how many pre-wire quota denials
+   * one dispatch tolerates per serving target before the denial takes
+   * the exhaustion path (failover when the chain names a rate-limit
+   * trigger, else the typed rate-limit terminal). Denials stopped
+   * consuming `RetryPolicy.attempts` in RV1601: that budget counts
+   * DISPATCHED tries only, so a busy window can no longer exhaust the
+   * transport budget before the wire ever opens (the eighteenth
+   * comparison benchmark measured 21 denials riding the transport
+   * namespaces). Each denied turn still waits the limiter's own
+   * `retryAfterMs` first. Default {@link DEFAULT_MAX_QUOTA_DENIALS}.
+   */
+  maxDenials?: number;
+  /**
    * The drift telemetry opt-in (the v1.71 experiment review, P0.5
    * resized): the SAME rule declaration `preflightEstimate` takes as
    * `quotaRules`, mirrored here so the engine can hold it against what
@@ -510,6 +523,15 @@ export interface EngineQuotaConfig {
   declaredRules?: readonly QuotaRule[];
 }
 
+/**
+ * The default {@link EngineQuotaConfig.maxDenials}: generous next to the
+ * transport default of 3 tries because a denial is a WAIT, not a
+ * failure signal, yet finite because nothing else bounds the pre-wire
+ * loop (the per-agent timeout is checked between turns, not inside a
+ * dispatch).
+ */
+export const DEFAULT_MAX_QUOTA_DENIALS = 8;
+
 /** The resolved engine-side quota runtime threaded into every run. */
 export interface EngineQuotaRuntime {
   limiter: QuotaLimiter;
@@ -517,6 +539,8 @@ export interface EngineQuotaRuntime {
   onLimiterError: 'deny' | 'allow';
   /** Pre-wire continuation admission (RV1013); see {@link EngineQuotaConfig}. */
   reserveContinuations: boolean;
+  /** The per-target denial retry budget (RV1601); see {@link EngineQuotaConfig}. */
+  maxDenials: number;
   /** The declared rule mirror for drift telemetry; see {@link EngineQuotaConfig}. */
   declaredRules?: readonly QuotaRule[];
 }
@@ -566,6 +590,13 @@ export function validateEngineQuotaConfig(
     .reserveContinuations;
   if (reserveContinuations !== undefined && typeof reserveContinuations !== 'boolean') {
     throw new ConfigError(`${site}.reserveContinuations must be a boolean when given`);
+  }
+  const maxDenials = (candidate as { maxDenials?: unknown }).maxDenials;
+  if (
+    maxDenials !== undefined &&
+    (typeof maxDenials !== 'number' || !Number.isInteger(maxDenials) || maxDenials < 1)
+  ) {
+    throw new ConfigError(`${site}.maxDenials must be a positive integer when given`);
   }
   const declared = (candidate as { declaredRules?: unknown }).declaredRules;
   if (declared !== undefined) {

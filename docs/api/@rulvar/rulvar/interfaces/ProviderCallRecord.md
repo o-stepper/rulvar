@@ -24,7 +24,7 @@ invocation.
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-aborted"></a> `aborted?` | `"external"` \| `"budget"` \| `"idle"` | What severed an 'aborted' call. | `packages/core/dist/index.d.ts` |
-| <a id="property-attempt"></a> `attempt` | `number` | 1-based try number on the serving target; retries increment it. | `packages/core/dist/index.d.ts` |
+| <a id="property-attempt"></a> `attempt` | `number` | 1-based DISPATCHED try number on the serving target; transport retries increment it, a pre-wire quota denial never does (RV1601), so the recorded attempts of one (role, target) series are always dense from 1 and an attempt=2 row proves a prior dispatched try with its own record. | `packages/core/dist/index.d.ts` |
 | <a id="property-errorcode"></a> `errorCode?` | `string` | WireError.code on 'error' outcomes. | `packages/core/dist/index.d.ts` |
 | <a id="property-ordinal"></a> `ordinal` | `number` | 1-based dispatch order across the whole invocation, phases included. | `packages/core/dist/index.d.ts` |
 | <a id="property-outcome"></a> `outcome` | `"ok"` \| `"error"` \| `"aborted"` | 'ok' = a terminal finish; 'error' = a wire failure after dispatch (the provider may still have billed the recorded usage); 'aborted' = the stream was severed by `aborted` below. | `packages/core/dist/index.d.ts` |
