@@ -240,6 +240,22 @@ const github = mcp({
 - **`maxSchemaBytes`** is measured per *admitted* tool (the filter runs first, so a denied tool's oversized schema costs nothing): the UTF-8 byte length of the serialized `inputSchema` plus `outputSchema` when present. An oversized tool refuses the resolution, naming the tool and its measured bytes; deny the tool or raise the cap.
 - **`timeouts.connectMs`** races the transport handshake; on expiry the client, and for stdio its spawned child, is released, and the refusal is a typed `ConfigError`. `listMs` and `callMs` ride the SDK request timeout per `tools/list` page and per `tools/call`; a call timeout surfaces as that tool's error result to the model, exactly like a server-reported `isError`, and never propagates past policy.
 
+## Session posture
+
+Two more session-level contracts are the host's to declare: how requests authenticate, and what a server-side tool-list change means.
+
+**Per-request auth headers** (`http`, streamable-http only). `http.headers` takes a header record or a hook returning one, injected into *every* wire request through a wrapped fetch. The hook form is awaited before each send, which makes it the refresh point: rotate a token inside the hook and the very next request carries it, with no reconnect. There is no library-invented 401 retry; an expired token fails the request exactly like any transport error, the engine's retry policy owns what happens next, and the retried request consults the hook again.
+
+```ts
+const remote = mcp({
+  transport: 'streamable-http',
+  url: 'https://mcp.example.com/mcp',
+  http: { headers: async () => ({ authorization: `Bearer ${await currentToken()}` }) },
+});
+```
+
+**The drift policy** (`drift`). A `listChanged` notification invalidates the session cache either way; the policy names what happens next. `'rekey'` is the documented default described above: subsequently spawned agents import the changed list under a new `toolsetHash`. `'refuse'` fails closed instead: the notification poisons the source, every later `tools()` call refuses with a typed `ConfigError`, and only `close()` (a deliberate host reset) clears it, after which a fresh `tools()` imports the changed list on purpose. In-flight spawn snapshots are untouched either way. The two refusal layers compose: `drift: 'refuse'` stops a changed list at the *source*, and a [toolset attestation](/guide/tools#the-toolset-attestation) stops it at the *spawn*; a locked-down profile can use both.
+
 ## Failure behavior
 
 Configuration problems fail early with a typed `ConfigError`; runtime problems become error tool results the model can react to. Nothing an MCP server does can throw past policy out of the agent loop.

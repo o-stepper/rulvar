@@ -65,6 +65,29 @@ export interface McpConfig {
    * Each a positive finite number of milliseconds.
    */
   timeouts?: { connectMs?: number; listMs?: number; callMs?: number };
+  /**
+   * streamable-http only (RV1516): headers injected into EVERY wire
+   * request through a wrapped fetch. The hook form is awaited before
+   * each send, so it IS the refresh point: rotate a token in the hook
+   * and the next request carries it, with no reconnect and no
+   * library-invented 401 retry (transport failures surface exactly as
+   * before; the engine's RetryPolicy owns retries).
+   */
+  http?: {
+    headers?:
+      Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);
+  };
+  /**
+   * What a listChanged notification means for THIS source (RV1516).
+   * 'rekey' is the documented default: the session cache invalidates
+   * and subsequently spawned agents import the changed list under a new
+   * toolsetHash. 'refuse' fails closed instead: the notification
+   * poisons the source, every later tools() call refuses typed, and
+   * only close() (a deliberate host reset) clears it. In-flight spawn
+   * snapshots are untouched either way. Composes with the toolset
+   * attestation: refuse at the source vs refuse at the spawn.
+   */
+  drift?: 'rekey' | 'refuse';
 }
 
 interface WireTool {
@@ -116,11 +139,21 @@ function validateBounds(cfg: McpConfig): void {
       );
     }
   }
+  if (cfg.drift !== undefined && cfg.drift !== 'rekey' && cfg.drift !== 'refuse') {
+    throw new ConfigError(`mcp: 'drift' must be 'rekey' or 'refuse', got '${String(cfg.drift)}'`);
+  }
+  const headers = cfg.http?.headers;
+  if (headers !== undefined && typeof headers !== 'function' && typeof headers !== 'object') {
+    throw new ConfigError(
+      "mcp: 'http.headers' must be a record of header values or a (possibly async) " +
+        'function returning one',
+    );
+  }
 }
 
 function validateConfig(cfg: McpConfig): void {
   validateBounds(cfg);
-  const forbid = (key: 'command' | 'args' | 'url' | 'server'): void => {
+  const forbid = (key: 'command' | 'args' | 'url' | 'server' | 'http'): void => {
     if (cfg[key] !== undefined) {
       throw new ConfigError(
         `mcp: '${key}' is not a config key of the '${cfg.transport}' transport ` +
@@ -135,6 +168,7 @@ function validateConfig(cfg: McpConfig): void {
       }
       forbid('url');
       forbid('server');
+      forbid('http');
       return;
     case 'streamable-http':
       if (cfg.url === undefined) {
@@ -151,6 +185,7 @@ function validateConfig(cfg: McpConfig): void {
       forbid('command');
       forbid('args');
       forbid('url');
+      forbid('http');
       return;
     default:
       throw new ConfigError(
@@ -179,6 +214,25 @@ function mapContent(result: CallToolResult): unknown {
   return blocks.map((block) =>
     block.type === 'text' ? { type: 'text', text: block.text ?? '' } : block,
   );
+}
+
+/**
+ * Wraps fetch so EVERY wire request of the streamable-http transport
+ * consults the declared headers before send (RV1516): the hook form is
+ * the per-request refresh point for rotating tokens, so no reconnect
+ * and no library-invented 401 retry exists or is needed.
+ */
+function perRequestHeaders(
+  headersOption: NonNullable<NonNullable<McpConfig['http']>['headers']>,
+): (url: string | URL, init?: RequestInit) => Promise<Response> {
+  return async (url, init) => {
+    const extra = typeof headersOption === 'function' ? await headersOption() : headersOption;
+    const headers = new Headers(init?.headers);
+    for (const [name, value] of Object.entries(extra ?? {})) {
+      headers.set(name, value);
+    }
+    return fetch(url, { ...init, headers });
+  };
 }
 
 function errorText(result: CallToolResult): string {
@@ -213,6 +267,9 @@ export function mcp(cfg: McpConfig): McpToolSource {
   // Concurrent cold tools() calls share one fetch instead of each
   // sweeping tools/list (cycle 80).
   let inFlight: Promise<ToolDef[]> | undefined;
+  // Set by a listChanged notification under drift 'refuse' (RV1516):
+  // the source fails closed until the host deliberately close()s it.
+  let poisoned = false;
 
   const connect = async (): Promise<Client> => {
     const client = new Client({ name: 'rulvar', version: '1.0.0' });
@@ -224,7 +281,11 @@ export function mcp(cfg: McpConfig): McpToolSource {
         });
         await client.connect(transport);
       } else if (cfg.transport === 'streamable-http') {
-        const transport = new StreamableHTTPClientTransport(new URL(cfg.url ?? ''));
+        const declaredHeaders = cfg.http?.headers;
+        const transport = new StreamableHTTPClientTransport(
+          new URL(cfg.url ?? ''),
+          declaredHeaders === undefined ? undefined : { fetch: perRequestHeaders(declaredHeaders) },
+        );
         await client.connect(transport);
       } else {
         const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -268,6 +329,11 @@ export function mcp(cfg: McpConfig): McpToolSource {
       // spawn-time snapshot.
       generation += 1;
       cache = undefined;
+      if (cfg.drift === 'refuse') {
+        // Fail closed (RV1516): the changed list never imports through
+        // this source again; only close() clears the poison.
+        poisoned = true;
+      }
     });
     return client;
   };
@@ -385,6 +451,13 @@ export function mcp(cfg: McpConfig): McpToolSource {
   return {
     id: sourceIdOf(cfg),
     tools: async () => {
+      if (poisoned) {
+        throw new ConfigError(
+          `mcp: the tool list of '${sourceIdOf(cfg)}' changed after import (listChanged) and ` +
+            "drift policy 'refuse' holds the source closed; close() and re-create the source " +
+            '(and re-record any toolset attestation) to import the changed list deliberately',
+        );
+      }
       if (cache !== undefined) {
         return cache;
       }
@@ -424,6 +497,9 @@ export function mcp(cfg: McpConfig): McpToolSource {
       const pending = clientPromise;
       clientPromise = undefined;
       cache = undefined;
+      // close() is the deliberate host reset that clears the drift
+      // poison (RV1516); a later tools() connects and imports afresh.
+      poisoned = false;
       if (pending === undefined) {
         return;
       }
