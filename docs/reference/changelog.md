@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+
 ### 1.164.0
 
 #### Patch Changes
@@ -1627,6 +1634,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+
 ### 1.164.0
 
 #### Patch Changes
@@ -3043,6 +3057,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
 
 ### 1.164.0
 
@@ -4892,6 +4913,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.165.0
+
+#### Minor Changes
+
+- 6391274: Carry the recorded evidence entries through the agent terminal and pair the claim pool against them (the deferred RV1501 entries plumbing).
+
+  The seventeenth comparison run's decisive finding had one more half. The worker RECORDED the correct reading through `record_evidence` with the right anchor, its composed output paraphrased the citation away, and the root inverted the reading at synthesis. The claim-consistency pool was OUTPUTS only, so the recorded entry could never pair with the inverted draft, and nothing about the entries survived resume: a replayed child restored neither its evidence verdict nor its recorded content.
+
+  Four halves, one plumbing. The loop collects the CONTENT behind the evidence counter from the same message window and the same result-`recorded` rule (claim plus `file` or `file:lines` citation, bounded: 40 entries, 400 chars per claim), on `AgentResult.evidenceEntries` whenever at least one entry exists, contract or not. The agent terminal journals both the evidence verdict and the entries (`JournalEntry.evidence`, `JournalEntry.evidenceEntries`), additive and policy-only, exactly the artifacts precedent. Replay restores both verbatim, so a resumed orchestrate holds the same settled facts a live run holds. And the claim pool reads a SECOND source per accepted child from the restored entries, one sentence per claim with its citation in the anchor syntax, so a draft contradicting the recorded reading pairs even when the composed output carries no anchor at all; `poolChildren` counts children, never sources.
+
+  Validated live this cycle without paid API traffic: the judge ruling on these pairs was exercised against a real model through the Codex subscription CLI (an adapter over `codex exec`, structured output through the prompt tier) and caught the benchmark inversion and a numeric flip while judging a paraphrased agreement clean, three for three, one dispatch each.
 
 ### 1.164.0
 
@@ -7078,6 +7111,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.165.0
+
 ### 1.164.0
 
 ### 1.163.0
@@ -7510,6 +7545,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+  - @rulvar/anthropic@1.165.0
+  - @rulvar/openai@1.165.0
+  - @rulvar/plan@1.165.0
+  - @rulvar/testing@1.165.0
 
 ### 1.164.0
 
@@ -9376,6 +9422,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+
 ### 1.164.0
 
 #### Patch Changes
@@ -10207,6 +10260,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
 
 ### 1.164.0
 
@@ -11826,6 +11886,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+
 ### 1.164.0
 
 #### Patch Changes
@@ -13356,6 +13423,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+  - eslint-plugin-rulvar@1.165.0
 
 ### 1.164.0
 
@@ -15013,6 +15088,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+  - @rulvar/anthropic@1.165.0
+  - @rulvar/openai@1.165.0
 
 ### 1.164.0
 
@@ -16922,6 +17006,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+
 ### 1.164.0
 
 #### Patch Changes
@@ -18464,6 +18555,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
+
 ### 1.164.0
 
 #### Patch Changes
@@ -19311,6 +19409,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
 
 ### 1.164.0
 
@@ -20790,6 +20895,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.165.0
+
+#### Patch Changes
+
+- Updated dependencies [6391274]
+  - @rulvar/core@1.165.0
 
 ### 1.164.0
 
