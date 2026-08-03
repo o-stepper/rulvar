@@ -46,25 +46,39 @@ const wallClock: () => number = Date.now.bind(globalThis);
  * written before it, or over undefined/non-serializable results, carry
  * none).
  */
-export function lastRunSettle(
-  entries: readonly JournalEntry[],
-): { runStatus: RunStatus; seq: number; outputHash?: string } | undefined {
+export function lastRunSettle(entries: readonly JournalEntry[]):
+  | {
+      runStatus: RunStatus;
+      seq: number;
+      outputHash?: string;
+      completion?: 'complete' | 'partial' | 'rejected';
+    }
+  | undefined {
   for (let i = entries.length - 1; i >= 0; i -= 1) {
     const entry = entries[i];
     if (entry === undefined || entry.kind !== 'decision') {
       continue;
     }
     const value = entry.value as
-      { decisionType?: unknown; runStatus?: unknown; outputHash?: unknown } | undefined;
+      | { decisionType?: unknown; runStatus?: unknown; outputHash?: unknown; completion?: unknown }
+      | undefined;
     if (
       value?.decisionType === RUN_SETTLE_DECISION_TYPE &&
       typeof value.runStatus === 'string' &&
       RUN_STATUSES.has(value.runStatus)
     ) {
+      // The semantic completion literal, when the settle recorded the
+      // lift (the persisted-terminal tail): defensively parsed, so a
+      // foreign or older journal reads as "not recorded", never as a
+      // claim.
+      const completion = value.completion;
       return {
         runStatus: value.runStatus as RunStatus,
         seq: entry.seq,
         ...(typeof value.outputHash === 'string' ? { outputHash: value.outputHash } : {}),
+        ...(completion === 'complete' || completion === 'partial' || completion === 'rejected'
+          ? { completion }
+          : {}),
       };
     }
   }

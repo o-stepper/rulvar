@@ -1565,11 +1565,14 @@ interface TerminalEnvelope {
   * report. `'journal'` means a process that never held the run rebuilt
   * it from the journal that recorded the settle (a restart, a second
   * replica, an offline reader): the money, the usage, the agent count
-  * and the settlement verdict are the SAME facts, but `completion` and
-  * `error` are ABSENT because the journal does not record them, and
-  * absence there means "not recorded", never "the workflow claimed
-  * nothing" or "the run did not fail". A consumer that needs those two
-  * reads them from the live outcome or the run:end event.
+  * and the settlement verdict are the SAME facts. `completion` is
+  * present exactly when the settle recorded the semantic lift beside
+  * its output digest (the persisted-terminal tail); a settle written
+  * before the lift rode it stays absent. `error` is ABSENT because
+  * the journal does not record the run's own wire error, and absence
+  * under this provenance means "not recorded", never "the workflow
+  * claimed nothing" or "the run did not fail". A consumer that needs
+  * the error reads it from the live outcome or the run:end event.
   */
   provenance?: "journal";
 }
@@ -11146,6 +11149,7 @@ declare function lastRunSettle(entries: readonly JournalEntry[]): {
   runStatus: RunStatus;
   seq: number;
   outputHash?: string;
+  completion?: "complete" | "partial" | "rejected";
 } | undefined;
 type RunAuditVerdict = "consistent" | "meta-behind" | "stranded" | "suspect";
 interface RunStateAudit {

@@ -750,10 +750,13 @@ describe('the terminal envelope conformance table (RV1106)', () => {
         expect(persisted).toBeDefined();
         // Every fact the journal records survives the restart, priced
         // by the settle's own pin, and the marker says where it came
-        // from: absent completion and error mean NOT RECORDED here,
-        // never "the workflow claimed nothing".
+        // from. The completion claim survives too since the settle
+        // records the lift (the persisted-terminal tail): the
+        // restarted reader reports the same claim the live row made.
+        // The error stays absent: NOT RECORDED, never "the run did
+        // not fail".
         expect(persisted.provenance).toBe('journal');
-        expect('completion' in persisted).toBe(false);
+        expect(persisted.completion).toBe(row.expected.completion);
         expect('error' in persisted).toBe(false);
         expect(persisted.runId).toBe(http.runId);
         expect(persisted.workflow).toBe(row.wfName);

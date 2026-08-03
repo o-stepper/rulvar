@@ -2510,6 +2510,24 @@ const MUTATIONS = [
     replace: '        const recorded = [];',
     test: 'packages/core/src/orchestrator/evidenceentries.test.ts',
   },
+  {
+    id: 'settle-records-lift',
+    doctrine:
+      'the run settle records the semantic completion lift beside its output digest (the persisted-terminal tail): dropped, an offline reader can never recover the completion the live consumer saw and the persisted envelope silently reverts to the pre-lift amnesia',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '                ...(lifted === undefined ? {} : lifted),',
+    replace: '',
+    test: 'packages/core/src/engine/persisted-terminal.test.ts',
+  },
+  {
+    id: 'persisted-reads-lift',
+    doctrine:
+      'the persisted terminal reads the recorded completion back from the settle (the persisted-terminal tail): dropped, the journal records the claim and the rebuilt envelope still withholds it',
+    file: 'packages/core/src/engine/persisted-terminal.ts',
+    find: '      ...(settle.completion === undefined ? {} : { completion: settle.completion }),',
+    replace: '',
+    test: 'packages/core/src/engine/persisted-terminal.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -10,7 +10,7 @@
 type PersistedTerminalRefusal = "unsettled" | "not-terminal" | "unknown-workflow";
 ```
 
-Defined in: [packages/core/src/engine/persisted-terminal.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/persisted-terminal.ts#L55)
+Defined in: [packages/core/src/engine/persisted-terminal.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/persisted-terminal.ts#L59)
 
 Why no persisted terminal could be served. `unsettled`: the journal
 carries no run settle, so nothing durable records a terminal (a run
