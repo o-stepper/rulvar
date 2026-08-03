@@ -76,7 +76,7 @@ import {
   type RunInternals,
   type Workflow,
 } from './ctx.js';
-import { costReportFromJournal } from './cost-report.js';
+import { accountSpendFromJournal, costReportFromJournal } from './cost-report.js';
 import { journalPricingSnapshot, snapshotJournalPricing } from './pricing-snapshot.js';
 import { EVENT_SEGMENT_STRIDE, EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
@@ -1166,7 +1166,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
       firstSeq: telemetryBase,
     });
     const rootSpanId = spans.mint();
-    let budgetSeed: { usd: number; usage: Usage; agentsSpawned: number } | undefined;
+    let budgetSeed:
+      | { usd: number; usage: Usage; agentsSpawned: number; accounts?: Record<string, number> }
+      | undefined;
     // B0 is immutable across the run's whole life: a fresh run takes it
     // from RunOptions, a resumed run restores the RunMeta-recorded
     // value, and no API can change it after start.
@@ -1260,6 +1262,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         usd: costReportFromJournal(replayer.snapshot(), priorPriceUsd).totalUsd,
         usage: prior.usage,
         agentsSpawned: prior.agentsSpawned,
+        // The per-account rows of the SAME settled fold (RV1505): each
+        // re-opened sub-account resumes from its journaled inclusive
+        // spend, so admission and the per-turn guard hold the resumed
+        // segment to the decisions a continuous run would have made.
+        accounts: accountSpendFromJournal(replayer.snapshot(), priorPriceUsd),
       };
     }
     const controller = new AbortController();

@@ -371,3 +371,72 @@ describe('the strict pre-egress pricing gate (RV1508)', () => {
     expect(() => budget.assertPricedDispatch('fake:model')).not.toThrow();
   });
 });
+
+describe('the per-account resume seed (RV1505)', () => {
+  const NO_USAGE = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+
+  it('a re-opened scope resumes from its seeded inclusive spend', () => {
+    const budget = new RunBudget({
+      ceilingUsd: 1,
+      seed: { usd: 0.5, usage: NO_USAGE, agentsSpawned: 2, accounts: { 'wf:child:0': 0.2 } },
+    });
+    budget.openAccount('wf:child:0', { ceilingUsd: 0.25 });
+    expect(budget.accountView('wf:child:0')?.spentUsd).toBeCloseTo(0.2, 12);
+    expect(budget.remainderOf('wf:child:0')).toBeCloseTo(0.05, 12);
+    // Projected admission is honest against the history: the seeded
+    // spend plus this reserve does not fit the recorded ceiling.
+    expect(() => budget.admitSpawn(0.1, 'wf:child:0')).toThrow(BudgetExhaustedError);
+    // The recovered arm has no refusal: history re-applies unchecked.
+    expect(() => budget.admitRecovered(0.1, 'wf:child:0')).not.toThrow();
+  });
+
+  it('an orchestrator-cap scope opens at zero even with a seeded row', () => {
+    // The cap is a per-segment coordination bound: the documented
+    // resume after a budget-cancelled root continues past a crossed
+    // cap under the root ceiling, so its account re-arms instead of
+    // resuming the very spend that crossed it.
+    const budget = new RunBudget({
+      ceilingUsd: 2,
+      seed: { usd: 0.75, usage: NO_USAGE, agentsSpawned: 4, accounts: { orchestrator: 0.75 } },
+    });
+    budget.openAccount('orchestrator', { ceilingUsd: 0.4, kind: 'orchestrator-cap' });
+    expect(budget.accountView('orchestrator')?.spentUsd).toBe(0);
+    expect(budget.remainderOf('orchestrator')).toBeCloseTo(0.4, 12);
+  });
+
+  it('a scope with no seeded row opens at zero, exactly as before', () => {
+    const budget = new RunBudget({
+      ceilingUsd: 1,
+      seed: { usd: 0.1, usage: NO_USAGE, agentsSpawned: 1, accounts: { 'wf:other:0': 0.05 } },
+    });
+    budget.openAccount('wf:child:0', { ceilingUsd: 0.25 });
+    expect(budget.accountView('wf:child:0')?.spentUsd).toBe(0);
+  });
+
+  it('ignores the root row: the root seeds from seed.usd, the same fold', () => {
+    const budget = new RunBudget({
+      ceilingUsd: 1,
+      seed: { usd: 0.5, usage: NO_USAGE, agentsSpawned: 2, accounts: { run: 999 } },
+    });
+    expect(budget.spent().usd).toBeCloseTo(0.5, 12);
+  });
+
+  it('refuses a non-finite or negative seeded row loud, naming the scope', () => {
+    for (const bad of [Number.NaN, -0.1, Number.POSITIVE_INFINITY]) {
+      expect(
+        () =>
+          new RunBudget({
+            ceilingUsd: 1,
+            seed: { usd: 0.1, usage: NO_USAGE, agentsSpawned: 1, accounts: { 'wf:bad:0': bad } },
+          }),
+      ).toThrow(ConfigError);
+      expect(
+        () =>
+          new RunBudget({
+            ceilingUsd: 1,
+            seed: { usd: 0.1, usage: NO_USAGE, agentsSpawned: 1, accounts: { 'wf:bad:0': bad } },
+          }),
+      ).toThrow(/wf:bad:0/u);
+    }
+  });
+});

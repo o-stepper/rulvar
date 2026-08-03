@@ -1683,6 +1683,10 @@ export function createCtx(
       );
     }
     const danglingRunning = matched.kind === 'rerun-dangling' ? matched.running : undefined;
+    // A rerun of a journaled operation (a dangling dispatch, an errored
+    // or otherwise non-replayable terminal) re-admits as RECOVERED
+    // below (RV1505): projected admission never re-evaluates history.
+    const journaledRerun = matched.kind !== 'live';
 
     // A declared lineage block or approach tag journals ONE
     // spawn-admission decision entry strictly BEFORE dispatch (DEF-3):
@@ -1851,12 +1855,20 @@ export function createCtx(
             admissionReserveUsd(reserveOptions),
           );
       const floorHeadroomUsd = internals.budget.allowanceHeadroomOf(budgetAccount);
-      internals.budget.refuseSpawnIfInfeasible(
-        floorHeadroomUsd === undefined
-          ? floorReserveUsd
-          : Math.min(floorReserveUsd, floorHeadroomUsd),
-        budgetAccount,
-      );
+      if (!journaledRerun) {
+        // The refusal arm gates NEW work only: a journaled rerun
+        // re-admits as recovered below, so there is nothing this floor
+        // could refuse for it, while the seeded spend of the rerun's
+        // own prior attempt would fail this very check (RV1505). The
+        // count still runs either way: recovered reserves are sized by
+        // the same arithmetic as fresh ones.
+        internals.budget.refuseSpawnIfInfeasible(
+          floorHeadroomUsd === undefined
+            ? floorReserveUsd
+            : Math.min(floorReserveUsd, floorHeadroomUsd),
+          budgetAccount,
+        );
+      }
       const upstream = state.signal ?? internals.runSignal;
       try {
         inputTokens = await adapter.countTokens(
@@ -1911,10 +1923,21 @@ export function createCtx(
     // an admitted plan op dispatchable by construction). A FULL
     // allowance still rejects inside admitSpawn.
     const allowanceHeadroomUsd = internals.budget.allowanceHeadroomOf(budgetAccount);
-    internals.budget.admitSpawn(
-      allowanceHeadroomUsd === undefined ? reserve : Math.min(reserve, allowanceHeadroomUsd),
-      budgetAccount,
-    );
+    const commitReserveUsd =
+      allowanceHeadroomUsd === undefined ? reserve : Math.min(reserve, allowanceHeadroomUsd);
+    if (journaledRerun) {
+      // The recoverInFlight rule at the dispatch layer (RV1505): the
+      // original dispatch passed projected admission before its entry
+      // was appended, and the per-account resume seed now carries the
+      // very dollars that attempt burned, so re-evaluating the ceiling
+      // here would refuse the continuation of paid work against its
+      // own recorded spend. Projection gates NEW work only; the
+      // per-turn guard, the output bound, and the severing signal
+      // still bound every dollar the rerun actually spends.
+      internals.budget.admitRecovered(commitReserveUsd, budgetAccount);
+    } else {
+      internals.budget.admitSpawn(commitReserveUsd, budgetAccount);
+    }
 
     // Worktree lifecycle: acquired before the
     // dispatch entry so an acquire failure never leaves a dangling

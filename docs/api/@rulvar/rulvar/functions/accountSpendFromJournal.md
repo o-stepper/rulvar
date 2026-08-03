@@ -12,22 +12,21 @@ function accountSpendFromJournal(entries, priceUsd): Record<string, number>;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-The per-account settled fold (RV1505, the DEF-7 remainder): each
-budget account's INCLUSIVE spend from the same entries, skips, and
-per-request pricing the net CostReport folds, with the account tree
-read from the journaled spawn-admission decisions
+The per-account settled fold (RV1505, closing the DEF-7 remainder):
+each budget account's INCLUSIVE spend from the same entries, skips,
+and per-request pricing the net CostReport folds, with the account
+tree read from the journaled spawn-admission decisions
 (childScope -> parentAccountScope). A scope with no journaled edge
-folds under the root, which is where its spend already lands. This
-is the AUDIT half of the DEF-7 remainder: a host can hold any
-account's accumulated spend against its cap after the fact. Seeding
-it into re-opened accounts on resume is deliberately NOT wired yet:
-the orchestrate agent re-admits a rerun with exact-fill arithmetic
-(spent + proposed reserve vs the ceiling), so any spend-at-reopen
-would refuse the continuation of work the money was already spent
-ON; the reopen seeding lands together with a seed-aware rerun
-re-admission. Unpriced slices contribute zero, exactly like the net
-total, and an admission-edge cycle (a corrupt journal) terminates
-the walk instead of spinning.
+folds under the root, which is where its spend already lands. Two
+consumers: hosts and audits hold any account's accumulated spend
+against its cap after the fact, and the engine seeds these rows
+into every re-opened account on resume (RunBudget seed.accounts),
+so a resumed segment admits against the same history a continuous
+run would have accumulated; the seed is safe for continuations
+because reruns of journaled invocations re-admit as recovered
+rather than re-clearing projected admission. Unpriced slices
+contribute zero, exactly like the net total, and an admission-edge
+cycle (a corrupt journal) terminates the walk instead of spinning.
 
 ## Parameters
 

@@ -851,8 +851,8 @@ const MUTATIONS = [
     doctrine:
       'the pre-egress admission feasibility check runs against the real reserve floor (RV904): collapsed to zero, a spawn the budget could never admit sends the full child prompt to the provider count endpoint before the refusal',
     file: 'packages/core/src/engine/ctx.ts',
-    find: '      internals.budget.refuseSpawnIfInfeasible(\n        floorHeadroomUsd === undefined\n          ? floorReserveUsd\n          : Math.min(floorReserveUsd, floorHeadroomUsd),\n        budgetAccount,\n      );',
-    replace: '      internals.budget.refuseSpawnIfInfeasible(0, budgetAccount);',
+    find: '        internals.budget.refuseSpawnIfInfeasible(\n          floorHeadroomUsd === undefined\n            ? floorReserveUsd\n            : Math.min(floorReserveUsd, floorHeadroomUsd),\n          budgetAccount,\n        );',
+    replace: '        internals.budget.refuseSpawnIfInfeasible(0, budgetAccount);',
     test: 'packages/core/src/engine/ctx-count-admission.test.ts',
   },
   {
@@ -2424,6 +2424,51 @@ const MUTATIONS = [
     find: '          if (this.repairOnLoad) {\n            this.repairTornTail(runId, entries);\n          }',
     replace: '          this.repairTornTail(runId, entries);',
     test: 'packages/core/src/stores/jsonl.test.ts',
+  },
+  {
+    id: 'rerun-recovered-dispatch',
+    doctrine:
+      'a rerun of a journaled invocation re-admits as recovered (RV1505): forced through fresh projected admission, the seeded spend of its own prior attempt refuses the continuation of paid work at a tight ceiling',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '    if (journaledRerun) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/accountseed.test.ts',
+  },
+  {
+    id: 'rerun-floor-gate-scope',
+    doctrine:
+      'the pre-count feasibility floor gates NEW work only (RV1505): forced onto journaled reruns, the seeded spend of its own prior attempt fails the floor before the count and the recovered admission is never reached',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '      if (!journaledRerun) {',
+    replace: '      if (true) {',
+    test: 'packages/core/src/engine/accountseed.test.ts',
+  },
+  {
+    id: 'budget-account-seed',
+    doctrine:
+      'a re-opened sub-account resumes from its journaled inclusive spend (RV1505): reset to zero, a resumed child silently overspends the very allowance its admission verdict recorded',
+    file: 'packages/core/src/engine/budget.ts',
+    find: "      spentUsd: options.kind === 'orchestrator-cap' ? 0 : (this.seededAccountSpend.get(scope) ?? 0),",
+    replace: '      spentUsd: 0,',
+    test: 'packages/core/src/engine/accountseed.test.ts',
+  },
+  {
+    id: 'orchestrator-cap-seed-exemption',
+    doctrine:
+      'the orchestrator cap re-arms per segment (RV1505): seeded like an ordinary account, the documented resume after a budget-cancelled root refuses the very recovery it exists for',
+    file: 'packages/core/src/engine/budget.ts',
+    find: "      spentUsd: options.kind === 'orchestrator-cap' ? 0 : (this.seededAccountSpend.get(scope) ?? 0),",
+    replace: '      spentUsd: this.seededAccountSpend.get(scope) ?? 0,',
+    test: 'packages/core/src/orchestrator/resume-orchestrate.test.ts',
+  },
+  {
+    id: 'engine-account-seed',
+    doctrine:
+      'the engine wires the per-account rows of the settled fold into every resume (RV1505): dropped, sub-account history is per-process amnesia exactly as before the fix',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '        accounts: accountSpendFromJournal(replayer.snapshot(), priorPriceUsd),',
+    replace: '',
+    test: 'packages/core/src/engine/accountseed.test.ts',
   },
 ];
 

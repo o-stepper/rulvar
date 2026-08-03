@@ -142,7 +142,15 @@ a journaled `plan.decision` instead of stranding it.
 Reserves ride the journaled admission decision entry, so on resume they are
 recovered from the journal, never re-estimated: a price-table change between
 crash and resume does not move an already-committed number (see
-[Durability](/guide/durability)).
+[Durability](/guide/durability)). Since RV1505 the same rule covers the
+dispatch itself: a rerun of a journaled invocation (a dangling dispatch, or a
+non-replayable terminal retried by resume) re-admits as RECOVERED rather than
+re-clearing projected admission, because the resume seed already carries the
+dollars that invocation's prior attempt burned, and holding the continuation
+to spent plus a fresh reserve against the ceiling would refuse exactly the
+work the money was spent on. Projected admission gates NEW work only; the
+per-turn guard, the pre-dispatch output bound, and the severing signal still
+bound every dollar a rerun actually spends.
 
 You can tighten admission per call or per profile with an `estCost` hint:
 
@@ -261,19 +269,25 @@ bounds.
 
 ### Auditing spend per budget account
 
-`accountSpendFromJournal` (RV1505, the audit half of the DEF-7 remainder)
-folds the same settled entries the cost report folds into each budget
-account's INCLUSIVE spend, with the account tree read from the journaled
+`accountSpendFromJournal` (RV1505, closing the DEF-7 remainder) folds the
+same settled entries the cost report folds into each budget account's
+INCLUSIVE spend, with the account tree read from the journaled
 spawn-admission decisions, so a host can hold any orchestrator cap or child
 allowance against what its subtree actually spent, after the fact and on a
 plain stored journal. Abandoned subtrees contribute zero and unpriced slices
-contribute zero, exactly like the net total. What it deliberately does NOT do
-yet is seed re-opened accounts on resume: a rerun of a journaled invocation
-re-admits with exact-fill arithmetic today, so spend-at-reopen would refuse
-the continuation of the very work the money was spent on; the reopen seeding
-lands together with a seed-aware rerun re-admission, and until then a resumed
-sub-account's projected admissions keep the historical amnesia the fold makes
-visible.
+contribute zero, exactly like the net total. The engine seeds the same rows
+into every re-opened sub-account on resume: a resumed segment admits new
+work and prices its turns against the history a continuous run would have
+accumulated, instead of re-opening every account at zero (the pre-RV1505
+amnesia, under which a resumed child could silently overspend the very
+allowance its admission verdict recorded). Two deliberate exceptions keep
+the seed honest. Reruns of journaled invocations re-admit as recovered (the
+reserve recovery rule above, extended to the dispatch), so the seed never
+refuses the continuation of paid work against its own recorded spend. And
+the orchestrator cap account is NOT seeded: the cap is a per-segment
+coordination bound whose durable truth is the journaled cap decision plus
+the root seed, and the documented resume after a budget-cancelled root
+exists precisely to continue past a crossed cap under the root ceiling.
 
 ### The strict pre-egress pricing gate
 

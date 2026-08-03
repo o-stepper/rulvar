@@ -30,6 +30,7 @@ import { buildAdapterRegistry } from '../model/router.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import { AdmissionController } from '../orchestrator/admission.js';
 import { RunBudget } from './budget.js';
+import { accountSpendFromJournal } from './cost-report.js';
 import { SpanRegistry } from './events.js';
 import { Semaphore } from './scheduler.js';
 import type { AgentProfile, RunEventSink, RunInternals } from './ctx.js';
@@ -298,7 +299,16 @@ export function makeInternals(options: TestInternalsOptions = {}): {
   seededReplayer.setAliasDisposition(dispositionHook({ isAbandoned: () => false }, registry));
   if (options.priorEntries !== undefined) {
     const prior = seededReplayer.ledger();
-    budgetOptions.seed = { usd: prior.usd, usage: prior.usage, agentsSpawned: prior.agentsSpawned };
+    budgetOptions.seed = {
+      usd: prior.usd,
+      usage: prior.usage,
+      agentsSpawned: prior.agentsSpawned,
+      // The engine's per-account seed rule (RV1505), mirrored so
+      // harness-driven resume tests admit against the same history.
+      accounts: accountSpendFromJournal(options.priorEntries, (servedBy, usage) =>
+        priceUsd(servedBy, usage),
+      ),
+    };
   }
   const budget = new RunBudget(budgetOptions);
   const admission = new AdmissionController({
