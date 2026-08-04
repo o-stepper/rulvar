@@ -3788,6 +3788,14 @@
             "link": "/api/@rulvar/evals/interfaces/CheckpointReport.md"
           },
           {
+            "text": "ClaimCorpusCase",
+            "link": "/api/@rulvar/evals/interfaces/ClaimCorpusCase.md"
+          },
+          {
+            "text": "ClaimCorpusVerdict",
+            "link": "/api/@rulvar/evals/interfaces/ClaimCorpusVerdict.md"
+          },
+          {
             "text": "CriterionOneReport",
             "link": "/api/@rulvar/evals/interfaces/CriterionOneReport.md"
           },
@@ -3936,6 +3944,10 @@
           {
             "text": "BenchmarkMetricExtractor",
             "link": "/api/@rulvar/evals/type-aliases/BenchmarkMetricExtractor.md"
+          },
+          {
+            "text": "ClaimCorpusClass",
+            "link": "/api/@rulvar/evals/type-aliases/ClaimCorpusClass.md"
           }
         ]
       },
@@ -3943,6 +3955,10 @@
         "text": "Variables",
         "collapsed": true,
         "items": [
+          {
+            "text": "CLAIM_CORPUS",
+            "link": "/api/@rulvar/evals/variables/CLAIM_CORPUS.md"
+          },
           {
             "text": "FAULT_SCENARIO_NAMES",
             "link": "/api/@rulvar/evals/variables/FAULT_SCENARIO_NAMES.md"
@@ -4008,6 +4024,10 @@
           {
             "text": "runCanary",
             "link": "/api/@rulvar/evals/functions/runCanary.md"
+          },
+          {
+            "text": "runClaimCorpus",
+            "link": "/api/@rulvar/evals/functions/runClaimCorpus.md"
           },
           {
             "text": "runEvalCase",

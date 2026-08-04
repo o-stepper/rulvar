@@ -2747,6 +2747,24 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/progressive-drafting.test.ts',
   },
   {
+    id: 'claim-corpus-verdict-honesty',
+    doctrine:
+      'the claim corpus reports an unmet expectation as a failed case (RV1704): a runner that stops comparing formed pairs against the expectation green-washes the exact blindness the corpus exists to detect, and every named failure class silently passes forever',
+    file: 'packages/evals/src/claim-corpus.ts',
+    find: '    if (expected.minPairs !== undefined && fold.pairs.length < expected.minPairs) {',
+    replace: '    if (false) {',
+    test: 'packages/evals/src/claim-corpus.test.ts',
+  },
+  {
+    id: 'claim-corpus-runfacts-arm',
+    doctrine:
+      "the corpus exercises the run-facts arm with a real fact sheet per run-claim class (RV1704): dropping the arm leaves 'real models were not run' unpairable, the live-fact class the eighteenth benchmark shipped",
+    file: 'packages/evals/src/claim-corpus.ts',
+    find: '      corpusCase.runFacts === undefined',
+    replace: '      true',
+    test: 'packages/evals/src/claim-corpus.test.ts',
+  },
+  {
     id: 'statement-normalizer-cell-refusal',
     doctrine:
       'the statement normalizer refuses a dollar cell that cannot be evidence at the cell, naming row and column (RV1703): tolerating a non-finite or negative figure flows a NaN or a guess into the reconciliation and the report closes on numbers nobody billed',

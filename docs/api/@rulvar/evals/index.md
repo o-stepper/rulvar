@@ -59,6 +59,8 @@ pnpm add -D @rulvar/evals
 | [CheckpointLadder](/api/@rulvar/evals/interfaces/CheckpointLadder.md) | One declared checkpoint ladder: rungs are concrete pool members. |
 | [CheckpointPool](/api/@rulvar/evals/interfaces/CheckpointPool.md) | - |
 | [CheckpointReport](/api/@rulvar/evals/interfaces/CheckpointReport.md) | - |
+| [ClaimCorpusCase](/api/@rulvar/evals/interfaces/ClaimCorpusCase.md) | One adversarial case: a draft, its contradicting evidence, and the mechanical expectations. |
+| [ClaimCorpusVerdict](/api/@rulvar/evals/interfaces/ClaimCorpusVerdict.md) | One case's verdict: mechanical expectations against the folds' output. |
 | [CriterionOneReport](/api/@rulvar/evals/interfaces/CriterionOneReport.md) | - |
 | [CriterionTwoReport](/api/@rulvar/evals/interfaces/CriterionTwoReport.md) | - |
 | [EvalCase](/api/@rulvar/evals/interfaces/EvalCase.md) | One quality-measurement case. The shape is the documented interface verbatim; display names derive from the workflow name (the suite runner disambiguates duplicates by ordinal). |
@@ -100,11 +102,13 @@ pnpm add -D @rulvar/evals
 | Type Alias | Description |
 | ------ | ------ |
 | [BenchmarkMetricExtractor](/api/@rulvar/evals/type-aliases/BenchmarkMetricExtractor.md) | A per-run metric extractor over the run's full event stream. |
+| [ClaimCorpusClass](/api/@rulvar/evals/type-aliases/ClaimCorpusClass.md) | The failure classes the eighteenth benchmark shipped, plus the bound classes. |
 
 ## Variables
 
 | Variable | Description |
 | ------ | ------ |
+| [CLAIM\_CORPUS](/api/@rulvar/evals/variables/CLAIM_CORPUS.md) | The shipped corpus, one case per failure class, adversarial by design. |
 | [FAULT\_SCENARIO\_NAMES](/api/@rulvar/evals/variables/FAULT_SCENARIO_NAMES.md) | The scenario names in run order. |
 | [JUDGE\_VERDICT\_SCHEMA](/api/@rulvar/evals/variables/JUDGE_VERDICT_SCHEMA.md) | The default judge verdict shape. |
 | [SWEEP\_THRESHOLD\_DEFAULTS](/api/@rulvar/evals/variables/SWEEP_THRESHOLD_DEFAULTS.md) | - |
@@ -125,6 +129,7 @@ pnpm add -D @rulvar/evals
 | [rubricGrader](/api/@rulvar/evals/functions/rubricGrader.md) | - |
 | [runBenchmark](/api/@rulvar/evals/functions/runBenchmark.md) | Runs the spec's repeats sequentially and reports the verified series. Throws only for spec defects (invalid repeats, a throwing grader or extractor); everything a run does wrong lands in its record, and a target-run envelope refusal ends the series monotonically with the completed repeats preserved (report.refusal). |
 | [runCanary](/api/@rulvar/evals/functions/runCanary.md) | Runs the fixed probe set through the ordinary engine. Probes run sequentially in declaration order, one run per probe, so recordings replay deterministically. Each probe run carries the optional immutable ceiling (options.budgetUsd) and authorizes it against the optional envelope before starting; an envelope refusal records the probe as 'refused' and keeps walking instead of throwing away the completed probes. A non-ok or refused probe enters the fingerprint as `!status` and clears allOk: callers gate drift flipping on allOk, because a budget-starved or transiently failing probe fingerprints differently without the model having drifted. |
+| [runClaimCorpus](/api/@rulvar/evals/functions/runClaimCorpus.md) | Runs every corpus case through the pure folds and grades the mechanical expectations. No engine, no model, no journal: the same functions the orchestrator runs, on the same bytes. |
 | [runEvalCase](/api/@rulvar/evals/functions/runEvalCase.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
 | [runEvalMatrix](/api/@rulvar/evals/functions/runEvalMatrix.md) | Runs the same case list against every cell's engine, sequentially and in declaration order (deterministic cassette consumption), and reports per-cell aggregates for side-by-side comparison. |
 | [runEvalSuite](/api/@rulvar/evals/functions/runEvalSuite.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |

@@ -214,6 +214,14 @@ The report's shape follows the honesty rules of the rest of the package:
 
 Judging stays blind by construction: graders (including LLM judges through the shared judge channel, journaled and VCR-recordable like everything else) see the run's output and their own rubric, never a system label, run ordinal, or runId, so comparing two systems is running the same spec on two engines and comparing reports. Repeats run sequentially in ordinal order; cold-versus-warm cache comparisons are two benchmark invocations with different `labels`.
 
+## The claim corpus
+
+The eighteenth comparison benchmark shipped a dossier whose three worst failures were semantic, and each rode straight past a green mechanical surface: "real models were not run" beside 125 recorded wire requests, `@rulvar/plan` described through a `packages/planner` citation, and a store default inverted in prose. A judge model can only rule on what the folds put in front of it, so the offline regression that matters is the PRECONDITION: for every named failure class, do the deterministic layers still form the pair, trigger on the run facts, prioritize the declared claim, and grade the coverage honestly?
+
+`CLAIM_CORPUS` pins that precondition as data (RV1704): one adversarial case per failure class (`live-fact`, `package-identity`, `inverted-default`, `numeric-range`, `negation`, `bounded-coverage`), each carrying a draft written to commit the falsehood, the pool readings or recorded fact sheet that contradict it, and the mechanical expectations. `runClaimCorpus()` executes every case through the same pure folds the orchestrator runs (`pairDraftClaims`, `pairRunFactClaims`, `claimCoverageOf`), no engine and no model, and reports per-case verdicts with the formed pairs attached; the shipped test asserts every case passes, so a change that stops forming any of these pairs fails the suite by case id instead of surfacing in the next paid benchmark.
+
+What the corpus deliberately does not claim: that the pairs would be JUDGED correctly. The pool excerpts ride every verdict precisely so a host can hand them to a real judge and adjudicate the semantic half on their own budget: feed the drafts through the orchestrator claim-consistency pass with `critical` declared, or wrap the pairs in a `judgeGrader` rubric inside a suite. Human adjudication of a full benchmark answer stays a human step; the corpus keeps the machine layers under it from silently going blind.
+
 ## Deterministic eval CI
 
 Because target runs and judge runs both cross the `ProviderAdapter` seam, the VCR from [`@rulvar/testing`](/guide/testing) applies unchanged. Record the suite once against live providers, commit the redacted cassette, and run CI hermetically:
