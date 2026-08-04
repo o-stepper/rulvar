@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+
 ### 1.179.0
 
 #### Patch Changes
@@ -1730,6 +1737,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+
 ### 1.179.0
 
 #### Patch Changes
@@ -3249,6 +3263,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
 
 ### 1.179.0
 
@@ -5213,6 +5234,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.180.0
+
+#### Minor Changes
+
+- b124d26: Statement reconciliation is core, with a fail-closed intake for raw exports and a fixed adapter contract matrix (RV1703). `reconcileStatement` was provider-neutral from birth, typing only against the invoice and the pricing SPI, but it lived in `@rulvar/openai` and forced Anthropic-only consumers into an OpenAI dependency for a join that never touched OpenAI code; the eighteenth comparison benchmark graded provider readiness "conditionally ready" partly on exactly this asymmetry. The module now lives in `@rulvar/core` and the historical `@rulvar/openai` import paths keep serving the identical functions as re-exports, so no consumer rebuild or import rewrite is forced. New beside it: `statementFromRows({ kind, rows, map })` normalizes a raw keyed export (a parsed CSV, a JSON download) into a `ProviderStatement` under one explicit `StatementColumnMap`, deliberately shipping no per-provider schema knowledge; every mapped cell validates fail-closed with the row index and column name (non-numeric dollars, fractional or negative token counts, empty response ids, unknown component names all refuse typed), absent cells omit their field, and a requests row left with no dollars, no component split, and no usage refuses, because a row without evidence cannot reconcile anything. The providers guide now fixes the per-adapter billing contract in one matrix: what each adapter surface contributes to the join (continuation absorption and the any-id-of-the-set rule for `pause_turn` dispatches, the one-response-id-per-wire contract of the Responses API, the coverage posture for compatible endpoints and the AI SDK bridge), so reconciliation readiness is a documented contract per adapter instead of an inference.
 
 ### 1.179.0
 
@@ -7501,6 +7528,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.180.0
+
 ### 1.179.0
 
 ### 1.178.0
@@ -7963,6 +7992,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+  - @rulvar/openai@1.180.0
+  - @rulvar/anthropic@1.180.0
+  - @rulvar/plan@1.180.0
+  - @rulvar/testing@1.180.0
 
 ### 1.179.0
 
@@ -9993,6 +10033,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+
 ### 1.179.0
 
 #### Patch Changes
@@ -10927,6 +10974,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.180.0
+
+#### Minor Changes
+
+- b124d26: Statement reconciliation is core, with a fail-closed intake for raw exports and a fixed adapter contract matrix (RV1703). `reconcileStatement` was provider-neutral from birth, typing only against the invoice and the pricing SPI, but it lived in `@rulvar/openai` and forced Anthropic-only consumers into an OpenAI dependency for a join that never touched OpenAI code; the eighteenth comparison benchmark graded provider readiness "conditionally ready" partly on exactly this asymmetry. The module now lives in `@rulvar/core` and the historical `@rulvar/openai` import paths keep serving the identical functions as re-exports, so no consumer rebuild or import rewrite is forced. New beside it: `statementFromRows({ kind, rows, map })` normalizes a raw keyed export (a parsed CSV, a JSON download) into a `ProviderStatement` under one explicit `StatementColumnMap`, deliberately shipping no per-provider schema knowledge; every mapped cell validates fail-closed with the row index and column name (non-numeric dollars, fractional or negative token counts, empty response ids, unknown component names all refuse typed), absent cells omit their field, and a requests row left with no dollars, no component split, and no usage refuses, because a row without evidence cannot reconcile anything. The providers guide now fixes the per-adapter billing contract in one matrix: what each adapter surface contributes to the join (continuation absorption and the any-id-of-the-set rule for `pause_turn` dispatches, the one-response-id-per-wire contract of the Responses API, the coverage posture for compatible endpoints and the AI SDK bridge), so reconciliation readiness is a documented contract per adapter instead of an inference.
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
 
 ### 1.179.0
 
@@ -12649,6 +12707,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+
 ### 1.179.0
 
 #### Patch Changes
@@ -14286,6 +14351,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+  - eslint-plugin-rulvar@1.180.0
 
 ### 1.179.0
 
@@ -16065,6 +16138,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+  - @rulvar/openai@1.180.0
+  - @rulvar/anthropic@1.180.0
 
 ### 1.179.0
 
@@ -18107,6 +18189,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+
 ### 1.179.0
 
 #### Patch Changes
@@ -19752,6 +19841,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
+
 ### 1.179.0
 
 #### Patch Changes
@@ -20702,6 +20798,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
 
 ### 1.179.0
 
@@ -22284,6 +22387,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.180.0
+
+#### Patch Changes
+
+- Updated dependencies [b124d26]
+  - @rulvar/core@1.180.0
 
 ### 1.179.0
 
