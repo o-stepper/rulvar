@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred fifty nine rounds, verbatim in this repository's history:
+The one hundred sixty rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -373,6 +373,7 @@ The one hundred fifty nine rounds, verbatim in this repository's history:
 | v1.175.0      | a74304d (#718): the read only pilot posture ships as one factory: attested toolset pin, one risk deny wall, strictApprovals, isolation none, refusals typed and pre effect                | v1.176.0   |
 | v1.176.0      | 94db8ff (#721): the progressive drafting pattern is named and pinned: await_any first digests and mid flight get_child_result under a conditional prompt nudge riding the opt in          | v1.177.0   |
 | v1.177.0      | e89f377 (#724): package truth becomes docs lint check 12 against manifests and dts rollups, plus the caret pointer narrative and a CommonJS consumer smoke on packed artifacts            | v1.178.0   |
+| v1.178.0      | 1a5a85a (#727): the claim consistency meta carries a closed coverage grade stamped by one helper on every exit, claimCoverageOf grades persisted metas, strict exits on the bad grades    | v1.179.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
