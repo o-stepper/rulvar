@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred sixty one rounds, verbatim in this repository's history:
+The one hundred sixty two rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -375,6 +375,7 @@ The one hundred sixty one rounds, verbatim in this repository's history:
 | v1.177.0      | e89f377 (#724): package truth becomes docs lint check 12 against manifests and dts rollups, plus the caret pointer narrative and a CommonJS consumer smoke on packed artifacts            | v1.178.0   |
 | v1.178.0      | 1a5a85a (#727): the claim consistency meta carries a closed coverage grade stamped by one helper on every exit, claimCoverageOf grades persisted metas, strict exits on the bad grades    | v1.179.0   |
 | v1.179.0      | b124d26 (#730): statement reconciliation moves to core with openai re-exports intact, statementFromRows normalizes raw exports fail closed at the cell, the adapter matrix is fixed       | v1.180.0   |
+| v1.180.0      | f794c11 (#733): the adversarial claim corpus ships in evals, one case per benchmark failure class, run through the identical pure folds offline with per case verdicts and pairs          | v1.181.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
