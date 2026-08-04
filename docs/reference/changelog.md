@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+
 ### 1.176.0
 
 #### Patch Changes
@@ -1710,6 +1717,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+
 ### 1.176.0
 
 #### Patch Changes
@@ -3209,6 +3223,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
 
 ### 1.176.0
 
@@ -5147,6 +5168,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.177.0
+
+#### Minor Changes
+
+- 94db8ff: Name and pin the progressive drafting pattern (RV1607). The eighteenth comparison benchmark measured 56% of a real run's wall sitting after fan-in, dominated not by validation or repair (both repair turns took seconds) but by the first full draft, composed only after `await_all` even though every primitive for starting earlier already shipped. Two changes make the better shape first-class. The per-child guarantees are now pinned by tests: `await_any` returns the first settled digest while siblings are mid-flight, and `get_child_result` serves a settled child immediately, gated on that child's own settlement and nothing else. And under `exposeChildResultTools` the default orchestrator prompt gains a conditional nudge naming the pattern (spawn the wave, await_any, read the settled child in full, draft the sections its evidence supports, fold the rest in as they settle); the line rides only with the opt-in whose toolset carries the tools it names, so a run without it keeps its exact historical prompt bytes. The docs' orchestration-modes guide gains the pattern section, with `reduceCriticalPath.postFanInShare` as the measure of whether it worked.
 
 ### 1.176.0
 
@@ -7419,6 +7446,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.177.0
+
 ### 1.176.0
 
 ### 1.175.0
@@ -7875,6 +7904,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+  - @rulvar/anthropic@1.177.0
+  - @rulvar/openai@1.177.0
+  - @rulvar/plan@1.177.0
+  - @rulvar/testing@1.177.0
 
 ### 1.176.0
 
@@ -9872,6 +9912,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+
 ### 1.176.0
 
 #### Patch Changes
@@ -10786,6 +10833,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
 
 ### 1.176.0
 
@@ -12488,6 +12542,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+
 ### 1.176.0
 
 #### Patch Changes
@@ -14101,6 +14162,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+  - eslint-plugin-rulvar@1.177.0
 
 ### 1.176.0
 
@@ -15853,6 +15922,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+  - @rulvar/anthropic@1.177.0
+  - @rulvar/openai@1.177.0
 
 ### 1.176.0
 
@@ -17869,6 +17947,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+
 ### 1.176.0
 
 #### Patch Changes
@@ -19494,6 +19579,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
+
 ### 1.176.0
 
 #### Patch Changes
@@ -20424,6 +20516,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
 
 ### 1.176.0
 
@@ -21986,6 +22085,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.177.0
+
+#### Patch Changes
+
+- Updated dependencies [94db8ff]
+  - @rulvar/core@1.177.0
 
 ### 1.176.0
 
