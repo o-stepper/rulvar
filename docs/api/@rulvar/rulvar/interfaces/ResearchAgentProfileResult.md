@@ -10,6 +10,10 @@ Defined in: `packages/core/dist/index.d.ts`
 
 What [researchAgentProfile](/api/@rulvar/rulvar/functions/researchAgentProfile.md) returns: the profile plus the evidence accessor.
 
+## Extended by
+
+- [`PilotAgentProfileResult`](/api/@rulvar/rulvar/interfaces/PilotAgentProfileResult.md)
+
 ## Properties
 
 | Property | Type | Description | Defined in |

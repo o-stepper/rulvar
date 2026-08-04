@@ -10,7 +10,7 @@
 function researchAgentProfile(options): ResearchAgentProfileResult;
 ```
 
-Defined in: [packages/core/src/engine/profile-templates.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L127)
+Defined in: [packages/core/src/engine/profile-templates.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L128)
 
 The batteries-included research child: the confined
 [repositoryResearchToolset](/api/@rulvar/core/functions/repositoryResearchToolset.md) over `root`, the stock
