@@ -2,7 +2,7 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/openai](/api/@rulvar/openai/index.md) / StatementCoverage
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / StatementCoverage
 
 # Interface: StatementCoverage
 

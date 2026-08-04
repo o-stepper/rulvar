@@ -11,17 +11,23 @@ export { openAiModelInfo, OPENAI_PRICING } from './caps.js';
 export type { OpenAiModelInfo } from './caps.js';
 export { auditV1190CacheJournal, undoV1190CacheDoubleCount } from './audit.js';
 export type { V1190CacheAudit } from './audit.js';
-export { reconcileStatement } from './reconcile.js';
+// Statement reconciliation moved to @rulvar/core (RV1703): the module
+// was provider-neutral from birth (it types against the invoice and
+// the pricing SPI only), and its home here forced Anthropic-only
+// consumers into an OpenAI dependency. The re-exports keep every
+// existing import path working unchanged.
+export { reconcileStatement, statementFromRows } from '@rulvar/core';
 export type {
   BillingComponent,
   ComponentDelta,
   ProviderStatement,
   ReconcileStatementOptions,
   StatementCategoryRow,
+  StatementColumnMap,
   StatementCoverage,
   StatementReconciliation,
   StatementRequestRow,
-} from './reconcile.js';
+} from '@rulvar/core';
 export {
   buildChatCompletionsParams,
   buildResponsesParams,

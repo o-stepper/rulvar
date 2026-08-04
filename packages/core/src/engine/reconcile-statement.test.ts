@@ -14,14 +14,19 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { InvoiceRow, ModelRef, Pricing, Usage } from '@rulvar/core';
-import { ConfigError, priceComponentsOf, priceUsdOf } from '@rulvar/core';
+import { ConfigError } from '../l0/errors.js';
+import type { ModelRef, Usage } from '../l0/messages.js';
+import type { Pricing } from '../l0/spi/provider.js';
+import { priceComponentsOf, priceUsdOf } from '../model/pricing.js';
+import type { InvoiceRow } from './invoice.js';
 
 import {
   reconcileStatement,
   type ProviderStatement,
   type StatementRequestRow,
-} from './reconcile.js';
+  type StatementCategoryRow,
+  statementFromRows,
+} from './reconcile-statement.js';
 
 const SOL: Pricing = {
   inputUsdPerMTok: 5,
@@ -923,5 +928,104 @@ describe('reconcileStatement: an empty declared object is not evidence (RV1201)'
       { pricingOf: PRICING_OF },
     );
     expect(report.coverage.matchedRows).toBe(2);
+  });
+});
+
+describe('statementFromRows (RV1703)', () => {
+  it('normalizes a requests export under an explicit map, absent cells omitted', () => {
+    const statement = statementFromRows({
+      kind: 'requests',
+      rows: [
+        {
+          response_id: 'resp-1',
+          model_name: 'gpt-5.6-terra',
+          amount_usd: '0.125',
+          in_tok: '1000',
+          out_tok: 50,
+          cached_tok: '',
+        },
+        { response_id: 'resp-2', amount_usd: 0.5 },
+      ],
+      map: {
+        responseId: 'response_id',
+        model: 'model_name',
+        usd: 'amount_usd',
+        inputTokens: 'in_tok',
+        outputTokens: 'out_tok',
+        cachedInputTokens: 'cached_tok',
+      },
+    });
+    expect(statement).toEqual({
+      kind: 'requests',
+      rows: [
+        {
+          responseId: 'resp-1',
+          model: 'gpt-5.6-terra',
+          usd: 0.125,
+          usage: { inputTokens: 1000, outputTokens: 50 },
+        },
+        { responseId: 'resp-2', usd: 0.5 },
+      ],
+    });
+  });
+
+  it('refuses a cell that cannot be evidence, naming the row and column', () => {
+    const attempt = (rows: Record<string, unknown>[]): (() => ProviderStatement) => {
+      return () =>
+        statementFromRows({
+          kind: 'requests',
+          rows,
+          map: { responseId: 'id', usd: 'usd', inputTokens: 'tok' },
+        });
+    };
+    expect(attempt([{ id: 'r', usd: 'free' }])).toThrowError(ConfigError);
+    expect(attempt([{ id: 'r', usd: 'free' }])).toThrowError(/row 0 column 'usd'/u);
+    expect(attempt([{ id: 'r', usd: -1 }])).toThrowError(/non-negative/u);
+    expect(attempt([{ id: 'r', tok: 10.5 }])).toThrowError(/column 'tok'/u);
+    expect(attempt([{ id: '', usd: 1 }])).toThrowError(/response id/u);
+    expect(attempt([{ id: 'r' }])).toThrowError(/no dollars, no component split, and no usage/u);
+  });
+
+  it('refuses a map without the join key, and an unknown category component', () => {
+    expect(() => statementFromRows({ kind: 'requests', rows: [], map: {} })).toThrowError(
+      /requires map\.responseId/u,
+    );
+    expect(() =>
+      statementFromRows({
+        kind: 'categories',
+        rows: [{ m: 'gpt', c: 'reasoning', v: 1 }],
+        map: { model: 'm', component: 'c', usd: 'v' },
+      }),
+    ).toThrowError(/unknown component 'reasoning'/u);
+  });
+
+  it('normalizes a categories export and feeds reconcileStatement end to end', () => {
+    const statement = statementFromRows({
+      kind: 'categories',
+      rows: [
+        { m: 'gpt-5.6-terra', c: 'input', v: '2.0' },
+        { m: 'gpt-5.6-terra', c: 'output', v: '1.2' },
+      ],
+      map: { model: 'm', component: 'c', usd: 'v' },
+    });
+    expect(statement.kind).toBe('categories');
+    expect(statement.rows).toHaveLength(2);
+    const collected = statement.rows as StatementCategoryRow[];
+    expect(collected[0]).toEqual({ model: 'gpt-5.6-terra', component: 'input', usd: 2.0 });
+  });
+
+  it('collects a per-component dollar split from mapped columns', () => {
+    const statement = statementFromRows({
+      kind: 'requests',
+      rows: [{ id: 'r1', usd_in: '0.4', usd_out: '0.2' }],
+      map: {
+        responseId: 'id',
+        componentsUsd: { input: 'usd_in', output: 'usd_out' },
+      },
+    });
+    expect(statement.rows[0]).toEqual({
+      responseId: 'r1',
+      componentsUsd: { input: 0.4, output: 0.2 },
+    });
   });
 });

@@ -2,7 +2,7 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/openai](/api/@rulvar/openai/index.md) / reconcileStatement
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / reconcileStatement
 
 # Function: reconcileStatement()
 
@@ -13,7 +13,7 @@ function reconcileStatement(
    options): StatementReconciliation;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/core/src/engine/reconcile-statement.ts:253](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L253)
 
 Reconciles the invoice against a normalized provider export. Pure and
 journal-free; see the module doc for the contract. Throws a typed
@@ -32,11 +32,11 @@ not evidence either).
 
 | Parameter | Type |
 | ------ | ------ |
-| `invoice` | \{ `rows`: readonly [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[]; \} |
-| `invoice.rows` | readonly [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[] |
-| `statement` | [`ProviderStatement`](/api/@rulvar/openai/type-aliases/ProviderStatement.md) |
-| `options` | [`ReconcileStatementOptions`](/api/@rulvar/openai/interfaces/ReconcileStatementOptions.md) |
+| `invoice` | \{ `rows`: readonly [`InvoiceRow`](/api/@rulvar/core/interfaces/InvoiceRow.md)[]; \} |
+| `invoice.rows` | readonly [`InvoiceRow`](/api/@rulvar/core/interfaces/InvoiceRow.md)[] |
+| `statement` | [`ProviderStatement`](/api/@rulvar/core/type-aliases/ProviderStatement.md) |
+| `options` | [`ReconcileStatementOptions`](/api/@rulvar/core/interfaces/ReconcileStatementOptions.md) |
 
 ## Returns
 
-[`StatementReconciliation`](/api/@rulvar/openai/interfaces/StatementReconciliation.md)
+[`StatementReconciliation`](/api/@rulvar/core/interfaces/StatementReconciliation.md)

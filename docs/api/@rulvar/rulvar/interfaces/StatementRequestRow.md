@@ -2,7 +2,7 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/openai](/api/@rulvar/openai/index.md) / StatementRequestRow
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / StatementRequestRow
 
 # Interface: StatementRequestRow
 
@@ -19,7 +19,7 @@ response id, the join key.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-componentsusd"></a> `componentsUsd?` | `Partial`\&lt;`Record`\&lt;[`BillingComponent`](/api/@rulvar/openai/type-aliases/BillingComponent.md), `number`\&gt;\&gt; | - | `packages/core/dist/index.d.ts` |
+| <a id="property-componentsusd"></a> `componentsUsd?` | `Partial`\&lt;`Record`\&lt;[`BillingComponent`](/api/@rulvar/rulvar/type-aliases/BillingComponent.md), `number`\&gt;\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-model"></a> `model?` | `string` | Provider-side model name (without the adapter prefix); optional. | `packages/core/dist/index.d.ts` |
 | <a id="property-responseid"></a> `responseId` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage?` | \{ `cachedInputTokens?`: `number`; `cacheWriteTokens?`: `number`; `inputTokens?`: `number`; `outputTokens?`: `number`; \} | - | `packages/core/dist/index.d.ts` |

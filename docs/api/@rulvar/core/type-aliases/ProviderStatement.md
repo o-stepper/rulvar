@@ -2,7 +2,7 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/openai](/api/@rulvar/openai/index.md) / ProviderStatement
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / ProviderStatement
 
 # Type Alias: ProviderStatement
 
@@ -18,6 +18,6 @@ type ProviderStatement =
 };
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/core/src/engine/reconcile-statement.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L76)
 
 A normalized provider export: never a headline total.
