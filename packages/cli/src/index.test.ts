@@ -1184,6 +1184,115 @@ describe('--strict refuses a partial acceptance envelope (v1.40.0 improvement pl
   });
 });
 
+describe('--strict reads the claim-coverage grade (RV1702)', () => {
+  const okOutcome = (value: unknown) =>
+    ({
+      status: 'ok',
+      value,
+      dropped: [],
+      pending: [],
+      cost: { totalUsd: 0, byModel: {}, byPhase: {}, unpriced: [] },
+    }) as unknown as Parameters<typeof strictExitCode>[0];
+  const completeWith = (claimConsistencyMeta: Record<string, unknown>) =>
+    okOutcome({
+      result: 1,
+      completion: 'complete',
+      childStatusCounts: { ok: 2 },
+      degradedReasons: [],
+      claimConsistencyMeta,
+    });
+
+  it('full coverage keeps exit 0 silently; absent meta stays out of scope', () => {
+    const io = scriptedIo();
+    expect(
+      strictExitCode(
+        completeWith({
+          draftCitingSentences: 3,
+          truncated: false,
+          coveredCitingSentences: 3,
+          judgeInvoked: true,
+          coverage: 'full',
+        }),
+        0,
+        io,
+      ),
+    ).toBe(0);
+    expect(strictExitCode(okOutcome({ completion: 'complete' }), 0, io)).toBe(0);
+    expect(io.errLines).toHaveLength(0);
+  });
+
+  it("judge-failed exits 1: completion 'complete' is mechanical, not semantic green", () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      completeWith({
+        draftCitingSentences: 3,
+        truncated: false,
+        coveredCitingSentences: 3,
+        judgeInvoked: true,
+        judgeFailed: true,
+        coverage: 'judge-failed',
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    expect(io.errLines.join('\n')).toContain("claim coverage 'judge-failed'");
+  });
+
+  it('critical-uncovered exits 1 even from a legacy meta without the stamped grade', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      completeWith({
+        draftCitingSentences: 5,
+        truncated: false,
+        coveredCitingSentences: 4,
+        criticalUncovered: ['packages/never/read.ts:7'],
+        criticalUncoveredTotal: 1,
+        judgeInvoked: false,
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    expect(io.errLines.join('\n')).toContain("claim coverage 'critical-uncovered'");
+  });
+
+  it('partial coverage prints its visibility line and keeps the exit', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      completeWith({
+        draftCitingSentences: 144,
+        truncated: true,
+        coveredCitingSentences: 40,
+        judgeInvoked: true,
+        coverage: 'partial',
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(0);
+    expect(io.errLines.join('\n')).toContain("claim coverage 'partial'");
+  });
+
+  it('an unknown stamped grade falls back to the counts', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      completeWith({
+        draftCitingSentences: 2,
+        truncated: false,
+        coveredCitingSentences: 2,
+        judgeInvoked: true,
+        judgeFailed: true,
+        coverage: 'certified-fresh',
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    expect(io.errLines.join('\n')).toContain("claim coverage 'judge-failed'");
+  });
+});
+
 describe('runs audit (fenced run state RFC, phase 3)', () => {
   const strandedEntry = {
     hashVersion: 2,

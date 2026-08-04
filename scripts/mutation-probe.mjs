@@ -2765,6 +2765,33 @@ const MUTATIONS = [
     test: 'scripts/docs-lint.test.mjs',
   },
   {
+    id: 'claim-coverage-critical-precedence',
+    doctrine:
+      "the claim-coverage grade ranks an unjudged DECLARED claim above ordinary truncation (RV1702): skipping the critical branch grades a run with named-but-unverified claims as merely 'partial' or even 'full', and the caller's own declaration is what the grade exists to honor",
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: '  if ((meta.criticalUncoveredTotal ?? 0) > 0) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-coverage-envelope',
+    doctrine:
+      "every assembly of the claim-consistency meta derives its grade from its own counts (RV1702): hardcoding 'full' resurrects the benchmark's exact failure, completion 'complete' plus contradictions [] reading as semantic green over 40 of 144 citing sentences",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        return { ...bare, coverage: claimCoverageOf(bare) };',
+    replace: "        return { ...bare, coverage: 'full' as const };",
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'strict-claim-coverage-exit',
+    doctrine:
+      "the CLI strict gate exits nonzero on 'judge-failed' and 'critical-uncovered' coverage (RV1702): dropping the branch returns strict to the posture where a dead judge and unverified declared claims pass as green, the two states the flag exists to refuse",
+    file: 'packages/cli/src/drive.ts',
+    find: "  if (grade === 'judge-failed' || grade === 'critical-uncovered') {",
+    replace: '  if (false) {',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
     id: 'docs-fixed-group-parity',
     doctrine:
       "the versioning page's fixed-group list stays in set equality with .changeset/config.json (RV1701): without the missing-member direction, adding a sixteenth fixed package leaves the documented group silently one short, exactly how the installation table lost store-postgres and executor",

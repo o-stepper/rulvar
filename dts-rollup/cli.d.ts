@@ -223,6 +223,18 @@ declare function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number;
 * that never opted into orchestrate acceptance) and nonzero exit codes
 * pass through unchanged, so the flag never masks the ordinary status
 * exit and never bites a plain workflow.
+*
+* Completion is a MECHANICAL verdict, and the eighteenth comparison
+* benchmark showed how easily `completion: 'complete'` reads as
+* semantic green while the claim judge saw 40 of 144 citing sentences.
+* So strict also reads the claim-coverage grade (RV1702) when the
+* outcome carries a claim-consistency meta: `'judge-failed'` (nothing
+* was judged) and `'critical-uncovered'` (declared claims went
+* unverified) exit nonzero, because both previously slipped through
+* strict as green; `'partial'` prints its counts to stderr and keeps
+* the exit, because the bounded pass is the documented default and
+* declaring critical anchors is the opt-in that makes the subset
+* enforceable.
 */
 declare function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: CliIo): number;
 //#endregion

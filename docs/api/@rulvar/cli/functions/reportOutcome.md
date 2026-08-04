@@ -10,7 +10,7 @@
 function reportOutcome(outcome, io): number;
 ```
 
-Defined in: [packages/cli/src/drive.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L189)
+Defined in: [packages/cli/src/drive.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L191)
 
 Renders the settled outcome; returns the process exit code. Error
 messages, suspension keys, model refs, and phase names originate from

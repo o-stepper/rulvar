@@ -20,7 +20,12 @@ import { executeWorkflow } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 
-import { RUN_FACTS_ANCHOR, pairDraftClaims, pairRunFactClaims } from './consistency.js';
+import {
+  RUN_FACTS_ANCHOR,
+  claimCoverageOf,
+  pairDraftClaims,
+  pairRunFactClaims,
+} from './consistency.js';
 import { makeOrchestratorWorkflow } from './orchestrate.js';
 
 describe('pairDraftClaims (RV1501)', () => {
@@ -434,6 +439,7 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       truncated: false,
       coveredCitingSentences: 1,
       judgeInvoked: true,
+      coverage: 'full',
     });
     // Exactly one judge invocation, carrying the pairs it must rule on.
     expect(judge.calls).toHaveLength(1);
@@ -471,6 +477,7 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       truncated: false,
       coveredCitingSentences: 0,
       judgeInvoked: false,
+      coverage: 'full',
     });
   });
 
@@ -590,6 +597,7 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       pairs: 1,
       judgeInvoked: true,
       judgeFailed: true,
+      coverage: 'judge-failed',
     });
 
     const failing = passHarness({
@@ -760,6 +768,7 @@ describe('critical coverage and run-facts grounding wired into the orchestrator 
       criticalUncovered: ['packages/never/read.ts:7'],
       criticalUncoveredTotal: 1,
       judgeInvoked: false,
+      coverage: 'critical-uncovered',
     });
   });
 
@@ -808,5 +817,56 @@ describe('critical coverage and run-facts grounding wired into the orchestrator 
         claimConsistency: { runFacts: 'yes' as unknown as boolean },
       }),
     ).toThrow(/runFacts/);
+  });
+});
+
+describe('the claim-coverage grade (RV1702)', () => {
+  it('derives the closed vocabulary with judge-failed strongest, then critical, then partial', () => {
+    const base = { draftCitingSentences: 4, truncated: false, coveredCitingSentences: 4 };
+    expect(claimCoverageOf(base)).toBe('full');
+    expect(claimCoverageOf({ ...base, truncated: true })).toBe('partial');
+    expect(claimCoverageOf({ ...base, coveredCitingSentences: 3 })).toBe('partial');
+    expect(claimCoverageOf({ ...base, runFactPairsTruncated: true })).toBe('partial');
+    expect(claimCoverageOf({ ...base, criticalUncoveredTotal: 1 })).toBe('critical-uncovered');
+    expect(claimCoverageOf({ ...base, truncated: true, criticalUncoveredTotal: 2 })).toBe(
+      'critical-uncovered',
+    );
+    expect(claimCoverageOf({ ...base, criticalUncoveredTotal: 2, judgeFailed: true })).toBe(
+      'judge-failed',
+    );
+    // A zero-count meta from a legacy engine grades vacuously full: the
+    // helper is total over metas written before the field shipped.
+    expect(
+      claimCoverageOf({ draftCitingSentences: 0, truncated: false, coveredCitingSentences: 0 }),
+    ).toBe('full');
+    expect(claimCoverageOf({ ...base, criticalUncoveredTotal: 0 })).toBe('full');
+  });
+
+  it('a bounded pass grades the envelope partial, in counts and in name', async () => {
+    const twoCites =
+      'draft: the audit failure masks success (`src/exec.ts:256-296`). ' +
+      'draft: the retry path rejects masked writes (`src/exec.ts:260-280`).';
+    const { internals, judge } = passHarness({
+      children: [POOL_READING],
+      draft: twoCites,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { max: 1, ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    expect(judge.calls).toHaveLength(1);
+    expect(outcome.claimConsistencyMeta).toMatchObject({
+      draftCitingSentences: 2,
+      pairs: 1,
+      truncated: true,
+      coveredCitingSentences: 1,
+      judgeInvoked: true,
+      coverage: 'partial',
+    });
   });
 });

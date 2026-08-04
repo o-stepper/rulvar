@@ -819,6 +819,10 @@
             "link": "/api/@rulvar/core/interfaces/ClaimContradictionFinding.md"
           },
           {
+            "text": "ClaimCoverageInput",
+            "link": "/api/@rulvar/core/interfaces/ClaimCoverageInput.md"
+          },
+          {
             "text": "ClaimPair",
             "link": "/api/@rulvar/core/interfaces/ClaimPair.md"
           },
@@ -1807,6 +1811,10 @@
           {
             "text": "ClaimClass",
             "link": "/api/@rulvar/core/type-aliases/ClaimClass.md"
+          },
+          {
+            "text": "ClaimCoverageGrade",
+            "link": "/api/@rulvar/core/type-aliases/ClaimCoverageGrade.md"
           },
           {
             "text": "ClaimOp",
@@ -2835,6 +2843,10 @@
           {
             "text": "citedValueValidator",
             "link": "/api/@rulvar/core/functions/citedValueValidator.md"
+          },
+          {
+            "text": "claimCoverageOf",
+            "link": "/api/@rulvar/core/functions/claimCoverageOf.md"
           },
           {
             "text": "claimExpired",
@@ -5605,6 +5617,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/ClaimContradictionFinding.md"
           },
           {
+            "text": "ClaimCoverageInput",
+            "link": "/api/@rulvar/rulvar/interfaces/ClaimCoverageInput.md"
+          },
+          {
             "text": "ClaimPair",
             "link": "/api/@rulvar/rulvar/interfaces/ClaimPair.md"
           },
@@ -6617,6 +6633,10 @@
           {
             "text": "ClaimClass",
             "link": "/api/@rulvar/rulvar/type-aliases/ClaimClass.md"
+          },
+          {
+            "text": "ClaimCoverageGrade",
+            "link": "/api/@rulvar/rulvar/type-aliases/ClaimCoverageGrade.md"
           },
           {
             "text": "ClaimOp",
@@ -7669,6 +7689,10 @@
           {
             "text": "citedValueValidator",
             "link": "/api/@rulvar/rulvar/functions/citedValueValidator.md"
+          },
+          {
+            "text": "claimCoverageOf",
+            "link": "/api/@rulvar/rulvar/functions/claimCoverageOf.md"
           },
           {
             "text": "claimExpired",
