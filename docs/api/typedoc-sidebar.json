@@ -2307,6 +2307,10 @@
             "link": "/api/@rulvar/core/variables/CHECKPOINT_FORMAT_V1.md"
           },
           {
+            "text": "CLAIM_JUDGE_LABEL",
+            "link": "/api/@rulvar/core/variables/CLAIM_JUDGE_LABEL.md"
+          },
+          {
             "text": "CLAIM_STATEMENT_MAX_CHARS",
             "link": "/api/@rulvar/core/variables/CLAIM_STATEMENT_MAX_CHARS.md"
           },
@@ -7111,6 +7115,10 @@
           {
             "text": "CHECKPOINT_FORMAT_V1",
             "link": "/api/@rulvar/rulvar/variables/CHECKPOINT_FORMAT_V1.md"
+          },
+          {
+            "text": "CLAIM_JUDGE_LABEL",
+            "link": "/api/@rulvar/rulvar/variables/CLAIM_JUDGE_LABEL.md"
           },
           {
             "text": "CLAIM_STATEMENT_MAX_CHARS",

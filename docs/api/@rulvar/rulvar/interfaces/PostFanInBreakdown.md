@@ -42,6 +42,8 @@ attributed and are skipped, never guessed at.
 | <a id="property-coordinationtoolms"></a> `coordinationToolMs` | `number` | Tool executions of coordination spans inside the window, summed. | `packages/core/dist/index.d.ts` |
 | <a id="property-coordinationtoolmsbyname"></a> `coordinationToolMsByName` | `Record`\&lt;`string`, `number`\&gt; | The same tool time keyed by tool name. A zero-duration execution inside the window still registers its name: sub-millisecond tools round to 0 on the wall clock but did run here. | `packages/core/dist/index.d.ts` |
 | <a id="property-coveredms"></a> `coveredMs` | `number` | Union length of every covered interval above. | `packages/core/dist/index.d.ts` |
+| <a id="property-finalcompositionms"></a> `finalCompositionMs` | `number` | The final-composition half of `synthesisMs`, clipped (RV1604). | `packages/core/dist/index.d.ts` |
 | <a id="property-residuems"></a> `residueMs` | `number` | postFanInMs minus coveredMs, floored at zero. | `packages/core/dist/index.d.ts` |
 | <a id="property-residueshare"></a> `residueShare?` | `number` | residueMs / postFanInMs when the window is longer than zero. | `packages/core/dist/index.d.ts` |
+| <a id="property-semanticjudgems"></a> `semanticJudgeMs` | `number` | The claim-judge half of `synthesisMs`, clipped (RV1604). | `packages/core/dist/index.d.ts` |
 | <a id="property-synthesisms"></a> `synthesisMs` | `number` | Completed 'synthesize' span wall clipped to the window. | `packages/core/dist/index.d.ts` |

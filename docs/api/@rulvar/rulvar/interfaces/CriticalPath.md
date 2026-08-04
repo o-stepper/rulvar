@@ -24,10 +24,12 @@ rather than guessed at.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-finalcompositionms"></a> `finalCompositionMs` | `number` | Completed 'synthesize' spans that ARE final composition (every synthesize span not labeled as the claim judge), summed (RV1604). | `packages/core/dist/index.d.ts` |
 | <a id="property-postfanin"></a> `postFanIn?` | [`PostFanInBreakdown`](/api/@rulvar/rulvar/interfaces/PostFanInBreakdown.md) | The RV710 decomposition of the window; present with postFanInMs. | `packages/core/dist/index.d.ts` |
 | <a id="property-postfaninms"></a> `postFanInMs?` | `number` | Last non-coordination agent:end to run:end; absent without both. | `packages/core/dist/index.d.ts` |
 | <a id="property-postfaninshare"></a> `postFanInShare?` | `number` | postFanInMs / runWallMs when both are defined and the wall is > 0. | `packages/core/dist/index.d.ts` |
 | <a id="property-runwallms"></a> `runWallMs?` | `number` | run:start to run:end; absent while the run is open. | `packages/core/dist/index.d.ts` |
-| <a id="property-synthesisms"></a> `synthesisMs` | `number` | Summed wall of completed 'synthesize' spans (0 when none). | `packages/core/dist/index.d.ts` |
+| <a id="property-semanticjudgems"></a> `semanticJudgeMs` | `number` | Completed 'synthesize' spans that are the claim-consistency judge (agent:start label [CLAIM\_JUDGE\_LABEL](/api/@rulvar/rulvar/variables/CLAIM_JUDGE_LABEL.md)), its extract phase included, summed (RV1604). | `packages/core/dist/index.d.ts` |
+| <a id="property-synthesisms"></a> `synthesisMs` | `number` | Summed wall of completed 'synthesize' spans (0 when none). Since RV1604 this is exactly `finalCompositionMs + semanticJudgeMs`, kept whole for existing consumers: the name predates the claim judge riding the same role, and the eighteenth comparison benchmark read a 54-second `synthesisMs` as a second final composition when the run had SKIPPED synthesis and the bucket was entirely the judge and its extract. Read the split fields. | `packages/core/dist/index.d.ts` |
 | <a id="property-synthesisshare"></a> `synthesisShare?` | `number` | synthesisMs / runWallMs under the same conditions. | `packages/core/dist/index.d.ts` |
 | <a id="property-workerspans"></a> `workerSpans` | `number` | Settled non-coordination agent spans that anchored the fan-in. | `packages/core/dist/index.d.ts` |

@@ -12,7 +12,11 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChatRequest } from '../l0/messages.js';
 import { ConfigError, FailRunError } from '../l0/errors.js';
-import { reduceCriticalPath, reduceInvocationTable } from '../l0/telemetry-reduce.js';
+import {
+  CLAIM_JUDGE_LABEL,
+  reduceCriticalPath,
+  reduceInvocationTable,
+} from '../l0/telemetry-reduce.js';
 import type { WorkflowEvent } from '../l0/events.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
@@ -488,6 +492,38 @@ describe('reduceCriticalPath (RV-211)', () => {
   const at = (ms: number): string => new Date(1700000000000 + ms).toISOString();
   const ev = (body: Record<string, unknown>): WorkflowEvent => body as unknown as WorkflowEvent;
 
+  it('splits the synthesize wall between final composition and the claim judge by label (RV1604)', () => {
+    const events = [
+      ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
+      ev({ type: 'agent:start', ts: at(0), spanId: 'root', role: 'orchestrate' }),
+      ev({ type: 'agent:start', ts: at(5), spanId: 'w1', role: 'loop' }),
+      ev({ type: 'agent:end', ts: at(40), spanId: 'w1', role: 'loop' }),
+      ev({
+        type: 'agent:start',
+        ts: at(40),
+        spanId: 'judge',
+        role: 'synthesize',
+        label: CLAIM_JUDGE_LABEL,
+      }),
+      ev({ type: 'agent:end', ts: at(70), spanId: 'judge' }),
+      ev({ type: 'agent:start', ts: at(70), spanId: 'synth', role: 'synthesize' }),
+      ev({ type: 'agent:end', ts: at(90), spanId: 'synth' }),
+      ev({ type: 'agent:end', ts: at(95), spanId: 'root' }),
+      ev({ type: 'run:end', ts: at(100), spanId: 'run' }),
+    ];
+    const path = reduceCriticalPath(events);
+    // The eighteenth comparison benchmark read a 54-second synthesisMs
+    // as a second final composition when the run had SKIPPED synthesis:
+    // the bucket was entirely the judge. The split names the halves and
+    // the legacy sum stays byte-stable for existing consumers.
+    expect(path.synthesisMs).toBe(50);
+    expect(path.semanticJudgeMs).toBe(30);
+    expect(path.finalCompositionMs).toBe(20);
+    expect(path.postFanIn?.synthesisMs).toBe(50);
+    expect(path.postFanIn?.semanticJudgeMs).toBe(30);
+    expect(path.postFanIn?.finalCompositionMs).toBe(20);
+  });
+
   it('computes the post-fan-in and synthesis shares from the vocabulary alone', () => {
     const events = [
       ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
@@ -505,6 +541,8 @@ describe('reduceCriticalPath (RV-211)', () => {
       runWallMs: 100,
       postFanInMs: 40,
       synthesisMs: 20,
+      finalCompositionMs: 20,
+      semanticJudgeMs: 0,
       postFanInShare: 0.4,
       synthesisShare: 0.2,
       workerSpans: 2,
@@ -516,6 +554,8 @@ describe('reduceCriticalPath (RV-211)', () => {
         coordinationToolMsByName: {},
         coordinationToolCallsByName: {},
         synthesisMs: 20,
+        finalCompositionMs: 20,
+        semanticJudgeMs: 0,
         coveredMs: 20,
         residueMs: 20,
         residueShare: 0.5,
@@ -584,6 +624,8 @@ describe('reduceCriticalPath (RV-211)', () => {
       coordinationToolMsByName: { get_child_result: 18, finish: 9 },
       coordinationToolCallsByName: { get_child_result: 2, finish: 1 },
       synthesisMs: 18,
+      finalCompositionMs: 18,
+      semanticJudgeMs: 0,
       coveredMs: 96,
       residueMs: 4,
       residueShare: 0.04,
@@ -627,6 +669,8 @@ describe('reduceCriticalPath (RV-211)', () => {
       coordinationToolMsByName: { get_child_result: 20 },
       coordinationToolCallsByName: { get_child_result: 1 },
       synthesisMs: 0,
+      finalCompositionMs: 0,
+      semanticJudgeMs: 0,
       coveredMs: 40,
       residueMs: 60,
       residueShare: 0.6,
@@ -650,6 +694,8 @@ describe('reduceCriticalPath (RV-211)', () => {
       coordinationToolMsByName: {},
       coordinationToolCallsByName: {},
       synthesisMs: 0,
+      finalCompositionMs: 0,
+      semanticJudgeMs: 0,
       coveredMs: 0,
       residueMs: 0,
     });
@@ -671,7 +717,14 @@ describe('reduceCriticalPath (RV-211)', () => {
       ev({ type: 'agent:end', ts: at(5), spanId: 'root' }),
       ev({ type: 'run:end', ts: at(10), spanId: 'run' }),
     ]);
-    expect(noWorkers).toEqual({ runWallMs: 10, synthesisMs: 0, synthesisShare: 0, workerSpans: 0 });
+    expect(noWorkers).toEqual({
+      runWallMs: 10,
+      synthesisMs: 0,
+      finalCompositionMs: 0,
+      semanticJudgeMs: 0,
+      synthesisShare: 0,
+      workerSpans: 0,
+    });
   });
 
   it('tolerates unknown event types and unparsable timestamps', () => {
@@ -681,6 +734,13 @@ describe('reduceCriticalPath (RV-211)', () => {
       ev({ type: 'agent:start', ts: 'not a date', spanId: 'w1', role: 'loop' }),
       ev({ type: 'run:end', ts: at(10), spanId: 'run' }),
     ]);
-    expect(path).toEqual({ runWallMs: 10, synthesisMs: 0, synthesisShare: 0, workerSpans: 0 });
+    expect(path).toEqual({
+      runWallMs: 10,
+      synthesisMs: 0,
+      finalCompositionMs: 0,
+      semanticJudgeMs: 0,
+      synthesisShare: 0,
+      workerSpans: 0,
+    });
   });
 });
