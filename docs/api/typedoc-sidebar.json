@@ -911,6 +911,10 @@
             "link": "/api/@rulvar/core/interfaces/DataKeyProvider.md"
           },
           {
+            "text": "DecisionChainRow",
+            "link": "/api/@rulvar/core/interfaces/DecisionChainRow.md"
+          },
+          {
             "text": "DeclaredLadder",
             "link": "/api/@rulvar/core/interfaces/DeclaredLadder.md"
           },
@@ -2379,6 +2383,10 @@
             "link": "/api/@rulvar/core/variables/CURRENT_HASH_VERSION.md"
           },
           {
+            "text": "DECISION_CHAIN_KINDS",
+            "link": "/api/@rulvar/core/variables/DECISION_CHAIN_KINDS.md"
+          },
+          {
             "text": "DEFAULT_ANCHOR_PATTERN",
             "link": "/api/@rulvar/core/variables/DEFAULT_ANCHOR_PATTERN.md"
           },
@@ -3431,6 +3439,10 @@
           {
             "text": "reduceCriticalPath",
             "link": "/api/@rulvar/core/functions/reduceCriticalPath.md"
+          },
+          {
+            "text": "reduceDecisionChain",
+            "link": "/api/@rulvar/core/functions/reduceDecisionChain.md"
           },
           {
             "text": "reduceInvocationTable",
@@ -5781,6 +5793,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/DataKeyProvider.md"
           },
           {
+            "text": "DecisionChainRow",
+            "link": "/api/@rulvar/rulvar/interfaces/DecisionChainRow.md"
+          },
+          {
             "text": "DeclaredLadder",
             "link": "/api/@rulvar/rulvar/interfaces/DeclaredLadder.md"
           },
@@ -7285,6 +7301,10 @@
             "link": "/api/@rulvar/rulvar/variables/CURRENT_HASH_VERSION.md"
           },
           {
+            "text": "DECISION_CHAIN_KINDS",
+            "link": "/api/@rulvar/rulvar/variables/DECISION_CHAIN_KINDS.md"
+          },
+          {
             "text": "DEFAULT_ANCHOR_PATTERN",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_ANCHOR_PATTERN.md"
           },
@@ -8357,6 +8377,10 @@
           {
             "text": "reduceCriticalPath",
             "link": "/api/@rulvar/rulvar/functions/reduceCriticalPath.md"
+          },
+          {
+            "text": "reduceDecisionChain",
+            "link": "/api/@rulvar/rulvar/functions/reduceDecisionChain.md"
           },
           {
             "text": "reduceInvocationTable",
