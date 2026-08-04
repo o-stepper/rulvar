@@ -2710,6 +2710,15 @@ const MUTATIONS = [
     replace: '          const judge = false;',
     test: 'packages/core/src/orchestrator/synthesis.test.ts',
   },
+  {
+    id: 'spawn-spec-adoption',
+    doctrine:
+      'a regenerated spawn turn adopts a recovered decision by full canonical spec (RV1605): disabling the claim re-decides and re-pays every child of a checkpointless resume',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        const recoveredOrdinal = unclaimedRecoveredBySpec.get(specKey)?.shift();',
+    replace: '        const recoveredOrdinal = undefined;',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

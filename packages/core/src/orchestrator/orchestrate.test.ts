@@ -872,6 +872,156 @@ describe('orchestrate (M6-T07/T08)', () => {
     expect(JSON.stringify(firstOrchCall?.messages ?? [])).toContain('handle');
   });
 
+  it('a regenerated spawn turn adopts the recovered child only on the FULL spec (RV1605)', async () => {
+    // Phase 1: the root spawns one worker with approach 'A', the child
+    // settles, and the root dies before its terminal. The transcripts
+    // are LOST, so the resumed root regenerates the spawn turn itself
+    // instead of continuing past it.
+    let phase1OrchTurn = 0;
+    const adapter1 = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'paid once' };
+      }
+      phase1OrchTurn += 1;
+      if (phase1OrchTurn === 1) {
+        return {
+          toolCall: {
+            name: 'spawn_agent',
+            args: { agentType: 'worker', prompt: 'study the ledger', approach: 'A' },
+          },
+        };
+      }
+      return { error: { code: 'agent', message: 'simulated crash', retryable: false } };
+    });
+    const phase1 = makeInternals({
+      adapters: [adapter1],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('spec identity goal', {});
+    await expect(executeWorkflow(phase1.internals, wf, undefined)).rejects.toThrow(
+      /terminated with status 'error'/,
+    );
+    const phase1Entries = await phase1.store.load('test-run');
+    expect(admissionEntries(phase1Entries)).toHaveLength(1);
+    const rootTerminal = phase1Entries.find(
+      (e) => e.kind === 'agent' && !e.scope.startsWith('agent:') && e.status !== 'running',
+    );
+    const priorEntries = phase1Entries.filter((e) => e.seq < (rootTerminal?.seq ?? 0));
+
+    // Phase 2: the regenerated spawn turn DIVERGES in a field outside
+    // (agentType, prompt): approach 'B'. The doctrine: a divergent call
+    // decides fresh instead of receiving a stranger's handle; the prior
+    // decision's child stays paid, at-least-once.
+    const divergedStore = new InMemoryStore({ quiet: true });
+    for (const entry of priorEntries) {
+      await divergedStore.append('test-run', entry);
+    }
+    const adapter2 = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'paid fresh' };
+      }
+      const transcript = JSON.stringify(req.messages);
+      if (!transcript.includes('"handle"')) {
+        return {
+          toolCall: {
+            name: 'spawn_agent',
+            args: { agentType: 'worker', prompt: 'study the ledger', approach: 'B' },
+          },
+        };
+      }
+      if (!transcript.includes('paid')) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'diverged done' } } };
+    });
+    const phase2 = makeInternals({
+      adapters: [adapter2],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+      priorEntries,
+      store: divergedStore,
+      // A FRESH transcript store: the boundary checkpoint is gone, so
+      // the root replays from the top and re-emits the spawn call.
+      transcripts: new InMemoryTranscriptStore(),
+    });
+    const outcome = await executeWorkflow(phase2.internals, wf, undefined);
+    expect(outcome).toBe('diverged done');
+    // The divergent call decided FRESH: a second admission decision and
+    // a second paid child.
+    const divergedEntries = await divergedStore.load('test-run');
+    expect(admissionEntries(divergedEntries)).toHaveLength(2);
+    expect(adapter2.calls.filter((r) => agentTypeOf(r) === 'worker')).toHaveLength(1);
+  });
+
+  it('a regenerated spawn turn with the identical full spec adopts the recovered child', async () => {
+    let phase1OrchTurn = 0;
+    const adapter1 = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'paid once' };
+      }
+      phase1OrchTurn += 1;
+      if (phase1OrchTurn === 1) {
+        return {
+          toolCall: {
+            name: 'spawn_agent',
+            args: { agentType: 'worker', prompt: 'study the ledger', approach: 'A' },
+          },
+        };
+      }
+      return { error: { code: 'agent', message: 'simulated crash', retryable: false } };
+    });
+    const phase1 = makeInternals({
+      adapters: [adapter1],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('spec identity goal', {});
+    await expect(executeWorkflow(phase1.internals, wf, undefined)).rejects.toThrow(
+      /terminated with status 'error'/,
+    );
+    const phase1Entries = await phase1.store.load('test-run');
+    const rootTerminal = phase1Entries.find(
+      (e) => e.kind === 'agent' && !e.scope.startsWith('agent:') && e.status !== 'running',
+    );
+    const priorEntries = phase1Entries.filter((e) => e.seq < (rootTerminal?.seq ?? 0));
+    const adoptedStore = new InMemoryStore({ quiet: true });
+    for (const entry of priorEntries) {
+      await adoptedStore.append('test-run', entry);
+    }
+    const adapter2 = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        throw new Error('an identical spec re-paid its child on resume');
+      }
+      const transcript = JSON.stringify(req.messages);
+      if (!transcript.includes('"handle"')) {
+        return {
+          toolCall: {
+            name: 'spawn_agent',
+            args: { agentType: 'worker', prompt: 'study the ledger', approach: 'A' },
+          },
+        };
+      }
+      if (!transcript.includes('paid once')) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'adopted done' } } };
+    });
+    const phase2 = makeInternals({
+      adapters: [adapter2],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+      priorEntries,
+      store: adoptedStore,
+      transcripts: new InMemoryTranscriptStore(),
+    });
+    const outcome = await executeWorkflow(phase2.internals, wf, undefined);
+    expect(outcome).toBe('adopted done');
+    const adoptedEntries = await adoptedStore.load('test-run');
+    expect(admissionEntries(adoptedEntries)).toHaveLength(1);
+    expect(adapter2.calls.filter((r) => agentTypeOf(r) === 'worker')).toHaveLength(0);
+  });
+
   it('nests under the AdmissionController via ctx.orchestrate', async () => {
     let orchTurn = 0;
     const adapter = scriptedAdapter((req): ScriptedTurn => {

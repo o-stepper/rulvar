@@ -2331,7 +2331,11 @@ export function makeOrchestratorWorkflow(
      * handing it the prior ordinal's handle would bind the transcript
      * to a stranger's child.
      */
-    const recoveredSpecByOrdinal = new Map<number, SpawnAgentParams>();
+    // Unclaimed recovered admissions by their CANONICAL spec (RV1605):
+    // jcsSerialize(spec) -> spawn ordinals in journal order. A
+    // regenerated spawn call claims the first unclaimed decision whose
+    // full spec matches byte for byte; anything else decides fresh.
+    const unclaimedRecoveredBySpec = new Map<string, number[]>();
     let nextOrdinal = 0;
     /**
      * The maxSpawns ledger counts ADMITTED children, never attempt
@@ -2675,7 +2679,15 @@ export function makeOrchestratorWorkflow(
       for (const { entrySeq, value } of admissions) {
         nextOrdinal = Math.max(nextOrdinal, value.spawnOrdinal + 1);
         const decision = value.decision as unknown as AdmissionDecision;
-        recoveredSpecByOrdinal.set(value.spawnOrdinal, value.spec as unknown as SpawnAgentParams);
+        {
+          const specKey = jcsSerialize(value.spec);
+          const queue = unclaimedRecoveredBySpec.get(specKey);
+          if (queue === undefined) {
+            unclaimedRecoveredBySpec.set(specKey, [value.spawnOrdinal]);
+          } else {
+            queue.push(value.spawnOrdinal);
+          }
+        }
         const recoveredAgentType =
           (value.spec as { agentType?: string } | undefined)?.agentType ?? 'unknown';
         if (decision.verdict.kind !== 'admit') {
@@ -2963,38 +2975,46 @@ export function makeOrchestratorWorkflow(
     const orchestratorRuntime: OrchestratorRuntime = {
       async spawn(params: SpawnAgentParams): Promise<{ handle: number }> {
         await recoveryDone;
+        // Idempotent re-execution after a resume that REGENERATES the
+        // spawn turn (a lost or pre-spawn checkpoint): the recovered
+        // verdict binds by the FULL canonical spec (RV1605), never by
+        // position. The pre-RV1605 form compared agentType and prompt
+        // at a colliding ordinal, but recovery advances `nextOrdinal`
+        // past every journaled admission, so the collision could not
+        // occur and every regenerated spawn re-decided and re-paid; the
+        // eighteenth comparison benchmark separately flagged the
+        // two-field comparison as a stale-child hazard had it fired. A
+        // matching call claims the first unclaimed recovered decision
+        // in journal order (its settled child replays free, a dangling
+        // one redispatches pinned, a rejection rolls forward); a call
+        // diverging in ANY field decides fresh instead of receiving a
+        // stranger's handle (the prior decision's child stays paid,
+        // at-least-once).
+        const specKey = jcsSerialize(params);
+        const recoveredOrdinal = unclaimedRecoveredBySpec.get(specKey)?.shift();
+        if (recoveredOrdinal !== undefined) {
+          const recovered = byOrdinal.get(recoveredOrdinal);
+          if (recovered !== undefined) {
+            return { handle: recovered.handle };
+          }
+          const recoveredRejection = rejectedByOrdinal.get(recoveredOrdinal);
+          if (recoveredRejection !== undefined) {
+            const reason = recoveredRejection.decision.verdict as { reason?: { code?: string } };
+            emitSpawnRejected(internals.events, {
+              entryRef: recoveredRejection.entrySeq,
+              code: reason.reason?.code ?? 'unknown',
+              agentType: params.agentType,
+              spanId: callingState.spanId,
+              replayed: true,
+            });
+            throw new AdmissionRejectedError(
+              `admission rejected spawn ordinal ${String(recoveredOrdinal)} (recovered verdict)`,
+              { data: { decision: recoveredRejection.decision as unknown as Json } },
+            );
+          }
+        }
         const spawnOrdinal = nextOrdinal;
         nextOrdinal += 1;
-        // Idempotent re-execution after a mid-turn resume: the recovery
-        // scan already rebuilt this ordinal's record or rejection. The
-        // recovered verdict binds ONLY when the incoming call matches
-        // the journaled spec: a cross-attempt rerun regenerating a lost
-        // turn may decide differently, and a divergent call must decide
-        // fresh instead of receiving a stranger's handle (the prior
-        // decision's child stays paid, at-least-once).
-        const priorSpec = recoveredSpecByOrdinal.get(spawnOrdinal);
-        const specMatches =
-          priorSpec === undefined ||
-          (priorSpec.agentType === params.agentType && priorSpec.prompt === params.prompt);
-        const recovered = byOrdinal.get(spawnOrdinal);
-        if (recovered !== undefined && specMatches) {
-          return { handle: recovered.handle };
-        }
-        const recoveredRejection = rejectedByOrdinal.get(spawnOrdinal);
-        if (recoveredRejection !== undefined && specMatches) {
-          const reason = recoveredRejection.decision.verdict as { reason?: { code?: string } };
-          emitSpawnRejected(internals.events, {
-            entryRef: recoveredRejection.entrySeq,
-            code: reason.reason?.code ?? 'unknown',
-            agentType: params.agentType,
-            spanId: callingState.spanId,
-            replayed: true,
-          });
-          throw new AdmissionRejectedError(
-            `admission rejected spawn ordinal ${String(spawnOrdinal)} (recovered verdict)`,
-            { data: { decision: recoveredRejection.decision as unknown as Json } },
-          );
-        }
         if (opts?.maxSpawns !== undefined && admittedSpawnCount >= opts.maxSpawns) {
           // A config-gate rejection precedes any journal append, so the
           // event carries no entryRef. The gate reads the slot ledger of
