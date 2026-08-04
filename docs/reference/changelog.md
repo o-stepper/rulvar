@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+
 ### 1.178.0
 
 #### Patch Changes
@@ -1723,6 +1730,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+
 ### 1.178.0
 
 #### Patch Changes
@@ -3235,6 +3249,19 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.179.0
+
+#### Minor Changes
+
+- 1a5a85a: The claim-coverage grade rides the acceptance envelope, and strict reads it (RV1702). The eighteenth comparison benchmark's run reported `completion: 'complete'` with `contradictions: []` while the judge had seen 40 of 144 citing sentences, and three material falsehoods rode that gap; the counts that told the truth (RV1603) still had to be interpreted. The claim-consistency meta now carries `coverage`, one closed vocabulary a consumer reads instead of inferring semantic health from an empty findings array: `'full'` (every citing sentence had a judged pair, nothing cut, no declared critical anchor missed, the judge settled ok; zero citing sentences grade full vacuously), `'partial'` (a bound cut the fold or citing sentences went unjudged), `'critical-uncovered'` (declared critical anchors got no judged pair), `'judge-failed'` (nothing was judged at all), precedence strongest last. The pure `claimCoverageOf` helper derives the identical grade from any persisted meta, including metas written before the field shipped, so old envelopes grade without re-running. The CLI's `--strict` now reads the grade beside the completion contract: `'judge-failed'` and `'critical-uncovered'` exit nonzero, both states that previously slipped through strict as green, while `'partial'` prints its counts to stderr and keeps the exit, because the bounded pass is the documented default and declaring critical anchors is the opt-in that makes the subset enforceable.
+
+  Journal: the orchestrate acceptance envelope's `claimConsistencyMeta` gains the required `coverage` field on newly settled runs; persisted metas from older engines stay readable and grade through `claimCoverageOf`.
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
 
 ### 1.178.0
 
@@ -5186,6 +5213,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.179.0
+
+#### Minor Changes
+
+- 1a5a85a: The claim-coverage grade rides the acceptance envelope, and strict reads it (RV1702). The eighteenth comparison benchmark's run reported `completion: 'complete'` with `contradictions: []` while the judge had seen 40 of 144 citing sentences, and three material falsehoods rode that gap; the counts that told the truth (RV1603) still had to be interpreted. The claim-consistency meta now carries `coverage`, one closed vocabulary a consumer reads instead of inferring semantic health from an empty findings array: `'full'` (every citing sentence had a judged pair, nothing cut, no declared critical anchor missed, the judge settled ok; zero citing sentences grade full vacuously), `'partial'` (a bound cut the fold or citing sentences went unjudged), `'critical-uncovered'` (declared critical anchors got no judged pair), `'judge-failed'` (nothing was judged at all), precedence strongest last. The pure `claimCoverageOf` helper derives the identical grade from any persisted meta, including metas written before the field shipped, so old envelopes grade without re-running. The CLI's `--strict` now reads the grade beside the completion contract: `'judge-failed'` and `'critical-uncovered'` exit nonzero, both states that previously slipped through strict as green, while `'partial'` prints its counts to stderr and keeps the exit, because the bounded pass is the documented default and declaring critical anchors is the opt-in that makes the subset enforceable.
+
+  Journal: the orchestrate acceptance envelope's `claimConsistencyMeta` gains the required `coverage` field on newly settled runs; persisted metas from older engines stay readable and grade through `claimCoverageOf`.
 
 ### 1.178.0
 
@@ -7466,6 +7501,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.179.0
+
 ### 1.178.0
 
 ### 1.177.0
@@ -7926,6 +7963,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+  - @rulvar/anthropic@1.179.0
+  - @rulvar/openai@1.179.0
+  - @rulvar/plan@1.179.0
+  - @rulvar/testing@1.179.0
 
 ### 1.178.0
 
@@ -9945,6 +9993,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+
 ### 1.178.0
 
 #### Patch Changes
@@ -10872,6 +10927,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
 
 ### 1.178.0
 
@@ -12587,6 +12649,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+
 ### 1.178.0
 
 #### Minor Changes
@@ -14217,6 +14286,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+  - eslint-plugin-rulvar@1.179.0
 
 ### 1.178.0
 
@@ -15988,6 +16065,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+  - @rulvar/anthropic@1.179.0
+  - @rulvar/openai@1.179.0
 
 ### 1.178.0
 
@@ -18021,6 +18107,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+
 ### 1.178.0
 
 #### Patch Changes
@@ -19659,6 +19752,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
+
 ### 1.178.0
 
 #### Patch Changes
@@ -20602,6 +20702,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
 
 ### 1.178.0
 
@@ -22177,6 +22284,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.179.0
+
+#### Patch Changes
+
+- Updated dependencies [1a5a85a]
+  - @rulvar/core@1.179.0
 
 ### 1.178.0
 
