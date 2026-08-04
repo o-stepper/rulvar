@@ -1,4 +1,4 @@
-import { CompiledWorkflow, DeclaredLadder, Effort, Engine, EvidenceRef, Json, JsonSchema, KnowledgeSnapshot, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow, WorkflowEvent } from "@rulvar/core";
+import { ClaimCoverageGrade, ClaimPair, CompiledWorkflow, ContradictionSource, DeclaredLadder, Effort, Engine, EvidenceRef, Json, JsonSchema, KnowledgeSnapshot, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunFactsSheet, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow, WorkflowEvent } from "@rulvar/core";
 
 //#region src/envelope.d.ts
 /** Thrown when authorizing a run's ceiling would exceed the envelope. */
@@ -837,4 +837,53 @@ declare const FAULT_SCENARIO_NAMES: readonly string[];
 */
 declare function runFaultInjection(options?: RunFaultInjectionOptions): Promise<FaultInjectionReport>;
 //#endregion
-export { type BenchmarkFingerprint, type BenchmarkMetricExtractor, type BenchmarkPercentiles, type BenchmarkReport, type BenchmarkRunRecord, type BenchmarkSpec, type BenchmarkVerification, type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, FAULT_SCENARIO_NAMES, type FaultInjectionReport, type FaultScenarioArtifact, type FaultScenarioObservation, type FaultScenarioReport, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunBenchmarkOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunFaultInjectionOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runBenchmark, runCanary, runEvalCase, runEvalMatrix, runEvalSuite, runFaultInjection, runSweepMatrix, runValueCheckpoint, rungRuleHolds };
+//#region src/claim-corpus.d.ts
+/** The failure classes the eighteenth benchmark shipped, plus the bound classes. */
+type ClaimCorpusClass = "live-fact" | "package-identity" | "inverted-default" | "numeric-range" | "negation" | "bounded-coverage";
+/** One adversarial case: a draft, its contradicting evidence, and the mechanical expectations. */
+interface ClaimCorpusCase {
+  id: string;
+  class: ClaimCorpusClass;
+  /** The composed prose committing the falsehood. */
+  draft: string;
+  /** Settled pool readings that contradict it (source-claim classes). */
+  pool?: readonly ContradictionSource[];
+  /** The recorded fact sheet that contradicts it (run-claim classes). */
+  runFacts?: RunFactsSheet;
+  /** Caller-style substring triggers for the run-facts arm. */
+  runFactTerms?: readonly string[];
+  /** Critical anchor declarations, exactly as a caller would pass them. */
+  critical?: readonly string[];
+  /** Pair bound override, for the bounded-coverage class. */
+  max?: number;
+  expect: {
+    /** Source-claim pairs the fold must form, at minimum. */minPairs?: number; /** Run-facts pairs the fold must form, at minimum. */
+    minRunFactPairs?: number; /** Anchors that must appear among the formed pairs. */
+    anchors?: readonly string[]; /** The coverage grade the assembled meta must carry. */
+    coverage?: ClaimCoverageGrade;
+  };
+}
+/** The shipped corpus, one case per failure class, adversarial by design. */
+declare const CLAIM_CORPUS: readonly ClaimCorpusCase[];
+/** One case's verdict: mechanical expectations against the folds' output. */
+interface ClaimCorpusVerdict {
+  id: string;
+  class: ClaimCorpusClass;
+  pass: boolean;
+  /** Every unmet expectation, named; empty exactly when `pass`. */
+  failures: string[];
+  /** The formed source-claim pairs, for judge handoff. */
+  pairs: ClaimPair[];
+  /** The formed run-facts pairs, for judge handoff. */
+  runFactPairs: ClaimPair[];
+  /** The grade the assembled meta carries. */
+  coverage: ClaimCoverageGrade;
+}
+/**
+* Runs every corpus case through the pure folds and grades the
+* mechanical expectations. No engine, no model, no journal: the same
+* functions the orchestrator runs, on the same bytes.
+*/
+declare function runClaimCorpus(cases?: readonly ClaimCorpusCase[]): ClaimCorpusVerdict[];
+//#endregion
+export { type BenchmarkFingerprint, type BenchmarkMetricExtractor, type BenchmarkPercentiles, type BenchmarkReport, type BenchmarkRunRecord, type BenchmarkSpec, type BenchmarkVerification, CLAIM_CORPUS, type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type ClaimCorpusCase, type ClaimCorpusClass, type ClaimCorpusVerdict, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, FAULT_SCENARIO_NAMES, type FaultInjectionReport, type FaultScenarioArtifact, type FaultScenarioObservation, type FaultScenarioReport, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunBenchmarkOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunFaultInjectionOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runBenchmark, runCanary, runClaimCorpus, runEvalCase, runEvalMatrix, runEvalSuite, runFaultInjection, runSweepMatrix, runValueCheckpoint, rungRuleHolds };

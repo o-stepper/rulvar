@@ -92,3 +92,10 @@ export {
   type FaultScenarioReport,
   type RunFaultInjectionOptions,
 } from './fault-injection.js';
+export {
+  CLAIM_CORPUS,
+  runClaimCorpus,
+  type ClaimCorpusCase,
+  type ClaimCorpusClass,
+  type ClaimCorpusVerdict,
+} from './claim-corpus.js';
