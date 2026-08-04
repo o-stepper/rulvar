@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+
 ### 1.171.0
 
 #### Patch Changes
@@ -1675,6 +1682,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+
 ### 1.171.0
 
 #### Patch Changes
@@ -3139,6 +3153,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
 
 ### 1.171.0
 
@@ -5042,6 +5063,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.172.0
+
+#### Minor Changes
+
+- 0d4770b: Bound the MCP tools/list pagination itself (RV1602). The eighteenth comparison benchmark called out the gap the RV1515 bounds left open: a server answering unique cursors over empty pages grows neither the tool count (`maxTools` never trips) nor any timeout (each page answers inside `listMs`), so the sweep could spin wire calls forever. Two guards close it. The cursor-echo cycle guard is unconditional: a page whose `nextCursor` equals the cursor it was queried with makes no pagination progress and is never a legitimate step, so the sweep refuses with a typed `ConfigError` on the second page at the latest. The new opt-in `maxPages` (positive integer, validated with the other bounds) caps the sweep's wire call count for the general no-progress case; like `maxTools` it fails closed, refusing a server that still reports another page past the cap rather than silently importing a subset of its declared surface. Absent config preserves previous behavior except the cycle refusal, which only ever fires on a protocol-violating server.
 
 ### 1.171.0
 
@@ -7284,6 +7311,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.172.0
+
 ### 1.171.0
 
 ### 1.170.0
@@ -7730,6 +7759,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+  - @rulvar/anthropic@1.172.0
+  - @rulvar/openai@1.172.0
+  - @rulvar/plan@1.172.0
+  - @rulvar/testing@1.172.0
 
 ### 1.171.0
 
@@ -9672,6 +9712,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+
 ### 1.171.0
 
 #### Patch Changes
@@ -10551,6 +10598,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
 
 ### 1.171.0
 
@@ -12218,6 +12272,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+
 ### 1.171.0
 
 #### Patch Changes
@@ -13796,6 +13857,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+  - eslint-plugin-rulvar@1.172.0
 
 ### 1.171.0
 
@@ -15508,6 +15577,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+  - @rulvar/anthropic@1.172.0
+  - @rulvar/openai@1.172.0
 
 ### 1.171.0
 
@@ -17479,6 +17557,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+
 ### 1.171.0
 
 #### Patch Changes
@@ -19069,6 +19154,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
+
 ### 1.171.0
 
 #### Patch Changes
@@ -19964,6 +20056,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
 
 ### 1.171.0
 
@@ -21491,6 +21590,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.172.0
+
+#### Patch Changes
+
+- Updated dependencies [0d4770b]
+  - @rulvar/core@1.172.0
 
 ### 1.171.0
 
