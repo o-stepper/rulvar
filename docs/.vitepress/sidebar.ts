@@ -63,6 +63,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'MCP', link: '/guide/mcp' },
       { text: 'Isolated executor', link: '/guide/isolated-executor' },
       { text: 'Production profiles', link: '/guide/production-profiles' },
+      { text: 'The operational host', link: '/guide/operational-host' },
     ],
   },
   {

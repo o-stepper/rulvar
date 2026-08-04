@@ -19,6 +19,7 @@ export type * from './l0/terminal-envelope.js';
 export * from './engine/terminal-envelope.js';
 export * from './l0/schema.js';
 export * from './l0/entries.js';
+export * from './l0/decision-chain.js';
 export type * from './l0/spi/provider.js';
 export type * from './l0/spi/isolation.js';
 export type * from './l0/spi/store.js';

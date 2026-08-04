@@ -2747,6 +2747,33 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/progressive-drafting.test.ts',
   },
   {
+    id: 'decision-chain-authority-filter',
+    doctrine:
+      'the decision chain folds ONLY the authority-bearing kinds (RV1705): admitting work entries drowns the who-allowed-what record in agent and step noise, and an auditor reading the chain as authorizations would read paid work as permission',
+    file: 'packages/core/src/l0/decision-chain.ts',
+    find: '  if (!DECISION_CHAIN_KINDS.includes(entry.kind)) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/l0/decision-chain.test.ts',
+  },
+  {
+    id: 'decision-chain-seq-order',
+    doctrine:
+      "the decision chain sorts by seq, the journal's own total order (RV1705): trusting input order lets a store that returns entries out of order present a resolution BEFORE the ask it closed, inverting the audit narrative",
+    file: 'packages/core/src/l0/decision-chain.ts',
+    find: '  return rows.sort((a, b) => a.seq - b.seq);',
+    replace: '  return rows;',
+    test: 'packages/core/src/l0/decision-chain.test.ts',
+  },
+  {
+    id: 'host-effect-idempotency',
+    doctrine:
+      'the reference guarded effect suppresses a re-fired side effect under a claimed idempotency key (RV1705): dropping the claim check is exactly the duplicate external effect the redelivery acceptance exists to refuse',
+    file: 'examples/src/operational-host.ts',
+    find: '      const alreadyFired = effects.fired.includes(key);',
+    replace: '      const alreadyFired = false;',
+    test: 'examples/src/operational-host.test.ts',
+  },
+  {
     id: 'claim-corpus-verdict-honesty',
     doctrine:
       'the claim corpus reports an unmet expectation as a failed case (RV1704): a runner that stops comparing formed pairs against the expectation green-washes the exact blindness the corpus exists to detect, and every named failure class silently passes forever',
