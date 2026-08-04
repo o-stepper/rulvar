@@ -32,6 +32,12 @@
 //      quietly demonstrate an unbounded tree (the nested ctx.orchestrate
 //      form runs under its parent's admission and is exempt). Enforced
 //      per call, not per fence, since the v1.20.0 review (P3-4).
+//  12. Package truth (RV1701): every `@rulvar/<name>` token names a real
+//      workspace package; every fence import specifier resolves to a
+//      real exports-map subpath; named root imports are symbols the
+//      committed dts rollup exports; and the versioning fixed-group
+//      list, its spelled-out size, and the two package tables stay in
+//      set equality with .changeset/config.json and the manifests.
 //
 // Scope: every hand-written .md under docs/, recursively. Generated or
 // mirrored trees are excluded: docs/api (TypeDoc output), docs/node_modules,
@@ -574,7 +580,428 @@ export function check8Violations(markdownText) {
   return violations;
 }
 
+// Check 12 machinery (RV1701): package truth. The eighteenth comparison
+// benchmark's strongest documentation-class failure was package identity
+// conflation: a due-diligence dossier described `@rulvar/plan` with a
+// citation into `packages/planner` and nothing mechanical objected. The
+// docs cannot stop a reader's model from confusing two names, but they
+// can refuse to ship a single byte that gets the universe wrong
+// themselves. Four layers, each against a build artifact rather than
+// prose: every `@rulvar/<name>` token in every page must name a real
+// workspace package; every import/require/export-from specifier in a
+// ts/js fence must resolve to a real exports-map subpath of its package;
+// every NAMED root import in a fence must be a symbol the package's
+// committed dts rollup actually exports (this is the layer that turns
+// `import { planRunner } from '@rulvar/planner'` into a lint failure
+// instead of a shipped falsehood); and the versioning page's fixed-group
+// list, spelled-out group size, and the two package tables must stay in
+// set-equality with .changeset/config.json and the publishable
+// manifests, so "the full package list" cannot silently drop a package
+// (it had: store-postgres and executor were missing when this check
+// first ran).
+
+/**
+ * Spelled-out group sizes for the parity check, total over every
+ * realistic size so the check can never silently skip; index 0 unused.
+ * @type {readonly string[]}
+ */
+const COUNT_WORDS = [
+  '',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+  'twenty',
+];
+
+/**
+ * A scoped package name token. Hyphenated lowercase only: every real
+ * name fits, and a sentence-final period after `@rulvar/compat.` must
+ * not be captured into the name.
+ */
+const PKG_TOKEN = /@rulvar\/[a-z0-9][a-z0-9-]*/gu;
+
+/**
+ * Exported names of one committed dts rollup: the union of every
+ * `export { ... }` block (renames export the post-`as` name, `type`
+ * prefixes stripped) plus the transitive closure over
+ * `export * from "@rulvar/x"` lines (the umbrella re-exports core this
+ * way). Returns null when the rollup file is absent, which downgrades
+ * the symbol layer to "unknown" without failing the name and subpath
+ * layers.
+ *
+ * @param {string} pkgName
+ * @param {Set<string>} [seen]
+ * @returns {Set<string> | null}
+ */
+export function rollupExportedNames(pkgName, seen = new Set()) {
+  if (seen.has(pkgName)) return new Set();
+  seen.add(pkgName);
+  const base = pkgName === 'rulvar' ? 'rulvar' : pkgName.replace('@rulvar/', '');
+  /** @type {string} */
+  let text;
+  try {
+    text = readFileSync(join(ROOT, 'dts-rollup', `${base}.d.ts`), 'utf8');
+  } catch {
+    return null;
+  }
+  const names = new Set();
+  for (const block of text.matchAll(/export\s+(?:type\s+)?\{(?<body>[^}]*)\}/gu)) {
+    for (const raw of block.groups.body.split(',')) {
+      const entry = raw.trim();
+      if (entry === '') continue;
+      const renamed = entry.match(/\bas\s+(?<name>[A-Za-z_$][\w$]*)\s*$/u);
+      const plain = entry.match(/^(?:type\s+)?(?<name>[A-Za-z_$][\w$]*)$/u);
+      const name = renamed?.groups?.name ?? plain?.groups?.name;
+      if (name !== undefined) names.add(name);
+    }
+  }
+  for (const star of text.matchAll(/export\s+\*\s+from\s+["'](?<spec>[^"']+)["']/gu)) {
+    const spec = star.groups.spec;
+    if (!spec.startsWith('@rulvar/') && spec !== 'rulvar') continue;
+    const nested = rollupExportedNames(spec, seen);
+    if (nested === null) return null;
+    for (const name of nested) names.add(name);
+  }
+  return names;
+}
+
+/**
+ * The package universe: every workspace manifest (packages/* plus the
+ * root pointer/ dir) keyed by published name, with its exports-map
+ * subpaths and, for publishable packages, the dts-rollup symbol set.
+ * The pointer re-exports the umbrella one to one, so its symbol set is
+ * the umbrella's.
+ *
+ * @returns {Map<string, {dir: string, private: boolean, exportSubpaths: Set<string>, symbols: Set<string> | null}>}
+ */
+export function loadPackageUniverse() {
+  /** @type {Map<string, {dir: string, private: boolean, exportSubpaths: Set<string>, symbols: Set<string> | null}>} */
+  const byName = new Map();
+  const dirs = readdirSync(join(ROOT, 'packages'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join('packages', entry.name));
+  // The workspace members living outside packages/: the npm pointer and
+  // the two private workspaces whose names legitimately appear in the
+  // contributor-facing pages.
+  dirs.push('pointer', 'docs', 'examples');
+  for (const dir of dirs) {
+    /** @type {{name?: string, private?: boolean, exports?: Record<string, unknown>}} */
+    let manifest;
+    try {
+      manifest = JSON.parse(readFileSync(join(ROOT, dir, 'package.json'), 'utf8'));
+    } catch {
+      continue;
+    }
+    if (typeof manifest.name !== 'string') continue;
+    byName.set(manifest.name, {
+      dir,
+      private: manifest.private === true,
+      exportSubpaths: new Set(Object.keys(manifest.exports ?? {})),
+      symbols: null,
+    });
+  }
+  for (const [name, info] of byName) {
+    if (info.private) continue;
+    info.symbols = rollupExportedNames(name === 'rulvar' ? '@rulvar/rulvar' : name);
+  }
+  return byName;
+}
+
+/**
+ * Import bindings of one ts/js fence body, AST-parsed exactly like
+ * check 8 (lenient, never type-checked): static imports (named bindings
+ * collected, pre-rename names), export-from, require('x'), and dynamic
+ * import('x'). Offsets are zero-based lines within the fence body.
+ *
+ * @param {string} code
+ * @returns {{specifier: string, names: string[], offset: number}[]}
+ */
+export function fenceImportBindings(code) {
+  /** @type {import('typescript').SourceFile | undefined} */
+  let source;
+  try {
+    source = ts.createSourceFile('fence.ts', code, ts.ScriptTarget.Latest);
+  } catch {
+    source = undefined;
+  }
+  if (source === undefined) return [];
+  const sf = source;
+  /** @type {{specifier: string, names: string[], offset: number}[]} */
+  const out = [];
+  /** @param {import('typescript').Node} node @param {string} specifier @param {string[]} names */
+  const push = (node, specifier, names) => {
+    out.push({
+      specifier,
+      names,
+      offset: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line,
+    });
+  };
+  /** @param {import('typescript').Node} node */
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      /** @type {string[]} */
+      const names = [];
+      const bindings = node.importClause?.namedBindings;
+      if (bindings !== undefined && ts.isNamedImports(bindings)) {
+        for (const element of bindings.elements) {
+          names.push((element.propertyName ?? element.name).text);
+        }
+      }
+      push(node, node.moduleSpecifier.text, names);
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier !== undefined &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      push(node, node.moduleSpecifier.text, []);
+    } else if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      const isRequire = ts.isIdentifier(callee) && callee.text === 'require';
+      const isDynamicImport = callee.kind === ts.SyntaxKind.ImportKeyword;
+      if (
+        (isRequire || isDynamicImport) &&
+        node.arguments.length >= 1 &&
+        ts.isStringLiteral(node.arguments[0])
+      ) {
+        push(node, node.arguments[0].text, []);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+/**
+ * Check 12, fence layer: every Rulvar specifier in a fence resolves to
+ * a known package, a real exports subpath, and (for named root imports,
+ * when the rollup is available) real exported symbols.
+ *
+ * @param {string} code the fence body
+ * @param {Map<string, {exportSubpaths: Set<string>, symbols: Set<string> | null}>} universe
+ * @returns {{offset: number, message: string}[]}
+ */
+export function packageImportViolations(code, universe) {
+  /** @type {{offset: number, message: string}[]} */
+  const violations = [];
+  for (const binding of fenceImportBindings(code)) {
+    const spec = binding.specifier;
+    const isRulvar =
+      spec === 'rulvar' ||
+      spec.startsWith('rulvar/') ||
+      spec === 'eslint-plugin-rulvar' ||
+      spec.startsWith('eslint-plugin-rulvar/') ||
+      spec.startsWith('@rulvar/');
+    if (!isRulvar) continue;
+    const pkgName = spec.startsWith('@rulvar/')
+      ? spec.split('/').slice(0, 2).join('/')
+      : spec.split('/')[0];
+    const info = universe.get(pkgName);
+    if (info === undefined) {
+      violations.push({
+        offset: binding.offset,
+        message: `import from unknown package '${pkgName}'; no workspace manifest publishes that name`,
+      });
+      continue;
+    }
+    const subpath = spec === pkgName ? '.' : `./${spec.slice(pkgName.length + 1)}`;
+    if (!info.exportSubpaths.has(subpath)) {
+      violations.push({
+        offset: binding.offset,
+        message:
+          `'${spec}': subpath '${subpath}' is not in ${pkgName}'s exports map; ` +
+          `the package exposes: ${[...info.exportSubpaths].join(', ')}`,
+      });
+      continue;
+    }
+    if (subpath === '.' && binding.names.length > 0 && info.symbols !== null) {
+      for (const name of binding.names) {
+        if (!info.symbols.has(name)) {
+          violations.push({
+            offset: binding.offset,
+            message:
+              `'${name}' is not exported by ${pkgName} (per its committed dts rollup); ` +
+              `if the symbol lives in a sibling package, import from that package ` +
+              `(@rulvar/plan and @rulvar/planner are distinct)`,
+          });
+        }
+      }
+    }
+  }
+  return violations;
+}
+
+/**
+ * Check 12, prose layer: every `@rulvar/<name>` token anywhere in a
+ * page (prose and fences alike) must name a real workspace package, so
+ * a typo or a nonexistent package cannot be documented into existence.
+ *
+ * @param {string} markdownText
+ * @param {Set<string>} knownNames
+ * @returns {{line: number, token: string}[]}
+ */
+export function unknownPackageTokens(markdownText, knownNames) {
+  /** @type {{line: number, token: string}[]} */
+  const hits = [];
+  markdownText.split('\n').forEach((lineText, index) => {
+    for (const match of lineText.matchAll(PKG_TOKEN)) {
+      if (!knownNames.has(match[0])) {
+        hits.push({ line: index + 1, token: match[0] });
+      }
+    }
+  });
+  return hits;
+}
+
+/**
+ * Check 12, per-file wiring: prose tokens plus per-fence import
+ * resolution, fence-split exactly like check8Violations.
+ *
+ * @param {string} markdownText
+ * @param {Map<string, {exportSubpaths: Set<string>, symbols: Set<string> | null}>} universe
+ * @returns {{line: number, message: string}[]}
+ */
+export function packageTruthViolations(markdownText, universe) {
+  /** @type {{line: number, message: string}[]} */
+  const violations = [];
+  for (const hit of unknownPackageTokens(markdownText, new Set(universe.keys()))) {
+    violations.push({
+      line: hit.line,
+      message: `unknown package name '${hit.token}'; no workspace manifest publishes that name`,
+    });
+  }
+  const lines = markdownText.split('\n');
+  /** @type {{lang: string, start: number, body: string[]} | null} */
+  let fence = null;
+  lines.forEach((lineText, index) => {
+    const opener = lineText.match(FENCE_LANG);
+    if (opener !== null) {
+      if (fence === null) {
+        fence = { lang: opener[1].toLowerCase(), start: index + 1, body: [] };
+        return;
+      }
+      const { lang, start, body } = fence;
+      fence = null;
+      if (!FENCE_LANGS.includes(lang)) return;
+      for (const violation of packageImportViolations(body.join('\n'), universe)) {
+        violations.push({ line: start + 1 + violation.offset, message: violation.message });
+      }
+      return;
+    }
+    fence?.body.push(lineText);
+  });
+  return violations;
+}
+
+/**
+ * Check 12, cross-file layer: the versioning page's fixed-group list
+ * line must be in set equality with .changeset/config.json, its
+ * spelled-out size must match the group's actual size, and the two
+ * package tables must carry a row for every publishable package plus
+ * the pointer.
+ *
+ * @param {{versioningText: string, packagesText: string, installationText: string, fixedGroup: string[]}} input
+ * @returns {{file: 'versioning' | 'packages' | 'installation', message: string}[]}
+ */
+export function packageParityViolations(input) {
+  /** @type {{file: 'versioning' | 'packages' | 'installation', message: string}[]} */
+  const violations = [];
+  const { versioningText, packagesText, installationText, fixedGroup } = input;
+
+  const groupMarker = 'The group is:';
+  const markerIndex = versioningText.indexOf(groupMarker);
+  const listLine =
+    markerIndex < 0
+      ? undefined
+      : versioningText
+          .slice(markerIndex)
+          .split('\n')
+          .map((lineText) => lineText.trim())
+          .find((lineText) => lineText !== '' && !lineText.startsWith(groupMarker));
+  if (listLine === undefined) {
+    violations.push({
+      file: 'versioning',
+      message: `fixed-group list not found (marker '${groupMarker}'); update the parity check`,
+    });
+  } else {
+    const listed = new Set(
+      [
+        ...[...listLine.matchAll(PKG_TOKEN)].map((match) => match[0]),
+        ...(listLine.includes('eslint-plugin-rulvar') ? ['eslint-plugin-rulvar'] : []),
+      ].filter((name) => name !== '@rulvar/compat'),
+    );
+    for (const name of fixedGroup) {
+      if (!listed.has(name)) {
+        violations.push({
+          file: 'versioning',
+          message: `fixed-group member ${name} is missing from the group list`,
+        });
+      }
+    }
+    for (const name of listed) {
+      if (!fixedGroup.includes(name)) {
+        violations.push({
+          file: 'versioning',
+          message: `group list names ${name}, which is not in .changeset/config.json's fixed group`,
+        });
+      }
+    }
+  }
+  const sizeWord = COUNT_WORDS[fixedGroup.length];
+  if (sizeWord === undefined || sizeWord === '') {
+    violations.push({
+      file: 'versioning',
+      message: `the fixed group has ${String(fixedGroup.length)} packages, outside the spelled-out size table; extend COUNT_WORDS`,
+    });
+  } else if (!versioningText.includes(`(${sizeWord} packages)`)) {
+    violations.push({
+      file: 'versioning',
+      message: `the fixed group has ${String(fixedGroup.length)} packages; the policy table must say '(${sizeWord} packages)'`,
+    });
+  }
+
+  const publishable = [...fixedGroup, '@rulvar/compat'];
+  for (const name of publishable) {
+    if (!new RegExp(`^\\| \\[\`${name}\`\\]\\(/api/`, 'mu').test(packagesText)) {
+      violations.push({
+        file: 'packages',
+        message: `package table has no row for ${name}`,
+      });
+    }
+    if (!new RegExp(`^\\| \`${name}\` \\|`, 'mu').test(installationText)) {
+      violations.push({
+        file: 'installation',
+        message: `the full package list has no row for ${name}`,
+      });
+    }
+  }
+  if (!/^\| `rulvar` \(unscoped\) \|/mu.test(packagesText)) {
+    violations.push({
+      file: 'packages',
+      message: 'package table has no row for the unscoped rulvar pointer',
+    });
+  }
+  return violations;
+}
+
 function main() {
+  const packageUniverse = loadPackageUniverse();
   for (const file of collectFiles()) {
     const text = readFileSync(file, 'utf8');
     const lines = text.split('\n');
@@ -585,6 +1012,11 @@ function main() {
     // wraps a sentence across lines, and the conjunction the
     // predicates test for must not be split by the wrap.
     for (const hit of overclaimSentences(text)) {
+      fail(file, hit.line, hit.message);
+    }
+
+    // Check 12: package truth, per file (prose tokens + fence imports).
+    for (const hit of packageTruthViolations(text, packageUniverse)) {
       fail(file, hit.line, hit.message);
     }
 
@@ -646,6 +1078,41 @@ function main() {
     const expectedH1 = isHomeLayout ? 0 : 1;
     if (h1Count !== expectedH1) {
       fail(file, 1, `expected exactly ${expectedH1} H1(s), found ${h1Count}`);
+    }
+  }
+
+  // Check 12, cross-file: fixed-group parity and package-table
+  // completeness against .changeset/config.json and the manifests.
+  {
+    const versioningPath = join(ROOT, 'docs', 'reference', 'versioning.md');
+    const packagesPath = join(ROOT, 'docs', 'reference', 'packages.md');
+    const installationPath = join(ROOT, 'docs', 'guide', 'installation.md');
+    /** @type {{fixed: string[][]}} */
+    const changesetConfig = JSON.parse(
+      readFileSync(join(ROOT, '.changeset', 'config.json'), 'utf8'),
+    );
+    const fixedGroup = changesetConfig.fixed[0];
+    for (const name of fixedGroup) {
+      if (!packageUniverse.has(name)) {
+        fail(
+          join(ROOT, '.changeset', 'config.json'),
+          1,
+          `fixed group names ${name}, but no workspace manifest publishes that name`,
+        );
+      }
+    }
+    const pathFor = {
+      versioning: versioningPath,
+      packages: packagesPath,
+      installation: installationPath,
+    };
+    for (const violation of packageParityViolations({
+      versioningText: readFileSync(versioningPath, 'utf8'),
+      packagesText: readFileSync(packagesPath, 'utf8'),
+      installationText: readFileSync(installationPath, 'utf8'),
+      fixedGroup,
+    })) {
+      fail(pathFor[violation.file], 1, violation.message);
     }
   }
 

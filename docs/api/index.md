@@ -16,8 +16,8 @@
 | [@rulvar/evals](/api/@rulvar/evals/index.md) | Rulvar evals: eval cases, golden outputs, rubric and judge graders, matrix sweeps, canary fingerprint. |
 | [@rulvar/executor](/api/@rulvar/executor/index.md) | Rulvar isolated tool executors: reference ToolExecutorProvider adapters that run tool work out of process (subprocess and container) so hostile or model-generated scripts cannot reach host capabilities. |
 | [@rulvar/openai](/api/@rulvar/openai/index.md) | Rulvar first-class provider adapter for the OpenAI Responses API, plus the openaiCompatible factory. |
-| [@rulvar/plan](/api/@rulvar/plan/index.md) | Rulvar adaptive orchestration extension: PlanRunner, RunLedger, escalation extensions, ModelLadder configuration. |
-| [@rulvar/planner](/api/@rulvar/planner/index.md) | Rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop. |
+| [@rulvar/plan](/api/@rulvar/plan/index.md) | Rulvar adaptive orchestration extension: PlanRunner, RunLedger, escalation extensions, ModelLadder configuration. Replans during the run; not the plan-writing hybrid mode, which is @rulvar/planner. |
+| [@rulvar/planner](/api/@rulvar/planner/index.md) | Rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop. Plans before the run; not the PlanRunner orchestration extension, which is @rulvar/plan. |
 | [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) | Rulvar umbrella package: re-exports @rulvar/core, both first-class adapters, the file store, and the terminal progress renderer. Also installable through the unscoped alias package rulvar, which re-exports this one. |
 | [@rulvar/store-conformance](/api/@rulvar/store-conformance/index.md) | Rulvar executable store conformance kit (DEF-4). |
 | [@rulvar/store-postgres](/api/@rulvar/store-postgres/index.md) | Rulvar PostgreSQL store implementing JournalStore and LeasableStore with a fencing epoch, for multi-process and multi-host deployments. |

@@ -2746,6 +2746,33 @@ const MUTATIONS = [
     replace: '      ...(false',
     test: 'packages/core/src/orchestrator/progressive-drafting.test.ts',
   },
+  {
+    id: 'docs-package-unknown-name',
+    doctrine:
+      'every @rulvar/<name> token in the docs names a real workspace package (RV1701): a check that stops consulting the manifest set lets a typo or a nonexistent package be documented into existence, the class the eighteenth benchmark shipped as prose',
+    file: 'scripts/docs-lint.mjs',
+    find: '      if (!knownNames.has(match[0])) {',
+    replace: '      if (false) {',
+    test: 'scripts/docs-lint.test.mjs',
+  },
+  {
+    id: 'docs-import-symbol-gate',
+    doctrine:
+      "named root imports in docs fences are symbols the committed dts rollup exports (RV1701): dropping the layer lets `import { planRunner } from '@rulvar/planner'` ship as documentation, the exact plan/planner conflation the benchmark dossier failed on",
+    file: 'scripts/docs-lint.mjs',
+    find: "    if (subpath === '.' && binding.names.length > 0 && info.symbols !== null) {",
+    replace: '    if (false) {',
+    test: 'scripts/docs-lint.test.mjs',
+  },
+  {
+    id: 'docs-fixed-group-parity',
+    doctrine:
+      "the versioning page's fixed-group list stays in set equality with .changeset/config.json (RV1701): without the missing-member direction, adding a sixteenth fixed package leaves the documented group silently one short, exactly how the installation table lost store-postgres and executor",
+    file: 'scripts/docs-lint.mjs',
+    find: '      if (!listed.has(name)) {',
+    replace: '      if (false) {',
+    test: 'scripts/docs-lint.test.mjs',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -17,10 +17,16 @@ import {
   check8Violations,
   checkOrchestrateFence,
   exactlyOnceHits,
+  fenceImportBindings,
   hasArgsHashOverclaim,
   hasAuthRetryOverclaim,
   hasReplayOrderOverclaim,
+  loadPackageUniverse,
   overclaimSentences,
+  packageImportViolations,
+  packageParityViolations,
+  packageTruthViolations,
+  unknownPackageTokens,
 } from './docs-lint.mjs';
 
 /** @param {string[]} lines @returns {string} */
@@ -461,4 +467,203 @@ test('a wrapped claim inside a vetted anchor stays legal; the next section does 
   const hits = exactlyOnceHits(doc, 'guide/durability.md');
   assert.equal(hits.length, 1);
   assert.equal(hits[0].line, 8);
+});
+
+// Check 12 (RV1701): package truth. The synthetic universe below keeps
+// the unit layer independent of the real manifests; the final block
+// pins the REAL universe's plan/planner symbol boundary, which is the
+// exact conflation class the eighteenth comparison benchmark shipped.
+/** @returns {Map<string, {exportSubpaths: Set<string>, symbols: Set<string> | null}>} */
+const syntheticUniverse = () =>
+  new Map([
+    [
+      '@rulvar/plan',
+      {
+        exportSubpaths: new Set(['.', './package.json']),
+        symbols: new Set(['planRunner', 'orchestratePlanned']),
+      },
+    ],
+    [
+      '@rulvar/planner',
+      {
+        exportSubpaths: new Set(['.', './package.json']),
+        symbols: new Set(['plan', 'compileScript']),
+      },
+    ],
+    [
+      '@rulvar/core',
+      {
+        exportSubpaths: new Set(['.', './package.json']),
+        symbols: null,
+      },
+    ],
+  ]);
+
+test('check 12: a typo package name is flagged with its line; a sentence-final period is not captured (RV1701)', () => {
+  const known = new Set(['@rulvar/core', '@rulvar/compat']);
+  const hits = unknownPackageTokens(
+    ['Use `@rulvar/core` here.', 'Enable `@rulvar/compat`.', 'Install @rulvar/planners now.'].join(
+      '\n',
+    ),
+    known,
+  );
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].line, 3);
+  assert.equal(hits[0].token, '@rulvar/planners');
+});
+
+test('check 12: fence bindings cover static, renamed, type-only, export-from, require, and dynamic forms (RV1701)', () => {
+  const code = [
+    "import { planRunner, type PlanOptions } from '@rulvar/plan';",
+    "import { plan as makePlan } from '@rulvar/planner';",
+    "export { compileScript } from '@rulvar/planner';",
+    "const cjs = require('@rulvar/core');",
+    "const dyn = await import('@rulvar/core/journal');",
+  ].join('\n');
+  const bindings = fenceImportBindings(code);
+  assert.deepEqual(
+    bindings.map((b) => b.specifier),
+    ['@rulvar/plan', '@rulvar/planner', '@rulvar/planner', '@rulvar/core', '@rulvar/core/journal'],
+  );
+  assert.deepEqual(bindings[0].names, ['planRunner', 'PlanOptions']);
+  assert.deepEqual(bindings[1].names, ['plan']);
+  assert.equal(bindings[4].offset, 4);
+});
+
+test('check 12: the plan/planner conflation is a lint failure, not a shipped falsehood (RV1701)', () => {
+  const violations = packageImportViolations(
+    "import { planRunner } from '@rulvar/planner';",
+    syntheticUniverse(),
+  );
+  assert.equal(violations.length, 1);
+  assert.match(violations[0].message, /'planRunner' is not exported by @rulvar\/planner/u);
+  assert.match(violations[0].message, /distinct/u);
+  assert.equal(
+    packageImportViolations("import { planRunner } from '@rulvar/plan';", syntheticUniverse())
+      .length,
+    0,
+  );
+});
+
+test('check 12: unknown packages and missing subpaths are flagged; null symbols skip only the symbol layer (RV1701)', () => {
+  const universe = syntheticUniverse();
+  const unknown = packageImportViolations("import { x } from '@rulvar/nope';", universe);
+  assert.equal(unknown.length, 1);
+  assert.match(unknown[0].message, /unknown package '@rulvar\/nope'/u);
+  const subpath = packageImportViolations("import x from '@rulvar/plan/secret';", universe);
+  assert.equal(subpath.length, 1);
+  assert.match(subpath[0].message, /subpath '\.\/secret' is not in @rulvar\/plan's exports map/u);
+  assert.equal(
+    packageImportViolations("import { anything } from '@rulvar/core';", universe).length,
+    0,
+    'a package without a rollup skips the symbol layer, not the whole check',
+  );
+  assert.equal(packageImportViolations("import fs from 'node:fs';", universe).length, 0);
+});
+
+test('check 12: a renamed import checks the pre-rename name (RV1701)', () => {
+  const ok = packageImportViolations(
+    "import { plan as makePlan } from '@rulvar/planner';",
+    syntheticUniverse(),
+  );
+  assert.equal(ok.length, 0);
+  const bad = packageImportViolations(
+    "import { makePlan as plan } from '@rulvar/planner';",
+    syntheticUniverse(),
+  );
+  assert.equal(bad.length, 1);
+  assert.match(bad[0].message, /'makePlan' is not exported/u);
+});
+
+test('check 12: packageTruthViolations reports fence violations at document lines and skips non ts/js fences (RV1701)', () => {
+  const doc = [
+    '# Page',
+    '',
+    '```ts',
+    "import { planRunner } from '@rulvar/planner';",
+    '```',
+    '',
+    '```bash',
+    'pnpm add @rulvar/planner',
+    '```',
+  ].join('\n');
+  const violations = packageTruthViolations(doc, syntheticUniverse());
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].line, 4);
+});
+
+test('check 12: fixed-group parity flags a missing member, an extra member, and a stale count word (RV1701)', () => {
+  const base = {
+    packagesText: [
+      '| [`@rulvar/core`](/api/@rulvar/core/) | L0 | engine | x | y |',
+      '| [`@rulvar/plan`](/api/@rulvar/plan/) | L4 | ext | x | y |',
+      '| [`@rulvar/compat`](/api/@rulvar/compat/) | L2 | frozen | x | y |',
+      '| `rulvar` (unscoped) | pointer | alias | x | y |',
+    ].join('\n'),
+    installationText: [
+      '| `@rulvar/core` | engine |',
+      '| `@rulvar/plan` | ext |',
+      '| `@rulvar/compat` | frozen |',
+    ].join('\n'),
+    fixedGroup: ['@rulvar/core', '@rulvar/plan'],
+  };
+  const clean = packageParityViolations({
+    ...base,
+    versioningText:
+      'The fixed group (two packages) ... The group is:\n\n`@rulvar/core`, `@rulvar/plan`.',
+  });
+  assert.deepEqual(clean, []);
+  const missing = packageParityViolations({
+    ...base,
+    versioningText: 'The fixed group (two packages) ... The group is:\n\n`@rulvar/core`.',
+  });
+  assert.equal(missing.length, 1);
+  assert.match(missing[0].message, /@rulvar\/plan is missing from the group list/u);
+  const extra = packageParityViolations({
+    ...base,
+    versioningText:
+      'The fixed group (two packages) ... The group is:\n\n`@rulvar/core`, `@rulvar/plan`, `@rulvar/ghost`.',
+  });
+  assert.equal(extra.length, 1);
+  assert.match(extra[0].message, /names @rulvar\/ghost/u);
+  const staleWord = packageParityViolations({
+    ...base,
+    versioningText:
+      'The fixed group (fifteen packages) ... The group is:\n\n`@rulvar/core`, `@rulvar/plan`.',
+  });
+  assert.equal(staleWord.length, 1);
+  assert.match(staleWord[0].message, /'\(two packages\)'/u);
+});
+
+test('check 12: a package table missing a publishable row is flagged for both pages (RV1701)', () => {
+  const violations = packageParityViolations({
+    versioningText:
+      'The fixed group (two packages) ... The group is:\n\n`@rulvar/core`, `@rulvar/plan`.',
+    packagesText: '| [`@rulvar/core`](/api/@rulvar/core/) | L0 | engine | x | y |',
+    installationText: '| `@rulvar/core` | engine |',
+    fixedGroup: ['@rulvar/core', '@rulvar/plan'],
+  });
+  const files = violations.map((violation) => `${violation.file}:${violation.message}`);
+  assert.ok(files.some((f) => f.startsWith('packages:') && f.includes('@rulvar/plan')));
+  assert.ok(files.some((f) => f.startsWith('installation:') && f.includes('@rulvar/plan')));
+  assert.ok(files.some((f) => f.startsWith('packages:') && f.includes('@rulvar/compat')));
+  assert.ok(files.some((f) => f.includes('pointer')));
+});
+
+test('check 12: the REAL universe keeps plan and planner distinct (RV1701)', () => {
+  const universe = loadPackageUniverse();
+  assert.ok(universe.size >= 17, `expected the full workspace, saw ${universe.size}`);
+  const plan = universe.get('@rulvar/plan');
+  const planner = universe.get('@rulvar/planner');
+  assert.ok(plan?.symbols?.has('planRunner'));
+  assert.ok(plan?.symbols?.has('orchestratePlanned'));
+  assert.ok(!plan?.symbols?.has('compileScript'));
+  assert.ok(planner?.symbols?.has('plan'));
+  assert.ok(planner?.symbols?.has('compileScript'));
+  assert.ok(!planner?.symbols?.has('planRunner'));
+  const umbrella = universe.get('@rulvar/rulvar');
+  assert.ok(umbrella?.symbols?.has('createEngine'), 'export * from core must flatten');
+  assert.ok(umbrella?.symbols?.has('anthropic'));
+  const pointer = universe.get('rulvar');
+  assert.ok(pointer?.symbols?.has('createEngine'), 'the pointer resolves the umbrella symbols');
 });
