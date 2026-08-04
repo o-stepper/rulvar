@@ -2647,6 +2647,24 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/quota.test.ts',
   },
   {
+    id: 'mcp-cursor-echo-cycle',
+    doctrine:
+      'a page answering the cursor it was queried with makes no pagination progress (RV1602): dropping the unconditional refusal lets a protocol violating server feed the sweep its whole echo series, every wire call comfortably inside listMs, and only the test fixture page net keeps this mutant from spinning forever',
+    file: 'packages/core/src/tools/mcp.ts',
+    find: "      if (page.nextCursor !== undefined && page.nextCursor !== '' && page.nextCursor === cursor) {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
+  },
+  {
+    id: 'mcp-max-pages-bound',
+    doctrine:
+      "maxPages caps the sweep's wire call count fail closed (RV1602): an off-by-one admits one page past the declared cap and the reservation count stops matching the declaration",
+    file: 'packages/core/src/tools/mcp.ts',
+    find: '        pages >= cfg.maxPages &&',
+    replace: '        pages > cfg.maxPages &&',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
+  },
+  {
     id: 'retry-namespace-denial-bound',
     doctrine:
       'denied turns retry against their OWN maxDenials budget (RV1601): an off-by-one on the bound makes the loop tolerate one extra denial per target, and the reservation count stops matching the declared budget',
@@ -2673,11 +2691,20 @@ if (selected.length === 0) {
   process.exit(2);
 }
 
+// A mutant can hang the suite outright: RV1602's cycle mutant spins the
+// pagination sweep entirely in the microtask queue, so even the vitest
+// test timeout never gets a tick. The wall clock is the backstop: a run
+// that outlives it is killed by definition and the manifest keeps
+// moving instead of wedging on one probe.
+const PROBE_WALL_CLOCK_MS = 600_000;
+
 function run(command, commandArgs) {
   return spawnSync(command, commandArgs, {
     cwd: root,
     encoding: 'utf8',
     env: { ...process.env, ANTHROPIC_API_KEY: '', OPENAI_API_KEY: '' },
+    timeout: PROBE_WALL_CLOCK_MS,
+    killSignal: 'SIGKILL',
   });
 }
 
@@ -2712,7 +2739,11 @@ for (const mutation of selected) {
     const result = mutation.test.endsWith('.test.mjs')
       ? run('node', ['--test', mutation.test])
       : run('npx', ['vitest', 'run', mutation.test]);
-    if (result.status === 0) {
+    if (result.error !== undefined && result.error.code === 'ETIMEDOUT') {
+      console.log(
+        `[mutation-probe] ${mutation.id}: killed by the wall clock (the mutant outlived ${String(PROBE_WALL_CLOCK_MS / 1000)}s)`,
+      );
+    } else if (result.status === 0) {
       survivors.push(mutation);
       console.log(`[mutation-probe] ${mutation.id}: SURVIVED (${mutation.test} stayed green)`);
     } else {

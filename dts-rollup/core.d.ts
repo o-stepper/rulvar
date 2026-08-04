@@ -10855,6 +10855,18 @@ interface McpConfig {
   */
   maxTools?: number;
   /**
+  * Cap on tools/list PAGES fetched in one sweep (RV1602): a server
+  * paginating past it refuses typed, fail closed like maxTools (a
+  * truncated import would silently admit a subset of the declared
+  * surface). Bounds the sweep's WIRE CALL count where maxTools bounds
+  * its volume: unique cursors over empty pages grow neither the tool
+  * count nor any timeout (each page answers inside listMs), so only a
+  * page bound stops them. Positive integer; absent = unbounded.
+  * Independent of the unconditional cursor-echo cycle guard, which
+  * needs no configuration.
+  */
+  maxPages?: number;
+  /**
   * Per ADMITTED tool (allow/deny filter first): the UTF-8 byte length
   * of the serialized inputSchema plus outputSchema when present
   * (RV1515). An oversized tool refuses the resolution typed, naming

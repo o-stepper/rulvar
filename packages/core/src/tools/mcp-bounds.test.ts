@@ -55,6 +55,95 @@ function fatSchema(): Record<string, unknown> {
   };
 }
 
+function echoCursorServer(withTools: boolean): Server & { listCalls: () => number } {
+  let calls = 0;
+  const lowLevel = new Server({ name: 'echo', version: '1.0.0' }, { capabilities: { tools: {} } });
+  lowLevel.setRequestHandler(ListToolsRequestSchema, (request) => {
+    calls += 1;
+    return {
+      tools: withTools
+        ? [
+            {
+              name: `tool-${String(calls)}`,
+              description: 'grows',
+              inputSchema: { type: 'object' as const },
+            },
+          ]
+        : [],
+      // The self-loop: whatever cursor the page was queried with comes
+      // back as nextCursor, so the sweep would refetch this page forever.
+      // The echo stops after 25 pages. The inprocess round trip settles
+      // entirely in the microtask queue, so a sweep with the cycle guard
+      // disabled (the mutation probe) would starve the test timeout and
+      // spin forever; against the net it resolves instead, and the
+      // rejection assertions below fail fast. The guard itself must
+      // refuse on page 2, far under the net.
+      ...(calls < 25
+        ? {
+            nextCursor: typeof request.params?.cursor === 'string' ? request.params.cursor : 'loop',
+          }
+        : {}),
+    };
+  });
+  return Object.assign(lowLevel, { listCalls: () => calls });
+}
+
+function endlessCursorServer(): Server & { listCalls: () => number } {
+  let calls = 0;
+  const lowLevel = new Server(
+    { name: 'endless', version: '1.0.0' },
+    { capabilities: { tools: {} } },
+  );
+  lowLevel.setRequestHandler(ListToolsRequestSchema, () => {
+    calls += 1;
+    return { tools: [], nextCursor: `page-${String(calls + 1)}` };
+  });
+  return Object.assign(lowLevel, { listCalls: () => calls });
+}
+
+describe('the pagination termination bounds (RV1602)', () => {
+  it('maxPages must be a positive integer', () => {
+    const server = new McpServer({ name: 'x', version: '1.0.0' });
+    for (const maxPages of [0, -1, 1.5]) {
+      expect(() => mcp({ transport: 'inprocess', server, maxPages })).toThrow(ConfigError);
+      expect(() => mcp({ transport: 'inprocess', server, maxPages })).toThrow(/maxPages/u);
+    }
+  });
+
+  it('a server echoing back the queried cursor refuses typed with no bound configured', async () => {
+    const server = echoCursorServer(false);
+    const source = mcp({ transport: 'inprocess', server });
+    await expect(source.tools(SESSION)).rejects.toThrow(ConfigError);
+    // The violation is provable on the second page: the sweep never
+    // spins a third wire call, and no external timeout is involved.
+    expect(server.listCalls()).toBe(2);
+    const again = mcp({ transport: 'inprocess', server: echoCursorServer(false) });
+    await expect(again.tools(SESSION)).rejects.toThrow(/cursor it was queried with/u);
+  });
+
+  it('the cycle guard trips even while the tool list grows', async () => {
+    const server = echoCursorServer(true);
+    const source = mcp({ transport: 'inprocess', server });
+    await expect(source.tools(SESSION)).rejects.toThrow(/cursor it was queried with/u);
+    expect(server.listCalls()).toBe(2);
+  });
+
+  it('unique cursors with no progress stop at maxPages, fail closed', async () => {
+    const server = endlessCursorServer();
+    const source = mcp({ transport: 'inprocess', server, maxPages: 3 });
+    await expect(source.tools(SESSION)).rejects.toThrow(ConfigError);
+    expect(server.listCalls()).toBe(3);
+    const again = mcp({ transport: 'inprocess', server: endlessCursorServer(), maxPages: 3 });
+    await expect(again.tools(SESSION)).rejects.toThrow(/maxPages 3/u);
+  });
+
+  it('a finite pagination inside maxPages imports unchanged', async () => {
+    const source = mcp({ transport: 'inprocess', server: pagedServer(), maxPages: 2 });
+    const toolset = await resolveToolset([source], SESSION);
+    expect(toolset.tools.map((def) => def.name).sort()).toEqual(['one', 'two']);
+  });
+});
+
 describe('mcp bounds config validation (RV1515)', () => {
   const server = new McpServer({ name: 'x', version: '1.0.0' });
   it('maxTools and maxSchemaBytes must be positive integers', () => {
