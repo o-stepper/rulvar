@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
+
 ### 1.177.0
 
 #### Patch Changes
@@ -1717,6 +1723,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
+
 ### 1.177.0
 
 #### Patch Changes
@@ -3223,6 +3235,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
 
 ### 1.177.0
 
@@ -5168,6 +5186,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.178.0
 
 ### 1.177.0
 
@@ -7446,6 +7466,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.178.0
+
 ### 1.177.0
 
 ### 1.176.0
@@ -7904,6 +7926,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.178.0
+
+#### Patch Changes
+
+- Updated dependencies [e89f377]
+  - @rulvar/plan@1.178.0
+  - @rulvar/anthropic@1.178.0
+  - @rulvar/core@1.178.0
+  - @rulvar/openai@1.178.0
+  - @rulvar/testing@1.178.0
 
 ### 1.177.0
 
@@ -9912,6 +9945,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
+
 ### 1.177.0
 
 #### Patch Changes
@@ -10833,6 +10872,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
 
 ### 1.177.0
 
@@ -12542,6 +12587,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.178.0
+
+#### Minor Changes
+
+- e89f377: Package truth is now a gate, not a hope (RV1701). The eighteenth comparison benchmark's strongest documentation-class failure was package identity conflation: a due-diligence dossier described `@rulvar/plan` with a citation into `packages/planner`, and nothing mechanical objected. The docs cannot stop a reader's model from confusing two names, but they can refuse to ship a byte that gets the universe wrong themselves. Docs lint check 12 now enforces four layers against build artifacts rather than prose: every `@rulvar/<name>` token in every page must name a real workspace package; every import, require, export-from, and dynamic-import specifier in a ts/js fence must resolve to a real exports-map subpath of its package; every named root import in a fence must be a symbol the package's committed dts rollup actually exports, which turns `import { planRunner } from '@rulvar/planner'` into a lint failure instead of a shipped falsehood; and the versioning page's fixed-group list, its spelled-out size, and both package tables stay in set equality with `.changeset/config.json` and the manifests. The completeness layer had teeth on its first run: the installation guide's "full package list" had silently dropped `@rulvar/store-postgres` and `@rulvar/executor`; both rows are restored. The pointer narrative now tells the caret truth: a fresh install of `rulvar@X` resolves the newest umbrella release of X's major (X or newer, never older), so the bare name is a front door, not a pinning surface; pin `@rulvar/rulvar` exactly when you need one exact version. The CommonJS consumer path the installation guide documents is now proven on packed artifacts: the install smoke gains a `.cjs` consumer that `require()`s the umbrella and the pointer on the packed tarballs and asserts `import()` serves the same module instance. And the two npm descriptions disambiguate each other in both directions: `@rulvar/plan` replans during the run and names `@rulvar/planner` as the package it is not; `@rulvar/planner` plans before the run and names `@rulvar/plan` the same way.
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
+
 ### 1.177.0
 
 #### Patch Changes
@@ -14162,6 +14217,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.178.0
+
+#### Minor Changes
+
+- e89f377: Package truth is now a gate, not a hope (RV1701). The eighteenth comparison benchmark's strongest documentation-class failure was package identity conflation: a due-diligence dossier described `@rulvar/plan` with a citation into `packages/planner`, and nothing mechanical objected. The docs cannot stop a reader's model from confusing two names, but they can refuse to ship a byte that gets the universe wrong themselves. Docs lint check 12 now enforces four layers against build artifacts rather than prose: every `@rulvar/<name>` token in every page must name a real workspace package; every import, require, export-from, and dynamic-import specifier in a ts/js fence must resolve to a real exports-map subpath of its package; every named root import in a fence must be a symbol the package's committed dts rollup actually exports, which turns `import { planRunner } from '@rulvar/planner'` into a lint failure instead of a shipped falsehood; and the versioning page's fixed-group list, its spelled-out size, and both package tables stay in set equality with `.changeset/config.json` and the manifests. The completeness layer had teeth on its first run: the installation guide's "full package list" had silently dropped `@rulvar/store-postgres` and `@rulvar/executor`; both rows are restored. The pointer narrative now tells the caret truth: a fresh install of `rulvar@X` resolves the newest umbrella release of X's major (X or newer, never older), so the bare name is a front door, not a pinning surface; pin `@rulvar/rulvar` exactly when you need one exact version. The CommonJS consumer path the installation guide documents is now proven on packed artifacts: the install smoke gains a `.cjs` consumer that `require()`s the umbrella and the pointer on the packed tarballs and asserts `import()` serves the same module instance. And the two npm descriptions disambiguate each other in both directions: `@rulvar/plan` replans during the run and names `@rulvar/planner` as the package it is not; `@rulvar/planner` plans before the run and names `@rulvar/plan` the same way.
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
+- eslint-plugin-rulvar@1.178.0
 
 ### 1.177.0
 
@@ -15922,6 +15988,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.178.0
+- @rulvar/core@1.178.0
+- @rulvar/openai@1.178.0
 
 ### 1.177.0
 
@@ -17947,6 +18021,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
+
 ### 1.177.0
 
 #### Patch Changes
@@ -19579,6 +19659,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
+
 ### 1.177.0
 
 #### Patch Changes
@@ -20516,6 +20602,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
 
 ### 1.177.0
 
@@ -22085,6 +22177,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.178.0
+
+#### Patch Changes
+
+- @rulvar/core@1.178.0
 
 ### 1.177.0
 
