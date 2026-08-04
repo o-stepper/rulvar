@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred fifty four rounds, verbatim in this repository's history:
+The one hundred fifty five rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -368,6 +368,7 @@ The one hundred fifty four rounds, verbatim in this repository's history:
 | v1.170.0      | f6116b9 (#702): the retry namespaces are separate: a quota denial spends its own maxDenials budget, never the transport counters, and the recorded attempt ordinal stays dense            | v1.171.0   |
 | v1.171.0      | 0d4770b (#705): the MCP pagination sweep terminates: an echoed cursor refuses unconditionally on page two and the opt in maxPages cap fails closed like maxTools                          | v1.172.0   |
 | v1.172.0      | 67d27ac (#708): the claim judge accounts for its coverage, critical anchors sort first with a typed fail fast, and run claims are held to the recorded fact sheet                         | v1.173.0   |
+| v1.173.0      | aa9a772 (#712): the critical path splits the synthesize wall by purpose: finalCompositionMs apart from semanticJudgeMs, synthesisMs their exact sum, CLAIM_JUDGE_LABEL public             | v1.174.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
