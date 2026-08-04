@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+
 ### 1.181.0
 
 #### Patch Changes
@@ -1743,6 +1750,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+
 ### 1.181.0
 
 #### Patch Changes
@@ -3275,6 +3289,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
 
 ### 1.181.0
 
@@ -5252,6 +5273,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.182.0
+
+#### Minor Changes
+
+- 144d026: The operational host reference ships executed, with the decision-chain audit fold in core (RV1705). The eighteenth comparison benchmark's operational acceptance named four behaviors a production host must prove, not describe: a tenant cannot read or effect across a tenant boundary, a revoked approval is never executed, a redelivered attempt cannot duplicate an external effect, and an audit reconstructs the decision chain. The new operational host guide walks the reference arrangement of shipped primitives for all four, and `examples/src/operational-host.ts` executes them through the full engine on `FakeAdapter`: per-tenant engines by construction (own store, own toolset, strict approvals, ask on every mutating class, the journaled approval deadline), a pre-effect deny path proven empty-ledgered, a guarded effect whose idempotency key suppresses the re-fired side effect while the ledger records both attempts honestly, and a replay on an adapter that refuses to serve leaving the effect count at one. The core half is `reduceDecisionChain(entries)`: one pure l0 fold that reconstructs a run's authority record (approvals with what was asked, resolutions referencing the ask by seq, admissions, abandons, terminations) in the journal's own total order, never inventing a field an entry did not record, tolerant of unknown kinds by the reader obligation, so "who allowed this and when" is a fold instead of an investigation.
 
 ### 1.181.0
 
@@ -7548,6 +7575,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.182.0
+
 ### 1.181.0
 
 ### 1.180.0
@@ -8014,6 +8043,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+  - @rulvar/anthropic@1.182.0
+  - @rulvar/openai@1.182.0
+  - @rulvar/plan@1.182.0
+  - @rulvar/testing@1.182.0
 
 ### 1.181.0
 
@@ -10069,6 +10109,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+
 ### 1.181.0
 
 #### Patch Changes
@@ -11016,6 +11063,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
 
 ### 1.181.0
 
@@ -12755,6 +12809,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+
 ### 1.181.0
 
 #### Patch Changes
@@ -14405,6 +14466,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+  - eslint-plugin-rulvar@1.182.0
 
 ### 1.181.0
 
@@ -16199,6 +16268,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+  - @rulvar/anthropic@1.182.0
+  - @rulvar/openai@1.182.0
 
 ### 1.181.0
 
@@ -18258,6 +18336,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+
 ### 1.181.0
 
 #### Patch Changes
@@ -19916,6 +20001,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
+
 ### 1.181.0
 
 #### Patch Changes
@@ -20879,6 +20971,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
 
 ### 1.181.0
 
@@ -22474,6 +22573,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.182.0
+
+#### Patch Changes
+
+- Updated dependencies [144d026]
+  - @rulvar/core@1.182.0
 
 ### 1.181.0
 

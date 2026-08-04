@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.182.0
+
+### Minor Changes
+
+- 144d026: The operational host reference ships executed, with the decision-chain audit fold in core (RV1705). The eighteenth comparison benchmark's operational acceptance named four behaviors a production host must prove, not describe: a tenant cannot read or effect across a tenant boundary, a revoked approval is never executed, a redelivered attempt cannot duplicate an external effect, and an audit reconstructs the decision chain. The new operational host guide walks the reference arrangement of shipped primitives for all four, and `examples/src/operational-host.ts` executes them through the full engine on `FakeAdapter`: per-tenant engines by construction (own store, own toolset, strict approvals, ask on every mutating class, the journaled approval deadline), a pre-effect deny path proven empty-ledgered, a guarded effect whose idempotency key suppresses the re-fired side effect while the ledger records both attempts honestly, and a replay on an adapter that refuses to serve leaving the effect count at one. The core half is `reduceDecisionChain(entries)`: one pure l0 fold that reconstructs a run's authority record (approvals with what was asked, resolutions referencing the ask by seq, admissions, abandons, terminations) in the journal's own total order, never inventing a field an entry did not record, tolerant of unknown kinds by the reader obligation, so "who allowed this and when" is a fold instead of an investigation.
+
 ## 1.181.0
 
 ## 1.180.0
