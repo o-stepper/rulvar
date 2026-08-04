@@ -48,6 +48,18 @@ export interface McpConfig {
    */
   maxTools?: number;
   /**
+   * Cap on tools/list PAGES fetched in one sweep (RV1602): a server
+   * paginating past it refuses typed, fail closed like maxTools (a
+   * truncated import would silently admit a subset of the declared
+   * surface). Bounds the sweep's WIRE CALL count where maxTools bounds
+   * its volume: unique cursors over empty pages grow neither the tool
+   * count nor any timeout (each page answers inside listMs), so only a
+   * page bound stops them. Positive integer; absent = unbounded.
+   * Independent of the unconditional cursor-echo cycle guard, which
+   * needs no configuration.
+   */
+  maxPages?: number;
+  /**
    * Per ADMITTED tool (allow/deny filter first): the UTF-8 byte length
    * of the serialized inputSchema plus outputSchema when present
    * (RV1515). An oversized tool refuses the resolution typed, naming
@@ -122,13 +134,14 @@ export interface McpToolSource extends ToolSource {
 }
 
 function validateBounds(cfg: McpConfig): void {
-  const positiveInt = (key: 'maxTools' | 'maxSchemaBytes'): void => {
+  const positiveInt = (key: 'maxTools' | 'maxPages' | 'maxSchemaBytes'): void => {
     const value = cfg[key];
     if (value !== undefined && (!Number.isInteger(value) || value <= 0)) {
       throw new ConfigError(`mcp: '${key}' must be a positive integer, got ${String(value)}`);
     }
   };
   positiveInt('maxTools');
+  positiveInt('maxPages');
   positiveInt('maxSchemaBytes');
   for (const key of ['connectMs', 'listMs', 'callMs'] as const) {
     const value = cfg.timeouts?.[key];
@@ -341,10 +354,12 @@ export function mcp(cfg: McpConfig): McpToolSource {
   const listAll = async (client: Client): Promise<WireTool[]> => {
     const tools: WireTool[] = [];
     let cursor: string | undefined;
+    let pages = 0;
     const listOptions =
       cfg.timeouts?.listMs === undefined ? undefined : { timeout: cfg.timeouts.listMs };
     do {
       const page = await client.listTools(cursor === undefined ? {} : { cursor }, listOptions);
+      pages += 1;
       tools.push(...(page.tools as unknown as WireTool[]));
       if (cfg.maxTools !== undefined && tools.length > cfg.maxTools) {
         // The sweep is bounded BEFORE the next page fetch and before any
@@ -356,7 +371,35 @@ export function mcp(cfg: McpConfig): McpToolSource {
             `tools, over the declared maxTools ${cfg.maxTools}; raise the cap or trim the server`,
         );
       }
+      if (page.nextCursor !== undefined && page.nextCursor !== '' && page.nextCursor === cursor) {
+        // The cursor-echo cycle (RV1602): a server answering the cursor
+        // it was just queried with makes no pagination progress, so the
+        // next fetch would be THIS page again, forever, each wire call
+        // comfortably inside listMs and the tool count possibly never
+        // growing past maxTools (the eighteenth comparison benchmark
+        // called the missing guard out). Never a legitimate pagination
+        // step, so the refusal is unconditional.
+        throw new ConfigError(
+          `mcp: tools/list of '${sourceIdOf(cfg)}' returned the cursor it was queried with ` +
+            `('${page.nextCursor}') on page ${pages}: the pagination makes no progress`,
+        );
+      }
       cursor = page.nextCursor;
+      if (
+        cfg.maxPages !== undefined &&
+        pages >= cfg.maxPages &&
+        cursor !== undefined &&
+        cursor !== ''
+      ) {
+        // Fail closed, the maxTools direction (RV1602): truncating here
+        // would silently import a subset of the server's declared
+        // surface.
+        throw new ConfigError(
+          `mcp: tools/list of '${sourceIdOf(cfg)}' still reports another page after ` +
+            `${pages} page(s), over the declared maxPages ${cfg.maxPages}; raise the cap ` +
+            `or trim the server`,
+        );
+      }
       // An empty cursor is exhaustion: a server echoing '' forever would
       // otherwise spin this loop on microtasks and starve the event loop.
     } while (cursor !== undefined && cursor !== '');

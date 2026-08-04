@@ -224,19 +224,22 @@ For a one shot script the `finally` is not optional hygiene: a stdio child and i
 
 ## Bounds
 
-An MCP server sits on the other side of a trust boundary, and three of its behaviors used to be unbounded on the host side: how many tools the `tools/list` sweep may stream, how large an imported schema may be, and how long the handshake and each request may take (the SDK's own 60-second default request timeout was the only backstop). All three bounds are opt-in config on `mcp()`; leaving them out preserves the previous behavior exactly:
+An MCP server sits on the other side of a trust boundary, and three of its behaviors used to be unbounded on the host side: how many tools the `tools/list` sweep may stream, how large an imported schema may be, and how long the handshake and each request may take (the SDK's own 60-second default request timeout was the only backstop). All the bounds are opt-in config on `mcp()`; leaving them out preserves the previous behavior exactly:
 
 ```ts
 const github = mcp({
   transport: 'stdio',
   command: 'github-mcp-server',
   maxTools: 64, // cap the tools/list sweep itself
+  maxPages: 16, // cap the sweep's wire call count
   maxSchemaBytes: 16384, // per admitted tool, input plus output schema
   timeouts: { connectMs: 3000, listMs: 5000, callMs: 30000 },
 });
 ```
 
 - **`maxTools`** bounds the sweep, not the toolset: it is checked against the accumulated *wire* tools after each page, before `allow`/`deny` filtering, because the sweep is the resource being protected. A server that streams past the cap is refused with a typed `ConfigError` naming the count and the cap; an `allow` list cannot admit past it.
+- **`maxPages`** bounds the sweep's *wire call count* where `maxTools` bounds its volume (RV1602). The gap it closes is real: a server answering unique cursors over empty pages grows neither the tool count nor any timeout, because each page answers comfortably inside `listMs`, so only a page bound stops the loop. Fail closed like `maxTools`: a server still reporting another page past the cap refuses typed rather than silently importing a subset of its declared surface.
+- **The cursor-echo cycle guard** needs no configuration (RV1602): a page whose `nextCursor` equals the cursor it was queried with makes no pagination progress, and refetching it would spin the sweep forever. That is never a legitimate pagination step, so the sweep refuses typed on the spot, on the second page at the latest. The eighteenth comparison benchmark called the missing guard out: the audited answer claimed a cursor bound that did not exist.
 - **`maxSchemaBytes`** is measured per *admitted* tool (the filter runs first, so a denied tool's oversized schema costs nothing): the UTF-8 byte length of the serialized `inputSchema` plus `outputSchema` when present. An oversized tool refuses the resolution, naming the tool and its measured bytes; deny the tool or raise the cap.
 - **`timeouts.connectMs`** races the transport handshake; on expiry the client, and for stdio its spawned child, is released, and the refusal is a typed `ConfigError`. `listMs` and `callMs` ride the SDK request timeout per `tools/list` page and per `tools/call`; a call timeout surfaces as that tool's error result to the model, exactly like a server-reported `isError`, and never propagates past policy.
 
