@@ -18,6 +18,7 @@
  */
 import { createHash } from 'node:crypto';
 import { AdmissionRejectedError, ConfigError, FailRunError } from '../l0/errors.js';
+import { CLAIM_JUDGE_LABEL } from '../l0/telemetry-reduce.js';
 import { jcsSerialize } from '../l0/jcs.js';
 import {
   requireFraction,
@@ -5095,7 +5096,7 @@ export function makeOrchestratorWorkflow(
       const judgeOpts: AgentOpts & { result: 'full' } = {
         role: 'synthesize',
         result: 'full',
-        label: 'claim-consistency-judge',
+        label: CLAIM_JUDGE_LABEL,
         schema: CLAIM_JUDGE_SCHEMA,
         limits: spec.judge?.limits ?? { maxTurns: DEFAULT_CLAIM_JUDGE_MAX_TURNS },
         ...(spec.judge?.model === undefined ? {} : { model: spec.judge.model }),

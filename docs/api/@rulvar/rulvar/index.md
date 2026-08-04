@@ -547,6 +547,7 @@ const engine = createEngine({
 | [BUDGET\_ABORT\_REASON](/api/@rulvar/rulvar/variables/BUDGET_ABORT_REASON.md) | Reason marker distinguishing a budget-ceiling abort from host cancellation. |
 | [CANCEL\_AGENT\_SCHEMA](/api/@rulvar/rulvar/variables/CANCEL_AGENT_SCHEMA.md) | The cancel_agent parameter schema. |
 | [CHECKPOINT\_FORMAT\_V1](/api/@rulvar/rulvar/variables/CHECKPOINT_FORMAT_V1.md) | Leading format byte of the v1 checkpoint blob. |
+| [CLAIM\_JUDGE\_LABEL](/api/@rulvar/rulvar/variables/CLAIM_JUDGE_LABEL.md) | The label the claim-consistency judge invocation dispatches under (RV1502; named here since RV1604 so the critical-path reducer and the orchestrator share one constant): the judge rides role 'synthesize', and this label is what tells its wall apart from a real final composition in [reduceCriticalPath](/api/@rulvar/rulvar/functions/reduceCriticalPath.md). |
 | [CLAIM\_STATEMENT\_MAX\_CHARS](/api/@rulvar/rulvar/variables/CLAIM_STATEMENT_MAX_CHARS.md) | The committed data model bound: statement <= 200 chars. |
 | [CLAIM\_TTL\_DAYS](/api/@rulvar/rulvar/variables/CLAIM_TTL_DAYS.md) | The asymmetric TTL table: a false negative is costlier through lock-in, so weaknesses expire sooner than strengths. |
 | [COMPACTION\_SUMMARY\_PREFIX](/api/@rulvar/rulvar/variables/COMPACTION_SUMMARY_PREFIX.md) | Deterministic marker opening every compaction summary message. |

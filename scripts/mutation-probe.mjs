@@ -2701,6 +2701,15 @@ const MUTATIONS = [
     replace: '      for (const match of [] as RegExpMatchArray[]) {',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
+  {
+    id: 'critical-path-judge-split',
+    doctrine:
+      'the synthesize wall splits by the claim judge label (RV1604): erasing the label check folds the judge wall back into finalCompositionMs and the benchmark misread of a slow composer returns',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '          const judge = started.label === CLAIM_JUDGE_LABEL;',
+    replace: '          const judge = false;',
+    test: 'packages/core/src/orchestrator/synthesis.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

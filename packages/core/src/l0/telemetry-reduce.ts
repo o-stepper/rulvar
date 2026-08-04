@@ -231,8 +231,27 @@ export interface CriticalPath {
   runWallMs?: number;
   /** Last non-coordination agent:end to run:end; absent without both. */
   postFanInMs?: number;
-  /** Summed wall of completed 'synthesize' spans (0 when none). */
+  /**
+   * Summed wall of completed 'synthesize' spans (0 when none). Since
+   * RV1604 this is exactly `finalCompositionMs + semanticJudgeMs`,
+   * kept whole for existing consumers: the name predates the claim
+   * judge riding the same role, and the eighteenth comparison
+   * benchmark read a 54-second `synthesisMs` as a second final
+   * composition when the run had SKIPPED synthesis and the bucket was
+   * entirely the judge and its extract. Read the split fields.
+   */
   synthesisMs: number;
+  /**
+   * Completed 'synthesize' spans that ARE final composition (every
+   * synthesize span not labeled as the claim judge), summed (RV1604).
+   */
+  finalCompositionMs: number;
+  /**
+   * Completed 'synthesize' spans that are the claim-consistency judge
+   * (agent:start label {@link CLAIM_JUDGE_LABEL}), its extract phase
+   * included, summed (RV1604).
+   */
+  semanticJudgeMs: number;
   /** postFanInMs / runWallMs when both are defined and the wall is > 0. */
   postFanInShare?: number;
   /** synthesisMs / runWallMs under the same conditions. */
@@ -310,6 +329,10 @@ export interface PostFanInBreakdown {
   coordinationToolCallsByName: Record<string, number>;
   /** Completed 'synthesize' span wall clipped to the window. */
   synthesisMs: number;
+  /** The final-composition half of `synthesisMs`, clipped (RV1604). */
+  finalCompositionMs: number;
+  /** The claim-judge half of `synthesisMs`, clipped (RV1604). */
+  semanticJudgeMs: number;
   /** Union length of every covered interval above. */
   coveredMs: number;
   /** postFanInMs minus coveredMs, floored at zero. */
@@ -317,6 +340,15 @@ export interface PostFanInBreakdown {
   /** residueMs / postFanInMs when the window is longer than zero. */
   residueShare?: number;
 }
+
+/**
+ * The label the claim-consistency judge invocation dispatches under
+ * (RV1502; named here since RV1604 so the critical-path reducer and the
+ * orchestrator share one constant): the judge rides role 'synthesize',
+ * and this label is what tells its wall apart from a real final
+ * composition in {@link reduceCriticalPath}.
+ */
+export const CLAIM_JUDGE_LABEL = 'claim-consistency-judge';
 
 interface Interval {
   from: number;
@@ -348,10 +380,12 @@ function unionLength(intervals: Interval[]): number {
 export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPath {
   let runStart: number | undefined;
   let runEnd: number | undefined;
-  const startBySpan = new Map<string, { role: string; at: number }>();
+  const startBySpan = new Map<string, { role: string; at: number; label?: string }>();
   let lastWorkerEnd: number | undefined;
   let workerSpans = 0;
   let synthesisMs = 0;
+  let finalCompositionMs = 0;
+  let semanticJudgeMs = 0;
   // Raw material of the RV710 decomposition, folded after the pass
   // (the window is known only once run:end and the last worker settle
   // are). An end event's interval is reconstructed as
@@ -359,7 +393,7 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   // clock, so the reconstruction holds whatever epoch that clock uses.
   const coordinationModel: Array<Interval & { phase: string }> = [];
   const coordinationTools: Array<Interval & { name: string }> = [];
-  const synthesisSpans: Interval[] = [];
+  const synthesisSpans: Array<Interval & { judge: boolean }> = [];
   const spanOf = (durationMs: number): number =>
     Number.isFinite(durationMs) && durationMs > 0 ? durationMs : 0;
   for (const event of events) {
@@ -375,7 +409,11 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         runEnd = at;
         break;
       case 'agent:start':
-        startBySpan.set(event.spanId, { role: event.role, at });
+        startBySpan.set(event.spanId, {
+          role: event.role,
+          at,
+          ...(event.label === undefined ? {} : { label: event.label }),
+        });
         break;
       case 'agent:phase:end': {
         if (startBySpan.get(event.spanId)?.role === 'orchestrate') {
@@ -406,8 +444,15 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
           break;
         }
         if (started.role === 'synthesize') {
-          synthesisMs += Math.max(0, at - started.at);
-          synthesisSpans.push({ from: started.at, to: at });
+          const wall = Math.max(0, at - started.at);
+          const judge = started.label === CLAIM_JUDGE_LABEL;
+          synthesisMs += wall;
+          if (judge) {
+            semanticJudgeMs += wall;
+          } else {
+            finalCompositionMs += wall;
+          }
+          synthesisSpans.push({ from: started.at, to: at, judge });
         } else if (started.role !== 'orchestrate') {
           workerSpans += 1;
           lastWorkerEnd = lastWorkerEnd === undefined ? at : Math.max(lastWorkerEnd, at);
@@ -418,7 +463,7 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         break;
     }
   }
-  const path: CriticalPath = { synthesisMs, workerSpans };
+  const path: CriticalPath = { synthesisMs, finalCompositionMs, semanticJudgeMs, workerSpans };
   if (runStart !== undefined && runEnd !== undefined) {
     path.runWallMs = Math.max(0, runEnd - runStart);
   }
@@ -449,9 +494,21 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
       byPhase[interval.phase] = (byPhase[interval.phase] ?? 0) + (clipped.to - clipped.from);
       modelClipped.push(clipped);
     }
-    const synthesisClipped = synthesisSpans
-      .map(clip)
-      .filter((interval): interval is Interval => interval !== undefined);
+    const synthesisClipped: Interval[] = [];
+    let judgeClippedMs = 0;
+    let compositionClippedMs = 0;
+    for (const span of synthesisSpans) {
+      const clipped = clip(span);
+      if (clipped === undefined) {
+        continue;
+      }
+      synthesisClipped.push(clipped);
+      if (span.judge) {
+        judgeClippedMs += clipped.to - clipped.from;
+      } else {
+        compositionClippedMs += clipped.to - clipped.from;
+      }
+    }
     const byName: Record<string, number> = {};
     const callsByName: Record<string, number> = {};
     const toolsClipped: Interval[] = [];
@@ -481,6 +538,8 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
       coordinationToolMsByName: byName,
       coordinationToolCallsByName: callsByName,
       synthesisMs: lengthOf(synthesisClipped),
+      finalCompositionMs: compositionClippedMs,
+      semanticJudgeMs: judgeClippedMs,
       coveredMs,
       residueMs: Math.max(0, path.postFanInMs - coveredMs),
     };
