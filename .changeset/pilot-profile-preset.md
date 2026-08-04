@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-Ship the read-only pilot posture as one factory (RV1606). The production-profiles guide documents the controlled-pilot assembly; the eighteenth comparison benchmark's improvement plan asked for it as a deliverable profile with typed, pre-effect refusals. `pilotAgentProfile(options)` (async: the attestation pins the resolved toolset) builds on `researchAgentProfile` and returns `{ profile, evidence, attestation }`: the confined read-only research toolset with the progress contract and stop conditions, the resolved toolset attested so a drifted registration refuses typed at spawn (RV1514), permissions hard-denying `write`, `network`, `execute`, `destructive`, and `undeclared` risk in one rule with `strictApprovals` armed and `inheritPermissions` off, and isolation pinned to `'none'`. A write-risk tool smuggled through `extraTools` is attested but still refused at dispatch by the risk rule before its execute ever runs. Engine-level posture (budget ceiling, exposure cap, strict pricing, acceptance floors) stays explicit engine and run configuration, deliberately outside the profile's reach.

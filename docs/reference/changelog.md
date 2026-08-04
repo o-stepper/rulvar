@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+
 ### 1.175.0
 
 #### Patch Changes
@@ -1703,6 +1710,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+
 ### 1.175.0
 
 #### Patch Changes
@@ -3195,6 +3209,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
 
 ### 1.175.0
 
@@ -5126,6 +5147,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.176.0
+
+#### Minor Changes
+
+- a74304d: Ship the read-only pilot posture as one factory (RV1606). The production-profiles guide documents the controlled-pilot assembly; the eighteenth comparison benchmark's improvement plan asked for it as a deliverable profile with typed, pre-effect refusals. `pilotAgentProfile(options)` (async: the attestation pins the resolved toolset) builds on `researchAgentProfile` and returns `{ profile, evidence, attestation }`: the confined read-only research toolset with the progress contract and stop conditions, the resolved toolset attested so a drifted registration refuses typed at spawn (RV1514), permissions hard-denying `write`, `network`, `execute`, `destructive`, and `undeclared` risk in one rule with `strictApprovals` armed and `inheritPermissions` off, and isolation pinned to `'none'`. A write-risk tool smuggled through `extraTools` is attested but still refused at dispatch by the risk rule before its execute ever runs. Engine-level posture (budget ceiling, exposure cap, strict pricing, acceptance floors) stays explicit engine and run configuration, deliberately outside the profile's reach.
 
 ### 1.175.0
 
@@ -7392,6 +7419,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.176.0
+
 ### 1.175.0
 
 ### 1.174.0
@@ -7846,6 +7875,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+  - @rulvar/anthropic@1.176.0
+  - @rulvar/openai@1.176.0
+  - @rulvar/plan@1.176.0
+  - @rulvar/testing@1.176.0
 
 ### 1.175.0
 
@@ -9832,6 +9872,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+
 ### 1.175.0
 
 #### Patch Changes
@@ -10739,6 +10786,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
 
 ### 1.175.0
 
@@ -12434,6 +12488,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+
 ### 1.175.0
 
 #### Patch Changes
@@ -14040,6 +14101,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+  - eslint-plugin-rulvar@1.176.0
 
 ### 1.175.0
 
@@ -15784,6 +15853,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+  - @rulvar/anthropic@1.176.0
+  - @rulvar/openai@1.176.0
 
 ### 1.175.0
 
@@ -17791,6 +17869,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+
 ### 1.175.0
 
 #### Patch Changes
@@ -19409,6 +19494,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
+
 ### 1.175.0
 
 #### Patch Changes
@@ -20332,6 +20424,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
 
 ### 1.175.0
 
@@ -21887,6 +21986,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.176.0
+
+#### Patch Changes
+
+- Updated dependencies [a74304d]
+  - @rulvar/core@1.176.0
 
 ### 1.175.0
 
