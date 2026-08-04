@@ -23,7 +23,7 @@ See [Packages](/reference/packages) for what each one does.
 Two names in that list deserve a note:
 
 - **`eslint-plugin-rulvar` is lockstep despite the unscoped name.** ESLint's plugin resolution requires the `eslint-plugin-` prefix, so the package cannot live under the `@rulvar` scope, but it versions and releases in the fixed group like every other member.
-- **The unscoped `rulvar` name on npm is only a pointer.** The library publishes under the `@rulvar` scope; depend on `@rulvar/rulvar` (or the individual packages), never on the bare name. The pointer is versioned outside the changesets fixed group, but each release republishes it to match the umbrella, so `rulvar@X` resolves to `@rulvar/rulvar@X`.
+- **The unscoped `rulvar` name on npm is only a pointer.** The library publishes under the `@rulvar` scope; depend on `@rulvar/rulvar` (or the individual packages), never on the bare name. The pointer is versioned outside the changesets fixed group, and each release republishes it to match the umbrella. Its dependency on `@rulvar/rulvar` is a caret range, so a fresh install of `rulvar@X` resolves the newest umbrella release of X's major: version X or newer, never older. The bare name is a front door, not a pinning surface; to hold version X exactly, depend on `@rulvar/rulvar` at an exact version.
 
 Lockstep is what makes the compatibility story simple. There is no matrix of which `@rulvar/core` works with which `@rulvar/plan`: matching versions work together, mixed versions across the scope are unsupported, and each release can state its journal compatibility in one sentence. The packages are developed that way too, in one repository against one spec and one test gate, so independent versions would advertise an independence that does not exist.
 

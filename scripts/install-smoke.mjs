@@ -102,6 +102,45 @@ writeFileSync(
 );
 execFileSync('node', ['smoke.mjs'], { cwd: scratch, stdio: 'inherit' });
 
+// The CommonJS consumer path (RV1701), exactly as the installation
+// guide claims it: CommonJS code on Node 22.12+ plain require()s the
+// ESM-only packages and receives the SAME module instance import()
+// serves, because the packages deliberately never dual publish. The
+// scratch project is `"type": "module"`, so the `.cjs` extension is
+// what makes this file a CommonJS consumer. An external benchmark
+// dossier got this exact claim wrong (it prescribed a separate ESM
+// boundary or a migration); this stage keeps the documented truth
+// checked on the packed artifacts themselves.
+writeFileSync(
+  join(scratch, 'smoke.cjs'),
+  [
+    "const umbrella = require('@rulvar/rulvar');",
+    "const pointer = require('rulvar');",
+    "if (typeof umbrella.createEngine !== 'function') {",
+    "  console.error('CJS require of the umbrella misses createEngine');",
+    '  process.exit(1);',
+    '}',
+    'const missing = Object.keys(umbrella).filter((key) => !(key in pointer));',
+    'if (missing.length > 0) {',
+    '  console.error(`CJS pointer misses umbrella exports: ${missing.join(", ")}`);',
+    '  process.exit(1);',
+    '}',
+    "import('@rulvar/rulvar')",
+    '  .then((esm) => {',
+    '    if (esm.createEngine !== umbrella.createEngine) {',
+    "      console.error('require(esm) served a different module instance than import()');",
+    '      process.exit(1);',
+    '    }',
+    "    console.log('cjs consumer install smoke: require() serves the single module instance');",
+    '  })',
+    '  .catch((error) => {',
+    '    console.error(error);',
+    '    process.exit(1);',
+    '  });',
+  ].join('\n'),
+);
+execFileSync('node', ['smoke.cjs'], { cwd: scratch, stdio: 'inherit' });
+
 // The published @rulvar/testing live helpers, exercised from the
 // consumer side: the gate stays closed without the explicit opt-in even
 // when the named key is present, the bounded smoke classifies a

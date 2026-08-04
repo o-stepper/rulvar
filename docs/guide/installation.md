@@ -72,6 +72,8 @@ When you mix individual packages, keep every `@rulvar/*` dependency at the same 
 | `@rulvar/openai` | OpenAI adapter over the Responses API (reasoning items, strict JSON schema output) plus the `openaiCompatible` factory for Chat Completions style endpoints. |
 | `@rulvar/bridge-ai-sdk` | Wraps any Vercel AI SDK `LanguageModelV4` in a `ProviderAdapter` for the long tail of providers. |
 | `@rulvar/store-sqlite` | `SqliteStore`: a journal store with worker leasing and fencing epochs on the `node:sqlite` driver built into Node. The reference for community stores. |
+| `@rulvar/store-postgres` | `PostgresStore`: the journal store for multi process and multi host deployments, every run scoped mutation serialized on an advisory lock, with leases and fencing epochs over node-postgres. |
+| `@rulvar/executor` | Isolated tool executors behind the `ToolExecutorProvider` SPI: the subprocess adapter and the docker container adapter, the side effect ledger, and the executor conformance kit. |
 | `@rulvar/store-conformance` | Executable conformance kit for store authors: atomicity, ordering, fencing, and the decide once oracle, runnable under Vitest. |
 | `@rulvar/compat` | Frozen key derivation profiles that let a current engine read journals written under retired hash versions. The one package outside lockstep. |
 | `@rulvar/plan` | Plan and execute orchestration: the `planRunner` extension factory, the run ledger, escalation extensions, model ladder configuration. |
@@ -82,6 +84,8 @@ When you mix individual packages, keep every `@rulvar/*` dependency at the same 
 | `eslint-plugin-rulvar` | Determinism lint rules for workflow modules, with structured JSON diagnostics. Lockstep despite the unscoped name npm requires for ESLint plugins. |
 
 The [Packages reference](/reference/packages) expands each line; [Versioning](/reference/versioning) explains the lockstep policy and the `@rulvar/compat` exemption.
+
+Two of the names are deliberately close, and they solve different problems: `@rulvar/planner` plans before the run (a planner model writes the workflow script), while `@rulvar/plan` replans during the run (PlanRunner revises the task plan as typed, engine owned data). Neither depends on the other; the [plan versus planner](/reference/packages#rulvar-plan-versus-rulvar-planner) table draws the full boundary.
 
 ## Provider SDK dependencies
 
