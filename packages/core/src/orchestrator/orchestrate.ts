@@ -6089,6 +6089,20 @@ export function makeOrchestratorWorkflow(
     }
     const promptLines = [
       ...(extension?.promptLines?.() ?? []),
+      // The progressive-drafting nudge (RV1607) rides ONLY under the
+      // child-result opt-in, whose toolset carries the tools the line
+      // names: a plain run keeps its exact historical prompt bytes.
+      // The eighteenth comparison benchmark's largest post-fan-in cost
+      // was a first full draft composed only after await_all, while
+      // every primitive for drafting earlier already existed.
+      ...(opts?.exposeChildResultTools === true
+        ? [
+            'While children run: await_any returns the first settled digest, and a settled',
+            "child's full output is readable immediately with get_child_result, so outline",
+            'and draft from early results instead of composing everything after the last',
+            'child settles.',
+          ]
+        : []),
       // The sectional line rides the coordination prompt only when the
       // coordination finish actually carries the sectional schema
       // (RV808b): the validator-bound loop or the draft gate.
