@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred fifty six rounds, verbatim in this repository's history:
+The one hundred fifty seven rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -370,6 +370,7 @@ The one hundred fifty six rounds, verbatim in this repository's history:
 | v1.172.0      | 67d27ac (#708): the claim judge accounts for its coverage, critical anchors sort first with a typed fail fast, and run claims are held to the recorded fact sheet                         | v1.173.0   |
 | v1.173.0      | aa9a772 (#712): the critical path splits the synthesize wall by purpose: finalCompositionMs apart from semanticJudgeMs, synthesisMs their exact sum, CLAIM_JUDGE_LABEL public             | v1.174.0   |
 | v1.174.0      | 1999c5d (#715): a regenerated spawn turn adopts its recovered decision by the full canonical spec: identical replays free, any divergence decides fresh, the child stays paid once        | v1.175.0   |
+| v1.175.0      | a74304d (#718): the read only pilot posture ships as one factory: attested toolset pin, one risk deny wall, strictApprovals, isolation none, refusals typed and pre effect                | v1.176.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
