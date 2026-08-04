@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+
 ### 1.172.0
 
 #### Patch Changes
@@ -1682,6 +1689,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+
 ### 1.172.0
 
 #### Patch Changes
@@ -3153,6 +3167,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
 
 ### 1.172.0
 
@@ -5063,6 +5084,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.173.0
+
+#### Minor Changes
+
+- 67d27ac: Make the claim-consistency pass say what it did not judge, steer its bounded budget, and hold the draft against the run's own facts (RV1603). The eighteenth comparison benchmark ran the judge over a real dossier: 40 pairs over 144 citing sentences, truncated honestly, with nothing steering which 40 and two run-fact falsehoods sailing through with `executionFacts` enabled ("each role recorded 18-20 evidence entries" over recorded profiles of 23/18/22/20/20/20; "real models were not run" beside 125 recorded wire requests). Three additions close it. `claimConsistencyMeta.coveredCitingSentences` counts the citing sentences with at least one judged pair, so partial coverage is one division away instead of an inference. `claimConsistency.critical` declares anchors (a file, a directory prefix, or a span) whose pairs sort first, before the `max` cap; the meta names every critical draft anchor left unjudged (`criticalUncovered` capped at 32, `criticalUncoveredTotal` beside it), and `onUncoveredCritical: 'fail'` fails the run typed BEFORE the judge dispatch so a run whose declared claims cannot be verified never pays for a partial verdict. `claimConsistency.runFacts` adds the run's recorded execution facts (children, statuses, evidence entry counts, wire and token totals) as a pool reading under the `(run-facts)` anchor: draft sentences naming a minted id, a standalone recorded value of two or more digits, or a `runFactTerms` phrase are paired with the sheet and ruled on by the same judge invocation. All three are opt-in; unset configuration derives byte-identical judge prompts, and the pure fold half (`pairDraftClaims` with `critical`, the new `pairRunFactClaims`) is exported.
 
 ### 1.172.0
 
@@ -7311,6 +7338,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.173.0
+
 ### 1.172.0
 
 ### 1.171.0
@@ -7759,6 +7788,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+  - @rulvar/anthropic@1.173.0
+  - @rulvar/openai@1.173.0
+  - @rulvar/plan@1.173.0
+  - @rulvar/testing@1.173.0
 
 ### 1.172.0
 
@@ -9712,6 +9752,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+
 ### 1.172.0
 
 #### Patch Changes
@@ -10598,6 +10645,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
 
 ### 1.172.0
 
@@ -12272,6 +12326,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+
 ### 1.172.0
 
 #### Patch Changes
@@ -13857,6 +13918,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+  - eslint-plugin-rulvar@1.173.0
 
 ### 1.172.0
 
@@ -15577,6 +15646,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+  - @rulvar/anthropic@1.173.0
+  - @rulvar/openai@1.173.0
 
 ### 1.172.0
 
@@ -17557,6 +17635,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+
 ### 1.172.0
 
 #### Patch Changes
@@ -19154,6 +19239,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
+
 ### 1.172.0
 
 #### Patch Changes
@@ -20056,6 +20148,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
 
 ### 1.172.0
 
@@ -21590,6 +21689,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.173.0
+
+#### Patch Changes
+
+- Updated dependencies [67d27ac]
+  - @rulvar/core@1.173.0
 
 ### 1.172.0
 
