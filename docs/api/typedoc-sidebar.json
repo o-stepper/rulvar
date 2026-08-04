@@ -1287,6 +1287,10 @@
             "link": "/api/@rulvar/core/interfaces/PhaseTarget.md"
           },
           {
+            "text": "PilotAgentProfileResult",
+            "link": "/api/@rulvar/core/interfaces/PilotAgentProfileResult.md"
+          },
+          {
             "text": "PinnedPricingSegment",
             "link": "/api/@rulvar/core/interfaces/PinnedPricingSegment.md"
           },
@@ -2075,6 +2079,10 @@
           {
             "text": "PersistedTerminalResult",
             "link": "/api/@rulvar/core/type-aliases/PersistedTerminalResult.md"
+          },
+          {
+            "text": "PilotAgentProfileOptions",
+            "link": "/api/@rulvar/core/type-aliases/PilotAgentProfileOptions.md"
           },
           {
             "text": "QuotaDecision",
@@ -3263,6 +3271,10 @@
           {
             "text": "phiInitialOf",
             "link": "/api/@rulvar/core/functions/phiInitialOf.md"
+          },
+          {
+            "text": "pilotAgentProfile",
+            "link": "/api/@rulvar/core/functions/pilotAgentProfile.md"
           },
           {
             "text": "pipelineScope",
@@ -6065,6 +6077,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/PhaseTarget.md"
           },
           {
+            "text": "PilotAgentProfileResult",
+            "link": "/api/@rulvar/rulvar/interfaces/PilotAgentProfileResult.md"
+          },
+          {
             "text": "PinnedPricingSegment",
             "link": "/api/@rulvar/rulvar/interfaces/PinnedPricingSegment.md"
           },
@@ -6873,6 +6889,10 @@
           {
             "text": "PersistedTerminalResult",
             "link": "/api/@rulvar/rulvar/type-aliases/PersistedTerminalResult.md"
+          },
+          {
+            "text": "PilotAgentProfileOptions",
+            "link": "/api/@rulvar/rulvar/type-aliases/PilotAgentProfileOptions.md"
           },
           {
             "text": "ProgressMode",
@@ -8089,6 +8109,10 @@
           {
             "text": "phiInitialOf",
             "link": "/api/@rulvar/rulvar/functions/phiInitialOf.md"
+          },
+          {
+            "text": "pilotAgentProfile",
+            "link": "/api/@rulvar/rulvar/functions/pilotAgentProfile.md"
           },
           {
             "text": "pipelineScope",

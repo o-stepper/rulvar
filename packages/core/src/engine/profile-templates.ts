@@ -25,6 +25,7 @@ import {
   type RepositoryResearchToolsetOptions,
   type ResearchEvidenceEntry,
 } from '../tools/research.js';
+import { attestToolset, resolveToolset, type ToolsetAttestation } from '../tools/toolset-hash.js';
 import type { AgentProfile, EvidenceContract } from './ctx.js';
 
 /**
@@ -180,5 +181,69 @@ export function reviewAgentProfile(options: AgentProfileTemplateOptions = {}): A
         'partial.',
     tools: [progressReportTool(), ...(options.tools ?? [])],
     limits: mergeLimits(REVIEW_PROFILE_LIMITS, options.limits),
+  };
+}
+
+/** Options of {@link pilotAgentProfile}: the research template's, verbatim. */
+export type PilotAgentProfileOptions = ResearchAgentProfileOptions;
+
+/** What {@link pilotAgentProfile} returns: the pinned profile plus its accessors. */
+export interface PilotAgentProfileResult extends ResearchAgentProfileResult {
+  /**
+   * The toolset pin the profile enforces at every spawn (RV1514): the
+   * hash of the EXACT resolved toolset the factory built, per-tool
+   * hashes included, so a drifted registration refuses typed before
+   * any provider call. Returned so the host can persist or audit it.
+   */
+  attestation: ToolsetAttestation;
+}
+
+/**
+ * The read-only pilot preset (RV1606): the
+ * [production profiles guide](https://docs.rulvar.com/guide/production-profiles)'s
+ * controlled-pilot posture as ONE shipped factory instead of a page of
+ * assembly. Builds on {@link researchAgentProfile} (the confined
+ * read-only repository toolset, evidence recording, progress contract,
+ * stop conditions) and adds the fail-closed session posture the
+ * eighteenth comparison benchmark's improvement plan asked to ship:
+ *
+ * - the resolved toolset is ATTESTED (`toolsetAttestation`, RV1514):
+ *   any drift between this factory's toolset and what the spawn
+ *   resolves refuses typed, pre-wire, naming the changed tools;
+ * - permissions hard-deny every risk class except declared reads
+ *   (`write`, `network`, `execute`, `destructive`, and `undeclared`
+ *   all match one deny rule), `strictApprovals` is armed so a generic
+ *   allow can never clear a `needsApproval` tool, and
+ *   `inheritPermissions` stays false;
+ * - isolation is `'none'`: a read-only child needs no worktree, and
+ *   the profile never implies one.
+ *
+ * What it deliberately does NOT claim: the deny rules govern TOOL
+ * dispatch, not the process (a subprocess or worktree is an isolation
+ * convenience, never a security boundary; SECURITY.md), and no merge,
+ * deploy, or effect authority exists here to withhold. Async because
+ * the attestation pins the RESOLVED toolset.
+ */
+export async function pilotAgentProfile(
+  options: PilotAgentProfileOptions,
+): Promise<PilotAgentProfileResult> {
+  const kit = researchAgentProfile(options);
+  const resolved = await resolveToolset(kit.profile.tools ?? [], {
+    runId: 'pilot-profile-attestation',
+  });
+  const attestation = attestToolset(resolved);
+  return {
+    profile: {
+      ...kit.profile,
+      toolsetAttestation: attestation,
+      isolation: 'none',
+      permissions: {
+        deny: [{ risk: ['write', 'network', 'execute', 'destructive', 'undeclared'] }],
+        strictApprovals: true,
+        inheritPermissions: false,
+      },
+    },
+    evidence: kit.evidence,
+    attestation,
   };
 }

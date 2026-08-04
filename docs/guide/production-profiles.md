@@ -20,6 +20,8 @@ The posture for investigation workloads: incident triage, repository research, a
 
 What this posture guarantees: no tool with side effects is reachable, no approval is silently waived, and an accepted result names the evidence it stands on. What it does not guarantee: that the model read everything relevant; the evidence floor bounds under-reading, not judgment.
 
+Since RV1606 the profile half of this list ships assembled: `pilotAgentProfile(options)` (async, because the attestation pins the RESOLVED toolset) wraps [`researchAgentProfile`](/guide/orchestration-modes#partial-child-salvage-and-profile-templates) and returns `{ profile, evidence, attestation }` with the toolset attestation recorded, permissions hard-denying every risk class outside declared reads (`write`, `network`, `execute`, `destructive`, and `undeclared` in one deny rule) with `strictApprovals` armed and `inheritPermissions` off, and isolation pinned to `'none'`. A write-risk tool smuggled in through `extraTools` is still attested (the pin covers what the factory resolved) and still refused at dispatch by the risk rule, pre-effect; a registration that drifts from the pin refuses typed at spawn. The engine-level halves of the posture (budget ceiling, exposure cap, strict pricing, acceptance floors) stay explicit engine and run options: a profile cannot set them, and the factory does not pretend to.
+
 ## Isolated patch
 
 The posture for workloads that produce changes without applying them: fix generation, migration drafts, review remediation.

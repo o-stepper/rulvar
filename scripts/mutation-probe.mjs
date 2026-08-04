@@ -2719,6 +2719,24 @@ const MUTATIONS = [
     replace: '        const recoveredOrdinal = undefined;',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'pilot-risk-deny',
+    doctrine:
+      'the pilot preset hard denies every risk class outside declared reads (RV1606): dropping the rule lets a smuggled write tool execute before any effect gate sees it',
+    file: 'packages/core/src/engine/profile-templates.ts',
+    find: "        deny: [{ risk: ['write', 'network', 'execute', 'destructive', 'undeclared'] }],",
+    replace: '        deny: [],',
+    test: 'packages/core/src/engine/pilot-profile.test.ts',
+  },
+  {
+    id: 'pilot-attestation-pin',
+    doctrine:
+      'the pilot profile pins its resolved toolset by attestation (RV1606): dropping the pin lets a drifted registration import silently under the same profile name',
+    file: 'packages/core/src/engine/profile-templates.ts',
+    find: '      toolsetAttestation: attestation,\n',
+    replace: '',
+    test: 'packages/core/src/engine/pilot-profile.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
