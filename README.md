@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred fifty two rounds, verbatim in this repository's history:
+The one hundred fifty three rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -366,6 +366,7 @@ The one hundred fifty two rounds, verbatim in this repository's history:
 | v1.168.0      | 623b2ae (#696): the MCP import surface is bounded: the tools/list sweep, per-tool schema bytes, and connect/list/call timeouts all refuse typed                                           | v1.169.0   |
 | v1.169.0      | 86e4c06 (#699): the MCP session posture is host-declared: per-request auth refresh through a wrapped fetch and a fail-closed drift policy                                                 | v1.170.0   |
 | v1.170.0      | f6116b9 (#702): the retry namespaces are separate: a quota denial spends its own maxDenials budget, never the transport counters, and the recorded attempt ordinal stays dense            | v1.171.0   |
+| v1.171.0      | 0d4770b (#705): the MCP pagination sweep terminates: an echoed cursor refuses unconditionally on page two and the opt in maxPages cap fails closed like maxTools                          | v1.172.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
