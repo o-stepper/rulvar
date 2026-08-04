@@ -1,5 +1,11 @@
 # @rulvar/openai
 
+## 1.181.0
+
+### Patch Changes
+
+- @rulvar/core@1.181.0
+
 ## 1.180.0
 
 ### Minor Changes

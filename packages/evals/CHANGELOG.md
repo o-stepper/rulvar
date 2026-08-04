@@ -1,5 +1,19 @@
 # @rulvar/evals
 
+## 1.181.0
+
+### Minor Changes
+
+- f794c11: The adversarial claim corpus ships as a regression gate (RV1704). The eighteenth comparison benchmark's three worst failures were semantic, and each rode straight past a green mechanical surface: "real models were not run" beside 125 recorded wire requests, `@rulvar/plan` described through a `packages/planner` citation, and a store default inverted in prose. A judge model can only rule on what the folds put in front of it, so the offline regression that matters is the precondition: for every named failure class, the deterministic layers must still form the pair, trigger on the run facts, prioritize the declared claim, and grade the coverage honestly. `CLAIM_CORPUS` pins that precondition as data, one adversarial case per class (`live-fact`, `package-identity`, `inverted-default`, `numeric-range`, `negation`, `bounded-coverage`), and `runClaimCorpus()` executes every case through the same pure folds the orchestrator runs (`pairDraftClaims`, `pairRunFactClaims`, `claimCoverageOf`), no engine and no model, reporting per-case verdicts with the formed pairs attached for judge handoff. The shipped test asserts every case passes, so a change that stops forming any of these pairs fails the suite by case id instead of surfacing in the next paid benchmark. The corpus deliberately does not claim the pairs would be judged correctly: the pool excerpts ride every verdict so a host can adjudicate the semantic half with a real judge on their own budget.
+
+### Patch Changes
+
+- @rulvar/anthropic@1.181.0
+- @rulvar/core@1.181.0
+- @rulvar/openai@1.181.0
+- @rulvar/plan@1.181.0
+- @rulvar/testing@1.181.0
+
 ## 1.180.0
 
 ### Patch Changes

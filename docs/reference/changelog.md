@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
+
 ### 1.180.0
 
 #### Patch Changes
@@ -1737,6 +1743,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
+
 ### 1.180.0
 
 #### Patch Changes
@@ -3263,6 +3275,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
 
 ### 1.180.0
 
@@ -5234,6 +5252,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.181.0
 
 ### 1.180.0
 
@@ -7528,6 +7548,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.181.0
+
 ### 1.180.0
 
 ### 1.179.0
@@ -7992,6 +8014,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.181.0
+
+#### Minor Changes
+
+- f794c11: The adversarial claim corpus ships as a regression gate (RV1704). The eighteenth comparison benchmark's three worst failures were semantic, and each rode straight past a green mechanical surface: "real models were not run" beside 125 recorded wire requests, `@rulvar/plan` described through a `packages/planner` citation, and a store default inverted in prose. A judge model can only rule on what the folds put in front of it, so the offline regression that matters is the precondition: for every named failure class, the deterministic layers must still form the pair, trigger on the run facts, prioritize the declared claim, and grade the coverage honestly. `CLAIM_CORPUS` pins that precondition as data, one adversarial case per class (`live-fact`, `package-identity`, `inverted-default`, `numeric-range`, `negation`, `bounded-coverage`), and `runClaimCorpus()` executes every case through the same pure folds the orchestrator runs (`pairDraftClaims`, `pairRunFactClaims`, `claimCoverageOf`), no engine and no model, reporting per-case verdicts with the formed pairs attached for judge handoff. The shipped test asserts every case passes, so a change that stops forming any of these pairs fails the suite by case id instead of surfacing in the next paid benchmark. The corpus deliberately does not claim the pairs would be judged correctly: the pool excerpts ride every verdict so a host can adjudicate the semantic half with a real judge on their own budget.
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.181.0
+- @rulvar/core@1.181.0
+- @rulvar/openai@1.181.0
+- @rulvar/plan@1.181.0
+- @rulvar/testing@1.181.0
 
 ### 1.180.0
 
@@ -10033,6 +10069,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
+
 ### 1.180.0
 
 #### Patch Changes
@@ -10974,6 +11016,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
 
 ### 1.180.0
 
@@ -12707,6 +12755,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
+
 ### 1.180.0
 
 #### Patch Changes
@@ -14351,6 +14405,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
+- eslint-plugin-rulvar@1.181.0
 
 ### 1.180.0
 
@@ -16138,6 +16199,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.181.0
+- @rulvar/core@1.181.0
+- @rulvar/openai@1.181.0
 
 ### 1.180.0
 
@@ -18189,6 +18258,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
+
 ### 1.180.0
 
 #### Patch Changes
@@ -19841,6 +19916,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
+
 ### 1.180.0
 
 #### Patch Changes
@@ -20798,6 +20879,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
 
 ### 1.180.0
 
@@ -22387,6 +22474,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.181.0
+
+#### Patch Changes
+
+- @rulvar/core@1.181.0
 
 ### 1.180.0
 
