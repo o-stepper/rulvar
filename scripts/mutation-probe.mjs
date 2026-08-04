@@ -2737,6 +2737,15 @@ const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/engine/pilot-profile.test.ts',
   },
+  {
+    id: 'progressive-prompt-nudge',
+    doctrine:
+      'the progressive drafting nudge rides the child result opt in (RV1607): dropping the conditional erases the pattern from the prompt and the benchmark sequential tail returns as the default posture',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      ...(opts?.exposeChildResultTools === true',
+    replace: '      ...(false',
+    test: 'packages/core/src/orchestrator/progressive-drafting.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
