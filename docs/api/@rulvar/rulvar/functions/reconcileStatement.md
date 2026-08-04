@@ -2,7 +2,7 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/openai](/api/@rulvar/openai/index.md) / reconcileStatement
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / reconcileStatement
 
 # Function: reconcileStatement()
 
@@ -34,9 +34,9 @@ not evidence either).
 | ------ | ------ |
 | `invoice` | \{ `rows`: readonly [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[]; \} |
 | `invoice.rows` | readonly [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[] |
-| `statement` | [`ProviderStatement`](/api/@rulvar/openai/type-aliases/ProviderStatement.md) |
-| `options` | [`ReconcileStatementOptions`](/api/@rulvar/openai/interfaces/ReconcileStatementOptions.md) |
+| `statement` | [`ProviderStatement`](/api/@rulvar/rulvar/type-aliases/ProviderStatement.md) |
+| `options` | [`ReconcileStatementOptions`](/api/@rulvar/rulvar/interfaces/ReconcileStatementOptions.md) |
 
 ## Returns
 
-[`StatementReconciliation`](/api/@rulvar/openai/interfaces/StatementReconciliation.md)
+[`StatementReconciliation`](/api/@rulvar/rulvar/interfaces/StatementReconciliation.md)

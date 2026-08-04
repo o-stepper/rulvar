@@ -863,6 +863,10 @@
             "link": "/api/@rulvar/core/interfaces/CompiledWorkflow.md"
           },
           {
+            "text": "ComponentDelta",
+            "link": "/api/@rulvar/core/interfaces/ComponentDelta.md"
+          },
+          {
             "text": "Contradiction",
             "link": "/api/@rulvar/core/interfaces/Contradiction.md"
           },
@@ -1423,6 +1427,10 @@
             "link": "/api/@rulvar/core/interfaces/ReconcileResult.md"
           },
           {
+            "text": "ReconcileStatementOptions",
+            "link": "/api/@rulvar/core/interfaces/ReconcileStatementOptions.md"
+          },
+          {
             "text": "RefEntryAppender",
             "link": "/api/@rulvar/core/interfaces/RefEntryAppender.md"
           },
@@ -1607,6 +1615,26 @@
             "link": "/api/@rulvar/core/interfaces/StandardSchemaV1.md"
           },
           {
+            "text": "StatementCategoryRow",
+            "link": "/api/@rulvar/core/interfaces/StatementCategoryRow.md"
+          },
+          {
+            "text": "StatementColumnMap",
+            "link": "/api/@rulvar/core/interfaces/StatementColumnMap.md"
+          },
+          {
+            "text": "StatementCoverage",
+            "link": "/api/@rulvar/core/interfaces/StatementCoverage.md"
+          },
+          {
+            "text": "StatementReconciliation",
+            "link": "/api/@rulvar/core/interfaces/StatementReconciliation.md"
+          },
+          {
+            "text": "StatementRequestRow",
+            "link": "/api/@rulvar/core/interfaces/StatementRequestRow.md"
+          },
+          {
             "text": "StepIdentityInput",
             "link": "/api/@rulvar/core/interfaces/StepIdentityInput.md"
           },
@@ -1779,6 +1807,10 @@
           {
             "text": "AuditCategory",
             "link": "/api/@rulvar/core/type-aliases/AuditCategory.md"
+          },
+          {
+            "text": "BillingComponent",
+            "link": "/api/@rulvar/core/type-aliases/BillingComponent.md"
           },
           {
             "text": "Bytes",
@@ -2091,6 +2123,10 @@
           {
             "text": "PilotAgentProfileOptions",
             "link": "/api/@rulvar/core/type-aliases/PilotAgentProfileOptions.md"
+          },
+          {
+            "text": "ProviderStatement",
+            "link": "/api/@rulvar/core/type-aliases/ProviderStatement.md"
           },
           {
             "text": "QuotaDecision",
@@ -3385,6 +3421,10 @@
             "link": "/api/@rulvar/core/functions/reconcileRunMeta.md"
           },
           {
+            "text": "reconcileStatement",
+            "link": "/api/@rulvar/core/functions/reconcileStatement.md"
+          },
+          {
             "text": "reduceAuditTrail",
             "link": "/api/@rulvar/core/functions/reduceAuditTrail.md"
           },
@@ -3523,6 +3563,10 @@
           {
             "text": "spliceSections",
             "link": "/api/@rulvar/core/functions/spliceSections.md"
+          },
+          {
+            "text": "statementFromRows",
+            "link": "/api/@rulvar/core/functions/statementFromRows.md"
           },
           {
             "text": "stripFencedBlocks",
@@ -4204,6 +4248,10 @@
             "link": "/api/@rulvar/openai/interfaces/StatementCategoryRow.md"
           },
           {
+            "text": "StatementColumnMap",
+            "link": "/api/@rulvar/openai/interfaces/StatementColumnMap.md"
+          },
+          {
             "text": "StatementCoverage",
             "link": "/api/@rulvar/openai/interfaces/StatementCoverage.md"
           },
@@ -4312,6 +4360,10 @@
           {
             "text": "reconcileStatement",
             "link": "/api/@rulvar/openai/functions/reconcileStatement.md"
+          },
+          {
+            "text": "statementFromRows",
+            "link": "/api/@rulvar/openai/functions/statementFromRows.md"
           },
           {
             "text": "undoV1190CacheDoubleCount",
@@ -5661,6 +5713,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md"
           },
           {
+            "text": "ComponentDelta",
+            "link": "/api/@rulvar/rulvar/interfaces/ComponentDelta.md"
+          },
+          {
             "text": "Contradiction",
             "link": "/api/@rulvar/rulvar/interfaces/Contradiction.md"
           },
@@ -6241,6 +6297,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/ReconcileResult.md"
           },
           {
+            "text": "ReconcileStatementOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/ReconcileStatementOptions.md"
+          },
+          {
             "text": "RefEntryAppender",
             "link": "/api/@rulvar/rulvar/interfaces/RefEntryAppender.md"
           },
@@ -6429,6 +6489,26 @@
             "link": "/api/@rulvar/rulvar/interfaces/StandardSchemaV1.md"
           },
           {
+            "text": "StatementCategoryRow",
+            "link": "/api/@rulvar/rulvar/interfaces/StatementCategoryRow.md"
+          },
+          {
+            "text": "StatementColumnMap",
+            "link": "/api/@rulvar/rulvar/interfaces/StatementColumnMap.md"
+          },
+          {
+            "text": "StatementCoverage",
+            "link": "/api/@rulvar/rulvar/interfaces/StatementCoverage.md"
+          },
+          {
+            "text": "StatementReconciliation",
+            "link": "/api/@rulvar/rulvar/interfaces/StatementReconciliation.md"
+          },
+          {
+            "text": "StatementRequestRow",
+            "link": "/api/@rulvar/rulvar/interfaces/StatementRequestRow.md"
+          },
+          {
             "text": "StepIdentityInput",
             "link": "/api/@rulvar/rulvar/interfaces/StepIdentityInput.md"
           },
@@ -6601,6 +6681,10 @@
           {
             "text": "AuditCategory",
             "link": "/api/@rulvar/rulvar/type-aliases/AuditCategory.md"
+          },
+          {
+            "text": "BillingComponent",
+            "link": "/api/@rulvar/rulvar/type-aliases/BillingComponent.md"
           },
           {
             "text": "Bytes",
@@ -6921,6 +7005,10 @@
           {
             "text": "ProgressSource",
             "link": "/api/@rulvar/rulvar/type-aliases/ProgressSource.md"
+          },
+          {
+            "text": "ProviderStatement",
+            "link": "/api/@rulvar/rulvar/type-aliases/ProviderStatement.md"
           },
           {
             "text": "QuotaDecision",
@@ -8239,6 +8327,10 @@
             "link": "/api/@rulvar/rulvar/functions/reconcileRunMeta.md"
           },
           {
+            "text": "reconcileStatement",
+            "link": "/api/@rulvar/rulvar/functions/reconcileStatement.md"
+          },
+          {
             "text": "reduceAuditTrail",
             "link": "/api/@rulvar/rulvar/functions/reduceAuditTrail.md"
           },
@@ -8381,6 +8473,10 @@
           {
             "text": "spliceSections",
             "link": "/api/@rulvar/rulvar/functions/spliceSections.md"
+          },
+          {
+            "text": "statementFromRows",
+            "link": "/api/@rulvar/rulvar/functions/statementFromRows.md"
           },
           {
             "text": "stripFencedBlocks",

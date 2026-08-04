@@ -32,8 +32,11 @@
  * reads or writes a journal, and the caller stores the report next to
  * the invoice it reconciles.
  */
-import type { InvoiceRow, ModelRef, Pricing } from '@rulvar/core';
-import { ConfigError, priceComponentsOf } from '@rulvar/core';
+import { ConfigError } from '../l0/errors.js';
+import type { ModelRef } from '../l0/messages.js';
+import type { Pricing } from '../l0/spi/provider.js';
+import { priceComponentsOf } from '../model/pricing.js';
+import type { InvoiceRow } from './invoice.js';
 
 /** The four billing components a provider statement itemizes. */
 export type BillingComponent = 'input' | 'cached-input' | 'cache-write' | 'output';
@@ -717,4 +720,193 @@ export function reconcileStatement(
       usageUnknownRows === 0 &&
       unpricedModels.size === 0,
   };
+}
+
+/**
+ * Column mapping for {@link statementFromRows}: each field names the
+ * KEY in the caller's raw rows that carries the value. Provider export
+ * formats change without notice and differ per tenant surface (CSV
+ * headers, JSON field names, locale-shaped numbers), so this module
+ * deliberately ships NO per-provider schema knowledge: the caller
+ * states the mapping in one place and the normalizer applies one
+ * fail-closed validation to whatever the export actually contained,
+ * naming the row and the column of anything that cannot be evidence.
+ */
+export interface StatementColumnMap {
+  /** Key of the provider response id; required for `kind: 'requests'`. */
+  responseId?: string;
+  /** Key of the provider-side model name. */
+  model?: string;
+  /** Key of the row's billed dollars; for `kind: 'categories'` required. */
+  usd?: string;
+  /** Key of the billing component name; required for `kind: 'categories'`. */
+  component?: string;
+  /** Keys of the provider-reported token counts. */
+  inputTokens?: string;
+  cachedInputTokens?: string;
+  cacheWriteTokens?: string;
+  outputTokens?: string;
+  /** Keys of a per-component dollar split, one column per component. */
+  componentsUsd?: Partial<Record<BillingComponent, string>>;
+}
+
+/** A cell that is absent by export convention: missing, null, or ''. */
+const absentCell = (value: unknown): boolean =>
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+
+const stringAt = (
+  row: Record<string, unknown>,
+  column: string,
+  rowIndex: number,
+): string | undefined => {
+  const value = row[column];
+  if (absentCell(value)) {
+    return undefined;
+  }
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new ConfigError(
+      `statement row ${String(rowIndex)} column '${column}' must be a non-empty string, ` +
+        `got ${JSON.stringify(value)}`,
+    );
+  }
+  return value.trim();
+};
+
+const dollarsAt = (
+  row: Record<string, unknown>,
+  column: string,
+  rowIndex: number,
+): number | undefined => {
+  const value = row[column];
+  if (absentCell(value)) {
+    return undefined;
+  }
+  const parsed = typeof value === 'number' ? value : Number(String(value).trim());
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new ConfigError(
+      `statement row ${String(rowIndex)} column '${column}' must be finite non-negative ` +
+        `dollars, got ${JSON.stringify(value)}`,
+    );
+  }
+  return parsed;
+};
+
+const tokensAt = (
+  row: Record<string, unknown>,
+  column: string,
+  rowIndex: number,
+): number | undefined => {
+  const value = row[column];
+  if (absentCell(value)) {
+    return undefined;
+  }
+  const parsed = typeof value === 'number' ? value : Number(String(value).trim());
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new ConfigError(
+      `statement row ${String(rowIndex)} column '${column}' must be a non-negative integer ` +
+        `token count, got ${JSON.stringify(value)}`,
+    );
+  }
+  return parsed;
+};
+
+/**
+ * Normalizes raw keyed rows (a parsed CSV, a JSON export) into a
+ * {@link ProviderStatement} under one explicit {@link StatementColumnMap}
+ * (RV1703). Fail-closed at the cell: a mapped column whose value cannot
+ * be evidence (a non-numeric dollar figure, a fractional or negative
+ * token count, an empty response id, an unknown component name) refuses
+ * typed with the row index and column name instead of flowing a NaN or
+ * a guess into the reconciliation. Absent cells (missing key, null,
+ * empty string) mean "the export does not carry this figure" and simply
+ * omit the field; a requests row that ends up carrying no dollars, no
+ * component split, and no usage at all is refused, because a row
+ * without evidence cannot reconcile anything.
+ */
+export function statementFromRows(input: {
+  kind: 'requests' | 'categories';
+  rows: readonly Record<string, unknown>[];
+  map: StatementColumnMap;
+}): ProviderStatement {
+  const { kind, rows, map } = input;
+  if (kind === 'categories') {
+    for (const key of ['model', 'component', 'usd'] as const) {
+      if (map[key] === undefined) {
+        throw new ConfigError(`statementFromRows kind 'categories' requires map.${key}`);
+      }
+    }
+    const out: StatementCategoryRow[] = rows.map((row, index) => {
+      const model = stringAt(row, map.model as string, index);
+      const componentRaw = stringAt(row, map.component as string, index);
+      const usd = dollarsAt(row, map.usd as string, index);
+      if (model === undefined || componentRaw === undefined || usd === undefined) {
+        throw new ConfigError(
+          `statement row ${String(index)} must carry model, component, and usd for a ` +
+            'categories statement',
+        );
+      }
+      const component = COMPONENTS.find((name) => name === componentRaw);
+      if (component === undefined) {
+        throw new ConfigError(
+          `statement row ${String(index)} names unknown component ` +
+            `'${componentRaw}'; expected one of ${COMPONENTS.join(', ')}`,
+        );
+      }
+      return { model, component, usd };
+    });
+    return { kind: 'categories', rows: out };
+  }
+  if (map.responseId === undefined) {
+    throw new ConfigError("statementFromRows kind 'requests' requires map.responseId");
+  }
+  const out: StatementRequestRow[] = rows.map((row, index) => {
+    const responseId = stringAt(row, map.responseId as string, index);
+    if (responseId === undefined) {
+      throw new ConfigError(
+        `statement row ${String(index)} carries no response id in column ` +
+          `'${map.responseId as string}', the join key`,
+      );
+    }
+    const model = map.model === undefined ? undefined : stringAt(row, map.model, index);
+    const usd = map.usd === undefined ? undefined : dollarsAt(row, map.usd, index);
+    let componentsUsd: Partial<Record<BillingComponent, number>> | undefined;
+    if (map.componentsUsd !== undefined) {
+      for (const component of COMPONENTS) {
+        const column = map.componentsUsd[component];
+        if (column === undefined) continue;
+        const cell = dollarsAt(row, column, index);
+        if (cell === undefined) continue;
+        componentsUsd = { ...(componentsUsd ?? {}), [component]: cell };
+      }
+    }
+    const usage: StatementRequestRow['usage'] = {};
+    const tokenColumns = [
+      ['inputTokens', map.inputTokens],
+      ['cachedInputTokens', map.cachedInputTokens],
+      ['cacheWriteTokens', map.cacheWriteTokens],
+      ['outputTokens', map.outputTokens],
+    ] as const;
+    let usageSeen = false;
+    for (const [field, column] of tokenColumns) {
+      if (column === undefined) continue;
+      const cell = tokensAt(row, column, index);
+      if (cell === undefined) continue;
+      usage[field] = cell;
+      usageSeen = true;
+    }
+    if (usd === undefined && componentsUsd === undefined && !usageSeen) {
+      throw new ConfigError(
+        `statement row ${String(index)} ('${responseId}') carries no dollars, no component ` +
+          'split, and no usage under the given map; a row without evidence cannot reconcile',
+      );
+    }
+    return {
+      responseId,
+      ...(model === undefined ? {} : { model }),
+      ...(usd === undefined ? {} : { usd }),
+      ...(componentsUsd === undefined ? {} : { componentsUsd }),
+      ...(usageSeen ? { usage } : {}),
+    };
+  });
+  return { kind: 'requests', rows: out };
 }

@@ -659,19 +659,19 @@ const MUTATIONS = [
     id: 'partial-export-coverage',
     doctrine:
       'a partially delivered provider export folds component deltas over the COVERED subset only: comparing a subset against the whole manufactures false divergence (RV812)',
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: '    covered = matched;\n    matchedRows = matched.length;',
     replace: '    covered = billable;\n    matchedRows = matched.length;',
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'headline-aggregate-refusal',
     doctrine:
       'a statement with no rows (a headline total) is refused typed: eventually consistent dashboard aggregates are not reconciliation evidence (RV812, the 4.45-vs-7.30 lesson)',
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: '  if (statement.rows.length === 0) {',
     replace: '  if (false) {',
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'tool-span-pairing',
@@ -830,21 +830,21 @@ const MUTATIONS = [
     id: 'reconcile-nan-intake',
     doctrine:
       "statement dollars that cannot be summed refuse typed at intake (RV903): with the finiteness gate gone, usd NaN flows through the totals, Math.abs(NaN) > tolerance is false, and a corrupted export reads verdict 'match' with NaN deltas",
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: '  if (!Number.isFinite(value)) {\n    throw new ConfigError(\n      `statement reconciliation refused: ${where} carries ${field} ${String(value)}, which ` +',
     replace:
       '  if (false) {\n    throw new ConfigError(\n      `statement reconciliation refused: ${where} carries ${field} ${String(value)}, which ` +',
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'reconcile-token-verdict',
     doctrine:
       'provider-reported token disagreements decide the verdict by default (RV903): with the branch disarmed, an export describing different requests than the wire served still reads match whenever its dollars happen to agree',
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: "  const tokensDivergent = tokenComparison === 'verdict' && tokenMismatches > 0;",
     replace:
       "  const tokensDivergent = false && tokenComparison === 'verdict' && tokenMismatches > 0;",
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'count-admission-floor',
@@ -905,10 +905,10 @@ const MUTATIONS = [
     id: 'wire-join-all-or-nothing',
     doctrine:
       'a multi-wire dispatch joins its statement segments all-or-nothing (RV905): joined on any subset, a partially delivered export compares a fragment against the whole dispatch and manufactures divergence out of incomplete delivery',
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: '      if (rowIds.length === 0 || hits.length !== rowIds.length) {',
     replace: '      if (rowIds.length === 0 || hits.length === 0) {',
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'forced-finish-partial',
@@ -1146,31 +1146,31 @@ const MUTATIONS = [
     id: 'statement-contradiction-intake',
     doctrine:
       'an export row carrying a total that contradicts its own component split refuses typed at intake (RV1005): disarmed, usd 100 beside components summing 1 reads verdict match because each claim sits inside its own tolerance and nothing compares them to each other',
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: '        if (\n          row.usd !== undefined &&\n          componentsSeen > 0 &&',
     replace:
       '        if (\n          (false as boolean) &&\n          row.usd !== undefined &&\n          componentsSeen > 0 &&',
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'statement-totals-unsuppressed',
     doctrine:
       'presence of a component split no longer suppresses the totals comparison (RV1005): with the historical guard restored, a total drifting 5 USD beside agreeing components reads verdict match and the one comparison that can see the drift never runs',
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: '  const totalsDivergent =\n    totalsComparable && totalsDelta !== undefined && Math.abs(totalsDelta) > totalToleranceUsd;',
     replace:
       '  const totalsDivergent =\n    statementComponents === undefined &&\n    totalsComparable && totalsDelta !== undefined && Math.abs(totalsDelta) > totalToleranceUsd;',
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'statement-settleable-predicate',
     doctrine:
       'settleable is the full settlement-grade composite (RV1006): with the usage-unknown condition dropped, a match over a ledger still holding unattributed money reads settleable true and the predicate stops naming exactly the money a match cannot vouch for',
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: "    settleable:\n      verdict === 'match' &&\n      coverageComplete &&\n      usageUnknownRows === 0 &&\n      unpricedModels.size === 0,",
     replace:
       "    settleable:\n      verdict === 'match' &&\n      coverageComplete &&\n      unpricedModels.size === 0,",
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'fault-kit-settleable-drive',
@@ -1634,19 +1634,19 @@ const MUTATIONS = [
     id: 'statement-empty-usage',
     doctrine:
       "an affirmatively declared usage object with zero token counts is not settlement evidence (RV1201): with the rule disabled, `usage: {}` reads verdict match with complete coverage and settleable true on the object's mere presence, the sixteenth experiment's judge repro R1",
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: '        if (usageSeen === 0) {',
     replace: '        if (false) {',
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'statement-empty-components',
     doctrine:
       'an affirmatively declared componentsUsd split with zero figures is not settlement evidence (RV1201): with the rule disabled, `componentsUsd: {}` counts as a dollar claim while claiming nothing and the statement settles over it',
-    file: 'packages/openai/src/reconcile.ts',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
     find: '        if (componentsSeen === 0) {',
     replace: '        if (false) {',
-    test: 'packages/openai/src/reconcile.test.ts',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'profile-filter-prototype',
@@ -2745,6 +2745,24 @@ const MUTATIONS = [
     find: '      ...(opts?.exposeChildResultTools === true',
     replace: '      ...(false',
     test: 'packages/core/src/orchestrator/progressive-drafting.test.ts',
+  },
+  {
+    id: 'statement-normalizer-cell-refusal',
+    doctrine:
+      'the statement normalizer refuses a dollar cell that cannot be evidence at the cell, naming row and column (RV1703): tolerating a non-finite or negative figure flows a NaN or a guess into the reconciliation and the report closes on numbers nobody billed',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
+    find: '  if (!Number.isFinite(parsed) || parsed < 0) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
+  },
+  {
+    id: 'statement-normalizer-evidence-floor',
+    doctrine:
+      'a normalized requests row must carry dollars, a component split, or usage (RV1703): admitting an evidence-free row makes it count toward coverage while being unable to confirm or deny anything, the exact false-comfort shape the coverage counters exist to prevent',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
+    find: '    if (usd === undefined && componentsUsd === undefined && !usageSeen) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
     id: 'docs-package-unknown-name',

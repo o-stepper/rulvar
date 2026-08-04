@@ -2,7 +2,7 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/openai](/api/@rulvar/openai/index.md) / StatementReconciliation
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / StatementReconciliation
 
 # Interface: StatementReconciliation
 
@@ -12,10 +12,10 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-components"></a> `components` | [`ComponentDelta`](/api/@rulvar/openai/interfaces/ComponentDelta.md)[] | Every (model, component) line, models sorted, components in canonical order. | `packages/core/dist/index.d.ts` |
+| <a id="property-components"></a> `components` | [`ComponentDelta`](/api/@rulvar/rulvar/interfaces/ComponentDelta.md)[] | Every (model, component) line, models sorted, components in canonical order. | `packages/core/dist/index.d.ts` |
 | <a id="property-componenttoleranceusd"></a> `componentToleranceUsd` | `number` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-coverage"></a> `coverage` | [`StatementCoverage`](/api/@rulvar/openai/interfaces/StatementCoverage.md) | - | `packages/core/dist/index.d.ts` |
-| <a id="property-divergent"></a> `divergent` | [`ComponentDelta`](/api/@rulvar/openai/interfaces/ComponentDelta.md)[] | The lines beyond tolerance, largest |delta| first: the named divergences. | `packages/core/dist/index.d.ts` |
+| <a id="property-coverage"></a> `coverage` | [`StatementCoverage`](/api/@rulvar/rulvar/interfaces/StatementCoverage.md) | - | `packages/core/dist/index.d.ts` |
+| <a id="property-divergent"></a> `divergent` | [`ComponentDelta`](/api/@rulvar/rulvar/interfaces/ComponentDelta.md)[] | The lines beyond tolerance, largest |delta| first: the named divergences. | `packages/core/dist/index.d.ts` |
 | <a id="property-mode"></a> `mode` | `"requests"` \| `"categories"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-settleable"></a> `settleable` | `boolean` | The settlement-grade composite, first class (RV1006): true exactly when the verdict is 'match' AND coverage is complete AND no row's usage is unknown AND no model went unpriced. A 'match' alone is not enough: an export can cover every KNOWN row to the cent while a usage-unknown attempt still holds unattributed money, and a safe consumer must not assemble this predicate by hand. The last two conditions overlap today's verdict semantics deliberately: the predicate states the full contract so it cannot drift apart from a future verdict refinement. | `packages/core/dist/index.d.ts` |
 | <a id="property-tokenmismatches"></a> `tokenMismatches` | `number` | Token disagreements between the export and our recorded usage (requests mode). Under the default tokenComparison 'verdict' any mismatch makes the verdict 'divergence'; under 'informational' the count and sample still report, advisory only (RV903). | `packages/core/dist/index.d.ts` |

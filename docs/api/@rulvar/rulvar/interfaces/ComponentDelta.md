@@ -2,7 +2,7 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/openai](/api/@rulvar/openai/index.md) / ComponentDelta
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / ComponentDelta
 
 # Interface: ComponentDelta
 
@@ -14,7 +14,7 @@ One (model, component) line of the reconciliation.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-component"></a> `component` | [`BillingComponent`](/api/@rulvar/openai/type-aliases/BillingComponent.md) | - | `packages/core/dist/index.d.ts` |
+| <a id="property-component"></a> `component` | [`BillingComponent`](/api/@rulvar/rulvar/type-aliases/BillingComponent.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-deltausd"></a> `deltaUsd?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-divergent"></a> `divergent` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-effectiveusdpermtok"></a> `effectiveUsdPerMTok?` | `number` | ourUsd over ourTokens, per MTok: our effective rate over the same base, tier mix included. | `packages/core/dist/index.d.ts` |
