@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+
 ### 1.174.0
 
 #### Patch Changes
@@ -1696,6 +1703,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+
 ### 1.174.0
 
 #### Patch Changes
@@ -3181,6 +3195,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
 
 ### 1.174.0
 
@@ -5105,6 +5126,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.175.0
+
+#### Minor Changes
+
+- 1999c5d: Adopt recovered spawn decisions by the full canonical spec on a regenerated spawn turn (RV1605). When a dynamic-orchestrator root resumes without its turn-boundary checkpoint (a lost transcript store, or a crash before the first boundary), it regenerates the spawn turn instead of continuing past it. The recovery path for that shape compared only `agentType` and `prompt` at a colliding ordinal, but recovery advances the ordinal counter past every journaled admission, so the collision could not occur: every regenerated spawn re-decided and re-paid its child even with an identical spec, and the eighteenth comparison benchmark separately flagged the two-field comparison as a stale-child hazard had it fired (a changed model hint, schema, or toolset reference would have adopted a child produced under the old spec). Adoption is now content-addressed: a regenerated call whose full spec matches an unclaimed journaled admission byte for byte (`jcsSerialize` over every field) claims the first such decision in journal order, with the settled child replaying free, a dangling one redispatching pinned to its journaled scope, and a recovered rejection rolling forward typed; a call diverging in any field decides fresh, and the prior decision's child stays paid (at-least-once). Checkpoint-continued resumes are untouched: they never re-execute the spawn turn.
 
 ### 1.174.0
 
@@ -7365,6 +7392,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.175.0
+
 ### 1.174.0
 
 ### 1.173.0
@@ -7817,6 +7846,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+  - @rulvar/anthropic@1.175.0
+  - @rulvar/openai@1.175.0
+  - @rulvar/plan@1.175.0
+  - @rulvar/testing@1.175.0
 
 ### 1.174.0
 
@@ -9792,6 +9832,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+
 ### 1.174.0
 
 #### Patch Changes
@@ -10692,6 +10739,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
 
 ### 1.174.0
 
@@ -12380,6 +12434,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+
 ### 1.174.0
 
 #### Patch Changes
@@ -13979,6 +14040,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+  - eslint-plugin-rulvar@1.175.0
 
 ### 1.174.0
 
@@ -15715,6 +15784,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+  - @rulvar/anthropic@1.175.0
+  - @rulvar/openai@1.175.0
 
 ### 1.174.0
 
@@ -17713,6 +17791,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+
 ### 1.174.0
 
 #### Patch Changes
@@ -19324,6 +19409,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
+
 ### 1.174.0
 
 #### Patch Changes
@@ -20240,6 +20332,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
 
 ### 1.174.0
 
@@ -21788,6 +21887,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.175.0
+
+#### Patch Changes
+
+- Updated dependencies [1999c5d]
+  - @rulvar/core@1.175.0
 
 ### 1.174.0
 
