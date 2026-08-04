@@ -495,3 +495,68 @@ export function pairRunFactClaims(
   }
   return { pairs: matched, truncated: total > matched.length };
 }
+
+/**
+ * The claim-coverage grade (RV1702): one closed vocabulary a consumer
+ * reads INSTEAD of inferring semantic health from an empty findings
+ * array. The eighteenth comparison benchmark's run reported
+ * `completion: 'complete'` with `contradictions: []` while the judge
+ * had seen 40 of 144 citing sentences and said so only in counts a
+ * reader had to interpret; three material falsehoods rode that gap.
+ * The grade names the verification posture outright:
+ *
+ * - `'full'`: every citing sentence the draft carries had at least one
+ *   judged pair, nothing was cut by a bound, no declared critical
+ *   anchor was missed, and the judge (when needed) settled ok. A draft
+ *   with zero citing sentences grades `'full'` vacuously: there was
+ *   nothing to verify, and saying `'partial'` would imply a subset was
+ *   chosen.
+ * - `'partial'`: the pass verified a strict subset: the pair bound
+ *   truncated the fold, a run-facts bound truncated the run-claim
+ *   pairs, or citing sentences exist that no judged pair covers.
+ * - `'critical-uncovered'`: at least one DECLARED critical anchor got
+ *   no judged pair; stronger than `'partial'` because the caller named
+ *   exactly these claims as the ones that must not go unverified.
+ * - `'judge-failed'`: the judge invocation did not settle ok, so
+ *   nothing was judged at all; every other reading of the meta is
+ *   moot.
+ *
+ * Precedence is the order above, strongest last. The helper is pure
+ * and total over metas written BEFORE the grade shipped, so a consumer
+ * can grade a persisted outcome from an older engine.
+ */
+export type ClaimCoverageGrade = 'full' | 'partial' | 'critical-uncovered' | 'judge-failed';
+
+/** The subset of the claim-consistency meta the grade derives from. */
+export interface ClaimCoverageInput {
+  /** Draft sentences carrying at least one parsable anchor. */
+  draftCitingSentences: number;
+  /** True when the pair bound cut the fold. */
+  truncated: boolean;
+  /** Citing sentences with at least one judged pair. */
+  coveredCitingSentences: number;
+  /** Uncapped count of declared critical anchors with no judged pair. */
+  criticalUncoveredTotal?: number;
+  /** True when the run-facts pair bound cut the run-claim pairs. */
+  runFactPairsTruncated?: true;
+  /** True when the judge invocation did not settle ok. */
+  judgeFailed?: true;
+}
+
+/** Derives the {@link ClaimCoverageGrade} of a claim-consistency meta. */
+export function claimCoverageOf(meta: ClaimCoverageInput): ClaimCoverageGrade {
+  if (meta.judgeFailed === true) {
+    return 'judge-failed';
+  }
+  if ((meta.criticalUncoveredTotal ?? 0) > 0) {
+    return 'critical-uncovered';
+  }
+  if (
+    meta.truncated ||
+    meta.runFactPairsTruncated === true ||
+    meta.coveredCitingSentences < meta.draftCitingSentences
+  ) {
+    return 'partial';
+  }
+  return 'full';
+}

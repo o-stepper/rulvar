@@ -6,7 +6,9 @@
  * notice, never an error.
  */
 import {
+  claimCoverageOf,
   sanitizeTerminalText,
+  type ClaimCoverageGrade,
   type Engine,
   type PendingExternal,
   type ResumeHandle,
@@ -229,6 +231,60 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
   }
 }
 
+/** The closed grade vocabulary strict accepts from a persisted meta. */
+const COVERAGE_GRADES: readonly ClaimCoverageGrade[] = [
+  'full',
+  'partial',
+  'critical-uncovered',
+  'judge-failed',
+];
+
+/**
+ * The claim-coverage grade of an outcome's acceptance envelope, when
+ * one is derivable (RV1702): the stamped `coverage` field when it
+ * carries a known grade, else {@link claimCoverageOf} over the counts
+ * (a meta persisted before the grade shipped), else undefined.
+ */
+function coverageGradeOf(value: unknown): ClaimCoverageGrade | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
+  }
+  const meta = (value as { claimConsistencyMeta?: unknown }).claimConsistencyMeta;
+  if (typeof meta !== 'object' || meta === null) {
+    return undefined;
+  }
+  const record = meta as {
+    coverage?: unknown;
+    draftCitingSentences?: unknown;
+    truncated?: unknown;
+    coveredCitingSentences?: unknown;
+    criticalUncoveredTotal?: unknown;
+    runFactPairsTruncated?: unknown;
+    judgeFailed?: unknown;
+  };
+  const stamped = COVERAGE_GRADES.find((grade) => grade === record.coverage);
+  if (stamped !== undefined) {
+    return stamped;
+  }
+  if (
+    typeof record.draftCitingSentences !== 'number' ||
+    typeof record.truncated !== 'boolean' ||
+    typeof record.coveredCitingSentences !== 'number'
+  ) {
+    return undefined;
+  }
+  return claimCoverageOf({
+    draftCitingSentences: record.draftCitingSentences,
+    truncated: record.truncated,
+    coveredCitingSentences: record.coveredCitingSentences,
+    ...(typeof record.criticalUncoveredTotal === 'number'
+      ? { criticalUncoveredTotal: record.criticalUncoveredTotal }
+      : {}),
+    ...(record.runFactPairsTruncated === true ? { runFactPairsTruncated: true as const } : {}),
+    ...(record.judgeFailed === true ? { judgeFailed: true as const } : {}),
+  });
+}
+
 /**
  * `--strict` (the v1.40.0 improvement plan's completion contract): a
  * settled ok run whose orchestration acceptance envelope reports a
@@ -237,6 +293,18 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
  * that never opted into orchestrate acceptance) and nonzero exit codes
  * pass through unchanged, so the flag never masks the ordinary status
  * exit and never bites a plain workflow.
+ *
+ * Completion is a MECHANICAL verdict, and the eighteenth comparison
+ * benchmark showed how easily `completion: 'complete'` reads as
+ * semantic green while the claim judge saw 40 of 144 citing sentences.
+ * So strict also reads the claim-coverage grade (RV1702) when the
+ * outcome carries a claim-consistency meta: `'judge-failed'` (nothing
+ * was judged) and `'critical-uncovered'` (declared claims went
+ * unverified) exit nonzero, because both previously slipped through
+ * strict as green; `'partial'` prints its counts to stderr and keeps
+ * the exit, because the bounded pass is the documented default and
+ * declaring critical anchors is the opt-in that makes the subset
+ * enforceable.
  */
 export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: CliIo): number {
   if (base !== 0 || outcome.status !== 'ok') {
@@ -248,15 +316,32 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     typeof value === 'object' && value !== null && typeof value.completion === 'string'
       ? value.completion
       : undefined;
-  if (completion === undefined || completion === 'complete') {
-    return base;
+  if (completion !== undefined && completion !== 'complete') {
+    io.err(
+      `strict: the orchestration acceptance reports completion '${sanitizeTerminalText(completion)}'`,
+    );
+    const reasons = Array.isArray(value?.degradedReasons) ? value.degradedReasons : [];
+    for (const reason of reasons.filter((entry): entry is string => typeof entry === 'string')) {
+      io.err(`  ${sanitizeTerminalText(reason)}`);
+    }
+    return 1;
   }
-  io.err(
-    `strict: the orchestration acceptance reports completion '${sanitizeTerminalText(completion)}'`,
-  );
-  const reasons = Array.isArray(value?.degradedReasons) ? value.degradedReasons : [];
-  for (const reason of reasons.filter((entry): entry is string => typeof entry === 'string')) {
-    io.err(`  ${sanitizeTerminalText(reason)}`);
+  const grade = coverageGradeOf(value);
+  if (grade === 'judge-failed' || grade === 'critical-uncovered') {
+    io.err(
+      `strict: claim coverage '${grade}': ` +
+        (grade === 'judge-failed'
+          ? 'the claim-consistency judge did not settle ok, so nothing was judged'
+          : 'declared critical anchors got no judged pair'),
+    );
+    return 1;
   }
-  return 1;
+  if (grade === 'partial') {
+    io.err(
+      "strict: claim coverage 'partial': the judge saw a bounded subset of the citing " +
+        'sentences; declare critical anchors (or raise the pair bound) to make the subset ' +
+        'enforceable',
+    );
+  }
+  return base;
 }

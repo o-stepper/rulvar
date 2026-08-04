@@ -93,9 +93,11 @@ import {
   type ContradictionSource,
 } from './contradictions.js';
 import {
+  claimCoverageOf,
   DEFAULT_MAX_CLAIM_PAIRS,
   pairDraftClaims,
   pairRunFactClaims,
+  type ClaimCoverageGrade,
   type ClaimPair,
 } from './consistency.js';
 import type { SchemaSpec } from '../l0/schema.js';
@@ -833,6 +835,14 @@ export interface OrchestrateClaimConsistencyMeta {
   judgeInvoked: boolean;
   /** Present when the judge invocation did not settle ok. */
   judgeFailed?: true;
+  /**
+   * The one field a consumer reads INSTEAD of inferring semantic
+   * health from an empty findings array (RV1702):
+   * {@link claimCoverageOf} over this meta, so `completion:
+   * 'complete'` plus `contradictions: []` can never again read as
+   * "fully verified" when the judge saw 40 of 144 citing sentences.
+   */
+  coverage: ClaimCoverageGrade;
 }
 
 /**
@@ -5029,6 +5039,16 @@ export function makeOrchestratorWorkflow(
               ...(runFold.truncated ? { runFactPairsTruncated: true as const } : {}),
             }),
       };
+      // Every assembly of the meta carries the grade (RV1702): the
+      // derivation runs over the finished bare meta, so the four exit
+      // paths below cannot disagree with a consumer re-deriving it.
+      const finishMeta = (flags: {
+        judgeInvoked: boolean;
+        judgeFailed?: true;
+      }): OrchestrateClaimConsistencyMeta => {
+        const bare = { ...metaBase, ...flags };
+        return { ...bare, coverage: claimCoverageOf(bare) };
+      };
       // The uncovered-critical gate (RV1603) fires BEFORE the judge
       // dispatch: a run whose declared claims cannot be verified never
       // pays for a partial verdict.
@@ -5037,7 +5057,7 @@ export function makeOrchestratorWorkflow(
         fold.criticalUncovered !== undefined &&
         fold.criticalUncovered.length > 0
       ) {
-        claimConsistencyMeta = { ...metaBase, judgeInvoked: false };
+        claimConsistencyMeta = finishMeta({ judgeInvoked: false });
         throw new FailRunError(
           `the claim-consistency pass left ${String(fold.criticalUncoveredTotal ?? 0)} critical ` +
             `draft anchor(s) unjudged (${fold.criticalUncovered.join(', ')}), and the armed ` +
@@ -5075,7 +5095,7 @@ export function makeOrchestratorWorkflow(
         // Nothing to judge is a verdict of its own: the fold looked and
         // paired nothing, and no judge invocation is ever dispatched.
         claimFindingsFound = [];
-        claimConsistencyMeta = { ...metaBase, judgeInvoked: false };
+        claimConsistencyMeta = finishMeta({ judgeInvoked: false });
         announce();
         return;
       }
@@ -5135,7 +5155,7 @@ export function makeOrchestratorWorkflow(
         // the 'fail' posture turns it into a run failure, because a
         // gate armed to stop the run must not pass silently when its
         // judge cannot rule.
-        claimConsistencyMeta = { ...metaBase, judgeInvoked: true, judgeFailed: true };
+        claimConsistencyMeta = finishMeta({ judgeInvoked: true, judgeFailed: true });
         internals.events.emit(
           {
             type: 'log',
@@ -5191,7 +5211,7 @@ export function makeOrchestratorWorkflow(
         .sort((a, b) => a[0] - b[0])
         .map(([index, reason]) => ({ ...allPairs[index], reason }));
       claimFindingsFound = findings;
-      claimConsistencyMeta = { ...metaBase, judgeInvoked: true };
+      claimConsistencyMeta = finishMeta({ judgeInvoked: true });
       announce();
       if (onFound !== 'fail' || findings.length === 0) {
         return;
