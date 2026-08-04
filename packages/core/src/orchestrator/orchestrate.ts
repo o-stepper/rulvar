@@ -91,7 +91,12 @@ import {
   type Contradiction,
   type ContradictionSource,
 } from './contradictions.js';
-import { DEFAULT_MAX_CLAIM_PAIRS, pairDraftClaims, type ClaimPair } from './consistency.js';
+import {
+  DEFAULT_MAX_CLAIM_PAIRS,
+  pairDraftClaims,
+  pairRunFactClaims,
+  type ClaimPair,
+} from './consistency.js';
 import type { SchemaSpec } from '../l0/schema.js';
 import {
   selfTestFinishValidation,
@@ -734,6 +739,50 @@ export interface OrchestrateClaimConsistency {
   maxPoolPerPair?: number;
   /** Bound on each excerpt; default {@link DEFAULT_MAX_PAIR_EXCERPT_CHARS}. */
   maxExcerptChars?: number;
+  /**
+   * Critical anchor declarations (RV1603): paths (a file, or a
+   * directory matched as a prefix) or span anchors
+   * (`src/exec.ts:250-300`). Pairs whose draft anchor matches sort
+   * FIRST, before the `max` cap, so the bounded judge spends its
+   * budget on the declared claims, and the meta names every critical
+   * draft anchor that ended up unjudged (`criticalUncovered`). The
+   * eighteenth comparison benchmark judged 40 of 144 citing sentences
+   * with nothing steering which 40 and nothing saying what was left
+   * out. Unset = the exact historical pairing order, byte for byte.
+   */
+  critical?: string[];
+  /**
+   * What an unjudged critical anchor does (RV1603): 'report' (the
+   * default) names them on the meta only; 'fail' fails the run typed
+   * with `data.source` 'orchestrator_claim_consistency' BEFORE the
+   * judge dispatch, so a run whose declared claims cannot be verified
+   * never pays for a partial verdict. Requires `critical`.
+   */
+  onUncoveredCritical?: 'report' | 'fail';
+  /**
+   * The run-facts grounding opt-in (RV1603): the run's own recorded
+   * execution facts (accepted children, statuses, recorded evidence
+   * entry counts, wire request and token totals; the
+   * {@link executionFactsOf} material plus the entries plumbing) become
+   * one more pool reading, and draft sentences that SPEAK about the
+   * run (naming a minted id, a recorded fact value of two or more
+   * digits, or a `runFactTerms` phrase) are paired with that sheet
+   * under the `(run-facts)` anchor, judged by the same invocation.
+   * Closes the eighteenth benchmark's live gap: a dossier claimed
+   * "each role recorded 18-20 evidence entries" over recorded profiles
+   * of 23/18/22/20/20/20 and "real models were not run" beside 125
+   * recorded wire requests, with `executionFacts` enabled; facts
+   * offered to the composer verify nothing about what it composed.
+   * Off by default: judge prompt bytes stay identical when unset.
+   */
+  runFacts?: boolean;
+  /**
+   * Case-insensitive phrases that mark a draft sentence as a run
+   * claim for the `runFacts` pass (negations carry no number: "real
+   * models were not run" pairs only through a term). Requires
+   * `runFacts: true`.
+   */
+  runFactTerms?: string[];
 }
 
 /** One judged contradiction: the pair plus the judge's one-sentence reason. */
@@ -761,6 +810,24 @@ export interface OrchestrateClaimConsistencyMeta {
   pairs: number;
   /** True when more pairs existed than `max` allowed to judge. */
   truncated: boolean;
+  /**
+   * Citing sentences with at least one judged pair (RV1603): the honest
+   * coverage numerator against `draftCitingSentences`, so `[]` findings
+   * over 40 of 144 sentences can never read as "fully verified".
+   */
+  coveredCitingSentences: number;
+  /**
+   * Present when `critical` was declared: the critical draft anchors
+   * with no judged pair (capped at {@link MAX_CRITICAL_UNCOVERED});
+   * `[]` means every declared claim the draft cited was judged.
+   */
+  criticalUncovered?: string[];
+  /** The uncapped count behind `criticalUncovered`; present with it. */
+  criticalUncoveredTotal?: number;
+  /** Present under `runFacts`: run-claim pairs judged against the fact sheet. */
+  runFactPairs?: number;
+  /** Present under `runFacts` when more run claims matched than the bound. */
+  runFactPairsTruncated?: true;
   /** True when the judge invocation was dispatched. */
   judgeInvoked: boolean;
   /** Present when the judge invocation did not settle ok. */
@@ -1576,6 +1643,10 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       max?: unknown;
       maxPoolPerPair?: unknown;
       maxExcerptChars?: unknown;
+      critical?: unknown;
+      onUncoveredCritical?: unknown;
+      runFacts?: unknown;
+      runFactTerms?: unknown;
     };
     if (typeof consistency !== 'object' || Array.isArray(consistency)) {
       throw new ConfigError(
@@ -1640,6 +1711,57 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         throw new ConfigError(
           `orchestrate claimConsistency.${label} must be a positive integer; got ` +
             JSON.stringify(bound),
+        );
+      }
+    }
+    if (consistency.critical !== undefined) {
+      if (
+        !Array.isArray(consistency.critical) ||
+        consistency.critical.some((entry) => typeof entry !== 'string' || entry.length === 0)
+      ) {
+        throw new ConfigError(
+          'orchestrate claimConsistency.critical must be an array of nonempty strings; got ' +
+            JSON.stringify(consistency.critical),
+        );
+      }
+    }
+    if (
+      consistency.onUncoveredCritical !== undefined &&
+      consistency.onUncoveredCritical !== 'report' &&
+      consistency.onUncoveredCritical !== 'fail'
+    ) {
+      throw new ConfigError(
+        "orchestrate claimConsistency.onUncoveredCritical must be 'report' or 'fail'; got " +
+          JSON.stringify(consistency.onUncoveredCritical),
+      );
+    }
+    if (consistency.onUncoveredCritical !== undefined && consistency.critical === undefined) {
+      throw new ConfigError(
+        'orchestrate claimConsistency.onUncoveredCritical needs critical anchors to watch; ' +
+          'declare claimConsistency.critical',
+      );
+    }
+    if (consistency.runFacts !== undefined && typeof consistency.runFacts !== 'boolean') {
+      // The RV610 posture: the opt-in authorizes new judge-prompt
+      // bytes, and a stray 'true' string must not silently disarm it.
+      throw new ConfigError(
+        `orchestrate claimConsistency.runFacts must be a boolean; got ${typeof consistency.runFacts}`,
+      );
+    }
+    if (consistency.runFactTerms !== undefined) {
+      if (consistency.runFacts !== true) {
+        throw new ConfigError(
+          'orchestrate claimConsistency.runFactTerms rides the runFacts pass; set ' +
+            'claimConsistency.runFacts true',
+        );
+      }
+      if (
+        !Array.isArray(consistency.runFactTerms) ||
+        consistency.runFactTerms.some((term) => typeof term !== 'string' || term.length === 0)
+      ) {
+        throw new ConfigError(
+          'orchestrate claimConsistency.runFactTerms must be an array of nonempty strings; got ' +
+            JSON.stringify(consistency.runFactTerms),
         );
       }
     }
@@ -4768,6 +4890,15 @@ export function makeOrchestratorWorkflow(
       const acceptedRoster = acceptedRosterNow();
       const pool: ContradictionSource[] = [];
       let poolChildren = 0;
+      // The run-facts sheet raw material (RV1603), folded from the same
+      // accepted roster the pool reads: deterministic per-child rows
+      // plus the trigger vocabularies (minted ids and recorded values).
+      const factRows: string[] = [];
+      const factIds: string[] = [internals.runId];
+      const factNumbers: number[] = [];
+      let factWires = 0;
+      let factInput = 0;
+      let factOutput = 0;
       for (const record of [...byOrdinal.values()].sort(
         (a, b) => a.spawnOrdinal - b.spawnOrdinal,
       )) {
@@ -4810,6 +4941,19 @@ export function makeOrchestratorWorkflow(
               .join(' '),
           });
         }
+        if (spec.runFacts === true) {
+          const facts = executionFactsOf(settled);
+          factRows.push(
+            `Child ${record.nodeId} settled '${settled.status}' with ` +
+              `${String(recorded.length)} recorded evidence entries and ` +
+              `${String(facts.wireRequests)} wire requests.`,
+          );
+          factIds.push(record.nodeId);
+          factNumbers.push(recorded.length, facts.wireRequests);
+          factWires += facts.wireRequests;
+          factInput += facts.inputTokens;
+          factOutput += facts.outputTokens;
+        }
       }
       const draftText = typeof draft === 'string' ? draft : JSON.stringify(draft ?? null);
       const fold = pairDraftClaims(draftText, pool, {
@@ -4817,16 +4961,76 @@ export function makeOrchestratorWorkflow(
         max: spec.max ?? DEFAULT_MAX_CLAIM_PAIRS,
         ...(spec.maxPoolPerPair === undefined ? {} : { maxPoolPerPair: spec.maxPoolPerPair }),
         ...(spec.maxExcerptChars === undefined ? {} : { maxExcerptChars: spec.maxExcerptChars }),
+        ...(spec.critical === undefined ? {} : { critical: spec.critical }),
       });
+      const runFold =
+        spec.runFacts === true
+          ? pairRunFactClaims(
+              draftText,
+              {
+                text:
+                  `The run ${internals.runId} made ${String(factWires)} provider wire ` +
+                  `requests across ${String(poolChildren)} accepted children, with token ` +
+                  `totals ${String(factInput)} input and ${String(factOutput)} output ` +
+                  `(the run's own recorded execution facts; harness-observed, not ` +
+                  `production evidence). ${factRows.join(' ')}`,
+                ids: factIds,
+                numbers: [...factNumbers, factWires, factInput, factOutput],
+              },
+              {
+                ...(spec.runFactTerms === undefined ? {} : { terms: spec.runFactTerms }),
+                ...(spec.maxExcerptChars === undefined
+                  ? {}
+                  : { maxExcerptChars: spec.maxExcerptChars }),
+              },
+            )
+          : undefined;
+      const allPairs = runFold === undefined ? fold.pairs : [...fold.pairs, ...runFold.pairs];
       const onFound = spec.onFound ?? 'report';
       const metaBase = {
         // Children, not pool sources: the entries source of a child does
         // not double-count it.
         poolChildren,
         draftCitingSentences: fold.draftCitingSentences,
-        pairs: fold.pairs.length,
+        pairs: allPairs.length,
         truncated: fold.truncated,
+        coveredCitingSentences: fold.coveredCitingSentences,
+        ...(fold.criticalUncovered === undefined
+          ? {}
+          : {
+              criticalUncovered: fold.criticalUncovered,
+              criticalUncoveredTotal: fold.criticalUncoveredTotal ?? 0,
+            }),
+        ...(runFold === undefined
+          ? {}
+          : {
+              runFactPairs: runFold.pairs.length,
+              ...(runFold.truncated ? { runFactPairsTruncated: true as const } : {}),
+            }),
       };
+      // The uncovered-critical gate (RV1603) fires BEFORE the judge
+      // dispatch: a run whose declared claims cannot be verified never
+      // pays for a partial verdict.
+      if (
+        spec.onUncoveredCritical === 'fail' &&
+        fold.criticalUncovered !== undefined &&
+        fold.criticalUncovered.length > 0
+      ) {
+        claimConsistencyMeta = { ...metaBase, judgeInvoked: false };
+        throw new FailRunError(
+          `the claim-consistency pass left ${String(fold.criticalUncoveredTotal ?? 0)} critical ` +
+            `draft anchor(s) unjudged (${fold.criticalUncovered.join(', ')}), and the armed ` +
+            'onUncoveredCritical posture cannot pass the draft',
+          {
+            data: {
+              source: 'orchestrator_claim_consistency',
+              criticalUncovered: fold.criticalUncovered,
+              claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+              ...(snapshot ?? {}),
+            },
+          },
+        );
+      }
       const announce = (): void => {
         internals.events.emit(
           {
@@ -4835,7 +5039,7 @@ export function makeOrchestratorWorkflow(
             msg: 'orchestrator claim consistency pass',
             data: {
               children: poolChildren,
-              pairs: fold.pairs.length,
+              pairs: allPairs.length,
               findings: claimFindingsFound?.length ?? 0,
               truncated: fold.truncated,
               onFound,
@@ -4846,7 +5050,7 @@ export function makeOrchestratorWorkflow(
           callingState.spanId,
         );
       };
-      if (fold.pairs.length === 0) {
+      if (allPairs.length === 0) {
         // Nothing to judge is a verdict of its own: the fold looked and
         // paired nothing, and no judge invocation is ever dispatched.
         claimFindingsFound = [];
@@ -4864,8 +5068,19 @@ export function makeOrchestratorWorkflow(
           '{ contradictions: [{ pair, reason }] }: pair is the zero-based PAIR index and ' +
           'reason is one short sentence naming the disagreement; an empty array means every ' +
           'pair agrees.',
+        // The run-facts instruction rides ONLY when such pairs exist, so
+        // an unconfigured (or unmatched) pass derives byte-identical
+        // prompts (prompt bytes are journal identity on resume).
+        ...(runFold !== undefined && runFold.pairs.length > 0
+          ? [
+              "Pairs anchored '(run-facts)' hold the run's own recorded execution facts as " +
+                'the pool reading. A draft sentence asserting something those facts deny (a ' +
+                'count outside the recorded values, a negation of recorded activity) is a ' +
+                'contradiction on the same terms.',
+            ]
+          : []),
         `PAIRS: ${JSON.stringify(
-          fold.pairs.map((pair, index) => ({
+          allPairs.map((pair, index) => ({
             pair: index,
             anchor: pair.anchor,
             draft: pair.draftExcerpt,
@@ -4941,7 +5156,7 @@ export function makeOrchestratorWorkflow(
             typeof candidate.pair !== 'number' ||
             !Number.isInteger(candidate.pair) ||
             candidate.pair < 0 ||
-            candidate.pair >= fold.pairs.length ||
+            candidate.pair >= allPairs.length ||
             typeof candidate.reason !== 'string' ||
             candidate.reason.length === 0 ||
             byPair.has(candidate.pair)
@@ -4953,7 +5168,7 @@ export function makeOrchestratorWorkflow(
       }
       const findings: ClaimContradictionFinding[] = [...byPair.entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([index, reason]) => ({ ...fold.pairs[index], reason }));
+        .map(([index, reason]) => ({ ...allPairs[index], reason }));
       claimFindingsFound = findings;
       claimConsistencyMeta = { ...metaBase, judgeInvoked: true };
       announce();

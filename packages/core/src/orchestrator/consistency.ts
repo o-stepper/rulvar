@@ -72,6 +72,20 @@ export interface ClaimPairOptions {
   maxPoolPerPair?: number;
   /** Bound on each excerpt; default {@link DEFAULT_MAX_PAIR_EXCERPT_CHARS}. */
   maxExcerptChars?: number;
+  /**
+   * Critical anchor declarations (RV1603): each entry is a path
+   * (`packages/executor/src/ledger.ts`, matching that file and anything
+   * under it as a directory) or an anchor with a span
+   * (`src/exec.ts:250-300`, matching same-file anchors intersecting the
+   * span). Pairs whose draft anchor matches sort FIRST, before the
+   * `max` cap applies, so a bounded pass judges the declared claims
+   * preferentially; the fold also reports which critical draft anchors
+   * ended up with no reported pair. Unset = the exact pre-RV1603
+   * ordering, byte for byte (the eighteenth comparison benchmark's
+   * judge saw 40 of 144 citing sentences with nothing steering WHICH
+   * 40).
+   */
+  critical?: readonly string[];
 }
 
 /** What the fold produced, beside the pairs themselves. */
@@ -82,11 +96,29 @@ export interface ClaimPairsFold {
   truncated: boolean;
   /** Draft sentences carrying at least one parsable anchor. */
   draftCitingSentences: number;
+  /**
+   * Citing sentences with at least one REPORTED pair (RV1603): the
+   * honest coverage numerator against `draftCitingSentences`. A
+   * sentence can be uncovered because nothing in the pool read its
+   * files, because every reading agreed verbatim, or because the `max`
+   * cap cut it; all three mean the judge never saw it.
+   */
+  coveredCitingSentences: number;
+  /**
+   * Present only when `critical` was given: the critical draft anchors
+   * (verbatim, draft order, deduplicated) with no reported pair, capped
+   * at {@link MAX_CRITICAL_UNCOVERED} entries.
+   */
+  criticalUncovered?: string[];
+  /** The uncapped count behind `criticalUncovered`; present with it. */
+  criticalUncoveredTotal?: number;
 }
 
 export const DEFAULT_MAX_CLAIM_PAIRS = 40;
 export const DEFAULT_MAX_POOL_PER_PAIR = 3;
 export const DEFAULT_MAX_PAIR_EXCERPT_CHARS = 400;
+/** Bound on the reported uncovered-critical anchor list (RV1603). */
+export const MAX_CRITICAL_UNCOVERED = 32;
 
 /** Splits an anchor into path, start, and optional end at the LAST colon. */
 const ANCHOR_TAIL = /^(.*):(\d+)(?:-(\d+))?$/u;
@@ -211,10 +243,60 @@ export function pairDraftClaims(
     }
   }
 
-  const pairs: ClaimPair[] = [];
+  const critical = options?.critical;
+  if (critical !== undefined) {
+    for (const entry of critical) {
+      if (typeof entry !== 'string' || entry.length === 0) {
+        throw new ConfigError(
+          `pairDraftClaims critical entries must be nonempty strings; got ${JSON.stringify(entry)}`,
+        );
+      }
+    }
+  }
+  // A critical entry is a span anchor when it parses as one, else a
+  // path matched exactly or as a directory prefix (RV1603).
+  const criticalSpans: ParsedAnchor[] = [];
+  const criticalPaths: string[] = [];
+  for (const entry of critical ?? []) {
+    const parsed = ANCHOR_TAIL.exec(entry);
+    const start = parsed === null ? Number.NaN : Number(parsed[2]);
+    const end = parsed === null || parsed[3] === undefined ? start : Number(parsed[3]);
+    if (
+      parsed !== null &&
+      Number.isSafeInteger(start) &&
+      Number.isSafeInteger(end) &&
+      start >= 1 &&
+      end >= start
+    ) {
+      criticalSpans.push({ raw: entry, path: parsed[1], start, end });
+    } else {
+      criticalPaths.push(entry);
+    }
+  }
+  const isCritical = (anchor: ParsedAnchor): boolean => {
+    for (const path of criticalPaths) {
+      if (anchor.path === path || anchor.path.startsWith(`${path}/`)) {
+        return true;
+      }
+    }
+    for (const span of criticalSpans) {
+      if (anchor.path === span.path && anchor.end >= span.start && anchor.start <= span.end) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  interface Candidate {
+    pair: ClaimPair;
+    sentence: string;
+    critical: boolean;
+  }
+  const candidates: Candidate[] = [];
   const seenPairs = new Set<string>();
   let draftCitingSentences = 0;
-  let total = 0;
+  const criticalDraftAnchors: string[] = [];
+  const seenCriticalAnchors = new Set<string>();
   for (const sentence of sentencesOf(draftText)) {
     const anchors = anchorsOf(sentence, pattern);
     if (anchors.length === 0) {
@@ -224,6 +306,11 @@ export function pairDraftClaims(
     const full = collapse(sentence);
     const draftExcerpt = full.slice(0, maxExcerptChars);
     for (const anchor of anchors) {
+      const anchorCritical = critical !== undefined && isCritical(anchor);
+      if (anchorCritical && !seenCriticalAnchors.has(anchor.raw)) {
+        seenCriticalAnchors.add(anchor.raw);
+        criticalDraftAnchors.push(anchor.raw);
+      }
       const pairKey = `${full}\u0000${anchor.raw}`;
       if (seenPairs.has(pairKey)) {
         continue;
@@ -257,11 +344,154 @@ export function pairDraftClaims(
         continue;
       }
       seenPairs.add(pairKey);
-      total += 1;
-      if (pairs.length < max) {
-        pairs.push({ anchor: anchor.raw, draftExcerpt, pool });
-      }
+      candidates.push({
+        pair: { anchor: anchor.raw, draftExcerpt, pool },
+        sentence: full,
+        critical: anchorCritical,
+      });
     }
   }
-  return { pairs, truncated: total > pairs.length, draftCitingSentences };
+  // Critical pairs sort FIRST (stable within each class), so the cap
+  // spends its bounded budget on the declared claims; without
+  // `critical` the order is exactly the historical draft order, and an
+  // unconfigured fold derives byte-identical judge prompts across
+  // versions (prompt bytes are journal identity on resume).
+  const ordered =
+    critical === undefined
+      ? candidates
+      : [
+          ...candidates.filter((candidate) => candidate.critical),
+          ...candidates.filter((candidate) => !candidate.critical),
+        ];
+  const reported = ordered.slice(0, max);
+  const coveredSentences = new Set(reported.map((candidate) => candidate.sentence));
+  const fold: ClaimPairsFold = {
+    pairs: reported.map((candidate) => candidate.pair),
+    truncated: candidates.length > reported.length,
+    draftCitingSentences,
+    coveredCitingSentences: coveredSentences.size,
+  };
+  if (critical !== undefined) {
+    const reportedAnchors = new Set(reported.map((candidate) => candidate.pair.anchor));
+    const uncovered = criticalDraftAnchors.filter((anchor) => !reportedAnchors.has(anchor));
+    fold.criticalUncovered = uncovered.slice(0, MAX_CRITICAL_UNCOVERED);
+    fold.criticalUncoveredTotal = uncovered.length;
+  }
+  return fold;
+}
+
+/** The synthetic anchor and nodeId of run-facts pairs (RV1603). */
+export const RUN_FACTS_ANCHOR = '(run-facts)';
+export const DEFAULT_MAX_RUN_FACT_PAIRS = 8;
+/** The sheet excerpt bound: one sheet rides EVERY run-facts pair. */
+export const MAX_RUN_FACTS_SHEET_CHARS = 1200;
+
+/**
+ * The run's own recorded execution facts, prepared by the caller
+ * (deterministic sentences plus the trigger vocabularies).
+ */
+export interface RunFactsSheet {
+  /** Deterministic sentences of the recorded facts. */
+  text: string;
+  /** Identity triggers: ids the run itself minted (runId, child node ids). */
+  ids: readonly string[];
+  /** Numeric triggers: recorded fact values (counts, totals). */
+  numbers: readonly number[];
+}
+
+export interface RunFactPairOptions {
+  /** Case-insensitive substring triggers, e.g. 'not run' or a locale phrase. */
+  terms?: readonly string[];
+  /** Bound on returned pairs; default {@link DEFAULT_MAX_RUN_FACT_PAIRS}. */
+  max?: number;
+  /** Bound on the draft excerpt; default {@link DEFAULT_MAX_PAIR_EXCERPT_CHARS}. */
+  maxExcerptChars?: number;
+}
+
+export interface RunFactPairsFold {
+  /** The pairs, in draft order, capped at `max`; anchor {@link RUN_FACTS_ANCHOR}. */
+  pairs: ClaimPair[];
+  /** True when more sentences matched than `max` allowed to report. */
+  truncated: boolean;
+}
+
+/** Standalone numbers of two or more digits: single digits trigger nothing. */
+const RUN_FACT_NUMBER = /(?<![\d.,])(\d{2,})(?![\d.,])/gu;
+
+/**
+ * Pairs draft sentences that speak about the RUN with the run's own
+ * recorded fact sheet (RV1603), so the same judge invocation that rules
+ * on source claims also rules on run claims. The eighteenth comparison
+ * benchmark shipped both failure shapes this closes: a dossier claiming
+ * "each role recorded 18-20 evidence entries" over recorded profiles of
+ * 23/18/22/20/20/20, and "real models were not run" beside 125 recorded
+ * wire requests, with executionFacts ENABLED on the input side; facts
+ * offered to the composer verify nothing about what it composed.
+ *
+ * A sentence pairs when it names a minted id, a recorded fact value
+ * (standalone, two digits or more, so a prose "6" cannot flood the
+ * fold), or a caller-supplied term (case-insensitive). Pure and
+ * deterministic like {@link pairDraftClaims}; the sheet excerpt rides
+ * every pair, capped at {@link MAX_RUN_FACTS_SHEET_CHARS}.
+ */
+export function pairRunFactClaims(
+  draftText: string,
+  sheet: RunFactsSheet,
+  options?: RunFactPairOptions,
+): RunFactPairsFold {
+  const max = requirePositiveInteger(
+    options?.max ?? DEFAULT_MAX_RUN_FACT_PAIRS,
+    'pairRunFactClaims max',
+  );
+  const maxExcerptChars = requirePositiveInteger(
+    options?.maxExcerptChars ?? DEFAULT_MAX_PAIR_EXCERPT_CHARS,
+    'pairRunFactClaims maxExcerptChars',
+  );
+  for (const term of options?.terms ?? []) {
+    if (typeof term !== 'string' || term.length === 0) {
+      throw new ConfigError(
+        `pairRunFactClaims terms must be nonempty strings; got ${JSON.stringify(term)}`,
+      );
+    }
+  }
+  const terms = (options?.terms ?? []).map((term) => term.toLowerCase());
+  const factNumbers = new Set(sheet.numbers.filter((value) => Number.isSafeInteger(value)));
+  const sheetExcerpt = collapse(sheet.text).slice(0, MAX_RUN_FACTS_SHEET_CHARS);
+  const pool: ClaimPoolReading[] = [{ nodeId: RUN_FACTS_ANCHOR, excerpt: sheetExcerpt }];
+
+  const matched: ClaimPair[] = [];
+  const seen = new Set<string>();
+  let total = 0;
+  for (const sentence of sentencesOf(draftText)) {
+    const full = collapse(sentence);
+    if (full.length === 0 || seen.has(full)) {
+      continue;
+    }
+    const lower = full.toLowerCase();
+    let triggered = sheet.ids.some((id) => id.length > 0 && full.includes(id));
+    if (!triggered) {
+      triggered = terms.some((term) => lower.includes(term));
+    }
+    if (!triggered) {
+      for (const match of full.matchAll(RUN_FACT_NUMBER)) {
+        if (factNumbers.has(Number(match[1]))) {
+          triggered = true;
+          break;
+        }
+      }
+    }
+    if (!triggered) {
+      continue;
+    }
+    seen.add(full);
+    total += 1;
+    if (matched.length < max) {
+      matched.push({
+        anchor: RUN_FACTS_ANCHOR,
+        draftExcerpt: full.slice(0, maxExcerptChars),
+        pool,
+      });
+    }
+  }
+  return { pairs: matched, truncated: total > matched.length };
 }

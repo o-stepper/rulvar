@@ -20,7 +20,7 @@ import { executeWorkflow } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 
-import { pairDraftClaims } from './consistency.js';
+import { RUN_FACTS_ANCHOR, pairDraftClaims, pairRunFactClaims } from './consistency.js';
 import { makeOrchestratorWorkflow } from './orchestrate.js';
 
 describe('pairDraftClaims (RV1501)', () => {
@@ -138,7 +138,12 @@ describe('pairDraftClaims (RV1501)', () => {
     const fold = pairDraftClaims('No citations at all here.', [
       { nodeId: 'a', text: 'A pool claim with an anchor (`src/a.ts:1`).' },
     ]);
-    expect(fold).toEqual({ pairs: [], truncated: false, draftCitingSentences: 0 });
+    expect(fold).toEqual({
+      pairs: [],
+      truncated: false,
+      draftCitingSentences: 0,
+      coveredCitingSentences: 0,
+    });
   });
 
   it('skips anchors whose range is inverted instead of guessing', () => {
@@ -161,6 +166,143 @@ describe('pairDraftClaims (RV1501)', () => {
     expect(() => pairDraftClaims('text', [], { max: 0 })).toThrow(ConfigError);
     expect(() => pairDraftClaims('text', [], { maxExcerptChars: -1 })).toThrow(ConfigError);
     expect(() => pairDraftClaims('text', [], { maxPoolPerPair: 1.5 })).toThrow(ConfigError);
+  });
+});
+
+describe('critical anchors and coverage (RV1603)', () => {
+  const draftOf = (lines: string[]): string => lines.join(' ');
+  const poolOf = (spans: string[]): { nodeId: string; text: string }[] =>
+    spans.map((span, index) => ({
+      nodeId: `child-${String(index)}`,
+      text: `The recorded reading disagrees at \`${span}\`.`,
+    }));
+
+  it('critical pairs sort first, so the cap spends its budget on the declared claims', () => {
+    const draft = draftOf([
+      'Ordinary claim one holds [src/a.ts:1].',
+      'Ordinary claim two holds [src/b.ts:2].',
+      'The ledger claim holds [packages/executor/src/ledger.ts:7].',
+    ]);
+    const pool = poolOf(['src/a.ts:1', 'src/b.ts:2', 'packages/executor/src/ledger.ts:7']);
+    const fold = pairDraftClaims(draft, pool, {
+      max: 1,
+      critical: ['packages/executor/src/ledger.ts'],
+    });
+    expect(fold.pairs.map((pair) => pair.anchor)).toEqual(['packages/executor/src/ledger.ts:7']);
+    expect(fold.truncated).toBe(true);
+    expect(fold.criticalUncovered).toEqual([]);
+    expect(fold.criticalUncoveredTotal).toBe(0);
+  });
+
+  it('a span entry matches intersecting anchors only; a path entry matches the file and its directory', () => {
+    const draft = draftOf([
+      'Inside the span [src/exec.ts:260].',
+      'Outside the span [src/exec.ts:400].',
+      'Under the directory [packages/executor/src/deep/file.ts:3].',
+    ]);
+    const pool = poolOf([
+      'src/exec.ts:260',
+      'src/exec.ts:400',
+      'packages/executor/src/deep/file.ts:3',
+    ]);
+    const fold = pairDraftClaims(draft, pool, {
+      max: 2,
+      critical: ['src/exec.ts:250-300', 'packages/executor'],
+    });
+    expect(fold.pairs.map((pair) => pair.anchor)).toEqual([
+      'src/exec.ts:260',
+      'packages/executor/src/deep/file.ts:3',
+    ]);
+  });
+
+  it('names the critical draft anchors the judge never saw, capped with the total beside it', () => {
+    const draft = draftOf([
+      'The ledger claim has no pool reading [packages/executor/src/ledger.ts:7].',
+      'The paired claim disagrees [src/a.ts:1].',
+    ]);
+    const fold = pairDraftClaims(draft, poolOf(['src/a.ts:1']), {
+      critical: ['packages/executor/src/ledger.ts'],
+    });
+    expect(fold.pairs.map((pair) => pair.anchor)).toEqual(['src/a.ts:1']);
+    expect(fold.criticalUncovered).toEqual(['packages/executor/src/ledger.ts:7']);
+    expect(fold.criticalUncoveredTotal).toBe(1);
+  });
+
+  it('counts covered citing sentences honestly under the cap', () => {
+    const draft = draftOf([
+      'Claim one [src/f.ts:1].',
+      'Claim two [src/f.ts:2].',
+      'Claim three has no reading [src/none.ts:3].',
+    ]);
+    const fold = pairDraftClaims(draft, poolOf(['src/f.ts:1', 'src/f.ts:2']), { max: 1 });
+    expect(fold.draftCitingSentences).toBe(3);
+    expect(fold.coveredCitingSentences).toBe(1);
+    expect(fold.truncated).toBe(true);
+  });
+
+  it('without critical the ordering is byte-identical to the historical draft order', () => {
+    const draft = draftOf(['One [src/a.ts:1].', 'Two [src/b.ts:2].']);
+    const pool = poolOf(['src/a.ts:1', 'src/b.ts:2']);
+    const bare = pairDraftClaims(draft, pool);
+    expect(bare.pairs.map((pair) => pair.anchor)).toEqual(['src/a.ts:1', 'src/b.ts:2']);
+    expect(bare.criticalUncovered).toBeUndefined();
+    expect(bare.criticalUncoveredTotal).toBeUndefined();
+  });
+
+  it('refuses an empty-string critical entry, fail closed', () => {
+    expect(() => pairDraftClaims('text', [], { critical: [''] })).toThrow(ConfigError);
+  });
+});
+
+describe('pairRunFactClaims (RV1603)', () => {
+  const SHEET = {
+    text:
+      'The run made 125 provider wire requests across 6 accepted children. ' +
+      'Recorded evidence entries per child: 23, 18, 22, 20, 20, 20.',
+    ids: ['run-aug03', 'child-finops'],
+    numbers: [125, 6, 23, 18, 22, 20],
+  };
+
+  it('pairs a sentence naming a recorded fact value, two digits or more', () => {
+    const fold = pairRunFactClaims(
+      'Each role recorded 18 to 20 evidence entries. Unrelated prose stays out.',
+      SHEET,
+    );
+    expect(fold.pairs).toHaveLength(1);
+    expect(fold.pairs[0]?.anchor).toBe(RUN_FACTS_ANCHOR);
+    expect(fold.pairs[0]?.pool[0]?.nodeId).toBe(RUN_FACTS_ANCHOR);
+    expect(fold.pairs[0]?.pool[0]?.excerpt).toContain('125 provider wire requests');
+  });
+
+  it('a single-digit fact value never triggers: prose sixes cannot flood the fold', () => {
+    const fold = pairRunFactClaims('All 6 sections agree with each other.', SHEET);
+    expect(fold.pairs).toEqual([]);
+  });
+
+  it('pairs a sentence naming a minted id', () => {
+    const fold = pairRunFactClaims('The experiment with run id run-aug03 is cited here.', SHEET);
+    expect(fold.pairs).toHaveLength(1);
+  });
+
+  it('pairs a sentence matching a caller term, case-insensitive', () => {
+    const fold = pairRunFactClaims(
+      'Real models were NOT RUN in this exercise.',
+      { text: 'The run made 125 wire requests.', ids: [], numbers: [125] },
+      { terms: ['not run'] },
+    );
+    expect(fold.pairs).toHaveLength(1);
+  });
+
+  it('caps pairs at max and marks the truncation', () => {
+    const draft = ['One claim about 125 wires.', 'Another about 125 wires too.'].join(' ');
+    const fold = pairRunFactClaims(draft, SHEET, { max: 1 });
+    expect(fold.pairs).toHaveLength(1);
+    expect(fold.truncated).toBe(true);
+  });
+
+  it('refuses empty terms and non positive bounds, fail closed', () => {
+    expect(() => pairRunFactClaims('text', SHEET, { terms: [''] })).toThrow(ConfigError);
+    expect(() => pairRunFactClaims('text', SHEET, { max: 0 })).toThrow(ConfigError);
   });
 });
 
@@ -290,6 +432,7 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       draftCitingSentences: 1,
       pairs: 1,
       truncated: false,
+      coveredCitingSentences: 1,
       judgeInvoked: true,
     });
     // Exactly one judge invocation, carrying the pairs it must rule on.
@@ -326,6 +469,7 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       draftCitingSentences: 0,
       pairs: 0,
       truncated: false,
+      coveredCitingSentences: 0,
       judgeInvoked: false,
     });
   });
@@ -537,5 +681,132 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
         claimConsistency: { judge: { effort: 'euphoric' as unknown as 'high' } },
       }),
     ).toThrow(ConfigError);
+  });
+});
+
+describe('critical coverage and run-facts grounding wired into the orchestrator (RV1603)', () => {
+  const RUN_CLAIM = 'Real models were not run here at all.';
+
+  it('pairs a run claim with the fact sheet and maps the finding back to (run-facts)', async () => {
+    const { internals, judge } = passHarness({
+      children: [POOL_READING],
+      draft: `${DRAFT_INVERTED} ${RUN_CLAIM}`,
+      judgeTurn: {
+        text: JSON.stringify({
+          contradictions: [{ pair: 1, reason: 'the run recorded wire requests' }],
+        }),
+      },
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { runFacts: true, runFactTerms: ['not run'], ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as {
+      claimContradictions?: { anchor: string; reason: string }[];
+      claimConsistencyMeta?: Record<string, unknown>;
+    };
+    expect(outcome.claimContradictions).toHaveLength(1);
+    expect(outcome.claimContradictions?.[0]?.anchor).toBe(RUN_FACTS_ANCHOR);
+    expect(outcome.claimContradictions?.[0]?.reason).toBe('the run recorded wire requests');
+    expect(outcome.claimConsistencyMeta).toMatchObject({
+      pairs: 2,
+      runFactPairs: 1,
+      coveredCitingSentences: 1,
+      judgeInvoked: true,
+    });
+    const judgePrompt = judge.calls[0] === undefined ? '' : textOf(judge.calls[0]);
+    expect(judgePrompt).toContain('(run-facts)');
+    expect(judgePrompt).toContain('recorded execution facts');
+  });
+
+  it('adds no run-facts prompt bytes when nothing in the draft speaks about the run', async () => {
+    const { internals, judge } = passHarness({
+      children: [POOL_READING],
+      draft: DRAFT_INVERTED,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { runFacts: true, runFactTerms: ['not run'], ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    expect(outcome.claimConsistencyMeta).toMatchObject({ pairs: 1, runFactPairs: 0 });
+    const judgePrompt = judge.calls[0] === undefined ? '' : textOf(judge.calls[0]);
+    expect(judgePrompt).not.toContain('recorded execution facts');
+  });
+
+  it('reports the critical draft anchors the judge never saw', async () => {
+    const { internals, judge } = passHarness({
+      children: ['No citations in this child.'],
+      draft: 'The ledger claim holds [packages/never/read.ts:7].',
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { critical: ['packages/never/read.ts'], ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    expect(judge.calls).toHaveLength(0);
+    expect(outcome.claimConsistencyMeta).toMatchObject({
+      pairs: 0,
+      criticalUncovered: ['packages/never/read.ts:7'],
+      criticalUncoveredTotal: 1,
+      judgeInvoked: false,
+    });
+  });
+
+  it('the armed onUncoveredCritical posture fails typed BEFORE the judge dispatch', async () => {
+    const { internals, judge } = passHarness({
+      children: ['No citations in this child.'],
+      draft: 'The ledger claim holds [packages/never/read.ts:7].',
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: {
+          critical: ['packages/never/read.ts'],
+          onUncoveredCritical: 'fail',
+          ...JUDGE_MODEL,
+        },
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.source).toBe('orchestrator_claim_consistency');
+    expect(data.criticalUncovered).toEqual(['packages/never/read.ts:7']);
+    expect(judge.calls).toHaveLength(0);
+  });
+
+  it('refuses bad RV1603 intake, fail closed', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { runFactTerms: ['x'] },
+      }),
+    ).toThrow(/runFactTerms rides the runFacts pass/);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { onUncoveredCritical: 'fail' },
+      }),
+    ).toThrow(/needs critical anchors/);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { critical: [''] },
+      }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { runFacts: 'yes' as unknown as boolean },
+      }),
+    ).toThrow(/runFacts/);
   });
 });
