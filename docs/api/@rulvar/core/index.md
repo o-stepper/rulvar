@@ -315,6 +315,9 @@ exactly the pieces you need, for example
 | [RunAgentOptions](/api/@rulvar/core/interfaces/RunAgentOptions.md) | - |
 | [RunEventSink](/api/@rulvar/core/interfaces/RunEventSink.md) | Span-aware event sink: bodies are stamped into the WorkflowEvent envelope by the per-run EventBus (M1-T10); spanId defaults to the run root span when omitted. |
 | [RunExport](/api/@rulvar/core/interfaces/RunExport.md) | The portable bundle exportRun produces and importRun consumes (RV-217). |
+| [RunFactPairOptions](/api/@rulvar/core/interfaces/RunFactPairOptions.md) | - |
+| [RunFactPairsFold](/api/@rulvar/core/interfaces/RunFactPairsFold.md) | - |
+| [RunFactsSheet](/api/@rulvar/core/interfaces/RunFactsSheet.md) | The run's own recorded execution facts, prepared by the caller (deterministic sentences plus the trigger vocabularies). |
 | [RunHandle](/api/@rulvar/core/interfaces/RunHandle.md) | - |
 | [RunInternals](/api/@rulvar/core/interfaces/RunInternals.md) | Everything one run's ctx needs; created per run by the engine (M1-T11). |
 | [RunOptions](/api/@rulvar/core/interfaces/RunOptions.md) | - |
@@ -552,6 +555,7 @@ exactly the pieces you need, for example
 | [DEFAULT\_MAX\_POOL\_PER\_PAIR](/api/@rulvar/core/variables/DEFAULT_MAX_POOL_PER_PAIR.md) | - |
 | [DEFAULT\_MAX\_QUOTA\_DENIALS](/api/@rulvar/core/variables/DEFAULT_MAX_QUOTA_DENIALS.md) | The default [EngineQuotaConfig.maxDenials](/api/@rulvar/core/interfaces/EngineQuotaConfig.md#property-maxdenials): generous next to the transport default of 3 tries because a denial is a WAIT, not a failure signal, yet finite because nothing else bounds the pre-wire loop (the per-agent timeout is checked between turns, not inside a dispatch). |
 | [DEFAULT\_MAX\_REVISIONS\_PER\_RUN](/api/@rulvar/core/variables/DEFAULT_MAX_REVISIONS_PER_RUN.md) | Appendix A committed defaults for the countable resources. |
+| [DEFAULT\_MAX\_RUN\_FACT\_PAIRS](/api/@rulvar/core/variables/DEFAULT_MAX_RUN_FACT_PAIRS.md) | - |
 | [DEFAULT\_MAX\_TOTAL\_SPAWNS](/api/@rulvar/core/variables/DEFAULT_MAX_TOTAL_SPAWNS.md) | - |
 | [DEFAULT\_MAX\_TURNS](/api/@rulvar/core/variables/DEFAULT_MAX_TURNS.md) | - |
 | [DEFAULT\_MODEL\_RETRY\_ATTEMPTS](/api/@rulvar/core/variables/DEFAULT_MODEL_RETRY_ATTEMPTS.md) | Bounded semantic retries per tool call chain. |
@@ -588,7 +592,9 @@ exactly the pieces you need, for example
 | [LINEAGE\_SIG\_VERSION](/api/@rulvar/core/variables/LINEAGE_SIG_VERSION.md) | approachSig/approachSigCoarse derivation version. |
 | [MASKED\_SECRET](/api/@rulvar/core/variables/MASKED_SECRET.md) | The replacement marker; deterministic and greppable. |
 | [MAX\_CHILD\_RESULT\_PAGE\_CHARS](/api/@rulvar/core/variables/MAX_CHILD_RESULT_PAGE_CHARS.md) | - |
+| [MAX\_CRITICAL\_UNCOVERED](/api/@rulvar/core/variables/MAX_CRITICAL_UNCOVERED.md) | Bound on the reported uncovered-critical anchor list (RV1603). |
 | [MAX\_DEPTH\_CEILING](/api/@rulvar/core/variables/MAX_DEPTH_CEILING.md) | - |
+| [MAX\_RUN\_FACTS\_SHEET\_CHARS](/api/@rulvar/core/variables/MAX_RUN_FACTS_SHEET_CHARS.md) | The sheet excerpt bound: one sheet rides EVERY run-facts pair. |
 | [MAX\_RUN\_ID\_LENGTH](/api/@rulvar/core/variables/MAX_RUN_ID_LENGTH.md) | The runId length ceiling (RV1012): a runId is a filesystem name component and a correlation key, so the cap keeps it comfortably under filesystem name limits with room for store suffixes, and starves length-based smuggling through the unmasked id channel. |
 | [MAX\_TIMER\_DELAY\_MS](/api/@rulvar/core/variables/MAX_TIMER_DELAY_MS.md) | The Node timer ceiling: setTimeout clamps any longer delay to 1 ms, so a naive far-future timer fires immediately (v1.34.0 review P2-2). Relative timer options are validated against this bound; absolute deadlines use the sliced timer in long-timer.ts instead. |
 | [ORCHESTRATE\_WORKFLOW\_NAME](/api/@rulvar/core/variables/ORCHESTRATE_WORKFLOW_NAME.md) | - |
@@ -602,6 +608,7 @@ exactly the pieces you need, for example
 | [ROLE\_EFFORT\_DEFAULTS](/api/@rulvar/core/variables/ROLE_EFFORT_DEFAULTS.md) | Role effort defaults: orchestrate and plan default to high; summarize and extract default to low. loop and finalize have NO role default: when the chain resolves nothing, the wire omits effort and identity records the spec with the effort member absent. |
 | [ROOT\_ACCOUNT](/api/@rulvar/core/variables/ROOT_ACCOUNT.md) | The run-root account scope. |
 | [ROOT\_SCOPE](/api/@rulvar/core/variables/ROOT_SCOPE.md) | The root sequential body of the run is the empty path. |
+| [RUN\_FACTS\_ANCHOR](/api/@rulvar/core/variables/RUN_FACTS_ANCHOR.md) | The synthetic anchor and nodeId of run-facts pairs (RV1603). |
 | [RUN\_PROFILES](/api/@rulvar/core/variables/RUN_PROFILES.md) | The shipped presets (fast / standard / deep / ultra "and similar"). Data only; a review-time assertion checks the engine has zero behavioral branches keyed on these names. |
 | [RUN\_SETTLE\_DECISION\_TYPE](/api/@rulvar/core/variables/RUN_SETTLE_DECISION_TYPE.md) | The decisionType of the journaled run settle entry. |
 | [SANDBOX\_AGENT\_OPT\_KEYS](/api/@rulvar/core/variables/SANDBOX_AGENT_OPT_KEYS.md) | The sanctioned JSON subset of AgentOpts a sandbox script may pass: the planner-dialect allowlist. Exported as the single source both for the runtime validator below and for the planner API card, so the two can never drift (v1.22.0 review P2-4: the hand-maintained card had silently fallen three options behind). |
@@ -754,6 +761,7 @@ exactly the pieces you need, for example
 | [orchestrate](/api/@rulvar/core/functions/orchestrate.md) | Top-level surface: creates a run. `runOptions` are the ordinary engine [RunOptions](/api/@rulvar/core/interfaces/RunOptions.md) of the created run; in particular `runOptions.budgetUsd` is the ROOT hard ceiling over the WHOLE tree (the orchestrator and every child), immutable after start, while `opts.budget` only shapes the orchestrator's own sub-account inside that ceiling. The shortcut previously accepted no RunOptions at all, so the canonical entry point could not set a root ceiling without dropping to `engine.run(makeOrchestratorWorkflow(...))` (v1.18.0 review P1-5). |
 | [orchestratorAdmissionEstCostUsd](/api/@rulvar/core/functions/orchestratorAdmissionEstCostUsd.md) | The capped orchestrator's own admission estimate (the 1.63.0 experiment review, P0.3): the effective cap MINUS the finalize carve-out already committed on the cap account, so the dispatch admits at EXACT FILL by construction (a capped orchestrator can never spend past its effectiveCap, and pricing the model's full maxOutputTokens instead pinned small run ceilings at zero remainder; the M12 checkpoint measured a self-solving orchestrator because no child was ever admitted). Exported so the live dispatch and preflightEstimate share ONE formula: both call this function. |
 | [pairDraftClaims](/api/@rulvar/core/functions/pairDraftClaims.md) | Folds the composed draft against the settled pool it composed from: every draft sentence citing an anchor is paired with the pool sentences citing an intersecting span of the same file, verbatim agreement dropped. Pure and deterministic: the output depends only on the input order and bytes, so a resumed run re-derives it without journaling anything (the `findContradictions` precedent). |
+| [pairRunFactClaims](/api/@rulvar/core/functions/pairRunFactClaims.md) | Pairs draft sentences that speak about the RUN with the run's own recorded fact sheet (RV1603), so the same judge invocation that rules on source claims also rules on run claims. The eighteenth comparison benchmark shipped both failure shapes this closes: a dossier claiming "each role recorded 18-20 evidence entries" over recorded profiles of 23/18/22/20/20/20, and "real models were not run" beside 125 recorded wire requests, with executionFacts ENABLED on the input side; facts offered to the composer verify nothing about what it composed. |
 | [parallelScope](/api/@rulvar/core/functions/parallelScope.md) | Branch `branch` of parallel site `site`: `par:<site>:<branch>`. |
 | [parseModelRef](/api/@rulvar/core/functions/parseModelRef.md) | ModelRef is strictly 'adapterId:model', no query parameters. The wire model id may itself contain colons (for example ollama tags), so only the FIRST colon splits. |
 | [parseScopePath](/api/@rulvar/core/functions/parseScopePath.md) | Parses a scope path against the frozen grammar (M2-T04): |

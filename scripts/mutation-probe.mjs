@@ -2247,7 +2247,7 @@ const MUTATIONS = [
     doctrine:
       'no pairs means no judge dispatch (RV1502): the fold looked and paired nothing, and paying a model to confirm an empty list would bill every clean run for the pass',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '      if (fold.pairs.length === 0) {',
+    find: '      if (allPairs.length === 0) {',
     replace: '      if (false) {',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
@@ -2673,6 +2673,33 @@ const MUTATIONS = [
     replace:
       '          outcome.quotaDenied === true ? denialTurns <= maxDenials : tries < retryPolicy.attempts;',
     test: 'packages/core/src/engine/quota.test.ts',
+  },
+  {
+    id: 'claim-critical-priority',
+    doctrine:
+      'critical pairs sort before the max cap applies (RV1603): dropping the partition sends the bounded judge budget back to draft order and the declared claims lose their precedence under truncation',
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: '    critical === undefined\n      ? candidates\n      : [\n          ...candidates.filter((candidate) => candidate.critical),\n          ...candidates.filter((candidate) => !candidate.critical),\n        ];',
+    replace: '    candidates;',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-uncovered-critical-gate',
+    doctrine:
+      'the armed onUncoveredCritical posture fails BEFORE the judge dispatch (RV1603): disabling the gate pays for a partial verdict over a draft whose declared claims cannot even be paired for verification',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        spec.onUncoveredCritical === 'fail' &&",
+    replace: '        false &&',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-runfacts-number-trigger',
+    doctrine:
+      "a standalone recorded value of two or more digits pairs a run claim with the fact sheet (RV1603): dropping the numeric trigger lets a benchmark grade falsehood like '18-20 evidence' sail past the judge unpaired",
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: '      for (const match of full.matchAll(RUN_FACT_NUMBER)) {',
+    replace: '      for (const match of [] as RegExpMatchArray[]) {',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
 ];
 

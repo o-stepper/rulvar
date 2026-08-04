@@ -1495,6 +1495,18 @@
             "link": "/api/@rulvar/core/interfaces/RunExport.md"
           },
           {
+            "text": "RunFactPairOptions",
+            "link": "/api/@rulvar/core/interfaces/RunFactPairOptions.md"
+          },
+          {
+            "text": "RunFactPairsFold",
+            "link": "/api/@rulvar/core/interfaces/RunFactPairsFold.md"
+          },
+          {
+            "text": "RunFactsSheet",
+            "link": "/api/@rulvar/core/interfaces/RunFactsSheet.md"
+          },
+          {
             "text": "RunHandle",
             "link": "/api/@rulvar/core/interfaces/RunHandle.md"
           },
@@ -2415,6 +2427,10 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_REVISIONS_PER_RUN.md"
           },
           {
+            "text": "DEFAULT_MAX_RUN_FACT_PAIRS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_MAX_RUN_FACT_PAIRS.md"
+          },
+          {
             "text": "DEFAULT_MAX_TOTAL_SPAWNS",
             "link": "/api/@rulvar/core/variables/DEFAULT_MAX_TOTAL_SPAWNS.md"
           },
@@ -2559,8 +2575,16 @@
             "link": "/api/@rulvar/core/variables/MAX_CHILD_RESULT_PAGE_CHARS.md"
           },
           {
+            "text": "MAX_CRITICAL_UNCOVERED",
+            "link": "/api/@rulvar/core/variables/MAX_CRITICAL_UNCOVERED.md"
+          },
+          {
             "text": "MAX_DEPTH_CEILING",
             "link": "/api/@rulvar/core/variables/MAX_DEPTH_CEILING.md"
+          },
+          {
+            "text": "MAX_RUN_FACTS_SHEET_CHARS",
+            "link": "/api/@rulvar/core/variables/MAX_RUN_FACTS_SHEET_CHARS.md"
           },
           {
             "text": "MAX_RUN_ID_LENGTH",
@@ -2613,6 +2637,10 @@
           {
             "text": "ROOT_SCOPE",
             "link": "/api/@rulvar/core/variables/ROOT_SCOPE.md"
+          },
+          {
+            "text": "RUN_FACTS_ANCHOR",
+            "link": "/api/@rulvar/core/variables/RUN_FACTS_ANCHOR.md"
           },
           {
             "text": "RUN_PROFILES",
@@ -3207,6 +3235,10 @@
           {
             "text": "pairDraftClaims",
             "link": "/api/@rulvar/core/functions/pairDraftClaims.md"
+          },
+          {
+            "text": "pairRunFactClaims",
+            "link": "/api/@rulvar/core/functions/pairRunFactClaims.md"
           },
           {
             "text": "parallelScope",
@@ -6257,6 +6289,18 @@
             "link": "/api/@rulvar/rulvar/interfaces/RunExport.md"
           },
           {
+            "text": "RunFactPairOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/RunFactPairOptions.md"
+          },
+          {
+            "text": "RunFactPairsFold",
+            "link": "/api/@rulvar/rulvar/interfaces/RunFactPairsFold.md"
+          },
+          {
+            "text": "RunFactsSheet",
+            "link": "/api/@rulvar/rulvar/interfaces/RunFactsSheet.md"
+          },
+          {
             "text": "RunHandle",
             "link": "/api/@rulvar/rulvar/interfaces/RunHandle.md"
           },
@@ -7189,6 +7233,10 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_REVISIONS_PER_RUN.md"
           },
           {
+            "text": "DEFAULT_MAX_RUN_FACT_PAIRS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_RUN_FACT_PAIRS.md"
+          },
+          {
             "text": "DEFAULT_MAX_TOTAL_SPAWNS",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_MAX_TOTAL_SPAWNS.md"
           },
@@ -7333,8 +7381,16 @@
             "link": "/api/@rulvar/rulvar/variables/MAX_CHILD_RESULT_PAGE_CHARS.md"
           },
           {
+            "text": "MAX_CRITICAL_UNCOVERED",
+            "link": "/api/@rulvar/rulvar/variables/MAX_CRITICAL_UNCOVERED.md"
+          },
+          {
             "text": "MAX_DEPTH_CEILING",
             "link": "/api/@rulvar/rulvar/variables/MAX_DEPTH_CEILING.md"
+          },
+          {
+            "text": "MAX_RUN_FACTS_SHEET_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_RUN_FACTS_SHEET_CHARS.md"
           },
           {
             "text": "MAX_RUN_ID_LENGTH",
@@ -7395,6 +7451,10 @@
           {
             "text": "ROOT_SCOPE",
             "link": "/api/@rulvar/rulvar/variables/ROOT_SCOPE.md"
+          },
+          {
+            "text": "RUN_FACTS_ANCHOR",
+            "link": "/api/@rulvar/rulvar/variables/RUN_FACTS_ANCHOR.md"
           },
           {
             "text": "RUN_PROFILES",
@@ -7997,6 +8057,10 @@
           {
             "text": "pairDraftClaims",
             "link": "/api/@rulvar/rulvar/functions/pairDraftClaims.md"
+          },
+          {
+            "text": "pairRunFactClaims",
+            "link": "/api/@rulvar/rulvar/functions/pairRunFactClaims.md"
           },
           {
             "text": "parallelScope",
