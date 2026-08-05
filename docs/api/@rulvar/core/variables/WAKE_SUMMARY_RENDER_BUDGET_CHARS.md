@@ -10,7 +10,7 @@
 const WAKE_SUMMARY_RENDER_BUDGET_CHARS: 400 = 400;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L188)
+Defined in: [packages/core/src/orchestrator/handles.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L207)
 
 The committed WakeDigest render budget (Appendix A: 400
 chars per outputSummary row, the character measure; committed at M10

@@ -104,6 +104,34 @@ A page of a settled child's full output; opt-in `get_child_result` (RV-201).
 
 ***
 
+### getSettledChildResults()
+
+```ts
+getSettledChildResults(handles, opts?): Promise<ChildResultPage[]>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+First pages of SEVERAL settled children in one call; opt-in
+`get_settled_child_results` (RV1807). Refuses typed BEFORE any
+read when any named handle is unknown or still running, so
+consuming the exact `settledHandles` set of an `await_any` digest
+never probes by error.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `handles` | `number`[] |
+| `opts?` | \{ `maxCharsPerChild?`: `number`; \} |
+| `opts.maxCharsPerChild?` | `number` |
+
+#### Returns
+
+`Promise`\&lt;[`ChildResultPage`](/api/@rulvar/rulvar/interfaces/ChildResultPage.md)[]\&gt;
+
+***
+
 ### readChildArtifact()
 
 ```ts

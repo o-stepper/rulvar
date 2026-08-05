@@ -20,4 +20,5 @@ The per-child digest handed to the orchestrator.
 | <a id="property-logicaltaskid"></a> `logicalTaskId` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-nodeid"></a> `nodeId` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-outputsummary"></a> `outputSummary` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-settledhandles"></a> `settledHandles?` | `number`[] | On `await_any` digests (RV1807): the settled subset of the WAITED handle set at return time, the race winner included. The nineteenth benchmark's root probed handles with speculative `get_child_result` calls and collected eight not-settled errors; this list is the exact consume set, so probing is never needed. | `packages/core/dist/index.d.ts` |
 | <a id="property-status"></a> `status` | `string` | - | `packages/core/dist/index.d.ts` |

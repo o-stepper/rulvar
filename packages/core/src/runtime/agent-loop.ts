@@ -1439,13 +1439,18 @@ async function executeToolCall(options: {
   const { call, runtime } = options;
   const def = runtime.defs.find((candidate) => candidate.name === call.name);
   const startedAt = options.now();
-  const finish = (result: unknown, outcome: 'ok' | 'error'): Part => {
+  const finish = (result: unknown, outcome: 'ok' | 'error', errorCode?: string): Part => {
     options.events?.emit({
       type: 'tool:end',
       toolName: call.name,
       toolCallId: call.id,
       outcome,
       durationMs: options.now() - startedAt,
+      // The structured reason (RV1807): public telemetry used to say
+      // only outcome 'error', leaving operators unable to tell a
+      // not-settled probe from a genuine failure without the private
+      // transcript.
+      ...(errorCode === undefined ? {} : { errorCode }),
       ...options.audit,
     });
     const part: Part = { type: 'tool-result', id: call.id, name: call.name, result };
@@ -1456,7 +1461,7 @@ async function executeToolCall(options: {
   };
 
   if (def === undefined) {
-    return finish({ error: `unknown tool '${call.name}'` }, 'error');
+    return finish({ error: `unknown tool '${call.name}'` }, 'error', 'unknown-tool');
   }
   let validation = await validateSchemaSpec(def.parameters, call.args);
   if (!validation.valid) {
@@ -1486,6 +1491,7 @@ async function executeToolCall(options: {
         issues: validation.issues.map((issue) => issue.message),
       },
       'error',
+      'invalid-arguments',
     );
   }
   try {
@@ -1505,6 +1511,7 @@ async function executeToolCall(options: {
           error: `tool '${call.name}' declares executor '${def.executor}' but no executor is registered`,
         },
         'error',
+        'executor-unregistered',
       );
     }
     // The returned value MUST be JSON-serializable; it is recorded in the
@@ -1524,12 +1531,30 @@ async function executeToolCall(options: {
           ...(exhausted ? { retriesExhausted: true } : {}),
         },
         'error',
+        'model-retry',
       );
     }
     if (thrown instanceof NonSerializableValueError) {
-      return finish({ error: thrown.message }, 'error');
+      return finish({ error: thrown.message }, 'error', 'non-serializable-result');
     }
-    return finish({ error: thrown instanceof Error ? thrown.message : String(thrown) }, 'error');
+    // A handler that stamped a machine reason (data.errorCode, the
+    // RV1807 convention) surfaces it; a bare RulvarError falls back to
+    // its coarse code class; anything else stays reasonless.
+    const stamped =
+      thrown instanceof RulvarError &&
+      typeof thrown.data === 'object' &&
+      thrown.data !== null &&
+      !Array.isArray(thrown.data) &&
+      typeof (thrown.data as { errorCode?: unknown }).errorCode === 'string'
+        ? (thrown.data as { errorCode: string }).errorCode
+        : thrown instanceof RulvarError
+          ? thrown.code
+          : undefined;
+    return finish(
+      { error: thrown instanceof Error ? thrown.message : String(thrown) },
+      'error',
+      stamped,
+    );
   }
 }
 

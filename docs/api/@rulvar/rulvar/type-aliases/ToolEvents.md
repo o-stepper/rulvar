@@ -18,6 +18,7 @@ type ToolEvents =
   advisory?: Json;
   decidedBy?: string;
   durationMs: number;
+  errorCode?: string;
   guard?: "repeated-signature" | "per-tool-cap" | "finalization-window";
   outcome: "ok" | "error" | "denied";
   rule?: Json;
@@ -61,6 +62,7 @@ Tool lifecycle (emitters arrive with the tool system, M3).
   advisory?: Json;
   decidedBy?: string;
   durationMs: number;
+  errorCode?: string;
   guard?: "repeated-signature" | "per-tool-cap" | "finalization-window";
   outcome: "ok" | "error" | "denied";
   rule?: Json;
@@ -76,6 +78,7 @@ Tool lifecycle (emitters arrive with the tool system, M3).
 | `advisory?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - | `packages/core/dist/index.d.ts` |
 | `decidedBy?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `durationMs` | `number` | - | `packages/core/dist/index.d.ts` |
+| `errorCode?` | `string` | The structured failure reason on outcome 'error' (RV1807), so public telemetry distinguishes a not-settled child read from a genuine failure without the private transcript. Engine-stamped literals include 'unknown-tool', 'invalid-arguments', 'model-retry', 'non-serializable-result', 'executor-unregistered', 'unknown-handle', 'child-not-settled', and 'unknown-artifact'; a tool that throws a RulvarError carrying `data.errorCode` surfaces that string, a bare RulvarError surfaces its coarse code class, and anything else stays reasonless. Telemetry, never identity. | `packages/core/dist/index.d.ts` |
 | `guard?` | `"repeated-signature"` \| `"per-tool-cap"` \| `"finalization-window"` | Present when an engine guard, not the permission chain, denied the call: the exploration guards (RV-210) or the finalization window (RV302). The outcome is 'denied' and the call was never dispatched. | `packages/core/dist/index.d.ts` |
 | `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | `packages/core/dist/index.d.ts` |
 | `rule?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - | `packages/core/dist/index.d.ts` |

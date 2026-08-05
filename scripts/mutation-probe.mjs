@@ -2765,6 +2765,33 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'settled-handles-no-probing',
+    doctrine:
+      "the await_any digest names the settled subset (RV1807): without settledHandles the model discovers settlement by probing get_child_result and collects not-settled errors as control flow, exactly the nineteenth benchmark's eight speculative failures",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        return { ...digest, settledHandles };',
+    replace: '        return digest;',
+    test: 'packages/core/src/orchestrator/progressive-drafting.test.ts',
+  },
+  {
+    id: 'runfacts-scope-label',
+    doctrine:
+      'the RUN FACTS sheet names its child-only scope in the quoted bytes (RV1807): without the label the composing model honestly reprints settled-children totals as the whole workflow and a reader diffs them against the terminal invoice into invented drift',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "                  scope: 'settled-children-only',",
+    replace: '',
+    test: 'packages/core/src/orchestrator/runfacts.test.ts',
+  },
+  {
+    id: 'unsettled-at-finish-roster',
+    doctrine:
+      'a finish over a still-running child records it machine-readably (RV1807): dropping unsettledAtFinish leaves the late-child boundary as prose only, and a consumer gating on structure reads an early finish as if the pools saw every child',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        if (status === 'running') {\n          unsettledAtFinish.push(record.nodeId);\n        }",
+    replace: '        void status;',
+    test: 'packages/core/src/orchestrator/progressive-drafting.test.ts',
+  },
+  {
     id: 'provider-executed-deny-terminal',
     doctrine:
       'the bridge refuses provider-executed tools under the default deny (RV1806): those calls never pass the ToolDef registry, risk classes, or approvals, so silently absorbing them is an effect surface the permission chain cannot see',

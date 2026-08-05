@@ -621,6 +621,8 @@ const engine = createEngine({
 | [FUTURE\_RATES\_TOLERANCE\_MS](/api/@rulvar/rulvar/variables/FUTURE_RATES_TOLERANCE_MS.md) | How far a `ratesVerifiedAt` may sit in the future before strict pricing refuses it (RV1804): one day absorbs date-only strings authored ahead of UTC and ordinary clock skew, while a typo'd year (the hazard the clamp exists for) is months out and refuses. |
 | [GET\_CHILD\_RESULT\_SCHEMA](/api/@rulvar/rulvar/variables/GET_CHILD_RESULT_SCHEMA.md) | - |
 | [GET\_CHILD\_RESULT\_TOOL\_NAME](/api/@rulvar/rulvar/variables/GET_CHILD_RESULT_TOOL_NAME.md) | - |
+| [GET\_SETTLED\_CHILD\_RESULTS\_SCHEMA](/api/@rulvar/rulvar/variables/GET_SETTLED_CHILD_RESULTS_SCHEMA.md) | get_settled_child_results (RV1807): the bulk settled-set read. |
+| [GET\_SETTLED\_CHILD\_RESULTS\_TOOL\_NAME](/api/@rulvar/rulvar/variables/GET_SETTLED_CHILD_RESULTS_TOOL_NAME.md) | - |
 | [IMPLEMENTATION\_PROFILE\_LIMITS](/api/@rulvar/rulvar/variables/IMPLEMENTATION_PROFILE_LIMITS.md) | The implementation template's stop conditions. |
 | [IN\_FLIGHT\_EXPOSURE\_REFUSAL\_PREFIX](/api/@rulvar/rulvar/variables/IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX.md) | The message prefix of an in-flight exposure refusal (RV711): the single producer is reserveTurnExposure below, and the ctx layer's uniform budget rethrow keys on it to carry the refusal through with its own honest arithmetic instead of claiming a ceiling crossed (no account closes on a transient refusal). |
 | [INBOX\_PROPOSAL\_TTL\_DAYS](/api/@rulvar/rulvar/variables/INBOX_PROPOSAL_TTL_DAYS.md) | Inbox proposals expire after 14 days (reserved for M12 phase 3). |

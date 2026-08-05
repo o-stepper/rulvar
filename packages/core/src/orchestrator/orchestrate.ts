@@ -587,6 +587,19 @@ export interface OrchestrateOptions {
    */
   exposeChildResultTools?: boolean;
   /**
+   * Opt in the bulk settled-set read `get_settled_child_results`
+   * (RV1807). The nineteenth benchmark's root made fourteen
+   * `get_child_result` calls to consume six children, eight of them
+   * speculative probes that returned not-settled errors; with this
+   * set, the model consumes the exact `settledHandles` set an
+   * `await_any` digest returns in ONE call, refused typed BEFORE any
+   * read when a handle is unknown or still running. Its own opt-in
+   * rather than a rider on `exposeChildResultTools`, because adding a
+   * tool under the existing flag would move every opted-in run's
+   * toolset hash and re-key their resumes.
+   */
+  exposeSettledResultsTool?: boolean;
+  /**
    * Opt in per-child execution facts on the await digests and the
    * child result page (RV1503, the eighteenth improvement plan). The
    * seventeenth comparison run graded its whole dossier
@@ -3189,7 +3202,16 @@ export function makeOrchestratorWorkflow(
         // The executionFacts opt-in (RV1503) rides the await digests:
         // tool result bytes are journal identity, so the flag is what
         // authorizes them.
-        return digestOf(first.record, first.result, executionFactsEnabled);
+        const digest = digestOf(first.record, first.result, executionFactsEnabled);
+        // The settled subset of the waited set (RV1807): the exact
+        // consume set for result reads, so the model never probes
+        // handles by error. Recorded truth like the digest itself: a
+        // replay reads the journaled bytes, never re-races.
+        const settledHandles = waited
+          .filter((record) => record.settled !== undefined)
+          .map((record) => record.handle)
+          .sort((a, b) => a - b);
+        return { ...digest, settledHandles };
       },
       async awaitAll(handles: number[]): Promise<TaskDigest[]> {
         await recoveryDone;
@@ -3386,12 +3408,15 @@ export function makeOrchestratorWorkflow(
         await recoveryDone;
         const record = records.get(handle);
         if (record === undefined) {
-          throw new ConfigError(`get_child_result: unknown handle ${String(handle)}`);
+          throw new ConfigError(`get_child_result: unknown handle ${String(handle)}`, {
+            data: { errorCode: 'unknown-handle' },
+          });
         }
         const settled = record.settled;
         if (settled === undefined) {
           throw new ConfigError(
             `get_child_result: child ${String(handle)} has not settled; await it first`,
+            { data: { errorCode: 'child-not-settled' } },
           );
         }
         const page = pageOf(serializeChildOutput(settled), opts?.offset, opts?.maxChars);
@@ -3408,6 +3433,50 @@ export function makeOrchestratorWorkflow(
           ...(executionFactsEnabled ? { facts: executionFactsOf(settled) } : {}),
         };
       },
+      async getSettledChildResults(
+        handles: number[],
+        opts?: { maxCharsPerChild?: number },
+      ): Promise<ChildResultPage[]> {
+        await recoveryDone;
+        // The whole set validates BEFORE any read (RV1807): the tool
+        // exists so the model consumes the exact settledHandles set of
+        // an await digest instead of probing handles by error, so a
+        // running handle in the set is a caller mistake refused typed,
+        // never a partial answer.
+        const unknown = handles.filter((handle) => !records.has(handle));
+        if (unknown.length > 0) {
+          throw new ConfigError(
+            `get_settled_child_results: unknown handle${unknown.length === 1 ? '' : 's'} ` +
+              unknown.map(String).join(', '),
+            { data: { errorCode: 'unknown-handle', handles: unknown } },
+          );
+        }
+        const running = handles.filter((handle) => records.get(handle)?.settled === undefined);
+        if (running.length > 0) {
+          throw new ConfigError(
+            `get_settled_child_results: child${running.length === 1 ? '' : 'ren'} ` +
+              `${running.map(String).join(', ')} ` +
+              `${running.length === 1 ? 'has' : 'have'} not settled; consume the settledHandles ` +
+              'set of an await_any digest, or await first',
+            { data: { errorCode: 'child-not-settled', handles: running } },
+          );
+        }
+        return handles.map((handle) => {
+          const settled = records.get(handle)?.settled as AgentResult<unknown>;
+          const page = pageOf(serializeChildOutput(settled), undefined, opts?.maxCharsPerChild);
+          return {
+            handle,
+            status: settled.status,
+            ...page,
+            artifacts: (settled.artifacts ?? []).map((artifact) => ({
+              id: artifact.id,
+              kind: artifact.kind,
+              ...(artifact.label === undefined ? {} : { label: artifact.label }),
+            })),
+            ...(executionFactsEnabled ? { facts: executionFactsOf(settled) } : {}),
+          };
+        });
+      },
       async readChildArtifact(
         handle: number,
         artifactId: string,
@@ -3416,18 +3485,22 @@ export function makeOrchestratorWorkflow(
         await recoveryDone;
         const record = records.get(handle);
         if (record === undefined) {
-          throw new ConfigError(`read_child_artifact: unknown handle ${String(handle)}`);
+          throw new ConfigError(`read_child_artifact: unknown handle ${String(handle)}`, {
+            data: { errorCode: 'unknown-handle' },
+          });
         }
         const settled = record.settled;
         if (settled === undefined) {
           throw new ConfigError(
             `read_child_artifact: child ${String(handle)} has not settled; await it first`,
+            { data: { errorCode: 'child-not-settled' } },
           );
         }
         const artifact = (settled.artifacts ?? []).find((a) => a.id === artifactId);
         if (artifact === undefined) {
           throw new ConfigError(
             `read_child_artifact: child ${String(handle)} has no artifact '${artifactId}'`,
+            { data: { errorCode: 'unknown-artifact' } },
           );
         }
         // Inline data serializes directly; an offloaded ref is fetched
@@ -3585,6 +3658,7 @@ export function makeOrchestratorWorkflow(
     const tools = [
       ...buildOrchestratorTools(orchestratorRuntime, fullCardText, {
         childResultTools: opts?.exposeChildResultTools === true,
+        settledResultsTool: opts?.exposeSettledResultsTool === true,
         sectionalFinish: coordSectionalFinish,
       }),
       ...(extension?.tools(io) ?? []),
@@ -5769,18 +5843,30 @@ export function makeOrchestratorWorkflow(
                   inputTokens += facts.inputTokens;
                   outputTokens += facts.outputTokens;
                 }
-                return `RUN FACTS: ${JSON.stringify({
-                  children: settledEntries.length,
-                  byStatus: Object.fromEntries(
-                    Object.keys(byStatus)
-                      .sort()
-                      .map((status) => [status, byStatus[status]]),
-                  ),
-                  wireRequests,
-                  wireIdsMissing,
-                  inputTokens,
-                  outputTokens,
-                })} (live-observed by this run's own harness; production evidence it is not)`;
+                return (
+                  `RUN FACTS: ${JSON.stringify({
+                    // The explicit scope (RV1807): the nineteenth
+                    // benchmark's answer printed these child-only totals
+                    // as "the current workflow" and invited a false
+                    // drift reading against the terminal invoice, which
+                    // additionally carries the orchestrator, judges, and
+                    // synthesis. The label makes the boundary part of
+                    // the bytes the model quotes.
+                    scope: 'settled-children-only',
+                    children: settledEntries.length,
+                    byStatus: Object.fromEntries(
+                      Object.keys(byStatus)
+                        .sort()
+                        .map((status) => [status, byStatus[status]]),
+                    ),
+                    wireRequests,
+                    wireIdsMissing,
+                    inputTokens,
+                    outputTokens,
+                  })} (live-observed by this run's own harness; production evidence it is not; ` +
+                  'the settled children ONLY, excluding this orchestrator, judges, and ' +
+                  "synthesis; the whole run's totals are the terminal envelope and invoice)"
+                );
               })(),
             ]
           : []),
@@ -6123,6 +6209,16 @@ export function makeOrchestratorWorkflow(
             'child settles.',
           ]
         : []),
+      // The settled-set vocabulary (RV1807) rides ONLY under its own
+      // opt-in, whose toolset carries the tool the lines name: a run
+      // without it keeps its exact historical prompt bytes.
+      ...(opts?.exposeSettledResultsTool === true
+        ? [
+            'Every await_any digest carries settledHandles: the exact settled subset of the',
+            'handles you waited on. Read those with ONE get_settled_child_results call;',
+            'never probe a handle with get_child_result to discover whether it settled.',
+          ]
+        : []),
       // The sectional line rides the coordination prompt only when the
       // coordination finish actually carries the sectional schema
       // (RV808b): the validator-bound loop or the draft gate.
@@ -6305,6 +6401,17 @@ export function makeOrchestratorWorkflow(
        * settled results may lack the evidence verdict, honestly.
        */
       children?: AcceptanceChildSummary[];
+      /**
+       * Children still RUNNING when finish validated (RV1807), the
+       * structured form of the degradedReasons prose: the late-child
+       * boundary is explicit and machine-readable. A late child's
+       * later settle never re-enters the contradiction or claim pools
+       * (the pools are the acceptance roster, frozen here); a consumer
+       * that needs late output waits on `all-ok` or re-reads the
+       * journal. Present only when such children existed, so every
+       * earlier decision keeps its exact bytes.
+       */
+      unsettledAtFinish?: string[];
     }
     const acceptanceKey = 'acceptance';
     const priorAcceptance = internals.replayer
@@ -6323,6 +6430,8 @@ export function makeOrchestratorWorkflow(
       const degradedReasons: string[] = [];
       const salvaged: string[] = [];
       const salvagedOutput: string[] = [];
+      // Children still running when finish validated (RV1807).
+      const unsettledAtFinish: string[] = [];
       // Ok children below their declared evidence floor (RV1412): a
       // fact list in both modes, and under requireEvidenceFloor also
       // the children the policy count excludes.
@@ -6460,6 +6569,9 @@ export function makeOrchestratorWorkflow(
         }
         hardDegraded += 1;
         noteChild(record, status);
+        if (status === 'running') {
+          unsettledAtFinish.push(record.nodeId);
+        }
         degradedReasons.push(
           status === 'running'
             ? `child ${record.nodeId} was still running when finish validated`
@@ -6504,6 +6616,8 @@ export function makeOrchestratorWorkflow(
         ...(salvaged.length === 0 ? {} : { salvagedPartialChildren: salvaged }),
         ...(salvagedOutput.length === 0 ? {} : { salvagedTerminalOutputChildren: salvagedOutput }),
         ...(belowFloorOk.length === 0 ? {} : { belowFloorOkChildren: belowFloorOk }),
+        // The late-child boundary, machine-readable (RV1807).
+        ...(unsettledAtFinish.length === 0 ? {} : { unsettledAtFinish }),
         children: childrenSummary,
         // A rejected verdict skips a configured synthesis step by design
         // (RV-211): the machine reason rides the decision (11.4), so the
@@ -6572,6 +6686,9 @@ export function makeOrchestratorWorkflow(
             ...(decision.belowFloorOkChildren === undefined
               ? {}
               : { belowFloorOkChildren: decision.belowFloorOkChildren }),
+            ...(decision.unsettledAtFinish === undefined
+              ? {}
+              : { unsettledAtFinish: decision.unsettledAtFinish }),
             ...(decision.children === undefined
               ? {}
               : { acceptanceChildren: decision.children as unknown as Json }),
@@ -6674,6 +6791,12 @@ export function makeOrchestratorWorkflow(
       ...(decision.belowFloorOkChildren === undefined
         ? {}
         : { belowFloorOkChildren: decision.belowFloorOkChildren }),
+      // Children still running when finish validated (RV1807): the
+      // machine-readable late-child boundary; absent when none, so
+      // every pre-existing envelope stays byte identical.
+      ...(decision.unsettledAtFinish === undefined
+        ? {}
+        : { unsettledAtFinish: decision.unsettledAtFinish }),
       // The per-child machine roster (RV806): absent on decisions
       // journaled before it shipped, so those envelopes stay byte
       // identical.

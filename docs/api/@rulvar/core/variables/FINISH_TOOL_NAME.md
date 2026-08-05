@@ -10,4 +10,4 @@
 const FINISH_TOOL_NAME: "finish" = 'finish';
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L148)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L165)
