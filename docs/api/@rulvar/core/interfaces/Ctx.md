@@ -6,7 +6,7 @@
 
 # Interface: Ctx\&lt;P\&gt;
 
-Defined in: [packages/core/src/engine/ctx.ts:453](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L453)
+Defined in: [packages/core/src/engine/ctx.ts:454](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L454)
 
 The canonical Ctx interface, M1 members.
 
@@ -20,9 +20,9 @@ The canonical Ctx interface, M1 members.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-budget"></a> `budget` | \{ `remaining`: [`Spend`](/api/@rulvar/core/type-aliases/Spend.md) \| `null`; `spent`: [`Spend`](/api/@rulvar/core/type-aliases/Spend.md); \} | [packages/core/src/engine/ctx.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L595) |
-| `budget.remaining` | [`Spend`](/api/@rulvar/core/type-aliases/Spend.md) \| `null` | [packages/core/src/engine/ctx.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L595) |
-| `budget.spent` | [`Spend`](/api/@rulvar/core/type-aliases/Spend.md) | [packages/core/src/engine/ctx.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L595) |
+| <a id="property-budget"></a> `budget` | \{ `remaining`: [`Spend`](/api/@rulvar/core/type-aliases/Spend.md) \| `null`; `spent`: [`Spend`](/api/@rulvar/core/type-aliases/Spend.md); \} | [packages/core/src/engine/ctx.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L596) |
+| `budget.remaining` | [`Spend`](/api/@rulvar/core/type-aliases/Spend.md) \| `null` | [packages/core/src/engine/ctx.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L596) |
+| `budget.spent` | [`Spend`](/api/@rulvar/core/type-aliases/Spend.md) | [packages/core/src/engine/ctx.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L596) |
 
 ## Methods
 
@@ -34,7 +34,7 @@ The canonical Ctx interface, M1 members.
 agent(prompt): Promise<P extends "lenient" ? string | null : string>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:454](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L454)
+Defined in: [packages/core/src/engine/ctx.ts:455](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L455)
 
 ##### Parameters
 
@@ -52,7 +52,7 @@ Defined in: [packages/core/src/engine/ctx.ts:454](https://github.com/o-stepper/r
 agent<S>(prompt, o): Promise<AgentResult<Out<S>>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:455](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L455)
+Defined in: [packages/core/src/engine/ctx.ts:456](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L456)
 
 ##### Type Parameters
 
@@ -77,7 +77,7 @@ Defined in: [packages/core/src/engine/ctx.ts:455](https://github.com/o-stepper/r
 agent<S>(prompt, o): Promise<Out<S>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:459](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L459)
+Defined in: [packages/core/src/engine/ctx.ts:460](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L460)
 
 ##### Type Parameters
 
@@ -102,7 +102,7 @@ Defined in: [packages/core/src/engine/ctx.ts:459](https://github.com/o-stepper/r
 agent<S>(prompt, o?): Promise<P extends "lenient" ? Out<S> | null : Out<S>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:463](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L463)
+Defined in: [packages/core/src/engine/ctx.ts:464](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L464)
 
 ##### Type Parameters
 
@@ -129,7 +129,7 @@ Defined in: [packages/core/src/engine/ctx.ts:463](https://github.com/o-stepper/r
 awaitExternal<T>(key, o?): Promise<T>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:590](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L590)
+Defined in: [packages/core/src/engine/ctx.ts:591](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L591)
 
 Suspends this position on a journaled entry until an external
 resolution arrives. NO deadline in v1.
@@ -161,7 +161,7 @@ resolution arrives. NO deadline in v1.
 brief(o): Promise<string>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:584](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L584)
+Defined in: [packages/core/src/engine/ctx.ts:585](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L585)
 
 A journaled summarize invocation for handing an inheritable brief to
 a child (M6-T10): one agent-kind entry under
@@ -188,7 +188,7 @@ log(
    data?): void;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:593](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L593)
+Defined in: [packages/core/src/engine/ctx.ts:594](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L594)
 
 #### Parameters
 
@@ -210,7 +210,7 @@ Defined in: [packages/core/src/engine/ctx.ts:593](https://github.com/o-stepper/r
 now(): number;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:597](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L597)
+Defined in: [packages/core/src/engine/ctx.ts:598](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L598)
 
 #### Returns
 
@@ -224,7 +224,7 @@ Defined in: [packages/core/src/engine/ctx.ts:597](https://github.com/o-stepper/r
 orchestrate(goal, opts?): Promise<unknown>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:577](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L577)
+Defined in: [packages/core/src/engine/ctx.ts:578](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L578)
 
 Nests a dynamic orchestrator under the AdmissionController (M6-T07):
 one implementation with the top-level
@@ -252,7 +252,7 @@ parent budget account through the ordinary ctx.workflow admission.
 parallel<T>(tasks, o?): Promise<T[]>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:468](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L468)
+Defined in: [packages/core/src/engine/ctx.ts:469](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L469)
 
 ##### Type Parameters
 
@@ -279,7 +279,7 @@ Defined in: [packages/core/src/engine/ctx.ts:468](https://github.com/o-stepper/r
 parallel<T>(tasks, o): Promise<Settled<T>[]>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:472](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L472)
+Defined in: [packages/core/src/engine/ctx.ts:473](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L473)
 
 ##### Type Parameters
 
@@ -307,7 +307,7 @@ Defined in: [packages/core/src/engine/ctx.ts:472](https://github.com/o-stepper/r
 phase<T>(name, fn): Promise<T>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:592](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L592)
+Defined in: [packages/core/src/engine/ctx.ts:593](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L593)
 
 #### Type Parameters
 
@@ -339,7 +339,7 @@ pipeline<I, A>(
 o): Promise<PipelineCollected<A>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:474](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L474)
+Defined in: [packages/core/src/engine/ctx.ts:475](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L475)
 
 ##### Type Parameters
 
@@ -369,7 +369,7 @@ pipeline<I, A>(
 o?): Promise<A[]>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:475](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L475)
+Defined in: [packages/core/src/engine/ctx.ts:476](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L476)
 
 ##### Type Parameters
 
@@ -400,7 +400,7 @@ pipeline<I, A, B>(
 o): Promise<PipelineCollected<B>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:476](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L476)
+Defined in: [packages/core/src/engine/ctx.ts:477](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L477)
 
 ##### Type Parameters
 
@@ -433,7 +433,7 @@ pipeline<I, A, B>(
 o?): Promise<B[]>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:482](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L482)
+Defined in: [packages/core/src/engine/ctx.ts:483](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L483)
 
 ##### Type Parameters
 
@@ -467,7 +467,7 @@ pipeline<I, A, B, C>(
 o): Promise<PipelineCollected<C>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:483](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L483)
+Defined in: [packages/core/src/engine/ctx.ts:484](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L484)
 
 ##### Type Parameters
 
@@ -503,7 +503,7 @@ pipeline<I, A, B, C>(
 o?): Promise<C[]>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:490](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L490)
+Defined in: [packages/core/src/engine/ctx.ts:491](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L491)
 
 ##### Type Parameters
 
@@ -540,7 +540,7 @@ pipeline<I, A, B, C, D>(
 o): Promise<PipelineCollected<D>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:497](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L497)
+Defined in: [packages/core/src/engine/ctx.ts:498](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L498)
 
 ##### Type Parameters
 
@@ -579,7 +579,7 @@ pipeline<I, A, B, C, D>(
 o?): Promise<D[]>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:505](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L505)
+Defined in: [packages/core/src/engine/ctx.ts:506](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L506)
 
 ##### Type Parameters
 
@@ -619,7 +619,7 @@ pipeline<I, A, B, C, D, E>(
 o): Promise<PipelineCollected<E>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:513](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L513)
+Defined in: [packages/core/src/engine/ctx.ts:514](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L514)
 
 ##### Type Parameters
 
@@ -661,7 +661,7 @@ pipeline<I, A, B, C, D, E>(
 o?): Promise<E[]>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:522](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L522)
+Defined in: [packages/core/src/engine/ctx.ts:523](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L523)
 
 ##### Type Parameters
 
@@ -704,7 +704,7 @@ pipeline<I, A, B, C, D, E, F>(
 o): Promise<PipelineCollected<F>>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:531](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L531)
+Defined in: [packages/core/src/engine/ctx.ts:532](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L532)
 
 ##### Type Parameters
 
@@ -749,7 +749,7 @@ pipeline<I, A, B, C, D, E, F>(
 o?): Promise<F[]>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:541](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L541)
+Defined in: [packages/core/src/engine/ctx.ts:542](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L542)
 
 ##### Type Parameters
 
@@ -788,7 +788,7 @@ Defined in: [packages/core/src/engine/ctx.ts:541](https://github.com/o-stepper/r
 random(key?): number;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:598](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L598)
+Defined in: [packages/core/src/engine/ctx.ts:599](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L599)
 
 #### Parameters
 
@@ -811,7 +811,7 @@ step<T>(
 o?): Promise<T>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:552](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L552)
+Defined in: [packages/core/src/engine/ctx.ts:553](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L553)
 
 #### Type Parameters
 
@@ -841,7 +841,7 @@ Defined in: [packages/core/src/engine/ctx.ts:552](https://github.com/o-stepper/r
 uuid(): string;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:599](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L599)
+Defined in: [packages/core/src/engine/ctx.ts:600](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L600)
 
 #### Returns
 
@@ -860,7 +860,7 @@ workflow<A, R>(
 o?): Promise<R>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:568](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L568)
+Defined in: [packages/core/src/engine/ctx.ts:569](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L569)
 
 Runs a child workflow under the AdmissionController (M6-T06). The
 child gets a nested journal scope (registered name
@@ -899,7 +899,7 @@ workflow(
 o?): Promise<unknown>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:569](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L569)
+Defined in: [packages/core/src/engine/ctx.ts:570](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L570)
 
 ##### Parameters
 

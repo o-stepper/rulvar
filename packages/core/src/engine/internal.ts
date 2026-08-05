@@ -61,6 +61,20 @@ export const kBootCheckpoint: unique symbol = Symbol('rulvar.bootCheckpoint');
  */
 export const kFinalizeReserve: unique symbol = Symbol('rulvar.finalizeReserve');
 
+/**
+ * Internal AgentOpts channel (RV1902): marks an orchestrate-owned root
+ * dispatch (the coordination loop, the synthesis invocation, the
+ * forced-finish wake) as one that WAITS OUT a transient in-flight
+ * exposure refusal instead of settling a budget error. The four-role
+ * benchmark's recovery arm died exactly there: the refusal is transient
+ * by contract (budgets guide), but the refused agent was the workflow's
+ * coordinating root, so its settle tore down the whole run while four
+ * admitted children were still finalizing. Never part of the public
+ * AgentOpts surface; plain agents keep the documented settle-as-budget-
+ * error behavior, because their caller can catch and decide.
+ */
+export const kExposureWait: unique symbol = Symbol('rulvar.exposureWait');
+
 export interface InternalAgentHooks {
   [kOnRunning]?: (seq: number) => void;
   [kTerminalTool]?: {
@@ -87,6 +101,7 @@ export interface InternalAgentHooks {
   };
   [kBootCheckpoint]?: string;
   [kFinalizeReserve]?: boolean;
+  [kExposureWait]?: boolean;
 }
 
 /** Typed accessor used by the in-package consumers. */

@@ -377,6 +377,16 @@ export interface BudgetHooks {
     estimatedInputTokens: number,
     plannedOutputTokens: number,
   ) => (() => void) | undefined;
+  /**
+   * Parks until the next in-flight exposure hold releases (RV1902):
+   * 'released' on that wake, 'drained' immediately when no hold is
+   * live, 'aborted' when the signal fires first. Wired beside
+   * admitTurnExposure when the cap is configured; consumed only by
+   * invocations that opted into the exposure wait.
+   */
+  awaitExposureRelease?: (signal?: AbortSignal) => Promise<'released' | 'drained' | 'aborted'>;
+  /** Live in-flight exposure currently held by open dispatches (RV1902). */
+  liveExposureUsd?: () => number;
   /** Live usage accounting; layer 3 may respond by aborting `signal`. */
   onUsage(usage: Usage, servedBy: ModelRef): void;
   /**
@@ -739,6 +749,15 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /** Host or sibling cancellation. */
   signal?: AbortSignal;
   budget?: BudgetHooks;
+  /**
+   * The exposure-wait posture (RV1902): an in-flight exposure refusal
+   * on this invocation parks until a live hold releases and retries
+   * pre-wire, instead of settling a budget error. Set only by the
+   * orchestrate-owned root dispatches (the coordination loop, the
+   * synthesis invocation, the forced-finish wake), whose settle would
+   * tear down the run its own admitted children are still funding.
+   */
+  exposureWait?: boolean;
   events?: RuntimeEventSink;
   transcript?: { mintRef(): string; put(ref: string, blob: Uint8Array): Promise<void> };
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
@@ -3481,15 +3500,75 @@ export async function runAgent<S extends SchemaSpec>(
         // rides along so an aborted caller leaves the queue (v1.34.0
         // review P2-4).
         let outcome: TurnOutcome;
-        try {
-          outcome = await (options.providerSlot === undefined
-            ? dispatch()
-            : options.providerSlot(target.adapter.id, dispatch, options.signal));
-        } finally {
-          // The attempt is settled either way (its usage, if any, is
-          // already debited by the stream's onUsage deltas); a thrown
-          // refusal reserved nothing and releases nothing.
-          releaseExposure?.();
+        for (;;) {
+          try {
+            outcome = await (options.providerSlot === undefined
+              ? dispatch()
+              : options.providerSlot(target.adapter.id, dispatch, options.signal));
+          } catch (thrown) {
+            // The exposure-wait posture (RV1902): a transient in-flight
+            // refusal on a waiting invocation parks until a live hold
+            // releases and retries pre-wire, zero provider attempts
+            // while parked by construction, honoring the budgets
+            // guide's transient contract for the one agent whose settle
+            // would tear down the run its admitted children are still
+            // funding. The drained arm (no live hold) rethrows typed:
+            // spend never shrinks, so nothing can turn that refusal
+            // into a fit, and the orchestrate catch owns the documented
+            // forced-finish partial.
+            const refusalData =
+              thrown instanceof BudgetExhaustedError
+                ? (thrown.data as
+                    | {
+                        reason?: string;
+                        capUsd?: number;
+                        spentUsd?: number;
+                        inFlightUsd?: number;
+                        estimateUsd?: number;
+                      }
+                    | undefined)
+                : undefined;
+            const awaitRelease = options.budget?.awaitExposureRelease;
+            if (
+              options.exposureWait !== true ||
+              refusalData?.reason !== 'in-flight-exposure' ||
+              awaitRelease === undefined
+            ) {
+              throw thrown;
+            }
+            const willWait = (options.budget?.liveExposureUsd?.() ?? 0) > 0;
+            events?.emit({
+              type: 'budget:exposure-wait',
+              agentType,
+              label: options.label,
+              model: target.resolved.ref,
+              ...(typeof refusalData.capUsd === 'number' ? { capUsd: refusalData.capUsd } : {}),
+              ...(typeof refusalData.spentUsd === 'number'
+                ? { spentUsd: refusalData.spentUsd }
+                : {}),
+              ...(typeof refusalData.inFlightUsd === 'number'
+                ? { inFlightUsd: refusalData.inFlightUsd }
+                : {}),
+              ...(typeof refusalData.estimateUsd === 'number'
+                ? { estimateUsd: refusalData.estimateUsd }
+                : {}),
+              willWait,
+            });
+            if (!willWait) {
+              throw thrown;
+            }
+            const waitSignals = [options.signal, options.budget?.signal].filter(
+              (candidate): candidate is AbortSignal => candidate !== undefined,
+            );
+            await awaitRelease(waitSignals.length === 0 ? undefined : AbortSignal.any(waitSignals));
+            continue;
+          } finally {
+            // The attempt is settled either way (its usage, if any, is
+            // already debited by the stream's onUsage deltas); a thrown
+            // refusal reserved nothing and releases nothing.
+            releaseExposure?.();
+          }
+          break;
         }
         if (reservationId !== undefined && options.quota !== undefined) {
           // Settle the reservation against what the attempt actually

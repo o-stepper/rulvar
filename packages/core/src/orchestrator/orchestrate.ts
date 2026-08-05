@@ -17,7 +17,12 @@
  * written; escalated children simply settle into their digests.
  */
 import { createHash } from 'node:crypto';
-import { AdmissionRejectedError, ConfigError, FailRunError } from '../l0/errors.js';
+import {
+  AdmissionRejectedError,
+  BudgetExhaustedError,
+  ConfigError,
+  FailRunError,
+} from '../l0/errors.js';
 import { CLAIM_JUDGE_LABEL } from '../l0/telemetry-reduce.js';
 import { jcsSerialize } from '../l0/jcs.js';
 import {
@@ -41,6 +46,7 @@ import {
 } from '../knowledge/card.js';
 import {
   kBootCheckpoint,
+  kExposureWait,
   kFinalizeReserve,
   kOnRunning,
   kTerminalTool,
@@ -4342,6 +4348,10 @@ export function makeOrchestratorWorkflow(
       role: 'orchestrate',
       result: 'full',
       tools,
+      // The coordination loop waits out transient exposure refusals
+      // (RV1902): its settle would tear down the run its own admitted
+      // children are still funding.
+      [kExposureWait]: true,
       // A capped orchestrator can never spend past its effectiveCap
       // (layer 2), so its admission worst case is the cap MINUS the
       // finalize carve-out (the forced-finish wake is a separate spawn
@@ -4503,6 +4513,7 @@ export function makeOrchestratorWorkflow(
         role: 'orchestrate',
         result: 'full',
         tools: finishOnly,
+        [kExposureWait]: true,
         limits: { maxTurns: finalizeTurns },
         // The finalize dispatch spends from the released reserve, so
         // that reserve is its admission worst case: the default hint
@@ -6110,6 +6121,7 @@ export function makeOrchestratorWorkflow(
         role: 'synthesize',
         result: 'full',
         tools: synthesisTools,
+        [kExposureWait]: true,
         limits: spec.limits ?? { maxTurns: DEFAULT_SYNTHESIS_MAX_TURNS },
         ...(spec.model === undefined ? {} : { model: spec.model }),
         ...(spec.effort === undefined ? {} : { effort: spec.effort }),
@@ -6385,16 +6397,66 @@ export function makeOrchestratorWorkflow(
       ),
       ...acceptancePromptLines(opts?.acceptance),
     ];
-    const result = await runtime.runInScope(orchestratorState, () =>
-      (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
-        orchestratorPrompt(
-          goal,
-          opts?.maxSpawns,
-          promptLines.length === 0 ? undefined : promptLines,
+    let result: AgentResult<unknown>;
+    try {
+      result = await runtime.runInScope(orchestratorState, () =>
+        (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+          orchestratorPrompt(
+            goal,
+            opts?.maxSpawns,
+            promptLines.length === 0 ? undefined : promptLines,
+          ),
+          agentOpts,
         ),
-        agentOpts,
-      ),
-    );
+      );
+    } catch (thrown) {
+      if (
+        !(thrown instanceof BudgetExhaustedError) ||
+        (thrown.data as { reason?: string } | undefined)?.reason !== 'in-flight-exposure'
+      ) {
+        throw thrown;
+      }
+      // The drained exposure refusal (RV1902): the coordination turn
+      // cannot fit the cap and no live hold remains to wait out, so
+      // this is a genuine terminal, but the DOCUMENTED one: exhaustion
+      // with the settled partial, never a bare escape that tears the
+      // run down around its own evidence (the four-role benchmark's
+      // recovery arm settled a null-valued exhausted exactly there).
+      // No further dispatch is attempted, because any dispatch faces
+      // the same refused arithmetic; the fold below is pure over the
+      // settled records and journals its decision for replay identity.
+      const exposureKey = deriverV2.deriveKey({ kind: 'orchestrator-exposure-fallback' });
+      if (
+        !internals.replayer
+          .snapshot()
+          .some((entry) => entry.kind === 'decision' && entry.key === exposureKey)
+      ) {
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: exposureKey,
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-budget',
+          value: {
+            decisionType: 'orchestrator_finalize_fallback',
+            reason: 'exposure-abort',
+            turnsUsed: 0,
+            foldParams: { planHash: '', digestOrdinalMax: wakeOrdinal },
+          },
+        });
+      }
+      internals.budget.markExhausted();
+      return {
+        forcedFinishFallback: true,
+        completion: 'partial',
+        planHash: '',
+        completed: [...byOrdinal.values()]
+          .filter((record) => record.settled !== undefined)
+          .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
+          .map((record) => digestOf(record, record.settled as AgentResult<unknown>)),
+      };
+    }
     const liveTermination = extensionTermination;
     if (liveTermination !== undefined) {
       // The declared fail-run policy engaged during the run and aborted the loop.

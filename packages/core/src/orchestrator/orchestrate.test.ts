@@ -3799,6 +3799,188 @@ describe('the synthesis hold parity between projection and live gate (RV1901)', 
   });
 });
 
+describe('the root exposure wait (RV1902, the four-role benchmark recovery arm)', () => {
+  // The recovery arm's death: four admitted children still finalizing,
+  // the root's next coordination turn refused pre-wire by the in-flight
+  // exposure cap, and the whole run settled exhausted with a premature
+  // snapshot, although the budgets guide names the refusal transient.
+  // The root now parks until a live hold releases and retries; a
+  // drained refusal (no hold left to wait out) settles the documented
+  // forced-finish partial instead of a bare escape.
+  const WAIT_PROFILES = {
+    worker: {
+      description: 'the gated worker',
+      limits: { maxOutputTokensPerTurn: 2500 },
+    },
+  };
+  const ROUTING_1902 = { loop: 'fake:model', orchestrate: 'fake:model' } as const;
+
+  it('parks the refused root turn and completes after the children release', async () => {
+    let releaseChildren: () => void = () => {};
+    const childrenGate = new Promise<void>((resolve) => {
+      releaseChildren = resolve;
+    });
+    let orchTurn = 0;
+    const inner = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'worked' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'joined after the wait' } } };
+    });
+    const adapter: typeof inner = {
+      ...inner,
+      async *stream(req, signal) {
+        if (agentTypeOf(req) !== '') {
+          await childrenGate;
+        }
+        yield* inner.stream(req, signal);
+      },
+    };
+    const { internals, store, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_1902,
+      profiles: WAIT_PROFILES,
+      budgetUsd: 10,
+      // Explicit per-turn output allowances pin the worst-case turn
+      // estimates at the testCaps price row ($10/MTok output): the root
+      // about $0.043, each gated child about $0.026. Two child holds
+      // plus the root's next turn cross the cap; the root fits again
+      // as soon as ONE hold releases (0.026 + 0.043 <= 0.08).
+      maxInFlightExposureUsd: 0.08,
+    });
+    const wf = makeOrchestratorWorkflow('join the gated wave', {
+      limits: { maxOutputTokensPerTurn: 4000 },
+    });
+    const run = executeWorkflow(internals, wf, undefined);
+    let spins = 0;
+    while (events.ofType('budget:exposure-wait').length === 0) {
+      spins += 1;
+      expect(spins).toBeLessThan(2000);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    releaseChildren();
+    const outcome = await run;
+    expect(outcome).toBe('joined after the wait');
+
+    const waits = events.ofType('budget:exposure-wait');
+    expect(waits.length).toBeGreaterThanOrEqual(1);
+    expect(waits[0]).toMatchObject({
+      agentType: '',
+      model: 'fake:model',
+      capUsd: 0.08,
+      willWait: true,
+    });
+    // The refusal produced no provider attempt and no failure event:
+    // exactly three root turns reached the adapter, and the run never
+    // exhausted.
+    const rootCalls = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    expect(rootCalls).toHaveLength(3);
+    expect(events.ofType('agent:error')).toHaveLength(0);
+    expect(internals.budget.exhausted).toBe(false);
+    // Transient by construction: nothing about the wait is journaled.
+    const entries = await store.load('test-run');
+    expect(
+      entries.some(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { reason?: string } | undefined)?.reason === 'exposure-abort',
+      ),
+    ).toBe(false);
+  });
+
+  it('a drained refusal settles the documented forced-finish partial, never a bare escape', async () => {
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      return { toolCall: { name: 'finish', args: { result: 'unreachable' } } };
+    });
+    const { internals, store, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_1902,
+      profiles: WAIT_PROFILES,
+      budgetUsd: 10,
+      // Below the root's own worst-case turn estimate: refused with
+      // nothing in flight, so there is nothing to wait out.
+      maxInFlightExposureUsd: 0.03,
+    });
+    const wf = makeOrchestratorWorkflow('cannot even start', {});
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      completion?: string;
+      completed?: unknown[];
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.completion).toBe('partial');
+    expect(envelope.completed).toEqual([]);
+    expect(internals.budget.exhausted).toBe(true);
+    // Zero provider attempts: the refusal was pre-wire and no further
+    // dispatch was tried against the same arithmetic.
+    expect(adapter.calls).toHaveLength(0);
+    const waits = events.ofType('budget:exposure-wait');
+    expect(waits).toHaveLength(1);
+    expect(waits[0]?.willWait).toBe(false);
+    const fallback = (await store.load('test-run')).find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finalize_fallback',
+    );
+    expect((fallback?.value as { reason?: string } | undefined)?.reason).toBe('exposure-abort');
+  });
+
+  it('a resume replays the exposure fallback with zero paid calls and one decision', async () => {
+    const firstAdapter = scriptedAdapter((): ScriptedTurn => {
+      return { toolCall: { name: 'finish', args: { result: 'unreachable' } } };
+    });
+    const first = makeInternals({
+      adapters: [firstAdapter],
+      routing: ROUTING_1902,
+      profiles: WAIT_PROFILES,
+      budgetUsd: 10,
+      maxInFlightExposureUsd: 0.03,
+    });
+    const wf = makeOrchestratorWorkflow('cannot even start', {});
+    await executeWorkflow(first.internals, wf, undefined);
+    const priorEntries = await first.store.load('test-run');
+
+    const resumeAdapter = scriptedAdapter((): ScriptedTurn => {
+      return { toolCall: { name: 'finish', args: { result: 'unreachable' } } };
+    });
+    const resumed = makeInternals({
+      adapters: [resumeAdapter],
+      routing: ROUTING_1902,
+      profiles: WAIT_PROFILES,
+      budgetUsd: 10,
+      maxInFlightExposureUsd: 0.03,
+      priorEntries,
+      store: first.store,
+    });
+    const envelope = (await executeWorkflow(resumed.internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      completion?: string;
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.completion).toBe('partial');
+    expect(resumeAdapter.calls).toHaveLength(0);
+    const decisions = (await first.store.load('test-run')).filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { reason?: string } | undefined)?.reason === 'exposure-abort',
+    );
+    expect(decisions).toHaveLength(1);
+  });
+});
+
 describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
   const SECTIONED = '## Findings\nEverything the contract demands.';
   const SECTIONLESS = 'a schema-valid candidate without the required section';

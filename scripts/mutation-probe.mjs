@@ -3054,6 +3054,24 @@ const MUTATIONS = [
     replace: '    if (false) {',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'root-exposure-wait',
+    doctrine:
+      "an orchestrate-owned root dispatch waits out a transient in-flight exposure refusal instead of settling a budget error (RV1902): dropping the wait resurrects the recovery arm's death, a root refused pre-wire while its admitted children were still finalizing, tearing the run down around its own funded work",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "            if (\n              options.exposureWait !== true ||\n              refusalData?.reason !== 'in-flight-exposure' ||\n              awaitRelease === undefined\n            ) {",
+    replace: '            if (true) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'exposure-drained-partial',
+    doctrine:
+      "a drained exposure refusal on the root settles the documented forced-finish partial, never a bare escape (RV1902): dropping the orchestrate catch returns the run to a null-valued exhausted with no journaled fallback decision, the recovery arm's exact terminal",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (\n        !(thrown instanceof BudgetExhaustedError) ||\n        (thrown.data as { reason?: string } | undefined)?.reason !== 'in-flight-exposure'\n      ) {",
+    replace: '      if (true) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

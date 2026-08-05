@@ -366,6 +366,32 @@ export type AgentEvents =
       retryAfterMs?: number;
       willRetry: true;
     }
+  /**
+   * A transient in-flight exposure refusal on an orchestrate-owned
+   * root dispatch (RV1902): the turn's worst-case estimate did not fit
+   * `maxInFlightExposureUsd` beside the live child dispatches, so the
+   * root parks until a hold releases and then retries, exactly the
+   * transient semantics the budgets guide promises. Healthy backpressure,
+   * not failure: no provider attempt, no ledger row, no journal entry.
+   * `willWait: false` names the drained arm: nothing is left to wait
+   * out (no live hold), so the refusal is terminal for the turn and the
+   * orchestration settles its documented forced-finish partial instead
+   * of tearing the run down. Plain (non-root) agents never emit this:
+   * they keep the documented settle-as-budget-error behavior.
+   */
+  | {
+      type: 'budget:exposure-wait';
+      agentType: string;
+      label?: string;
+      /** The refused model ref. */
+      model?: string;
+      /** The refusal arithmetic, verbatim from the typed refusal. */
+      capUsd?: number;
+      spentUsd?: number;
+      inFlightUsd?: number;
+      estimateUsd?: number;
+      willWait: boolean;
+    }
   | { type: 'agent:schema-retry'; agentType: string; attempt: number; maxAttempts: number }
   /**
    * Non-billable control egress (RV1804): a provider request that is

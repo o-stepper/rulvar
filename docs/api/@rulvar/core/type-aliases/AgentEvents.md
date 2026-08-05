@@ -74,6 +74,17 @@ type AgentEvents =
 }
   | {
   agentType: string;
+  capUsd?: number;
+  estimateUsd?: number;
+  inFlightUsd?: number;
+  label?: string;
+  model?: string;
+  spentUsd?: number;
+  type: "budget:exposure-wait";
+  willWait: boolean;
+}
+  | {
+  agentType: string;
   attempt: number;
   maxAttempts: number;
   type: "agent:schema-retry";
@@ -276,6 +287,48 @@ restores the legacy twin for consumers keyed to the old type.
 | `retryAfterMs?` | `number` | - | [packages/core/src/l0/events.ts:366](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L366) |
 | `type` | `"quota:denied"` | - | [packages/core/src/l0/events.ts:359](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L359) |
 | `willRetry` | `true` | - | [packages/core/src/l0/events.ts:367](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L367) |
+
+***
+
+### Type Literal
+
+```ts
+{
+  agentType: string;
+  capUsd?: number;
+  estimateUsd?: number;
+  inFlightUsd?: number;
+  label?: string;
+  model?: string;
+  spentUsd?: number;
+  type: "budget:exposure-wait";
+  willWait: boolean;
+}
+```
+
+A transient in-flight exposure refusal on an orchestrate-owned
+root dispatch (RV1902): the turn's worst-case estimate did not fit
+`maxInFlightExposureUsd` beside the live child dispatches, so the
+root parks until a hold releases and then retries, exactly the
+transient semantics the budgets guide promises. Healthy backpressure,
+not failure: no provider attempt, no ledger row, no journal entry.
+`willWait: false` names the drained arm: nothing is left to wait
+out (no live hold), so the refusal is terminal for the turn and the
+orchestration settles its documented forced-finish partial instead
+of tearing the run down. Plain (non-root) agents never emit this:
+they keep the documented settle-as-budget-error behavior.
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:384](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L384) |
+| `capUsd?` | `number` | The refusal arithmetic, verbatim from the typed refusal. | [packages/core/src/l0/events.ts:389](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L389) |
+| `estimateUsd?` | `number` | - | [packages/core/src/l0/events.ts:392](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L392) |
+| `inFlightUsd?` | `number` | - | [packages/core/src/l0/events.ts:391](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L391) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:385](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L385) |
+| `model?` | `string` | The refused model ref. | [packages/core/src/l0/events.ts:387](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L387) |
+| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:390](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L390) |
+| `type` | `"budget:exposure-wait"` | - | [packages/core/src/l0/events.ts:383](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L383) |
+| `willWait` | `boolean` | - | [packages/core/src/l0/events.ts:393](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L393) |
 
 ***
 

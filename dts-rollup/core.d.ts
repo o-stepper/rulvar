@@ -2390,6 +2390,16 @@ type AgentEvents = {
   retryAfterMs?: number;
   willRetry: true;
 } | {
+  type: "budget:exposure-wait";
+  agentType: string;
+  label?: string; /** The refused model ref. */
+  model?: string; /** The refusal arithmetic, verbatim from the typed refusal. */
+  capUsd?: number;
+  spentUsd?: number;
+  inFlightUsd?: number;
+  estimateUsd?: number;
+  willWait: boolean;
+} | {
   type: "agent:schema-retry";
   agentType: string;
   attempt: number;
@@ -5107,6 +5117,16 @@ interface BudgetHooks {
   */
   assertPricedDispatch?: (servedBy: ModelRef) => void;
   admitTurnExposure?: (servedBy: ModelRef, estimatedInputTokens: number, plannedOutputTokens: number) => (() => void) | undefined;
+  /**
+  * Parks until the next in-flight exposure hold releases (RV1902):
+  * 'released' on that wake, 'drained' immediately when no hold is
+  * live, 'aborted' when the signal fires first. Wired beside
+  * admitTurnExposure when the cap is configured; consumed only by
+  * invocations that opted into the exposure wait.
+  */
+  awaitExposureRelease?: (signal?: AbortSignal) => Promise<"released" | "drained" | "aborted">;
+  /** Live in-flight exposure currently held by open dispatches (RV1902). */
+  liveExposureUsd?: () => number;
   /** Live usage accounting; layer 3 may respond by aborting `signal`. */
   onUsage(usage: Usage, servedBy: ModelRef): void;
   /**
@@ -5391,6 +5411,15 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /** Host or sibling cancellation. */
   signal?: AbortSignal;
   budget?: BudgetHooks;
+  /**
+  * The exposure-wait posture (RV1902): an in-flight exposure refusal
+  * on this invocation parks until a live hold releases and retries
+  * pre-wire, instead of settling a budget error. Set only by the
+  * orchestrate-owned root dispatches (the coordination loop, the
+  * synthesis invocation, the forced-finish wake), whose settle would
+  * tear down the run its own admitted children are still funding.
+  */
+  exposureWait?: boolean;
   events?: RuntimeEventSink;
   transcript?: {
     mintRef(): string;
@@ -6094,6 +6123,13 @@ declare class RunBudget {
   private exhaustedInternal;
   /** Live dispatch estimates held by reserveTurnExposure (RV711). */
   private inFlightExposureUsd;
+  /**
+  * Waiters parked on the next exposure release (RV1902): the
+  * orchestrate root's dispatch waits out a transient refusal here
+  * instead of settling a budget error. Notified (and self-removed)
+  * on every hold release; never on spend, which only grows.
+  */
+  private readonly exposureWaiters;
   /** Models already warned about; the warning fires once per model per run. */
   private readonly unpricedWarned;
   /** Models whose price function already returned an invalid USD once. */
@@ -6308,6 +6344,19 @@ declare class RunBudget {
   * lifetime reserve and its own turn exposure would double-count.
   */
   reserveTurnExposure(servedBy: ModelRef, estimatedInputTokens: number, plannedOutputTokens: number): (() => void) | undefined;
+  /** Live in-flight exposure currently held by open dispatches (RV1902). */
+  get liveExposureUsd(): number;
+  /**
+  * Parks until the NEXT in-flight exposure hold releases (RV1902):
+  * resolves 'released' on that wake, 'drained' immediately when no
+  * hold is live (there is nothing to wait out, so the caller's refusal
+  * is terminal for its turn), and 'aborted' when the signal fires
+  * first. The waiter registers BEFORE any check, so a release racing
+  * the caller's refusal is never lost; spend never shrinks, so
+  * releases are the only wake source that can turn a refusal into a
+  * fit.
+  */
+  awaitExposureRelease(signal?: AbortSignal): Promise<"released" | "drained" | "aborted">;
   /** Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched. */
   beforeTurn(accountScope?: string): void;
   /**
@@ -7241,8 +7290,12 @@ interface RunOptions {
   * settles, and the dispatch whose estimate does not fit
   * spent + finalize/synthesis reserves + live estimates is refused
   * with a typed BudgetExhaustedError (data.reason
-  * 'in-flight-exposure') instead of waiting; the refused agent
-  * settles as a budget error. Worst concurrent overshoot past the cap
+  * 'in-flight-exposure'). A plain agent settles the refusal as a
+  * budget error; an orchestrate-owned root dispatch waits it out
+  * (RV1902): it parks until a live hold releases, retries pre-wire,
+  * and emits budget:exposure-wait, while a drained refusal settles
+  * the documented forced-finish partial instead of tearing the run
+  * down. Worst concurrent overshoot past the cap
   * is thereby the estimate error of the in-flight turns, not one
   * whole turn per agent. Absent by default: wire traffic, journals,
   * and hooks stay byte-identical. Recorded in RunMeta at genesis

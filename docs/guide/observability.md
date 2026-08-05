@@ -105,6 +105,7 @@ The shortest form: the engine proves what happened and what it cost; whether tha
 | `agent:end` | The agent settles; the one event that carries the whole total. | `status`, `usage`, `costUsd`, `costBasis?`, `entryRef`, `usageApprox?`, `retryCount?`, `exploration?` |
 | `agent:error` | A live attempt failed. | `error` (a wire error), `willRetry` |
 | `quota:denied` | The shared limiter denied a window pre-wire and the dispatch will retry (RV1810). | `model?`, `reason?`, `retryAfterMs?`, `willRetry` |
+| `budget:exposure-wait` | The in-flight exposure cap refused an orchestrate-owned root turn pre-wire; `willWait: true` parks until a live hold releases, `willWait: false` names the drained arm settling the forced-finish partial (RV1902). | `model?`, `capUsd?`, `spentUsd?`, `inFlightUsd?`, `estimateUsd?`, `willWait` |
 | `agent:schema-retry` | Structured output failed validation and is being retried. | `attempt`, `maxAttempts` |
 | `agent:stream` | A token delta arrived; only for calls that opt into streaming. | `delta` |
 
@@ -113,6 +114,8 @@ The shortest form: the engine proves what happened and what it cost; whether tha
 #### Throttling is not failure {#throttling-is-not-failure}
 
 A recoverable pre-wire quota wait speaks its own event type (RV1810). The twentieth comparison benchmark's run emitted 13 `agent:error` events that were ALL healthy token-window waits: the run completed clean, with zero provider error rows and zero transport retries, yet any alert keyed to the event TYPE read a failing run. `quota:denied` now carries those waits (the denied model, the limiter's reason, `retryAfterMs` when the window named one, `willRetry: true` always); the denial produced no provider attempt, no ledger row, and no transport retry, and the aggregates (`quotaDenials` on `agent:end` and on the result) fold it exactly as before. Terminal denial exhaustion (the per-target `quota.maxDenials` budget spent) still ends in the real `agent:error` it always did, so failure alerting keeps its signal. Consumers still keyed to the old shape restore the legacy twin with `createEngine({ telemetry: { quotaDeniedAgentError: true } })`, the versioned compat posture.
+
+The same vocabulary rule covers exposure backpressure (RV1902): `budget:exposure-wait` names an orchestrate root turn parked on the in-flight exposure cap, healthy waiting with zero provider attempts, where the twenty-first benchmark's recovery arm instead settled a premature `exhausted`. Alert on `willWait: false` (the drained arm, a genuine terminal that settles the forced-finish partial), never on the event type alone.
 
 Three neighboring vocabulary notes the same benchmark asked for. `CostReport.orchestrator.wakes` counts durable `wait_for_events` wake suspensions, NOT progressive `await_any` completions: a fully progressive run honestly reads `wakes: 0`, and the await cadence is read from the `tool:start`/`tool:end` events of the await tools. Internal root work (the coordination draft, the claim judge, the synthesis) deliberately reports under `byRole` (`orchestrate`, `synthesize`, `extract`), while `byAgentType` and `byPhase` keep their honest empty-string buckets for it: the root has no agent type, `byPhase` buckets are user `ctx.phase` blocks, and wrapping engine stages in synthetic phases would move journal bytes and re-key resumed runs, so the split lives where it already exists. And `tool:end` failures carry a structured `errorCode` (RV1807), so a not-settled child read never needs the private transcript to classify.
 
@@ -255,7 +258,7 @@ On resume, the engine re-emits events for the journal-backed facts it consumes, 
 | `agent:stream` | never |
 | `spawn:admitted`, `spawn:rejected` for journal-recovered admission decisions taking effect on this resume | yes |
 | the remaining adaptive events (`plan:revised` through `termination:config-drift`) | no; the orchestration machinery emits them through its live path without the flag, so an adaptive event observed during a resume looks live even when it restates a journal-backed fact |
-| `run:start`, `run:end`, `phase:start`, `log`, `budget:update`, `agent:queued`, `agent:error`, `quota:denied`, `agent:schema-retry` | no; they describe the current process, and `phase:start` and `log` fire live again as workflow bodies re-execute |
+| `run:start`, `run:end`, `phase:start`, `log`, `budget:update`, `agent:queued`, `agent:error`, `quota:denied`, `budget:exposure-wait`, `agent:schema-retry` | no; they describe the current process, and `phase:start` and `log` fire live again as workflow bodies re-execute |
 
 Replayed events carry payloads read from the journaled facts, byte for byte (status, usage, cost, verdicts), never from re-evaluation. This is the observable face of the decision-entry principle: what you see on resume is what was decided, not a recomputation.
 

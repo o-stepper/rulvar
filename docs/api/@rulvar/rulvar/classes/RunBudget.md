@@ -92,6 +92,24 @@ Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
+### liveExposureUsd
+
+#### Get Signature
+
+```ts
+get liveExposureUsd(): number;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Live in-flight exposure currently held by open dispatches (RV1902).
+
+##### Returns
+
+`number`
+
+***
+
 ### signal
 
 #### Get Signature
@@ -260,6 +278,35 @@ drift between turns. Inert without the config, byte for byte.
 #### Returns
 
 `void`
+
+***
+
+### awaitExposureRelease()
+
+```ts
+awaitExposureRelease(signal?): Promise<"released" | "drained" | "aborted">;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Parks until the NEXT in-flight exposure hold releases (RV1902):
+resolves 'released' on that wake, 'drained' immediately when no
+hold is live (there is nothing to wait out, so the caller's refusal
+is terminal for its turn), and 'aborted' when the signal fires
+first. The waiter registers BEFORE any check, so a release racing
+the caller's refusal is never lost; spend never shrinks, so
+releases are the only wake source that can turn a refusal into a
+fit.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `signal?` | `AbortSignal` |
+
+#### Returns
+
+`Promise`\&lt;`"released"` \| `"drained"` \| `"aborted"`\&gt;
 
 ***
 

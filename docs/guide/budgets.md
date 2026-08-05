@@ -253,10 +253,21 @@ from right before the provider call until the attempt settles. A dispatch
 whose estimate does not fit `spent + finalize/synthesis reserves + live
 estimates` within the cap is refused with a typed `BudgetExhaustedError`
 (`data.reason 'in-flight-exposure'`, message prefix
-`in flight exposure cap reached`) instead of waiting, and the refused agent
-settles as a budget error while everything already admitted continues; the
-refusal is transient, so it never marks the run exhausted and never severs a
-stream. Worst concurrent overshoot past the cap is thereby the estimate error
+`in flight exposure cap reached`); the refusal is transient, so it never
+severs a stream. A plain agent settles the refusal as a budget error while
+everything already admitted continues, and its caller decides what happens
+next. The orchestrate-owned root dispatches (the coordination loop, the
+synthesis invocation, the forced-finish wake) instead WAIT the refusal out
+(RV1902): the turn parks until a live hold releases, retries pre-wire with
+zero provider attempts while parked, and emits the typed
+`budget:exposure-wait` event with the refusal arithmetic; the four-role
+benchmark's recovery arm died exactly on the settle path, a root refused
+while its four admitted children were still finalizing. A drained refusal
+(no live hold left to wait out; spend never shrinks, so nothing can turn it
+into a fit) settles the documented forced-finish partial: the run exhausts
+with the settled children's fold as its value and a journaled
+`orchestrator_finalize_fallback` decision (`reason 'exposure-abort'`), never
+a bare escape. Worst concurrent overshoot past the cap is thereby the estimate error
 of the in-flight turns, not one whole turn per agent. The cap is off by
 default (wire traffic and journals stay byte-identical), applies at the run
 root, and reserves zero for models without a price row exactly as they debit
