@@ -149,3 +149,119 @@ describe('admission before egress (RV904)', () => {
     expect(warn).toContain('fake:model');
   });
 });
+
+describe('the countTokens policy (RV1804)', () => {
+  it("engine-wide 'deny' makes zero count calls and emits the denied control wire", async () => {
+    const adapter = countingAdapter(() => Promise.resolve(10));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new InMemoryStore() },
+      defaults: { routing: { loop: 'fake:model' }, countTokens: 'deny' },
+    });
+    const handle = engine.run(echo, undefined, { budgetUsd: 5 });
+    const control: Array<{ controlKind: string; outcome: string }> = [];
+    handle.on('control:wire', (event) => control.push(event));
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    // The doctrine under test: the control wire never leaves the process.
+    expect(adapter.countCalls).toHaveLength(0);
+    expect(adapter.calls).toHaveLength(1);
+    expect(control).toEqual([
+      expect.objectContaining({ controlKind: 'countTokens', outcome: 'denied' }),
+    ]);
+  });
+
+  it("a profile 'deny' forbids the probe for its spawns while the engine default allows", async () => {
+    const adapter = countingAdapter(() => Promise.resolve(10));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new InMemoryStore() },
+      defaults: {
+        routing: { loop: 'fake:model' },
+        profiles: { frugal: { countTokens: 'deny' } },
+      },
+    });
+    const wf = defineWorkflow(
+      { name: 'profile-deny' },
+      async (ctx) => await ctx.agent('hi', { agentType: 'frugal' }),
+    );
+    const outcome = await engine.run(wf, undefined, { budgetUsd: 5 }).result;
+    expect(outcome.status).toBe('ok');
+    expect(adapter.countCalls).toHaveLength(0);
+  });
+
+  it("a profile 'allow' wins over an engine-wide 'deny'", async () => {
+    const adapter = countingAdapter(() => Promise.resolve(10));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new InMemoryStore() },
+      defaults: {
+        routing: { loop: 'fake:model' },
+        countTokens: 'deny',
+        profiles: { counted: { countTokens: 'allow' } },
+      },
+    });
+    const wf = defineWorkflow(
+      { name: 'profile-allow' },
+      async (ctx) => await ctx.agent('hi', { agentType: 'counted' }),
+    );
+    const outcome = await engine.run(wf, undefined, { budgetUsd: 5 }).result;
+    expect(outcome.status).toBe('ok');
+    expect(adapter.countCalls).toHaveLength(1);
+  });
+
+  it('an allowed probe emits the ok control wire carrying the counted tokens', async () => {
+    const adapter = countingAdapter(() => Promise.resolve(1234));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new InMemoryStore() },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const handle = engine.run(echo, undefined, { budgetUsd: 5 });
+    const control: Array<{ outcome: string; inputTokens?: number }> = [];
+    handle.on('control:wire', (event) => control.push(event));
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(adapter.countCalls).toHaveLength(1);
+    expect(control).toEqual([expect.objectContaining({ outcome: 'ok', inputTokens: 1234 })]);
+  });
+
+  it('a failed probe emits the failed control wire beside the warning log', async () => {
+    const adapter = countingAdapter(() => Promise.reject(new Error('count endpoint down')));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new InMemoryStore() },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const handle = engine.run(echo, undefined, {});
+    const control: Array<{ outcome: string }> = [];
+    handle.on('control:wire', (event) => control.push(event));
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(control).toEqual([expect.objectContaining({ outcome: 'failed' })]);
+  });
+
+  it('a malformed policy value refuses at createEngine, typed', () => {
+    const adapter = countingAdapter(() => Promise.resolve(10));
+    expect(() =>
+      createEngine({
+        adapters: [adapter],
+        stores: { journal: new InMemoryStore() },
+        defaults: {
+          routing: { loop: 'fake:model' },
+          countTokens: 'maybe' as unknown as 'allow',
+        },
+      }),
+    ).toThrow(/defaults\.countTokens must be 'allow' or 'deny'/);
+    expect(() =>
+      createEngine({
+        adapters: [adapter],
+        stores: { journal: new InMemoryStore() },
+        defaults: {
+          routing: { loop: 'fake:model' },
+          profiles: { p: { countTokens: 'sometimes' as unknown as 'deny' } },
+        },
+      }),
+    ).toThrow(/profiles\['p'\]\.countTokens must be 'allow' or 'deny'/);
+  });
+});

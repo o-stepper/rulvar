@@ -141,6 +141,16 @@ export interface EngineDefaults {
   retry?: RetryPolicy;
   /** Hard per-role model constraints (M4-T09). */
   roleFloors?: QualityFloors;
+  /**
+   * The admission countTokens policy (RV1804). The pre-admission count
+   * probe carries the FULL child prompt to the provider: egress exactly
+   * like a dispatch, but billed to no invoice row. 'deny' forbids that
+   * control wire engine-wide: the flat reserve admits instead, exactly
+   * like an adapter without countTokens, and the refusal is visible as
+   * a `control:wire` event with outcome 'denied'. Default 'allow'
+   * (today's behavior); AgentProfile.countTokens overrides per profile.
+   */
+  countTokens?: 'allow' | 'deny';
 }
 
 export interface BudgetDefaults {
@@ -938,6 +948,17 @@ export function createEngine(options: CreateEngineOptions): Engine {
         `createEngine defaults.profiles['${name}'].toolsetAttestation`,
       );
     }
+    if (profile.countTokens !== undefined && !['allow', 'deny'].includes(profile.countTokens)) {
+      throw new ConfigError(
+        `createEngine defaults.profiles['${name}'].countTokens must be 'allow' or 'deny'`,
+      );
+    }
+  }
+  if (
+    options.defaults?.countTokens !== undefined &&
+    !['allow', 'deny'].includes(options.defaults.countTokens)
+  ) {
+    throw new ConfigError("createEngine defaults.countTokens must be 'allow' or 'deny'");
   }
   // The determinism guard config fails loud at construction, before any
   // run can start under an invalid mode, pattern, or hook (RV-209).
@@ -1404,6 +1425,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(defaults.schemas === undefined ? {} : { schemas: defaults.schemas }),
         ...(defaults.toolsets === undefined ? {} : { toolsets: defaults.toolsets }),
         ...(defaults.gates === undefined ? {} : { gates: defaults.gates }),
+        ...(defaults.countTokens === undefined ? {} : { countTokens: defaults.countTokens }),
       },
       errorPolicy: wf.errorPolicy,
       dropped: [],

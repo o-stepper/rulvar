@@ -45,6 +45,14 @@ export type Spend = { usd: number; usage: Usage; agentsSpawned: number };
 export const DEFAULT_FLAT_RESERVE_USD = 0.5;
 
 /**
+ * How far a `ratesVerifiedAt` may sit in the future before strict
+ * pricing refuses it (RV1804): one day absorbs date-only strings
+ * authored ahead of UTC and ordinary clock skew, while a typo'd year
+ * (the hazard the clamp exists for) is months out and refuses.
+ */
+export const FUTURE_RATES_TOLERANCE_MS = 86_400_000;
+
+/**
  * The message prefix of an in-flight exposure refusal (RV711): the
  * single producer is reserveTurnExposure below, and the ctx layer's
  * uniform budget rethrow keys on it to carry the refusal through with
@@ -546,6 +554,19 @@ export class RunBudget {
             `(ratesVerifiedAt ${row.ratesVerifiedAt}, bound ${String(
               config.maxRatesAgeDays,
             )} days)`,
+        );
+      }
+      if (ageMs < -FUTURE_RATES_TOLERANCE_MS) {
+        // The future clamp (RV1804): a stale check alone accepts ANY
+        // future date (negative age passes every max-age bound), so a
+        // typo'd year would ride as eternally fresh. The tolerance
+        // absorbs date-only strings authored ahead of UTC and ordinary
+        // clock skew; beyond it the row cannot be evidence of a
+        // verification that already happened.
+        throw new ConfigError(
+          `strict pricing refused the dispatch: the price row for '${servedBy}' carries a ` +
+            `future ratesVerifiedAt (${row.ratesVerifiedAt}); a verification cannot postdate ` +
+            'the dispatch it vouches for',
         );
       }
     }

@@ -125,6 +125,16 @@ counted tokens (or the failure the flat reserve then covers). An explicit
 count entirely, which is the right posture for hosts whose privacy gates must
 run before any prompt byte reaches a provider.
 
+The probe is also a policy surface (RV1804). It is a provider request billed
+to no invoice row, so a host may forbid the control wire outright:
+`defaults.countTokens: 'deny'` engine-wide, or `countTokens` per profile (the
+profile wins). Under `deny` the probe never leaves the process and the flat
+reserve admits, exactly like an adapter without `countTokens`. Every probe
+outcome is a typed `control:wire` event (`controlKind: 'countTokens'`,
+outcome `ok` with the counted tokens, `failed`, or `denied`), so counting the
+non-billable control egress no longer means parsing log lines; the invoice
+stays model-dispatch truth alone.
+
 One case is deliberately NOT clamped away. When a PlanRunner `add_task` op
 declares an explicit `budgetUsd` and the resolved profile's `estCost` cannot
 fit it, the op is bounced at `plan_revise` time with the typed reason
@@ -300,7 +310,12 @@ defect: no row resolves, a rate is non-finite or negative, or a long-context
 tier is malformed. `maxRatesAgeDays` additionally demands a fresh
 `ratesVerifiedAt` on the row (absent, unparsable, or older than the bound
 refuses), because a stale price bounds the ceiling with yesterday's truth; the
-freshness bound binds only when declared. `allowUnpriced` lists the exact
+freshness bound binds only when declared. The same declared bound clamps the
+future (RV1804): a `ratesVerifiedAt` more than one day ahead of the engine
+clock refuses too, because a stale-only check reads any future date as
+eternally fresh, and the classic typo'd year would otherwise never age out.
+The one-day tolerance absorbs date-only strings authored ahead of UTC and
+ordinary clock skew. `allowUnpriced` lists the exact
 model refs the host KNOWS are free (a local model is honestly unpriced), the
 one explicit exception. Each model is vetted once per run, since the price
 table is fixed for the run's life. The posture is recorded in `RunMeta` at

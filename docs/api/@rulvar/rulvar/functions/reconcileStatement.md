@@ -19,7 +19,8 @@ Reconciles the invoice against a normalized provider export. Pure and
 journal-free; see the module doc for the contract. Throws a typed
 ConfigError on inputs that cannot be evidence: an empty statement (a
 headline total with no rows), a request row without a response id, a
-duplicate response id (an ambiguous join), a request export whose
+duplicate response id on either side (an ambiguous join, statement
+rows and local invoice rows alike, RV1804), a request export whose
 rows carry neither dollars, components, nor usage, any non-finite or
 negative dollar amount, any non-integer or negative token count, a
 non-finite or negative tolerance (RV903: a statement that cannot

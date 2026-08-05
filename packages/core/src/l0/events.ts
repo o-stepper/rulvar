@@ -345,6 +345,22 @@ export type AgentEvents =
     }
   | { type: 'agent:error'; agentType: string; label?: string; error: WireError; willRetry: boolean }
   | { type: 'agent:schema-retry'; agentType: string; attempt: number; maxAttempts: number }
+  /**
+   * Non-billable control egress (RV1804): a provider request that is
+   * not a model dispatch and lands in no invoice row, today exactly the
+   * admission countTokens probe (which carries the FULL child prompt).
+   * 'ok' names a counted probe, 'failed' a probe the provider refused
+   * (the flat reserve admits instead), 'denied' a probe the configured
+   * countTokens policy stopped before it left the process. Live
+   * telemetry only, never journaled.
+   */
+  | {
+      type: 'control:wire';
+      controlKind: 'countTokens';
+      model: string;
+      outcome: 'ok' | 'failed' | 'denied';
+      inputTokens?: number;
+    }
   /** Emitted only when the call opts into streaming; never journaled, never re-emitted. */
   | { type: 'agent:stream'; delta: string };
 

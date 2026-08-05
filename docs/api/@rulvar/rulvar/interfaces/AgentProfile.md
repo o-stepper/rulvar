@@ -18,6 +18,7 @@ a prompt or a schema.
 | ------ | ------ | ------ | ------ |
 | <a id="property-compaction"></a> `compaction?` | \{ `threshold?`: `number`; \} | Per-profile compaction threshold; default 0.8 of the loop model's contextWindow (M4-T03). Compaction is ON by default; history-processor plumbing stays engine-internal. The threshold is a fraction in (0, 1], validated at createEngine. | `packages/core/dist/index.d.ts` |
 | `compaction.threshold?` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-counttokens"></a> `countTokens?` | `"allow"` \| `"deny"` | The admission countTokens policy for this profile (RV1804): the pre-admission count probe is full-prompt provider egress billed to no invoice row. 'deny' forbids it for spawns of this profile (the flat reserve admits instead); wins over the engine-wide `defaults.countTokens`. Default: the engine default, else 'allow'. | `packages/core/dist/index.d.ts` |
 | <a id="property-description"></a> `description?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-effort"></a> `effort?` | [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-escalation"></a> `escalation?` | [`EscalationOptions`](/api/@rulvar/rulvar/interfaces/EscalationOptions.md) | Flavor B opt-in lives here or on the call. | `packages/core/dist/index.d.ts` |
