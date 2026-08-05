@@ -10,6 +10,6 @@
 const DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS: 5 = 5;
 ```
 
-Defined in: [packages/anthropic/src/adapter.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L31)
+Defined in: [packages/anthropic/src/adapter.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L32)
 
 pause_turn continuation cap.

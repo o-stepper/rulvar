@@ -10,7 +10,7 @@
 type AnthropicSdkOptions = Omit<AnthropicClientOptions, "maxRetries">;
 ```
 
-Defined in: [packages/anthropic/src/adapter.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L61)
+Defined in: [packages/anthropic/src/adapter.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L62)
 
 Official SDK construction options forwarded verbatim to
 `new Anthropic(...)`, minus `maxRetries`: Rulvar owns retries and
