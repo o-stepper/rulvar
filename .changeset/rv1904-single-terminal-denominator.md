@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+One terminal denominator (RV1904). The four-role benchmark's recovery run reported four mutually inconsistent cost views because the settle raced the roster: RV1903 barriered orchestrations, and this train closes the remaining lanes. The engine's settle drain terminates every live agent invocation of a PLAIN workflow (an un-awaited `ctx.agent` a body returned over) to a journaled terminal before `run_settle` exists. The journal's billing lanes seal after the durable settle: a late append rejects with the typed `JournalSealedError` (`code 'journal_sealed'`), while the detached resolution lane stays open by contract, because resolutions answering a suspension or a parked approval are the documented post-settle appends. And the terminal grows the wire denominator: `CostReport.wireRequests` and `TerminalEnvelope.wireRequests` carry the per-dispatch ledger's provider request count, absorbed continuations included, equal to the invoice cardinality's `wireRequests` on ledger-covered runs by construction, so the terminal a consumer gates on and the invoice a finance pipeline folds finally agree on how many wires the run made.

@@ -2,13 +2,19 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / PlanInvariantError
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / JournalSealedError
 
-# Class: PlanInvariantError
+# Class: JournalSealedError
 
-Defined in: [packages/core/src/l0/errors.ts:200](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L200)
+Defined in: [packages/core/src/l0/errors.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L266)
 
-PlanRunner plan-invariant rejection (producers ship in M7).
+A journal append arrived after the run's settle sealed the segment
+(RV1904): once `run_settle` is durable, the journal is the terminal
+truth every cost and invoice fold reads, and a late append would
+silently split it into the four mutually inconsistent views the
+four-role benchmark recorded. The orchestrate exit barrier (RV1903)
+and the engine's settle drain terminate every straggler BEFORE the
+seal, so this error names a lifecycle bug, never a working path.
 
 ## Extends
 
@@ -19,10 +25,10 @@ PlanRunner plan-invariant rejection (producers ship in M7).
 ### Constructor
 
 ```ts
-new PlanInvariantError(message, opts?): PlanInvariantError;
+new JournalSealedError(message, opts?): JournalSealedError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:203](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L203)
+Defined in: [packages/core/src/l0/errors.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L269)
 
 #### Parameters
 
@@ -35,7 +41,7 @@ Defined in: [packages/core/src/l0/errors.ts:203](https://github.com/o-stepper/ru
 
 #### Returns
 
-`PlanInvariantError`
+`JournalSealedError`
 
 #### Overrides
 
@@ -45,7 +51,7 @@ Defined in: [packages/core/src/l0/errors.ts:203](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"plan_invariant"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L201) |
+| <a id="property-code"></a> `code` | `readonly` | `"journal_sealed"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:267](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L267) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
 | <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
 

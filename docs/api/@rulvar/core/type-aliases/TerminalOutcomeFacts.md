@@ -10,6 +10,7 @@
 type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, "status" | "error" | "completion"> & {
   cost: Pick<RunOutcome<unknown>["cost"], "totalUsd" | "grossUsd" | "byModel"> & {
      usageApprox?: boolean;
+     wireRequests?: number;
   };
   usage: RunOutcome<unknown>["usage"];
 };
@@ -23,5 +24,5 @@ The outcome facts the assembler reads; a structural subset of RunOutcome.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `cost` | `Pick`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"cost"`\], `"totalUsd"` \| `"grossUsd"` \| `"byModel"`\&gt; & \{ `usageApprox?`: `boolean`; \} | [packages/core/src/engine/terminal-envelope.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L32) |
+| `cost` | `Pick`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"cost"`\], `"totalUsd"` \| `"grossUsd"` \| `"byModel"`\&gt; & \{ `usageApprox?`: `boolean`; `wireRequests?`: `number`; \} | [packages/core/src/engine/terminal-envelope.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L32) |
 | `usage` | [`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"usage"`\] | [packages/core/src/engine/terminal-envelope.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L31) |

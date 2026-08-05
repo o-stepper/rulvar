@@ -20,7 +20,7 @@ type AgentError = {
 };
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:446](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L446)
+Defined in: [packages/core/src/l0/errors.ts:464](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L464)
 
 The structured error value carried on AgentResult.error and journaled
 inside the agent terminal entry. Deliberately NOT a RulvarError subclass.
@@ -33,7 +33,7 @@ inside the agent terminal entry. Deliberately NOT a RulvarError subclass.
 optional issues?: Issue[];
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:450](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L450)
+Defined in: [packages/core/src/l0/errors.ts:468](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L468)
 
 ***
 
@@ -49,7 +49,7 @@ kind:
   | "terminal";
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:447](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L447)
+Defined in: [packages/core/src/l0/errors.ts:465](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L465)
 
 ***
 
@@ -59,7 +59,7 @@ Defined in: [packages/core/src/l0/errors.ts:447](https://github.com/o-stepper/ru
 retryable: boolean;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:448](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L448)
+Defined in: [packages/core/src/l0/errors.ts:466](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L466)
 
 ***
 
@@ -69,4 +69,4 @@ Defined in: [packages/core/src/l0/errors.ts:448](https://github.com/o-stepper/ru
 optional retryAfterMs?: number;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:449](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L449)
+Defined in: [packages/core/src/l0/errors.ts:467](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L467)

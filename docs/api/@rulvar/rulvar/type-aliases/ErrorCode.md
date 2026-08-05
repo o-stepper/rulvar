@@ -27,7 +27,8 @@ type ErrorCode =
   | "knowledge_cas"
   | "determinism"
   | "settlement"
-  | "superseded";
+  | "superseded"
+  | "journal_sealed";
 ```
 
 Defined in: `packages/core/dist/index.d.ts`

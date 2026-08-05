@@ -133,7 +133,17 @@ export function costReportFromJournal(
   let reserveUsedUsd = 0;
   let wakes = 0;
   let forcedFinish = false;
+  let wireRequests = 0;
   for (const entry of entries) {
+    // The wire denominator (RV1904): every settled entry's dispatch
+    // records, abandoned included (those attempts hit the wire all the
+    // same), each record counting its absorbed continuations. Counted
+    // before the abandoned skip on purpose.
+    if (entry.status !== 'running') {
+      for (const record of entry.providerCalls ?? []) {
+        wireRequests += record.wireRequests ?? 1;
+      }
+    }
     // Orchestrator lifecycle facts ride non-usage entries and are
     // counted before the usage skips: the at-cap freeze decision and
     // the armed wake suspensions.
@@ -221,6 +231,7 @@ export function costReportFromJournal(
     basis: 'locally-estimated',
     totalUsd,
     grossUsd: totalUsd + abandonedUsd,
+    wireRequests,
     abandoned: {
       usd: abandonedUsd,
       unpriced: abandonedUnpriced,

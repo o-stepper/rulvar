@@ -8,7 +8,7 @@
  * Full contract: https://docs.rulvar.com/guide/journal; architecture
  * overview: https://docs.rulvar.com/guide/architecture.
  */
-import { ConfigError, JournalMissError } from '../l0/errors.js';
+import { ConfigError, JournalMissError, JournalSealedError } from '../l0/errors.js';
 import { realNow } from '../l0/real-clock.js';
 import type { WireError } from '../l0/errors.js';
 import {
@@ -209,6 +209,8 @@ export class Replayer {
   private readonly strict: boolean;
   private readonly invalidated = new Set<number>();
   private queue: Promise<unknown> = Promise.resolve();
+  /** True after the run's durable settle sealed the segment (RV1904). */
+  private sealedInternal = false;
   private seq = 0;
 
   constructor(options: {
@@ -451,6 +453,10 @@ export class Replayer {
 
   /** Single-phase fact entries: rand, decisions, termination facts. */
   appendSinglePhase(input: SinglePhaseAppend): Promise<JournalEntry> {
+    const sealed = this.sealedRejection<JournalEntry>();
+    if (sealed !== undefined) {
+      return sealed;
+    }
     const value =
       input.value === undefined
         ? undefined
@@ -483,6 +489,10 @@ export class Replayer {
   appendRunning(
     input: BaseAppend & { memoizeOutcome?: boolean; value?: unknown },
   ): Promise<JournalEntry> {
+    const sealed = this.sealedRejection<JournalEntry>();
+    if (sealed !== undefined) {
+      return sealed;
+    }
     const value =
       input.value === undefined
         ? undefined
@@ -507,6 +517,10 @@ export class Replayer {
    * the pair shares one ordinal because it is one logical operation).
    */
   appendTerminal(runningSeq: number, patch: TerminalPatch): Promise<JournalEntry> {
+    const sealed = this.sealedRejection<JournalEntry>();
+    if (sealed !== undefined) {
+      return sealed;
+    }
     const value =
       patch.value === undefined
         ? undefined
@@ -587,6 +601,10 @@ export class Replayer {
 
   /** Suspended kinds (external, approval): appended once, closed by ref-entries (M2). */
   appendSuspended(input: SuspendedAppend): Promise<JournalEntry> {
+    const sealed = this.sealedRejection<JournalEntry>();
+    if (sealed !== undefined) {
+      return sealed;
+    }
     const value =
       input.value === undefined
         ? undefined
@@ -679,6 +697,41 @@ export class Replayer {
       this.foldInternal.registerEntry(entry);
     }
     return entry;
+  }
+
+  /**
+   * Seals the journal after the run's durable settle (RV1904): every
+   * append funnel rejects typed from here on. The orchestrate exit
+   * barrier (RV1903) and the engine settle drain terminate every
+   * straggler BEFORE the seal, so a sealed append is a lifecycle bug
+   * surfacing loudly instead of the silent post-settle mutation that
+   * split the four-role benchmark's cost views. A resume constructs a
+   * fresh Replayer and appends normally.
+   */
+  seal(): void {
+    this.sealedInternal = true;
+  }
+
+  /**
+   * The sealed-lane guard (RV1904): the four lanes that can move money
+   * or roster facts refuse after the settle. The ref-entry lane
+   * (resolution/abandon) stays open on purpose: detached resolutions
+   * answering a suspension or a parked approval are the DOCUMENTED
+   * post-settle appends ("a later resolveExternal appends through the
+   * fold without waking"), and they carry decisions, never billing
+   * rows.
+   */
+  private sealedRejection<T>(): Promise<T> | undefined {
+    if (!this.sealedInternal) {
+      return undefined;
+    }
+    return Promise.reject(
+      new JournalSealedError(
+        `journal append refused: run '${this.runId}' is sealed by its run_settle decision; ` +
+          'nothing may append to a settled segment (resume the run to continue in a new segment)',
+        { data: { runId: this.runId } },
+      ),
+    );
   }
 
   private enqueue<T>(operation: () => Promise<T> | T): Promise<T> {

@@ -338,6 +338,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
   let refCounter = 0;
   const spans = new SpanRegistry();
   const internals: RunInternals = {
+    liveAgentCalls: new Set(),
     runId: 'test-run',
     replayer,
     budget,

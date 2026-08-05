@@ -66,6 +66,16 @@ export interface TerminalEnvelope {
   costBasis: 'locally-estimated';
   /** The per-model split of totalUsd, keyed by canonical ModelRef. */
   costByModel: Record<string, number>;
+  /**
+   * Provider wire requests recorded by the per-dispatch ledger
+   * (RV1904), the same journal-derived figure `CostReport.wireRequests`
+   * carries: on ledger-covered runs it equals the invoice cardinality,
+   * so the terminal a consumer gates on and the invoice a finance
+   * pipeline folds finally share one denominator. Absent when the
+   * producing fold did not count wires (a pre-RV1904 live accumulation
+   * a host fed into `buildCostReport`).
+   */
+  wireRequests?: number;
   /** The run's usage aggregate, TTL attribution included. */
   usage: Usage;
   /** True when any priced usage is approximate: totalUsd is a lower bound. */

@@ -6,7 +6,7 @@
 
 # Class: OrchestratorCapConfigError
 
-Defined in: [packages/core/src/l0/errors.ts:223](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L223)
+Defined in: [packages/core/src/l0/errors.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L224)
 
 Invalid orchestrator cap and finalize-reserve configuration, thrown
 before the first LLM call (DEF-7; producers ship in M6/M7).
@@ -23,7 +23,7 @@ before the first LLM call (DEF-7; producers ship in M6/M7).
 new OrchestratorCapConfigError(message, opts?): OrchestratorCapConfigError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L226)
+Defined in: [packages/core/src/l0/errors.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L227)
 
 #### Parameters
 
@@ -46,9 +46,9 @@ Defined in: [packages/core/src/l0/errors.ts:226](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"orchestrator_cap_config"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L224) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L60) |
+| <a id="property-code"></a> `code` | `readonly` | `"orchestrator_cap_config"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:225](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L225) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
 
 ## Methods
 
@@ -58,7 +58,7 @@ Defined in: [packages/core/src/l0/errors.ts:226](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L72)
+Defined in: [packages/core/src/l0/errors.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L73)
 
 #### Returns
 

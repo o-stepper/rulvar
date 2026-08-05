@@ -27,7 +27,8 @@ type ErrorCode =
   | "knowledge_cas"
   | "determinism"
   | "settlement"
-  | "superseded";
+  | "superseded"
+  | "journal_sealed";
 ```
 
 Defined in: [packages/core/src/l0/errors.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L28)

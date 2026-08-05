@@ -377,6 +377,28 @@ Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
+### seal()
+
+```ts
+seal(): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Seals the journal after the run's durable settle (RV1904): every
+append funnel rejects typed from here on. The orchestrate exit
+barrier (RV1903) and the engine settle drain terminate every
+straggler BEFORE the seal, so a sealed append is a lifecycle bug
+surfacing loudly instead of the silent post-settle mutation that
+split the four-role benchmark's cost views. A resume constructs a
+fresh Replayer and appends normally.
+
+#### Returns
+
+`void`
+
+***
+
 ### setAliasDisposition()
 
 ```ts

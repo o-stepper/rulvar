@@ -1410,6 +1410,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       replayer,
       budget,
       admission,
+      liveAgentCalls: new Set(),
       semaphore: new Semaphore(options.concurrency?.perRun ?? DEFAULT_PER_RUN_CONCURRENCY),
       providerLimiter,
       ...(quotaRuntime === undefined ? {} : { quota: quotaRuntime }),
@@ -1799,6 +1800,21 @@ export function createEngine(options: CreateEngineOptions): Engine {
         if (deadlineTimer !== undefined) {
           deadlineTimer.cancel();
         }
+        // The settle drain (RV1904): a workflow body that returned (or
+        // threw) over un-awaited ctx.agent calls must not strand
+        // children writing journal entries past run_settle, the
+        // four-role benchmark's recovery shape. The status and value
+        // above are already fixed; the drain aborts the stragglers
+        // through the run signal and awaits their journaled terminals,
+        // so the fold below reads a roster that can no longer move.
+        // Suspended runs skip it: quiescence means every branch is
+        // parked on an external, with no live dispatch to drain.
+        if (status !== 'suspended' && internals.liveAgentCalls.size > 0) {
+          if (!controller.signal.aborted) {
+            controller.abort('rulvar:settle-drain');
+          }
+          await Promise.allSettled([...internals.liveAgentCalls]);
+        }
         // Every settle closes the segment (idempotent): waiters a body
         // raced away from must never wake after the outcome is out.
         external.close();
@@ -1988,6 +2004,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
       }
       if (settlementFailure === undefined && supersededBy === undefined) {
+        // The journal seal (RV1904): the settle decision is durable, so
+        // from here every journal append rejects typed instead of
+        // silently splitting the settled fold, the four-role
+        // benchmark's exact post-settle mutation. The drain above
+        // guarantees nothing legitimate is still writing.
+        replayer.seal();
         try {
           await putMeta(status);
         } catch (metaErr) {

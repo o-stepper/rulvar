@@ -6,7 +6,7 @@
 
 # Class: ScriptRejected
 
-Defined in: [packages/core/src/l0/errors.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L115)
+Defined in: [packages/core/src/l0/errors.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L116)
 
 compileScript rejected planner-generated source. Never journaled as its
 own entry; surfaced as diagnostics to the plan() self-repair loop
@@ -24,7 +24,7 @@ own entry; surfaced as diagnostics to the plan() self-repair loop
 new ScriptRejected(message, opts?): ScriptRejected;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L118)
+Defined in: [packages/core/src/l0/errors.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L119)
 
 #### Parameters
 
@@ -47,9 +47,9 @@ Defined in: [packages/core/src/l0/errors.ts:118](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"script_rejected"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L116) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L60) |
+| <a id="property-code"></a> `code` | `readonly` | `"script_rejected"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L117) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
 
 ## Methods
 
@@ -59,7 +59,7 @@ Defined in: [packages/core/src/l0/errors.ts:118](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L72)
+Defined in: [packages/core/src/l0/errors.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L73)
 
 #### Returns
 

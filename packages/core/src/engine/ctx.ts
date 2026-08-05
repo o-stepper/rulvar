@@ -749,6 +749,17 @@ export interface RunInternals {
   semaphore: Semaphore;
   events: RunEventSink;
   spans: SpanMinter;
+  /**
+   * Every live agent invocation of this run, registered by the ctx
+   * wrapper the moment agentImpl is entered and removed when it
+   * settles (terminal append included), so the engine's settle drain
+   * (RV1904) can await the stragglers a workflow body returned over.
+   * The four-role benchmark's recovery run kept appending child
+   * terminals after run_settle; orchestrations barrier their own
+   * roster (RV1903), and this registry closes the same hole for plain
+   * workflows with un-awaited ctx.agent calls.
+   */
+  liveAgentCalls: Set<Promise<unknown>>;
   /** The run root span; every top-level span parents on it. */
   rootSpanId: string;
   transcripts: TranscriptStore;
@@ -979,7 +990,35 @@ export function createCtx(
     return value;
   }
 
-  async function agentImpl<S extends SchemaSpec>(
+  /**
+   * The tracked entry (RV1904): every invocation registers in
+   * internals.liveAgentCalls for the engine's settle drain, so a
+   * workflow body that returns over an un-awaited ctx.agent call can
+   * no longer strand a child writing journal entries past run_settle.
+   * The fallback recursion re-enters through this wrapper and simply
+   * nests; the registration covers the whole inner invocation,
+   * terminal append included, because the inner promise settles only
+   * after it.
+   */
+  function agentImpl<S extends SchemaSpec>(
+    prompt: string,
+    opts: AgentOpts<S> = {},
+  ): Promise<unknown> {
+    const invocation = agentImplInner<S>(prompt, opts);
+    internals.liveAgentCalls.add(invocation);
+    const unregister = (): void => {
+      internals.liveAgentCalls.delete(invocation);
+    };
+    // A pure subscriber pair, never an awaiting wrapper: the caller
+    // keeps the inner promise ITSELF, so no extra microtask hop can
+    // reorder concurrent journal appends against the frozen cassette
+    // catalog (an awaiting wrapper adds a second resolution wave, and
+    // unrelated continuations interleave between the waves).
+    invocation.then(unregister, unregister);
+    return invocation;
+  }
+
+  async function agentImplInner<S extends SchemaSpec>(
     prompt: string,
     opts: AgentOpts<S> = {},
   ): Promise<unknown> {
