@@ -2774,6 +2774,24 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'authority-hash-risk-field',
+    doctrine:
+      'the tool authority record carries risk (RV1802): a risk flip from read to write is exactly the drift that changes what the ask rules will do while never moving the contract hash, so dropping risk from the projection lets a write tool ride a read pin',
+    file: 'packages/core/src/tools/toolset-hash.ts',
+    find: '  if (def.risk !== undefined) {\n    record.risk = def.risk;\n  }',
+    replace: '  void def.risk;',
+    test: 'packages/core/src/tools/toolset-hash.test.ts',
+  },
+  {
+    id: 'authority-hash-needs-approval',
+    doctrine:
+      'the tool authority record carries needsApproval (RV1802): a dropped approval gate under an unchanged contract is an ungated effect the attestation exists to refuse, so the projection must move when the gate moves',
+    file: 'packages/core/src/tools/toolset-hash.ts',
+    find: '    needsApproval: def.needsApproval,',
+    replace: '    needsApproval: false,',
+    test: 'packages/core/src/tools/toolset-hash.test.ts',
+  },
+  {
     id: 'decision-chain-abandon-authorizedby',
     doctrine:
       'the decision chain reads the canonical entry.abandon payload first (RV1801): authorizedBy is the seq of the entry that sanctioned the abandon, and losing it turns an authorized teardown into an unexplained one on every live journal',

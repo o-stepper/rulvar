@@ -46,7 +46,8 @@ export interface ToolContext {
  * non-inprocess tag routes dispatch through the engine's registered
  * ToolExecutorProvider (RV-216) instead, so the tool's work runs out of
  * process under host-owned isolation; the shipped reference adapters live
- * in `@rulvar/executor`. The tag never enters toolsetHash.
+ * in `@rulvar/executor`. The tag never enters toolsetHash; it enters the
+ * authority attestation instead (RV1802).
  */
 export type ToolExecutor = 'inprocess' | 'subprocess' | 'container';
 
@@ -70,7 +71,8 @@ export interface ToolDef<S extends SchemaSpec = SchemaSpec> {
    * declared executor should run (for a subprocess adapter, the command
    * and its argv). Never identity: excluded from toolsetHash exactly like
    * `executor` and `risk`, and ignored for 'inprocess'. The engine passes
-   * it verbatim to the ToolExecutorProvider (RV-216).
+   * it verbatim to the ToolExecutorProvider (RV-216). Its JCS digest
+   * enters the authority attestation (RV1802).
    */
   readonly executorSpec?: Json;
   /** Default false; the terminal permission default asks when true. */

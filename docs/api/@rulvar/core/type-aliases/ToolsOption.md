@@ -13,6 +13,6 @@ type ToolsOption = ReadonlyArray<
 | string>;
 ```
 
-Defined in: [packages/core/src/tools/toolset-hash.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L23)
+Defined in: [packages/core/src/tools/toolset-hash.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L26)
 
 The per-spawn tools option value domain.

@@ -10,7 +10,7 @@
 function attestToolset(resolved): ToolsetAttestation;
 ```
 
-Defined in: [packages/core/src/tools/toolset-hash.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L55)
+Defined in: [packages/core/src/tools/toolset-hash.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L141)
 
 Records the attestation of a resolution: the pin a profile declares.
 

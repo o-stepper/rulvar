@@ -1679,6 +1679,10 @@
             "link": "/api/@rulvar/core/interfaces/TerminationLimits.md"
           },
           {
+            "text": "ToolAuthority",
+            "link": "/api/@rulvar/core/interfaces/ToolAuthority.md"
+          },
+          {
             "text": "ToolBudgetSummary",
             "link": "/api/@rulvar/core/interfaces/ToolBudgetSummary.md"
           },
@@ -2541,6 +2545,10 @@
           {
             "text": "EMIT_RESULT_TOOL",
             "link": "/api/@rulvar/core/variables/EMIT_RESULT_TOOL.md"
+          },
+          {
+            "text": "EMPTY_AUTHORITY_HASH",
+            "link": "/api/@rulvar/core/variables/EMPTY_AUTHORITY_HASH.md"
           },
           {
             "text": "EMPTY_SCHEMA_HASH",
@@ -3621,12 +3629,20 @@
             "link": "/api/@rulvar/core/functions/tool.md"
           },
           {
+            "text": "toolAuthority",
+            "link": "/api/@rulvar/core/functions/toolAuthority.md"
+          },
+          {
             "text": "toolContract",
             "link": "/api/@rulvar/core/functions/toolContract.md"
           },
           {
             "text": "toolContractHash",
             "link": "/api/@rulvar/core/functions/toolContractHash.md"
+          },
+          {
+            "text": "toolsetAuthorityHash",
+            "link": "/api/@rulvar/core/functions/toolsetAuthorityHash.md"
           },
           {
             "text": "toolsetHash",
@@ -6585,6 +6601,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/TerminationLimits.md"
           },
           {
+            "text": "ToolAuthority",
+            "link": "/api/@rulvar/rulvar/interfaces/ToolAuthority.md"
+          },
+          {
             "text": "ToolBudgetSummary",
             "link": "/api/@rulvar/rulvar/interfaces/ToolBudgetSummary.md"
           },
@@ -7459,6 +7479,10 @@
           {
             "text": "EMIT_RESULT_TOOL",
             "link": "/api/@rulvar/rulvar/variables/EMIT_RESULT_TOOL.md"
+          },
+          {
+            "text": "EMPTY_AUTHORITY_HASH",
+            "link": "/api/@rulvar/rulvar/variables/EMPTY_AUTHORITY_HASH.md"
           },
           {
             "text": "EMPTY_SCHEMA_HASH",
@@ -8563,12 +8587,20 @@
             "link": "/api/@rulvar/rulvar/functions/tool.md"
           },
           {
+            "text": "toolAuthority",
+            "link": "/api/@rulvar/rulvar/functions/toolAuthority.md"
+          },
+          {
             "text": "toolContract",
             "link": "/api/@rulvar/rulvar/functions/toolContract.md"
           },
           {
             "text": "toolContractHash",
             "link": "/api/@rulvar/rulvar/functions/toolContractHash.md"
+          },
+          {
+            "text": "toolsetAuthorityHash",
+            "link": "/api/@rulvar/rulvar/functions/toolsetAuthorityHash.md"
           },
           {
             "text": "toolsetHash",

@@ -10,7 +10,7 @@
 function validateToolsetAttestation(attestation, path): void;
 ```
 
-Defined in: [packages/core/src/tools/toolset-hash.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L66)
+Defined in: [packages/core/src/tools/toolset-hash.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L157)
 
 Validates a declared attestation's shape (typed at createEngine).
 
