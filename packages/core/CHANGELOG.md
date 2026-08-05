@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.183.0
+
+### Minor Changes
+
+- dd3767c: The decision chain reads the canonical payloads the engine journals (RV1801). The fold shipped in RV1705 read a resolution's `by`/`target`/`decisionRef` and an abandon's `target`/`authorizedBy` from `entry.value`, but the engine writes those facts in the canonical `entry.resolution` and `entry.abandon` payloads with no entry value at all, so on a live journal the reconstructed authority record lost who resolved, what sanctioned an abandon, and the decision value itself; the fields survived only on hand-authored journals that carried them in `value`. `reduceDecisionChain` now reads the canonical payloads first and keeps the value-carried forms as the fallback, a resolution row's `value` is the decision the ask was resolved WITH when the entry itself carries none, and the operational host acceptance test pins fold-to-journal parity on a live engine run: every canonical field the engine journaled (the external `by`, the referenced ask, the allow, and the deny with its reason) is exactly what the chain row reports.
+
 ## 1.182.0
 
 ### Minor Changes
