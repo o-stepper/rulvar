@@ -145,6 +145,14 @@ export interface PreflightOrchestratorSpec {
     childPolicy?: 'all-ok' | { minSuccessful: number };
     acceptPartialChildren?: boolean;
     acceptValidatedTerminalOutputOnLimit?: boolean;
+    /**
+     * Mirrors OrchestrateAcceptance.minSpawnedChildren (RV1901, the
+     * four-role benchmark's primary defect): declaring it lets the
+     * admission projection judge whether the declared wave can seat
+     * the roster the acceptance policy demands, instead of green-
+     * lighting a wave the settle verdict is bound to reject.
+     */
+    minSpawnedChildren?: number;
   };
   /**
    * The separate synthesis invocation (RV-211), when the orchestration
@@ -320,6 +328,15 @@ export interface PreflightAdmissionRow {
   reserveUsd: number;
   admitted: boolean;
   deniedBy?: 'budget' | 'spawn-cap' | 'orchestrator-max-spawns';
+  /**
+   * The run-root money already held when this row was evaluated:
+   * committed reserves of the earlier rows plus the finalization and
+   * synthesis carve-outs (RV1901). The row admits iff held + reserveUsd
+   * fits the ceiling (children strictly below it at exact fill), so a
+   * denied row's arithmetic is auditable term by term. Present only
+   * under a USD ceiling.
+   */
+  heldAtEvaluationUsd?: number;
 }
 
 /** The machine-readable preflight report; JSON-serializable throughout. */
@@ -359,6 +376,15 @@ export interface PreflightReport {
   admission: {
     ceilingUsd?: number;
     reservedForFinalizationUsd: number;
+    /**
+     * The synthesis payload carve-out the projection holds against the
+     * run root, exactly the live commitSynthesisReserve mirror (RV1901):
+     * a capped orchestrator with budget.synthesisReserveUsd registers it
+     * on the root before any spawn admits, so the wave arithmetic must
+     * hold it too. Zero when the orchestrator is uncapped or declares no
+     * synthesis reserve, matching the runtime that then commits none.
+     */
+    synthesisReserveUsd: number;
     wave: PreflightAdmissionRow[];
     admitted: number;
     denied: number;
@@ -695,12 +721,27 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     input.orchestrator?.synthesis === undefined ? finishRepairReserve : 0;
   let orchestratorEcho: NonNullable<PreflightReport['budget']['orchestrator']> | undefined;
   let reservedForFinalizationUsd = 0;
+  // The synthesis payload hold the WAVE arithmetic must carry (RV1901):
+  // the runtime registers commitSynthesisReserve on the run root the
+  // moment a capped orchestrator account opens, strictly before any
+  // spawn admission, and both live gates (refuseSpawnIfInfeasible and
+  // remainderOf) count it. The projection used to net it out of the
+  // orchestrator's own reserve row and then FORGET the root-level hold,
+  // so the four-role benchmark's wave read 5/5 green while the live
+  // gate refused the third child.
+  let synthesisHoldUsd = 0;
   let effectiveCapUsd: number | undefined;
   if (input.orchestrator !== undefined) {
     if (input.orchestrator.estInputTokens !== undefined) {
       requireNonNegativeInteger(
         input.orchestrator.estInputTokens,
         'preflight.orchestrator.estInputTokens',
+      );
+    }
+    if (input.orchestrator.acceptance?.minSpawnedChildren !== undefined) {
+      requirePositiveInteger(
+        input.orchestrator.acceptance.minSpawnedChildren,
+        'preflight.orchestrator.acceptance.minSpawnedChildren',
       );
     }
     const spec = input.orchestrator.budget;
@@ -715,6 +756,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     const reserveCommitted = input.orchestrator.extension === true;
     if (reserveCommitted) {
       reservedForFinalizationUsd = finalizeReserveUsd;
+    }
+    if (effectiveCapUsd !== undefined) {
+      // Only a CAPPED orchestrator commits the synthesis reserve live
+      // (both orchestrate cap paths call commitSynthesisReserve right
+      // after openAccount); an uncapped one registers nothing, so the
+      // mirror holds nothing.
+      synthesisHoldUsd = Math.max(0, spec?.synthesisReserveUsd ?? 0);
     }
     const echoLimits = mergeUsageLimits(input.orchestrator.limits, undefined, defaults.limits);
     orchestratorEcho = {
@@ -1594,6 +1642,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   let committed = 0;
   let spawned = 0;
   let children = 0;
+  let childrenDeniedByBudget = 0;
   // `strictAtFill` mirrors the one certainty a static projection has
   // about an orchestrate wave (the sixth comparison experiment, cycle
   // 76): the coordination turn that issues the spawn tools is PAID
@@ -1604,11 +1653,16 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   // that promise: the projection said 5 of 5, the live gate rejected
   // with reason budget). The orchestrator's OWN row keeps the exact
   // fill admission: it admits at run start, before any spend exists.
+  // The one held total BOTH wave gates and the report rows read: the
+  // live mirror is spent (zero at projection time) + committedReserveUsd
+  // + finalizeReserveUsd + synthesisReserveUsd, exactly the terms of
+  // refuseSpawnIfInfeasible and remainderOf (RV1901).
+  const heldAgainstRoot = (): number => committed + reservedForFinalizationUsd + synthesisHoldUsd;
   const admitAgainstRoot = (reserveUsd: number, strictAtFill = false): boolean => {
     if (ceilingUsd === undefined) {
       return true;
     }
-    const held = committed + reservedForFinalizationUsd;
+    const held = heldAgainstRoot();
     if (held >= ceilingUsd) {
       return false;
     }
@@ -1631,6 +1685,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       reserveUsd,
       admitted: deniedBy === undefined,
       ...(deniedBy === undefined ? {} : { deniedBy }),
+      ...(ceilingUsd === undefined ? {} : { heldAtEvaluationUsd: heldAgainstRoot() }),
     });
     if (deniedBy === undefined) {
       committed += reserveUsd;
@@ -1661,7 +1716,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           // certain live rejection. The gate never sees the priced
           // estimate, so a wave the layer-1 chain would afford can
           // still die here, exactly like the runtime.
-          const remainder = ceilingUsd - committed - reservedForFinalizationUsd;
+          const remainder = ceilingUsd - heldAgainstRoot();
           const projection = dispatchProjectionReserveUsd(gate, flatReserveUsd);
           if (remainder <= 0 || remainder <= projection) {
             deniedBy = 'budget';
@@ -1676,11 +1731,14 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         reserveUsd,
         admitted: deniedBy === undefined,
         ...(deniedBy === undefined ? {} : { deniedBy }),
+        ...(ceilingUsd === undefined ? {} : { heldAtEvaluationUsd: heldAgainstRoot() }),
       });
       if (deniedBy === undefined) {
         committed += reserveUsd;
         spawned += 1;
         children += 1;
+      } else if (deniedBy === 'budget') {
+        childrenDeniedByBudget += 1;
       }
     }
   }
@@ -1703,6 +1761,36 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         message:
           `the declared wave admits ${String(admitted)} of ${String(wave.length)} spawns; ` +
           `denied before any work: ${deniedLabels.join(', ')}`,
+      });
+    }
+  }
+  // The roster floor cross-check (RV1901): with the acceptance policy
+  // demanding N spawned (or N successful) children, a wave whose BUDGET
+  // seats fewer is a projected settle rejection; the run would pay for
+  // the seated work and still reject. Judged only when the acceptance
+  // slice is declared AND the shortage is the budget's doing; a wave
+  // that merely declares fewer children than the floor stays silent,
+  // because the orchestrator may spawn undeclared children live.
+  {
+    const acceptance = input.orchestrator?.acceptance;
+    const minSuccessfulFloor =
+      acceptance?.childPolicy !== undefined && acceptance.childPolicy !== 'all-ok'
+        ? acceptance.childPolicy.minSuccessful
+        : undefined;
+    const rosterFloor = Math.max(acceptance?.minSpawnedChildren ?? 0, minSuccessfulFloor ?? 0);
+    if (rosterFloor > 0 && children < rosterFloor && childrenDeniedByBudget > 0) {
+      const demandedBy =
+        (acceptance?.minSpawnedChildren ?? 0) >= (minSuccessfulFloor ?? 0)
+          ? 'acceptance.minSpawnedChildren'
+          : 'acceptance.childPolicy.minSuccessful';
+      say({
+        severity: 'error',
+        code: 'admission-below-roster-floor',
+        message:
+          `the declared wave seats ${String(children)} of the ${String(rosterFloor)} children ` +
+          `${demandedBy} demands (${String(childrenDeniedByBudget)} denied by budget): the run ` +
+          `would pay for the seated work and still settle rejected; re-admission after a child ` +
+          `settles frees money only when its settled spend stays below the released reserve`,
       });
     }
   }
@@ -2092,6 +2180,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     admission: {
       ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
       reservedForFinalizationUsd,
+      synthesisReserveUsd: synthesisHoldUsd,
       wave,
       admitted,
       denied,

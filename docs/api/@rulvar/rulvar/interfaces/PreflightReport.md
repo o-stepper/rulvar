@@ -14,11 +14,12 @@ The machine-readable preflight report; JSON-serializable throughout.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-admission"></a> `admission` | \{ `admitted`: `number`; `ceilingUsd?`: `number`; `denied`: `number`; `reservedForFinalizationUsd`: `number`; `wave`: [`PreflightAdmissionRow`](/api/@rulvar/rulvar/interfaces/PreflightAdmissionRow.md)[]; \} | - | `packages/core/dist/index.d.ts` |
+| <a id="property-admission"></a> `admission` | \{ `admitted`: `number`; `ceilingUsd?`: `number`; `denied`: `number`; `reservedForFinalizationUsd`: `number`; `synthesisReserveUsd`: `number`; `wave`: [`PreflightAdmissionRow`](/api/@rulvar/rulvar/interfaces/PreflightAdmissionRow.md)[]; \} | - | `packages/core/dist/index.d.ts` |
 | `admission.admitted` | `number` | - | `packages/core/dist/index.d.ts` |
 | `admission.ceilingUsd?` | `number` | - | `packages/core/dist/index.d.ts` |
 | `admission.denied` | `number` | - | `packages/core/dist/index.d.ts` |
 | `admission.reservedForFinalizationUsd` | `number` | - | `packages/core/dist/index.d.ts` |
+| `admission.synthesisReserveUsd` | `number` | The synthesis payload carve-out the projection holds against the run root, exactly the live commitSynthesisReserve mirror (RV1901): a capped orchestrator with budget.synthesisReserveUsd registers it on the root before any spawn admits, so the wave arithmetic must hold it too. Zero when the orchestrator is uncapped or declares no synthesis reserve, matching the runtime that then commits none. | `packages/core/dist/index.d.ts` |
 | `admission.wave` | [`PreflightAdmissionRow`](/api/@rulvar/rulvar/interfaces/PreflightAdmissionRow.md)[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-budget"></a> `budget` | \{ `ceilingUsd?`: `number`; `childBudgetFraction`: `number`; `flatReserveUsd`: `number`; `lifetimeSpawnCap`: `number`; `maxDepth`: `number`; `orchestrator?`: \{ `effectiveCapUsd?`: `number`; `finalizeReserveUsd`: `number`; `finalizeTurns`: `number`; `projectedProviderTurns`: `number`; `reserveCommitted`: `boolean`; `synthesis?`: \{ `projectedProviderTurns`: `number`; `servedBy?`: `` `${string}:${string}` ``; \}; \}; \} | - | `packages/core/dist/index.d.ts` |
 | `budget.ceilingUsd?` | `number` | - | `packages/core/dist/index.d.ts` |

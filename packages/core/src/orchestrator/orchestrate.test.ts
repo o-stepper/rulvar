@@ -3675,6 +3675,130 @@ describe('exact fill parity between the projection and the live gate (RV307, jud
   });
 });
 
+describe('the synthesis hold parity between projection and live gate (RV1901)', () => {
+  // The four-role benchmark's primary arm, dollar for dollar: $6.00
+  // ceiling, $4.50 orchestrator cap, $1.00 synthesis reserve, four
+  // workers at estCost $0.62. The live gate held the synthesis carve-out
+  // at the root and refused the third worker; the projection read 5/5
+  // green because its wave arithmetic dropped the hold. Both layers must
+  // now promise the same two seats.
+  const BENCH_PROFILES = {
+    product: { description: 'the product auditor', estCost: 0.62 },
+    finops: { description: 'the finops reviewer', estCost: 0.62 },
+    durability: { description: 'the durability reviewer', estCost: 0.62 },
+    adversarial: { description: 'the adversarial judge', estCost: 0.62 },
+  };
+
+  it('the live gate seats exactly the two children the projection promises', async () => {
+    // The admitted children must STAY in flight through the whole batch
+    // (the benchmark's workers ran for minutes): a gate holds their
+    // streams until the batch settles, or instant scripted children
+    // would release their reserves between admissions and dissolve the
+    // very pressure under test.
+    let releaseChildren: () => void = () => {};
+    const childrenGate = new Promise<void>((resolve) => {
+      releaseChildren = resolve;
+    });
+    let orchTurn = 0;
+    const inner = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'reviewed' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: {
+            name: 'parallel_agents',
+            args: {
+              tasks: [
+                { agentType: 'product', prompt: 'audit the product surface' },
+                { agentType: 'finops', prompt: 'audit providers and finops' },
+                { agentType: 'durability', prompt: 'audit durability and operations' },
+                { agentType: 'adversarial', prompt: 'attack the strong claims' },
+              ],
+            },
+          },
+        };
+      }
+      if (orchTurn === 2) {
+        releaseChildren();
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'partial roster' } } };
+    });
+    const adapter: typeof inner = {
+      ...inner,
+      async *stream(req, signal) {
+        if (agentTypeOf(req) !== '') {
+          await childrenGate;
+        }
+        yield* inner.stream(req, signal);
+      },
+    };
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+      profiles: BENCH_PROFILES,
+      budgetUsd: 6,
+    });
+    const wf = makeOrchestratorWorkflow('the four-role dossier', {
+      budget: { capUsd: 4.5, capFraction: 1.0, synthesisReserveUsd: 1.0 },
+      synthesis: { limits: { maxTurns: 2 } },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('partial roster');
+    const verdicts = admissionEntries(await store.load('test-run')).map((entry) => {
+      const value = entry.value as {
+        spec?: { agentType?: string };
+        decision: { verdict: { kind: string; reason?: { code?: string } } };
+      };
+      return {
+        agentType: value.spec?.agentType,
+        kind: value.decision.verdict.kind,
+        ...(value.decision.verdict.reason?.code === undefined
+          ? {}
+          : { code: value.decision.verdict.reason.code }),
+      };
+    });
+    // Fail-fast batch semantics (RV805): the third task dies with reason
+    // budget and the fourth is never attempted.
+    expect(verdicts).toEqual([
+      { agentType: 'product', kind: 'admit' },
+      { agentType: 'finops', kind: 'admit' },
+      { agentType: 'durability', kind: 'reject', code: 'budget' },
+    ]);
+
+    const { preflightEstimate } = await import('../engine/preflight.js');
+    const report = preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: {
+          routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+          profiles: BENCH_PROFILES,
+        },
+      },
+      run: { budgetUsd: 6 },
+      orchestrator: {
+        budget: { capUsd: 4.5, capFraction: 1.0, synthesisReserveUsd: 1.0 },
+        synthesis: { limits: { maxTurns: 2 } },
+      },
+      spawns: Object.keys(BENCH_PROFILES).map((label) => ({
+        label,
+        profile: label,
+        estCost: 0.62,
+      })),
+    });
+    expect(report.admission.synthesisReserveUsd).toBe(1.0);
+    expect(report.admission.wave.map((row) => [row.label, row.admitted])).toEqual([
+      ['orchestrator', true],
+      ['product', true],
+      ['finops', true],
+      ['durability', false],
+      ['adversarial', false],
+    ]);
+  });
+});
+
 describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
   const SECTIONED = '## Findings\nEverything the contract demands.';
   const SECTIONLESS = 'a schema-valid candidate without the required section';

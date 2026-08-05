@@ -12553,6 +12553,14 @@ interface PreflightOrchestratorSpec {
     };
     acceptPartialChildren?: boolean;
     acceptValidatedTerminalOutputOnLimit?: boolean;
+    /**
+    * Mirrors OrchestrateAcceptance.minSpawnedChildren (RV1901, the
+    * four-role benchmark's primary defect): declaring it lets the
+    * admission projection judge whether the declared wave can seat
+    * the roster the acceptance policy demands, instead of green-
+    * lighting a wave the settle verdict is bound to reject.
+    */
+    minSpawnedChildren?: number;
   };
   /**
   * The separate synthesis invocation (RV-211), when the orchestration
@@ -12714,6 +12722,15 @@ interface PreflightAdmissionRow {
   reserveUsd: number;
   admitted: boolean;
   deniedBy?: "budget" | "spawn-cap" | "orchestrator-max-spawns";
+  /**
+  * The run-root money already held when this row was evaluated:
+  * committed reserves of the earlier rows plus the finalization and
+  * synthesis carve-outs (RV1901). The row admits iff held + reserveUsd
+  * fits the ceiling (children strictly below it at exact fill), so a
+  * denied row's arithmetic is auditable term by term. Present only
+  * under a USD ceiling.
+  */
+  heldAtEvaluationUsd?: number;
 }
 /** The machine-readable preflight report; JSON-serializable throughout. */
 interface PreflightReport {
@@ -12756,6 +12773,15 @@ interface PreflightReport {
   admission: {
     ceilingUsd?: number;
     reservedForFinalizationUsd: number;
+    /**
+    * The synthesis payload carve-out the projection holds against the
+    * run root, exactly the live commitSynthesisReserve mirror (RV1901):
+    * a capped orchestrator with budget.synthesisReserveUsd registers it
+    * on the root before any spawn admits, so the wave arithmetic must
+    * hold it too. Zero when the orchestrator is uncapped or declares no
+    * synthesis reserve, matching the runtime that then commits none.
+    */
+    synthesisReserveUsd: number;
     wave: PreflightAdmissionRow[];
     admitted: number;
     denied: number;

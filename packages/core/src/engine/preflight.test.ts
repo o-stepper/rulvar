@@ -1543,6 +1543,139 @@ describe('the synthesis reserve finding (the sixth comparison experiment, cycle 
   });
 });
 
+describe('the synthesis hold in the admission wave (RV1901, the four-role benchmark)', () => {
+  // The exact primary-arm shape of the 2026-08-05 benchmark: $6.00
+  // ceiling, an explicit $4.50 orchestrator cap, a $1.00 synthesis
+  // reserve and four workers declaring estCost $0.62. The projection
+  // used to net the synthesis reserve out of the orchestrator's own
+  // row ($3.50) and then hold NOTHING for it at the root, reading
+  // 5/5 green; the live gate held it and refused the third child at
+  // $0.0737 spent + $4.74 committed + $1.00 synthesis + $0.62
+  // proposed = $6.43 > $6.00.
+  const WORKERS = ['product', 'finops', 'durability', 'adversarial'];
+  function benchmarkInput(options?: {
+    synthesisReserveUsd?: number;
+    acceptance?: {
+      childPolicy?: 'all-ok' | { minSuccessful: number };
+      minSpawnedChildren?: number;
+    };
+    budgetUsd?: number;
+    workers?: string[];
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED } },
+      },
+      run: { budgetUsd: options?.budgetUsd ?? 6 },
+      orchestrator: {
+        budget: {
+          capUsd: 4.5,
+          capFraction: 1.0,
+          ...(options?.synthesisReserveUsd === undefined
+            ? {}
+            : { synthesisReserveUsd: options.synthesisReserveUsd }),
+        },
+        ...(options?.acceptance === undefined ? {} : { acceptance: options.acceptance }),
+      },
+      spawns: (options?.workers ?? WORKERS).map((label) => ({ label, estCost: 0.62 })),
+    };
+  }
+
+  it('holds the synthesis reserve at the root and denies the third and fourth workers', () => {
+    const report = preflightEstimate(benchmarkInput({ synthesisReserveUsd: 1.0 }));
+    expect(report.admission.synthesisReserveUsd).toBe(1.0);
+    expect(report.admission.wave.map((row) => [row.label, row.admitted, row.deniedBy])).toEqual([
+      ['orchestrator', true, undefined],
+      ['product', true, undefined],
+      ['finops', true, undefined],
+      ['durability', false, 'budget'],
+      ['adversarial', false, 'budget'],
+    ]);
+    // The audit terms: the orchestrator row was evaluated against the
+    // synthesis hold alone; every later row adds the admitted reserves.
+    const held = report.admission.wave.map((row) => row.heldAtEvaluationUsd);
+    expect(held[0]).toBeCloseTo(1.0, 10);
+    expect(held[1]).toBeCloseTo(4.5, 10);
+    expect(held[2]).toBeCloseTo(5.12, 10);
+    expect(held[3]).toBeCloseTo(5.74, 10);
+    expect(held[4]).toBeCloseTo(5.74, 10);
+    expect(report.admission.wave[0]?.reserveUsd).toBeCloseTo(3.5, 10);
+    expect(report.findings.some((finding) => finding.code === 'partial-admission')).toBe(true);
+  });
+
+  it('without the declared reserve the cap money stays on the orchestrator row, same seats', () => {
+    // Conservation: netting plus hold always equals the cap, so the
+    // seat count cannot be gamed by moving money between the two.
+    const report = preflightEstimate(benchmarkInput());
+    expect(report.admission.synthesisReserveUsd).toBe(0);
+    expect(report.admission.wave[0]?.reserveUsd).toBeCloseTo(4.5, 10);
+    expect(report.admission.wave[0]?.heldAtEvaluationUsd).toBe(0);
+    expect(report.admission.wave.map((row) => row.admitted)).toEqual([
+      true,
+      true,
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  it('names the roster floor the budget cannot seat (admission-below-roster-floor)', () => {
+    const report = preflightEstimate(
+      benchmarkInput({ synthesisReserveUsd: 1.0, acceptance: { minSpawnedChildren: 4 } }),
+    );
+    const finding = report.findings.find((entry) => entry.code === 'admission-below-roster-floor');
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain('seats 2 of the 4 children');
+    expect(finding?.message).toContain('acceptance.minSpawnedChildren');
+    expect(finding?.message).toContain('2 denied by budget');
+  });
+
+  it('the childPolicy minSuccessful floor fires the same finding', () => {
+    const report = preflightEstimate(
+      benchmarkInput({
+        synthesisReserveUsd: 1.0,
+        acceptance: { childPolicy: { minSuccessful: 3 } },
+      }),
+    );
+    const finding = report.findings.find((entry) => entry.code === 'admission-below-roster-floor');
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain('seats 2 of the 3 children');
+    expect(finding?.message).toContain('acceptance.childPolicy.minSuccessful');
+  });
+
+  it('stays silent when the floor is met and when the shortage is declarative, not budget', () => {
+    // Floor met: two seats, floor of two.
+    const met = preflightEstimate(
+      benchmarkInput({ synthesisReserveUsd: 1.0, acceptance: { minSpawnedChildren: 2 } }),
+    );
+    expect(met.findings.some((entry) => entry.code === 'admission-below-roster-floor')).toBe(false);
+    // Declarative shortage: three declared workers all seat under a
+    // generous ceiling, the floor of four stays a declaration gap the
+    // orchestrator may still fill live with undeclared spawns.
+    const declarative = preflightEstimate(
+      benchmarkInput({
+        synthesisReserveUsd: 1.0,
+        acceptance: { minSpawnedChildren: 4 },
+        budgetUsd: 20,
+        workers: WORKERS.slice(0, 3),
+      }),
+    );
+    expect(declarative.admission.denied).toBe(0);
+    expect(
+      declarative.findings.some((entry) => entry.code === 'admission-below-roster-floor'),
+    ).toBe(false);
+  });
+
+  it('rejects a malformed minSpawnedChildren before projecting anything', () => {
+    expect(() =>
+      preflightEstimate(
+        benchmarkInput({ synthesisReserveUsd: 1.0, acceptance: { minSpawnedChildren: 0 } }),
+      ),
+    ).toThrow(/minSpawnedChildren/);
+  });
+});
+
 describe('the tool budget extension projection (RV301, the seventh comparison experiment)', () => {
   it('the projections assume the fully extended cap', () => {
     const adapter = scriptedAdapter(() => ({ text: 'unused' }));
