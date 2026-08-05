@@ -34,14 +34,22 @@ import type {
 } from '@rulvar/core';
 import { claimCoverageOf, pairDraftClaims, pairRunFactClaims } from '@rulvar/core';
 
-/** The failure classes the eighteenth benchmark shipped, plus the bound classes. */
+/**
+ * The failure classes the eighteenth benchmark shipped, plus the bound
+ * classes, plus the nineteenth benchmark's pair (RV1809):
+ * 'modality-overclaim' is a mitigation stated as an unconditional
+ * guarantee, and 'scope-ambiguity' is a child-only total printed as a
+ * whole-workflow figure.
+ */
 export type ClaimCorpusClass =
   | 'live-fact'
   | 'package-identity'
   | 'inverted-default'
   | 'numeric-range'
   | 'negation'
-  | 'bounded-coverage';
+  | 'bounded-coverage'
+  | 'modality-overclaim'
+  | 'scope-ambiguity';
 
 /** One adversarial case: a draft, its contradicting evidence, and the mechanical expectations. */
 export interface ClaimCorpusCase {
@@ -169,6 +177,50 @@ export const CLAIM_CORPUS: readonly ClaimCorpusCase[] = [
     ],
     max: 1,
     expect: { minPairs: 1, coverage: 'partial' },
+  },
+  {
+    id: 'modality-overclaim-attestation-stop',
+    class: 'modality-overclaim',
+    draft:
+      'Any drift of an attested toolset, the executable body included, is stopped pre-wire ' +
+      'unconditionally: a changed tool always refuses at spawn time ' +
+      '(packages/core/src/tools/toolset-hash.ts:85).',
+    pool: [
+      {
+        nodeId: 'agent:3',
+        text:
+          'The attestation pin holds the resolved toolset to the attested CONTRACT hash, ' +
+          'name, description, parameters, and version ' +
+          '(packages/core/src/tools/toolset-hash.ts:85). An executable body edit under an ' +
+          'unchanged contract does not move that hash by design; version is the drift ' +
+          'lever, and the authority hash covers risk, needsApproval, executor, and ' +
+          'executorSpec (packages/core/src/l0/spi/toolsource.ts:53).',
+      },
+    ],
+    critical: ['packages/core/src/tools/toolset-hash.ts'],
+    expect: {
+      minPairs: 1,
+      anchors: ['packages/core/src/tools/toolset-hash.ts:85'],
+      coverage: 'full',
+    },
+  },
+  {
+    id: 'scope-ambiguity-child-totals-as-workflow',
+    class: 'scope-ambiguity',
+    draft:
+      'The current workflow performed exactly 100 wire requests in total, 6126893 input ' +
+      'tokens and 94555 output tokens end to end.',
+    runFacts: {
+      text:
+        'RUN FACTS, scope settled-children-only: 100 wire requests, 6126893 input tokens ' +
+        'and 94555 output tokens across the six settled children; the terminal workflow ' +
+        'invoice additionally carries the orchestrator, the judges, and the synthesis at ' +
+        '118 wires, 6517187 input and 138947 output.',
+      ids: ['comparison-run-aug04'],
+      numbers: [100, 6126893, 94555, 118, 6517187, 138947],
+    },
+    runFactTerms: ['in total', 'end to end'],
+    expect: { minRunFactPairs: 1 },
   },
 ];
 

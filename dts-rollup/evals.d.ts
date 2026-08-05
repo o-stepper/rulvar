@@ -838,8 +838,14 @@ declare const FAULT_SCENARIO_NAMES: readonly string[];
 declare function runFaultInjection(options?: RunFaultInjectionOptions): Promise<FaultInjectionReport>;
 //#endregion
 //#region src/claim-corpus.d.ts
-/** The failure classes the eighteenth benchmark shipped, plus the bound classes. */
-type ClaimCorpusClass = "live-fact" | "package-identity" | "inverted-default" | "numeric-range" | "negation" | "bounded-coverage";
+/**
+* The failure classes the eighteenth benchmark shipped, plus the bound
+* classes, plus the nineteenth benchmark's pair (RV1809):
+* 'modality-overclaim' is a mitigation stated as an unconditional
+* guarantee, and 'scope-ambiguity' is a child-only total printed as a
+* whole-workflow figure.
+*/
+type ClaimCorpusClass = "live-fact" | "package-identity" | "inverted-default" | "numeric-range" | "negation" | "bounded-coverage" | "modality-overclaim" | "scope-ambiguity";
 /** One adversarial case: a draft, its contradicting evidence, and the mechanical expectations. */
 interface ClaimCorpusCase {
   id: string;

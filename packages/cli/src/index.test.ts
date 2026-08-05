@@ -1239,6 +1239,26 @@ describe('--strict reads the claim-coverage grade (RV1702)', () => {
     expect(io.errLines.join('\n')).toContain("claim coverage 'judge-failed'");
   });
 
+  it('a stamped lowCoverage block exits 1 with the ratios printed (RV1809)', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      completeWith({
+        draftCitingSentences: 122,
+        truncated: true,
+        coveredCitingSentences: 36,
+        judgeInvoked: true,
+        coverage: 'partial',
+        lowCoverage: { coverageRatio: 0.295, coverageFloor: 0.8 },
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    const err = io.errLines.join('\n');
+    expect(err).toContain('below the declared floor');
+    expect(err).toContain('coverage 0.295 under floor 0.8');
+  });
+
   it('critical-uncovered exits 1 even from a legacy meta without the stamped grade', () => {
     const io = scriptedIo();
     const code = strictExitCode(

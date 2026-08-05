@@ -799,6 +799,32 @@ export interface OrchestrateClaimConsistency {
    * `runFacts: true`.
    */
   runFactTerms?: string[];
+  /**
+   * The declared coverage floor (RV1809): the minimum
+   * coveredCitingSentences over draftCitingSentences ratio, in
+   * (0, 1]. The nineteenth benchmark's pass covered 36 of 122 citing
+   * sentences and graded itself 'partial' honestly, but nothing could
+   * ENFORCE a floor: a consumer had to read the counts and decide
+   * externally. Below the floor, `onLowCoverage` decides. A draft
+   * with zero citing sentences is vacuously full and never trips it.
+   */
+  minimumCoverageRatio?: number;
+  /**
+   * The run-fact coverage floor (RV1809): the minimum judged run-fact
+   * pairs over matched run-fact candidates ratio, in (0, 1]. Requires
+   * `runFacts: true`; a draft with zero matched run claims never
+   * trips it.
+   */
+  runFactCoverageRatio?: number;
+  /**
+   * What a below-floor ratio does (RV1809): 'report' (the default)
+   * stamps the machine-readable `lowCoverage` block on the meta;
+   * 'fail' fails the run typed BEFORE the judge dispatch, exactly
+   * like `onUncoveredCritical`, so a run that cannot meet its
+   * declared verification floor never pays for a partial verdict.
+   * Requires at least one declared floor.
+   */
+  onLowCoverage?: 'report' | 'fail';
 }
 
 /** One judged contradiction: the pair plus the judge's one-sentence reason. */
@@ -844,6 +870,26 @@ export interface OrchestrateClaimConsistencyMeta {
   runFactPairs?: number;
   /** Present under `runFacts` when more run claims matched than the bound. */
   runFactPairsTruncated?: true;
+  /**
+   * Present under `runFacts` (RV1809): the UNCAPPED count of matched
+   * run-claim sentences, so the run-fact coverage ratio is computable
+   * from the meta alone, live or from a persisted outcome.
+   */
+  runFactCandidates?: number;
+  /**
+   * Present when a declared coverage floor was not met under
+   * `onLowCoverage: 'report'` (RV1809): each ratio beside its floor,
+   * machine-readable, so "complete but under-verified by the declared
+   * floor" is a field, not an external computation. Under 'fail' the
+   * run fails typed instead and the meta stamps this block on the way
+   * out.
+   */
+  lowCoverage?: {
+    coverageRatio: number;
+    coverageFloor?: number;
+    runFactRatio?: number;
+    runFactFloor?: number;
+  };
   /** True when the judge invocation was dispatched. */
   judgeInvoked: boolean;
   /** Present when the judge invocation did not settle ok. */
@@ -1671,6 +1717,9 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       onUncoveredCritical?: unknown;
       runFacts?: unknown;
       runFactTerms?: unknown;
+      minimumCoverageRatio?: unknown;
+      runFactCoverageRatio?: unknown;
+      onLowCoverage?: unknown;
     };
     if (typeof consistency !== 'object' || Array.isArray(consistency)) {
       throw new ConfigError(
@@ -1788,6 +1837,46 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
             JSON.stringify(consistency.runFactTerms),
         );
       }
+    }
+    for (const [label, ratio] of [
+      ['minimumCoverageRatio', consistency.minimumCoverageRatio],
+      ['runFactCoverageRatio', consistency.runFactCoverageRatio],
+    ] as const) {
+      if (
+        ratio !== undefined &&
+        (typeof ratio !== 'number' || !Number.isFinite(ratio) || ratio <= 0 || ratio > 1)
+      ) {
+        throw new ConfigError(
+          `orchestrate claimConsistency.${label} must be a number in (0, 1]; got ` +
+            JSON.stringify(ratio),
+        );
+      }
+    }
+    if (consistency.runFactCoverageRatio !== undefined && consistency.runFacts !== true) {
+      throw new ConfigError(
+        'orchestrate claimConsistency.runFactCoverageRatio rides the runFacts pass; set ' +
+          'claimConsistency.runFacts true',
+      );
+    }
+    if (
+      consistency.onLowCoverage !== undefined &&
+      consistency.onLowCoverage !== 'report' &&
+      consistency.onLowCoverage !== 'fail'
+    ) {
+      throw new ConfigError(
+        "orchestrate claimConsistency.onLowCoverage must be 'report' or 'fail'; got " +
+          JSON.stringify(consistency.onLowCoverage),
+      );
+    }
+    if (
+      consistency.onLowCoverage !== undefined &&
+      consistency.minimumCoverageRatio === undefined &&
+      consistency.runFactCoverageRatio === undefined
+    ) {
+      throw new ConfigError(
+        'orchestrate claimConsistency.onLowCoverage needs a declared floor; set ' +
+          'minimumCoverageRatio or runFactCoverageRatio',
+      );
     }
     if (consistency.judge !== undefined) {
       const judge = consistency.judge as {
@@ -5111,7 +5200,47 @@ export function makeOrchestratorWorkflow(
           : {
               runFactPairs: runFold.pairs.length,
               ...(runFold.truncated ? { runFactPairsTruncated: true as const } : {}),
+              // The uncapped matched count (RV1809): the run-fact
+              // coverage ratio's denominator, on the meta itself.
+              runFactCandidates: runFold.candidates,
             }),
+        ...((): { lowCoverage?: OrchestrateClaimConsistencyMeta['lowCoverage'] } => {
+          // The declared coverage floors (RV1809), computed from the
+          // FOLD alone (covered sentences are a pairing fact, not a
+          // judge verdict), so the gate below can fire before the
+          // judge pays. A zero denominator is vacuous and never trips.
+          const coverageRatio =
+            fold.draftCitingSentences === 0
+              ? 1
+              : fold.coveredCitingSentences / fold.draftCitingSentences;
+          const runFactRatio =
+            runFold === undefined || runFold.candidates === 0
+              ? undefined
+              : runFold.pairs.length / runFold.candidates;
+          const belowCoverage =
+            spec.minimumCoverageRatio !== undefined &&
+            fold.draftCitingSentences > 0 &&
+            coverageRatio < spec.minimumCoverageRatio;
+          const belowRunFacts =
+            spec.runFactCoverageRatio !== undefined &&
+            runFactRatio !== undefined &&
+            runFactRatio < spec.runFactCoverageRatio;
+          if (!belowCoverage && !belowRunFacts) {
+            return {};
+          }
+          return {
+            lowCoverage: {
+              coverageRatio,
+              ...(spec.minimumCoverageRatio === undefined
+                ? {}
+                : { coverageFloor: spec.minimumCoverageRatio }),
+              ...(runFactRatio === undefined ? {} : { runFactRatio }),
+              ...(spec.runFactCoverageRatio === undefined
+                ? {}
+                : { runFactFloor: spec.runFactCoverageRatio }),
+            },
+          };
+        })(),
       };
       // Every assembly of the meta carries the grade (RV1702): the
       // derivation runs over the finished bare meta, so the four exit
@@ -5123,6 +5252,34 @@ export function makeOrchestratorWorkflow(
         const bare = { ...metaBase, ...flags };
         return { ...bare, coverage: claimCoverageOf(bare) };
       };
+      // The low-coverage gate (RV1809) fires BEFORE the judge
+      // dispatch, exactly like the uncovered-critical gate below: a
+      // run that cannot meet its declared verification floor never
+      // pays for a partial verdict.
+      if (spec.onLowCoverage === 'fail' && metaBase.lowCoverage !== undefined) {
+        claimConsistencyMeta = finishMeta({ judgeInvoked: false });
+        const low = metaBase.lowCoverage;
+        throw new FailRunError(
+          `the claim-consistency pass is below a declared coverage floor ` +
+            `(coverage ${low.coverageRatio.toFixed(3)}` +
+            (low.coverageFloor === undefined ? '' : ` under floor ${String(low.coverageFloor)}`) +
+            (low.runFactRatio === undefined
+              ? ''
+              : `; run facts ${low.runFactRatio.toFixed(3)}` +
+                (low.runFactFloor === undefined
+                  ? ''
+                  : ` under floor ${String(low.runFactFloor)}`)) +
+            '), and the armed onLowCoverage posture cannot pass the draft',
+          {
+            data: {
+              source: 'orchestrator_claim_consistency',
+              lowCoverage: low as unknown as Json,
+              claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+              ...(snapshot ?? {}),
+            },
+          },
+        );
+      }
       // The uncovered-critical gate (RV1603) fires BEFORE the judge
       // dispatch: a run whose declared claims cannot be verified never
       // pays for a partial verdict.
