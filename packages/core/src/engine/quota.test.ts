@@ -505,6 +505,7 @@ describe('the retry namespace separation (RV1601, the eighteenth comparison benc
       limiter: denyThenGrant(1, 'requestsPerMinute 9 exhausted'),
     }).run(askWf, undefined);
     const errors: Array<{ willRetry?: boolean; source?: unknown }> = [];
+    const denied: Array<{ reason?: string }> = [];
     const ends: Array<{ retryCount?: number }> = [];
     void (async () => {
       for await (const event of handle.events) {
@@ -513,6 +514,9 @@ describe('the retry namespace separation (RV1601, the eighteenth comparison benc
             willRetry: event.willRetry,
             source: (event.error.data as { source?: unknown } | undefined)?.source,
           });
+        }
+        if (event.type === 'quota:denied') {
+          denied.push({ reason: event.reason });
         }
         if (event.type === 'agent:end') {
           ends.push({ retryCount: event.retryCount });
@@ -531,8 +535,10 @@ describe('the retry namespace separation (RV1601, the eighteenth comparison benc
     expect(result.providerCalls).toHaveLength(1);
     expect(result.providerCalls?.[0]).toMatchObject({ attempt: 1, outcome: 'ok' });
     expect(adapter.calls.length).toBe(1);
-    // The denial is still diagnosable on the stream, named by its layer.
-    expect(errors).toEqual([{ willRetry: true, source: 'quota-limiter' }]);
+    // The denial is diagnosable on the stream by ITS OWN type (RV1810):
+    // the recoverable wait no longer wears agent:error by default.
+    expect(errors).toEqual([]);
+    expect(denied).toEqual([{ reason: 'requestsPerMinute 9 exhausted' }]);
     expect(ends).toHaveLength(1);
     expect(ends[0]?.retryCount).toBeUndefined();
   });
@@ -641,5 +647,102 @@ describe('the retry namespace separation (RV1601, the eighteenth comparison benc
     for (const maxDenials of [0, -1, 1.5]) {
       expect(() => engineWith(answeringAdapter(), { limiter, maxDenials })).toThrow(ConfigError);
     }
+  });
+});
+
+describe('quota:denied is the primary event for recoverable waits (RV1810)', () => {
+  const denyOnceLimiter = (): QuotaLimiter => {
+    let denials = 1;
+    return {
+      reserve: () => {
+        if (denials > 0) {
+          denials -= 1;
+          return Promise.resolve({
+            granted: false,
+            retryAfterMs: 1,
+            reason: 'tokensPerMinute 1800000 exhausted',
+          });
+        }
+        return Promise.resolve({ granted: true, reservationId: 'r-granted' });
+      },
+      reconcile: () => Promise.resolve(),
+    };
+  };
+
+  it('a recovered denial emits quota:denied and NO agent:error by default', async () => {
+    const adapter = answeringAdapter();
+    const handle = engineWith(adapter, { limiter: denyOnceLimiter() }).run(askWf, undefined);
+    const denied: Array<Record<string, unknown>> = [];
+    const errors: Array<Record<string, unknown>> = [];
+    handle.on('quota:denied', (event) => denied.push(event as unknown as Record<string, unknown>));
+    handle.on('agent:error', (event) => errors.push(event as unknown as Record<string, unknown>));
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    // The wait speaks its own type: healthy throttling, not failure.
+    expect(denied).toHaveLength(1);
+    expect(denied[0]?.model).toBe('fake:model');
+    expect(denied[0]?.reason).toBe('tokensPerMinute 1800000 exhausted');
+    expect(denied[0]?.retryAfterMs).toBe(1);
+    expect(denied[0]?.willRetry).toBe(true);
+    expect(errors).toHaveLength(0);
+    // One wire call: the denial itself never reached the provider.
+    expect(adapter.calls).toHaveLength(1);
+  });
+
+  it('the versioned compat flag restores the legacy agent:error twin', async () => {
+    const adapter = answeringAdapter();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new InMemoryStore({ quiet: true }) },
+      defaults: { routing: { loop: 'fake:model' }, retry: fastRetry },
+      quota: { limiter: denyOnceLimiter() },
+      telemetry: { quotaDeniedAgentError: true },
+    });
+    const handle = engine.run(askWf, undefined);
+    const denied: unknown[] = [];
+    const errors: Array<{ error?: { data?: { source?: string } } }> = [];
+    handle.on('quota:denied', (event) => denied.push(event));
+    handle.on('agent:error', (event) => errors.push(event as never));
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(denied).toHaveLength(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.error?.data?.source).toBe('quota-limiter');
+  });
+
+  it('terminal denial exhaustion still ends in the real agent:error', async () => {
+    const alwaysDeny: QuotaLimiter = {
+      reserve: () =>
+        Promise.resolve({ granted: false, retryAfterMs: 1, reason: 'window shut for good' }),
+      reconcile: () => Promise.resolve(),
+    };
+    const adapter = answeringAdapter();
+    const handle = engineWith(adapter, { limiter: alwaysDeny }).run(askWf, undefined);
+    const denied: unknown[] = [];
+    const errors: Array<{ willRetry?: boolean }> = [];
+    handle.on('quota:denied', (event) => denied.push(event));
+    handle.on('agent:error', (event) => errors.push(event as never));
+    const outcome = await handle.result;
+    // result: 'full' returns the error ENVELOPE instead of throwing.
+    expect(outcome.status).toBe('ok');
+    const settled = (outcome as { value: { status: string } }).value;
+    expect(settled.status).toBe('error');
+    // Every recoverable wait spoke quota:denied; the exhaustion spoke
+    // the real terminal agent:error, exactly as before.
+    expect(denied.length).toBeGreaterThan(0);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.every((event) => event.willRetry !== true)).toBe(true);
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('a malformed telemetry flag refuses at createEngine, typed', () => {
+    expect(() =>
+      createEngine({
+        adapters: [answeringAdapter()],
+        stores: { journal: new InMemoryStore({ quiet: true }) },
+        defaults: { routing: { loop: 'fake:model' } },
+        telemetry: { quotaDeniedAgentError: 'yes' as unknown as boolean },
+      }),
+    ).toThrow(/telemetry\.quotaDeniedAgentError must be a boolean/);
   });
 });

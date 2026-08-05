@@ -65,6 +65,15 @@ type AgentEvents =
 }
   | {
   agentType: string;
+  label?: string;
+  model?: string;
+  reason?: string;
+  retryAfterMs?: number;
+  type: "quota:denied";
+  willRetry: true;
+}
+  | {
+  agentType: string;
   attempt: number;
   maxAttempts: number;
   type: "agent:schema-retry";
@@ -231,6 +240,42 @@ vocabulary.
   willRetry: boolean;
 }
 ```
+
+***
+
+### Type Literal
+
+```ts
+{
+  agentType: string;
+  label?: string;
+  model?: string;
+  reason?: string;
+  retryAfterMs?: number;
+  type: "quota:denied";
+  willRetry: true;
+}
+```
+
+A recoverable pre-wire quota wait (RV1810): the shared limiter
+denied a window and the dispatch will retry after the wait. This
+is healthy throttling, not failure: it produces no provider
+attempt, no ledger row, and no transport retry, and it used to
+ride `agent:error` (data.source 'quota-limiter'), where naive
+alerting on the event TYPE read a failing run out of a clean one.
+Terminal denial exhaustion still ends in a real `agent:error`;
+`createEngine({ telemetry: { quotaDeniedAgentError: true } })`
+restores the legacy twin for consumers keyed to the old type.
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:360](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L360) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:361](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L361) |
+| `model?` | `string` | The denied model ref. | [packages/core/src/l0/events.ts:363](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L363) |
+| `reason?` | `string` | The limiter's reason ('tokensPerMinute 1800000 exhausted'). | [packages/core/src/l0/events.ts:365](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L365) |
+| `retryAfterMs?` | `number` | - | [packages/core/src/l0/events.ts:366](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L366) |
+| `type` | `"quota:denied"` | - | [packages/core/src/l0/events.ts:359](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L359) |
+| `willRetry` | `true` | - | [packages/core/src/l0/events.ts:367](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L367) |
 
 ***
 

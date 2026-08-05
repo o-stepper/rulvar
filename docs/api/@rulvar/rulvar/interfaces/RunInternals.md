@@ -55,4 +55,6 @@ Everything one run's ctx needs; created per run by the engine (M1-T11).
 | <a id="property-runsignal"></a> `runSignal?` | `AbortSignal` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-semaphore"></a> `semaphore` | [`Semaphore`](/api/@rulvar/rulvar/classes/Semaphore.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-spans"></a> `spans` | [`SpanMinter`](/api/@rulvar/rulvar/interfaces/SpanMinter.md) | - | `packages/core/dist/index.d.ts` |
+| <a id="property-telemetry"></a> `telemetry?` | \{ `quotaDeniedAgentError?`: `boolean`; \} | Telemetry compat posture (RV1810). | `packages/core/dist/index.d.ts` |
+| `telemetry.quotaDeniedAgentError?` | `boolean` | Emit the legacy agent:error twin beside quota:denied. | `packages/core/dist/index.d.ts` |
 | <a id="property-transcripts"></a> `transcripts` | [`TranscriptStore`](/api/@rulvar/rulvar/interfaces/TranscriptStore.md) | - | `packages/core/dist/index.d.ts` |

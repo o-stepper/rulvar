@@ -10,7 +10,7 @@
 function hashWorkflowSource(source): string;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:581](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L581)
+Defined in: [packages/core/src/engine/engine.ts:589](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L589)
 
 Content hash of a compiled workflow source (run-to-definition binding).
 

@@ -65,6 +65,15 @@ type AgentEvents =
 }
   | {
   agentType: string;
+  label?: string;
+  model?: string;
+  reason?: string;
+  retryAfterMs?: number;
+  type: "quota:denied";
+  willRetry: true;
+}
+  | {
+  agentType: string;
   attempt: number;
   maxAttempts: number;
   type: "agent:schema-retry";
@@ -229,6 +238,22 @@ vocabulary.
   label?: string;
   type: "agent:error";
   willRetry: boolean;
+}
+```
+
+***
+
+### Type Literal
+
+```ts
+{
+  agentType: string;
+  label?: string;
+  model?: string;
+  reason?: string;
+  retryAfterMs?: number;
+  type: "quota:denied";
+  willRetry: true;
 }
 ```
 

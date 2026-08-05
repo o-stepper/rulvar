@@ -552,6 +552,12 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   adapter: ProviderAdapter;
   resolved: ResolvedInvocation;
   /**
+   * The versioned compat flag (RV1810): emit the legacy `agent:error`
+   * twin beside `quota:denied` for recoverable pre-wire quota waits.
+   * Default off: the wait speaks its own type only.
+   */
+  quotaDeniedAgentError?: boolean;
+  /**
    * Transport failover chain for the loop phase (M4-T04):
    * resolved fallback targets tried in order on
    * transport or rate-limit failures after retries exhaust. Failover is
@@ -3756,19 +3762,50 @@ export async function runAgent<S extends SchemaSpec>(
             ?.retryAfterMs;
           if (outcome.wireError !== undefined) {
             if (outcome.quotaDenied !== true) {
-              // A denial stays in the quotaDenials namespace alone: the
-              // event below still names it (data.source
-              // 'quota-limiter'), but retryCount reads clean against
-              // the provider ledger.
+              // A denial stays in the quotaDenials namespace alone:
+              // retryCount reads clean against the provider ledger.
               transportRetries += 1;
             }
-            events?.emit({
-              type: 'agent:error',
-              agentType,
-              label: options.label,
-              error: outcome.wireError,
-              willRetry: true,
-            });
+            if (outcome.quotaDenied === true) {
+              // The recoverable pre-wire wait speaks its own type
+              // (RV1810): the nineteenth benchmark's run emitted 13
+              // agent:error events that were all healthy token-window
+              // waits, and naive alerting on the TYPE read a failing
+              // run where zero provider errors happened. The legacy
+              // twin rides only under the versioned compat flag;
+              // terminal denial exhaustion below still ends in the
+              // real agent:error it always did.
+              const denialData = outcome.wireError.data as
+                { reason?: unknown; retryAfterMs?: unknown } | undefined;
+              events?.emit({
+                type: 'quota:denied',
+                agentType,
+                label: options.label,
+                model: target.resolved.ref,
+                ...(typeof denialData?.reason === 'string' ? { reason: denialData.reason } : {}),
+                ...(typeof denialData?.retryAfterMs === 'number'
+                  ? { retryAfterMs: denialData.retryAfterMs }
+                  : {}),
+                willRetry: true,
+              });
+              if (options.quotaDeniedAgentError === true) {
+                events?.emit({
+                  type: 'agent:error',
+                  agentType,
+                  label: options.label,
+                  error: outcome.wireError,
+                  willRetry: true,
+                });
+              }
+            } else {
+              events?.emit({
+                type: 'agent:error',
+                agentType,
+                label: options.label,
+                error: outcome.wireError,
+                willRetry: true,
+              });
+            }
           }
           await backoffWait(
             retryDelayMs(

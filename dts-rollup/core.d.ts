@@ -2382,6 +2382,14 @@ type AgentEvents = {
   error: WireError;
   willRetry: boolean;
 } | {
+  type: "quota:denied";
+  agentType: string;
+  label?: string; /** The denied model ref. */
+  model?: string; /** The limiter's reason ('tokensPerMinute 1800000 exhausted'). */
+  reason?: string;
+  retryAfterMs?: number;
+  willRetry: true;
+} | {
   type: "agent:schema-retry";
   agentType: string;
   attempt: number;
@@ -5192,6 +5200,12 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   adapter: ProviderAdapter;
   resolved: ResolvedInvocation;
   /**
+  * The versioned compat flag (RV1810): emit the legacy `agent:error`
+  * twin beside `quota:denied` for recoverable pre-wire quota waits.
+  * Default off: the wait speaks its own type only.
+  */
+  quotaDeniedAgentError?: boolean;
+  /**
   * Transport failover chain for the loop phase (M4-T04):
   * resolved fallback targets tried in order on
   * transport or rate-limit failures after retries exhaust. Failover is
@@ -7070,6 +7084,16 @@ interface CreateEngineOptions {
     modelKnowledge?: ModelKnowledgeStore;
   };
   defaults?: EngineDefaults;
+  /**
+  * Telemetry compat posture (RV1810). `quotaDeniedAgentError: true`
+  * restores the legacy `agent:error` twin beside the primary
+  * `quota:denied` event for recoverable pre-wire quota waits, for
+  * consumers still keyed to the old type. Default off: healthy
+  * throttling speaks its own type and never reads as failure.
+  */
+  telemetry?: {
+    quotaDeniedAgentError?: boolean;
+  };
   budgetDefaults?: BudgetDefaults;
   concurrency?: {
     perRun?: number; /** Per-adapter-id caps; unlimited unless configured (Appendix A; M4-T07). */
@@ -10514,6 +10538,10 @@ interface RunInternals {
     toolsets?: Record<string, ToolsOption>; /** Registered mechanical gate profiles (M7-T10). */
     gates?: Record<string, MechanicalGateProfile>; /** Engine-wide admission countTokens policy (RV1804); default 'allow'. */
     countTokens?: "allow" | "deny";
+  };
+  /** Telemetry compat posture (RV1810). */
+  telemetry?: {
+    /** Emit the legacy agent:error twin beside quota:denied. */quotaDeniedAgentError?: boolean;
   };
   /** Engine-scoped per-provider keyed limiter (M4-T07). */
   providerLimiter?: KeyedLimiter;
