@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+
 ### 1.189.0
 
 #### Patch Changes
@@ -1802,6 +1809,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+
 ### 1.189.0
 
 #### Patch Changes
@@ -3393,6 +3407,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
 
 ### 1.189.0
 
@@ -5425,6 +5446,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.190.0
+
+#### Minor Changes
+
+- 8e02021: MCP discovery gains the visited-cursor guard, the whole-sweep deadline, and the production bounds demand (RV1808). The RV1602 cycle guard caught only the immediate self-echo, so an alternating cursor pair (A, then B, then A again) paginated forever whenever `maxPages` was left unset; the sweep now refuses typed on ANY cursor it has already queried with, unconditionally, like the echo guard. `timeouts.discoveryMs` adds the wall clock over one whole tools/list sweep: per-page `listMs` cannot bound a crawl of promptly-answered pages, and `maxPages` binds only when declared, so the deadline is the bound that watches the sweep as a unit, refusing typed with the page count. And `requireBounds: true` is the production posture: the source refuses at construction unless `maxTools`, `maxPages`, `maxSchemaBytes`, and `timeouts.discoveryMs` are all declared, one typed error naming what is missing instead of four silent unboundeds; the production profiles guide now says to set it.
 
 ### 1.189.0
 
@@ -7765,6 +7792,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.190.0
+
 ### 1.189.0
 
 ### 1.188.0
@@ -8247,6 +8276,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+  - @rulvar/anthropic@1.190.0
+  - @rulvar/openai@1.190.0
+  - @rulvar/plan@1.190.0
+  - @rulvar/testing@1.190.0
 
 ### 1.189.0
 
@@ -10389,6 +10429,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+
 ### 1.189.0
 
 #### Patch Changes
@@ -11391,6 +11438,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
 
 ### 1.189.0
 
@@ -13185,6 +13239,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+
 ### 1.189.0
 
 #### Patch Changes
@@ -14890,6 +14951,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+  - eslint-plugin-rulvar@1.190.0
 
 ### 1.189.0
 
@@ -16747,6 +16816,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+  - @rulvar/anthropic@1.190.0
+  - @rulvar/openai@1.190.0
 
 ### 1.189.0
 
@@ -18877,6 +18955,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+
 ### 1.189.0
 
 #### Patch Changes
@@ -20590,6 +20675,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
+
 ### 1.189.0
 
 #### Patch Changes
@@ -21608,6 +21700,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
 
 ### 1.189.0
 
@@ -23258,6 +23357,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.190.0
+
+#### Patch Changes
+
+- Updated dependencies [8e02021]
+  - @rulvar/core@1.190.0
 
 ### 1.189.0
 
