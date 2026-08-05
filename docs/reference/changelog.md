@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+
 ### 1.183.0
 
 #### Patch Changes
@@ -1757,6 +1764,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+
 ### 1.183.0
 
 #### Patch Changes
@@ -3303,6 +3317,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
 
 ### 1.183.0
 
@@ -5294,6 +5315,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.184.0
+
+#### Minor Changes
+
+- 8a9caca: The toolset attestation gains an authority side (RV1802). `toolsetHash` pins exactly the model-facing contract tuple {name, description, parameters, version} by design, so under an attested profile a tool whose `risk` flipped from read to write, whose `needsApproval` gate was dropped, or whose `executor`/`executorSpec` routing changed passed the pin silently while changing what the ask rules and the approval flow would do. `resolveToolset` now derives a per-tool authority record `{ contract, risk, needsApproval, executor, executorSpec: sha256(JCS(spec)) }` and an aggregate `authorityHash` riding `ResolvedToolset`; `attestToolset()` records both sides; `enforceToolsetAttestation` refuses authority drift at the same pre-wire site as contract drift, naming the drifted field per tool, with missing and unexpected tools listed and shapes validated at `createEngine` time. Execute bodies stay deliberately unhashable on both sides (`version` remains the lever), and pins recorded before this release keep their documented contract-only posture until re-recorded with `attestToolset()`.
 
 ### 1.183.0
 
@@ -7602,6 +7629,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.184.0
+
 ### 1.183.0
 
 ### 1.182.0
@@ -8072,6 +8101,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+  - @rulvar/anthropic@1.184.0
+  - @rulvar/openai@1.184.0
+  - @rulvar/plan@1.184.0
+  - @rulvar/testing@1.184.0
 
 ### 1.183.0
 
@@ -10149,6 +10189,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+
 ### 1.183.0
 
 #### Patch Changes
@@ -11110,6 +11157,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
 
 ### 1.183.0
 
@@ -12863,6 +12917,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+
 ### 1.183.0
 
 #### Patch Changes
@@ -14527,6 +14588,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+  - eslint-plugin-rulvar@1.184.0
 
 ### 1.183.0
 
@@ -16337,6 +16406,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+  - @rulvar/anthropic@1.184.0
+  - @rulvar/openai@1.184.0
 
 ### 1.183.0
 
@@ -18414,6 +18492,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+
 ### 1.183.0
 
 #### Patch Changes
@@ -20086,6 +20171,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
+
 ### 1.183.0
 
 #### Patch Changes
@@ -21063,6 +21155,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
 
 ### 1.183.0
 
@@ -22672,6 +22771,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.184.0
+
+#### Patch Changes
+
+- Updated dependencies [8a9caca]
+  - @rulvar/core@1.184.0
 
 ### 1.183.0
 
