@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+
 ### 1.185.0
 
 #### Patch Changes
@@ -1771,6 +1778,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+
 ### 1.185.0
 
 #### Patch Changes
@@ -3331,6 +3345,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
 
 ### 1.185.0
 
@@ -5336,6 +5357,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.186.0
+
+#### Minor Changes
+
+- 242647e: Three accounting-truth gates (RV1804). The admission `countTokens` probe becomes a policy surface: it is full-prompt provider egress billed to no invoice row, so `defaults.countTokens: 'deny'` (engine-wide) or `AgentProfile.countTokens` (profile wins) forbids the control wire outright, the flat reserve admits exactly like an adapter without `countTokens`, and every probe outcome is a typed `control:wire` event (`ok` with the counted tokens, `failed`, `denied`) instead of a log line only. Strict pricing's declared freshness bound now clamps the future too: a `ratesVerifiedAt` more than one day ahead of the engine clock refuses typed, because a stale-only check reads any future date (the classic typo'd year) as eternally fresh; the one-day tolerance absorbs date-only strings authored ahead of UTC. And statement reconciliation holds the join key unique on both sides: a duplicate response id among the local invoice rows (multi-wire segment ids included) now refuses typed exactly like a statement-side duplicate, because a usage-only export would otherwise settle `match` with a double-booked local row silently absorbed.
 
 ### 1.185.0
 
@@ -7656,6 +7683,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.186.0
+
 ### 1.185.0
 
 ### 1.184.0
@@ -8130,6 +8159,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+  - @rulvar/anthropic@1.186.0
+  - @rulvar/openai@1.186.0
+  - @rulvar/plan@1.186.0
+  - @rulvar/testing@1.186.0
 
 ### 1.185.0
 
@@ -10229,6 +10269,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+
 ### 1.185.0
 
 #### Patch Changes
@@ -11204,6 +11251,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
 
 ### 1.185.0
 
@@ -12971,6 +13025,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+
 ### 1.185.0
 
 #### Patch Changes
@@ -14649,6 +14710,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+  - eslint-plugin-rulvar@1.186.0
 
 ### 1.185.0
 
@@ -16475,6 +16544,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+  - @rulvar/anthropic@1.186.0
+  - @rulvar/openai@1.186.0
 
 ### 1.185.0
 
@@ -18570,6 +18648,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+
 ### 1.185.0
 
 #### Patch Changes
@@ -20256,6 +20341,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
+
 ### 1.185.0
 
 #### Patch Changes
@@ -21247,6 +21339,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
 
 ### 1.185.0
 
@@ -22870,6 +22969,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.186.0
+
+#### Patch Changes
+
+- Updated dependencies [242647e]
+  - @rulvar/core@1.186.0
 
 ### 1.185.0
 
