@@ -10724,15 +10724,19 @@ interface DecisionChainRow {
   status: EntryStatus;
   /** Present when the journaled value names its decision type. */
   decisionType?: string;
-  /** Present on resolutions: who resolved. */
+  /** Present on resolutions: who resolved (canonical `entry.resolution.by` first). */
   by?: ResolutionBy;
   /** Present on resolutions and abandons: the referenced seq. */
   target?: number;
-  /** Present on abandons: the seq of the sanctioning entry. */
+  /** Present on abandons: the seq of the sanctioning entry (canonical `entry.abandon`). */
   authorizedBy?: number;
   /** Present on class-decision resolutions: the class decision's seq. */
   decisionRef?: number;
-  /** The journaled value verbatim, when the entry carries one. */
+  /**
+  * The journaled value verbatim when the entry carries one; on a
+  * canonical resolution with no entry value, the resolution's own
+  * decision value (what the ask was resolved WITH).
+  */
   value?: Json;
 }
 /**

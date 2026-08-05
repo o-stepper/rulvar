@@ -10,6 +10,6 @@
 const DECISION_CHAIN_KINDS: readonly EntryKind[];
 ```
 
-Defined in: [packages/core/src/l0/decision-chain.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/decision-chain.ts#L25)
+Defined in: [packages/core/src/l0/decision-chain.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/decision-chain.ts#L33)
 
 The authority-bearing kinds the chain folds, in the registry's order.

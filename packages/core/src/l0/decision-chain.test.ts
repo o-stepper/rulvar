@@ -54,6 +54,51 @@ describe('reduceDecisionChain (RV1705)', () => {
     expect(row).toMatchObject({ target: 3, by: 'timeout' });
   });
 
+  it('reads the canonical resolution payload the engine journals (RV1801)', () => {
+    const [row] = reduceDecisionChain([
+      entry({
+        seq: 9,
+        kind: 'resolution',
+        ref: 4,
+        resolution: {
+          target: 4,
+          by: 'external',
+          value: { decision: 'allow', reason: 'reviewed' },
+          decisionRef: 7,
+        },
+      }),
+    ]);
+    expect(row).toMatchObject({ by: 'external', target: 4, decisionRef: 7 });
+    expect(row?.value).toEqual({ decision: 'allow', reason: 'reviewed' });
+  });
+
+  it('reads the canonical abandon payload the engine journals (RV1801)', () => {
+    const [row] = reduceDecisionChain([
+      entry({
+        seq: 11,
+        kind: 'abandon',
+        ref: 2,
+        abandon: { target: 2, authorizedBy: 9, reason: 'superseded' },
+      }),
+    ]);
+    expect(row).toMatchObject({ target: 2, authorizedBy: 9 });
+    expect(row?.by).toBeUndefined();
+  });
+
+  it('the canonical payload wins over value-carried fields; entry.value stays verbatim', () => {
+    const [row] = reduceDecisionChain([
+      entry({
+        seq: 5,
+        kind: 'resolution',
+        ref: 3,
+        resolution: { target: 3, by: 'operator', value: null },
+        value: { by: 'timeout', target: 99, note: 'hand-written' },
+      }),
+    ]);
+    expect(row).toMatchObject({ by: 'operator', target: 3 });
+    expect(row?.value).toEqual({ by: 'timeout', target: 99, note: 'hand-written' });
+  });
+
   it('tolerates unknown kinds and excludes every work kind', () => {
     const chain = reduceDecisionChain([
       entry({ seq: 1, kind: 'agent' }),

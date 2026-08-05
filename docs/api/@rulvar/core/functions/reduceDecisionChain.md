@@ -10,7 +10,7 @@
 function reduceDecisionChain(entries): DecisionChainRow[];
 ```
 
-Defined in: [packages/core/src/l0/decision-chain.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/decision-chain.ts#L80)
+Defined in: [packages/core/src/l0/decision-chain.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/decision-chain.ts#L92)
 
 Folds a run's entries into its decision chain: the seq-ordered
 authority records only. Input order is not trusted; rows sort by seq
