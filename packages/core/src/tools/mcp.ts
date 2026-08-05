@@ -74,9 +74,25 @@ export interface McpConfig {
    * request timeout per tools/list page and per tools/call; without
    * them the SDK's own 60s default request timeout applies. A call
    * timeout surfaces as the tool's error result, never past policy.
-   * Each a positive finite number of milliseconds.
+   * discoveryMs (RV1808) is the WALL-CLOCK cap over one whole
+   * tools/list sweep, all pages included: per-page listMs cannot bound
+   * a server that answers every page promptly and paginates forever
+   * with unique cursors under maxPages' radar only when maxPages is
+   * set, and cannot bound a slow-but-under-listMs page crawl at all.
+   * On expiry the sweep refuses typed. Each a positive finite number
+   * of milliseconds.
    */
-  timeouts?: { connectMs?: number; listMs?: number; callMs?: number };
+  timeouts?: { connectMs?: number; listMs?: number; callMs?: number; discoveryMs?: number };
+  /**
+   * Demand the discovery bounds (RV1808): with `requireBounds: true`
+   * the source refuses at construction unless maxTools, maxPages,
+   * maxSchemaBytes, and timeouts.discoveryMs are ALL declared. The
+   * production posture: an unbounded discovery sweep against a remote
+   * registry is an availability decision someone should have made on
+   * purpose, so the flag turns the four absences into one typed error
+   * naming what is missing instead of four silent unboundeds.
+   */
+  requireBounds?: boolean;
   /**
    * streamable-http only (RV1516): headers injected into EVERY wire
    * request through a wrapped fetch. The hook form is awaited before
@@ -143,12 +159,27 @@ function validateBounds(cfg: McpConfig): void {
   positiveInt('maxTools');
   positiveInt('maxPages');
   positiveInt('maxSchemaBytes');
-  for (const key of ['connectMs', 'listMs', 'callMs'] as const) {
+  for (const key of ['connectMs', 'listMs', 'callMs', 'discoveryMs'] as const) {
     const value = cfg.timeouts?.[key];
     if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
       throw new ConfigError(
         `mcp: 'timeouts.${key}' must be a positive finite number of milliseconds, ` +
           `got ${String(value)}`,
+      );
+    }
+  }
+  if (cfg.requireBounds === true) {
+    // The production posture (RV1808): four absences become one typed
+    // error naming what is missing, at construction, before any wire.
+    const missing = [
+      ...(cfg.maxTools === undefined ? ['maxTools'] : []),
+      ...(cfg.maxPages === undefined ? ['maxPages'] : []),
+      ...(cfg.maxSchemaBytes === undefined ? ['maxSchemaBytes'] : []),
+      ...(cfg.timeouts?.discoveryMs === undefined ? ['timeouts.discoveryMs'] : []),
+    ];
+    if (missing.length > 0) {
+      throw new ConfigError(
+        `mcp: requireBounds demands every discovery bound; missing ${missing.join(', ')}`,
       );
     }
   }
@@ -355,9 +386,28 @@ export function mcp(cfg: McpConfig): McpToolSource {
     const tools: WireTool[] = [];
     let cursor: string | undefined;
     let pages = 0;
+    // Every cursor this sweep has queried with (RV1808): the echo
+    // guard below catches only the immediate self-echo, while an
+    // alternating pair (A then B then A again) makes exactly as little
+    // progress and used to spin forever under no maxPages.
+    const visited = new Set<string>();
+    const startedAt = Date.now();
+    const discoveryMs = cfg.timeouts?.discoveryMs;
     const listOptions =
       cfg.timeouts?.listMs === undefined ? undefined : { timeout: cfg.timeouts.listMs };
     do {
+      if (discoveryMs !== undefined && Date.now() - startedAt > discoveryMs) {
+        // The whole-sweep wall clock (RV1808): per-page listMs cannot
+        // bound a crawl of prompt pages, and maxPages binds only when
+        // declared; the deadline fails the sweep closed either way.
+        throw new ConfigError(
+          `mcp: tools/list of '${sourceIdOf(cfg)}' exceeded the discovery deadline ` +
+            `(timeouts.discoveryMs ${discoveryMs}) after ${pages} page(s)`,
+        );
+      }
+      if (cursor !== undefined) {
+        visited.add(cursor);
+      }
       const page = await client.listTools(cursor === undefined ? {} : { cursor }, listOptions);
       pages += 1;
       tools.push(...(page.tools as unknown as WireTool[]));
@@ -382,6 +432,16 @@ export function mcp(cfg: McpConfig): McpToolSource {
         throw new ConfigError(
           `mcp: tools/list of '${sourceIdOf(cfg)}' returned the cursor it was queried with ` +
             `('${page.nextCursor}') on page ${pages}: the pagination makes no progress`,
+        );
+      }
+      if (page.nextCursor !== undefined && page.nextCursor !== '' && visited.has(page.nextCursor)) {
+        // The revisit cycle (RV1808), the echo guard's general form: a
+        // cursor this sweep already queried with re-fetches a page it
+        // has already consumed, so the sweep is a loop however long
+        // its period. Unconditional exactly like the echo refusal.
+        throw new ConfigError(
+          `mcp: tools/list of '${sourceIdOf(cfg)}' returned a cursor this sweep already ` +
+            `visited ('${page.nextCursor}') on page ${pages}: the pagination cycles`,
         );
       }
       cursor = page.nextCursor;

@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+MCP discovery gains the visited-cursor guard, the whole-sweep deadline, and the production bounds demand (RV1808). The RV1602 cycle guard caught only the immediate self-echo, so an alternating cursor pair (A, then B, then A again) paginated forever whenever `maxPages` was left unset; the sweep now refuses typed on ANY cursor it has already queried with, unconditionally, like the echo guard. `timeouts.discoveryMs` adds the wall clock over one whole tools/list sweep: per-page `listMs` cannot bound a crawl of promptly-answered pages, and `maxPages` binds only when declared, so the deadline is the bound that watches the sweep as a unit, refusing typed with the page count. And `requireBounds: true` is the production posture: the source refuses at construction unless `maxTools`, `maxPages`, `maxSchemaBytes`, and `timeouts.discoveryMs` are all declared, one typed error naming what is missing instead of four silent unboundeds; the production profiles guide now says to set it.

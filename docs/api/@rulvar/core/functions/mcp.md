@@ -10,7 +10,7 @@
 function mcp(cfg): McpToolSource;
 ```
 
-Defined in: [packages/core/src/tools/mcp.ts:272](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/mcp.ts#L272)
+Defined in: [packages/core/src/tools/mcp.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/mcp.ts#L303)
 
 Imports MCP tools as a [McpToolSource](/api/@rulvar/core/interfaces/McpToolSource.md). The client connects
 lazily on the first tools() call; tools/list is fetched with cursor

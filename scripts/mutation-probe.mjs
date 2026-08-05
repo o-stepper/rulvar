@@ -2765,6 +2765,24 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'mcp-visited-cursor-cycle',
+    doctrine:
+      'the MCP sweep refuses any cursor it already queried with (RV1808): the echo guard sees only the immediate self-echo, so an alternating pair paginates forever under no maxPages, each wire call comfortably inside listMs',
+    file: 'packages/core/src/tools/mcp.ts',
+    find: ' && visited.has(page.nextCursor)) {',
+    replace: ' && false) {',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
+  },
+  {
+    id: 'mcp-total-deadline',
+    doctrine:
+      'the MCP discovery deadline bounds the whole sweep as a unit (RV1808): per-page listMs cannot stop a crawl of promptly answered pages, and maxPages binds only when declared, so dropping the wall clock reopens the unbounded discovery',
+    file: 'packages/core/src/tools/mcp.ts',
+    find: '      if (discoveryMs !== undefined && Date.now() - startedAt > discoveryMs) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
+  },
+  {
     id: 'settled-handles-no-probing',
     doctrine:
       "the await_any digest names the settled subset (RV1807): without settledHandles the model discovers settlement by probing get_child_result and collects not-settled errors as control flow, exactly the nineteenth benchmark's eight speculative failures",
