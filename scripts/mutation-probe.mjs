@@ -2765,6 +2765,15 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'finalize-workflow-layer-trigger',
+    doctrine:
+      'the finalize trigger reads the same four layers resolution reads (RV1803): dropping the workflow layer from the trigger array makes a workflow-level finalize route resolve its model and then never fire, a paid synthesis silently skipped',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '    const layers = [callLayer, profileLayer, workflowLayer, engineLayer];',
+    replace: '    const layers = [callLayer, profileLayer, engineLayer];',
+    test: 'packages/core/src/engine/ctx-roles.test.ts',
+  },
+  {
     id: 'decision-chain-canonical-resolution',
     doctrine:
       "the decision chain reads the canonical entry.resolution payload first (RV1801): the engine journals who resolved and the decision value there with no entry value at all, so a fold reading only value reconstructs a live run's authority record without its authority",

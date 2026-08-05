@@ -1218,8 +1218,11 @@ export function createCtx(
     // only when a schema is set AND (routing sends extract to a
     // different model OR the loop model's required tier cannot ride a
     // tools-available turn OR finalize is routed); finalize fires only
-    // when configured in routing and the toolset is non-empty.
-    const layers = [callLayer, profileLayer, engineLayer];
+    // when configured in routing and the toolset is non-empty. The
+    // trigger reads the SAME four layers resolution reads (RV1803): a
+    // finalize route declared at the workflow level alone must fire the
+    // phase, not only resolve its model.
+    const layers = [callLayer, profileLayer, workflowLayer, engineLayer];
     const toolsAvailable = toolset.contracts.length > 0;
     const finalizeRouted = roleConfiguredInRouting('finalize', layers);
     let extract: (PhaseTarget & { fallbacks?: PhaseTarget[] }) | undefined;

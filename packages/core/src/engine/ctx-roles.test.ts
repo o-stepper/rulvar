@@ -165,4 +165,52 @@ describe('finalize firing at the ctx layer (M4-T01)', () => {
     expect(adapter.calls).toHaveLength(1);
     expect(strong.calls).toHaveLength(0);
   });
+
+  it('a finalize route declared at the workflow level ALONE fires exactly once (RV1803)', async () => {
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCall: { name: 'clock', args: {} } } : { text: 'raw notes' },
+    );
+    const strong = scriptedAdapter(() => ({ text: 'workflow synthesis' }), { id: 'strong' });
+    const { internals, store } = makeInternals({
+      adapters: [adapter, strong],
+      routing: { loop: 'fake:model' },
+    });
+    // The route lives ONLY on the workflow layer: no call, profile, or
+    // engine routing mentions finalize. Before RV1803 the model resolved
+    // but the phase never fired.
+    const ctx = createCtx(internals, { routing: { finalize: 'strong:big' } });
+    const result = await ctx.agent('what time is it', { tools: [clock] });
+    expect(result).toBe('workflow synthesis');
+    expect(strong.calls).toHaveLength(1);
+
+    // Resume replays the journaled synthesis: no second finalize dispatch.
+    await internals.replayer.flush();
+    const prior = await store.load('test-run');
+    const replayLoop = scriptedAdapter(() => ({ text: 'unused' }));
+    const replayStrong = scriptedAdapter(() => ({ text: 'unused' }), { id: 'strong' });
+    const { internals: resumed } = makeInternals({
+      adapters: [replayLoop, replayStrong],
+      routing: { loop: 'fake:model' },
+      priorEntries: prior,
+    });
+    const replayCtx = createCtx(resumed, { routing: { finalize: 'strong:big' } });
+    const replayed = await replayCtx.agent('what time is it', { tools: [clock] });
+    expect(replayed).toBe('workflow synthesis');
+    expect(replayStrong.calls).toHaveLength(0);
+  });
+
+  it('a workflow layer without a finalize route still never fires the phase', async () => {
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCall: { name: 'clock', args: {} } } : { text: 'noon' },
+    );
+    const strong = scriptedAdapter(() => ({ text: 'never' }), { id: 'strong' });
+    const { internals } = makeInternals({
+      adapters: [adapter, strong],
+      routing: { loop: 'fake:model' },
+    });
+    const ctx = createCtx(internals, { model: 'fake:model' });
+    const result = await ctx.agent('what time is it', { tools: [clock] });
+    expect(result).toBe('noon');
+    expect(strong.calls).toHaveLength(0);
+  });
 });
