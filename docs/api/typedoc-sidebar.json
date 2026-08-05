@@ -2591,6 +2591,10 @@
             "link": "/api/@rulvar/core/variables/FINISH_TOOL_NAME.md"
           },
           {
+            "text": "FUTURE_RATES_TOLERANCE_MS",
+            "link": "/api/@rulvar/core/variables/FUTURE_RATES_TOLERANCE_MS.md"
+          },
+          {
             "text": "GET_CHILD_RESULT_SCHEMA",
             "link": "/api/@rulvar/core/variables/GET_CHILD_RESULT_SCHEMA.md"
           },
@@ -7523,6 +7527,10 @@
           {
             "text": "FINISH_TOOL_NAME",
             "link": "/api/@rulvar/rulvar/variables/FINISH_TOOL_NAME.md"
+          },
+          {
+            "text": "FUTURE_RATES_TOLERANCE_MS",
+            "link": "/api/@rulvar/rulvar/variables/FUTURE_RATES_TOLERANCE_MS.md"
           },
           {
             "text": "GET_CHILD_RESULT_SCHEMA",

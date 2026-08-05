@@ -188,6 +188,14 @@ export interface AgentProfile {
   /** Admission reserve hint in USD (budget layer 1). */
   estCost?: number;
   /**
+   * The admission countTokens policy for this profile (RV1804): the
+   * pre-admission count probe is full-prompt provider egress billed to
+   * no invoice row. 'deny' forbids it for spawns of this profile (the
+   * flat reserve admits instead); wins over the engine-wide
+   * `defaults.countTokens`. Default: the engine default, else 'allow'.
+   */
+  countTokens?: 'allow' | 'deny';
+  /**
    * The declared evidence contract of the profile's task (RV303, the
    * seventh comparison experiment; runtime enforcement RV507): how many
    * evidence entries the spawned agent MUST record, and the declared
@@ -772,6 +780,8 @@ export interface RunInternals {
     toolsets?: Record<string, ToolsOption>;
     /** Registered mechanical gate profiles (M7-T10). */
     gates?: Record<string, MechanicalGateProfile>;
+    /** Engine-wide admission countTokens policy (RV1804); default 'allow'. */
+    countTokens?: 'allow' | 'deny';
   };
   /** Engine-scoped per-provider keyed limiter (M4-T07). */
   providerLimiter?: KeyedLimiter;
@@ -1875,7 +1885,35 @@ export function createCtx(
       internals.pricingOf !== undefined && internals.pricingOf(loopResolved.ref) === undefined;
     const budgetAccount = state.budgetScope ?? ROOT_ACCOUNT;
     let inputTokens: number | undefined;
-    if (opts.estCost === undefined && profile?.estCost === undefined && adapter.countTokens) {
+    // The countTokens policy (RV1804): the count probe is full-prompt
+    // provider egress billed to no invoice row, so a host may forbid
+    // the control wire outright. Profile wins over the engine default;
+    // under 'deny' the flat reserve admits exactly like an adapter
+    // without countTokens, and the refusal is a visible control:wire
+    // event instead of silent absence.
+    const countTokensPolicy = profile?.countTokens ?? internals.defaults.countTokens ?? 'allow';
+    if (
+      opts.estCost === undefined &&
+      profile?.estCost === undefined &&
+      adapter.countTokens &&
+      countTokensPolicy === 'deny'
+    ) {
+      internals.events.emit(
+        {
+          type: 'control:wire',
+          controlKind: 'countTokens',
+          model: loopResolved.ref,
+          outcome: 'denied',
+        },
+        state.spanId,
+      );
+    }
+    if (
+      opts.estCost === undefined &&
+      profile?.estCost === undefined &&
+      adapter.countTokens &&
+      countTokensPolicy !== 'deny'
+    ) {
       // Admission before egress (RV904, the thirteenth experiment's
       // pre-admission egress probe): the count request carries the FULL
       // child prompt, so it is provider egress exactly like a dispatch.
@@ -1917,6 +1955,16 @@ export function createCtx(
         );
         internals.events.emit(
           {
+            type: 'control:wire',
+            controlKind: 'countTokens',
+            model: loopResolved.ref,
+            outcome: 'ok',
+            inputTokens,
+          },
+          state.spanId,
+        );
+        internals.events.emit(
+          {
             type: 'log',
             level: 'info',
             msg: `admission.countTokens: ${loopResolved.ref} counted ${String(inputTokens)} input tokens`,
@@ -1932,6 +1980,15 @@ export function createCtx(
           throw thrown;
         }
         inputTokens = undefined;
+        internals.events.emit(
+          {
+            type: 'control:wire',
+            controlKind: 'countTokens',
+            model: loopResolved.ref,
+            outcome: 'failed',
+          },
+          state.spanId,
+        );
         internals.events.emit(
           {
             type: 'log',

@@ -2765,6 +2765,33 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'counttokens-policy-deny',
+    doctrine:
+      "the countTokens policy gates the admission probe (RV1804): the probe carries the FULL child prompt as provider egress billed to no invoice row, so a deny that still counts is a privacy hole wearing a policy's name",
+    file: 'packages/core/src/engine/ctx.ts',
+    find: "      countTokensPolicy !== 'deny'",
+    replace: '      true',
+    test: 'packages/core/src/engine/ctx-count-admission.test.ts',
+  },
+  {
+    id: 'rates-future-clamp',
+    doctrine:
+      "strict pricing clamps future ratesVerifiedAt (RV1804): a stale-only check reads any future date as eternally fresh, so a typo'd year vouches for rates forever and the declared freshness bound never binds again",
+    file: 'packages/core/src/engine/budget.ts',
+    find: '      if (ageMs < -FUTURE_RATES_TOLERANCE_MS) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'local-duplicate-id-fail-closed',
+    doctrine:
+      "statement reconciliation refuses duplicate LOCAL response ids (RV1804): two local rows claiming one provider response make the join ambiguous, and a usage-only export settles 'match' with the double-booked row silently absorbed",
+    file: 'packages/core/src/engine/reconcile-statement.ts',
+    find: '      if (localIds.has(id)) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
+  },
+  {
     id: 'finalize-workflow-layer-trigger',
     doctrine:
       'the finalize trigger reads the same four layers resolution reads (RV1803): dropping the workflow layer from the trigger array makes a workflow-level finalize route resolve its model and then never fire, a paid synthesis silently skipped',

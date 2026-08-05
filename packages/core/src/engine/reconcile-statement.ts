@@ -241,7 +241,8 @@ function assertTokenCount(where: string, field: string, value: number): void {
  * journal-free; see the module doc for the contract. Throws a typed
  * ConfigError on inputs that cannot be evidence: an empty statement (a
  * headline total with no rows), a request row without a response id, a
- * duplicate response id (an ambiguous join), a request export whose
+ * duplicate response id on either side (an ambiguous join, statement
+ * rows and local invoice rows alike, RV1804), a request export whose
  * rows carry neither dollars, components, nor usage, any non-finite or
  * negative dollar amount, any non-integer or negative token count, a
  * non-finite or negative tolerance (RV903: a statement that cannot
@@ -289,6 +290,30 @@ export function reconcileStatement(
       continue;
     }
     billable.push(row);
+  }
+
+  // Local duplicate response ids fail closed (RV1804), symmetric with
+  // the statement side: two local rows claiming the same provider
+  // response make the join ambiguous in the other direction, and a
+  // usage-only export would otherwise let the double-booked local
+  // invoice settle 'match' with the duplicate silently absorbed.
+  const localIds = new Set<string>();
+  for (const row of billable) {
+    const rowIds =
+      row.wireResponseIds !== undefined && row.wireResponseIds.length > 0
+        ? row.wireResponseIds
+        : row.responseId === undefined
+          ? []
+          : [row.responseId];
+    for (const id of rowIds) {
+      if (localIds.has(id)) {
+        throw new ConfigError(
+          `statement reconciliation refused: duplicate response id '${id}' across the local ` +
+            'invoice rows makes the join ambiguous; the invoice cannot be evidence',
+        );
+      }
+      localIds.add(id);
+    }
   }
 
   // Which invoice rows the statement covers decides what folds into the

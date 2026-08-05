@@ -349,6 +349,45 @@ describe('reconcileStatement: refusals and declared gaps', () => {
     ).toThrow(ConfigError);
   });
 
+  it('refuses duplicate response ids across the LOCAL invoice rows (RV1804)', () => {
+    const doubled = {
+      rows: rowsOf([
+        {
+          servedBy: 'openai:gpt-5.6-sol',
+          responseId: 'resp-1',
+          usage: usageOf(1_000, 100, 0, 0),
+        },
+        {
+          servedBy: 'openai:gpt-5.6-sol',
+          responseId: 'resp-1',
+          usage: usageOf(1_000, 100, 0, 0),
+        },
+      ]),
+    };
+    // A usage-only export matching the duplicated id would otherwise
+    // settle 'match' with the double-booked local row silently absorbed.
+    expect(() =>
+      reconcileStatement(
+        doubled,
+        {
+          kind: 'requests',
+          rows: [
+            {
+              responseId: 'resp-1',
+              usage: {
+                inputTokens: 1_000,
+                outputTokens: 100,
+                cachedInputTokens: 0,
+                cacheWriteTokens: 0,
+              },
+            },
+          ],
+        },
+        { pricingOf: PRICING_OF },
+      ),
+    ).toThrow(/duplicate response id 'resp-1' across the local invoice rows/);
+  });
+
   it('refuses an export that carries nothing to reconcile', () => {
     expect(() =>
       reconcileStatement(

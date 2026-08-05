@@ -356,6 +356,27 @@ describe('the strict pre-egress pricing gate (RV1508)', () => {
     expect(() => lax.assertPricedDispatch('fake:model')).not.toThrow();
   });
 
+  it('refuses a future-dated ratesVerifiedAt beyond the skew tolerance (RV1804)', () => {
+    const nowMs = Date.parse('2026-08-02T20:00:00Z');
+    // The hazard: a typo'd year reads as eternally fresh under a
+    // stale-only check, because a negative age passes every max-age
+    // bound.
+    const typo = strictBudget({
+      pricing: { 'fake:model': { ...FRESH, ratesVerifiedAt: '2027-08-01' } },
+      strictPricing: { maxRatesAgeDays: 30 },
+      nowMs,
+    });
+    expect(() => typo.assertPricedDispatch('fake:model')).toThrow(/future ratesVerifiedAt/);
+    // A date-only string authored ahead of UTC sits hours in the
+    // future and passes: the one-day tolerance absorbs ordinary skew.
+    const ahead = strictBudget({
+      pricing: { 'fake:model': { ...FRESH, ratesVerifiedAt: '2026-08-03' } },
+      strictPricing: { maxRatesAgeDays: 30 },
+      nowMs,
+    });
+    expect(() => ahead.assertPricedDispatch('fake:model')).not.toThrow();
+  });
+
   it('allowUnpriced is the explicit exception, exact refs only', () => {
     const budget = strictBudget({
       pricing: {},

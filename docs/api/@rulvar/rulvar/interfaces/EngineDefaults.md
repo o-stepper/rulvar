@@ -12,6 +12,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-counttokens"></a> `countTokens?` | `"allow"` \| `"deny"` | The admission countTokens policy (RV1804). The pre-admission count probe carries the FULL child prompt to the provider: egress exactly like a dispatch, but billed to no invoice row. 'deny' forbids that control wire engine-wide: the flat reserve admits instead, exactly like an adapter without countTokens, and the refusal is visible as a `control:wire` event with outcome 'denied'. Default 'allow' (today's behavior); AgentProfile.countTokens overrides per profile. | `packages/core/dist/index.d.ts` |
 | <a id="property-gates"></a> `gates?` | `Record`\&lt;`string`, [`MechanicalGateProfile`](/api/@rulvar/rulvar/type-aliases/MechanicalGateProfile.md)\&gt; | Registered mechanical gate profiles: named pure functions over AgentResult.artifacts for ladder acceptance gates (M7-T10). | `packages/core/dist/index.d.ts` |
 | <a id="property-isolation"></a> `isolation?` | [`IsolationProvider`](/api/@rulvar/rulvar/interfaces/IsolationProvider.md) | The worktree lifecycle provider. | `packages/core/dist/index.d.ts` |
 | <a id="property-limits"></a> `limits?` | [`UsageLimits`](/api/@rulvar/rulvar/interfaces/UsageLimits.md) | - | `packages/core/dist/index.d.ts` |

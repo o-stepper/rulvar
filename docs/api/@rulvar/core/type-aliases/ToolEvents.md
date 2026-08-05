@@ -28,7 +28,7 @@ type ToolEvents =
 };
 ```
 
-Defined in: [packages/core/src/l0/events.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L352)
+Defined in: [packages/core/src/l0/events.ts:368](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L368)
 
 Tool lifecycle (emitters arrive with the tool system, M3).
 
@@ -47,10 +47,10 @@ Tool lifecycle (emitters arrive with the tool system, M3).
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `risk?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:370](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L370) |
-| `toolCallId?` | `string` | The model-minted id of this tool call (RV908): the same id the journal's messages and tool-result parts carry, so a consumer pairs start and end EXACTLY even among concurrent same-name calls, instead of FIFO-guessing by (spanId, toolName). Present on every live event this engine emits, and on every replayed reconstruction (whose events exist only when the turn checkpoint blob is retrievable; the id rides the checkpoint's tool-result parts, so even journals written before RV908 name their calls there). Absent only on streams recorded before RV908 or written by foreign emitters, where consumers keep their historical pairing. | [packages/core/src/l0/events.ts:369](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L369) |
-| `toolName` | `string` | - | [packages/core/src/l0/events.ts:355](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L355) |
-| `type` | `"tool:start"` | - | [packages/core/src/l0/events.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L354) |
+| `risk?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:386](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L386) |
+| `toolCallId?` | `string` | The model-minted id of this tool call (RV908): the same id the journal's messages and tool-result parts carry, so a consumer pairs start and end EXACTLY even among concurrent same-name calls, instead of FIFO-guessing by (spanId, toolName). Present on every live event this engine emits, and on every replayed reconstruction (whose events exist only when the turn checkpoint blob is retrievable; the id rides the checkpoint's tool-result parts, so even journals written before RV908 name their calls there). Absent only on streams recorded before RV908 or written by foreign emitters, where consumers keep their historical pairing. | [packages/core/src/l0/events.ts:385](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L385) |
+| `toolName` | `string` | - | [packages/core/src/l0/events.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L371) |
+| `type` | `"tool:start"` | - | [packages/core/src/l0/events.ts:370](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L370) |
 
 ***
 
@@ -73,13 +73,13 @@ Tool lifecycle (emitters arrive with the tool system, M3).
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:388](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L388) |
-| `decidedBy?` | `string` | - | [packages/core/src/l0/events.ts:386](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L386) |
-| `durationMs` | `number` | - | [packages/core/src/l0/events.ts:378](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L378) |
-| `guard?` | `"repeated-signature"` \| `"per-tool-cap"` \| `"finalization-window"` | Present when an engine guard, not the permission chain, denied the call: the exploration guards (RV-210) or the finalization window (RV302). The outcome is 'denied' and the call was never dispatched. | [packages/core/src/l0/events.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L395) |
-| `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | [packages/core/src/l0/events.ts:377](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L377) |
-| `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:387](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L387) |
-| `toolCallId?` | `string` | The same call id as the matching tool:start (RV908). | [packages/core/src/l0/events.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L376) |
-| `toolName` | `string` | - | [packages/core/src/l0/events.ts:374](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L374) |
-| `type` | `"tool:end"` | - | [packages/core/src/l0/events.ts:373](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L373) |
-| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/src/l0/events.ts:385](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L385) |
+| `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:404](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L404) |
+| `decidedBy?` | `string` | - | [packages/core/src/l0/events.ts:402](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L402) |
+| `durationMs` | `number` | - | [packages/core/src/l0/events.ts:394](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L394) |
+| `guard?` | `"repeated-signature"` \| `"per-tool-cap"` \| `"finalization-window"` | Present when an engine guard, not the permission chain, denied the call: the exploration guards (RV-210) or the finalization window (RV302). The outcome is 'denied' and the call was never dispatched. | [packages/core/src/l0/events.ts:411](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L411) |
+| `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | [packages/core/src/l0/events.ts:393](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L393) |
+| `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:403](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L403) |
+| `toolCallId?` | `string` | The same call id as the matching tool:start (RV908). | [packages/core/src/l0/events.ts:392](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L392) |
+| `toolName` | `string` | - | [packages/core/src/l0/events.ts:390](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L390) |
+| `type` | `"tool:end"` | - | [packages/core/src/l0/events.ts:389](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L389) |
+| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/src/l0/events.ts:401](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L401) |

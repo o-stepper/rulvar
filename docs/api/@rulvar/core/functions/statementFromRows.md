@@ -10,7 +10,7 @@
 function statementFromRows(input): ProviderStatement;
 ```
 
-Defined in: [packages/core/src/engine/reconcile-statement.ts:826](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L826)
+Defined in: [packages/core/src/engine/reconcile-statement.ts:851](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L851)
 
 Normalizes raw keyed rows (a parsed CSV, a JSON export) into a
 [ProviderStatement](/api/@rulvar/core/type-aliases/ProviderStatement.md) under one explicit [StatementColumnMap](/api/@rulvar/core/interfaces/StatementColumnMap.md)

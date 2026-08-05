@@ -70,6 +70,13 @@ type AgentEvents =
   type: "agent:schema-retry";
 }
   | {
+  controlKind: "countTokens";
+  inputTokens?: number;
+  model: string;
+  outcome: "ok" | "failed" | "denied";
+  type: "control:wire";
+}
+  | {
   delta: string;
   type: "agent:stream";
 };
@@ -235,6 +242,20 @@ vocabulary.
   attempt: number;
   maxAttempts: number;
   type: "agent:schema-retry";
+}
+```
+
+***
+
+### Type Literal
+
+```ts
+{
+  controlKind: "countTokens";
+  inputTokens?: number;
+  model: string;
+  outcome: "ok" | "failed" | "denied";
+  type: "control:wire";
 }
 ```
 
