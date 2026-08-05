@@ -3036,6 +3036,24 @@ const MUTATIONS = [
     replace: '      if (false) {',
     test: 'scripts/docs-lint.test.mjs',
   },
+  {
+    id: 'preflight-wave-synthesis-hold',
+    doctrine:
+      "the admission projection holds the synthesis payload reserve against the run root exactly like the live gates (RV1901): dropping the hold resurrects the four-role benchmark's defect, a 5/5 green wave the live gate refuses at the third child because refuseSpawnIfInfeasible and remainderOf both count synthesisReserveUsd",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '      synthesisHoldUsd = Math.max(0, spec?.synthesisReserveUsd ?? 0);',
+    replace: '      synthesisHoldUsd = 0;',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'preflight-roster-floor-finding',
+    doctrine:
+      "with a declared acceptance floor, a wave whose budget seats fewer children is a projected settle rejection and must say so before the first wire (RV1901): silencing admission-below-roster-floor lets the run pay for the seated work and still reject at minSpawnedChildren, the primary arm's exact loss",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '    if (rosterFloor > 0 && children < rosterFloor && childrenDeniedByBudget > 0) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
