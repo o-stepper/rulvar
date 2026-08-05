@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred sixty eight rounds, verbatim in this repository's history:
+The one hundred sixty nine rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -382,6 +382,7 @@ The one hundred sixty eight rounds, verbatim in this repository's history:
 | v1.184.0      | 1248623 (#745): a finalize route declared at the workflow level alone now fires the phase; the trigger reads the same four layers resolution reads, and resume replays the synthesis free | v1.185.0   |
 | v1.185.0      | 242647e (#748): countTokens becomes a policied control wire with a typed event, future dated rates refuse under strict pricing, and duplicate local ids fail reconciliation closed        | v1.186.0   |
 | v1.186.0      | c9798ef (#751): every anthropic pause turn error arm carries the absorbed segment ids and count, and the provider call record keeps an errored dispatch joinable to its statement rows    | v1.187.0   |
+| v1.187.0      | b6d0bc8 (#754): provider executed tools are a policy surface on the ai sdk bridge: denied by default with a typed terminal error naming it; allow lists every call in the finish bag      | v1.188.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
