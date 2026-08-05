@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.186.0
+
+### Minor Changes
+
+- 242647e: Three accounting-truth gates (RV1804). The admission `countTokens` probe becomes a policy surface: it is full-prompt provider egress billed to no invoice row, so `defaults.countTokens: 'deny'` (engine-wide) or `AgentProfile.countTokens` (profile wins) forbids the control wire outright, the flat reserve admits exactly like an adapter without `countTokens`, and every probe outcome is a typed `control:wire` event (`ok` with the counted tokens, `failed`, `denied`) instead of a log line only. Strict pricing's declared freshness bound now clamps the future too: a `ratesVerifiedAt` more than one day ahead of the engine clock refuses typed, because a stale-only check reads any future date (the classic typo'd year) as eternally fresh; the one-day tolerance absorbs date-only strings authored ahead of UTC. And statement reconciliation holds the join key unique on both sides: a duplicate response id among the local invoice rows (multi-wire segment ids included) now refuses typed exactly like a statement-side duplicate, because a usage-only export would otherwise settle `match` with a double-booked local row silently absorbed.
+
 ## 1.185.0
 
 ### Minor Changes
