@@ -18,6 +18,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.187.0
+
+#### Minor Changes
+
+- c9798ef: The absorbed pause_turn wire set survives the error arms (RV1805). The Anthropic adapter published the whole segment set (`wireRequests = { count, responseIds }`) only on the successful terminal finish, so an error after absorbed continuations, a `create()` failure, a truncated read, the continuation cap, or a pre-wire segment denial, yielded bare and orphaned exactly the paid wires a per-request statement join needs most (the segments' usage already survives through mid-stream reports; the ids and the count did not). Every error arm now rides the COMPLETED absorbed segments' wire set on its error data, the agent loop's provider call record reads it when the finish that would have named the set never came (a single absorbed segment included, since an errored dispatch has no plain responseId to join by), the invoice row keeps the ids and the count, and a first-segment failure stays a bare error with nothing invented.
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
+
 ### 1.186.0
 
 #### Patch Changes
@@ -1778,6 +1789,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
+
 ### 1.186.0
 
 #### Patch Changes
@@ -3345,6 +3363,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
 
 ### 1.186.0
 
@@ -5357,6 +5382,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.187.0
+
+#### Minor Changes
+
+- c9798ef: The absorbed pause_turn wire set survives the error arms (RV1805). The Anthropic adapter published the whole segment set (`wireRequests = { count, responseIds }`) only on the successful terminal finish, so an error after absorbed continuations, a `create()` failure, a truncated read, the continuation cap, or a pre-wire segment denial, yielded bare and orphaned exactly the paid wires a per-request statement join needs most (the segments' usage already survives through mid-stream reports; the ids and the count did not). Every error arm now rides the COMPLETED absorbed segments' wire set on its error data, the agent loop's provider call record reads it when the finish that would have named the set never came (a single absorbed segment included, since an errored dispatch has no plain responseId to join by), the invoice row keeps the ids and the count, and a first-segment failure stays a bare error with nothing invented.
 
 ### 1.186.0
 
@@ -7683,6 +7714,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.187.0
+
 ### 1.186.0
 
 ### 1.185.0
@@ -8159,6 +8192,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/anthropic@1.187.0
+  - @rulvar/core@1.187.0
+  - @rulvar/openai@1.187.0
+  - @rulvar/plan@1.187.0
+  - @rulvar/testing@1.187.0
 
 ### 1.186.0
 
@@ -10269,6 +10313,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
+
 ### 1.186.0
 
 #### Patch Changes
@@ -11251,6 +11302,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
 
 ### 1.186.0
 
@@ -13025,6 +13083,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
+
 ### 1.186.0
 
 #### Patch Changes
@@ -14710,6 +14775,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
+  - eslint-plugin-rulvar@1.187.0
 
 ### 1.186.0
 
@@ -16544,6 +16617,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/anthropic@1.187.0
+  - @rulvar/core@1.187.0
+  - @rulvar/openai@1.187.0
 
 ### 1.186.0
 
@@ -18648,6 +18730,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
+
 ### 1.186.0
 
 #### Patch Changes
@@ -20341,6 +20430,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
+
 ### 1.186.0
 
 #### Patch Changes
@@ -21339,6 +21435,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
 
 ### 1.186.0
 
@@ -22969,6 +23072,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.187.0
+
+#### Patch Changes
+
+- Updated dependencies [c9798ef]
+  - @rulvar/core@1.187.0
 
 ### 1.186.0
 
