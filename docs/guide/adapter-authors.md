@@ -295,8 +295,8 @@ Match the conventions of the shipped adapters: ESM only, Node 22.12.0 or newer, 
   },
   "files": ["dist"],
   "sideEffects": false,
-  "dependencies": { "@rulvar/core": "^1.190.0" },
-  "devDependencies": { "@rulvar/testing": "^1.190.0", "vitest": "^4.1.10" }
+  "dependencies": { "@rulvar/core": "^1.191.0" },
+  "devDependencies": { "@rulvar/testing": "^1.191.0", "vitest": "^4.1.10" }
 }
 ```
 
