@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-The toolset attestation gains an authority side (RV1802). `toolsetHash` pins exactly the model-facing contract tuple {name, description, parameters, version} by design, so under an attested profile a tool whose `risk` flipped from read to write, whose `needsApproval` gate was dropped, or whose `executor`/`executorSpec` routing changed passed the pin silently while changing what the ask rules and the approval flow would do. `resolveToolset` now derives a per-tool authority record `{ contract, risk, needsApproval, executor, executorSpec: sha256(JCS(spec)) }` and an aggregate `authorityHash` riding `ResolvedToolset`; `attestToolset()` records both sides; `enforceToolsetAttestation` refuses authority drift at the same pre-wire site as contract drift, naming the drifted field per tool, with missing and unexpected tools listed and shapes validated at `createEngine` time. Execute bodies stay deliberately unhashable on both sides (`version` remains the lever), and pins recorded before this release keep their documented contract-only posture until re-recorded with `attestToolset()`.
