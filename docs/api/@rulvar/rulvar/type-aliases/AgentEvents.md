@@ -74,6 +74,17 @@ type AgentEvents =
 }
   | {
   agentType: string;
+  capUsd?: number;
+  estimateUsd?: number;
+  inFlightUsd?: number;
+  label?: string;
+  model?: string;
+  spentUsd?: number;
+  type: "budget:exposure-wait";
+  willWait: boolean;
+}
+  | {
+  agentType: string;
   attempt: number;
   maxAttempts: number;
   type: "agent:schema-retry";
@@ -254,6 +265,24 @@ vocabulary.
   retryAfterMs?: number;
   type: "quota:denied";
   willRetry: true;
+}
+```
+
+***
+
+### Type Literal
+
+```ts
+{
+  agentType: string;
+  capUsd?: number;
+  estimateUsd?: number;
+  inFlightUsd?: number;
+  label?: string;
+  model?: string;
+  spentUsd?: number;
+  type: "budget:exposure-wait";
+  willWait: boolean;
 }
 ```
 

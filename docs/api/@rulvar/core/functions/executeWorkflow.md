@@ -13,7 +13,7 @@ function executeWorkflow<A, R>(
 args): Promise<R>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:3786](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L3786)
+Defined in: [packages/core/src/engine/ctx.ts:3796](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L3796)
 
 Runs a workflow body against a fresh ctx: the engine core that
 engine.run wraps with RunHandle, events, and outcome assembly (M1-T11).

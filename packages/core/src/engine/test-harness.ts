@@ -210,6 +210,8 @@ export interface TestInternalsOptions {
     result: EscalatedResult<unknown>,
   ) => EscalationDecision | Promise<EscalationDecision>;
   budgetUsd?: number;
+  /** The opt-in in-flight exposure cap (RV711/RV1902). */
+  maxInFlightExposureUsd?: number;
   lifetimeSpawnCap?: number;
   /** AdmissionController knobs (M6-T06). */
   maxDepth?: number;
@@ -279,6 +281,9 @@ export function makeInternals(options: TestInternalsOptions = {}): {
   };
   if (options.budgetUsd !== undefined) {
     budgetOptions.ceilingUsd = options.budgetUsd;
+  }
+  if (options.maxInFlightExposureUsd !== undefined) {
+    budgetOptions.maxInFlightExposureUsd = options.maxInFlightExposureUsd;
   }
   if (options.lifetimeSpawnCap !== undefined) {
     budgetOptions.lifetimeSpawnCap = options.lifetimeSpawnCap;

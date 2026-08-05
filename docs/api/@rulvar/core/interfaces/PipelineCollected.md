@@ -6,7 +6,7 @@
 
 # Interface: PipelineCollected\&lt;T\&gt;
 
-Defined in: [packages/core/src/engine/ctx.ts:447](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L447)
+Defined in: [packages/core/src/engine/ctx.ts:448](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L448)
 
 Pipeline results plus the dropped evidence, returned by onItemError: 'collect'.
 
@@ -20,5 +20,5 @@ Pipeline results plus the dropped evidence, returned by onItemError: 'collect'.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-dropped"></a> `dropped` | [`DroppedItem`](/api/@rulvar/core/interfaces/DroppedItem.md)[] | [packages/core/src/engine/ctx.ts:449](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L449) |
-| <a id="property-results"></a> `results` | `T`[] | [packages/core/src/engine/ctx.ts:448](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L448) |
+| <a id="property-dropped"></a> `dropped` | [`DroppedItem`](/api/@rulvar/core/interfaces/DroppedItem.md)[] | [packages/core/src/engine/ctx.ts:450](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L450) |
+| <a id="property-results"></a> `results` | `T`[] | [packages/core/src/engine/ctx.ts:449](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L449) |

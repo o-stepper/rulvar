@@ -134,6 +134,7 @@ import { emitSpawnAdmitted, emitSpawnRejected } from './spawn-events.js';
 import {
   ctxRuntimes,
   kBootCheckpoint,
+  kExposureWait,
   kFinalizeReserve,
   kOnRunning,
   kTerminalTool,
@@ -2349,6 +2350,12 @@ export function createCtx(
                   estimatedInputTokens,
                   plannedOutputTokens,
                 ),
+              // The exposure-wait pair (RV1902): wired with the cap so
+              // an opted-in root dispatch can park on the next hold
+              // release instead of settling a transient refusal.
+              awaitExposureRelease: (signal?: AbortSignal) =>
+                internals.budget.awaitExposureRelease(signal),
+              liveExposureUsd: () => internals.budget.liveExposureUsd,
             }),
         onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy, budgetAccount),
         // The per-call marginal meter (RV1101): every provider call
@@ -2381,6 +2388,9 @@ export function createCtx(
     const terminalTool = (opts as InternalAgentHooks)[kTerminalTool];
     if (terminalTool !== undefined) {
       runAgentOptions.terminalTool = terminalTool;
+    }
+    if ((opts as InternalAgentHooks)[kExposureWait] === true) {
+      runAgentOptions.exposureWait = true;
     }
     runAgentOptions.checkpoint = checkpointPlumbing;
     if (opts.schema !== undefined) {

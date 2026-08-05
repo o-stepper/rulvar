@@ -208,6 +208,13 @@ export class RunBudget {
   private exhaustedInternal = false;
   /** Live dispatch estimates held by reserveTurnExposure (RV711). */
   private inFlightExposureUsd = 0;
+  /**
+   * Waiters parked on the next exposure release (RV1902): the
+   * orchestrate root's dispatch waits out a transient refusal here
+   * instead of settling a budget error. Notified (and self-removed)
+   * on every hold release; never on spend, which only grows.
+   */
+  private readonly exposureWaiters = new Set<() => void>();
   /** Models already warned about; the warning fires once per model per run. */
   private readonly unpricedWarned = new Set<ModelRef>();
   /** Models whose price function already returned an invalid USD once. */
@@ -935,7 +942,52 @@ export class RunBudget {
       }
       released = true;
       this.inFlightExposureUsd = Math.max(0, this.inFlightExposureUsd - estimateUsd);
+      // Wake the parked root dispatch (RV1902): every hold WILL release
+      // (the dispatch settle owns the closure in a finally), so a
+      // waiter subscribed while any hold was live is never stranded.
+      for (const waiter of [...this.exposureWaiters]) {
+        waiter();
+      }
     };
+  }
+
+  /** Live in-flight exposure currently held by open dispatches (RV1902). */
+  get liveExposureUsd(): number {
+    return this.inFlightExposureUsd;
+  }
+
+  /**
+   * Parks until the NEXT in-flight exposure hold releases (RV1902):
+   * resolves 'released' on that wake, 'drained' immediately when no
+   * hold is live (there is nothing to wait out, so the caller's refusal
+   * is terminal for its turn), and 'aborted' when the signal fires
+   * first. The waiter registers BEFORE any check, so a release racing
+   * the caller's refusal is never lost; spend never shrinks, so
+   * releases are the only wake source that can turn a refusal into a
+   * fit.
+   */
+  awaitExposureRelease(signal?: AbortSignal): Promise<'released' | 'drained' | 'aborted'> {
+    if (signal?.aborted === true) {
+      return Promise.resolve('aborted');
+    }
+    if (this.inFlightExposureUsd <= 0) {
+      return Promise.resolve('drained');
+    }
+    return new Promise((resolve) => {
+      const settle = (outcome: 'released' | 'aborted'): void => {
+        this.exposureWaiters.delete(waiter);
+        signal?.removeEventListener('abort', onAbort);
+        resolve(outcome);
+      };
+      const waiter = (): void => {
+        settle('released');
+      };
+      const onAbort = (): void => {
+        settle('aborted');
+      };
+      this.exposureWaiters.add(waiter);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
   }
 
   /** Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched. */

@@ -6,7 +6,7 @@
 
 # Class: AgentCallError
 
-Defined in: [packages/core/src/engine/ctx.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L347)
+Defined in: [packages/core/src/engine/ctx.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L348)
 
 The rejection carrier of ctx.agent value-form calls: a real Error that
 structurally satisfies the typed AgentError and carries the full
@@ -33,7 +33,7 @@ new AgentCallError(
    entryRef?): AgentCallError;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:356](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L356)
+Defined in: [packages/core/src/engine/ctx.ts:357](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L357)
 
 #### Parameters
 
@@ -58,10 +58,10 @@ Error.constructor
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-entryref"></a> `entryRef?` | `readonly` | `number` | [packages/core/src/engine/ctx.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L354) |
-| <a id="property-issues"></a> `issues?` | `readonly` | [`Issue`](/api/@rulvar/core/type-aliases/Issue.md)[] | [packages/core/src/engine/ctx.ts:351](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L351) |
-| <a id="property-kind"></a> `kind` | `readonly` | \| `"transport"` \| `"rate-limit"` \| `"schema-mismatch"` \| `"tool"` \| `"budget"` \| `"terminal"` | [packages/core/src/engine/ctx.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L348) |
-| <a id="property-result"></a> `result` | `readonly` | [`AgentResult`](/api/@rulvar/core/interfaces/AgentResult.md)\&lt;`unknown`\&gt; | [packages/core/src/engine/ctx.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L352) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | [packages/core/src/engine/ctx.ts:349](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L349) |
-| <a id="property-retryafterms"></a> `retryAfterMs?` | `readonly` | `number` | [packages/core/src/engine/ctx.ts:350](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L350) |
-| <a id="property-scope"></a> `scope` | `readonly` | `string` | [packages/core/src/engine/ctx.ts:353](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L353) |
+| <a id="property-entryref"></a> `entryRef?` | `readonly` | `number` | [packages/core/src/engine/ctx.ts:355](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L355) |
+| <a id="property-issues"></a> `issues?` | `readonly` | [`Issue`](/api/@rulvar/core/type-aliases/Issue.md)[] | [packages/core/src/engine/ctx.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L352) |
+| <a id="property-kind"></a> `kind` | `readonly` | \| `"transport"` \| `"rate-limit"` \| `"schema-mismatch"` \| `"tool"` \| `"budget"` \| `"terminal"` | [packages/core/src/engine/ctx.ts:349](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L349) |
+| <a id="property-result"></a> `result` | `readonly` | [`AgentResult`](/api/@rulvar/core/interfaces/AgentResult.md)\&lt;`unknown`\&gt; | [packages/core/src/engine/ctx.ts:353](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L353) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | [packages/core/src/engine/ctx.ts:350](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L350) |
+| <a id="property-retryafterms"></a> `retryAfterMs?` | `readonly` | `number` | [packages/core/src/engine/ctx.ts:351](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L351) |
+| <a id="property-scope"></a> `scope` | `readonly` | `string` | [packages/core/src/engine/ctx.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L354) |

@@ -340,8 +340,12 @@ export interface RunOptions {
    * settles, and the dispatch whose estimate does not fit
    * spent + finalize/synthesis reserves + live estimates is refused
    * with a typed BudgetExhaustedError (data.reason
-   * 'in-flight-exposure') instead of waiting; the refused agent
-   * settles as a budget error. Worst concurrent overshoot past the cap
+   * 'in-flight-exposure'). A plain agent settles the refusal as a
+   * budget error; an orchestrate-owned root dispatch waits it out
+   * (RV1902): it parks until a live hold releases, retries pre-wire,
+   * and emits budget:exposure-wait, while a drained refusal settles
+   * the documented forced-finish partial instead of tearing the run
+   * down. Worst concurrent overshoot past the cap
    * is thereby the estimate error of the in-flight turns, not one
    * whole turn per agent. Absent by default: wire traffic, journals,
    * and hooks stay byte-identical. Recorded in RunMeta at genesis
