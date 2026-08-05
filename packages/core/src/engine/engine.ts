@@ -188,6 +188,14 @@ export interface CreateEngineOptions {
     modelKnowledge?: ModelKnowledgeStore;
   };
   defaults?: EngineDefaults;
+  /**
+   * Telemetry compat posture (RV1810). `quotaDeniedAgentError: true`
+   * restores the legacy `agent:error` twin beside the primary
+   * `quota:denied` event for recoverable pre-wire quota waits, for
+   * consumers still keyed to the old type. Default off: healthy
+   * throttling speaks its own type and never reads as failure.
+   */
+  telemetry?: { quotaDeniedAgentError?: boolean };
   budgetDefaults?: BudgetDefaults;
   concurrency?: {
     perRun?: number;
@@ -960,6 +968,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
   ) {
     throw new ConfigError("createEngine defaults.countTokens must be 'allow' or 'deny'");
   }
+  if (
+    options.telemetry?.quotaDeniedAgentError !== undefined &&
+    typeof options.telemetry.quotaDeniedAgentError !== 'boolean'
+  ) {
+    throw new ConfigError('createEngine telemetry.quotaDeniedAgentError must be a boolean');
+  }
   // The determinism guard config fails loud at construction, before any
   // run can start under an invalid mode, pattern, or hook (RV-209).
   validateDeterminismConfig(options.determinism);
@@ -1427,6 +1441,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(defaults.gates === undefined ? {} : { gates: defaults.gates }),
         ...(defaults.countTokens === undefined ? {} : { countTokens: defaults.countTokens }),
       },
+      ...(options.telemetry === undefined ? {} : { telemetry: options.telemetry }),
       errorPolicy: wf.errorPolicy,
       dropped: [],
       cost: {

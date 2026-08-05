@@ -344,6 +344,28 @@ export type AgentEvents =
       toolBudget?: ToolBudgetSummary;
     }
   | { type: 'agent:error'; agentType: string; label?: string; error: WireError; willRetry: boolean }
+  /**
+   * A recoverable pre-wire quota wait (RV1810): the shared limiter
+   * denied a window and the dispatch will retry after the wait. This
+   * is healthy throttling, not failure: it produces no provider
+   * attempt, no ledger row, and no transport retry, and it used to
+   * ride `agent:error` (data.source 'quota-limiter'), where naive
+   * alerting on the event TYPE read a failing run out of a clean one.
+   * Terminal denial exhaustion still ends in a real `agent:error`;
+   * `createEngine({ telemetry: { quotaDeniedAgentError: true } })`
+   * restores the legacy twin for consumers keyed to the old type.
+   */
+  | {
+      type: 'quota:denied';
+      agentType: string;
+      label?: string;
+      /** The denied model ref. */
+      model?: string;
+      /** The limiter's reason ('tokensPerMinute 1800000 exhausted'). */
+      reason?: string;
+      retryAfterMs?: number;
+      willRetry: true;
+    }
   | { type: 'agent:schema-retry'; agentType: string; attempt: number; maxAttempts: number }
   /**
    * Non-billable control egress (RV1804): a provider request that is

@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+quota:denied becomes the primary event for recoverable pre-wire waits (RV1810). The twentieth benchmark's run emitted 13 `agent:error` events that were all healthy token-window waits (a clean run, zero provider errors, zero transport retries), so any alert keyed to the event TYPE read a failing run. A recoverable denial now emits `quota:denied` (the denied model, the limiter's reason, `retryAfterMs`, `willRetry: true`); the legacy `agent:error` twin is gone by default and `createEngine({ telemetry: { quotaDeniedAgentError: true } })` restores it, the versioned compat posture. Terminal denial exhaustion still ends in the real `agent:error`. The observability guide gains the vocabulary section beside it: throttling versus failure, why `orchestrator.wakes` counts durable wait suspensions and not progressive await completions, and why internal root work reads from `byRole` while `byAgentType` and `byPhase` keep their honest empty-string buckets (synthetic phase wrappers would move journal bytes and re-key resumes).

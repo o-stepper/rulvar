@@ -783,6 +783,11 @@ export interface RunInternals {
     /** Engine-wide admission countTokens policy (RV1804); default 'allow'. */
     countTokens?: 'allow' | 'deny';
   };
+  /** Telemetry compat posture (RV1810). */
+  telemetry?: {
+    /** Emit the legacy agent:error twin beside quota:denied. */
+    quotaDeniedAgentError?: boolean;
+  };
   /** Engine-scoped per-provider keyed limiter (M4-T07). */
   providerLimiter?: KeyedLimiter;
   /**
@@ -2304,6 +2309,10 @@ export function createCtx(
       resolved: loopResolved,
       limits,
       events: agentSink,
+      // The versioned compat flag (RV1810): only when the host asked.
+      ...(internals.telemetry?.quotaDeniedAgentError === true
+        ? { quotaDeniedAgentError: true }
+        : {}),
       transcript: {
         mintRef: internals.mintTranscriptRef,
         put: (ref, blob) => internals.transcripts.put(ref, blob, internals.lease),

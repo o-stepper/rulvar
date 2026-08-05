@@ -51,6 +51,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | `quota.release?` | (`reservationId`) => `Promise`\&lt;`void`\&gt; | - | `packages/core/dist/index.d.ts` |
 | `quota.reserve` | (`request`) => `Promise`\&lt;[`QuotaDecision`](/api/@rulvar/rulvar/type-aliases/QuotaDecision.md)\&gt; | - | `packages/core/dist/index.d.ts` |
 | `quota.reserveContinuations?` | `boolean` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-quotadeniedagenterror"></a> `quotaDeniedAgentError?` | `boolean` | The versioned compat flag (RV1810): emit the legacy `agent:error` twin beside `quota:denied` for recoverable pre-wire quota waits. Default off: the wait speaks its own type only. | `packages/core/dist/index.d.ts` |
 | <a id="property-resolved"></a> `resolved` | [`ResolvedInvocation`](/api/@rulvar/rulvar/interfaces/ResolvedInvocation.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-retry"></a> `retry?` | \{ `policy?`: [`RetryPolicy`](/api/@rulvar/rulvar/interfaces/RetryPolicy.md); `random?`: () => `number`; `sleep?`: (`ms`) => `Promise`\&lt;`void`\&gt;; \} | Transport RetryPolicy (M4-T05): lives UNDER the journal, wired around every adapter.stream dispatch. sleep and random are injectable for tests; the core owns wall-clock. | `packages/core/dist/index.d.ts` |
 | `retry.policy?` | [`RetryPolicy`](/api/@rulvar/rulvar/interfaces/RetryPolicy.md) | - | `packages/core/dist/index.d.ts` |

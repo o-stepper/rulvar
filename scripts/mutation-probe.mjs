@@ -2632,7 +2632,7 @@ const MUTATIONS = [
     doctrine:
       'a pre-wire quota denial never increments transportRetries (RV1601): dropping the gate re-exports denials as agent:end retryCount, the exact conflation the eighteenth comparison benchmark caught against an invoice with zero provider error rows',
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: "            if (outcome.quotaDenied !== true) {\n              // A denial stays in the quotaDenials namespace alone: the\n              // event below still names it (data.source\n              // 'quota-limiter'), but retryCount reads clean against\n              // the provider ledger.\n              transportRetries += 1;\n            }",
+    find: '            if (outcome.quotaDenied !== true) {\n              // A denial stays in the quotaDenials namespace alone:\n              // retryCount reads clean against the provider ledger.\n              transportRetries += 1;\n            }',
     replace: '            transportRetries += 1;',
     test: 'packages/core/src/engine/quota.test.ts',
   },
@@ -2763,6 +2763,16 @@ const MUTATIONS = [
     find: '  return rows.sort((a, b) => a.seq - b.seq);',
     replace: '  return rows;',
     test: 'packages/core/src/l0/decision-chain.test.ts',
+  },
+  {
+    id: 'quota-denied-event-namespace',
+    doctrine:
+      "recoverable quota waits speak their own event type (RV1810): folding them back into agent:error makes every healthy token-window wait read as a failing run to any consumer keyed on the type, the twentieth benchmark's 13-for-13 false alarm",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '            if (outcome.quotaDenied === true) {\n              // The recoverable pre-wire wait speaks its own type',
+    replace:
+      '            if (false) {\n              // The recoverable pre-wire wait speaks its own type',
+    test: 'packages/core/src/engine/quota.test.ts',
   },
   {
     id: 'coverage-ratio-floor',
