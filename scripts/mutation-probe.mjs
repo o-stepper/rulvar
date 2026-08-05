@@ -2765,6 +2765,24 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'decision-chain-canonical-resolution',
+    doctrine:
+      "the decision chain reads the canonical entry.resolution payload first (RV1801): the engine journals who resolved and the decision value there with no entry value at all, so a fold reading only value reconstructs a live run's authority record without its authority",
+    file: 'packages/core/src/l0/decision-chain.ts',
+    find: "    const by = resolution?.by ?? (stringField(entry.value, 'by') as ResolutionBy | undefined);",
+    replace: "    const by = stringField(entry.value, 'by') as ResolutionBy | undefined;",
+    test: 'packages/core/src/l0/decision-chain.test.ts',
+  },
+  {
+    id: 'decision-chain-abandon-authorizedby',
+    doctrine:
+      'the decision chain reads the canonical entry.abandon payload first (RV1801): authorizedBy is the seq of the entry that sanctioned the abandon, and losing it turns an authorized teardown into an unexplained one on every live journal',
+    file: 'packages/core/src/l0/decision-chain.ts',
+    find: "    const authorizedBy = abandon?.authorizedBy ?? numberField(entry.value, 'authorizedBy');",
+    replace: "    const authorizedBy = numberField(entry.value, 'authorizedBy');",
+    test: 'packages/core/src/l0/decision-chain.test.ts',
+  },
+  {
     id: 'host-effect-idempotency',
     doctrine:
       'the reference guarded effect suppresses a re-fired side effect under a claimed idempotency key (RV1705): dropping the claim check is exactly the duplicate external effect the redelivery acceptance exists to refuse',

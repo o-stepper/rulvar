@@ -17,6 +17,14 @@
  * carries one as a string, references only when the entry recorded
  * them. Pure and deterministic over bytes, exactly like the other l0
  * reducers: replaying the same entries folds the same chain.
+ *
+ * Canonical payloads first (RV1801): the engine journals a
+ * resolution's by/target/decisionRef and its decision value inside
+ * `entry.resolution`, and an abandon's target/authorizedBy inside
+ * `entry.abandon` (DEF-4), with no `entry.value` at all, so those
+ * payloads are the primary source of the authority fields; the
+ * value-carried forms remain the fallback, so hand-authored and
+ * offline journals fold exactly as before.
  */
 import type { Json } from './json.js';
 import type { EntryKind, EntryStatus, JournalEntry, ResolutionBy } from './entries.js';
@@ -44,15 +52,19 @@ export interface DecisionChainRow {
   status: EntryStatus;
   /** Present when the journaled value names its decision type. */
   decisionType?: string;
-  /** Present on resolutions: who resolved. */
+  /** Present on resolutions: who resolved (canonical `entry.resolution.by` first). */
   by?: ResolutionBy;
   /** Present on resolutions and abandons: the referenced seq. */
   target?: number;
-  /** Present on abandons: the seq of the sanctioning entry. */
+  /** Present on abandons: the seq of the sanctioning entry (canonical `entry.abandon`). */
   authorizedBy?: number;
   /** Present on class-decision resolutions: the class decision's seq. */
   decisionRef?: number;
-  /** The journaled value verbatim, when the entry carries one. */
+  /**
+   * The journaled value verbatim when the entry carries one; on a
+   * canonical resolution with no entry value, the resolution's own
+   * decision value (what the ask was resolved WITH).
+   */
   value?: Json;
 }
 
@@ -83,11 +95,15 @@ export function reduceDecisionChain(entries: readonly JournalEntry[]): DecisionC
     if (!DECISION_CHAIN_KINDS.includes(entry.kind)) {
       continue;
     }
+    const resolution = entry.kind === 'resolution' ? entry.resolution : undefined;
+    const abandon = entry.kind === 'abandon' ? entry.abandon : undefined;
     const decisionType = stringField(entry.value, 'decisionType');
-    const by = stringField(entry.value, 'by') as ResolutionBy | undefined;
-    const target = numberField(entry.value, 'target') ?? entry.ref;
-    const authorizedBy = numberField(entry.value, 'authorizedBy');
-    const decisionRef = numberField(entry.value, 'decisionRef');
+    const by = resolution?.by ?? (stringField(entry.value, 'by') as ResolutionBy | undefined);
+    const target =
+      resolution?.target ?? abandon?.target ?? numberField(entry.value, 'target') ?? entry.ref;
+    const authorizedBy = abandon?.authorizedBy ?? numberField(entry.value, 'authorizedBy');
+    const decisionRef = resolution?.decisionRef ?? numberField(entry.value, 'decisionRef');
+    const value = entry.value ?? resolution?.value;
     rows.push({
       seq: entry.seq,
       kind: entry.kind,
@@ -99,7 +115,7 @@ export function reduceDecisionChain(entries: readonly JournalEntry[]): DecisionC
       ...(target === undefined ? {} : { target }),
       ...(authorizedBy === undefined ? {} : { authorizedBy }),
       ...(decisionRef === undefined ? {} : { decisionRef }),
-      ...(entry.value === undefined ? {} : { value: entry.value }),
+      ...(value === undefined ? {} : { value }),
     });
   }
   return rows.sort((a, b) => a.seq - b.seq);

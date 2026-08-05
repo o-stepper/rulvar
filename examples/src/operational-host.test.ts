@@ -78,6 +78,7 @@ describe('the operational host reference (RV1705)', () => {
   });
 
   it('a revoked approval never executes: the deny lands pre-effect and the ledger stays empty', async () => {
+    const store = new InMemoryStore({ quiet: true });
     const effects = { fired: [] as string[] };
     const ledger = memoryEffectLedger();
     let turn = 0;
@@ -96,11 +97,12 @@ describe('the operational host reference (RV1705)', () => {
       adapter,
       routing: ROUTING,
       tools: [guardedEffectTool('ship-report', effects, ledger)],
+      store,
     });
     const wf = defineWorkflow({ name: 'guarded-flow' }, async (ctx) =>
       ctx.agent('ship the tenant report', { agentType: 'alpha-worker' }),
     );
-    const handle = engine.run(wf, undefined);
+    const handle = engine.run(wf, undefined, { runId: 'revoked-run' });
     const off = handle.on('approval:pending', (event) => {
       const entryRef = (event as unknown as { entryRef: number }).entryRef;
       void handle.resolveExternal(ExternalRegistry.approvalKey(entryRef), {
@@ -114,6 +116,16 @@ describe('the operational host reference (RV1705)', () => {
     expect(effects.fired).toEqual([]);
     expect(ledger.intents()).toEqual([]);
     expect(ledger.entries()).toEqual([]);
+    // RV1801: the refusal is auditable from the fold alone: the
+    // canonical resolution payload carries who denied and the deny
+    // itself, with its reason, on the live journal.
+    const chain = await decisionChainOf(store, 'revoked-run');
+    const denyRow = chain.find((row) => row.kind === 'resolution');
+    expect(denyRow?.by).toBe('external');
+    expect(denyRow?.value).toEqual({
+      decision: 'deny',
+      reason: 'revoked by the security desk',
+    });
   });
 
   it('a redelivered attempt cannot duplicate the effect, and a replay performs no work at all', async () => {
@@ -239,5 +251,29 @@ describe('the operational host reference (RV1705)', () => {
     const settle = chain.find((row) => row.decisionType === 'run_settle');
     expect(settle).toBeDefined();
     expect(settle && resolution && settle.seq > resolution.seq).toBe(true);
+    // RV1801: on a LIVE journal the canonical resolution payload feeds
+    // the fold: who resolved and the decision value itself ride the row.
+    expect(resolution?.by).toBe('external');
+    expect(resolution?.value).toEqual({ decision: 'allow' });
+    // Fold-to-journal parity: every canonical payload field the engine
+    // journaled is exactly what the chain row reports, no more, no less.
+    const entries = await store.load('audited-run');
+    let canonicalResolutions = 0;
+    for (const journaled of entries) {
+      const row = chain.find((candidate) => candidate.seq === journaled.seq);
+      if (journaled.kind === 'resolution' && journaled.resolution !== undefined) {
+        canonicalResolutions += 1;
+        expect(row?.by).toBe(journaled.resolution.by);
+        expect(row?.target).toBe(journaled.resolution.target);
+        expect(row?.decisionRef).toBe(journaled.resolution.decisionRef);
+        expect(row?.value).toEqual(journaled.resolution.value);
+      }
+      if (journaled.kind === 'abandon' && journaled.abandon !== undefined) {
+        expect(row?.target).toBe(journaled.abandon.target);
+        expect(row?.authorizedBy).toBe(journaled.abandon.authorizedBy);
+      }
+    }
+    // The parity loop above must not have been vacuous.
+    expect(canonicalResolutions).toBeGreaterThan(0);
   });
 });

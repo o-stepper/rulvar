@@ -67,6 +67,8 @@ const chain = reduceDecisionChain(await store.load(runId));
 
 For the guarded-effect run above, the chain reads: the approval entry carrying WHAT was asked (the tool name, its input, its declared risk), the resolution that closed it referencing the ask by `seq`, and the `run_settle` decision after it. The executed test asserts exactly that shape. `auditRun` and the persisted terminal remain the settled-state authorities; the chain is the WHO-ALLOWED-WHAT view over the same bytes, one call instead of a hand-rolled kind filter.
 
+The fold reads the canonical payloads the engine journals (RV1801): a resolution row's `by`, `target`, and `decisionRef` come from `entry.resolution`, an abandon row's `target` and `authorizedBy` from `entry.abandon`, and a resolution row's `value` is the decision the ask was resolved WITH (`{ decision: 'allow' }`, or the deny and its reason) when the entry itself carries no value. Value-carried forms remain the fallback, so hand-authored and offline journals fold exactly as before. The executed test pins fold-to-journal parity on a live run: every canonical field the engine journaled is what the chain row reports.
+
 ## What stays yours
 
 The reference draws the boundary the [production profiles guide](/guide/production-profiles) documents: the engine proves what happened, what it cost, and what was authorized; identity and tenancy mapping, secret distribution, the outbox that makes effects transactional, merge and deploy authority, HA storage operations, and the durable telemetry backend are host planes. A host that wires the four behaviors above has the mechanical floor of an operational deployment; everything on top is policy.
