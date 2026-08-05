@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred sixty six rounds, verbatim in this repository's history:
+The one hundred sixty seven rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -380,6 +380,7 @@ The one hundred sixty six rounds, verbatim in this repository's history:
 | v1.182.0      | dd3767c (#739): the decision chain reads the canonical resolution and abandon payloads the engine journals, so live folds keep who resolved, the sanction, and the decision value itself  | v1.183.0   |
 | v1.183.0      | 8a9caca (#742): the toolset attestation gains an authority hash over risk, needsApproval, executor, and executorSpec, refused pre wire naming the field; old pins stay contract only      | v1.184.0   |
 | v1.184.0      | 1248623 (#745): a finalize route declared at the workflow level alone now fires the phase; the trigger reads the same four layers resolution reads, and resume replays the synthesis free | v1.185.0   |
+| v1.185.0      | 242647e (#748): countTokens becomes a policied control wire with a typed event, future dated rates refuse under strict pricing, and duplicate local ids fail reconciliation closed        | v1.186.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
