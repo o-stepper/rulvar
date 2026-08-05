@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+
 ### 1.192.0
 
 #### Patch Changes
@@ -1823,6 +1830,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+
 ### 1.192.0
 
 #### Patch Changes
@@ -3435,6 +3449,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
 
 ### 1.192.0
 
@@ -5492,6 +5513,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.193.0
+
+#### Minor Changes
+
+- 2bca1d1: The admission projection holds the synthesis reserve exactly like the live gates (RV1901). The four-role benchmark's primary arm configured a $6.00 ceiling, a $4.50 orchestrator cap, a $1.00 synthesis reserve and four workers at estCost $0.62; preflight read the wave 5/5 green while the live gate refused the third worker, because the projection netted the synthesis carve-out out of the orchestrator's own row and then held nothing for it at the run root, where the runtime registers it before any spawn admits and both live gates (`refuseSpawnIfInfeasible`, `remainderOf`) count it. The wave arithmetic now carries the hold in both projection layers, and the exact benchmark configuration projects 2 of 4 seats before the first wire, matching the live gate for the same reason. The report exposes the equation: `admission.synthesisReserveUsd` names the hold, every wave row carries `heldAtEvaluationUsd` (the money already held when the row was evaluated), and the declared `orchestrator.acceptance` slice accepts `minSpawnedChildren`, so a wave whose budget seats fewer children than the acceptance floor demands (`minSpawnedChildren` or `childPolicy.minSuccessful`) draws the error finding `admission-below-roster-floor` instead of paying for a roster the settle verdict is bound to reject.
 
 ### 1.192.0
 
@@ -7850,6 +7877,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.193.0
+
 ### 1.192.0
 
 ### 1.191.0
@@ -8338,6 +8367,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+  - @rulvar/anthropic@1.193.0
+  - @rulvar/openai@1.193.0
+  - @rulvar/plan@1.193.0
+  - @rulvar/testing@1.193.0
 
 ### 1.192.0
 
@@ -10517,6 +10557,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+
 ### 1.192.0
 
 #### Patch Changes
@@ -11540,6 +11587,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
 
 ### 1.192.0
 
@@ -13355,6 +13409,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+
 ### 1.192.0
 
 #### Patch Changes
@@ -15081,6 +15142,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+  - eslint-plugin-rulvar@1.193.0
 
 ### 1.192.0
 
@@ -16962,6 +17031,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+  - @rulvar/anthropic@1.193.0
+  - @rulvar/openai@1.193.0
 
 ### 1.192.0
 
@@ -19119,6 +19197,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+
 ### 1.192.0
 
 #### Patch Changes
@@ -20853,6 +20938,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
+
 ### 1.192.0
 
 #### Patch Changes
@@ -21892,6 +21984,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
 
 ### 1.192.0
 
@@ -23563,6 +23662,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.193.0
+
+#### Patch Changes
+
+- Updated dependencies [2bca1d1]
+  - @rulvar/core@1.193.0
 
 ### 1.192.0
 
