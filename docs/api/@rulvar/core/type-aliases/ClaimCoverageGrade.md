@@ -10,7 +10,7 @@
 type ClaimCoverageGrade = "full" | "partial" | "critical-uncovered" | "judge-failed";
 ```
 
-Defined in: [packages/core/src/orchestrator/consistency.ts:528](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L528)
+Defined in: [packages/core/src/orchestrator/consistency.ts:535](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L535)
 
 The claim-coverage grade (RV1702): one closed vocabulary a consumer
 reads INSTEAD of inferring semantic health from an empty findings

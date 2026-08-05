@@ -8103,6 +8103,13 @@ interface RunFactPairsFold {
   pairs: ClaimPair[];
   /** True when more sentences matched than `max` allowed to report. */
   truncated: boolean;
+  /**
+  * The UNCAPPED count of matched run-claim sentences (RV1809): with
+  * only `truncated` a consumer knew the bound cut the fold but not by
+  * how much, so no run-fact coverage ratio was computable from the
+  * meta alone.
+  */
+  candidates: number;
 }
 /**
 * Pairs draft sentences that speak about the RUN with the run's own
@@ -9467,6 +9474,32 @@ interface OrchestrateClaimConsistency {
   * `runFacts: true`.
   */
   runFactTerms?: string[];
+  /**
+  * The declared coverage floor (RV1809): the minimum
+  * coveredCitingSentences over draftCitingSentences ratio, in
+  * (0, 1]. The nineteenth benchmark's pass covered 36 of 122 citing
+  * sentences and graded itself 'partial' honestly, but nothing could
+  * ENFORCE a floor: a consumer had to read the counts and decide
+  * externally. Below the floor, `onLowCoverage` decides. A draft
+  * with zero citing sentences is vacuously full and never trips it.
+  */
+  minimumCoverageRatio?: number;
+  /**
+  * The run-fact coverage floor (RV1809): the minimum judged run-fact
+  * pairs over matched run-fact candidates ratio, in (0, 1]. Requires
+  * `runFacts: true`; a draft with zero matched run claims never
+  * trips it.
+  */
+  runFactCoverageRatio?: number;
+  /**
+  * What a below-floor ratio does (RV1809): 'report' (the default)
+  * stamps the machine-readable `lowCoverage` block on the meta;
+  * 'fail' fails the run typed BEFORE the judge dispatch, exactly
+  * like `onUncoveredCritical`, so a run that cannot meet its
+  * declared verification floor never pays for a partial verdict.
+  * Requires at least one declared floor.
+  */
+  onLowCoverage?: "report" | "fail";
 }
 /** One judged contradiction: the pair plus the judge's one-sentence reason. */
 interface ClaimContradictionFinding extends ClaimPair {
@@ -9510,6 +9543,26 @@ interface OrchestrateClaimConsistencyMeta {
   runFactPairs?: number;
   /** Present under `runFacts` when more run claims matched than the bound. */
   runFactPairsTruncated?: true;
+  /**
+  * Present under `runFacts` (RV1809): the UNCAPPED count of matched
+  * run-claim sentences, so the run-fact coverage ratio is computable
+  * from the meta alone, live or from a persisted outcome.
+  */
+  runFactCandidates?: number;
+  /**
+  * Present when a declared coverage floor was not met under
+  * `onLowCoverage: 'report'` (RV1809): each ratio beside its floor,
+  * machine-readable, so "complete but under-verified by the declared
+  * floor" is a field, not an external computation. Under 'fail' the
+  * run fails typed instead and the meta stamps this block on the way
+  * out.
+  */
+  lowCoverage?: {
+    coverageRatio: number;
+    coverageFloor?: number;
+    runFactRatio?: number;
+    runFactFloor?: number;
+  };
   /** True when the judge invocation was dispatched. */
   judgeInvoked: boolean;
   /** Present when the judge invocation did not settle ok. */

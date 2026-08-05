@@ -29,8 +29,14 @@ an empty list would claim the pool agreed.
 | <a id="property-draftcitingsentences"></a> `draftCitingSentences` | `number` | Draft sentences carrying at least one parsable anchor. | `packages/core/dist/index.d.ts` |
 | <a id="property-judgefailed"></a> `judgeFailed?` | `true` | Present when the judge invocation did not settle ok. | `packages/core/dist/index.d.ts` |
 | <a id="property-judgeinvoked"></a> `judgeInvoked` | `boolean` | True when the judge invocation was dispatched. | `packages/core/dist/index.d.ts` |
+| <a id="property-lowcoverage"></a> `lowCoverage?` | \{ `coverageFloor?`: `number`; `coverageRatio`: `number`; `runFactFloor?`: `number`; `runFactRatio?`: `number`; \} | Present when a declared coverage floor was not met under `onLowCoverage: 'report'` (RV1809): each ratio beside its floor, machine-readable, so "complete but under-verified by the declared floor" is a field, not an external computation. Under 'fail' the run fails typed instead and the meta stamps this block on the way out. | `packages/core/dist/index.d.ts` |
+| `lowCoverage.coverageFloor?` | `number` | - | `packages/core/dist/index.d.ts` |
+| `lowCoverage.coverageRatio` | `number` | - | `packages/core/dist/index.d.ts` |
+| `lowCoverage.runFactFloor?` | `number` | - | `packages/core/dist/index.d.ts` |
+| `lowCoverage.runFactRatio?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-pairs"></a> `pairs` | `number` | Pairs the fold produced (and the judge ruled on, when invoked). | `packages/core/dist/index.d.ts` |
 | <a id="property-poolchildren"></a> `poolChildren` | `number` | How many accepted children the fold read. | `packages/core/dist/index.d.ts` |
+| <a id="property-runfactcandidates"></a> `runFactCandidates?` | `number` | Present under `runFacts` (RV1809): the UNCAPPED count of matched run-claim sentences, so the run-fact coverage ratio is computable from the meta alone, live or from a persisted outcome. | `packages/core/dist/index.d.ts` |
 | <a id="property-runfactpairs"></a> `runFactPairs?` | `number` | Present under `runFacts`: run-claim pairs judged against the fact sheet. | `packages/core/dist/index.d.ts` |
 | <a id="property-runfactpairstruncated"></a> `runFactPairsTruncated?` | `true` | Present under `runFacts` when more run claims matched than the bound. | `packages/core/dist/index.d.ts` |
 | <a id="property-truncated"></a> `truncated` | `boolean` | True when more pairs existed than `max` allowed to judge. | `packages/core/dist/index.d.ts` |

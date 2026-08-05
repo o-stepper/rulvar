@@ -870,3 +870,106 @@ describe('the claim-coverage grade (RV1702)', () => {
     });
   });
 });
+
+describe('the declared coverage floors (RV1809)', () => {
+  const TWO_SENTENCE_DRAFT =
+    'The exec path masks nothing (src/exec.ts:10). The ledger dedupes keys (src/ledger.ts:5).';
+  const EXEC_ONLY_POOL = 'The exec path is honest about masking (src/exec.ts:10).';
+
+  it('pairRunFactClaims reports the uncapped candidate count', () => {
+    const sheet = { text: 'The run made 125 wire requests.', ids: [], numbers: [125] };
+    const draft = ['One claim about 125 wires.', 'Another about 125 wires too.'].join(' ');
+    const fold = pairRunFactClaims(draft, sheet, { max: 1 });
+    expect(fold.pairs).toHaveLength(1);
+    expect(fold.truncated).toBe(true);
+    expect(fold.candidates).toBe(2);
+  });
+
+  it("a below-floor pass under 'report' stamps the machine-readable lowCoverage block", async () => {
+    const { internals } = passHarness({
+      children: [EXEC_ONLY_POOL],
+      draft: TWO_SENTENCE_DRAFT,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { minimumCoverageRatio: 0.8, ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    const meta = outcome.claimConsistencyMeta;
+    expect(meta?.coverage).toBe('partial');
+    expect(meta?.lowCoverage).toEqual({ coverageRatio: 0.5, coverageFloor: 0.8 });
+    // The candidates field rides the meta under runFacts only; this
+    // run declared none, so the block stays exactly this shape.
+    expect(meta !== undefined && 'runFactCandidates' in meta).toBe(false);
+  });
+
+  it('the armed onLowCoverage posture fails typed BEFORE the judge dispatch', async () => {
+    const { internals, judge } = passHarness({
+      children: [EXEC_ONLY_POOL],
+      draft: TWO_SENTENCE_DRAFT,
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: {
+          minimumCoverageRatio: 0.8,
+          onLowCoverage: 'fail',
+          ...JUDGE_MODEL,
+        },
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.source).toBe('orchestrator_claim_consistency');
+    expect(data.lowCoverage).toEqual({ coverageRatio: 0.5, coverageFloor: 0.8 });
+    expect(judge.calls).toHaveLength(0);
+  });
+
+  it('a meeting pass stamps no block and keeps its exact bytes', async () => {
+    const { internals } = passHarness({
+      children: [POOL_READING],
+      draft: DRAFT_INVERTED,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { minimumCoverageRatio: 0.5, ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    const meta = outcome.claimConsistencyMeta;
+    expect(meta?.coverage).toBe('full');
+    expect(meta !== undefined && 'lowCoverage' in meta).toBe(false);
+  });
+
+  it('refuses bad RV1809 intake, fail closed', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { minimumCoverageRatio: 0 },
+      }),
+    ).toThrow(/minimumCoverageRatio must be a number in \(0, 1\]/);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { minimumCoverageRatio: 1.2 },
+      }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { runFactCoverageRatio: 0.5 },
+      }),
+    ).toThrow(/runFactCoverageRatio rides the runFacts pass/);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { onLowCoverage: 'fail' },
+      }),
+    ).toThrow(/needs a declared floor/);
+  });
+});

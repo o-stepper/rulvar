@@ -413,6 +413,13 @@ export interface RunFactPairsFold {
   pairs: ClaimPair[];
   /** True when more sentences matched than `max` allowed to report. */
   truncated: boolean;
+  /**
+   * The UNCAPPED count of matched run-claim sentences (RV1809): with
+   * only `truncated` a consumer knew the bound cut the fold but not by
+   * how much, so no run-fact coverage ratio was computable from the
+   * meta alone.
+   */
+  candidates: number;
 }
 
 /** Standalone numbers of two or more digits: single digits trigger nothing. */
@@ -493,7 +500,7 @@ export function pairRunFactClaims(
       });
     }
   }
-  return { pairs: matched, truncated: total > matched.length };
+  return { pairs: matched, truncated: total > matched.length, candidates: total };
 }
 
 /**

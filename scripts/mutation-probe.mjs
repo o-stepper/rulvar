@@ -2765,6 +2765,24 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'coverage-ratio-floor',
+    doctrine:
+      'the declared coverage floor trips on the fold ratio (RV1809): disarming the comparison lets a run that verified half its declared minimum stamp no block, fail no gate, and read green under strict, the exact externalized arithmetic the floors exist to internalize',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          const belowCoverage =\n            spec.minimumCoverageRatio !== undefined &&\n            fold.draftCitingSentences > 0 &&\n            coverageRatio < spec.minimumCoverageRatio;',
+    replace: '          const belowCoverage = false;',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'corpus-modality-class',
+    doctrine:
+      "the modality-overclaim corpus case keeps forming its pair (RV1809): the nineteenth benchmark's recurring failure was a mitigation stated as an unconditional guarantee, and a corpus that stops pairing that shape green-washes the blindness it exists to detect",
+    file: 'packages/evals/src/claim-corpus.ts',
+    find: "      'unconditionally: a changed tool always refuses at spawn time ' +\n      '(packages/core/src/tools/toolset-hash.ts:85).',",
+    replace: "      'unconditionally: a changed tool always refuses at spawn time.',",
+    test: 'packages/evals/src/claim-corpus.test.ts',
+  },
+  {
     id: 'mcp-visited-cursor-cycle',
     doctrine:
       'the MCP sweep refuses any cursor it already queried with (RV1808): the echo guard sees only the immediate self-echo, so an alternating pair paginates forever under no maxPages, each wire call comfortably inside listMs',

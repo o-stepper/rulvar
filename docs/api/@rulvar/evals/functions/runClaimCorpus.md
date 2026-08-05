@@ -10,7 +10,7 @@
 function runClaimCorpus(cases?): ClaimCorpusVerdict[];
 ```
 
-Defined in: [packages/evals/src/claim-corpus.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/claim-corpus.ts#L195)
+Defined in: [packages/evals/src/claim-corpus.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/claim-corpus.ts#L247)
 
 Runs every corpus case through the pure folds and grades the
 mechanical expectations. No engine, no model, no journal: the same

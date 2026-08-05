@@ -336,6 +336,26 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     );
     return 1;
   }
+  // A stamped below-floor block (RV1809): the run DECLARED a coverage
+  // floor and the pass ran under it, so "complete but under-verified by
+  // the declared floor" exits nonzero instead of reading green.
+  const low = lowCoverageOf(value);
+  if (low !== undefined) {
+    io.err(
+      'strict: claim coverage below the declared floor' +
+        (typeof low.coverageRatio === 'number'
+          ? `: coverage ${low.coverageRatio.toFixed(3)}` +
+            (typeof low.coverageFloor === 'number'
+              ? ` under floor ${String(low.coverageFloor)}`
+              : '')
+          : '') +
+        (typeof low.runFactRatio === 'number'
+          ? `; run facts ${low.runFactRatio.toFixed(3)}` +
+            (typeof low.runFactFloor === 'number' ? ` under floor ${String(low.runFactFloor)}` : '')
+          : ''),
+    );
+    return 1;
+  }
   if (grade === 'partial') {
     io.err(
       "strict: claim coverage 'partial': the judge saw a bounded subset of the citing " +
@@ -344,4 +364,27 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     );
   }
   return base;
+}
+
+/** The stamped below-floor block of an outcome's claim meta, when present (RV1809). */
+function lowCoverageOf(value: unknown):
+  | {
+      coverageRatio?: unknown;
+      coverageFloor?: unknown;
+      runFactRatio?: unknown;
+      runFactFloor?: unknown;
+    }
+  | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
+  }
+  const meta = (value as { claimConsistencyMeta?: unknown }).claimConsistencyMeta;
+  if (typeof meta !== 'object' || meta === null) {
+    return undefined;
+  }
+  const low = (meta as { lowCoverage?: unknown }).lowCoverage;
+  if (typeof low !== 'object' || low === null || Array.isArray(low)) {
+    return undefined;
+  }
+  return low;
 }

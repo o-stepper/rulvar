@@ -13,9 +13,11 @@ describe('the adversarial claim corpus (RV1704)', () => {
       'bounded-coverage',
       'inverted-default',
       'live-fact',
+      'modality-overclaim',
       'negation',
       'numeric-range',
       'package-identity',
+      'scope-ambiguity',
     ]);
   });
 
