@@ -2765,6 +2765,16 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'provider-executed-deny-terminal',
+    doctrine:
+      'the bridge refuses provider-executed tools under the default deny (RV1806): those calls never pass the ToolDef registry, risk classes, or approvals, so silently absorbing them is an effect surface the permission chain cannot see',
+    file: 'packages/bridge-ai-sdk/src/bridge.ts',
+    find: "        if (part.providerExecuted === true) {\n          if (this.providerExecutedPolicy === 'deny') {\n            return this.denyProviderExecuted(part.toolName);\n          }\n          this.providerExecutedWireIds.add(part.id);",
+    replace:
+      '        if (part.providerExecuted === true) {\n          this.providerExecutedWireIds.add(part.id);',
+    test: 'packages/bridge-ai-sdk/src/bridge.test.ts',
+  },
+  {
     id: 'anthropic-error-carries-segments',
     doctrine:
       'every anthropic error arm names the absorbed pause_turn segments (RV1805): the successful finish carries the whole wire set, so an error that yields bare orphans exactly the paid wires a statement join needs most',

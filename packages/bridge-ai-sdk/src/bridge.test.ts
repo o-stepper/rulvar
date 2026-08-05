@@ -270,7 +270,7 @@ describe('bridgeAiSdk stream mapping', () => {
     expect(terminal.error.message).toMatch(/without a finish part/);
   });
 
-  it('absorbs provider-executed tool exchanges into retention and rejects approval requests', async () => {
+  it('absorbs provider-executed tool exchanges into retention under the explicit allow (RV1806) and rejects approval requests', async () => {
     const providerExecuted = await collect(
       bridgeAiSdk(
         fakeModel([
@@ -295,11 +295,15 @@ describe('bridgeAiSdk stream mapping', () => {
             finishReason: { unified: 'stop', raw: 'stop' },
           },
         ]),
+        { providerExecutedTools: 'allow' },
       ).stream({ model: 'fake-model-1', messages: [] }),
     );
     expect(providerExecuted.map((event) => event.type)).toEqual(['finish']);
     const finish = providerExecuted[0] as Extract<ChatEvent, { type: 'finish' }>;
-    const bag = finish.providerMetadata?.fakeprov as { retainedParts: unknown[] };
+    const bag = finish.providerMetadata?.fakeprov as {
+      retainedParts: unknown[];
+      providerExecutedTools: unknown[];
+    };
     expect(bag.retainedParts).toEqual([
       {
         type: 'tool-call',
@@ -310,6 +314,8 @@ describe('bridgeAiSdk stream mapping', () => {
       },
       { type: 'tool-result', toolCallId: 'px', toolName: 'web_search', result: { hits: 3 } },
     ]);
+    // The allow arm's visibility half: the finish names what ran.
+    expect(bag.providerExecutedTools).toEqual([{ toolName: 'web_search', toolCallId: 'px' }]);
 
     const approval = await collect(
       bridgeAiSdk(
@@ -327,6 +333,50 @@ describe('bridgeAiSdk stream mapping', () => {
     const error = approval[0] as Extract<ChatEvent, { type: 'error' }>;
     expect(error.error.retryable).toBe(false);
     expect(error.error.message).toMatch(/approval/);
+  });
+
+  it("refuses provider-executed exchanges under the default 'deny' policy (RV1806)", async () => {
+    const denied = await collect(
+      bridgeAiSdk(
+        fakeModel([
+          { type: 'tool-input-start', id: 'px', toolName: 'web_search', providerExecuted: true },
+          { type: 'text-delta', id: 't', delta: 'never reached' },
+        ]),
+      ).stream({ model: 'fake-model-1', messages: [] }),
+    );
+    expect(denied).toHaveLength(1);
+    const error = denied[0] as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(false);
+    expect(error.error.message).toMatch(/web_search/u);
+    expect(error.error.message).toMatch(/providerExecutedTools/u);
+    expect((error.error.data as { providerExecutedTool?: string }).providerExecutedTool).toBe(
+      'web_search',
+    );
+
+    // The bare tool-call form (non-streaming providers) refuses the same way.
+    const deniedCall = await collect(
+      bridgeAiSdk(
+        fakeModel([
+          {
+            type: 'tool-call',
+            toolCallId: 'px2',
+            toolName: 'code_exec',
+            input: '{}',
+            providerExecuted: true,
+          },
+        ]),
+      ).stream({ model: 'fake-model-1', messages: [] }),
+    );
+    expect(deniedCall).toHaveLength(1);
+    expect((deniedCall[0] as Extract<ChatEvent, { type: 'error' }>).error.message).toMatch(
+      /code_exec/u,
+    );
+  });
+
+  it('a malformed providerExecutedTools value refuses at construction, typed', () => {
+    expect(() =>
+      bridgeAiSdk(fakeModel([]), { providerExecutedTools: 'sometimes' as never }),
+    ).toThrow(/providerExecutedTools must be 'allow' or 'deny'/u);
   });
 
   it('synthesizes tool-call-start when a provider emits the tool-call part alone', async () => {

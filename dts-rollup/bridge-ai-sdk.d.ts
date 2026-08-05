@@ -17,6 +17,22 @@ interface BridgeAiSdkOptions {
   provider?: string;
   /** Per-model capability overrides merged over the conservative defaults. */
   caps?: (model: string) => ModelCaps | Partial<ModelCaps>;
+  /**
+  * Provider-executed tool policy (RV1806). The wrapped provider can
+  * run tools SERVER-SIDE (web search, code execution, computer use):
+  * those calls never pass the engine's ToolDef registry, risk
+  * classes, ask rules, or approvals, and their effects happen on
+  * provider infrastructure regardless of any engine permission chain.
+  * The default 'deny' fails the turn with a typed terminal error the
+  * moment a provider-executed exchange appears, because a policy
+  * surface that cannot see a call must not silently absorb it.
+  * 'allow' opts in: the exchange is retained for prompt
+  * reconstruction exactly as before, and the finish metadata
+  * additionally names every provider-executed call
+  * (`providerExecutedTools: [{ toolName, toolCallId }]`) so the
+  * journaled record of the turn says what the provider ran.
+  */
+  providerExecutedTools?: "allow" | "deny";
 }
 /**
 * Wraps a Vercel AI SDK LanguageModelV4 as a ProviderAdapter. The bridge

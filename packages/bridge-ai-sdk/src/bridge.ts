@@ -114,6 +114,22 @@ export interface BridgeAiSdkOptions {
   provider?: string;
   /** Per-model capability overrides merged over the conservative defaults. */
   caps?: (model: string) => ModelCaps | Partial<ModelCaps>;
+  /**
+   * Provider-executed tool policy (RV1806). The wrapped provider can
+   * run tools SERVER-SIDE (web search, code execution, computer use):
+   * those calls never pass the engine's ToolDef registry, risk
+   * classes, ask rules, or approvals, and their effects happen on
+   * provider infrastructure regardless of any engine permission chain.
+   * The default 'deny' fails the turn with a typed terminal error the
+   * moment a provider-executed exchange appears, because a policy
+   * surface that cannot see a call must not silently absorb it.
+   * 'allow' opts in: the exchange is retained for prompt
+   * reconstruction exactly as before, and the finish metadata
+   * additionally names every provider-executed call
+   * (`providerExecutedTools: [{ toolName, toolCallId }]`) so the
+   * journaled record of the turn says what the provider ran.
+   */
+  providerExecutedTools?: 'allow' | 'deny';
 }
 
 /**
@@ -177,6 +193,12 @@ export function bridgeAiSdk(
     throw new ConfigError('bridgeAiSdk requires a non-empty adapter id (model.provider was empty)');
   }
   const family = options.provider ?? model.provider;
+  const providerExecutedTools = options.providerExecutedTools ?? 'deny';
+  if (providerExecutedTools !== 'allow' && providerExecutedTools !== 'deny') {
+    throw new ConfigError(
+      "bridgeAiSdk options.providerExecutedTools must be 'allow' or 'deny' when given",
+    );
+  }
   const ids = new BridgeIdMap(createCanonicalIdMinter());
 
   return {
@@ -212,7 +234,7 @@ export function bridgeAiSdk(
         return;
       }
 
-      const mapper = new StreamMapper(id, ids, built.effortDownmapped);
+      const mapper = new StreamMapper(id, ids, built.effortDownmapped, providerExecutedTools);
       try {
         for await (const part of iterateStream(result.stream)) {
           for (const event of mapper.map(part)) {
@@ -547,17 +569,51 @@ class StreamMapper {
   private readonly adapterId: string;
   private readonly ids: BridgeIdMap;
   private readonly effortDownmapped: boolean;
+  private readonly providerExecutedPolicy: 'allow' | 'deny';
   private readonly startedToolWireIds = new Set<string>();
   private readonly providerExecutedWireIds = new Set<string>();
+  /** Provider-executed calls seen under 'allow' (RV1806), by wire id. */
+  private readonly providerExecutedSeen = new Map<string, string>();
   private readonly reasoning = new Map<string, ReasoningAccumulator>();
   private readonly retained: unknown[] = [];
   private warnings: SharedV4Warning[] = [];
   private response: Record<string, unknown> | undefined;
 
-  constructor(adapterId: string, ids: BridgeIdMap, effortDownmapped: boolean) {
+  constructor(
+    adapterId: string,
+    ids: BridgeIdMap,
+    effortDownmapped: boolean,
+    providerExecutedPolicy: 'allow' | 'deny' = 'deny',
+  ) {
     this.adapterId = adapterId;
     this.ids = ids;
     this.effortDownmapped = effortDownmapped;
+    this.providerExecutedPolicy = providerExecutedPolicy;
+  }
+
+  /**
+   * The deny arm (RV1806): a provider-executed exchange under the
+   * default policy fails the turn typed. The refusal cannot un-run a
+   * tool the provider already executed server-side; it refuses to
+   * CONTINUE a turn the engine's permission chain cannot see, and the
+   * journaled terminal names the tool that ran.
+   */
+  private denyProviderExecuted(toolName: string): ChatEvent[] {
+    this.terminal = true;
+    return [
+      {
+        type: 'error',
+        error: {
+          code: 'agent',
+          message:
+            `the bridged provider executed tool '${toolName}' server-side; provider-executed ` +
+            "tools bypass the engine's ToolDef registry, risk classes, and approvals, and are " +
+            "refused by default. Opt in with bridgeAiSdk(model, { providerExecutedTools: 'allow' })",
+          retryable: false,
+          data: { kind: 'terminal', providerExecutedTool: toolName },
+        },
+      },
+    ];
   }
 
   map(part: LanguageModelV4StreamPart): ChatEvent[] {
@@ -618,7 +674,11 @@ class StreamMapper {
       }
       case 'tool-input-start': {
         if (part.providerExecuted === true) {
+          if (this.providerExecutedPolicy === 'deny') {
+            return this.denyProviderExecuted(part.toolName);
+          }
           this.providerExecutedWireIds.add(part.id);
+          this.providerExecutedSeen.set(part.id, part.toolName);
           return [];
         }
         this.startedToolWireIds.add(part.id);
@@ -642,7 +702,11 @@ class StreamMapper {
         return [];
       case 'tool-call': {
         if (part.providerExecuted === true) {
+          if (this.providerExecutedPolicy === 'deny') {
+            return this.denyProviderExecuted(part.toolName);
+          }
           this.providerExecutedWireIds.add(part.toolCallId);
+          this.providerExecutedSeen.set(part.toolCallId, part.toolName);
           const parsed = parseToolArgs(part.input);
           this.retained.push({
             type: 'tool-call',
@@ -817,6 +881,14 @@ class StreamMapper {
     }
     if (part.providerMetadata !== undefined) {
       bag.upstream = part.providerMetadata;
+    }
+    if (this.providerExecutedSeen.size > 0) {
+      // The allow arm's visibility half (RV1806): the journaled record
+      // of the turn names every provider-executed call, so "what did
+      // the provider run" is a metadata read, not a transcript dig.
+      bag.providerExecutedTools = [...this.providerExecutedSeen.entries()].map(
+        ([toolCallId, toolName]) => ({ toolName, toolCallId }),
+      );
     }
     if (this.effortDownmapped) {
       bag.effortDownmap = 'max->xhigh';
