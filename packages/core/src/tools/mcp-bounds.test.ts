@@ -312,3 +312,106 @@ describe('the per-source timeouts (RV1515)', () => {
     await expect(again.close()).resolves.toBeUndefined();
   });
 });
+
+function alternatingCursorServer(): Server & { listCalls: () => number } {
+  let calls = 0;
+  const lowLevel = new Server(
+    { name: 'alternating', version: '1.0.0' },
+    { capabilities: { tools: {} } },
+  );
+  lowLevel.setRequestHandler(ListToolsRequestSchema, (request) => {
+    calls += 1;
+    const cursor = typeof request.params?.cursor === 'string' ? request.params.cursor : undefined;
+    // A then B then A again: never the SAME cursor echoed back, so the
+    // RV1602 echo guard is blind to it; the net stops at 25 pages like
+    // the echo fixture, so a disabled guard resolves instead of
+    // starving the test timeout.
+    return {
+      tools: [],
+      ...(calls < 25 ? { nextCursor: cursor === 'cycle-a' ? 'cycle-b' : 'cycle-a' } : {}),
+    };
+  });
+  return Object.assign(lowLevel, { listCalls: () => calls });
+}
+
+function slowEndlessServer(delayMs: number): Server & { listCalls: () => number } {
+  let calls = 0;
+  const lowLevel = new Server(
+    { name: 'slow-endless', version: '1.0.0' },
+    { capabilities: { tools: {} } },
+  );
+  lowLevel.setRequestHandler(ListToolsRequestSchema, async () => {
+    calls += 1;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return {
+      tools: [],
+      ...(calls < 25 ? { nextCursor: `page-${String(calls + 1)}` } : {}),
+    };
+  });
+  return Object.assign(lowLevel, { listCalls: () => calls });
+}
+
+describe('the discovery bounds (RV1808)', () => {
+  it('an alternating cursor pair refuses typed with no bound configured', async () => {
+    const server = alternatingCursorServer();
+    const source = mcp({ transport: 'inprocess', server });
+    await expect(source.tools(SESSION)).rejects.toThrow(/already visited/u);
+    // Page 1 (no cursor, returns A), page 2 (A, returns B), page 3 (B,
+    // returns A: A is visited, the sweep refuses).
+    expect(server.listCalls()).toBe(3);
+  });
+
+  it('the whole-sweep discovery deadline fails a prompt-page crawl closed', async () => {
+    const server = slowEndlessServer(25);
+    const source = mcp({
+      transport: 'inprocess',
+      server,
+      timeouts: { discoveryMs: 30 },
+    });
+    await expect(source.tools(SESSION)).rejects.toThrow(/discovery deadline/u);
+    // Every page answered promptly (well inside any per-page bound);
+    // only the whole-sweep wall clock stopped the crawl.
+    expect(server.listCalls()).toBeLessThan(25);
+  });
+
+  it('requireBounds refuses at construction naming every missing bound', () => {
+    const server = pagedServer();
+    expect(() => mcp({ transport: 'inprocess', server, requireBounds: true })).toThrow(
+      /missing maxTools, maxPages, maxSchemaBytes, timeouts\.discoveryMs/u,
+    );
+    expect(() =>
+      mcp({ transport: 'inprocess', server, requireBounds: true, maxTools: 8, maxPages: 4 }),
+    ).toThrow(/missing maxSchemaBytes, timeouts\.discoveryMs/u);
+    expect(() =>
+      mcp({
+        transport: 'inprocess',
+        server,
+        requireBounds: true,
+        maxTools: 8,
+        maxPages: 4,
+        maxSchemaBytes: 4096,
+        timeouts: { discoveryMs: 5_000 },
+      }),
+    ).not.toThrow();
+  });
+
+  it('discoveryMs must be a positive finite number of milliseconds', () => {
+    const server = pagedServer();
+    for (const discoveryMs of [0, -5, Number.NaN]) {
+      expect(() => mcp({ transport: 'inprocess', server, timeouts: { discoveryMs } })).toThrow(
+        /discoveryMs/u,
+      );
+    }
+  });
+
+  it('a finite pagination inside the deadline imports unchanged', async () => {
+    const source = mcp({
+      transport: 'inprocess',
+      server: pagedServer(),
+      timeouts: { discoveryMs: 5_000 },
+    });
+    const defs = await source.tools(SESSION);
+    expect(defs.map((def) => def.name).sort()).toEqual(['one', 'two']);
+    await source.close();
+  });
+});

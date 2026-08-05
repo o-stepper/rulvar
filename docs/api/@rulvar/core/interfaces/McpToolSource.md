@@ -6,7 +6,7 @@
 
 # Interface: McpToolSource
 
-Defined in: [packages/core/src/tools/mcp.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/mcp.ts#L132)
+Defined in: [packages/core/src/tools/mcp.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/mcp.ts#L148)
 
 The ToolSource returned by [mcp](/api/@rulvar/core/functions/mcp.md): the frozen ToolSource seam
 plus the lifecycle the seam deliberately leaves to the host.
@@ -39,7 +39,7 @@ while a run is in flight fails that run's MCP tool calls).
 close(): Promise<void>;
 ```
 
-Defined in: [packages/core/src/tools/mcp.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/mcp.ts#L133)
+Defined in: [packages/core/src/tools/mcp.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/mcp.ts#L149)
 
 #### Returns
 

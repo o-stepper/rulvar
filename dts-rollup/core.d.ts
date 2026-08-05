@@ -11238,13 +11238,30 @@ interface McpConfig {
   * request timeout per tools/list page and per tools/call; without
   * them the SDK's own 60s default request timeout applies. A call
   * timeout surfaces as the tool's error result, never past policy.
-  * Each a positive finite number of milliseconds.
+  * discoveryMs (RV1808) is the WALL-CLOCK cap over one whole
+  * tools/list sweep, all pages included: per-page listMs cannot bound
+  * a server that answers every page promptly and paginates forever
+  * with unique cursors under maxPages' radar only when maxPages is
+  * set, and cannot bound a slow-but-under-listMs page crawl at all.
+  * On expiry the sweep refuses typed. Each a positive finite number
+  * of milliseconds.
   */
   timeouts?: {
     connectMs?: number;
     listMs?: number;
     callMs?: number;
+    discoveryMs?: number;
   };
+  /**
+  * Demand the discovery bounds (RV1808): with `requireBounds: true`
+  * the source refuses at construction unless maxTools, maxPages,
+  * maxSchemaBytes, and timeouts.discoveryMs are ALL declared. The
+  * production posture: an unbounded discovery sweep against a remote
+  * registry is an availability decision someone should have made on
+  * purpose, so the flag turns the four absences into one typed error
+  * naming what is missing instead of four silent unboundeds.
+  */
+  requireBounds?: boolean;
   /**
   * streamable-http only (RV1516): headers injected into EVERY wire
   * request through a wrapped fetch. The hook form is awaited before
