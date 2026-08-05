@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+
 ### 1.184.0
 
 #### Patch Changes
@@ -1764,6 +1771,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+
 ### 1.184.0
 
 #### Patch Changes
@@ -3317,6 +3331,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
 
 ### 1.184.0
 
@@ -5315,6 +5336,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.185.0
+
+#### Minor Changes
+
+- 1248623: A finalize route declared at the workflow level now fires the finalize phase (RV1803). The role trigger read `[call, profile, engine]` while model resolution read all four layers, so `defineWorkflow({ routing: { finalize: … } })` resolved the finalize model and then never dispatched the phase; the route worked only when repeated at the call, profile, or engine layer. The trigger now reads the same four layers resolution reads, a workflow-only route fires exactly one finalize dispatch, resume replays the journaled synthesis without paying a second one, and a workflow layer without a finalize route still never fires the phase.
 
 ### 1.184.0
 
@@ -7629,6 +7656,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.185.0
+
 ### 1.184.0
 
 ### 1.183.0
@@ -8101,6 +8130,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+  - @rulvar/anthropic@1.185.0
+  - @rulvar/openai@1.185.0
+  - @rulvar/plan@1.185.0
+  - @rulvar/testing@1.185.0
 
 ### 1.184.0
 
@@ -10189,6 +10229,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+
 ### 1.184.0
 
 #### Patch Changes
@@ -11157,6 +11204,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
 
 ### 1.184.0
 
@@ -12917,6 +12971,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+
 ### 1.184.0
 
 #### Patch Changes
@@ -14588,6 +14649,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+  - eslint-plugin-rulvar@1.185.0
 
 ### 1.184.0
 
@@ -16406,6 +16475,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+  - @rulvar/anthropic@1.185.0
+  - @rulvar/openai@1.185.0
 
 ### 1.184.0
 
@@ -18492,6 +18570,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+
 ### 1.184.0
 
 #### Patch Changes
@@ -20171,6 +20256,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
+
 ### 1.184.0
 
 #### Patch Changes
@@ -21155,6 +21247,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
 
 ### 1.184.0
 
@@ -22771,6 +22870,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.185.0
+
+#### Patch Changes
+
+- Updated dependencies [1248623]
+  - @rulvar/core@1.185.0
 
 ### 1.184.0
 
