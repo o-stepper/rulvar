@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+
 ### 1.182.0
 
 #### Patch Changes
@@ -1750,6 +1757,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+
 ### 1.182.0
 
 #### Patch Changes
@@ -3289,6 +3303,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
 
 ### 1.182.0
 
@@ -5273,6 +5294,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.183.0
+
+#### Minor Changes
+
+- dd3767c: The decision chain reads the canonical payloads the engine journals (RV1801). The fold shipped in RV1705 read a resolution's `by`/`target`/`decisionRef` and an abandon's `target`/`authorizedBy` from `entry.value`, but the engine writes those facts in the canonical `entry.resolution` and `entry.abandon` payloads with no entry value at all, so on a live journal the reconstructed authority record lost who resolved, what sanctioned an abandon, and the decision value itself; the fields survived only on hand-authored journals that carried them in `value`. `reduceDecisionChain` now reads the canonical payloads first and keeps the value-carried forms as the fallback, a resolution row's `value` is the decision the ask was resolved WITH when the entry itself carries none, and the operational host acceptance test pins fold-to-journal parity on a live engine run: every canonical field the engine journaled (the external `by`, the referenced ask, the allow, and the deny with its reason) is exactly what the chain row reports.
 
 ### 1.182.0
 
@@ -7575,6 +7602,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.183.0
+
 ### 1.182.0
 
 ### 1.181.0
@@ -8043,6 +8072,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+  - @rulvar/anthropic@1.183.0
+  - @rulvar/openai@1.183.0
+  - @rulvar/plan@1.183.0
+  - @rulvar/testing@1.183.0
 
 ### 1.182.0
 
@@ -10109,6 +10149,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+
 ### 1.182.0
 
 #### Patch Changes
@@ -11063,6 +11110,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
 
 ### 1.182.0
 
@@ -12809,6 +12863,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+
 ### 1.182.0
 
 #### Patch Changes
@@ -14466,6 +14527,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+  - eslint-plugin-rulvar@1.183.0
 
 ### 1.182.0
 
@@ -16268,6 +16337,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+  - @rulvar/anthropic@1.183.0
+  - @rulvar/openai@1.183.0
 
 ### 1.182.0
 
@@ -18336,6 +18414,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+
 ### 1.182.0
 
 #### Patch Changes
@@ -20001,6 +20086,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
+
 ### 1.182.0
 
 #### Patch Changes
@@ -20971,6 +21063,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
 
 ### 1.182.0
 
@@ -22573,6 +22672,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.183.0
+
+#### Patch Changes
+
+- Updated dependencies [dd3767c]
+  - @rulvar/core@1.183.0
 
 ### 1.182.0
 
