@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+
 ### 1.193.0
 
 #### Patch Changes
@@ -1830,6 +1837,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+
 ### 1.193.0
 
 #### Patch Changes
@@ -3449,6 +3463,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
 
 ### 1.193.0
 
@@ -5513,6 +5534,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.194.0
+
+#### Minor Changes
+
+- 360a659: The orchestrate root waits out transient exposure refusals (RV1902). The four-role benchmark's recovery arm died on a contract violation: the budgets guide names an in-flight exposure refusal transient, but when the refused agent was the workflow's coordinating root, the typed refusal escaped the orchestration and settled the whole run `exhausted` with a null completion while four admitted children were still finalizing. An orchestrate-owned root dispatch (the coordination loop, the synthesis invocation, the forced-finish wake) now parks the refused turn until a live exposure hold releases and retries pre-wire, zero provider attempts while parked, emitting the typed `budget:exposure-wait` event with the refusal arithmetic (`capUsd`, `spentUsd`, `inFlightUsd`, `estimateUsd`, `willWait: true`). A drained refusal (no live hold left to wait out; spend never shrinks, so nothing can turn it into a fit) settles the documented forced-finish partial instead of a bare escape: the run exhausts with the settled children's fold as its value, a journaled `orchestrator_finalize_fallback` decision (`reason 'exposure-abort'`) for replay identity, and `willWait: false` on the event. Plain agents keep the documented settle-as-budget-error behavior, because their caller can catch and decide.
 
 ### 1.193.0
 
@@ -7877,6 +7904,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.194.0
+
 ### 1.193.0
 
 ### 1.192.0
@@ -8367,6 +8396,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+  - @rulvar/anthropic@1.194.0
+  - @rulvar/openai@1.194.0
+  - @rulvar/plan@1.194.0
+  - @rulvar/testing@1.194.0
 
 ### 1.193.0
 
@@ -10557,6 +10597,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+
 ### 1.193.0
 
 #### Patch Changes
@@ -11587,6 +11634,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
 
 ### 1.193.0
 
@@ -13409,6 +13463,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+
 ### 1.193.0
 
 #### Patch Changes
@@ -15142,6 +15203,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+  - eslint-plugin-rulvar@1.194.0
 
 ### 1.193.0
 
@@ -17031,6 +17100,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+  - @rulvar/anthropic@1.194.0
+  - @rulvar/openai@1.194.0
 
 ### 1.193.0
 
@@ -19197,6 +19275,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+
 ### 1.193.0
 
 #### Patch Changes
@@ -20938,6 +21023,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
+
 ### 1.193.0
 
 #### Patch Changes
@@ -21984,6 +22076,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
 
 ### 1.193.0
 
@@ -23662,6 +23761,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.194.0
+
+#### Patch Changes
+
+- Updated dependencies [360a659]
+  - @rulvar/core@1.194.0
 
 ### 1.193.0
 
