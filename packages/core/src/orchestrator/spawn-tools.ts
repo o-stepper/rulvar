@@ -129,6 +129,23 @@ export const READ_CHILD_ARTIFACT_SCHEMA: SchemaSpec = {
 
 export const GET_CHILD_RESULT_TOOL_NAME = 'get_child_result';
 export const READ_CHILD_ARTIFACT_TOOL_NAME = 'read_child_artifact';
+export const GET_SETTLED_CHILD_RESULTS_TOOL_NAME = 'get_settled_child_results';
+
+/** get_settled_child_results (RV1807): the bulk settled-set read. */
+export const GET_SETTLED_CHILD_RESULTS_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['handles'],
+  properties: {
+    handles: {
+      type: 'array',
+      minItems: 1,
+      items: { type: 'integer', minimum: 1 },
+      description: 'the settledHandles set of an await_any digest, or any settled handles',
+    },
+    maxCharsPerChild: { type: 'integer', minimum: 1 },
+  },
+};
 
 /** finish; result validates against the declared output schema. */
 export const FINISH_SCHEMA: SchemaSpec = {
@@ -199,7 +216,17 @@ export interface SpawnAgentParams {
 export function buildOrchestratorTools(
   runtime: OrchestratorRuntime,
   profileCardText: string,
-  options?: { childResultTools?: boolean; sectionalFinish?: boolean },
+  options?: {
+    childResultTools?: boolean;
+    sectionalFinish?: boolean;
+    /**
+     * The bulk settled-set read (RV1807), its own opt-in: adding a tool
+     * under the existing childResultTools flag would move every
+     * opted-in run's toolset hash and re-key their resumes, so the new
+     * tool re-keys only runs that opt into IT.
+     */
+    settledResultsTool?: boolean;
+  },
 ): ToolDef[] {
   const spawnAgent = tool({
     name: 'spawn_agent',
@@ -327,6 +354,31 @@ export function buildOrchestratorTools(
           return runtime.readChildArtifact(p.handle, p.artifactId, {
             offset: p.offset,
             maxChars: p.maxChars,
+          });
+        },
+      }),
+    );
+  }
+  if (options?.settledResultsTool === true) {
+    // The bulk settled-set read (RV1807): first pages of SEVERAL
+    // settled children in one call, refusing typed BEFORE any read when
+    // a named handle is unknown or still running, so consuming an
+    // await_any digest's settledHandles set never probes by error.
+    // Same hash discipline as the other opt-ins: only opted-in runs
+    // move their toolset hash.
+    tools.push(
+      tool({
+        name: GET_SETTLED_CHILD_RESULTS_TOOL_NAME,
+        description:
+          'Read the FIRST page of several SETTLED children in one call (pass the ' +
+          'settledHandles set an await_any digest returned). Refuses typed if any handle is ' +
+          'unknown or still running; page truncated children individually with ' +
+          'get_child_result.',
+        parameters: GET_SETTLED_CHILD_RESULTS_SCHEMA,
+        execute: (input) => {
+          const p = input as { handles: number[]; maxCharsPerChild?: number };
+          return runtime.getSettledChildResults(p.handles, {
+            maxCharsPerChild: p.maxCharsPerChild,
           });
         },
       }),

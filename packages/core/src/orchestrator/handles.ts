@@ -33,6 +33,14 @@ export interface TaskDigest {
    * of erasing its own run. See {@link executionFactsOf}.
    */
   facts?: ChildExecutionFacts;
+  /**
+   * On `await_any` digests (RV1807): the settled subset of the WAITED
+   * handle set at return time, the race winner included. The
+   * nineteenth benchmark's root probed handles with speculative
+   * `get_child_result` calls and collected eight not-settled errors;
+   * this list is the exact consume set, so probing is never needed.
+   */
+  settledHandles?: number[];
 }
 
 /**
@@ -175,6 +183,17 @@ export interface OrchestratorRuntime {
     artifactId: string,
     opts?: { offset?: number; maxChars?: number },
   ): Promise<ChildArtifactPage>;
+  /**
+   * First pages of SEVERAL settled children in one call; opt-in
+   * `get_settled_child_results` (RV1807). Refuses typed BEFORE any
+   * read when any named handle is unknown or still running, so
+   * consuming the exact `settledHandles` set of an `await_any` digest
+   * never probes by error.
+   */
+  getSettledChildResults(
+    handles: number[],
+    opts?: { maxCharsPerChild?: number },
+  ): Promise<ChildResultPage[]>;
 }
 
 /**

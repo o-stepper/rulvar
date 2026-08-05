@@ -409,6 +409,19 @@ export type ToolEvents =
        * dispatched.
        */
       guard?: 'repeated-signature' | 'per-tool-cap' | 'finalization-window';
+      /**
+       * The structured failure reason on outcome 'error' (RV1807), so
+       * public telemetry distinguishes a not-settled child read from a
+       * genuine failure without the private transcript. Engine-stamped
+       * literals include 'unknown-tool', 'invalid-arguments',
+       * 'model-retry', 'non-serializable-result',
+       * 'executor-unregistered', 'unknown-handle', 'child-not-settled',
+       * and 'unknown-artifact'; a tool that throws a RulvarError
+       * carrying `data.errorCode` surfaces that string, a bare
+       * RulvarError surfaces its coarse code class, and anything else
+       * stays reasonless. Telemetry, never identity.
+       */
+      errorCode?: string;
     };
 
 /**

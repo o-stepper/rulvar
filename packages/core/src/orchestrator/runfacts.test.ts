@@ -179,13 +179,19 @@ describe('execution self-facts (RV1503)', () => {
       unknown
     >;
     expect(parsed).toEqual({
+      scope: 'settled-children-only',
       children: 1,
       byStatus: { ok: 1 },
       ...EXPECTED_FACTS,
     });
-    // The line says what the facts are and are not.
+    // The line says what the facts are and are not, and WHOSE facts
+    // they are (RV1807): the child-only scope is part of the quoted
+    // bytes, so the composing model cannot honestly print them as the
+    // whole workflow's totals.
     expect(line).toContain('live-observed by this run');
     expect(line).toContain('production evidence it is not');
+    expect(line).toContain('settled children ONLY');
+    expect(line).toContain("the whole run's totals are the terminal envelope and invoice");
   });
 
   it('keeps the synthesis prompt byte identical without runFacts', async () => {

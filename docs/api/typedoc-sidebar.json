@@ -2603,6 +2603,14 @@
             "link": "/api/@rulvar/core/variables/GET_CHILD_RESULT_TOOL_NAME.md"
           },
           {
+            "text": "GET_SETTLED_CHILD_RESULTS_SCHEMA",
+            "link": "/api/@rulvar/core/variables/GET_SETTLED_CHILD_RESULTS_SCHEMA.md"
+          },
+          {
+            "text": "GET_SETTLED_CHILD_RESULTS_TOOL_NAME",
+            "link": "/api/@rulvar/core/variables/GET_SETTLED_CHILD_RESULTS_TOOL_NAME.md"
+          },
+          {
             "text": "IMPLEMENTATION_PROFILE_LIMITS",
             "link": "/api/@rulvar/core/variables/IMPLEMENTATION_PROFILE_LIMITS.md"
           },
@@ -7539,6 +7547,14 @@
           {
             "text": "GET_CHILD_RESULT_TOOL_NAME",
             "link": "/api/@rulvar/rulvar/variables/GET_CHILD_RESULT_TOOL_NAME.md"
+          },
+          {
+            "text": "GET_SETTLED_CHILD_RESULTS_SCHEMA",
+            "link": "/api/@rulvar/rulvar/variables/GET_SETTLED_CHILD_RESULTS_SCHEMA.md"
+          },
+          {
+            "text": "GET_SETTLED_CHILD_RESULTS_TOOL_NAME",
+            "link": "/api/@rulvar/rulvar/variables/GET_SETTLED_CHILD_RESULTS_TOOL_NAME.md"
           },
           {
             "text": "IMPLEMENTATION_PROFILE_LIMITS",

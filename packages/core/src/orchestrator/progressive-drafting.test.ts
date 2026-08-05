@@ -140,3 +140,135 @@ describe('drafting while the fan-out runs (RV1607)', () => {
     expect(textOf(optedIn.calls[0])).toContain('get_child_result');
   });
 });
+
+describe('the settled-set consume path (RV1807)', () => {
+  it('await_any names the settled subset and one bulk call reads it; a running handle refuses typed', async () => {
+    let orchTurn = 0;
+    let sawNotSettled = false;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        const prompt = textOf(req);
+        return prompt.includes('fast task')
+          ? { text: 'the fast evidence body, ready early' }
+          : { text: 'never delivered', hangMs: 30_000 };
+      }
+      orchTurn += 1;
+      const transcript = textOf(req);
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'fast task' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'slow task' } },
+          ],
+        };
+      }
+      const [fast, slow] = handlesIn(req);
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_any', args: { handles: [fast ?? 1, slow ?? 2] } } };
+      }
+      if (orchTurn === 3) {
+        // The digest named the settled subset: exactly the fast child.
+        expect(transcript).toContain('"settledHandles":[' + String(fast ?? 1) + ']');
+        // A bulk read including the RUNNING sibling refuses typed
+        // BEFORE any read; the model sees the named handles.
+        return {
+          toolCall: {
+            name: 'get_settled_child_results',
+            args: { handles: [fast ?? 1, slow ?? 2] },
+          },
+        };
+      }
+      if (orchTurn === 4) {
+        sawNotSettled =
+          transcript.includes('have not settled') || transcript.includes('has not settled');
+        // Consume exactly the settled set: one call, full first page.
+        return {
+          toolCall: { name: 'get_settled_child_results', args: { handles: [fast ?? 1] } },
+        };
+      }
+      if (orchTurn === 5) {
+        expect(transcript).toContain('the fast evidence body, ready early');
+        return {
+          toolCall: { name: 'cancel_agent', args: { handle: slow ?? 2, reason: 'consumed' } },
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'consumed the settled set' } } };
+    });
+    const { internals, events } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const outcome = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('settled set goal', {
+        exposeChildResultTools: true,
+        exposeSettledResultsTool: true,
+      }),
+      undefined,
+    );
+    expect(outcome).toBe('consumed the settled set');
+    expect(sawNotSettled).toBe(true);
+    // The refusal reason rides public telemetry (RV1807): the tool:end
+    // of the refused bulk call carries the structured errorCode.
+    const refusal = events
+      .ofType('tool:end')
+      .find(
+        (event) =>
+          (event as { toolName?: string }).toolName === 'get_settled_child_results' &&
+          (event as { outcome?: string }).outcome === 'error',
+      ) as { errorCode?: string } | undefined;
+    expect(refusal?.errorCode).toBe('child-not-settled');
+  });
+
+  it('a finish with a still-running child names it in unsettledAtFinish (RV1807)', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        const prompt = textOf(req);
+        return prompt.includes('fast task')
+          ? { text: 'fast done' }
+          : { text: 'never delivered', hangMs: 30_000 };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'fast task' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'slow task' } },
+          ],
+        };
+      }
+      const [fast, slow] = handlesIn(req);
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_any', args: { handles: [fast ?? 1, slow ?? 2] } } };
+      }
+      // Finish while the slow child still runs: minSuccessful is met.
+      return { toolCall: { name: 'finish', args: { result: 'early finish' } } };
+    });
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const outcome = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('early finish goal', {
+        acceptance: { childPolicy: { minSuccessful: 1 } },
+      }),
+      undefined,
+    );
+    const envelope = outcome as {
+      result?: unknown;
+      completion?: string;
+      unsettledAtFinish?: string[];
+      degradedReasons?: string[];
+    };
+    expect(envelope.result).toBe('early finish');
+    // The late-child boundary is explicit and machine-readable: the
+    // prose degradation note gains its structured sibling.
+    expect(envelope.completion).toBe('partial');
+    expect(envelope.unsettledAtFinish).toHaveLength(1);
+    expect(envelope.degradedReasons?.some((reason) => reason.includes('still running'))).toBe(true);
+  });
+});
