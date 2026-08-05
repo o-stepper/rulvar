@@ -14,7 +14,7 @@ function resolveToolset(
 executors?): Promise<ResolvedToolset>;
 ```
 
-Defined in: [packages/core/src/tools/toolset-hash.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L161)
+Defined in: [packages/core/src/tools/toolset-hash.ts:402](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L402)
 
 Expands registered names and sources, validates every tool name and
 duplicate names across the whole toolset (ConfigError at spawn time),

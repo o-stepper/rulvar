@@ -21,5 +21,7 @@ spawn time, before any provider call.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-authority"></a> `authority?` | `Record`\&lt;`string`, [`ToolAuthority`](/api/@rulvar/rulvar/interfaces/ToolAuthority.md)\&gt; | Per-tool authority records; enables the field-naming diff (RV1802). | `packages/core/dist/index.d.ts` |
+| <a id="property-authorityhash"></a> `authorityHash?` | `string` | The expected aggregate authority hash (RV1802). Absent on a legacy contract-only pin, which keeps its documented posture: authority drift (risk, needsApproval, executor, executorSpec) passes it silently; re-record with [attestToolset](/api/@rulvar/rulvar/functions/attestToolset.md) to upgrade. | `packages/core/dist/index.d.ts` |
 | <a id="property-hash"></a> `hash` | `string` | The expected aggregate toolsetHash (64 lowercase hex chars). | `packages/core/dist/index.d.ts` |
 | <a id="property-tools"></a> `tools?` | `Record`\&lt;`string`, `string`\&gt; | Per-tool contract hashes by tool name; enables the named diff. | `packages/core/dist/index.d.ts` |

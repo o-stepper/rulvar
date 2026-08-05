@@ -20,7 +20,11 @@ Holds a spawn's resolved toolset to its profile's attested pin
 call or budget admission. With per-tool hashes on the attestation the
 refusal names the drift (changed / missing / unexpected); without
 them it lists the resolved per-tool hashes, so the pin can be
-corrected from the refusal itself.
+corrected from the refusal itself. When the pin carries the authority
+side (RV1802), a contract-clean resolution is additionally held to
+the attested authorityHash, so risk, needsApproval, executor, and
+executorSpec drift refuses at the same pre-wire site; a legacy
+contract-only pin keeps its documented posture and passes it.
 
 ## Parameters
 

@@ -4,7 +4,14 @@ import { ConfigError } from '../l0/errors.js';
 import { EMPTY_TOOLSET_HASH } from '../l0/schema.js';
 import type { ToolDef, ToolSource } from '../l0/spi/toolsource.js';
 import { tool } from './tool.js';
-import { emptyToolset, resolveToolset } from './toolset-hash.js';
+import {
+  attestToolset,
+  EMPTY_AUTHORITY_HASH,
+  emptyToolset,
+  enforceToolsetAttestation,
+  resolveToolset,
+  validateToolsetAttestation,
+} from './toolset-hash.js';
 
 const SESSION = { runId: 'run-1' };
 
@@ -221,5 +228,152 @@ describe('registered toolset names (v1.17.0 review P1-3)', () => {
     const resolved = await resolveToolset(['sourced'], SESSION, { sourced: [source] });
     expect(resolved.tools.map((def) => def.name)).toEqual(['greet']);
     expect(seenRunId).toBe('run-1');
+  });
+});
+
+describe('the authority attestation (RV1802)', () => {
+  const guarded = (overrides?: {
+    risk?: 'read' | 'write';
+    needsApproval?: boolean;
+    executor?: 'inprocess' | 'subprocess';
+    executorSpec?: { command: string };
+    version?: string;
+    execute?: ToolDef['execute'];
+  }) =>
+    tool({
+      name: 'guarded',
+      description: 'a guarded effect',
+      parameters: { type: 'object', properties: { key: { type: 'string' } } },
+      risk: overrides?.risk ?? 'read',
+      needsApproval: overrides?.needsApproval ?? true,
+      ...(overrides?.executor === undefined ? {} : { executor: overrides.executor }),
+      ...(overrides?.executorSpec === undefined ? {} : { executorSpec: overrides.executorSpec }),
+      ...(overrides?.version === undefined ? {} : { version: overrides.version }),
+      execute: overrides?.execute ?? (() => Promise.resolve('done')),
+    });
+  const EXECUTORS = new Set(['subprocess']);
+
+  it('an empty toolset has the EMPTY_AUTHORITY_HASH', async () => {
+    expect((await resolveToolset([], SESSION)).authorityHash).toBe(EMPTY_AUTHORITY_HASH);
+    expect(emptyToolset().authorityHash).toBe(EMPTY_AUTHORITY_HASH);
+  });
+
+  it('a risk flip moves the authorityHash while the contract hash stays put', async () => {
+    const read = await resolveToolset([guarded({ risk: 'read' })], SESSION);
+    const write = await resolveToolset([guarded({ risk: 'write' })], SESSION);
+    expect(write.hash).toBe(read.hash);
+    expect(write.authorityHash).not.toBe(read.authorityHash);
+    expect(() => enforceToolsetAttestation('worker', attestToolset(read), write)).toThrow(
+      /risk \(attested read, resolved write\)/u,
+    );
+  });
+
+  it('a needsApproval flip refuses with the field named, pre-wire', async () => {
+    const gated = await resolveToolset([guarded({ needsApproval: true })], SESSION);
+    const ungated = await resolveToolset([guarded({ needsApproval: false })], SESSION);
+    expect(ungated.hash).toBe(gated.hash);
+    expect(ungated.authorityHash).not.toBe(gated.authorityHash);
+    expect(() => enforceToolsetAttestation('worker', attestToolset(gated), ungated)).toThrow(
+      /needsApproval \(attested true, resolved false\)/u,
+    );
+  });
+
+  it('an executor change refuses with the tag named', async () => {
+    const inprocess = await resolveToolset([guarded()], SESSION);
+    const subprocess = await resolveToolset(
+      [guarded({ executor: 'subprocess', executorSpec: { command: 'run.sh' } })],
+      SESSION,
+      undefined,
+      EXECUTORS,
+    );
+    expect(subprocess.hash).toBe(inprocess.hash);
+    expect(() => enforceToolsetAttestation('worker', attestToolset(inprocess), subprocess)).toThrow(
+      /executor \(attested inprocess, resolved subprocess\)/u,
+    );
+  });
+
+  it('an executorSpec change refuses naming the field', async () => {
+    const specA = await resolveToolset(
+      [guarded({ executor: 'subprocess', executorSpec: { command: 'a.sh' } })],
+      SESSION,
+      undefined,
+      EXECUTORS,
+    );
+    const specB = await resolveToolset(
+      [guarded({ executor: 'subprocess', executorSpec: { command: 'b.sh' } })],
+      SESSION,
+      undefined,
+      EXECUTORS,
+    );
+    expect(specB.hash).toBe(specA.hash);
+    expect(specB.authorityHash).not.toBe(specA.authorityHash);
+    expect(() => enforceToolsetAttestation('worker', attestToolset(specA), specB)).toThrow(
+      /executorSpec/u,
+    );
+  });
+
+  it('an execute body edit moves NEITHER hash: version stays the lever', async () => {
+    const a = await resolveToolset([guarded({ execute: () => Promise.resolve('v1') })], SESSION);
+    const b = await resolveToolset(
+      [guarded({ execute: () => Promise.resolve('a wholly different body') })],
+      SESSION,
+    );
+    expect(b.hash).toBe(a.hash);
+    expect(b.authorityHash).toBe(a.authorityHash);
+    const bumped = await resolveToolset(
+      [guarded({ version: '2', execute: () => Promise.resolve('v1') })],
+      SESSION,
+    );
+    expect(bumped.authorityHash).not.toBe(a.authorityHash);
+  });
+
+  it('a legacy contract-only pin passes authority drift: the documented posture', async () => {
+    const read = await resolveToolset([guarded({ risk: 'read' })], SESSION);
+    const write = await resolveToolset([guarded({ risk: 'write' })], SESSION);
+    const full = attestToolset(read);
+    const legacy = { hash: full.hash, tools: full.tools };
+    expect(() => enforceToolsetAttestation('worker', legacy, write)).not.toThrow();
+  });
+
+  it('attest and enforce round-trip on the same resolution', async () => {
+    const resolved = await resolveToolset(
+      [guarded({ executor: 'subprocess', executorSpec: { command: 'run.sh' } })],
+      SESSION,
+      undefined,
+      EXECUTORS,
+    );
+    const pin = attestToolset(resolved);
+    expect(pin.authorityHash).toBe(resolved.authorityHash);
+    expect(() => enforceToolsetAttestation('worker', pin, resolved)).not.toThrow();
+  });
+
+  it('a bare authorityHash pin still refuses and lists the resolved authority', async () => {
+    const read = await resolveToolset([guarded({ risk: 'read' })], SESSION);
+    const write = await resolveToolset([guarded({ risk: 'write' })], SESSION);
+    const bare = { hash: read.hash, authorityHash: read.authorityHash };
+    expect(() => enforceToolsetAttestation('worker', bare, write)).toThrow(
+      /resolved authority: guarded \{ risk write, needsApproval true, executor inprocess \}/u,
+    );
+  });
+
+  it('validateToolsetAttestation checks the authority shapes', () => {
+    expect(() =>
+      validateToolsetAttestation({ hash: 'f'.repeat(64), authorityHash: 'nope' }, 'p'),
+    ).toThrow(/p\.authorityHash must be 64 lowercase hex chars/u);
+    expect(() =>
+      validateToolsetAttestation(
+        {
+          hash: 'f'.repeat(64),
+          authority: {
+            guarded: {
+              contract: 'f'.repeat(64),
+              needsApproval: 'yes' as unknown as boolean,
+              executor: 'inprocess',
+            },
+          },
+        },
+        'p',
+      ),
+    ).toThrow(/p\.authority\['guarded'\]\.needsApproval must be a boolean/u);
   });
 });

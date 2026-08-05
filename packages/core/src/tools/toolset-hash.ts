@@ -13,25 +13,102 @@
  *
  * Docs: https://docs.rulvar.com/guide/tools.
  */
+import { createHash } from 'node:crypto';
+
 import { ConfigError } from '../l0/errors.js';
+import { jcsSerialize } from '../l0/jcs.js';
 import type { ToolContract } from '../l0/messages.js';
 import { EMPTY_TOOLSET_HASH, toolContractHash, toolsetHash } from '../l0/schema.js';
-import type { ToolDef, ToolSource, ToolSourceSession } from '../l0/spi/toolsource.js';
+import type { ToolDef, ToolExecutor, ToolSource, ToolSourceSession } from '../l0/spi/toolsource.js';
 import { TOOL_NAME_PATTERN, toolContract } from './tool.js';
 
 /** The per-spawn tools option value domain. */
 export type ToolsOption = ReadonlyArray<ToolDef | ToolSource | string>;
 
-/** The spawn's frozen toolset snapshot plus its identity hash. */
+/** The spawn's frozen toolset snapshot plus its identity hashes. */
 export interface ResolvedToolset {
   tools: ToolDef[];
   contracts: ToolContract[];
   hash: string;
+  /** The aggregate authority hash over the per-tool records (RV1802). */
+  authorityHash: string;
+}
+
+/**
+ * The authority projection of one tool (RV1802): what the tool may DO
+ * and under what gate, beside WHAT the model sees. The contract hash
+ * pins the model-facing tuple; risk, needsApproval, executor, and the
+ * executorSpec digest are the declarations that never enter
+ * toolsetHash by design, yet every one of them changes what the ask
+ * rules and the approval flow will do. Execute bodies stay
+ * deliberately unhashable: `version` remains the lever for behavior
+ * drift under an unchanged contract.
+ */
+export interface ToolAuthority {
+  /** toolContractHash of the model-facing contract tuple. */
+  contract: string;
+  /** The tool's approval gate (default false at build time). */
+  needsApproval: boolean;
+  /** Where execute runs: 'inprocess' or a registered executor tag. */
+  executor: ToolExecutor;
+  /** Present when the tool declares a risk class. */
+  risk?: string;
+  /** sha256 over the JCS-canonical executorSpec, when declared. */
+  executorSpec?: string;
+}
+
+function sha256Hex(text: string): string {
+  return createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
+/** Derives one tool's authority record (RV1802). */
+export function toolAuthority(def: ToolDef): ToolAuthority {
+  const record: ToolAuthority = {
+    contract: toolContractHash(toolContract(def)),
+    needsApproval: def.needsApproval,
+    executor: def.executor,
+  };
+  if (def.risk !== undefined) {
+    record.risk = def.risk;
+  }
+  if (def.executorSpec !== undefined) {
+    record.executorSpec = sha256Hex(jcsSerialize(def.executorSpec));
+  }
+  return record;
+}
+
+/**
+ * The aggregate authority hash (RV1802): sha256 over the JCS-canonical
+ * array of per-tool authority records, each carrying its tool name,
+ * sorted by name; toolsetHash's exact aggregation shape, over the
+ * authority side.
+ */
+export function toolsetAuthorityHash(authorities: Record<string, ToolAuthority>): string {
+  const canonical = Object.entries(authorities)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([name, record]) => ({ name, ...record }));
+  return sha256Hex(jcsSerialize(canonical));
+}
+
+/** The authorityHash of an empty toolset. */
+export const EMPTY_AUTHORITY_HASH: string = toolsetAuthorityHash({});
+
+function resolvedAuthoritiesOf(resolved: ResolvedToolset): Record<string, ToolAuthority> {
+  const authorities: Record<string, ToolAuthority> = {};
+  for (const def of resolved.tools) {
+    authorities[def.name] = toolAuthority(def);
+  }
+  return authorities;
 }
 
 /** The empty toolset (no tools declared anywhere). */
 export function emptyToolset(): ResolvedToolset {
-  return { tools: [], contracts: [], hash: EMPTY_TOOLSET_HASH };
+  return {
+    tools: [],
+    contracts: [],
+    hash: EMPTY_TOOLSET_HASH,
+    authorityHash: EMPTY_AUTHORITY_HASH,
+  };
 }
 
 /**
@@ -49,6 +126,15 @@ export interface ToolsetAttestation {
   hash: string;
   /** Per-tool contract hashes by tool name; enables the named diff. */
   tools?: Record<string, string>;
+  /**
+   * The expected aggregate authority hash (RV1802). Absent on a legacy
+   * contract-only pin, which keeps its documented posture: authority
+   * drift (risk, needsApproval, executor, executorSpec) passes it
+   * silently; re-record with {@link attestToolset} to upgrade.
+   */
+  authorityHash?: string;
+  /** Per-tool authority records; enables the field-naming diff (RV1802). */
+  authority?: Record<string, ToolAuthority>;
 }
 
 /** Records the attestation of a resolution: the pin a profile declares. */
@@ -57,7 +143,12 @@ export function attestToolset(resolved: ResolvedToolset): ToolsetAttestation {
   for (const contract of resolved.contracts) {
     tools[contract.name] = toolContractHash(contract);
   }
-  return { hash: resolved.hash, tools };
+  return {
+    hash: resolved.hash,
+    tools,
+    authorityHash: resolved.authorityHash,
+    authority: resolvedAuthoritiesOf(resolved),
+  };
 }
 
 const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/u;
@@ -67,16 +158,56 @@ export function validateToolsetAttestation(attestation: ToolsetAttestation, path
   if (typeof attestation.hash !== 'string' || !SHA256_HEX_PATTERN.test(attestation.hash)) {
     throw new ConfigError(`${path}.hash must be 64 lowercase hex chars (a sha-256 toolsetHash)`);
   }
-  if (attestation.tools === undefined) {
+  if (attestation.tools !== undefined) {
+    for (const [name, hash] of Object.entries(attestation.tools)) {
+      if (!TOOL_NAME_PATTERN.test(name)) {
+        throw new ConfigError(
+          `${path}.tools['${name}'] names a tool outside ^[a-zA-Z0-9_-]{1,64}$`,
+        );
+      }
+      if (typeof hash !== 'string' || !SHA256_HEX_PATTERN.test(hash)) {
+        throw new ConfigError(
+          `${path}.tools['${name}'] must be 64 lowercase hex chars (a toolContractHash)`,
+        );
+      }
+    }
+  }
+  if (attestation.authorityHash !== undefined) {
+    if (
+      typeof attestation.authorityHash !== 'string' ||
+      !SHA256_HEX_PATTERN.test(attestation.authorityHash)
+    ) {
+      throw new ConfigError(
+        `${path}.authorityHash must be 64 lowercase hex chars (a toolsetAuthorityHash)`,
+      );
+    }
+  }
+  if (attestation.authority === undefined) {
     return;
   }
-  for (const [name, hash] of Object.entries(attestation.tools)) {
+  for (const [name, record] of Object.entries(attestation.authority)) {
+    const at = `${path}.authority['${name}']`;
     if (!TOOL_NAME_PATTERN.test(name)) {
-      throw new ConfigError(`${path}.tools['${name}'] names a tool outside ^[a-zA-Z0-9_-]{1,64}$`);
+      throw new ConfigError(`${at} names a tool outside ^[a-zA-Z0-9_-]{1,64}$`);
     }
-    if (typeof hash !== 'string' || !SHA256_HEX_PATTERN.test(hash)) {
+    if (typeof record.contract !== 'string' || !SHA256_HEX_PATTERN.test(record.contract)) {
+      throw new ConfigError(`${at}.contract must be 64 lowercase hex chars (a toolContractHash)`);
+    }
+    if (typeof record.needsApproval !== 'boolean') {
+      throw new ConfigError(`${at}.needsApproval must be a boolean`);
+    }
+    if (typeof record.executor !== 'string' || (record.executor as string) === '') {
+      throw new ConfigError(`${at}.executor must be a non-empty executor tag`);
+    }
+    if (record.risk !== undefined && (typeof record.risk !== 'string' || record.risk === '')) {
+      throw new ConfigError(`${at}.risk must be a non-empty string when present`);
+    }
+    if (
+      record.executorSpec !== undefined &&
+      (typeof record.executorSpec !== 'string' || !SHA256_HEX_PATTERN.test(record.executorSpec))
+    ) {
       throw new ConfigError(
-        `${path}.tools['${name}'] must be 64 lowercase hex chars (a toolContractHash)`,
+        `${at}.executorSpec must be 64 lowercase hex chars (a JCS sha-256 digest) when present`,
       );
     }
   }
@@ -88,7 +219,11 @@ export function validateToolsetAttestation(attestation: ToolsetAttestation, path
  * call or budget admission. With per-tool hashes on the attestation the
  * refusal names the drift (changed / missing / unexpected); without
  * them it lists the resolved per-tool hashes, so the pin can be
- * corrected from the refusal itself.
+ * corrected from the refusal itself. When the pin carries the authority
+ * side (RV1802), a contract-clean resolution is additionally held to
+ * the attested authorityHash, so risk, needsApproval, executor, and
+ * executorSpec drift refuses at the same pre-wire site; a legacy
+ * contract-only pin keeps its documented posture and passes it.
  */
 export function enforceToolsetAttestation(
   agentType: string,
@@ -96,6 +231,7 @@ export function enforceToolsetAttestation(
   resolved: ResolvedToolset,
 ): void {
   if (resolved.hash === attestation.hash) {
+    enforceAuthorityAttestation(agentType, attestation, resolved);
     return;
   }
   const resolvedHashes = new Map(
@@ -142,6 +278,111 @@ export function enforceToolsetAttestation(
     `agent profile '${agentType}' attests toolsetHash ${attestation.hash}, but the spawn's ` +
       `toolset resolved to ${resolved.hash}; ${parts.join('; ')}. A provider-side contract ` +
       'change re-keys spawns by design; if the change is intended, re-record the pin with ' +
+      'attestToolset() (https://docs.rulvar.com/guide/tools)',
+  );
+}
+
+function describeAuthority(record: ToolAuthority): string {
+  const bits = [
+    `risk ${record.risk ?? '(absent)'}`,
+    `needsApproval ${String(record.needsApproval)}`,
+    `executor ${record.executor}`,
+  ];
+  if (record.executorSpec !== undefined) {
+    bits.push(`executorSpec ${record.executorSpec}`);
+  }
+  return `{ ${bits.join(', ')} }`;
+}
+
+/**
+ * The authority half of the pin (RV1802): runs only when the contract
+ * hash already matched, so a refusal here is by construction an
+ * authority-only drift, exactly the drift the contract hash cannot see.
+ */
+function enforceAuthorityAttestation(
+  agentType: string,
+  attestation: ToolsetAttestation,
+  resolved: ResolvedToolset,
+): void {
+  if (attestation.authorityHash === undefined) {
+    // A legacy contract-only pin (RV1514): the documented migration
+    // posture. Authority drift passes it; re-record with attestToolset()
+    // to upgrade the pin.
+    return;
+  }
+  const authorities = resolvedAuthoritiesOf(resolved);
+  const resolvedAggregate = toolsetAuthorityHash(authorities);
+  if (resolvedAggregate === attestation.authorityHash) {
+    return;
+  }
+  const parts: string[] = [];
+  if (attestation.authority === undefined) {
+    const listing = Object.entries(authorities)
+      .map(([name, record]) => `${name} ${describeAuthority(record)}`)
+      .join(', ');
+    parts.push(
+      `resolved authority: ${listing === '' ? '(none)' : listing}`,
+      'declare per-tool authority records on the attestation (attestToolset records them) ' +
+        'for a named diff',
+    );
+  } else {
+    const attested = attestation.authority;
+    const changed: string[] = [];
+    const missing: string[] = [];
+    for (const [name, record] of Object.entries(attested)) {
+      const now = authorities[name];
+      if (now === undefined) {
+        missing.push(name);
+        continue;
+      }
+      const fields: string[] = [];
+      if (now.contract !== record.contract) {
+        fields.push(`contract (attested ${record.contract}, resolved ${now.contract})`);
+      }
+      if ((now.risk ?? '(absent)') !== (record.risk ?? '(absent)')) {
+        fields.push(
+          `risk (attested ${record.risk ?? '(absent)'}, resolved ${now.risk ?? '(absent)'})`,
+        );
+      }
+      if (now.needsApproval !== record.needsApproval) {
+        fields.push(
+          `needsApproval (attested ${String(record.needsApproval)}, ` +
+            `resolved ${String(now.needsApproval)})`,
+        );
+      }
+      if (now.executor !== record.executor) {
+        fields.push(`executor (attested ${record.executor}, resolved ${now.executor})`);
+      }
+      if ((now.executorSpec ?? '(absent)') !== (record.executorSpec ?? '(absent)')) {
+        fields.push('executorSpec');
+      }
+      if (fields.length > 0) {
+        changed.push(`${name}: ${fields.join(', ')}`);
+      }
+    }
+    const unexpected = Object.keys(authorities).filter((name) => !Object.hasOwn(attested, name));
+    if (changed.length > 0) {
+      parts.push(`changed: ${changed.join('; ')}`);
+    }
+    if (missing.length > 0) {
+      parts.push(`missing: ${missing.join(', ')}`);
+    }
+    if (unexpected.length > 0) {
+      parts.push(`unexpected: ${unexpected.join(', ')}`);
+    }
+    if (parts.length === 0) {
+      // Same records, different aggregate: the attestation's own fields
+      // disagree with each other.
+      parts.push(
+        'the per-tool authority records match the resolution; the attested authorityHash is stale',
+      );
+    }
+  }
+  throw new ConfigError(
+    `agent profile '${agentType}' attests toolset authorityHash ${attestation.authorityHash}, ` +
+      `but the spawn's toolset authority resolved to ${resolvedAggregate}; ${parts.join('; ')}. ` +
+      'An authority change (risk, needsApproval, executor, executorSpec) never moves the ' +
+      'contract hash by design; if the change is intended, re-record the pin with ' +
       'attestToolset() (https://docs.rulvar.com/guide/tools)',
   );
 }
@@ -239,5 +480,14 @@ export async function resolveToolset(
     seen.set(def.name, def);
   }
   const contracts = tools.map((def) => toolContract(def));
-  return { tools, contracts, hash: toolsetHash(contracts) };
+  const authorities: Record<string, ToolAuthority> = {};
+  for (const def of tools) {
+    authorities[def.name] = toolAuthority(def);
+  }
+  return {
+    tools,
+    contracts,
+    hash: toolsetHash(contracts),
+    authorityHash: toolsetAuthorityHash(authorities),
+  };
 }

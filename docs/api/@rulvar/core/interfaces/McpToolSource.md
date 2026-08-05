@@ -29,7 +29,7 @@ while a run is in flight fails that run's MCP tool calls).
 
 | Property | Type | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-id"></a> `id` | `string` | [`ToolSource`](/api/@rulvar/core/interfaces/ToolSource.md).[`id`](/api/@rulvar/core/interfaces/ToolSource.md#property-id) | [packages/core/src/l0/spi/toolsource.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L94) |
+| <a id="property-id"></a> `id` | `string` | [`ToolSource`](/api/@rulvar/core/interfaces/ToolSource.md).[`id`](/api/@rulvar/core/interfaces/ToolSource.md#property-id) | [packages/core/src/l0/spi/toolsource.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L96) |
 
 ## Methods
 
@@ -53,7 +53,7 @@ Defined in: [packages/core/src/tools/mcp.ts:133](https://github.com/o-stepper/ru
 tools(session): Promise<ToolDef<SchemaSpec>[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/toolsource.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L95)
+Defined in: [packages/core/src/l0/spi/toolsource.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L97)
 
 #### Parameters
 
