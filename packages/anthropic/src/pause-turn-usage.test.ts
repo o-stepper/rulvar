@@ -325,3 +325,107 @@ describe('pre-wire continuation reservation (RV1013)', () => {
     expect(outcome.usage.outputTokens).toBe(2);
   });
 });
+
+describe('the absorbed wire set rides every error arm (RV1805)', () => {
+  const wireOf = (events: ChatEvent[]): unknown => {
+    const error = events.find((e) => e.type === 'error') as
+      { error: { data?: unknown } } | undefined;
+    const data = error?.error.data;
+    return typeof data === 'object' && data !== null
+      ? (data as { wireRequests?: unknown }).wireRequests
+      : undefined;
+  };
+
+  it('the continuation-cap error names the absorbed segment', async () => {
+    const client = twoSegmentClient();
+    const events = await collect(client, { anthropic: { pauseTurnMaxContinuations: 0 } });
+    expect(wireOf(events)).toEqual({ count: 1, responseIds: ['m1'] });
+  });
+
+  it('a second-segment create() throw names the absorbed segment', async () => {
+    const holder = {
+      calls: 0,
+      messages: {
+        create(): Promise<unknown> {
+          holder.calls += 1;
+          if (holder.calls === 2) {
+            return Promise.reject(new Error('boom mid-continuation'));
+          }
+          return Promise.resolve(
+            fixture([
+              { type: 'message_start', message: { id: 'm1', usage: { input_tokens: 5 } } },
+              { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+              {
+                type: 'content_block_delta',
+                index: 0,
+                delta: { type: 'text_delta', text: 'a ' },
+              },
+              { type: 'content_block_stop', index: 0 },
+              { type: 'message_delta', delta: { stop_reason: 'pause_turn' }, usage: {} },
+              { type: 'message_stop' },
+            ]),
+          );
+        },
+        countTokens: () => Promise.resolve({ input_tokens: 1 }),
+      },
+      models: { list: () => Promise.resolve({ data: [] }) },
+    };
+    const events = await collect(holder);
+    expect(holder.calls).toBe(2);
+    expect(wireOf(events)).toEqual({ count: 1, responseIds: ['m1'] });
+  });
+
+  it('a truncated second segment names the absorbed segment', async () => {
+    const holder = {
+      calls: 0,
+      messages: {
+        create(): Promise<unknown> {
+          holder.calls += 1;
+          const first = holder.calls === 1;
+          return Promise.resolve(
+            fixture(
+              first
+                ? [
+                    { type: 'message_start', message: { id: 'm1', usage: { input_tokens: 5 } } },
+                    { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+                    {
+                      type: 'content_block_delta',
+                      index: 0,
+                      delta: { type: 'text_delta', text: 'a ' },
+                    },
+                    { type: 'content_block_stop', index: 0 },
+                    { type: 'message_delta', delta: { stop_reason: 'pause_turn' }, usage: {} },
+                    { type: 'message_stop' },
+                  ]
+                : [
+                    // Drains with no message_stop: the truncation arm.
+                    { type: 'message_start', message: { id: 'm2', usage: { input_tokens: 6 } } },
+                    { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+                  ],
+            ),
+          );
+        },
+        countTokens: () => Promise.resolve({ input_tokens: 1 }),
+      },
+      models: { list: () => Promise.resolve({ data: [] }) },
+    };
+    const events = await collect(holder);
+    expect(wireOf(events)).toEqual({ count: 1, responseIds: ['m1'] });
+  });
+
+  it('a first-segment failure stays bare: no invented wire set', async () => {
+    const holder = {
+      calls: 0,
+      messages: {
+        create(): Promise<unknown> {
+          holder.calls += 1;
+          return Promise.reject(new Error('down before any segment'));
+        },
+        countTokens: () => Promise.resolve({ input_tokens: 1 }),
+      },
+      models: { list: () => Promise.resolve({ data: [] }) },
+    };
+    const events = await collect(holder);
+    expect(wireOf(events)).toBeUndefined();
+  });
+});

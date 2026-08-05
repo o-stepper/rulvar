@@ -258,3 +258,89 @@ describe('single-wire join coverage (RV1410)', () => {
     });
   });
 });
+
+describe('the absorbed wire set survives an errored dispatch (RV1805)', () => {
+  it('an error carrying wireRequests data keeps the paid segments joinable', async () => {
+    const store = new InMemoryStore();
+    const adapter = scriptedAdapter(() => ({
+      error: {
+        code: 'agent',
+        message: 'pause_turn continuation cap (1) exceeded',
+        retryable: false,
+        data: {
+          kind: 'terminal',
+          wireRequests: { count: 2, responseIds: ['seg-1', 'seg-2'] },
+        },
+      },
+    }));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(echo, undefined, { runId: 'WU-ERR' }).result;
+    expect(outcome.status).toBe('error');
+    const record = (await store.load('WU-ERR'))
+      .filter((entry) => entry.kind === 'agent')
+      .flatMap((entry) => entry.providerCalls ?? [])
+      .at(0);
+    // Before RV1805 the error arm dropped the ids the finish would have
+    // named, and the paid segments fell out of every statement join.
+    expect(record?.outcome).toBe('error');
+    expect(record?.wireResponseIds).toEqual(['seg-1', 'seg-2']);
+    expect(record?.wireRequests).toBe(2);
+  });
+
+  it('a SINGLE absorbed segment still rides the error record', async () => {
+    const store = new InMemoryStore();
+    const adapter = scriptedAdapter(() => ({
+      error: {
+        code: 'agent',
+        message: 'stream severed after the first absorbed segment',
+        retryable: false,
+        data: {
+          kind: 'terminal',
+          wireRequests: { count: 1, responseIds: ['seg-only'] },
+        },
+      },
+    }));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(echo, undefined, { runId: 'WU-ERR1' }).result;
+    expect(outcome.status).toBe('error');
+    const record = (await store.load('WU-ERR1'))
+      .filter((entry) => entry.kind === 'agent')
+      .flatMap((entry) => entry.providerCalls ?? [])
+      .at(0);
+    expect(record?.wireResponseIds).toEqual(['seg-only']);
+    expect(record?.wireRequests).toBe(1);
+  });
+
+  it('an error without absorbed segments stays a bare record', async () => {
+    const store = new InMemoryStore();
+    const adapter = scriptedAdapter(() => ({
+      error: {
+        code: 'agent',
+        message: 'plain transport failure',
+        retryable: false,
+        data: { kind: 'terminal' },
+      },
+    }));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(echo, undefined, { runId: 'WU-ERR0' }).result;
+    expect(outcome.status).toBe('error');
+    const record = (await store.load('WU-ERR0'))
+      .filter((entry) => entry.kind === 'agent')
+      .flatMap((entry) => entry.providerCalls ?? [])
+      .at(0);
+    expect(record !== undefined && 'wireResponseIds' in record).toBe(false);
+    expect(record !== undefined && 'wireRequests' in record).toBe(false);
+  });
+});

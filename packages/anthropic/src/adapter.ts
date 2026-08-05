@@ -16,6 +16,7 @@ import {
   type ProviderAdapter,
   type StreamHooks,
   type Usage,
+  type WireError,
 } from '@rulvar/core';
 import { ANTHROPIC_MODELS, anthropicModelInfo, type AnthropicModelInfo } from './caps.js';
 import {
@@ -268,6 +269,28 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
       // (RV905): with any present, the finish names the whole wire
       // request set so the dispatch accounts at its true wire count.
       const priorSegmentIds: Array<string | undefined> = [];
+      // An error after absorbed segments must not orphan the paid wires
+      // (RV1805): the successful finish names the whole segment set,
+      // but every error arm used to yield bare, so the absorbed
+      // segments' response ids (and their count) vanished from the
+      // invoice join exactly when the accounting needed them most. The
+      // count is the COMPLETED absorbed segments only: whether the
+      // failing attempt itself reached the wire is unknowable from a
+      // throw, and the row is an error row either way.
+      const withAbsorbed = (error: WireError): WireError => {
+        if (priorSegmentIds.length === 0) {
+          return error;
+        }
+        const wireRequests = {
+          count: priorSegmentIds.length,
+          responseIds: priorSegmentIds.filter((id): id is string => typeof id === 'string'),
+        };
+        const base =
+          typeof error.data === 'object' && error.data !== null && !Array.isArray(error.data)
+            ? error.data
+            : {};
+        return { ...error, data: { ...base, wireRequests } };
+      };
       // Usage of the segments already absorbed (RV1003): the terminal
       // finish speaks for the whole logical turn, or core's
       // midstream<=finish invariant kills a legitimate absorption and
@@ -288,7 +311,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
           if (signal?.aborted === true) {
             return;
           }
-          yield { type: 'error', error: anthropicErrorToWire(thrown) };
+          yield { type: 'error', error: withAbsorbed(anthropicErrorToWire(thrown)) };
           return;
         }
         // Manual consumption instead of yield*: each canonical event is
@@ -315,7 +338,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
           if (signal?.aborted === true) {
             return;
           }
-          yield { type: 'error', error: anthropicErrorToWire(thrown) };
+          yield { type: 'error', error: withAbsorbed(anthropicErrorToWire(thrown)) };
           return;
         }
         if (mapping.finished) {
@@ -332,12 +355,12 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
           }
           yield {
             type: 'error',
-            error: {
+            error: withAbsorbed({
               code: 'agent',
               message: 'Messages stream ended before message_stop; the read was truncated',
               retryable: true,
               data: { kind: 'transport' },
-            },
+            }),
           };
           return;
         }
@@ -356,12 +379,12 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
         if (continuations > pauseCap) {
           yield {
             type: 'error',
-            error: {
+            error: withAbsorbed({
               code: 'agent',
               message: `pause_turn continuation cap (${pauseCap}) exceeded`,
               retryable: true,
               data: { kind: 'transport' },
-            },
+            }),
           };
           return;
         }
@@ -371,7 +394,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
         // terminal error and the over-cap wire never leaves.
         const denial = await hooks?.onContinuationSegment?.({ segment: continuations + 1 });
         if (denial !== undefined) {
-          yield { type: 'error', error: denial };
+          yield { type: 'error', error: withAbsorbed(denial) };
           return;
         }
         const messages = params.messages as Array<Record<string, unknown>>;

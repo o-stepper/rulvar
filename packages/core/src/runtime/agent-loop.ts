@@ -3614,6 +3614,42 @@ export async function runAgent<S extends SchemaSpec>(
           if (wireIds !== undefined) {
             record.wireResponseIds = wireIds;
           }
+          // An errored dispatch whose adapter absorbed pause_turn
+          // segments (RV1805): the finish that would name the wire set
+          // never came, so the adapter rides it on the error data
+          // instead, and the record keeps the paid segments joinable.
+          // A SINGLE absorbed segment counts here (unlike the finish
+          // arm's multi-wire threshold): with no finish there is no
+          // plain responseId for the row, so even one id is the
+          // difference between a joinable row and an orphaned wire.
+          if (wireIds === undefined && record.outcome === 'error') {
+            const errorData =
+              outcome.wireError !== undefined &&
+              typeof outcome.wireError.data === 'object' &&
+              outcome.wireError.data !== null &&
+              !Array.isArray(outcome.wireError.data)
+                ? (outcome.wireError.data as {
+                    wireRequests?: { count?: unknown; responseIds?: unknown[] };
+                  })
+                : undefined;
+            const absorbed = errorData?.wireRequests;
+            const absorbedIds =
+              absorbed !== undefined && Array.isArray(absorbed.responseIds)
+                ? absorbed.responseIds.filter((id): id is string => typeof id === 'string')
+                : [];
+            if (absorbedIds.length > 0) {
+              record.wireResponseIds = absorbedIds;
+            }
+            const absorbedCount = absorbed?.count;
+            if (
+              typeof absorbedCount === 'number' &&
+              Number.isInteger(absorbedCount) &&
+              absorbedCount > 0 &&
+              (absorbedCount > 1 || absorbedIds.length > 0)
+            ) {
+              record.wireRequests = absorbedCount;
+            }
+          }
           // The billed CARDINALITY of this dispatch (RV1210), recorded
           // from the reported count rather than counted off the ids: a
           // provider that leaves one absorbed segment unnamed still

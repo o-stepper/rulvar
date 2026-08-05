@@ -2765,6 +2765,24 @@ const MUTATIONS = [
     test: 'packages/core/src/l0/decision-chain.test.ts',
   },
   {
+    id: 'anthropic-error-carries-segments',
+    doctrine:
+      'every anthropic error arm names the absorbed pause_turn segments (RV1805): the successful finish carries the whole wire set, so an error that yields bare orphans exactly the paid wires a statement join needs most',
+    file: 'packages/anthropic/src/adapter.ts',
+    find: '      const withAbsorbed = (error: WireError): WireError => {',
+    replace: '      const withAbsorbed = (error: WireError): WireError => {\n        return error;',
+    test: 'packages/anthropic/src/pause-turn-usage.test.ts',
+  },
+  {
+    id: 'record-error-wire-intake',
+    doctrine:
+      'the provider call record reads the absorbed wire set off an error (RV1805): the finish that would name the segments never came, so dropping the error-data arm leaves the paid wires unjoinable on every severed continuation',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "          if (wireIds === undefined && record.outcome === 'error') {",
+    replace: '          if (false) {',
+    test: 'packages/core/src/engine/wire-units.test.ts',
+  },
+  {
     id: 'counttokens-policy-deny',
     doctrine:
       "the countTokens policy gates the admission probe (RV1804): the probe carries the FULL child prompt as provider egress billed to no invoice row, so a deny that still counts is a privacy hole wearing a policy's name",
