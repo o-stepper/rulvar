@@ -35,6 +35,8 @@ const EXPECTED = [
   'statement-settleable-guard',
   'superseded-terminal-honesty',
   'tier-crossing-live-parity',
+  'benchmark-primary-preflight-parity',
+  'benchmark-recovery-root-exposure',
 ];
 
 describe('the fault-injection kit (RV811)', () => {

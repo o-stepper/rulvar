@@ -30,7 +30,9 @@ import {
   journalPricingSnapshot,
   JsonlFileStore,
   LeaseHeldError,
+  makeOrchestratorWorkflow,
   memoryQuotaLimiter,
+  preflightEstimate,
   priceComponentsOf,
   SettlementError,
   SupersededError,
@@ -1783,6 +1785,243 @@ const tierCrossingLiveParity: FaultScenario = {
   },
 };
 
+/**
+ * RV1905, the four-role benchmark's primary arm as a permanent gate:
+ * the exact $6.00 / $4.50 cap / $1.00 synthesis / four 0.62 workers
+ * configuration whose preflight read 5/5 green while the live gate
+ * refused the third worker. Since RV1901 the projection holds the
+ * synthesis reserve like both live gates, seats 2 of 4, exposes the
+ * equation terms, and names the roster shortfall as an error finding.
+ */
+const benchmarkPrimaryPreflightParity: FaultScenario = {
+  name: 'benchmark-primary-preflight-parity',
+  doctrine:
+    'the admission projection holds the synthesis reserve exactly like the live gates ' +
+    '(RV1901): the benchmark primary configuration projects 2 of 4 seats with the ' +
+    'equation terms exposed and the roster shortfall named admission-below-roster-floor, ' +
+    'never the 5/5 green wave the live gate is bound to refuse',
+  run() {
+    const adapter = new FakeAdapter({ agents: { '*': 'unused' } });
+    const report = preflightEstimate({
+      engine: {
+        adapters: [adapter],
+        defaults: {
+          routing: {
+            loop: FAKE_MODEL_REF,
+            orchestrate: FAKE_MODEL_REF,
+            synthesize: FAKE_MODEL_REF,
+          },
+        },
+      },
+      run: { budgetUsd: 6 },
+      orchestrator: {
+        budget: { capUsd: 4.5, capFraction: 1.0, synthesisReserveUsd: 1.0 },
+        synthesis: { limits: { maxTurns: 2 } },
+        acceptance: { minSpawnedChildren: 4 },
+      },
+      spawns: ['product', 'finops', 'durability', 'adversarial'].map((label) => ({
+        label,
+        estCost: 0.62,
+      })),
+    });
+    const denied = report.admission.wave.filter((row) => !row.admitted);
+    const floorFinding = report.findings.find(
+      (finding) => finding.code === 'admission-below-roster-floor',
+    );
+    const matched =
+      report.admission.admitted === 3 &&
+      report.admission.denied === 2 &&
+      denied.every((row) => row.deniedBy === 'budget') &&
+      report.admission.synthesisReserveUsd === 1.0 &&
+      Math.abs((report.admission.wave[0]?.reserveUsd ?? 0) - 3.5) < 1e-9 &&
+      Math.abs((report.admission.wave[0]?.heldAtEvaluationUsd ?? 0) - 1.0) < 1e-9 &&
+      floorFinding?.severity === 'error';
+    return Promise.resolve({
+      observation: {
+        matched,
+        detail:
+          `the wave seats ${String(report.admission.admitted)} of 5 rows ` +
+          `(${String(report.admission.denied)} denied by budget), synthesis hold ` +
+          `${String(report.admission.synthesisReserveUsd)} USD, roster finding ` +
+          `'${String(floorFinding?.code)}' at severity '${String(floorFinding?.severity)}'`,
+      },
+      artifacts: [jsonArtifact('preflight.json', report)],
+    });
+  },
+};
+
+/**
+ * RV1905, the four-role benchmark's recovery arm as a permanent gate:
+ * four admitted children still finalizing, the root's next turn refused
+ * pre-wire by the exposure cap. Since RV1902 the root parks and
+ * retries; since RV1903 every child reaches a journaled terminal before
+ * run_settle; since RV1904 the terminal and the invoice share one wire
+ * denominator. One scenario drives the whole fixed pipeline.
+ */
+const benchmarkRecoveryRootExposure: FaultScenario = {
+  name: 'benchmark-recovery-root-exposure',
+  doctrine:
+    'a root turn refused by the in-flight exposure cap beside live children parks and ' +
+    'completes after a hold releases (RV1902), every child terminal precedes run_settle ' +
+    '(RV1903), and the terminal envelope and the invoice cardinality agree on the wire ' +
+    'count (RV1904): the recovery arm terminal-failed on every one of these',
+  async run() {
+    let releaseChildren: () => void = () => {};
+    const childrenGate = new Promise<void>((resolve) => {
+      releaseChildren = resolve;
+    });
+    const agentTypeOfReq = (req: ChatRequest): string =>
+      (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar?.agentType ??
+      '';
+    let orchTurn = 0;
+    const calls: ChatRequest[] = [];
+    const toolEvents = (name: string, args: unknown, call: number): ChatEvent[] => [
+      { type: 'tool-call-start', id: `id-${String(call)}-0`, name },
+      { type: 'tool-call-delta', id: `id-${String(call)}-0`, argsTextDelta: JSON.stringify(args) },
+      { type: 'tool-call-end', id: `id-${String(call)}-0`, args },
+    ];
+    const handlesIn = (req: ChatRequest): number[] => {
+      const found: number[] = [];
+      for (const msg of req.messages) {
+        for (const part of msg.parts) {
+          if (part.type === 'tool-result') {
+            const result = part.result as { handle?: number; handles?: number[] };
+            if (typeof result.handle === 'number') {
+              found.push(result.handle);
+            }
+          }
+        }
+      }
+      return found;
+    };
+    const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
+      id: 'fake',
+      calls,
+      caps: () => ({
+        contextWindow: 200_000,
+        maxOutputTokens: 4_096,
+        structuredOutput: 'native',
+        supportsTemperature: true,
+        supportsParallelTools: true,
+        reasoningEfforts: [],
+        pricing: { inputUsdPerMTok: 1, outputUsdPerMTok: 10 },
+      }),
+      async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
+        const call = calls.length;
+        calls.push(req);
+        if (agentTypeOfReq(req) !== '') {
+          await Promise.race([
+            childrenGate,
+            new Promise<void>((resolve) => {
+              signal?.addEventListener('abort', () => resolve(), { once: true });
+            }),
+          ]);
+          if (signal?.aborted === true) {
+            return;
+          }
+          yield { type: 'text-delta', text: 'worked' };
+          yield {
+            type: 'finish',
+            finish: { reason: 'stop' },
+            usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          };
+          return;
+        }
+        orchTurn += 1;
+        const turn =
+          orchTurn === 1
+            ? toolEvents('spawn_agent', { agentType: 'worker', prompt: 'task A' }, call).concat(
+                toolEvents('spawn_agent', { agentType: 'worker', prompt: 'task B' }, call + 1000),
+              )
+            : orchTurn === 2
+              ? toolEvents('await_all', { handles: handlesIn(req) }, call)
+              : toolEvents('finish', { result: 'joined after the wait' }, call);
+        for (const event of turn) {
+          yield event;
+        }
+        yield {
+          type: 'finish',
+          finish: { reason: 'tool-calls' },
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        };
+      },
+    };
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: {
+          worker: { description: 'the gated worker', limits: { maxOutputTokensPerTurn: 2500 } },
+        },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('join the gated wave', {
+      limits: { maxOutputTokensPerTurn: 4000 },
+    });
+    const handle = engine.run(wf, undefined, {
+      runId: 'fault-recovery-exposure',
+      budgetUsd: 10,
+      maxInFlightExposureUsd: 0.08,
+    });
+    const waits: Array<{ willWait?: boolean }> = [];
+    const errors: unknown[] = [];
+    handle.on('budget:exposure-wait', (event) => {
+      waits.push(event);
+      releaseChildren();
+    });
+    handle.on('agent:error', (event) => errors.push(event));
+    const timer = setTimeout(() => releaseChildren(), 4000);
+    timer.unref?.();
+    const outcome = await handle.result;
+    const entries = await store.load('fault-recovery-exposure');
+    const settle = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'run_settle',
+    );
+    const childTerminals = entries.filter(
+      (entry) =>
+        entry.kind === 'agent' && entry.scope.startsWith('agent:') && entry.status !== 'running',
+    );
+    const invoice = invoiceFromJournal(entries, (servedBy, usage) => {
+      return (usage.inputTokens / 1_000_000) * 1 + (usage.outputTokens / 1_000_000) * 10;
+    });
+    const matched =
+      outcome.status === 'ok' &&
+      outcome.value === 'joined after the wait' &&
+      waits.length >= 1 &&
+      waits[0]?.willWait === true &&
+      errors.length === 0 &&
+      settle !== undefined &&
+      childTerminals.length === 2 &&
+      childTerminals.every((entry) => entry.seq < settle.seq) &&
+      typeof outcome.envelope.wireRequests === 'number' &&
+      outcome.envelope.wireRequests === invoice.cardinality.wireRequests;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' with ${String(waits.length)} exposure wait(s) ` +
+          `(first willWait=${String(waits[0]?.willWait)}), ${String(errors.length)} ` +
+          `agent:error, ${String(childTerminals.length)} child terminals before settle ` +
+          `seq ${String(settle?.seq)}, wires ${String(outcome.envelope.wireRequests)} == ` +
+          `invoice ${String(invoice.cardinality.wireRequests)}`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          envelope: outcome.envelope,
+        }),
+        jsonArtifact('events.json', { waits, errors }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -1804,6 +2043,8 @@ const SCENARIOS: readonly FaultScenario[] = [
   statementSettleableGuard,
   supersededTerminalHonesty,
   tierCrossingLiveParity,
+  benchmarkPrimaryPreflightParity,
+  benchmarkRecoveryRootExposure,
 ];
 
 /** The scenario names in run order. */

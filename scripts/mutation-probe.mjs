@@ -3100,6 +3100,25 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/settle-drain.test.ts',
   },
   {
+    id: 'benchmark-cassette-roster',
+    doctrine:
+      'the two four-role benchmark cassettes stay registered in the fault kit (RV1905): dropping them from the scenario roster silently un-gates the exact primary and recovery shapes the twenty-second plan fixed, and the kit exists so a fixed defect can never become untested again',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '  benchmarkPrimaryPreflightParity,\n  benchmarkRecoveryRootExposure,\n];',
+    replace: '];',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'benchmark-cassette-verdict',
+    doctrine:
+      "the recovery cassette's matched verdict derives from its observed surfaces (RV1905): inverting the first observed term must flip the whole gate to matched:false, proving the predicate is consulted rather than decorative",
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "    const matched =\n      outcome.status === 'ok' &&\n      outcome.value === 'joined after the wait' &&",
+    replace:
+      "    const matched =\n      outcome.status !== 'ok' &&\n      outcome.value === 'joined after the wait' &&",
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
     id: 'exposure-drained-partial',
     doctrine:
       "a drained exposure refusal on the root settles the documented forced-finish partial, never a bare escape (RV1902): dropping the orchestrate catch returns the run to a null-valued exhausted with no journaled fallback decision, the recovery arm's exact terminal",
