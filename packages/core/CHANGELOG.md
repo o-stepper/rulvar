@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.189.0
+
+### Minor Changes
+
+- 6a5cc2d: The settled-set consume path, structured tool failure reasons, the labeled fact-sheet scope, and the machine-readable late-child boundary (RV1807). The nineteenth benchmark's root consumed six children with fourteen `get_child_result` calls, eight of them speculative probes that errored on not-settled handles, its answer printed the child-only fact sheet as "the current workflow" totals, and public tool events said only `outcome: 'error'` throughout. Every `await_any` digest now carries `settledHandles` (the settled subset of the waited set at return time, recorded truth like the digest itself); `exposeSettledResultsTool: true` adds `get_settled_child_results(handles, maxCharsPerChild?)`, the bulk first-page read that refuses typed BEFORE any read when a handle is unknown or still running, under its own opt-in so no existing run's toolset hash moves; `tool:end` events carry a structured `errorCode` on failures (`unknown-tool`, `invalid-arguments`, `child-not-settled`, `unknown-handle`, and the RV1807 `data.errorCode` convention for tools that stamp their own); the `RUN FACTS` synthesis sheet names its scope in the quoted bytes (`scope: 'settled-children-only'`, with the whole-run totals delegated to the terminal envelope and invoice); and a finish that validates over a still-running child names it in the structured `unsettledAtFinish` list on the acceptance decision and the result envelope, beside the existing prose degradation note, with the pool boundary documented: a late child's output never re-enters the frozen contradiction and claim pools.
+
 ## 1.188.0
 
 ## 1.187.0
