@@ -10,7 +10,7 @@
 function bridgeAiSdk(model, options?): ProviderAdapter;
 ```
 
-Defined in: [packages/bridge-ai-sdk/src/bridge.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/bridge-ai-sdk/src/bridge.ts#L162)
+Defined in: [packages/bridge-ai-sdk/src/bridge.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/bridge-ai-sdk/src/bridge.ts#L178)
 
 Wraps a Vercel AI SDK LanguageModelV4 as a ProviderAdapter. The bridge
 MUST check specificationVersion at runtime and
