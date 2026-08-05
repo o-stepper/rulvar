@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+
 ### 1.194.0
 
 #### Patch Changes
@@ -1837,6 +1844,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+
 ### 1.194.0
 
 #### Patch Changes
@@ -3463,6 +3477,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
 
 ### 1.194.0
 
@@ -5534,6 +5555,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.195.0
+
+#### Minor Changes
+
+- 5702a70: The terminal child barrier (RV1903). The four-role benchmark's recovery journal recorded `run_settle` at sequence 18 and three successful child terminals at sequences 19..21: the returned `RunOutcome`, the terminal invoice, the captured event stream and the final journal each reported a different total, and none was wrong by its own clock. Every orchestration exit, returned or thrown, an accepted or rejected finish, a typed failure, a budget or exposure terminal alike, now passes a terminal child barrier before the workflow settles: `OrchestrateOptions.onUnsettledAtExit: 'cancel'` (the default) aborts the stragglers and awaits their journaled cancelled terminals, `'drain'` awaits their natural terminals bounded by their own limits and budgets, preserving their evidence at the price of the wait. The verdict the run settles with is journaled before the barrier runs, so late children never change it; what ends is the settle racing the roster, and with it the post-settle journal mutation that split the cost views.
+
+  The frozen cassette catalog is re-recorded for the barrier's additive cancelled child terminals in runs that previously left stragglers running past the settle (journal-shape-revision, additive terminals only: existing entries byte-identical, no hashVersion change).
 
 ### 1.194.0
 
@@ -7904,6 +7933,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.195.0
+
 ### 1.194.0
 
 ### 1.193.0
@@ -8396,6 +8427,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+  - @rulvar/anthropic@1.195.0
+  - @rulvar/openai@1.195.0
+  - @rulvar/plan@1.195.0
+  - @rulvar/testing@1.195.0
 
 ### 1.194.0
 
@@ -10597,6 +10639,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+
 ### 1.194.0
 
 #### Patch Changes
@@ -11634,6 +11683,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
 
 ### 1.194.0
 
@@ -13463,6 +13519,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+
 ### 1.194.0
 
 #### Patch Changes
@@ -15203,6 +15266,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+  - eslint-plugin-rulvar@1.195.0
 
 ### 1.194.0
 
@@ -17100,6 +17171,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+  - @rulvar/anthropic@1.195.0
+  - @rulvar/openai@1.195.0
 
 ### 1.194.0
 
@@ -19275,6 +19355,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+
 ### 1.194.0
 
 #### Patch Changes
@@ -21023,6 +21110,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
+
 ### 1.194.0
 
 #### Patch Changes
@@ -22076,6 +22170,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
 
 ### 1.194.0
 
@@ -23761,6 +23862,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.195.0
+
+#### Patch Changes
+
+- Updated dependencies [5702a70]
+  - @rulvar/core@1.195.0
 
 ### 1.194.0
 
