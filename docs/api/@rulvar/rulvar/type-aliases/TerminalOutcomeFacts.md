@@ -10,6 +10,7 @@
 type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, "status" | "error" | "completion"> & {
   cost: Pick<RunOutcome<unknown>["cost"], "totalUsd" | "grossUsd" | "byModel"> & {
      usageApprox?: boolean;
+     wireRequests?: number;
   };
   usage: RunOutcome<unknown>["usage"];
 };
@@ -23,5 +24,5 @@ The outcome facts the assembler reads; a structural subset of RunOutcome.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `cost` | `Pick`\&lt;[`RunOutcome`](/api/@rulvar/rulvar/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"cost"`\], `"totalUsd"` \| `"grossUsd"` \| `"byModel"`\&gt; & \{ `usageApprox?`: `boolean`; \} | `packages/core/dist/index.d.ts` |
+| `cost` | `Pick`\&lt;[`RunOutcome`](/api/@rulvar/rulvar/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"cost"`\], `"totalUsd"` \| `"grossUsd"` \| `"byModel"`\&gt; & \{ `usageApprox?`: `boolean`; `wireRequests?`: `number`; \} | `packages/core/dist/index.d.ts` |
 | `usage` | [`RunOutcome`](/api/@rulvar/rulvar/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"usage"`\] | `packages/core/dist/index.d.ts` |

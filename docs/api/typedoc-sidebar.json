@@ -561,6 +561,10 @@
             "link": "/api/@rulvar/core/classes/JournalOrderViolation.md"
           },
           {
+            "text": "JournalSealedError",
+            "link": "/api/@rulvar/core/classes/JournalSealedError.md"
+          },
+          {
             "text": "JsonlFileStore",
             "link": "/api/@rulvar/core/classes/JsonlFileStore.md"
           },
@@ -5465,6 +5469,10 @@
           {
             "text": "JournalOrderViolation",
             "link": "/api/@rulvar/rulvar/classes/JournalOrderViolation.md"
+          },
+          {
+            "text": "JournalSealedError",
+            "link": "/api/@rulvar/rulvar/classes/JournalSealedError.md"
           },
           {
             "text": "JsonlFileStore",

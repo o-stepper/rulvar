@@ -31,6 +31,7 @@ export type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, 'status' | 'error' 
   usage: RunOutcome<unknown>['usage'];
   cost: Pick<RunOutcome<unknown>['cost'], 'totalUsd' | 'grossUsd' | 'byModel'> & {
     usageApprox?: boolean;
+    wireRequests?: number;
   };
 };
 
@@ -84,6 +85,12 @@ export function terminalEnvelopeOf(input: {
   }
   if (outcome.completion !== undefined) {
     envelope.completion = outcome.completion;
+  }
+  if (outcome.cost.wireRequests !== undefined) {
+    // The wire denominator (RV1904): lifted from the same cost fold as
+    // the dollars, so the envelope and the invoice cardinality agree
+    // on ledger-covered runs by construction.
+    envelope.wireRequests = outcome.cost.wireRequests;
   }
   if (input.settlement?.settledReason !== undefined) {
     envelope.settledReason = input.settlement.settledReason;

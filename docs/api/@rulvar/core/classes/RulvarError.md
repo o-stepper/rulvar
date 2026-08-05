@@ -6,7 +6,7 @@
 
 # Abstract Class: RulvarError
 
-Defined in: [packages/core/src/l0/errors.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L58)
+Defined in: [packages/core/src/l0/errors.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L59)
 
 Base class for all engine-raised errors. "Retryable" means the engine's
 own retry machinery (RetryPolicy under the journal) MAY retry;
@@ -29,6 +29,7 @@ it never means a provider SDK autoretry, which is disabled.
 - [`OrchestratorCapConfigError`](/api/@rulvar/core/classes/OrchestratorCapConfigError.md)
 - [`JournalMissError`](/api/@rulvar/core/classes/JournalMissError.md)
 - [`BudgetExhaustedError`](/api/@rulvar/core/classes/BudgetExhaustedError.md)
+- [`JournalSealedError`](/api/@rulvar/core/classes/JournalSealedError.md)
 - [`FailRunError`](/api/@rulvar/core/classes/FailRunError.md)
 - [`AdmissionRejectedError`](/api/@rulvar/core/classes/AdmissionRejectedError.md)
 - [`SandboxError`](/api/@rulvar/core/classes/SandboxError.md)
@@ -46,7 +47,7 @@ it never means a provider SDK autoretry, which is disabled.
 new RulvarError(message, opts?): RulvarError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63)
+Defined in: [packages/core/src/l0/errors.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L64)
 
 #### Parameters
 
@@ -72,9 +73,9 @@ Error.constructor
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `abstract` | [`ErrorCode`](/api/@rulvar/core/type-aliases/ErrorCode.md) | [packages/core/src/l0/errors.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L59) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | [packages/core/src/l0/errors.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L60) |
+| <a id="property-code"></a> `code` | `abstract` | [`ErrorCode`](/api/@rulvar/core/type-aliases/ErrorCode.md) | [packages/core/src/l0/errors.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L60) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
 
 ## Methods
 
@@ -84,7 +85,7 @@ Error.constructor
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L72)
+Defined in: [packages/core/src/l0/errors.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L73)
 
 #### Returns
 

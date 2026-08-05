@@ -45,7 +45,8 @@ export type ErrorCode =
   | 'knowledge_cas'
   | 'determinism'
   | 'settlement'
-  | 'superseded';
+  | 'superseded'
+  | 'journal_sealed';
 
 /** An alias for the registry type; both names are public. */
 export type RulvarErrorCode = ErrorCode;
@@ -247,6 +248,23 @@ export class JournalMissError extends RulvarError {
  */
 export class BudgetExhaustedError extends RulvarError {
   readonly code = 'budget_exhausted' as const;
+
+  constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
+    super(message, { retryable: false, ...opts });
+  }
+}
+
+/**
+ * A journal append arrived after the run's settle sealed the segment
+ * (RV1904): once `run_settle` is durable, the journal is the terminal
+ * truth every cost and invoice fold reads, and a late append would
+ * silently split it into the four mutually inconsistent views the
+ * four-role benchmark recorded. The orchestrate exit barrier (RV1903)
+ * and the engine's settle drain terminate every straggler BEFORE the
+ * seal, so this error names a lifecycle bug, never a working path.
+ */
+export class JournalSealedError extends RulvarError {
+  readonly code = 'journal_sealed' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: false, ...opts });

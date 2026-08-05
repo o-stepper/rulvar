@@ -3082,6 +3082,24 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
+    id: 'settle-drain',
+    doctrine:
+      "the engine terminates every live agent invocation to a journaled entry before run_settle exists (RV1904): dropping the drain lets a plain workflow's un-awaited ctx.agent strand a child writing past the settle, the recovery benchmark's exact shape at the engine level",
+    file: 'packages/core/src/engine/engine.ts',
+    find: "        if (status !== 'suspended' && internals.liveAgentCalls.size > 0) {",
+    replace: '        if (false) {',
+    test: 'packages/core/src/engine/settle-drain.test.ts',
+  },
+  {
+    id: 'journal-seal',
+    doctrine:
+      'the billing lanes of a settled journal refuse further appends typed (RV1904): disarming the seal returns the silent post-settle mutation that split the recovery run into four mutually inconsistent cost views',
+    file: 'packages/core/src/journal/replayer.ts',
+    find: '    if (!this.sealedInternal) {\n      return undefined;\n    }',
+    replace: '    if (true) {\n      return undefined;\n    }',
+    test: 'packages/core/src/engine/settle-drain.test.ts',
+  },
+  {
     id: 'exposure-drained-partial',
     doctrine:
       "a drained exposure refusal on the root settles the documented forced-finish partial, never a bare escape (RV1902): dropping the orchestrate catch returns the run to a null-valued exhausted with no journaled fallback decision, the recovery arm's exact terminal",

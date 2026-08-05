@@ -49,6 +49,20 @@ export interface CostReport {
    */
   grossUsd: number;
   /**
+   * Provider wire requests recorded by the per-dispatch ledger
+   * (RV1904): the sum of every settled entry's providerCalls, each
+   * record counting its absorbed continuations (`wireRequests`, RV905)
+   * and one otherwise, abandoned subtrees included, because their
+   * attempts hit the wire all the same. On ledger-covered runs this
+   * equals the invoice cardinality's `wireRequests`, the recovery
+   * benchmark's 55, so the terminal and the invoice finally share one
+   * denominator; pre-ledger slices carry no record and surface in the
+   * invoice as unattributed rows instead. Set by the journal fold;
+   * absent from a live `buildCostReport` accumulation that did not
+   * count wires.
+   */
+  wireRequests?: number;
+  /**
    * Priced spend under abandoned subtrees, exactly the part totalUsd
    * excludes. `unpriced` here surfaces abandoned slices with no price
    * row (the top-level `unpriced` lists only slices contributing to

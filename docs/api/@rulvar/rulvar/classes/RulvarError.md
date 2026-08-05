@@ -27,6 +27,7 @@ it never means a provider SDK autoretry, which is disabled.
 - [`JournalCompatibilityError`](/api/@rulvar/rulvar/classes/JournalCompatibilityError.md)
 - [`JournalMissError`](/api/@rulvar/rulvar/classes/JournalMissError.md)
 - [`JournalOrderViolation`](/api/@rulvar/rulvar/classes/JournalOrderViolation.md)
+- [`JournalSealedError`](/api/@rulvar/rulvar/classes/JournalSealedError.md)
 - [`KnowledgeCasError`](/api/@rulvar/rulvar/classes/KnowledgeCasError.md)
 - [`LeaseHeldError`](/api/@rulvar/rulvar/classes/LeaseHeldError.md)
 - [`NonSerializableValueError`](/api/@rulvar/rulvar/classes/NonSerializableValueError.md)

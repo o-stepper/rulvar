@@ -6,7 +6,7 @@
 
 # Interface: AcceptanceChildSummary
 
-Defined in: [packages/core/src/engine/run-handle.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L117)
+Defined in: [packages/core/src/engine/run-handle.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L131)
 
 One row of the acceptance fold's per-child roster (RV806): the
 settled status, the salvage arm that would have accepted the child
@@ -27,12 +27,12 @@ the child rides `belowFloorOkChildren` with a degradation note).
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-child"></a> `child` | `string` | [packages/core/src/engine/run-handle.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L118) |
-| <a id="property-evidence"></a> `evidence?` | \{ `floorRequired?`: `true`; `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \} | [packages/core/src/engine/run-handle.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L121) |
-| `evidence.floorRequired?` | `true` | [packages/core/src/engine/run-handle.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L126) |
-| `evidence.met` | `boolean` | [packages/core/src/engine/run-handle.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L124) |
-| `evidence.minEntries` | `number` | [packages/core/src/engine/run-handle.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L123) |
-| `evidence.recordedEntries` | `number` | [packages/core/src/engine/run-handle.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L122) |
-| `evidence.waivedBySalvage?` | `true` | [packages/core/src/engine/run-handle.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L125) |
-| <a id="property-salvage"></a> `salvage?` | `"partial"` \| `"terminal-output"` | [packages/core/src/engine/run-handle.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L120) |
-| <a id="property-status"></a> `status` | `string` | [packages/core/src/engine/run-handle.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L119) |
+| <a id="property-child"></a> `child` | `string` | [packages/core/src/engine/run-handle.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L132) |
+| <a id="property-evidence"></a> `evidence?` | \{ `floorRequired?`: `true`; `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \} | [packages/core/src/engine/run-handle.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L135) |
+| `evidence.floorRequired?` | `true` | [packages/core/src/engine/run-handle.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L140) |
+| `evidence.met` | `boolean` | [packages/core/src/engine/run-handle.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L138) |
+| `evidence.minEntries` | `number` | [packages/core/src/engine/run-handle.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L137) |
+| `evidence.recordedEntries` | `number` | [packages/core/src/engine/run-handle.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L136) |
+| `evidence.waivedBySalvage?` | `true` | [packages/core/src/engine/run-handle.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L139) |
+| <a id="property-salvage"></a> `salvage?` | `"partial"` \| `"terminal-output"` | [packages/core/src/engine/run-handle.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L134) |
+| <a id="property-status"></a> `status` | `string` | [packages/core/src/engine/run-handle.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L133) |
