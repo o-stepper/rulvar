@@ -1,5 +1,16 @@
 # @rulvar/evals
 
+## 1.192.0
+
+### Patch Changes
+
+- Updated dependencies [8757601]
+  - @rulvar/core@1.192.0
+  - @rulvar/anthropic@1.192.0
+  - @rulvar/openai@1.192.0
+  - @rulvar/plan@1.192.0
+  - @rulvar/testing@1.192.0
+
 ## 1.191.0
 
 ### Minor Changes

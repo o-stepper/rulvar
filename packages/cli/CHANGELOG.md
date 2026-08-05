@@ -1,5 +1,12 @@
 # @rulvar/cli
 
+## 1.192.0
+
+### Patch Changes
+
+- Updated dependencies [8757601]
+  - @rulvar/core@1.192.0
+
 ## 1.191.0
 
 ### Minor Changes
