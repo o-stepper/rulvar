@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred seventy five rounds, verbatim in this repository's history:
+The one hundred seventy six rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -389,6 +389,7 @@ The one hundred seventy five rounds, verbatim in this repository's history:
 | v1.191.0      | 8757601 (#766): a recoverable pre wire wait emits quota:denied with reason and retryAfterMs instead of agent:error, the legacy twin rides a compat flag, exhaustion stays an error        | v1.192.0   |
 | v1.192.0      | 2bca1d1 (#769): the admission wave holds the synthesis reserve exactly like the live gates, the benchmark config projects 2 of 4 seats, and a roster floor shortfall errors preflight     | v1.193.0   |
 | v1.193.0      | 360a659 (#772): the refused orchestrate root parks until an exposure hold releases and retries pre wire, budget:exposure-wait names the arithmetic, a drained refusal settles the partial | v1.194.0   |
+| v1.194.0      | 5702a70 (#774): every orchestration exit passes the terminal child barrier, onUnsettledAtExit cancels or drains the stragglers, run_settle can no longer precede a child billing row      | v1.195.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
