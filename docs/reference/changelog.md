@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
+
 ### 1.196.0
 
 #### Patch Changes
@@ -1851,6 +1857,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
+
 ### 1.196.0
 
 #### Patch Changes
@@ -3491,6 +3503,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
 
 ### 1.196.0
 
@@ -5576,6 +5594,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.197.0
 
 ### 1.196.0
 
@@ -7960,6 +7980,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.197.0
+
 ### 1.196.0
 
 ### 1.195.0
@@ -8456,6 +8478,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.197.0
+
+#### Minor Changes
+
+- 4d0487e: The four-role benchmark's two defect shapes join the fault-injection kit as permanent gates (RV1905). `benchmark-primary-preflight-parity` drives the exact primary configuration ($6.00 ceiling, $4.50 orchestrator cap, $1.00 synthesis reserve, four workers at estCost $0.62) and matches only when the projection seats 2 of 4 with the synthesis hold and per-row held terms exposed and the roster shortfall named `admission-below-roster-floor` (RV1901). `benchmark-recovery-root-exposure` drives the recovery arm's shape on the real engine with scripted adapters and zero provider calls: a root turn refused by the exposure cap beside live gated children parks and completes after a hold releases (RV1902), every child terminal precedes `run_settle` (RV1903), and the terminal envelope and the invoice cardinality agree on the wire count (RV1904). Reverting any of the four fixes reports `matched: false` here, not only in the unit suites that shipped them.
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.197.0
+- @rulvar/core@1.197.0
+- @rulvar/openai@1.197.0
+- @rulvar/plan@1.197.0
+- @rulvar/testing@1.197.0
 
 ### 1.196.0
 
@@ -10679,6 +10715,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
+
 ### 1.196.0
 
 #### Patch Changes
@@ -11730,6 +11772,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
 
 ### 1.196.0
 
@@ -13573,6 +13621,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
+
 ### 1.196.0
 
 #### Patch Changes
@@ -15327,6 +15381,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
+- eslint-plugin-rulvar@1.197.0
 
 ### 1.196.0
 
@@ -17240,6 +17301,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.197.0
+- @rulvar/core@1.197.0
+- @rulvar/openai@1.197.0
 
 ### 1.196.0
 
@@ -19433,6 +19502,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
+
 ### 1.196.0
 
 #### Patch Changes
@@ -21195,6 +21270,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
+
 ### 1.196.0
 
 #### Patch Changes
@@ -22262,6 +22343,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
 
 ### 1.196.0
 
@@ -23961,6 +24048,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.197.0
+
+#### Patch Changes
+
+- @rulvar/core@1.197.0
 
 ### 1.196.0
 
