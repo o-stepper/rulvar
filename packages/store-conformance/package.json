@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/store-conformance",
-  "version": "1.190.0",
+  "version": "1.191.0",
   "description": "Rulvar executable store conformance kit (DEF-4).",
   "type": "module",
   "license": "Apache-2.0",
