@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred seventy one rounds, verbatim in this repository's history:
+The one hundred seventy two rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -385,6 +385,7 @@ The one hundred seventy one rounds, verbatim in this repository's history:
 | v1.187.0      | b6d0bc8 (#754): provider executed tools are a policy surface on the ai sdk bridge: denied by default with a typed terminal error naming it; allow lists every call in the finish bag      | v1.188.0   |
 | v1.188.0      | 6a5cc2d (#757): every await_any digest names its settled subset, a bulk read consumes settled children refusing typed pre read, tool failures carry errorCode, run facts name scope       | v1.189.0   |
 | v1.189.0      | 8e02021 (#760): the MCP sweep refuses any revisited cursor, timeouts.discoveryMs bounds the whole tools list crawl as one unit, requireBounds demands all four discovery bounds up front  | v1.190.0   |
+| v1.190.0      | 745387c (#763): claim coverage gains floors, a below floor pass stamps the machine readable lowCoverage block or fails typed ahead of the judge, the corpus grows two claim classes       | v1.191.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
