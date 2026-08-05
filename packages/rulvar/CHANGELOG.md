@@ -1,5 +1,13 @@
 # @rulvar/rulvar
 
+## 1.188.0
+
+### Patch Changes
+
+- @rulvar/anthropic@1.188.0
+- @rulvar/core@1.188.0
+- @rulvar/openai@1.188.0
+
 ## 1.187.0
 
 ### Patch Changes

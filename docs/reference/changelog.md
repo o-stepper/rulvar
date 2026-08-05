@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
+
 ### 1.187.0
 
 #### Minor Changes
@@ -1789,6 +1795,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.188.0
+
+#### Minor Changes
+
+- b6d0bc8: Provider-executed tools become a policy surface, denied by default (RV1806). The bridge used to absorb a wrapped provider's server-side tool exchanges (web search, code execution) silently into retention: calls that never pass the engine's `ToolDef` registry, risk classes, ask rules, or approvals, with effects on provider infrastructure no permission chain can see. Under the new default `providerExecutedTools: 'deny'` the first provider-executed exchange fails the turn with a typed terminal error naming the tool; `'allow'` opts back into the old retention behavior and additionally names every provider-executed call on the finish metadata (`providerExecutedTools: [{ toolName, toolCallId }]`), so the journaled record of the turn says what the provider ran. Hosts that relied on the silent absorption must now pass `bridgeAiSdk(model, { providerExecutedTools: 'allow' })`; a malformed value refuses typed at construction.
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
+
 ### 1.187.0
 
 #### Patch Changes
@@ -3363,6 +3379,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
 
 ### 1.187.0
 
@@ -5382,6 +5404,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.188.0
 
 ### 1.187.0
 
@@ -7714,6 +7738,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.188.0
+
 ### 1.187.0
 
 ### 1.186.0
@@ -8192,6 +8218,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.188.0
+- @rulvar/core@1.188.0
+- @rulvar/openai@1.188.0
+- @rulvar/plan@1.188.0
+- @rulvar/testing@1.188.0
 
 ### 1.187.0
 
@@ -10313,6 +10349,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
+
 ### 1.187.0
 
 #### Patch Changes
@@ -11302,6 +11344,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
 
 ### 1.187.0
 
@@ -13083,6 +13131,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
+
 ### 1.187.0
 
 #### Patch Changes
@@ -14775,6 +14829,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
+- eslint-plugin-rulvar@1.188.0
 
 ### 1.187.0
 
@@ -16617,6 +16678,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.188.0
+- @rulvar/core@1.188.0
+- @rulvar/openai@1.188.0
 
 ### 1.187.0
 
@@ -18730,6 +18799,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
+
 ### 1.187.0
 
 #### Patch Changes
@@ -20430,6 +20505,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
+
 ### 1.187.0
 
 #### Patch Changes
@@ -21435,6 +21516,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
 
 ### 1.187.0
 
@@ -23072,6 +23159,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.188.0
+
+#### Patch Changes
+
+- @rulvar/core@1.188.0
 
 ### 1.187.0
 
