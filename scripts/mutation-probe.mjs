@@ -3064,6 +3064,24 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
+    id: 'terminal-child-barrier',
+    doctrine:
+      "every orchestration exit awaits a journaled terminal for every spawned child before the workflow settles (RV1903): dropping the await resurrects the recovery journal's shape, run_settle at sequence 18 with three child terminals appended at 19..21 and four mutually inconsistent cost views",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      await Promise.allSettled(live.map((record) => record.result));',
+    replace: '      void live;',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'barrier-live-roster',
+    doctrine:
+      'the exit barrier walks the LIVE roster, one record per admitted spawn with no settled terminal (RV1903): emptying the walk leaves the stragglers running past the settle, so the cancelled terminals the default policy promises never journal',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      const live = [...byOrdinal.values()].filter((record) => record.settled === undefined);',
+    replace: '      const live = [...byOrdinal.values()].filter(() => false);',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
     id: 'exposure-drained-partial',
     doctrine:
       "a drained exposure refusal on the root settles the documented forced-finish partial, never a bare escape (RV1902): dropping the orchestrate catch returns the run to a null-valued exhausted with no journaled fallback decision, the recovery arm's exact terminal",

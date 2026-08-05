@@ -1530,8 +1530,81 @@
     {
       "hashVersion": 2,
       "seq": 37,
-      "scope": "",
+      "ref": 31,
+      "scope": "plan/ULID-0016--------------------",
+      "key": "hash-0010-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "cancelled",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "usageApprox": true,
+      "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "worker",
+        "role": "loop",
+        "budgetAccount": "plan/ULID-0016--------------------"
+      },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "aborted",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "usageApprox": true,
+          "aborted": "external"
+        }
+      ],
+      "transcriptRef": "fixture-transcript"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 38,
+      "scope": "plan",
       "key": "hash-0043-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0016--------------------",
+            "from": "running",
+            "to": "cancelled",
+            "cause": "child-result",
+            "causeRef": 37
+          }
+        ],
+        "causeRef": 37,
+        "planHashBefore": "hash-0042-------------------------------------------------------",
+        "planHashAfter": "hash-0044-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 39,
+      "scope": "",
+      "key": "hash-0045-------------------------------------------------------",
       "ordinal": 0,
       "kind": "decision",
       "status": "ok",
@@ -1541,7 +1614,7 @@
         "decisionType": "run_settle",
         "runStatus": "ok",
         "segment": 1,
-        "outputHash": "hash-0044-------------------------------------------------------"
+        "outputHash": "hash-0046-------------------------------------------------------"
       },
       "endedAt": "2026-02-01T00:00:00.000Z"
     }

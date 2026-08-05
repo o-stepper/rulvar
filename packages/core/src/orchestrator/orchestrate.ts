@@ -59,7 +59,7 @@ import { emitSpawnAdmitted, emitSpawnRejected } from '../engine/spawn-events.js'
 import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
 import { lastRunSettle } from '../stores/reconcile.js';
-import type { AgentOpts, AgentProfile, Workflow } from '../engine/ctx.js';
+import type { AgentOpts, AgentProfile, Ctx, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
 import type { AcceptanceChildSummary, RunHandle } from '../engine/run-handle.js';
@@ -575,6 +575,23 @@ export interface OrchestrateOptions {
   extension?: OrchestratorExtension;
   /** The opt in child completion policy; see {@link OrchestrateAcceptance}. */
   acceptance?: OrchestrateAcceptance;
+  /**
+   * The terminal child barrier policy (RV1903, the four-role
+   * benchmark's recovery arm): what happens to children still running
+   * when the orchestration exits, on EVERY exit path (an accepted or
+   * rejected finish, a typed failure, a budget or exposure terminal).
+   * 'cancel' (the default) aborts them and awaits their journaled
+   * cancelled terminals; 'drain' awaits their natural terminals,
+   * bounded by their own limits and budgets, preserving their evidence
+   * at the price of the wait. Either way the orchestration returns
+   * only after every spawned child has a terminal journal entry, so
+   * `run_settle` can never precede a child's billing row again: the
+   * benchmark's recovery journal recorded three child terminals AFTER
+   * the settle decision, and four mutually inconsistent cost views
+   * followed. The verdict the run settled with is already frozen
+   * before the barrier runs, so late children never change it.
+   */
+  onUnsettledAtExit?: 'cancel' | 'drain';
   /**
    * The opt in deterministic host validation of the finish result, with
    * bounded repair; see {@link FinishValidationSpec}.
@@ -1227,6 +1244,17 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   }
   if (opts.renderBudgetChars !== undefined) {
     requireNonNegativeInteger(opts.renderBudgetChars, 'orchestrate renderBudgetChars');
+  }
+  if (
+    opts.onUnsettledAtExit !== undefined &&
+    opts.onUnsettledAtExit !== 'cancel' &&
+    opts.onUnsettledAtExit !== 'drain'
+  ) {
+    // The runtime JS/JSON boundary: the type system cannot hold it.
+    throw new ConfigError(
+      "orchestrate onUnsettledAtExit must be 'cancel' or 'drain'; got " +
+        `${String(opts.onUnsettledAtExit)}`,
+    );
   }
   if (opts.acceptance !== undefined) {
     // The runtime JS/JSON boundary: the type system cannot hold it.
@@ -2190,7 +2218,16 @@ export function makeOrchestratorWorkflow(
   opts?: OrchestrateOptions,
 ): Workflow<undefined, unknown> {
   validateOrchestrateOptions(opts);
-  return defineWorkflow({ name: ORCHESTRATE_WORKFLOW_NAME }, async (ctx): Promise<unknown> => {
+  // The terminal child barrier holder (RV1903): the orchestration body
+  // registers its exitBarrier here once the spawn roster exists, and
+  // the thin workflow wrapper below runs it in a finally, so EVERY
+  // exit, returned or thrown, waits for the stragglers' journaled
+  // terminals. The body keeps its exact indentation depth on purpose:
+  // the wrapper is the only new nesting.
+  const orchestrationBody = async (
+    ctx: Ctx<'strict'>,
+    barrier: { run?: () => Promise<void> },
+  ): Promise<unknown> => {
     const runtime = runtimeOf(ctx);
     const { internals } = runtime;
     if (internals.admission === undefined) {
@@ -2441,6 +2478,34 @@ export function makeOrchestratorWorkflow(
     const records = new Map<number, SpawnRecord>();
     const byOrdinal = new Map<number, SpawnRecord>();
     const rejectedByOrdinal = new Map<number, { decision: AdmissionDecision; entrySeq: number }>();
+    /**
+     * The terminal child barrier (RV1903): every exit of this
+     * orchestration, returned or thrown, passes through the finally
+     * below, so a child still running when the verdict froze reaches a
+     * journaled terminal BEFORE the workflow settles. The benchmark's
+     * recovery journal recorded run_settle at sequence 18 and three
+     * child terminals at 19..21; the returned outcome, the terminal
+     * invoice and the event snapshot all disagreed with the final
+     * journal. 'cancel' (default) aborts the stragglers and awaits
+     * their cancelled terminals; 'drain' awaits their natural
+     * terminals, bounded by their own limits. The frozen verdict is
+     * journaled before the barrier runs, so late children never change
+     * it; result promises never reject (SpawnRecord contract), so the
+     * barrier never masks the exit's own error.
+     */
+    const exitBarrier = async (): Promise<void> => {
+      const live = [...byOrdinal.values()].filter((record) => record.settled === undefined);
+      if (live.length === 0) {
+        return;
+      }
+      if ((opts?.onUnsettledAtExit ?? 'cancel') === 'cancel') {
+        for (const record of live) {
+          record.abort();
+        }
+      }
+      await Promise.allSettled(live.map((record) => record.result));
+    };
+    barrier.run = exitBarrier;
     /**
      * The journaled spec behind each recovered ordinal: the idempotent
      * re-execution guard compares it against the incoming call, because
@@ -7062,6 +7127,16 @@ export function makeOrchestratorWorkflow(
             claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
           }),
     };
+  };
+  return defineWorkflow({ name: ORCHESTRATE_WORKFLOW_NAME }, async (ctx): Promise<unknown> => {
+    const barrier: { run?: () => Promise<void> } = {};
+    try {
+      return await orchestrationBody(ctx, barrier);
+    } finally {
+      // RV1903: the one funnel every exit passes through; see
+      // OrchestrateOptions.onUnsettledAtExit.
+      await barrier.run?.();
+    }
   });
 }
 

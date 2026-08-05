@@ -9329,6 +9329,23 @@ interface OrchestrateOptions {
   /** The opt in child completion policy; see {@link OrchestrateAcceptance}. */
   acceptance?: OrchestrateAcceptance;
   /**
+  * The terminal child barrier policy (RV1903, the four-role
+  * benchmark's recovery arm): what happens to children still running
+  * when the orchestration exits, on EVERY exit path (an accepted or
+  * rejected finish, a typed failure, a budget or exposure terminal).
+  * 'cancel' (the default) aborts them and awaits their journaled
+  * cancelled terminals; 'drain' awaits their natural terminals,
+  * bounded by their own limits and budgets, preserving their evidence
+  * at the price of the wait. Either way the orchestration returns
+  * only after every spawned child has a terminal journal entry, so
+  * `run_settle` can never precede a child's billing row again: the
+  * benchmark's recovery journal recorded three child terminals AFTER
+  * the settle decision, and four mutually inconsistent cost views
+  * followed. The verdict the run settled with is already frozen
+  * before the barrier runs, so late children never change it.
+  */
+  onUnsettledAtExit?: "cancel" | "drain";
+  /**
   * The opt in deterministic host validation of the finish result, with
   * bounded repair; see {@link FinishValidationSpec}.
   */

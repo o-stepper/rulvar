@@ -3981,6 +3981,142 @@ describe('the root exposure wait (RV1902, the four-role benchmark recovery arm)'
   });
 });
 
+describe('the terminal child barrier (RV1903, the four-role benchmark recovery journal)', () => {
+  // The recovery journal recorded run_settle at sequence 18 and three
+  // successful child terminals at 19..21: the returned outcome, the
+  // terminal invoice and the event snapshot each told a different
+  // story. Every orchestration exit now passes the barrier: a child
+  // still running when the verdict froze reaches a journaled terminal
+  // BEFORE the workflow settles, cancelled by default, drained on
+  // opt-in.
+  const BARRIER_PROFILES = { worker: { description: 'the straggler' } };
+  const ROUTING_1903 = { loop: 'fake:model', orchestrate: 'fake:model' } as const;
+
+  function gatedAdapter(finishEarly: { gate: Promise<void> }) {
+    let orchTurn = 0;
+    const inner = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'finished late' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'slow A' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'slow B' } },
+          ],
+        };
+      }
+      // The root finishes WITHOUT awaiting: the stragglers stay live.
+      return { toolCall: { name: 'finish', args: { result: 'early finish' } } };
+    });
+    const adapter: typeof inner = {
+      ...inner,
+      async *stream(req, signal) {
+        if (agentTypeOf(req) !== '') {
+          // Real adapters honor the abort signal mid-wait; a signal-deaf
+          // gate would hang the cancel barrier on the provider, not on
+          // the library.
+          await Promise.race([
+            finishEarly.gate,
+            new Promise<void>((resolve) => {
+              signal?.addEventListener('abort', () => resolve(), { once: true });
+            }),
+          ]);
+          if (signal?.aborted === true) {
+            return;
+          }
+        }
+        yield* inner.stream(req, signal);
+      },
+    };
+    return adapter;
+  }
+
+  async function agentStatuses(store: InstanceType<typeof Object>, runId = 'test-run') {
+    const entries = await (store as { load: (id: string) => Promise<JournalEntry[]> }).load(runId);
+    return entries
+      .filter(
+        (entry) =>
+          entry.kind === 'agent' && entry.scope.startsWith('agent:') && entry.status !== 'running',
+      )
+      .map((entry) => entry.status);
+  }
+
+  it('a rejected acceptance cancels the stragglers before the workflow settles', async () => {
+    const never = new Promise<void>(() => {});
+    const adapter = gatedAdapter({ gate: never });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_1903,
+      profiles: BARRIER_PROFILES,
+      budgetUsd: 10,
+    });
+    const wf = makeOrchestratorWorkflow('reject the early finish', {
+      acceptance: { childPolicy: 'all-ok' },
+    });
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow(/acceptance|rejected/i);
+    const statuses = await agentStatuses(store);
+    expect(statuses).toHaveLength(2);
+    expect(statuses.every((status) => status === 'cancelled')).toBe(true);
+  });
+
+  it('drain waits for the natural terminals and keeps the evidence', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const adapter = gatedAdapter({ gate });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_1903,
+      profiles: BARRIER_PROFILES,
+      budgetUsd: 10,
+    });
+    const wf = makeOrchestratorWorkflow('reject but drain', {
+      acceptance: { childPolicy: 'all-ok' },
+      onUnsettledAtExit: 'drain',
+    });
+    const run = executeWorkflow(internals, wf, undefined).then(
+      () => 'resolved',
+      (thrown: unknown) => thrown,
+    );
+    // Let the rejection reach the barrier, then free the stragglers.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    release();
+    const settled = await run;
+    expect(String(settled)).toMatch(/acceptance|rejected/i);
+    const statuses = await agentStatuses(store);
+    expect(statuses).toHaveLength(2);
+    expect(statuses.every((status) => status === 'ok')).toBe(true);
+  });
+
+  it('an accepted early finish still leaves no running entry behind', async () => {
+    const never = new Promise<void>(() => {});
+    const adapter = gatedAdapter({ gate: never });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_1903,
+      profiles: BARRIER_PROFILES,
+      budgetUsd: 10,
+    });
+    const wf = makeOrchestratorWorkflow('finish without awaiting', {});
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('early finish');
+    const statuses = await agentStatuses(store);
+    expect(statuses).toHaveLength(2);
+    expect(statuses.every((status) => status === 'cancelled')).toBe(true);
+  });
+
+  it('a malformed policy refuses typed before anything runs', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('bad option', {
+        onUnsettledAtExit: 'later' as unknown as 'cancel',
+      }),
+    ).toThrow(/onUnsettledAtExit/);
+  });
+});
+
 describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
   const SECTIONED = '## Findings\nEverything the contract demands.';
   const SECTIONLESS = 'a schema-valid candidate without the required section';
