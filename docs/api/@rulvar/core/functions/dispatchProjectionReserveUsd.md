@@ -10,7 +10,7 @@
 function dispatchProjectionReserveUsd(spec, flatReserveUsd): number;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:234](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L234)
+Defined in: [packages/core/src/orchestrator/admission.ts:251](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L251)
 
 The ONE dispatch-projection reserve formula (the 1.63.0 experiment
 review, P0.3): the spawn's declared estimate (a spawn tool has no

@@ -394,6 +394,18 @@ export interface PreflightReport {
      * fourth workers. Present whenever the wave has rows.
      */
     requiredMinimumCeilingUsd?: number;
+    /**
+     * The live-root-exposure term of the wave projection (RV2004): the
+     * orchestrator's own worst-case turn floor, the money coordination
+     * has ALWAYS already spent (and holds in flight) by the time any
+     * spawn tool runs. The parity rerun's fourth seat fit the plain
+     * wave (5.95 under 6.00) and was refused live by exactly this
+     * term; the embedded spawn gate and requiredMinimumCeilingUsd now
+     * carry it, so a seat that cannot admit live cannot admit in
+     * preflight either. Present on orchestrate waves whose
+     * coordination turn prices.
+     */
+    liveRootExposureTermUsd?: number;
     wave: PreflightAdmissionRow[];
     admitted: number;
     denied: number;
@@ -1714,6 +1726,17 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   }
   const maxSpawns = input.orchestrator?.maxSpawns;
   const orchestrateWave = input.orchestrator !== undefined;
+  // The live-root-exposure term (RV2004): by the time any spawn tool
+  // runs live, the coordination loop has ALWAYS paid at least one of
+  // its own turns and typically holds one in flight, money the static
+  // wave used to ignore. The parity rerun's fourth seat fit the plain
+  // arithmetic (5.95 under 6.00) and was refused live by exactly this
+  // delta. The orchestrator's worst-case turn floor is its priced
+  // lower bound, so the embedded gate and the required minimum carry
+  // it and a seat that cannot admit live cannot admit here either.
+  const liveRootExposureTermUsd = orchestrateWave
+    ? (units.find((unit) => unit.label === 'orchestrator')?.turnFloorUsd ?? 0)
+    : 0;
   for (const [reportIndex, report] of spawnReports.entries()) {
     const gate = waveGateInputs[reportIndex] ?? {};
     for (let i = 0; i < report.count; i += 1) {
@@ -1729,14 +1752,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           // Layer 2, the embedded spawn gate: the SAME projection the
           // live spawn_agent evaluation runs (the shared
           // dispatchProjectionReserveUsd), against the remainder net of
-          // everything already committed. Strict AT exact fill (cycle
-          // 76): the live evaluation subtracts the coordination spend
-          // that is always already paid by the time a spawn tool runs,
-          // so a remainder that only just equals the projection is a
-          // certain live rejection. The gate never sees the priced
-          // estimate, so a wave the layer-1 chain would afford can
-          // still die here, exactly like the runtime.
-          const remainder = ceilingUsd - heldAgainstRoot();
+          // everything already committed AND the live-root-exposure
+          // term above. Strict AT exact fill (cycle 76): a remainder
+          // that only just equals the projection is a certain live
+          // rejection. The gate never sees the priced estimate, so a
+          // wave the layer-1 chain would afford can still die here,
+          // exactly like the runtime.
+          const remainder = ceilingUsd - heldAgainstRoot() - liveRootExposureTermUsd;
           const projection = dispatchProjectionReserveUsd(gate, flatReserveUsd);
           if (remainder <= 0 || remainder <= projection) {
             deniedBy = 'budget';
@@ -1773,7 +1795,11 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       ? undefined
       : wave.reduce((sum, row) => sum + row.reserveUsd, 0) +
         reservedForFinalizationUsd +
-        synthesisHoldUsd;
+        synthesisHoldUsd +
+        // The live-root-exposure term (RV2004): without it the parity
+        // envelope read 5.95 under a 6.00 ceiling and still lost its
+        // fourth seat live to the coordination money this term prices.
+        liveRootExposureTermUsd;
   if (wave.length > 0 && denied > 0) {
     const deniedLabels = wave.filter((row) => !row.admitted).map((row) => row.label);
     if (admitted === 0) {
@@ -2240,6 +2266,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       reservedForFinalizationUsd,
       synthesisReserveUsd: synthesisHoldUsd,
       ...(requiredMinimumCeilingUsd === undefined ? {} : { requiredMinimumCeilingUsd }),
+      ...(liveRootExposureTermUsd > 0 ? { liveRootExposureTermUsd } : {}),
       wave,
       admitted,
       denied,

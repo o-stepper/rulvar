@@ -39,11 +39,12 @@
           "verdict": {
             "kind": "admit",
             "reserve": {
-              "reserveUsd": 0.5
+              "reserveUsd": 0.5,
+              "source": "default"
             },
             "spawnUnitsAfter": 499,
             "lineage": {
-              "logicalTaskId": "01KYAK39G0FN4Y1R7Y5VHWT33S",
+              "logicalTaskId": "01KZBEF51VWJJ5XPMBFRPA34ZA",
               "isNew": true,
               "depth": 1
             }
@@ -53,9 +54,9 @@
             "childrenOfParentBefore": 0,
             "depth": 1
           },
-          "nodeId": "01KYAK39G0FN4Y1R7Y5VHWT33T",
+          "nodeId": "01KZBEF51VWJJ5XPMBFRPA34ZB",
           "lineage": {
-            "logicalTaskId": "01KYAK39G0FN4Y1R7Y5VHWT33S",
+            "logicalTaskId": "01KZBEF51VWJJ5XPMBFRPA34ZA",
             "relation": "first",
             "attemptOrdinal": 0,
             "ancestry": [],
@@ -105,11 +106,12 @@
           "verdict": {
             "kind": "admit",
             "reserve": {
-              "reserveUsd": 0.5
+              "reserveUsd": 0.5,
+              "source": "default"
             },
             "spawnUnitsAfter": 498,
             "lineage": {
-              "logicalTaskId": "01KYAK39G1854B2EEDXCYBN779",
+              "logicalTaskId": "01KZBEF51WEHVT160RYZQ4X8CX",
               "isNew": true,
               "depth": 1
             }
@@ -119,9 +121,9 @@
             "childrenOfParentBefore": 1,
             "depth": 1
           },
-          "nodeId": "01KYAK39G1854B2EEDXCYBN77A",
+          "nodeId": "01KZBEF51WEHVT160RYZQ4X8CY",
           "lineage": {
-            "logicalTaskId": "01KYAK39G1854B2EEDXCYBN779",
+            "logicalTaskId": "01KZBEF51WEHVT160RYZQ4X8CX",
             "relation": "first",
             "attemptOrdinal": 0,
             "ancestry": [],
@@ -232,7 +234,7 @@
   ],
   "extra": {
     "checkpoints": {
-      "m6-orchestrator-crash/ckpt/0": "AXsidiI6MSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IllvdSBhcmUgdGhlIG9yY2hlc3RyYXRvciBvZiBhIG11bHRpLWFnZW50IHJ1bi5cbkdPQUw6IG02IGNhc3NldHRlOiBnYXRoZXIgdHdvIGZhY3RzXG5cbkRlY29tcG9zZSB0aGUgZ29hbCBpbnRvIGNoaWxkIGFnZW50cyB3aXRoIHNwYXduX2FnZW50IG9yIHBhcmFsbGVsX2FnZW50cyxcbndhaXQgb24gdGhlaXIgaGFuZGxlcyB3aXRoIGF3YWl0X2FueSBvciBhd2FpdF9hbGwsIGNhbmNlbCBzdHJhZ2dsZXJzIHdpdGhcbmNhbmNlbF9hZ2VudCwgYW5kIHRlcm1pbmF0ZSB3aXRoIGZpbmlzaCh7IHJlc3VsdCB9KSB3aGVuIHRoZSBnb2FsIGlzIG1ldC5cblNwYXduIG9ubHkgd2hhdCB0aGUgZ29hbCBuZWVkcy4ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsInBhcnRzIjpbeyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtZQUszOUZaRzlHSjBBMFBaSzlRMUcyQiIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEEifX0seyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtZQUszOUZaRzlHSjBBMFBaSzlRMUcyQyIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEIifX1dfSx7InJvbGUiOiJ0b29sIiwicGFydHMiOlt7InR5cGUiOiJ0b29sLXJlc3VsdCIsImlkIjoiMDFLWUFLMzlGWkc5R0owQTBQWks5UTFHMkIiLCJuYW1lIjoic3Bhd25fYWdlbnQiLCJyZXN1bHQiOnsiaGFuZGxlIjoyfX0seyJ0eXBlIjoidG9vbC1yZXN1bHQiLCJpZCI6IjAxS1lBSzM5RlpHOUdKMEEwUFpLOVExRzJDIiwibmFtZSI6InNwYXduX2FnZW50IiwicmVzdWx0Ijp7ImhhbmRsZSI6NH19XX1dLCJ0dXJucyI6MSwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJ1c2FnZUJ5TW9kZWwiOlt7InNlcnZlZEJ5IjoiZmFrZTpmYWtlLW1vZGVsIiwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJyb2xlIjoib3JjaGVzdHJhdGUifV0sInRvb2xDYWxsc1VzZWQiOjIsInNjaGVtYUF0dGVtcHRzIjowLCJjb21wYWN0aW9uIjpbXSwicHJvdmlkZXJDYWxscyI6W3sib3JkaW5hbCI6MSwicm9sZSI6Im9yY2hlc3RyYXRlIiwic2VydmVkQnkiOiJmYWtlOmZha2UtbW9kZWwiLCJhdHRlbXB0IjoxLCJvdXRjb21lIjoib2siLCJ1c2FnZSI6eyJpbnB1dFRva2VucyI6ODUsIm91dHB1dFRva2VucyI6MTYsImNhY2hlUmVhZFRva2VucyI6MCwiY2FjaGVXcml0ZVRva2VucyI6MH19XX0="
+      "m6-orchestrator-crash/ckpt/0": "AXsidiI6MSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IllvdSBhcmUgdGhlIG9yY2hlc3RyYXRvciBvZiBhIG11bHRpLWFnZW50IHJ1bi5cbkdPQUw6IG02IGNhc3NldHRlOiBnYXRoZXIgdHdvIGZhY3RzXG5cbkRlY29tcG9zZSB0aGUgZ29hbCBpbnRvIGNoaWxkIGFnZW50cyB3aXRoIHNwYXduX2FnZW50IG9yIHBhcmFsbGVsX2FnZW50cyxcbndhaXQgb24gdGhlaXIgaGFuZGxlcyB3aXRoIGF3YWl0X2FueSBvciBhd2FpdF9hbGwsIGNhbmNlbCBzdHJhZ2dsZXJzIHdpdGhcbmNhbmNlbF9hZ2VudCwgYW5kIHRlcm1pbmF0ZSB3aXRoIGZpbmlzaCh7IHJlc3VsdCB9KSB3aGVuIHRoZSBnb2FsIGlzIG1ldC5cblNwYXduIG9ubHkgd2hhdCB0aGUgZ29hbCBuZWVkcy4ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsInBhcnRzIjpbeyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtaQkVGNTFTTTRFMjRQRVRRQVk4TkY4NiIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEEifX0seyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtaQkVGNTFTTTRFMjRQRVRRQVk4TkY4NyIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEIifX1dfSx7InJvbGUiOiJ0b29sIiwicGFydHMiOlt7InR5cGUiOiJ0b29sLXJlc3VsdCIsImlkIjoiMDFLWkJFRjUxU000RTI0UEVUUUFZOE5GODYiLCJuYW1lIjoic3Bhd25fYWdlbnQiLCJyZXN1bHQiOnsiaGFuZGxlIjoyfX0seyJ0eXBlIjoidG9vbC1yZXN1bHQiLCJpZCI6IjAxS1pCRUY1MVNNNEUyNFBFVFFBWThORjg3IiwibmFtZSI6InNwYXduX2FnZW50IiwicmVzdWx0Ijp7ImhhbmRsZSI6NH19XX1dLCJ0dXJucyI6MSwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJ1c2FnZUJ5TW9kZWwiOlt7InNlcnZlZEJ5IjoiZmFrZTpmYWtlLW1vZGVsIiwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJyb2xlIjoib3JjaGVzdHJhdGUifV0sInRvb2xDYWxsc1VzZWQiOjIsInNjaGVtYUF0dGVtcHRzIjowLCJjb21wYWN0aW9uIjpbXSwicHJvdmlkZXJDYWxscyI6W3sib3JkaW5hbCI6MSwicm9sZSI6Im9yY2hlc3RyYXRlIiwic2VydmVkQnkiOiJmYWtlOmZha2UtbW9kZWwiLCJhdHRlbXB0IjoxLCJvdXRjb21lIjoib2siLCJ1c2FnZSI6eyJpbnB1dFRva2VucyI6ODUsIm91dHB1dFRva2VucyI6MTYsImNhY2hlUmVhZFRva2VucyI6MCwiY2FjaGVXcml0ZVRva2VucyI6MH19XX0="
     }
   }
 }

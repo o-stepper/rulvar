@@ -3149,8 +3149,9 @@ const MUTATIONS = [
     doctrine:
       'the report prices the whole-wave ceiling floor (RV1907): zeroing requiredMinimumCeilingUsd returns the operator to solving the wave by hand, the benchmark shape where $6.00 read viable while the wave needed strictly above 6.98',
     file: 'packages/core/src/engine/preflight.ts',
-    find: '      : wave.reduce((sum, row) => sum + row.reserveUsd, 0) +\n        reservedForFinalizationUsd +\n        synthesisHoldUsd;',
-    replace: '      : 0;',
+    find: '      : wave.reduce((sum, row) => sum + row.reserveUsd, 0) +\n        reservedForFinalizationUsd +\n        synthesisHoldUsd +',
+    replace:
+      '      : 0 +\n        0 * reservedForFinalizationUsd +\n        0 * synthesisHoldUsd +\n        0 *',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
@@ -3280,6 +3281,33 @@ const MUTATIONS = [
     find: "          watchdogForced.then(() => ({ kind: 'watchdog-forced' as const })),",
     replace: '',
     test: 'packages/core/src/engine/quiescence-watchdog.test.ts',
+  },
+  {
+    id: 'spawn-verdict-projection',
+    doctrine:
+      "the spawn-tool verdict reserve IS the dispatch projection (RV2004): re-enabling the fraction clamp on that path journals the parity rerun's 0.50 under a declared 0.70 that dispatch commits, and resume rolls the lie forward",
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: "    const spawnToolOrigin = spec.origin === 'spawn_agent' || spec.origin === 'parallel_agents';",
+    replace: '    const spawnToolOrigin = false;',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
+  {
+    id: 'reserve-derivation-journaled',
+    doctrine:
+      'every admission verdict names the derivation of its reserve (RV2004): dropping the source field returns the journal a reader must reverse-engineer, exactly how the 0.50-versus-0.70 divergence went unexplained in the parity journal',
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '    const reserve: BudgetReserve = { reserveUsd, source };',
+    replace: '    const reserve: BudgetReserve = { reserveUsd };',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
+  {
+    id: 'preflight-live-root-exposure',
+    doctrine:
+      "preflight's embedded gate and required minimum carry the live-root-exposure term (RV2004): zeroing it re-admits the parity envelope's fourth seat offline (5.95 under 6.00) that live coordination money then refuses",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "  const liveRootExposureTermUsd = orchestrateWave\n    ? (units.find((unit) => unit.label === 'orchestrator')?.turnFloorUsd ?? 0)\n    : 0;",
+    replace: '  const liveRootExposureTermUsd = orchestrateWave ? 0 : 0;',
+    test: 'packages/core/src/engine/preflight.test.ts',
   },
 ];
 

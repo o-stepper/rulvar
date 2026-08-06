@@ -10,4 +10,4 @@
 const MAX_DEPTH_CEILING: 4 = 4;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L220)
+Defined in: [packages/core/src/orchestrator/admission.ts:237](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L237)

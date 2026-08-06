@@ -201,7 +201,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred eighty six rounds, verbatim in this repository's history:
+The one hundred eighty five rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -401,7 +401,6 @@ The one hundred eighty six rounds, verbatim in this repository's history:
 | v1.201.0      | 08c1247 (#795): rulvar cost-audit verifies the one-denominator contract, five named checks over the settled journal, exit 1 with the divergence named, a json form for pipelines          | v1.202.0   |
 | v1.202.0      | fb08c10 (#799): exposure holds attribute to their agent invocation, every terminal releases what a lost closure leaked, and the live scalar snaps to zero with the last hold of any kind  | v1.203.0   |
 | v1.203.0      | efaec9b (#802): spawned children wait out exposure refusals like the root, a drained seat dies typed exposure-drained at zero provider attempts, re-spawnable instead of dead mid-work    | v1.204.0   |
-| v1.204.0      | 6d224da (#805): the quiescence guarantee, a parked exposure wait holds the event loop, the beforeExit watchdog forces stuck runs to a journaled terminal, no silent process exit          | v1.205.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live

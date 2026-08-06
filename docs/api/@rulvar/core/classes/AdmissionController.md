@@ -6,7 +6,7 @@
 
 # Class: AdmissionController
 
-Defined in: [packages/core/src/orchestrator/admission.ts:250](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L250)
+Defined in: [packages/core/src/orchestrator/admission.ts:267](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L267)
 
 ## Constructors
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/src/orchestrator/admission.ts:250](https://github.com
 new AdmissionController(options): AdmissionController;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L266)
+Defined in: [packages/core/src/orchestrator/admission.ts:283](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L283)
 
 #### Parameters
 
@@ -48,7 +48,7 @@ Defined in: [packages/core/src/orchestrator/admission.ts:266](https://github.com
 get escalationLimits(): EscalationLimits;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L339)
+Defined in: [packages/core/src/orchestrator/admission.ts:356](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L356)
 
 The validated lineage limits this controller enforces (DEF-3).
 
@@ -68,7 +68,7 @@ get termination():
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:359](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L359)
+Defined in: [packages/core/src/orchestrator/admission.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L376)
 
 The bound account, when this is a PlanRunner run (DEF-2).
 
@@ -85,7 +85,7 @@ The bound account, when this is a PlanRunner run (DEF-2).
 admit(spec, options?): AdmissionDecision;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:469](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L469)
+Defined in: [packages/core/src/orchestrator/admission.ts:486](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L486)
 
 #### Parameters
 
@@ -107,7 +107,7 @@ Defined in: [packages/core/src/orchestrator/admission.ts:469](https://github.com
 bindTermination(account): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:351](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L351)
+Defined in: [packages/core/src/orchestrator/admission.ts:368](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L368)
 
 Binds the run's TerminationAccount (DEF-2; PlanRunner runs only):
 from bind time on, every admitted spawn of any
@@ -146,7 +146,7 @@ evaluateLineage(spec): {
 };
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L371)
+Defined in: [packages/core/src/orchestrator/admission.ts:388](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L388)
 
 The lineage half of admission (DEF-3): folds are
 computed live STRICTLY BEFORE the carrying decision entry is appended;
@@ -186,8 +186,8 @@ back byte-exact. Enforces the single-live-attempt invariant
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `decision` | \| \{ `kind`: `"ok"`; `lineage`: [`SpawnLineage`](/api/@rulvar/core/interfaces/SpawnLineage.md); \} \| \{ `kind`: `"reject"`; `reason`: \{ `code`: `"lineage_exhausted"` \| `"lineage_busy"`; \}; \} | [packages/core/src/orchestrator/admission.ts:378](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L378) |
-| `statsBefore?` | [`LineageStats`](/api/@rulvar/core/interfaces/LineageStats.md) | [packages/core/src/orchestrator/admission.ts:381](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L381) |
+| `decision` | \| \{ `kind`: `"ok"`; `lineage`: [`SpawnLineage`](/api/@rulvar/core/interfaces/SpawnLineage.md); \} \| \{ `kind`: `"reject"`; `reason`: \{ `code`: `"lineage_exhausted"` \| `"lineage_busy"`; \}; \} | [packages/core/src/orchestrator/admission.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L395) |
+| `statsBefore?` | [`LineageStats`](/api/@rulvar/core/interfaces/LineageStats.md) | [packages/core/src/orchestrator/admission.ts:398](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L398) |
 
 ***
 
@@ -197,7 +197,7 @@ back byte-exact. Enforces the single-live-attempt invariant
 lineage(): LineageIndex | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:331](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L331)
+Defined in: [packages/core/src/orchestrator/admission.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L348)
 
 The lineage counter folds over the run journal (absorbed lazily).
 
@@ -213,7 +213,7 @@ The lineage counter folds over the run journal (absorbed lazily).
 projectedDispatchReserveUsd(spec): number;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:465](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L465)
+Defined in: [packages/core/src/orchestrator/admission.ts:482](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L482)
 
 The reserve the DISPATCH layer will actually commit for this spec:
 the estimate (or the flat default) clamped by the explicit child
@@ -245,7 +245,7 @@ P0.3).
 recoverChild(nodeKey): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:617](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L617)
+Defined in: [packages/core/src/orchestrator/admission.ts:663](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L663)
 
 Resume roll-forward for an orchestrator child (M6-T07): restores the
 children-quota counter only. The budget seed already counts settled
@@ -270,7 +270,7 @@ through the ctx.agent dispatch path.
 recoverInFlight(parentAccountScope, verdict): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:641](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L641)
+Defined in: [packages/core/src/orchestrator/admission.ts:687](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L687)
 
 Resume roll-forward for an admission whose decision entry exists but
 whose child has NOT settled: re-applies the recorded reserve and
@@ -297,7 +297,7 @@ re-estimated).
 recoverSettled(parentAccountScope): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:628](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L628)
+Defined in: [packages/core/src/orchestrator/admission.ts:674](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L674)
 
 Resume roll-forward for a child that already SETTLED before the
 resume: re-registers the counters (maxChildrenPerNode, the lifetime
@@ -322,7 +322,7 @@ itself sits in the root ledger seed.
 registerLineageAdmit(logicalTaskId): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:439](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L439)
+Defined in: [packages/core/src/orchestrator/admission.ts:456](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L456)
 
 Registers a live lineage admit the moment its caller commits to
 appending the decision entry, closing the single-live-attempt window

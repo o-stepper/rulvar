@@ -56,6 +56,23 @@ export interface BudgetReserve {
   reserveUsd: number;
   /** The child sub-account ceiling; absent when the parent is uncapped. */
   childCeilingUsd?: number;
+  /**
+   * The reserve derivation (RV2004): where reserveUsd came from, so a
+   * journal reader never reverse-engineers the arithmetic. 'estCost'
+   * is the declared estimate (spawn opts or the agentType profile),
+   * 'default' the engine flat reserve.
+   */
+  source?: 'estCost' | 'default';
+  /**
+   * Set when the derived reserve was clamped DOWN to the child's
+   * ceiling: 'explicit-budget' by a declared budgetUsd,
+   * 'fraction-ceiling' by the childBudgetFraction allowance an ORIGIN
+   * WITH a materialized allowance account enforces (ctx.workflow).
+   * The spawn-tool path never carries 'fraction-ceiling': its
+   * dispatch enforces no fraction account, and journaling that clamp
+   * is exactly the parity rerun's 0.50-versus-0.70 lie (RV2004).
+   */
+  clampedBy?: 'explicit-budget' | 'fraction-ceiling';
 }
 
 /** The lineage block every non-reject verdict carries (DEF-3). */
@@ -512,9 +529,28 @@ export class AdmissionController {
     if (this.maxTotalSpawns !== undefined && this.admittedTotal >= this.maxTotalSpawns) {
       return { verdict: { kind: 'reject', reason: { code: 'lifetime' } }, statsBefore };
     }
+    // ONE reserve arithmetic per dispatch posture (RV2004). The spawn
+    // tools dispatch through ctx.agent, where only an EXPLICIT
+    // budgetUsd materializes as a child-allowance account; the derived
+    // childBudgetFraction ceiling never does. The parity rerun's
+    // verdicts journaled reserve/childCeiling 0.50 (the fraction cap
+    // over the orchestrator remainder) while dispatch committed the
+    // declared estCost 0.70: the journal lied about the money the
+    // spawn held, resume would have rolled the lie forward, and the
+    // 0.50 allowance would have severed the child mid-work. On the
+    // spawn-tool path the verdict now IS the dispatch projection
+    // (dispatchProjectionReserveUsd, the same formula the embedded
+    // gate and preflight evaluate); origins whose allowance account
+    // materializes (ctx.workflow and kin) keep the fraction ceiling
+    // and its clamp, which are real there.
+    const spawnToolOrigin = spec.origin === 'spawn_agent' || spec.origin === 'parallel_agents';
     let childCeilingUsd: number | undefined;
     const parentRemainder = this.budget.remainderOf(spec.parentAccountScope);
-    if (parentRemainder !== undefined) {
+    if (spawnToolOrigin) {
+      if (spec.budgetUsd !== undefined) {
+        childCeilingUsd = spec.budgetUsd;
+      }
+    } else if (parentRemainder !== undefined) {
       const fractionCap = this.childBudgetFraction * parentRemainder;
       childCeilingUsd =
         spec.budgetUsd === undefined ? fractionCap : Math.min(spec.budgetUsd, fractionCap);
@@ -526,10 +562,20 @@ export class AdmissionController {
     // must not hold more than X against the parent chain (a flat reserve
     // above a small run ceiling would otherwise deny every capped child).
     let reserveUsd = spec.estCostUsd ?? this.flatReserveUsd;
-    if (childCeilingUsd !== undefined) {
-      reserveUsd = Math.min(reserveUsd, childCeilingUsd);
+    const source: NonNullable<BudgetReserve['source']> =
+      spec.estCostUsd === undefined ? 'default' : 'estCost';
+    let clampedBy: BudgetReserve['clampedBy'];
+    if (childCeilingUsd !== undefined && reserveUsd > childCeilingUsd) {
+      clampedBy =
+        spec.budgetUsd !== undefined && childCeilingUsd === spec.budgetUsd
+          ? 'explicit-budget'
+          : 'fraction-ceiling';
+      reserveUsd = childCeilingUsd;
     }
-    const reserve: BudgetReserve = { reserveUsd };
+    const reserve: BudgetReserve = { reserveUsd, source };
+    if (clampedBy !== undefined) {
+      reserve.clampedBy = clampedBy;
+    }
     if (childCeilingUsd !== undefined) {
       reserve.childCeilingUsd = childCeilingUsd;
     }
