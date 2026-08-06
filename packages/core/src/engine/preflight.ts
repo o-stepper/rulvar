@@ -385,6 +385,15 @@ export interface PreflightReport {
      * synthesis reserve, matching the runtime that then commits none.
      */
     synthesisReserveUsd: number;
+    /**
+     * The smallest run ceiling that seats the WHOLE declared wave
+     * (RV1907): every row's reserve plus the finalization and synthesis
+     * carve-outs. Children admit strictly below exact fill, so a viable
+     * ceiling must sit strictly ABOVE this figure; the four-role
+     * benchmark's $6.00 sat $0.98 below it and lost its third and
+     * fourth workers. Present whenever the wave has rows.
+     */
+    requiredMinimumCeilingUsd?: number;
     wave: PreflightAdmissionRow[];
     admitted: number;
     denied: number;
@@ -399,6 +408,17 @@ export interface PreflightReport {
      * turns grow with the prompt, so this is the floor of that bound.
      */
     overshootOneTurnFloorUsd?: number;
+    /**
+     * The smallest in-flight exposure cap under which the declared wave
+     * can breathe (RV1907): the finalization and synthesis carve-outs
+     * plus the turn floors of the maxInFlight most expensive declared
+     * dispatches, the orchestrator's own turn among them. Below it the
+     * root's next turn is refused beside a full child wave, the
+     * recovery arm's exact death; the RV1902 wait recovers the run, but
+     * only a cap at or above this floor avoids the stall entirely.
+     * Absent when no declared turn prices.
+     */
+    requiredMinimumExposureUsd?: number;
     /** Per-provider first-wave demand at the declared estimates. */
     perProvider: Record<
       string,
@@ -1744,6 +1764,16 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   }
   const admitted = wave.filter((row) => row.admitted).length;
   const denied = wave.length - admitted;
+  // The whole-wave fill (RV1907): what the ceiling must strictly
+  // exceed to seat every declared row. The benchmark's $6.00 sat
+  // $0.98 below this figure and the projection now says so with a
+  // number instead of leaving the operator to solve the wave by hand.
+  const requiredMinimumCeilingUsd =
+    wave.length === 0
+      ? undefined
+      : wave.reduce((sum, row) => sum + row.reserveUsd, 0) +
+        reservedForFinalizationUsd +
+        synthesisHoldUsd;
   if (wave.length > 0 && denied > 0) {
     const deniedLabels = wave.filter((row) => !row.admitted).map((row) => row.label);
     if (admitted === 0) {
@@ -1859,6 +1889,34 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         'plus live dispatch estimates: a dispatch whose estimate does not fit is refused typed ' +
         'before the provider call, so the worst concurrent overshoot past the cap is the ' +
         'estimate error of the in-flight turns, not one whole turn per agent',
+    });
+  }
+  // The exposure floor over time (RV1907): the recovery arm admitted
+  // all four workers and then had its root turn refused BESIDE them,
+  // because the cap must hold the reserves plus a full concurrent wave
+  // plus the coordinating turn at once. The static floor prices exactly
+  // that worst case from the declared shapes.
+  const requiredMinimumExposureUsd =
+    overshootOneTurnFloorUsd === undefined
+      ? undefined
+      : reservedForFinalizationUsd + synthesisHoldUsd + overshootOneTurnFloorUsd;
+  if (
+    exposureCapUsd !== undefined &&
+    overshootOneTurnFloorUsd !== undefined &&
+    requiredMinimumExposureUsd !== undefined &&
+    requiredMinimumExposureUsd > exposureCapUsd
+  ) {
+    say({
+      severity: 'warning',
+      code: 'exposure-cap-tight',
+      message:
+        `maxInFlightExposureUsd ${exposureCapUsd.toFixed(4)} USD sits below the declared ` +
+        `wave's breathing floor ${requiredMinimumExposureUsd.toFixed(4)} USD (finalize + ` +
+        `synthesis reserves ${(reservedForFinalizationUsd + synthesisHoldUsd).toFixed(4)} plus ` +
+        `the ${String(pricedTurns.length)} most expensive concurrent turn floors ` +
+        `${overshootOneTurnFloorUsd.toFixed(4)}): a coordinating turn beside a full child wave ` +
+        'will be refused pre-wire and park until a hold releases (RV1902); raise the cap to ' +
+        'at least the floor to avoid the stall entirely',
     });
   }
 
@@ -2181,6 +2239,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
       reservedForFinalizationUsd,
       synthesisReserveUsd: synthesisHoldUsd,
+      ...(requiredMinimumCeilingUsd === undefined ? {} : { requiredMinimumCeilingUsd }),
       wave,
       admitted,
       denied,
@@ -2188,6 +2247,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     exposure: {
       maxInFlight,
       ...(overshootOneTurnFloorUsd === undefined ? {} : { overshootOneTurnFloorUsd }),
+      ...(requiredMinimumExposureUsd === undefined ? {} : { requiredMinimumExposureUsd }),
       perProvider,
       ...(runCeiling === undefined ? {} : { runCeiling }),
     },
