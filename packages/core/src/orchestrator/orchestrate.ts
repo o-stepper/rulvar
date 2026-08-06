@@ -611,6 +611,19 @@ export interface OrchestrateOptions {
    */
   parallelAdmission?: 'fail-fast' | 'try-all' | 'all-or-none';
   /**
+   * The batch-spawn discipline (RV2005). The third parity rerun's
+   * model ignored the instruction to spawn its roster in one
+   * parallel_agents call and spawned seat by seat through spawn_agent,
+   * so the RV1908 batchGate never saw a batch and the roster
+   * feasibility rode on per-seat luck. 'reject-spawn-agent' refuses
+   * every SINGLE spawn_agent call typed (code 'batch_required',
+   * nothing journaled, nothing paid) so model disobedience cannot
+   * split the policy: the model reads the refusal and re-issues the
+   * wave as one parallel_agents batch. Absent, both tools behave as
+   * documented.
+   */
+  requireBatchSpawn?: 'reject-spawn-agent';
+  /**
    * The opt in deterministic host validation of the finish result, with
    * bounded repair; see {@link FinishValidationSpec}.
    */
@@ -3193,8 +3206,29 @@ export function makeOrchestratorWorkflow(
     // options.
     const executionFactsEnabled = opts?.executionFacts === true;
     const orchestratorRuntime: OrchestratorRuntime = {
-      async spawn(params: SpawnAgentParams): Promise<{ handle: number }> {
+      async spawn(
+        params: SpawnAgentParams,
+        origin: 'spawn_agent' | 'parallel_agents' = 'spawn_agent',
+      ): Promise<{ handle: number }> {
         await recoveryDone;
+        if (origin === 'spawn_agent' && opts?.requireBatchSpawn === 'reject-spawn-agent') {
+          // The batch-spawn discipline (RV2005): a config-gate refusal
+          // strictly before any journal append or payment, exactly the
+          // maxSpawns gate's shape. The parity model spawned its
+          // roster seat by seat past the batchGate; under this option
+          // the single spawn is refused typed and the model re-issues
+          // the wave as ONE parallel_agents batch.
+          internals.events.emit(
+            { type: 'spawn:rejected', code: 'batch_required', agentType: params.agentType },
+            callingState.spanId,
+          );
+          throw new AdmissionRejectedError(
+            "orchestrate requireBatchSpawn 'reject-spawn-agent': single spawn_agent calls are " +
+              'refused; submit the whole wave as ONE parallel_agents call so the batch roster ' +
+              'feasibility gate sees it entire',
+            { data: { reason: { code: 'batch_required' } } },
+          );
+        }
         // Idempotent re-execution after a resume that REGENERATES the
         // spawn turn (a lost or pre-spawn checkpoint): the recovered
         // verdict binds by the FULL canonical spec (RV1605), never by
@@ -3291,9 +3325,19 @@ export function makeOrchestratorWorkflow(
               'override; spawn a concrete profile instead',
           );
         }
+        // The sequential roster feasibility inputs (RV2005): a SINGLE
+        // spawn_agent call under a declared acceptance floor checks
+        // whether the whole remaining roster can still be paid, the
+        // batchGate arithmetic on the path model disobedience actually
+        // takes. The parity rerun paid three seats one by one under a
+        // floor of four the money could never reach; the batch gate
+        // never saw a batch. Batch seats skip this (the batchGate
+        // already judged the batch entire).
+        const rosterFloor = (opts?.acceptance as { minSpawnedChildren?: number } | undefined)
+          ?.minSpawnedChildren;
         const decision = admission.admit(
           {
-            origin: 'spawn_agent',
+            origin,
             name: params.agentType,
             childScope: scope,
             parentAccountScope: callingState.budgetScope ?? ROOT_ACCOUNT,
@@ -3304,6 +3348,15 @@ export function makeOrchestratorWorkflow(
             // (without it, the flat default over-rejects under small
             // ceilings; the v1.7.0 follow-up review's P1).
             ...(profile?.estCost === undefined ? {} : { estCostUsd: profile.estCost }),
+            ...(origin === 'spawn_agent' && rosterFloor !== undefined
+              ? {
+                  roster: {
+                    floor: rosterFloor,
+                    admittedChildren: admittedSpawnCount,
+                    liveExposureUsd: internals.budget.liveExposureUsd,
+                  },
+                }
+              : {}),
             ...(params.lineage === undefined
               ? {}
               : {
@@ -3328,7 +3381,7 @@ export function makeOrchestratorWorkflow(
         );
         const admissionValue: SpawnAdmissionValue = {
           decisionType: 'spawn-admission',
-          origin: 'spawn_agent',
+          origin,
           orchestratorScope: scope,
           spawnOrdinal,
           name: params.agentType,

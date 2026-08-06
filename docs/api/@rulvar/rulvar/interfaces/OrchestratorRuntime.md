@@ -164,7 +164,7 @@ A page of a settled child's artifact content; opt-in `read_child_artifact` (RV-2
 ### spawn()
 
 ```ts
-spawn(params): Promise<{
+spawn(params, origin?): Promise<{
   handle: number;
 }>;
 ```
@@ -180,15 +180,16 @@ Defined in: `packages/core/dist/index.d.ts`
 | `params.approach?` | `string` |
 | `params.budgetUsd?` | `number` |
 | `params.lineage?` | \{ `causeRef`: `number`; `continues`: `string`; `relation?`: `string`; \} |
-| `params.lineage.causeRef` | `number` |
-| `params.lineage.continues` | `string` |
+| `params.lineage.causeRef?` | `number` |
+| `params.lineage.continues?` | `string` |
 | `params.lineage.relation?` | `string` |
 | `params.model_hint?` | \{ `startTier?`: `number`; \} |
 | `params.model_hint.startTier?` | `number` |
 | `params.outputSchemaRef?` | `string` |
-| `params.prompt` | `string` |
+| `params.prompt?` | `string` |
 | `params.taskClass?` | `string` |
 | `params.toolsetRef?` | `string` |
+| `origin?` | `"spawn_agent"` \| `"parallel_agents"` |
 
 #### Returns
 

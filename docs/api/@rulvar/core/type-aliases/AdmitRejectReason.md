@@ -24,6 +24,15 @@ type AdmitRejectReason =
   spawnKey: SpawnKey;
 }
   | {
+  admittedChildren: number;
+  code: "roster_floor";
+  floor: number;
+  liveExposureUsd: number;
+  perSeatProjectionUsd: number;
+  remainderUsd: number;
+  seatsRemaining: number;
+}
+  | {
   agentType: string;
   childAccount: string;
   childCeilingUsd: number;
@@ -74,6 +83,32 @@ The merged reject-code set.
 
 ```ts
 {
+  admittedChildren: number;
+  code: "roster_floor";
+  floor: number;
+  liveExposureUsd: number;
+  perSeatProjectionUsd: number;
+  remainderUsd: number;
+  seatsRemaining: number;
+}
+```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `admittedChildren` | `number` | - | [packages/core/src/orchestrator/admission.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L142) |
+| `code` | `"roster_floor"` | The sequential roster feasibility refusal (RV2005): under a declared acceptance.minSpawnedChildren, the whole remaining roster (priced at this seat's own projection) plus the live in-flight exposure does not fit the parent remainder, so the FIRST infeasible seat refuses before any child is paid. The batchGate symmetry (RV1908) on the seat-by-seat path the parity rerun's model actually took, where three seats were paid in full under a floor of four the money could never reach. | [packages/core/src/orchestrator/admission.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L140) |
+| `floor` | `number` | - | [packages/core/src/orchestrator/admission.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L141) |
+| `liveExposureUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L145) |
+| `perSeatProjectionUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L144) |
+| `remainderUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L146) |
+| `seatsRemaining` | `number` | - | [packages/core/src/orchestrator/admission.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L143) |
+
+***
+
+### Type Literal
+
+```ts
+{
   agentType: string;
   childAccount: string;
   childCeilingUsd: number;
@@ -87,11 +122,11 @@ The merged reject-code set.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/orchestrator/admission.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L138) |
-| `childAccount` | `string` | - | [packages/core/src/orchestrator/admission.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L139) |
-| `childCeilingUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L142) |
-| `code` | `"reserve_exceeds_budget"` | The declared estimate cannot fit the child's own ceiling: the host said the work costs more than the budget buys, so the op is bounced with the actionable correction BEFORE it changes plan state or consumes a spawn unit (the v1.7.0 follow-up review's P1). Heuristic reserves never produce this code; they clamp to the allowance instead. | [packages/core/src/orchestrator/admission.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L137) |
-| `estCostUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L140) |
-| `message` | `string` | - | [packages/core/src/orchestrator/admission.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L144) |
-| `minimumBudgetUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L143) |
-| `resolvedReserveUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L141) |
+| `agentType` | `string` | - | [packages/core/src/orchestrator/admission.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L158) |
+| `childAccount` | `string` | - | [packages/core/src/orchestrator/admission.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L159) |
+| `childCeilingUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L162) |
+| `code` | `"reserve_exceeds_budget"` | The declared estimate cannot fit the child's own ceiling: the host said the work costs more than the budget buys, so the op is bounced with the actionable correction BEFORE it changes plan state or consumes a spawn unit (the v1.7.0 follow-up review's P1). Heuristic reserves never produce this code; they clamp to the allowance instead. | [packages/core/src/orchestrator/admission.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L157) |
+| `estCostUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L160) |
+| `message` | `string` | - | [packages/core/src/orchestrator/admission.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L164) |
+| `minimumBudgetUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L163) |
+| `resolvedReserveUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L161) |

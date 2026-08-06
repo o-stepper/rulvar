@@ -3309,6 +3309,24 @@ const MUTATIONS = [
     replace: '  const liveRootExposureTermUsd = orchestrateWave ? 0 : 0;',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'sequential-roster-feasibility',
+    doctrine:
+      'every single spawn_agent admission under a declared acceptance floor projects the whole remaining roster before paying the seat (RV2005): dropping the check returns the parity shape, three seats paid in full under a floor of four the money could never reach',
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '    if (spec.roster !== undefined) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'require-batch-spawn-gate',
+    doctrine:
+      "requireBatchSpawn 'reject-spawn-agent' refuses every single spawn_agent call typed so model disobedience cannot split the batch policy (RV2005): dropping the gate lets the seat-by-seat path bypass the batchGate the host demanded",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        if (origin === 'spawn_agent' && opts?.requireBatchSpawn === 'reject-spawn-agent') {",
+    replace: '        if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

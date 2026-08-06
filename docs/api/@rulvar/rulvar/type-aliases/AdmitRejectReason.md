@@ -24,6 +24,15 @@ type AdmitRejectReason =
   spawnKey: SpawnKey;
 }
   | {
+  admittedChildren: number;
+  code: "roster_floor";
+  floor: number;
+  liveExposureUsd: number;
+  perSeatProjectionUsd: number;
+  remainderUsd: number;
+  seatsRemaining: number;
+}
+  | {
   agentType: string;
   childAccount: string;
   childCeilingUsd: number;
@@ -67,6 +76,32 @@ The merged reject-code set.
   spawnKey: SpawnKey;
 }
 ```
+
+***
+
+### Type Literal
+
+```ts
+{
+  admittedChildren: number;
+  code: "roster_floor";
+  floor: number;
+  liveExposureUsd: number;
+  perSeatProjectionUsd: number;
+  remainderUsd: number;
+  seatsRemaining: number;
+}
+```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `admittedChildren` | `number` | - | `packages/core/dist/index.d.ts` |
+| `code` | `"roster_floor"` | The sequential roster feasibility refusal (RV2005): under a declared acceptance.minSpawnedChildren, the whole remaining roster (priced at this seat's own projection) plus the live in-flight exposure does not fit the parent remainder, so the FIRST infeasible seat refuses before any child is paid. The batchGate symmetry (RV1908) on the seat-by-seat path the parity rerun's model actually took, where three seats were paid in full under a floor of four the money could never reach. | `packages/core/dist/index.d.ts` |
+| `floor` | `number` | - | `packages/core/dist/index.d.ts` |
+| `liveExposureUsd` | `number` | - | `packages/core/dist/index.d.ts` |
+| `perSeatProjectionUsd` | `number` | - | `packages/core/dist/index.d.ts` |
+| `remainderUsd` | `number` | - | `packages/core/dist/index.d.ts` |
+| `seatsRemaining` | `number` | - | `packages/core/dist/index.d.ts` |
 
 ***
 

@@ -18,7 +18,7 @@ The engine seam the spawn tools close over (never on ToolContext).
 awaitAll(handles): Promise<TaskDigest[]>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:171](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L171)
+Defined in: [packages/core/src/orchestrator/handles.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L180)
 
 #### Parameters
 
@@ -38,7 +38,7 @@ Defined in: [packages/core/src/orchestrator/handles.ts:171](https://github.com/o
 awaitAny(handles): Promise<TaskDigest>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L170)
+Defined in: [packages/core/src/orchestrator/handles.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L179)
 
 #### Parameters
 
@@ -61,7 +61,7 @@ cancel(handle, reason?): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L172)
+Defined in: [packages/core/src/orchestrator/handles.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L181)
 
 #### Parameters
 
@@ -85,7 +85,7 @@ Defined in: [packages/core/src/orchestrator/handles.ts:172](https://github.com/o
 getChildResult(handle, opts?): Promise<ChildResultPage>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L176)
+Defined in: [packages/core/src/orchestrator/handles.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L185)
 
 A page of a settled child's full output; opt-in `get_child_result` (RV-201).
 
@@ -110,7 +110,7 @@ A page of a settled child's full output; opt-in `get_child_result` (RV-201).
 getSettledChildResults(handles, opts?): Promise<ChildResultPage[]>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:193](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L193)
+Defined in: [packages/core/src/orchestrator/handles.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L202)
 
 First pages of SEVERAL settled children in one call; opt-in
 `get_settled_child_results` (RV1807). Refuses typed BEFORE any
@@ -141,7 +141,7 @@ readChildArtifact(
 opts?): Promise<ChildArtifactPage>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L181)
+Defined in: [packages/core/src/orchestrator/handles.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L190)
 
 A page of a settled child's artifact content; opt-in `read_child_artifact` (RV-201).
 
@@ -164,7 +164,7 @@ A page of a settled child's artifact content; opt-in `read_child_artifact` (RV-2
 ### spawn()
 
 ```ts
-spawn(params): Promise<{
+spawn(params, origin?): Promise<{
   handle: number;
 }>;
 ```
@@ -173,22 +173,23 @@ Defined in: [packages/core/src/orchestrator/handles.ts:159](https://github.com/o
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `params` | \{ `agentType`: `string`; `approach?`: `string`; `budgetUsd?`: `number`; `lineage?`: \{ `causeRef`: `number`; `continues`: `string`; `relation?`: `string`; \}; `model_hint?`: \{ `startTier?`: `number`; \}; `outputSchemaRef?`: `string`; `prompt`: `string`; `taskClass?`: `string`; `toolsetRef?`: `string`; \} |
-| `params.agentType` | `string` |
-| `params.approach?` | `string` |
-| `params.budgetUsd?` | `number` |
-| `params.lineage?` | \{ `causeRef`: `number`; `continues`: `string`; `relation?`: `string`; \} |
-| `params.lineage.causeRef` | `number` |
-| `params.lineage.continues` | `string` |
-| `params.lineage.relation?` | `string` |
-| `params.model_hint?` | \{ `startTier?`: `number`; \} |
-| `params.model_hint.startTier?` | `number` |
-| `params.outputSchemaRef?` | `string` |
-| `params.prompt` | `string` |
-| `params.taskClass?` | `string` |
-| `params.toolsetRef?` | `string` |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `params` | \{ `agentType`: `string`; `approach?`: `string`; `budgetUsd?`: `number`; `lineage?`: \{ `causeRef`: `number`; `continues`: `string`; `relation?`: `string`; \}; `model_hint?`: \{ `startTier?`: `number`; \}; `outputSchemaRef?`: `string`; `prompt`: `string`; `taskClass?`: `string`; `toolsetRef?`: `string`; \} | - |
+| `params.agentType` | `string` | - |
+| `params.approach?` | `string` | - |
+| `params.budgetUsd?` | `number` | - |
+| `params.lineage?` | \{ `causeRef`: `number`; `continues`: `string`; `relation?`: `string`; \} | - |
+| `params.lineage.causeRef?` | `number` | - |
+| `params.lineage.continues?` | `string` | - |
+| `params.lineage.relation?` | `string` | - |
+| `params.model_hint?` | \{ `startTier?`: `number`; \} | - |
+| `params.model_hint.startTier?` | `number` | - |
+| `params.outputSchemaRef?` | `string` | - |
+| `params.prompt?` | `string` | - |
+| `params.taskClass?` | `string` | - |
+| `params.toolsetRef?` | `string` | - |
+| `origin?` | `"spawn_agent"` \| `"parallel_agents"` | Which spawn tool asked (RV2005): batch seats admit under 'parallel_agents' and skip the sequential roster feasibility (their batchGate already judged the batch entire) and the requireBatchSpawn gate; absent means 'spawn_agent'. |
 
 #### Returns
 
@@ -204,7 +205,7 @@ Defined in: [packages/core/src/orchestrator/handles.ts:159](https://github.com/o
 waitForEvents(triggers): Promise<unknown>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L174)
+Defined in: [packages/core/src/orchestrator/handles.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L183)
 
 Sleep until a coalesced WakeDigest (M6-T09).
 

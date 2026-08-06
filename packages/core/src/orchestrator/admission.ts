@@ -127,6 +127,26 @@ export type AdmitRejectReason =
   | { code: 'osc_guard'; spawnKey: SpawnKey; oscillationCount: number }
   | {
       /**
+       * The sequential roster feasibility refusal (RV2005): under a
+       * declared acceptance.minSpawnedChildren, the whole remaining
+       * roster (priced at this seat's own projection) plus the live
+       * in-flight exposure does not fit the parent remainder, so the
+       * FIRST infeasible seat refuses before any child is paid. The
+       * batchGate symmetry (RV1908) on the seat-by-seat path the
+       * parity rerun's model actually took, where three seats were
+       * paid in full under a floor of four the money could never
+       * reach.
+       */
+      code: 'roster_floor';
+      floor: number;
+      admittedChildren: number;
+      seatsRemaining: number;
+      perSeatProjectionUsd: number;
+      liveExposureUsd: number;
+      remainderUsd: number;
+    }
+  | {
+      /**
        * The declared estimate cannot fit the child's own ceiling: the
        * host said the work costs more than the budget buys, so the op
        * is bounced with the actionable correction BEFORE it changes
@@ -174,6 +194,20 @@ export interface AdmitSpec {
    * is dispatchable under the same snapshot, not just the first.
    */
   pendingReserveUsd?: number;
+  /**
+   * The sequential roster feasibility inputs (RV2005), passed by the
+   * SINGLE spawn_agent path when acceptance.minSpawnedChildren is
+   * declared: the admission projects the whole REMAINING roster at
+   * this seat's own dispatch projection, live in-flight exposure
+   * included, and refuses the first infeasible seat typed
+   * 'roster_floor' before any child is paid. Batch seats never carry
+   * this: the RV1908 batchGate already judged their batch entire.
+   */
+  roster?: {
+    floor: number;
+    admittedChildren: number;
+    liveExposureUsd: number;
+  };
   /**
    * Lineage continuation (DEF-3); absence mints a fresh lineage root. A
    * continuation demands a causeRef: the seq of the entry that caused the
@@ -528,6 +562,38 @@ export class AdmissionController {
     }
     if (this.maxTotalSpawns !== undefined && this.admittedTotal >= this.maxTotalSpawns) {
       return { verdict: { kind: 'reject', reason: { code: 'lifetime' } }, statsBefore };
+    }
+    if (spec.roster !== undefined) {
+      // The sequential roster feasibility (RV2005): the shared RV2004
+      // arithmetic over the whole remaining roster, live exposure
+      // included. Exact fill passes (remainder < needed refuses),
+      // mirroring the embedded gate; a refusal here pays for nothing
+      // and mutates nothing.
+      const seatsRemaining = spec.roster.floor - spec.roster.admittedChildren;
+      if (seatsRemaining > 0) {
+        const perSeatProjectionUsd = this.projectedDispatchReserveUsd(spec);
+        const remainder = this.budget.remainderOf(spec.parentAccountScope);
+        if (
+          remainder !== undefined &&
+          remainder < seatsRemaining * perSeatProjectionUsd + spec.roster.liveExposureUsd
+        ) {
+          return {
+            verdict: {
+              kind: 'reject',
+              reason: {
+                code: 'roster_floor',
+                floor: spec.roster.floor,
+                admittedChildren: spec.roster.admittedChildren,
+                seatsRemaining,
+                perSeatProjectionUsd,
+                liveExposureUsd: spec.roster.liveExposureUsd,
+                remainderUsd: remainder,
+              },
+            },
+            statsBefore,
+          };
+        }
+      }
     }
     // ONE reserve arithmetic per dispatch posture (RV2004). The spawn
     // tools dispatch through ctx.agent, where only an EXPLICIT
