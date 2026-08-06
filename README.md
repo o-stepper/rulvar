@@ -201,7 +201,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred eighty rounds, verbatim in this repository's history:
+The one hundred eighty one rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -396,6 +396,7 @@ The one hundred eighty rounds, verbatim in this repository's history:
 | v1.196.0      | 4d0487e (#781): both benchmark defect shapes join the fault kit as permanent gates, the primary preflight parity and the recovery root exposure pipeline, matched:false on any revert     | v1.197.0   |
 | v1.197.0      | c097c96 (#783): the acceptance verdict becomes its own orchestrator:acceptance event and the semanticPasses triple lands on the accepted envelope, the rejection data, and run:end        | v1.198.0   |
 | v1.198.0      | 29891c6 (#786): the preflight prices the two minimums the benchmark lacked, the whole-wave ceiling floor and the exposure breathing floor, and exposure-cap-tight prices the equation     | v1.199.0   |
+| v1.199.0      | e2ddbdf (#789): parallel_agents grows an admission policy, try-all attempts every seat and reports refusals, all-or-none refuses whole, a roster floor refuses before any child is paid   | v1.200.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
