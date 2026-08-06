@@ -12973,6 +12973,15 @@ interface PreflightReport {
     * synthesis reserve, matching the runtime that then commits none.
     */
     synthesisReserveUsd: number;
+    /**
+    * The smallest run ceiling that seats the WHOLE declared wave
+    * (RV1907): every row's reserve plus the finalization and synthesis
+    * carve-outs. Children admit strictly below exact fill, so a viable
+    * ceiling must sit strictly ABOVE this figure; the four-role
+    * benchmark's $6.00 sat $0.98 below it and lost its third and
+    * fourth workers. Present whenever the wave has rows.
+    */
+    requiredMinimumCeilingUsd?: number;
     wave: PreflightAdmissionRow[];
     admitted: number;
     denied: number;
@@ -12985,7 +12994,18 @@ interface PreflightReport {
     * documented overshoot bound is one turn per in-flight agent; real
     * turns grow with the prompt, so this is the floor of that bound.
     */
-    overshootOneTurnFloorUsd?: number; /** Per-provider first-wave demand at the declared estimates. */
+    overshootOneTurnFloorUsd?: number;
+    /**
+    * The smallest in-flight exposure cap under which the declared wave
+    * can breathe (RV1907): the finalization and synthesis carve-outs
+    * plus the turn floors of the maxInFlight most expensive declared
+    * dispatches, the orchestrator's own turn among them. Below it the
+    * root's next turn is refused beside a full child wave, the
+    * recovery arm's exact death; the RV1902 wait recovers the run, but
+    * only a cap at or above this floor avoids the stall entirely.
+    * Absent when no declared turn prices.
+    */
+    requiredMinimumExposureUsd?: number; /** Per-provider first-wave demand at the declared estimates. */
     perProvider: Record<string, {
       inFlight: number;
       requestsPerWave: number;

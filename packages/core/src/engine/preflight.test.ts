@@ -1676,6 +1676,74 @@ describe('the synthesis hold in the admission wave (RV1901, the four-role benchm
   });
 });
 
+describe('the exposure floor over time (RV1907, the recovery arm stall)', () => {
+  const WORKERS_1907 = ['product', 'finops', 'durability', 'adversarial'];
+  function shapedInput(options?: {
+    exposureCapUsd?: number;
+    synthesisReserveUsd?: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: {
+        budgetUsd: 6,
+        ...(options?.exposureCapUsd === undefined
+          ? {}
+          : { maxInFlightExposureUsd: options.exposureCapUsd }),
+      },
+      orchestrator: {
+        budget: {
+          capUsd: 4.5,
+          capFraction: 1.0,
+          ...(options?.synthesisReserveUsd === undefined
+            ? {}
+            : { synthesisReserveUsd: options.synthesisReserveUsd }),
+        },
+        synthesis: { limits: { maxTurns: 2 } },
+        limits: { maxOutputTokensPerTurn: 4000 },
+      },
+      spawns: WORKERS_1907.map((label) => ({
+        label,
+        estCost: 0.62,
+        limits: { maxOutputTokensPerTurn: 2500 },
+      })),
+    };
+  }
+
+  it('reports the whole-wave ceiling floor the benchmark needed', () => {
+    const report = preflightEstimate(shapedInput({ synthesisReserveUsd: 1.0 }));
+    // 3.50 orchestrator + 4 x 0.62 workers + 1.00 synthesis = 6.98:
+    // the $6.00 benchmark ceiling sat $0.98 below its own wave.
+    expect(report.admission.requiredMinimumCeilingUsd).toBeCloseTo(6.98, 10);
+  });
+
+  it('names a cap below the breathing floor and prices the equation', () => {
+    const report = preflightEstimate(
+      shapedInput({ synthesisReserveUsd: 1.0, exposureCapUsd: 0.08 }),
+    );
+    const finding = report.findings.find((entry) => entry.code === 'exposure-cap-tight');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('breathing floor');
+    expect(finding?.message).toContain('RV1902');
+    expect(report.exposure.requiredMinimumExposureUsd).toBeGreaterThan(1.0);
+  });
+
+  it('stays silent at a generous cap and still reports the floor without one', () => {
+    const generous = preflightEstimate(
+      shapedInput({ synthesisReserveUsd: 1.0, exposureCapUsd: 5 }),
+    );
+    expect(generous.findings.some((entry) => entry.code === 'exposure-cap-tight')).toBe(false);
+    const uncapped = preflightEstimate(shapedInput({ synthesisReserveUsd: 1.0 }));
+    expect(uncapped.findings.some((entry) => entry.code === 'exposure-cap-tight')).toBe(false);
+    expect(uncapped.exposure.requiredMinimumExposureUsd).toBeGreaterThan(1.0);
+    expect(uncapped.exposure.requiredMinimumExposureUsd).toBe(
+      generous.exposure.requiredMinimumExposureUsd,
+    );
+  });
+});
+
 describe('the tool budget extension projection (RV301, the seventh comparison experiment)', () => {
   it('the projections assume the fully extended cap', () => {
     const adapter = scriptedAdapter(() => ({ text: 'unused' }));

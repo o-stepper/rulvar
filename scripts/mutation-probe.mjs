@@ -3100,6 +3100,24 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/settle-drain.test.ts',
   },
   {
+    id: 'exposure-cap-tight-finding',
+    doctrine:
+      "the projection warns when the declared exposure cap sits below the wave's breathing floor (RV1907): silencing exposure-cap-tight lets the recovery arm's $3.20 stall configuration read clean, where the coordinating turn beside a full child wave parks on every dispatch",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "      code: 'exposure-cap-tight',",
+    replace: "      code: 'exposure-cap-noted',",
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'required-minimum-ceiling',
+    doctrine:
+      'the report prices the whole-wave ceiling floor (RV1907): zeroing requiredMinimumCeilingUsd returns the operator to solving the wave by hand, the benchmark shape where $6.00 read viable while the wave needed strictly above 6.98',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '      : wave.reduce((sum, row) => sum + row.reserveUsd, 0) +\n        reservedForFinalizationUsd +\n        synthesisHoldUsd;',
+    replace: '      : 0;',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'acceptance-verdict-event',
     doctrine:
       "the acceptance verdict speaks on the event stream between the root's agent:end and run:end (RV1906): dropping the emission returns the benchmark's silent gap, where an operator saw ok then error and had to reconstruct the policy fold by hand",
