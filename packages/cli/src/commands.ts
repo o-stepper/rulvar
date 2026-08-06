@@ -919,6 +919,132 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
   return 0;
 }
 
+/**
+ * cost-audit (RV1910): the denominator diagnostic over one stored run.
+ * The four-role benchmark's recovery run produced four mutually
+ * inconsistent cost views; the lifecycle now admits one, and this
+ * command VERIFIES it on a concrete journal instead of trusting the
+ * doctrine: the roster is closed (every agent entry terminal), the
+ * settle is recorded and is the billing boundary, and the settled
+ * fold, the invoice totals and the wire cardinality agree. Exit 1
+ * with the failing checks named when any diverge, which is exactly
+ * what a pre-RV1904 journal (the benchmark's own) reports.
+ */
+export async function costAuditCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseCommand(GRAMMAR['cost-audit'], argv);
+  const runId = parsed.positionals[0];
+  const store = parsed.values.store as string | undefined;
+  const json = parsed.values.json === true;
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(store === undefined ? {} : { storePath: store }),
+    cwd: context.cwd,
+  });
+  const meta = await readRunMeta(assembled.store, runId);
+  if (meta === undefined) {
+    throw new ConfigError(`run '${runId}' not found in the store`);
+  }
+  const entries = await assembled.store.load(runId);
+  const snapshot = journalPricingSnapshot(entries);
+  const composed =
+    snapshot === undefined ? assembled.priceUsd : snapshot.composedPriceUsd(assembled.priceUsd);
+  const report = costReportFromJournal(entries, composed);
+  const invoice = invoiceFromJournal(entries, composed);
+  const terminalRefs = new Set(
+    entries
+      .filter((entry) => entry.kind === 'agent' && entry.status !== 'running')
+      .map((entry) => entry.ref),
+  );
+  const openAgents = entries.filter(
+    (entry) => entry.kind === 'agent' && entry.status === 'running' && !terminalRefs.has(entry.seq),
+  );
+  const settle = [...entries]
+    .reverse()
+    .find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'run_settle',
+    );
+  const agentsAfterSettle =
+    settle === undefined
+      ? []
+      : entries.filter((entry) => entry.kind === 'agent' && entry.seq > settle.seq);
+  const grossDelta = Math.abs(report.grossUsd - invoice.totalUsd);
+  const checks: Array<{ name: string; pass: boolean; detail: string }> = [
+    {
+      name: 'roster-closed',
+      pass: openAgents.length === 0,
+      detail:
+        openAgents.length === 0
+          ? 'every agent entry has a terminal'
+          : `${String(openAgents.length)} agent entr${openAgents.length === 1 ? 'y' : 'ies'} still running (seq ${openAgents.map((entry) => entry.seq).join(', ')})`,
+    },
+    {
+      name: 'settle-recorded',
+      pass: settle !== undefined,
+      detail:
+        settle === undefined ? 'no run_settle decision' : `run_settle at seq ${String(settle.seq)}`,
+    },
+    {
+      name: 'settle-is-billing-boundary',
+      pass: agentsAfterSettle.length === 0,
+      detail:
+        agentsAfterSettle.length === 0
+          ? 'no agent entry follows the settle'
+          : `${String(agentsAfterSettle.length)} agent entr${agentsAfterSettle.length === 1 ? 'y' : 'ies'} after the settle (seq ${agentsAfterSettle.map((entry) => entry.seq).join(', ')}), the benchmark recovery shape`,
+    },
+    {
+      name: 'fold-matches-invoice',
+      pass: grossDelta < 1e-9,
+      detail: `settled gross $${report.grossUsd.toFixed(7)} vs invoice total $${invoice.totalUsd.toFixed(7)}`,
+    },
+    {
+      name: 'wires-match',
+      pass: (report.wireRequests ?? -1) === invoice.cardinality.wireRequests,
+      detail: `fold wires ${String(report.wireRequests ?? 'absent')} vs invoice wires ${String(invoice.cardinality.wireRequests)}`,
+    },
+  ];
+  const failed = checks.filter((check) => !check.pass);
+  if (json) {
+    context.io.out(
+      JSON.stringify(
+        {
+          runId,
+          verdict: failed.length === 0 ? 'one-denominator' : 'divergent',
+          settled: {
+            totalUsd: report.totalUsd,
+            grossUsd: report.grossUsd,
+            wireRequests: report.wireRequests ?? null,
+          },
+          invoice: {
+            totalUsd: invoice.totalUsd,
+            rows: invoice.rows.length,
+            wireRequests: invoice.cardinality.wireRequests,
+          },
+          checks,
+        },
+        null,
+        2,
+      ),
+    );
+    return failed.length === 0 ? 0 : 1;
+  }
+  context.io.out(
+    `run ${runId}: cost audit (${failed.length === 0 ? 'one denominator' : 'DIVERGENT'})`,
+  );
+  context.io.out(
+    `settled: gross $${report.grossUsd.toFixed(4)} | net $${report.totalUsd.toFixed(4)} | wires ${String(report.wireRequests ?? 'absent')}`,
+  );
+  context.io.out(
+    `invoice: total $${invoice.totalUsd.toFixed(4)} | rows ${String(invoice.rows.length)} | wires ${String(invoice.cardinality.wireRequests)}`,
+  );
+  for (const check of checks) {
+    context.io.out(`  [${check.pass ? 'pass' : 'FAIL'}] ${check.name}: ${check.detail}`);
+  }
+  return failed.length === 0 ? 0 : 1;
+}
+
 /** Formats an optional USD number for the preflight text rows. */
 function usdOf(value: number | undefined): string {
   return value === undefined ? 'n/a' : `$${value.toFixed(4)}`;

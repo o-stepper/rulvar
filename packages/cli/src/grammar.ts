@@ -50,6 +50,7 @@ export const GRAMMAR: {
   readonly 'runs audit': CommandGrammar;
   readonly inspect: CommandGrammar;
   readonly invoice: CommandGrammar;
+  readonly 'cost-audit': CommandGrammar;
   readonly plan: CommandGrammar;
   readonly preflight: CommandGrammar;
   readonly 'kb list': CommandGrammar;
@@ -86,6 +87,11 @@ export const GRAMMAR: {
   },
   inspect: { command: 'inspect', positionals: ['<runId>'], flags: [STORE] },
   invoice: { command: 'invoice', positionals: ['<runId>'], flags: [STORE, { name: 'json' }] },
+  'cost-audit': {
+    command: 'cost-audit',
+    positionals: ['<runId>'],
+    flags: [STORE, { name: 'json' }],
+  },
   plan: {
     command: 'plan',
     positionals: ['"<goal>"'],
@@ -192,6 +198,7 @@ export function helpCommandLines(): string[] {
     GRAMMAR['runs audit'],
     GRAMMAR.inspect,
     GRAMMAR.invoice,
+    GRAMMAR['cost-audit'],
     GRAMMAR.plan,
     GRAMMAR.preflight,
   ];
@@ -221,6 +228,7 @@ export function docsGrammarLines(): string[] {
     GRAMMAR['runs audit'],
     GRAMMAR.inspect,
     GRAMMAR.invoice,
+    GRAMMAR['cost-audit'],
     GRAMMAR.plan,
     GRAMMAR.preflight,
   ];

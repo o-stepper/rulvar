@@ -259,6 +259,10 @@
             "link": "/api/@rulvar/cli/functions/attachProgress.md"
           },
           {
+            "text": "costAuditCommand",
+            "link": "/api/@rulvar/cli/functions/costAuditCommand.md"
+          },
+          {
             "text": "createServer",
             "link": "/api/@rulvar/cli/functions/createServer.md"
           },
