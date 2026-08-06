@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
+
 ### 1.201.0
 
 #### Patch Changes
@@ -1885,6 +1891,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
+
 ### 1.201.0
 
 #### Patch Changes
@@ -3559,6 +3571,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.202.0
+
+#### Minor Changes
+
+- 08c1247: `rulvar cost-audit <runId>` verifies the one-denominator contract on a concrete stored run (RV1910). The four-role benchmark's recovery run produced four mutually inconsistent cost views, and the judge reconciled them by hand; the lifecycle now admits one, and the audit checks it instead of trusting the doctrine: the roster is closed (every agent entry has a terminal), `run_settle` is recorded and is the billing boundary (no agent entry follows it), and the settled fold, the invoice totals and the wire cardinality agree. Text and `--json` forms, exit 1 with the failing checks named when any diverge, which is exactly what a pre-RV1904 journal, the benchmark's own, reports.
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
 
 ### 1.201.0
 
@@ -5678,6 +5700,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.202.0
 
 ### 1.201.0
 
@@ -8088,6 +8112,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.202.0
+
 ### 1.201.0
 
 ### 1.200.0
@@ -8594,6 +8620,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.202.0
+- @rulvar/core@1.202.0
+- @rulvar/openai@1.202.0
+- @rulvar/plan@1.202.0
+- @rulvar/testing@1.202.0
 
 ### 1.201.0
 
@@ -10875,6 +10911,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
+
 ### 1.201.0
 
 #### Patch Changes
@@ -11960,6 +12002,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
 
 ### 1.201.0
 
@@ -13837,6 +13885,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
+
 ### 1.201.0
 
 #### Patch Changes
@@ -15625,6 +15679,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
+- eslint-plugin-rulvar@1.202.0
 
 ### 1.201.0
 
@@ -17577,6 +17638,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.202.0
+- @rulvar/core@1.202.0
+- @rulvar/openai@1.202.0
 
 ### 1.201.0
 
@@ -19814,6 +19883,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
+
 ### 1.201.0
 
 #### Patch Changes
@@ -21610,6 +21685,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
+
 ### 1.201.0
 
 #### Patch Changes
@@ -22711,6 +22792,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
 
 ### 1.201.0
 
@@ -24444,6 +24531,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.202.0
+
+#### Patch Changes
+
+- @rulvar/core@1.202.0
 
 ### 1.201.0
 

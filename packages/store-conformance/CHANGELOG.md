@@ -1,5 +1,11 @@
 # @rulvar/store-conformance
 
+## 1.202.0
+
+### Patch Changes
+
+- @rulvar/core@1.202.0
+
 ## 1.201.0
 
 ### Patch Changes
