@@ -3245,6 +3245,42 @@ const MUTATIONS = [
     replace: '              if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'exposure-wait-keepalive',
+    doctrine:
+      "a parked exposure waiter REFs the event loop for exactly as long as any waiter exists (RV2003): disarming the keepalive returns the parity rerun's silent exit, a process ending mid-run with the parked root's unsettled await as its only remaining work",
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    if (this.exposureWaiters.size > 0) {\n      if (this.waitKeepalive === undefined) {',
+    replace: '    if (false) {\n      if (this.waitKeepalive === undefined) {',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'exposure-drained-sweep',
+    doctrine:
+      'each keepalive tick sweeps for the drained state and wakes waiters (RV2003): dropping the sweep strands a waiter forever when a future leak loses the event-driven wake, the defense in depth behind the RV2001 backstop',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '        this.waitKeepalive = setInterval(() => {\n          if (this.exposureHolds.size === 0 && this.unattributedHoldCount === 0) {',
+    replace: '        this.waitKeepalive = setInterval(() => {\n          if (false) {',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'quiescence-watchdog-force',
+    doctrine:
+      'the beforeExit watchdog forces every unsettled run through the cancel path to a journaled terminal (RV2003): silencing the force lets the event loop die with a forever-running root, no run_settle and no cost report, the parity journal verbatim',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "      requestCancel('rulvar:quiescence-watchdog');",
+    replace: '      void 0;',
+    test: 'packages/core/src/engine/quiescence-watchdog.test.ts',
+  },
+  {
+    id: 'quiescence-watchdog-race-arm',
+    doctrine:
+      'the watchdog arm settles the run race even when the body is stuck on a bare promise no signal reaches (RV2003): dropping the arm leaves the cancel unable to settle exactly the runs the watchdog exists for',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "          watchdogForced.then(() => ({ kind: 'watchdog-forced' as const })),",
+    replace: '',
+    test: 'packages/core/src/engine/quiescence-watchdog.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

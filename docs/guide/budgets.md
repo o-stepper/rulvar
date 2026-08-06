@@ -276,7 +276,26 @@ and a journaled `orchestrator_finalize_fallback` decision
 cheap `exposure-drained` refusal (`AgentError.reason 'exposure-drained'`,
 carried into the journaled terminal's `error.data.reason`), zero provider
 attempts by construction, so the orchestrator tells a starved seat apart
-from a crashed child and can re-spawn it once money frees. Worst concurrent overshoot past the cap is thereby the estimate error
+from a crashed child and can re-spawn it once money frees.
+
+The wait can never end the process silently (RV2003). The third parity
+rerun's terminal shape was exactly that: the root parked with nothing on
+the event loop, and Node exited mid-run with an unsettled top-level await,
+no `run_settle`, no terminal, no cost report. A parked waiter now arms a
+ref'd keepalive interval for exactly as long as any waiter exists, so a
+process whose only remaining work is the wait hangs visibly instead of
+vanishing, and each tick sweeps for the drained state (no holder of any
+kind left) as defense in depth behind the event-driven wakes. Above the
+budget, the engine registers every unsettled run with a process
+`beforeExit` watchdog: if the event loop is ever about to die while a run
+has no journaled terminal, the watchdog forces that run through the
+ordinary cancel path, the terminal child barrier, `run_settle`, and a
+terminal envelope, with an error-level log naming the forced settle. The
+watchdog listener exists only while unsettled runs exist, and the wait
+itself honors the run signal, so deadlines and host cancels reach a parked
+dispatch exactly like any other wait. The invariant, held by tests on the
+parity deadlock shape itself: no path ends the process while a run has no
+journaled terminal. Worst concurrent overshoot past the cap is thereby the estimate error
 of the in-flight turns, not one whole turn per agent. The cap is off by
 default (wire traffic and journals stay byte-identical), applies at the run
 root, and reserves zero for models without a price row exactly as they debit

@@ -846,6 +846,42 @@ function leaseCapable(store: JournalStore): store is LeasableStore {
  */
 const ENGINE_DEFAULT_LEASE_TTL_MS = 60_000;
 
+/**
+ * The quiescence watchdog (RV2003): no path may end the process while
+ * a run has no journaled terminal. The third parity rerun did exactly
+ * that: the root parked, the event loop drained, and Node exited with
+ * an unsettled top-level await, no run_settle, no terminal, no cost
+ * report. Every unsettled run registers a force here; when the event
+ * loop is about to die (`beforeExit`), each registered run is driven
+ * through its ordinary cancel path, which the settle machinery turns
+ * into the RV1903 barrier, run_settle, and a terminal envelope. The
+ * forced settle re-arms the loop; once every run settles, the registry
+ * empties, the listener detaches, and the process exits clean. The
+ * listener exists only while the registry is nonempty, so idle
+ * processes and finished engines observe zero footprint.
+ */
+const quiescenceWatchdogRuns = new Set<() => void>();
+let quiescenceWatchdogArmed = false;
+function onQuiescenceBeforeExit(): void {
+  for (const force of [...quiescenceWatchdogRuns]) {
+    force();
+  }
+}
+function quiescenceWatchdogRegister(force: () => void): void {
+  quiescenceWatchdogRuns.add(force);
+  if (!quiescenceWatchdogArmed) {
+    quiescenceWatchdogArmed = true;
+    process.on('beforeExit', onQuiescenceBeforeExit);
+  }
+}
+function quiescenceWatchdogUnregister(force: () => void): void {
+  quiescenceWatchdogRuns.delete(force);
+  if (quiescenceWatchdogRuns.size === 0 && quiescenceWatchdogArmed) {
+    quiescenceWatchdogArmed = false;
+    process.removeListener('beforeExit', onQuiescenceBeforeExit);
+  }
+}
+
 export function createEngine(options: CreateEngineOptions): Engine {
   const adapters = buildAdapterRegistry(options.adapters);
   const rawJournal = options.stores?.journal ?? new InMemoryStore();
@@ -1374,6 +1410,37 @@ export function createEngine(options: CreateEngineOptions): Engine {
         realNow,
       );
     }
+    // The quiescence watchdog force (RV2003): fires only from
+    // `beforeExit`, when the event loop is about to die with this run
+    // still unsettled. The ordinary cancel path is the whole
+    // mechanism: the abort reaches every signal-aware wait, the settle
+    // machinery runs the RV1903 barrier, and the run reaches
+    // run_settle plus a journaled terminal instead of vanishing.
+    let watchdogSettle: () => void = () => undefined;
+    const watchdogForced = new Promise<void>((resolve) => {
+      watchdogSettle = resolve;
+    });
+    const quiescenceForce = (): void => {
+      bus.emit(
+        {
+          type: 'log',
+          level: 'error',
+          msg:
+            `quiescence watchdog: the event loop drained with run '${runId}' unsettled; ` +
+            'forcing the run through the terminal barrier to a journaled terminal ' +
+            '(no silent exit: every run reaches a journaled terminal)',
+        },
+        rootSpanId,
+      );
+      requestCancel('rulvar:quiescence-watchdog');
+      // The abort reaches every ENGINE-owned wait, but a body stuck on
+      // a bare non-signal-aware promise would still pin the settle
+      // race; this third arm settles the race itself, so the finally
+      // runs the RV1903 barrier and the run reaches run_settle plus a
+      // terminal envelope no matter what the body is stuck on.
+      watchdogSettle();
+    };
+    quiescenceWatchdogRegister(quiescenceForce);
 
     const budget = makeBudget();
     const admission = new AdmissionController({
@@ -1739,11 +1806,23 @@ export function createEngine(options: CreateEngineOptions): Engine {
               )
             : selectedRunner.execute(wf, ctx, args);
         // Every in-flight branch blocked on suspensions settles the run
-        // 'suspended' with the open keys.
+        // 'suspended' with the open keys. The watchdog arm (RV2003)
+        // settles the race when `beforeExit` found the run unsettled:
+        // the cancel already aborted every engine-owned wait, and this
+        // arm covers a body stuck on a bare promise no signal reaches,
+        // so the settle below runs unconditionally.
         const raced = await Promise.race([
           bodyPromise.then((result) => ({ kind: 'done' as const, result })),
           quiesced.then((open) => ({ kind: 'suspended' as const, open })),
+          watchdogForced.then(() => ({ kind: 'watchdog-forced' as const })),
         ]);
+        if (raced.kind === 'watchdog-forced') {
+          // The forced settle is a cancellation with the watchdog's
+          // reason: value-less, never 'suspended' (nothing quiesced),
+          // and the body promise is orphaned deliberately, exactly
+          // like the suspended arm orphans it.
+          bodyPromise.catch(() => undefined);
+        }
         if (raced.kind === 'suspended') {
           bodyPromise.catch(() => undefined);
           // Settling closes this execution segment permanently: parked
@@ -1769,7 +1848,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
               rootSpanId,
             );
           }
-        } else {
+        } else if (raced.kind === 'done') {
           value = raced.result;
         }
         if (status !== 'suspended' && budget.exhausted) {
@@ -2134,6 +2213,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
           { runId, runStatus: status, cause: supersededBy },
         );
       }
+      // The watchdog covers the run for exactly the span in which it
+      // has no journaled terminal: released here, strictly before
+      // handle.result resolves (the detached finally below backstops
+      // the throw paths), so a settled run is never re-cancelled by a
+      // later beforeExit.
+      quiescenceWatchdogUnregister(quiescenceForce);
       if (settlementFailure !== undefined) {
         const causeText =
           settlementFailure.cause instanceof Error
@@ -2167,6 +2252,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
     void result
       .catch(() => undefined)
       .finally(() => {
+        // Strictly after settlement: the watchdog covers the run for
+        // exactly the span in which it has no journaled terminal.
+        quiescenceWatchdogUnregister(quiescenceForce);
         void ownershipTeardown();
         activeSegments.delete(runId);
       });

@@ -6,7 +6,7 @@
 
 # Interface: BudgetExhaustionDiagnostics
 
-Defined in: [packages/core/src/engine/budget.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L145)
+Defined in: [packages/core/src/engine/budget.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L158)
 
 Why a ceiling error ended the work: the first closed account walking
 from the debited scope toward the root, plus the root state, so the
@@ -17,13 +17,13 @@ blaming the run ceiling for every crossing.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-crossed"></a> `crossed?` | \{ `ceilingUsd`: `number`; `committedReserveUsd`: `number`; `finalizeReserveUsd`: `number`; `scope`: `string`; `source`: `"root"` \| `"orchestrator-cap"` \| `"child-account"`; `spentUsd`: `number`; \} | [packages/core/src/engine/budget.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L146) |
-| `crossed.ceilingUsd` | `number` | [packages/core/src/engine/budget.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L149) |
-| `crossed.committedReserveUsd` | `number` | [packages/core/src/engine/budget.ts:151](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L151) |
-| `crossed.finalizeReserveUsd` | `number` | [packages/core/src/engine/budget.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L152) |
-| `crossed.scope` | `string` | [packages/core/src/engine/budget.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L147) |
-| `crossed.source` | `"root"` \| `"orchestrator-cap"` \| `"child-account"` | [packages/core/src/engine/budget.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L148) |
-| `crossed.spentUsd` | `number` | [packages/core/src/engine/budget.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L150) |
-| <a id="property-root"></a> `root` | \{ `ceilingUsd?`: `number`; `spentUsd`: `number`; \} | [packages/core/src/engine/budget.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L154) |
-| `root.ceilingUsd?` | `number` | [packages/core/src/engine/budget.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L154) |
-| `root.spentUsd` | `number` | [packages/core/src/engine/budget.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L154) |
+| <a id="property-crossed"></a> `crossed?` | \{ `ceilingUsd`: `number`; `committedReserveUsd`: `number`; `finalizeReserveUsd`: `number`; `scope`: `string`; `source`: `"root"` \| `"orchestrator-cap"` \| `"child-account"`; `spentUsd`: `number`; \} | [packages/core/src/engine/budget.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L159) |
+| `crossed.ceilingUsd` | `number` | [packages/core/src/engine/budget.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L162) |
+| `crossed.committedReserveUsd` | `number` | [packages/core/src/engine/budget.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L164) |
+| `crossed.finalizeReserveUsd` | `number` | [packages/core/src/engine/budget.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L165) |
+| `crossed.scope` | `string` | [packages/core/src/engine/budget.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L160) |
+| `crossed.source` | `"root"` \| `"orchestrator-cap"` \| `"child-account"` | [packages/core/src/engine/budget.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L161) |
+| `crossed.spentUsd` | `number` | [packages/core/src/engine/budget.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L163) |
+| <a id="property-root"></a> `root` | \{ `ceilingUsd?`: `number`; `spentUsd`: `number`; \} | [packages/core/src/engine/budget.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L167) |
+| `root.ceilingUsd?` | `number` | [packages/core/src/engine/budget.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L167) |
+| `root.spentUsd` | `number` | [packages/core/src/engine/budget.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L167) |
