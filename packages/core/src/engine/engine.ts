@@ -82,6 +82,7 @@ import { EVENT_SEGMENT_STRIDE, EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
 import {
   type AcceptanceChildSummary,
+  type SemanticPassesSummary,
   type PendingExternal,
   type RunHandle,
   type RunOutcome,
@@ -620,6 +621,7 @@ function liftRunCompletion(candidate: unknown):
       salvagedTerminalOutputChildren?: string[];
       belowFloorOkChildren?: string[];
       acceptanceChildren?: AcceptanceChildSummary[];
+      semanticPasses?: SemanticPassesSummary;
     }
   | undefined {
   if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
@@ -637,6 +639,7 @@ function liftRunCompletion(candidate: unknown):
     salvagedTerminalOutputChildren?: string[];
     belowFloorOkChildren?: string[];
     acceptanceChildren?: AcceptanceChildSummary[];
+    semanticPasses?: SemanticPassesSummary;
   } = { completion };
   const counts = (candidate as { childStatusCounts?: unknown }).childStatusCounts;
   if (typeof counts === 'object' && counts !== null && !Array.isArray(counts)) {
@@ -726,6 +729,32 @@ function liftRunCompletion(candidate: unknown):
     };
     if (rosterCandidate.every(validRow)) {
       lifted.acceptanceChildren = rosterCandidate.map((row) => ({ ...row }));
+    }
+  }
+  // The explicit pass summary (RV1906), same posture as the roster: a
+  // valid {ran, reason?} triple mirrors, anything malformed drops
+  // silently, so an absent findings field can never read as a clean
+  // pass and a null can never read as anything at all.
+  const passesCandidate = (candidate as { semanticPasses?: unknown }).semanticPasses;
+  if (typeof passesCandidate === 'object' && passesCandidate !== null) {
+    const validPass = (value: unknown): value is { ran: boolean; reason?: string } => {
+      if (typeof value !== 'object' || value === null) {
+        return false;
+      }
+      const { ran, reason } = value as { ran?: unknown; reason?: unknown };
+      return typeof ran === 'boolean' && (reason === undefined || typeof reason === 'string');
+    };
+    const { contradictions, claimConsistency, synthesis } = passesCandidate as {
+      contradictions?: unknown;
+      claimConsistency?: unknown;
+      synthesis?: unknown;
+    };
+    if (validPass(contradictions) && validPass(claimConsistency) && validPass(synthesis)) {
+      lifted.semanticPasses = {
+        contradictions: { ...contradictions },
+        claimConsistency: { ...claimConsistency },
+        synthesis: { ...synthesis },
+      };
     }
   }
   return lifted;
@@ -1898,6 +1927,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.acceptanceChildren !== undefined) {
           outcomeFacts.acceptanceChildren = lifted.acceptanceChildren;
+        }
+        if (lifted.semanticPasses !== undefined) {
+          outcomeFacts.semanticPasses = lifted.semanticPasses;
         }
       }
       // The journaled settle (fenced run state RFC, phase 3): the run's

@@ -1279,6 +1279,13 @@ describe('acceptance: the child completion policy (v1.40.0 improvement plan)', (
         expect.objectContaining({ status: 'ok' }),
         expect.objectContaining({ status: 'ok' }),
       ],
+      // The explicit pass summary (RV1906): nothing configured, and the
+      // envelope says so instead of leaving absence to interpretation.
+      semanticPasses: {
+        contradictions: { ran: false, reason: 'not-configured' },
+        claimConsistency: { ran: false, reason: 'not-configured' },
+        synthesis: { ran: false, reason: 'not-configured' },
+      },
     });
     // ONE journaled acceptance decision carries the verdict.
     const decisions = (await store.load('test-run')).filter(
@@ -4114,6 +4121,126 @@ describe('the terminal child barrier (RV1903, the four-role benchmark recovery j
         onUnsettledAtExit: 'later' as unknown as 'cancel',
       }),
     ).toThrow(/onUnsettledAtExit/);
+  });
+});
+
+describe('the terminal event semantics (RV1906, the four-role benchmark primary stream)', () => {
+  // The primary run's stream read agent:end ok then run:end error with
+  // nothing in between naming the policy verdict, and its artifacts
+  // carried contradictions: null that the judge had to annotate as NOT
+  // RUN by hand. The verdict now speaks on the stream and every
+  // semantic pass carries an explicit {ran, reason}.
+  const ROUTING_1906 = { loop: 'fake:model', orchestrate: 'fake:model' } as const;
+  const PROFILES_1906 = { worker: { description: 'does one task' } };
+
+  function spawnFinishAdapter(childText: string) {
+    let orchTurn = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: childText };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'one task' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'the report' } } };
+    });
+  }
+
+  it('a rejected acceptance speaks its verdict on the stream and names the skipped passes', async () => {
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'worked' };
+      }
+      // Finish immediately: zero children spawned under a roster floor.
+      return { toolCall: { name: 'finish', args: { result: 'undersized' } } };
+    });
+    const { internals, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_1906,
+      profiles: PROFILES_1906,
+      budgetUsd: 10,
+    });
+    const wf = makeOrchestratorWorkflow('demand a roster', {
+      acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 2 },
+      contradictions: { onFound: 'report' },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(String(thrown)).toMatch(/acceptance policy rejected/);
+    const verdictEvents = events.ofType('orchestrator:acceptance');
+    expect(verdictEvents).toHaveLength(1);
+    expect(verdictEvents[0]).toMatchObject({
+      verdict: 'rejected',
+      completion: 'rejected',
+      minSpawnedChildren: 2,
+      spawnedChildren: 0,
+    });
+    const data = (thrown as { data?: { semanticPasses?: Record<string, unknown> } }).data;
+    expect(data?.semanticPasses).toEqual({
+      contradictions: { ran: false, reason: 'run-rejected' },
+      claimConsistency: { ran: false, reason: 'not-configured' },
+      synthesis: { ran: false, reason: 'not-configured' },
+    });
+  });
+
+  it('an accepted run reports the verdict and the explicit pass summary on the envelope', async () => {
+    const adapter = spawnFinishAdapter('done well');
+    const { internals, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_1906,
+      profiles: PROFILES_1906,
+      budgetUsd: 10,
+    });
+    const wf = makeOrchestratorWorkflow('collect one report', {
+      acceptance: { childPolicy: 'all-ok' },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      completion?: string;
+      semanticPasses?: Record<string, unknown>;
+    };
+    expect(envelope.completion).toBe('complete');
+    expect(envelope.semanticPasses).toEqual({
+      contradictions: { ran: false, reason: 'not-configured' },
+      claimConsistency: { ran: false, reason: 'not-configured' },
+      synthesis: { ran: false, reason: 'not-configured' },
+    });
+    const verdictEvents = events.ofType('orchestrator:acceptance');
+    expect(verdictEvents).toHaveLength(1);
+    expect(verdictEvents[0]).toMatchObject({ verdict: 'accepted', completion: 'complete' });
+  });
+
+  it('the engine lifts the pass summary onto the outcome and run:end', async () => {
+    const adapter = spawnFinishAdapter('lifted');
+    const store = new InMemoryStore({ quiet: true });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: ROUTING_1906, profiles: PROFILES_1906 },
+    });
+    const wf = makeOrchestratorWorkflow('lift the summary', {
+      acceptance: { childPolicy: 'all-ok' },
+    });
+    const handle = engine.run(wf, undefined, { runId: 'lift-1906', budgetUsd: 10 });
+    const runEnds: Array<Record<string, unknown>> = [];
+    handle.on('run:end', (event) => runEnds.push(event as Record<string, unknown>));
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.semanticPasses).toEqual({
+      contradictions: { ran: false, reason: 'not-configured' },
+      claimConsistency: { ran: false, reason: 'not-configured' },
+      synthesis: { ran: false, reason: 'not-configured' },
+    });
+    expect(runEnds[0]?.semanticPasses).toEqual(outcome.semanticPasses);
   });
 });
 

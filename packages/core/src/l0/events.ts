@@ -60,6 +60,17 @@ export type CoreEvents =
       degradedReasons?: string[];
       /** Children accepted by acceptPartialChildren; same lift. */
       salvagedPartialChildren?: string[];
+      /**
+       * The explicit semantic pass summaries (RV1906); same lift. Each
+       * pass carries {ran, reason?}, so an event-only consumer reads
+       * whether contradictions, claim consistency and synthesis
+       * actually looked, instead of decoding absence.
+       */
+      semanticPasses?: {
+        contradictions: { ran: boolean; reason?: string };
+        claimConsistency: { ran: boolean; reason?: string };
+        synthesis: { ran: boolean; reason?: string };
+      };
       /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
       salvagedTerminalOutputChildren?: string[];
       /**
@@ -554,6 +565,23 @@ export type AdaptiveEvents =
       orchestratorCapUsd?: number;
       orchestratorShare?: number;
       softWarning?: boolean;
+    }
+  /**
+   * The acceptance verdict as its own event (RV1906): the four-role
+   * benchmark's primary run showed a root `agent:end` with status ok
+   * followed by a `run:end` error, semantically consistent (the loop
+   * finished; the policy rejected the roster) but self-explanatory to
+   * nobody tailing the stream. The verdict now speaks between them,
+   * fresh and on the resume roll-forward alike, carrying the policy
+   * facts of the ONE journaled acceptance decision.
+   */
+  | {
+      type: 'orchestrator:acceptance';
+      verdict: 'accepted' | 'rejected';
+      completion: 'complete' | 'partial' | 'rejected';
+      childStatusCounts: Record<string, number>;
+      minSpawnedChildren?: number;
+      spawnedChildren?: number;
     }
   | {
       type: 'escalation:raised';

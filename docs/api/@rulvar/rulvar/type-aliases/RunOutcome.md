@@ -20,6 +20,7 @@ type RunOutcome<R> = {
   pending: PendingExternal[];
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
+  semanticPasses?: SemanticPassesSummary;
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   usage: Usage;
   value?: R;
@@ -209,6 +210,16 @@ Defined in: `packages/core/dist/index.d.ts`
 
 Children accepted through validated terminal output salvage on
 'limit'; same lift and posture.
+
+***
+
+### semanticPasses?
+
+```ts
+optional semanticPasses?: SemanticPassesSummary;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
 
 ***
 

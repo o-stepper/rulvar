@@ -128,6 +128,27 @@ export interface CostReport {
  * count (without the flag such a row keeps `met: false` unmarked, and
  * the child rides `belowFloorOkChildren` with a degradation note).
  */
+/**
+ * One semantic pass's explicit summary (RV1906): `ran: true` means the
+ * pass executed (its findings and meta fields carry the details);
+ * `ran: false` names WHY in `reason` ('not-configured', 'run-rejected',
+ * 'valid-draft', 'not-run'), so an absent findings field can never be
+ * read as a clean pass. The four-role benchmark's artifacts carried
+ * `contradictions: null` and `claimConsistencyMeta: null`, and the
+ * judge had to annotate by hand that null meant NOT RUN.
+ */
+export interface SemanticPassSummary {
+  ran: boolean;
+  reason?: string;
+}
+
+/** The three semantic passes' explicit summaries (RV1906). */
+export interface SemanticPassesSummary {
+  contradictions: SemanticPassSummary;
+  claimConsistency: SemanticPassSummary;
+  synthesis: SemanticPassSummary;
+}
+
 export interface AcceptanceChildSummary {
   child: string;
   status: string;
@@ -181,6 +202,8 @@ export type RunOutcome<R> = {
   degradedReasons?: string[];
   /** Children accepted by acceptPartialChildren; same lift and posture. */
   salvagedPartialChildren?: string[];
+  /** The explicit semantic pass summaries (RV1906); same lift and posture. */
+  semanticPasses?: SemanticPassesSummary;
   /**
    * Children accepted through validated terminal output salvage on
    * 'limit'; same lift and posture.

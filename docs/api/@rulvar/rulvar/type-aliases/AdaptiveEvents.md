@@ -54,6 +54,14 @@ type AdaptiveEvents =
   type: "orchestrator:budget";
 }
   | {
+  childStatusCounts: Record<string, number>;
+  completion: "complete" | "partial" | "rejected";
+  minSpawnedChildren?: number;
+  spawnedChildren?: number;
+  type: "orchestrator:acceptance";
+  verdict: "accepted" | "rejected";
+}
+  | {
   costToDateUsd: number;
   entryRef: number;
   kind: "scope_bigger" | "scope_different" | "blocked_with_evidence";
@@ -257,6 +265,21 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 | `softWarning?` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `spentUsd?` | `number` | - | `packages/core/dist/index.d.ts` |
 | `type` | `"orchestrator:budget"` | Two emitted shapes share the discriminant: the cap-freeze form carries { atCap: true, spentUsd, capUsd, finalizeReserveUsd }, and the per-wake digest form carries atCap plus the passive WakeBudgetBlock fields (runSpentUsd .. softWarning). | `packages/core/dist/index.d.ts` |
+
+***
+
+### Type Literal
+
+```ts
+{
+  childStatusCounts: Record<string, number>;
+  completion: "complete" | "partial" | "rejected";
+  minSpawnedChildren?: number;
+  spawnedChildren?: number;
+  type: "orchestrator:acceptance";
+  verdict: "accepted" | "rejected";
+}
+```
 
 ***
 

@@ -3100,6 +3100,24 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/settle-drain.test.ts',
   },
   {
+    id: 'acceptance-verdict-event',
+    doctrine:
+      "the acceptance verdict speaks on the event stream between the root's agent:end and run:end (RV1906): dropping the emission returns the benchmark's silent gap, where an operator saw ok then error and had to reconstruct the policy fold by hand",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        type: 'orchestrator:acceptance',",
+    replace: "        type: 'log',\n        level: 'info',\n        msg: 'acceptance',",
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'semantic-passes-summary',
+    doctrine:
+      'every semantic pass reports an explicit {ran, reason} on the envelope and the rejection data (RV1906): silencing the summary returns the null ambiguity the benchmark judge had to annotate by hand, where an absent findings field read as anything the reader wanted',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '        if (lifted.semanticPasses !== undefined) {\n          outcomeFacts.semanticPasses = lifted.semanticPasses;\n        }',
+    replace: '        void lifted.semanticPasses;',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
     id: 'benchmark-cassette-roster',
     doctrine:
       'the two four-role benchmark cassettes stay registered in the fault kit (RV1905): dropping them from the scenario roster silently un-gates the exact primary and recovery shapes the twenty-second plan fixed, and the kit exists so a fixed defect can never become untested again',
