@@ -201,7 +201,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred eighty two rounds, verbatim in this repository's history:
+The one hundred eighty three rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -398,6 +398,7 @@ The one hundred eighty two rounds, verbatim in this repository's history:
 | v1.198.0      | 29891c6 (#786): the preflight prices the two minimums the benchmark lacked, the whole-wave ceiling floor and the exposure breathing floor, and exposure-cap-tight prices the equation     | v1.199.0   |
 | v1.199.0      | e2ddbdf (#789): parallel_agents grows an admission policy, try-all attempts every seat and reports refusals, all-or-none refuses whole, a roster floor refuses before any child is paid   | v1.200.0   |
 | v1.200.0      | 7e01189 (#792): the docs say what the lifecycle enforces, the budgets bullet, the cost report guide and the design principles bind full to the barrier, the drain and the seal            | v1.201.0   |
+| v1.201.0      | 08c1247 (#795): rulvar cost-audit verifies the one-denominator contract, five named checks over the settled journal, exit 1 with the divergence named, a json form for pipelines          | v1.202.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
