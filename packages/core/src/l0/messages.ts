@@ -93,6 +93,27 @@ export interface CacheHint {
 }
 
 /**
+ * The prompt-cache policy (RV2006): whether and how the agent loop
+ * compiles {@link CacheHint} onto every turn of its tool cycle.
+ * 'auto' (the default when no policy is declared anywhere) attaches
+ * breakpoints after tools, after system, and after the deepest message
+ * (sliding each turn) on adapters that declare
+ * `ModelCaps.promptCaching: 'explicit'`; adapters without the
+ * declaration, and providers whose caching is implicit server-side,
+ * never see a hint, so their wire traffic stays byte identical.
+ * 'off' is the opt-out. The hint is transport-level cost optimization
+ * only: it never enters identity, journals, or cassette keys. The
+ * third parity rerun priced the absence: every turn of a ~550k-token
+ * worker context re-paid the full input rate because nothing in the
+ * core ever populated the hint the adapter could compile.
+ */
+export interface CachePolicy {
+  mode?: 'auto' | 'off';
+  /** Breakpoint TTL; default '5m'. */
+  ttl?: CacheTtl;
+}
+
+/**
  * The provider-neutral chat request. Sampling parameters (temperature,
  * top_p, top_k) are deliberately absent from the first-class surface: both
  * first-class providers reject them on current reasoning models; where a

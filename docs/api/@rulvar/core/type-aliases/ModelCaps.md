@@ -12,6 +12,7 @@ type ModelCaps = {
   maxOutputTokens: number;
   minOutputTokensPerTurn?: number;
   pricing?: Pricing;
+  promptCaching?: "explicit" | "implicit";
   reasoningEfforts: Effort[];
   structuredOutput: "native" | "forced-tool" | "prompt";
   supportsParallelTools: boolean;
@@ -69,9 +70,27 @@ the wire. Absent means one, the historical floor.
 optional pricing?: Pricing;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L115)
+Defined in: [packages/core/src/l0/spi/provider.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L125)
 
 Adapter-reported fallback only; the versioned price table wins.
+
+***
+
+### promptCaching?
+
+```ts
+optional promptCaching?: "explicit" | "implicit";
+```
+
+Defined in: [packages/core/src/l0/spi/provider.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L123)
+
+How this model's prompt caching is driven (RV2006). 'explicit'
+means the adapter compiles ChatRequest.cacheHint into provider
+cache directives (Anthropic cache_control) and the agent loop's
+cache policy attaches hints by default; 'implicit' means the
+provider caches server-side on its own and hints are neither
+needed nor sent (OpenAI). Absent means unknown: the loop attaches
+nothing and the wire stays byte identical to pre-RV2006 traffic.
 
 ***
 

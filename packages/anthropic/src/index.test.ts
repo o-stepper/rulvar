@@ -590,6 +590,9 @@ describe('adapter surface (M1-T12)', () => {
     expect(adapter.caps('claude-fable-5').supportsTemperature).toBe(false);
     expect(adapter.caps('claude-fable-5').structuredOutput).toBe('native');
     expect(adapter.caps('claude-fable-5').reasoningEfforts).toContain('max');
+    // Anthropic caching is EXPLICIT (RV2006): the declaration is what
+    // turns the core's default cache policy ON for these models.
+    expect(adapter.caps('claude-fable-5').promptCaching).toBe('explicit');
 
     await adapter.refreshCaps?.();
     expect(adapter.caps('claude-fable-5').contextWindow).toBe(2_000_000);

@@ -22,6 +22,8 @@ import {
 import type { Json } from '../l0/json.js';
 import { realNow } from '../l0/real-clock.js';
 import type {
+  CacheHint,
+  CachePolicy,
   ChatRequest,
   FinishInfo,
   InvocationRole,
@@ -765,6 +767,16 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * three mid-research workers on exactly this path.
    */
   exposureWait?: boolean | 'child';
+  /**
+   * The prompt-cache policy (RV2006): resolved by the ctx layer from
+   * the call opts, the agentType profile, and the engine defaults, in
+   * that order. Absent means 'auto': the loop attaches CacheHint
+   * breakpoints (after tools, after system, and the sliding deepest
+   * message) on every turn served by an adapter that declares
+   * ModelCaps.promptCaching 'explicit', and attaches nothing anywhere
+   * else. See applyCachePolicy for the exact shape.
+   */
+  cache?: CachePolicy;
   events?: RuntimeEventSink;
   transcript?: { mintRef(): string; put(ref: string, blob: Uint8Array): Promise<void> };
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
@@ -1215,6 +1227,50 @@ function outputFloorOf(target: PhaseTarget): number {
  * limits.maxOutputTokensPerTurn above it; identity is computed at the
  * ctx layer and never sees it.
  */
+/**
+ * The prompt-cache compilation (RV2006): attaches CacheHint to a loop
+ * turn's request when the resolved policy allows it and the SERVING
+ * adapter declared explicit prompt caching. Breakpoints: after tools,
+ * after system, and after the deepest message, the sliding boundary
+ * that moves with the growing history so every turn re-reads the
+ * cached prefix and writes only the extension. The parity rerun
+ * priced the absence of this compilation: workers with ~550k-token
+ * contexts re-paid the full input rate on every turn
+ * (cacheReadTokens 0 across the whole run) because nothing ever
+ * populated the hint the adapter could already compile. Adapters
+ * without the 'explicit' declaration get byte-identical requests; a
+ * caps() throw is treated as no declaration (the outputFloorOf
+ * posture). Transport-level only: the hint never enters identity,
+ * journals, or cassette keys.
+ */
+function applyCachePolicy(
+  req: ChatRequest,
+  target: PhaseTarget,
+  policy: CachePolicy | undefined,
+): ChatRequest {
+  if (policy?.mode === 'off') {
+    return req;
+  }
+  let caching: 'explicit' | 'implicit' | undefined;
+  try {
+    caching = target.adapter.caps(target.resolved.model).promptCaching;
+  } catch {
+    return req;
+  }
+  if (caching !== 'explicit') {
+    return req;
+  }
+  const ttl = policy?.ttl ?? '5m';
+  const breakpoints: CacheHint['breakpoints'] = [
+    { after: 'tools', ttl },
+    { after: 'system', ttl },
+  ];
+  if (req.messages.length > 0) {
+    breakpoints.push({ after: { messageIndex: req.messages.length - 1 }, ttl });
+  }
+  return { ...req, cacheHint: { breakpoints } };
+}
+
 function applyOutputBudget(
   req: ChatRequest,
   target: PhaseTarget,
@@ -4060,6 +4116,10 @@ export async function runAgent<S extends SchemaSpec>(
           ) {
             req = applyStructuredOutputTier(req, rideTierFor(target), options.canonicalSchema);
           }
+          // The cache policy compiles per turn (RV2006): the deepest
+          // breakpoint slides with the history, so every loop turn
+          // re-reads the cached prefix instead of re-paying it.
+          req = applyCachePolicy(req, target, options.cache);
           return applyOutputBudget(req, target, options.budget);
         },
         streamOptionsFor: (target) => {

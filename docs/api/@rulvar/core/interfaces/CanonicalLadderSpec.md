@@ -6,7 +6,7 @@
 
 # Interface: CanonicalLadderSpec
 
-Defined in: [packages/core/src/l0/messages.ts:277](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L277)
+Defined in: [packages/core/src/l0/messages.ts:298](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L298)
 
 LadderSpec after canonicalization: every rung's effort resolved to an explicit value.
 
@@ -14,7 +14,7 @@ LadderSpec after canonicalization: every rung's effort resolved to an explicit v
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-acceptance"></a> `acceptance?` | [`Gate`](/api/@rulvar/core/type-aliases/Gate.md)[] | - | [packages/core/src/l0/messages.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L289) |
-| <a id="property-escalateon"></a> `escalateOn` | [`TriggerClass`](/api/@rulvar/core/type-aliases/TriggerClass.md)[] | - | [packages/core/src/l0/messages.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L288) |
-| <a id="property-rungs"></a> `rungs` | \{ `effort`: [`Effort`](/api/@rulvar/core/type-aliases/Effort.md); `maxCostUsd?`: `number`; `maxTokens`: `number`; `maxTurns`: `number`; `memoizeOutcome?`: `boolean`; `model`: `` `${string}:${string}` ``; \}[] | - | [packages/core/src/l0/messages.ts:278](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L278) |
-| <a id="property-starttier"></a> `startTier` | `number` | After clamping of any orchestrator model_hint. | [packages/core/src/l0/messages.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L287) |
+| <a id="property-acceptance"></a> `acceptance?` | [`Gate`](/api/@rulvar/core/type-aliases/Gate.md)[] | - | [packages/core/src/l0/messages.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L310) |
+| <a id="property-escalateon"></a> `escalateOn` | [`TriggerClass`](/api/@rulvar/core/type-aliases/TriggerClass.md)[] | - | [packages/core/src/l0/messages.ts:309](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L309) |
+| <a id="property-rungs"></a> `rungs` | \{ `effort`: [`Effort`](/api/@rulvar/core/type-aliases/Effort.md); `maxCostUsd?`: `number`; `maxTokens`: `number`; `maxTurns`: `number`; `memoizeOutcome?`: `boolean`; `model`: `` `${string}:${string}` ``; \}[] | - | [packages/core/src/l0/messages.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L299) |
+| <a id="property-starttier"></a> `startTier` | `number` | After clamping of any orchestrator model_hint. | [packages/core/src/l0/messages.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L308) |

@@ -3319,6 +3319,33 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
+    id: 'cache-policy-compiles',
+    doctrine:
+      'the loop compiles CacheHint on every turn of an explicit-caching adapter (RV2006): dropping the compilation returns the parity economics, every turn of a 550k-token context re-paying the full input rate with cacheReadTokens 0',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "  if (caching !== 'explicit') {\n    return req;\n  }",
+    replace: '  if (true) {\n    return req;\n  }',
+    test: 'packages/core/src/engine/cache-policy.test.ts',
+  },
+  {
+    id: 'cache-policy-sliding-deepest',
+    doctrine:
+      'the deepest cache breakpoint slides with the growing history (RV2006): freezing it caches only the first prefix and every later turn re-pays the whole extension, the long-cycle economics the policy exists for',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '  if (req.messages.length > 0) {\n    breakpoints.push({ after: { messageIndex: req.messages.length - 1 }, ttl });\n  }',
+    replace: '  void 0;',
+    test: 'packages/core/src/engine/cache-policy.test.ts',
+  },
+  {
+    id: 'cache-hint-cassette-neutral',
+    doctrine:
+      'requestHash strips cacheHint (RV2006): keying cassettes on a transport-only hint would re-key every recorded row the moment the cache policy toggles, and the hint contract says it MUST NOT enter identity',
+    file: 'packages/testing/src/vcr.ts',
+    find: '  const { providerOptions, cacheHint, ...rest } = req;\n  void cacheHint;',
+    replace: '  const { providerOptions, ...rest } = req;',
+    test: 'packages/testing/src/vcr.test.ts',
+  },
+  {
     id: 'require-batch-spawn-gate',
     doctrine:
       "requireBatchSpawn 'reject-spawn-agent' refuses every single spawn_agent call typed so model disobedience cannot split the batch policy (RV2005): dropping the gate lets the seat-by-seat path bypass the batchGate the host demanded",

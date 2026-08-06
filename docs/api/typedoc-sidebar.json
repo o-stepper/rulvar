@@ -791,6 +791,10 @@
             "link": "/api/@rulvar/core/interfaces/CacheHint.md"
           },
           {
+            "text": "CachePolicy",
+            "link": "/api/@rulvar/core/interfaces/CachePolicy.md"
+          },
+          {
             "text": "CanonicalLadderSpec",
             "link": "/api/@rulvar/core/interfaces/CanonicalLadderSpec.md"
           },
@@ -5715,6 +5719,10 @@
           {
             "text": "CacheHint",
             "link": "/api/@rulvar/rulvar/interfaces/CacheHint.md"
+          },
+          {
+            "text": "CachePolicy",
+            "link": "/api/@rulvar/rulvar/interfaces/CachePolicy.md"
           },
           {
             "text": "CanonicalLadderSpec",

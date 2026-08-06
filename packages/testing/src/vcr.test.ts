@@ -138,6 +138,16 @@ describe('VCR record/replay (M5-T04)', () => {
       requestHash(base),
     );
     expect(requestHash({ ...base, model: 'other' })).not.toBe(requestHash(base));
+    // cacheHint is transport-level only (RV2006): its own contract says
+    // it MUST NOT enter identity, so a cassette recorded before the
+    // cache policy shipped replays a hinted request byte for byte and
+    // toggling the policy can never re-key a row.
+    expect(
+      requestHash({
+        ...base,
+        cacheHint: { breakpoints: [{ after: 'tools', ttl: '5m' }] },
+      }),
+    ).toBe(requestHash(base));
   });
 
   it('defaultRedact masks authorization material shapes', () => {

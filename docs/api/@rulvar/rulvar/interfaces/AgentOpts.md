@@ -27,6 +27,7 @@ lineage, ladder, retry) arrive with their milestones.
 | ------ | ------ | ------ | ------ |
 | <a id="property-agenttype"></a> `agentType?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-approach"></a> `approach?` | `string` | Approach slug entering approachSig, normalized by the engine (DEF-3). | `packages/core/dist/index.d.ts` |
+| <a id="property-cache"></a> `cache?` | [`CachePolicy`](/api/@rulvar/rulvar/interfaces/CachePolicy.md) | The prompt-cache policy for THIS call (RV2006); wins over profile and engine. | `packages/core/dist/index.d.ts` |
 | <a id="property-effort"></a> `effort?` | [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md) | Canonical effort, part of identity. | `packages/core/dist/index.d.ts` |
 | <a id="property-escalation"></a> `escalation?` | [`EscalationOptions`](/api/@rulvar/rulvar/interfaces/EscalationOptions.md) | Opt-in; without it 'escalated' is physically unproducible. | `packages/core/dist/index.d.ts` |
 | <a id="property-estcost"></a> `estCost?` | `number` | Admission reserve hint (USD). | `packages/core/dist/index.d.ts` |

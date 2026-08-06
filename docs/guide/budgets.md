@@ -335,6 +335,38 @@ release wakes parked waiters exactly like the attempt release does, so a
 child death immediately unblocks the next admissible dispatch instead of
 starving it.
 
+### The prompt-cache policy
+
+Long tool cycles re-send an ever-growing prefix every turn, and without
+caching every turn pays the FULL input rate for it. The third parity rerun
+priced that absence: workers ~550k tokens into research paid about $1.10 per
+~100 seconds at $2 per million input tokens with `cacheReadTokens 0` across
+the whole run, because `ChatRequest.cacheHint` existed and the Anthropic
+adapter compiled it into `cache_control`, but nothing in the core ever
+populated it. The $6 envelope, sized on OpenAI's implicit server-side cache,
+was simply incomparable on Anthropic.
+
+Since RV2006 the agent loop compiles the hint on every turn of its tool
+cycle: breakpoints after the tools block, after the system block, and after
+the deepest message, the sliding boundary that moves with the history so
+each turn re-reads the cached prefix and writes only the extension. The
+policy is ON by default exactly where the adapter declares
+`ModelCaps.promptCaching: 'explicit'` (the Anthropic adapter does); OpenAI
+declares `'implicit'` (the provider caches server-side on its own) and
+adapters with no declaration get byte-identical requests, so nothing changes
+anywhere a hint cannot help. Configure it with `defaults.cache`,
+`AgentProfile.cache`, or the per-call `opts.cache`, call over profile over
+engine: `{ mode: 'off' }` opts out, `{ ttl: '1h' }` picks the hour
+breakpoint TTL over the default `'5m'`. The hint is transport-level cost
+optimization only: it never enters identity, journals, or cassette keys
+(`requestHash` strips it), and `CostReport` accounts cache reads and writes
+exactly as before. The economics at Anthropic's published rates: cached
+input reads bill at a tenth of the input rate, so a long cycle whose prefix
+dominates the prompt approaches a tenth of its uncached input cost; the
+parity worker shape (~550k-token context, ~10 turns) drops from about $1.10
+to roughly $0.30 per worker, which is the difference between four seats
+fitting a $6 envelope and three seats dying against it.
+
 ### Auditing spend per budget account
 
 `accountSpendFromJournal` (RV1505, closing the DEF-7 remainder) folds the

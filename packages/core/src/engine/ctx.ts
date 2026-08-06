@@ -24,7 +24,14 @@ import {
 import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import { requireDeadlineMs, requireNonNegativeNumber } from '../l0/validate-numbers.js';
 import type { Json } from '../l0/json.js';
-import type { Effort, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
+import type {
+  CachePolicy,
+  Effort,
+  InvocationRole,
+  ModelRef,
+  ModelSpec,
+  Usage,
+} from '../l0/messages.js';
 import type { ExecutorRegistry } from '../l0/spi/executor.js';
 import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
 import type { Lease } from '../l0/spi/store.js';
@@ -175,6 +182,12 @@ export interface AgentProfile {
   /** Flavor B opt-in lives here or on the call. */
   escalation?: EscalationOptions;
   limits?: UsageLimits;
+  /**
+   * The prompt-cache policy layer (RV2006): call opts over this
+   * profile over the engine default; absent everywhere means 'auto'
+   * (hints on explicit-caching adapters, nothing anywhere else).
+   */
+  cache?: CachePolicy;
   /** Transport RetryPolicy layer: call over profile over engine (M4-T05). */
   retry?: RetryPolicy;
   /** Declared task class bridging ModelKnowledge; default unclassified (M4-T09). */
@@ -306,6 +319,8 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   estCost?: number;
   /** Merged over profile and engine limits. */
   limits?: UsageLimits;
+  /** The prompt-cache policy for THIS call (RV2006); wins over profile and engine. */
+  cache?: CachePolicy;
   result?: 'value' | 'full';
 
   /** Telemetry only. */
@@ -794,6 +809,8 @@ export interface RunInternals {
     gates?: Record<string, MechanicalGateProfile>;
     /** Engine-wide admission countTokens policy (RV1804); default 'allow'. */
     countTokens?: 'allow' | 'deny';
+    /** The engine-wide prompt-cache policy (RV2006); profile and call opts win. */
+    cache?: CachePolicy;
   };
   /** Telemetry compat posture (RV1810). */
   telemetry?: {
@@ -2454,6 +2471,15 @@ export function createCtx(
     }
     if (finalize !== undefined) {
       runAgentOptions.finalize = finalize;
+    }
+    {
+      // The prompt-cache policy chain (RV2006): call over profile over
+      // engine; absent everywhere stays absent, which the loop reads
+      // as 'auto' (hints on explicit-caching adapters only).
+      const cachePolicy = opts.cache ?? profile?.cache ?? internals.defaults.cache;
+      if (cachePolicy !== undefined) {
+        runAgentOptions.cache = cachePolicy;
+      }
     }
     runAgentOptions.summarize = summarize;
     if (profile?.compaction !== undefined) {
