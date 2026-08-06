@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.200.0
+
+### Minor Changes
+
+- e2ddbdf: The parallel_agents admission policy (RV1908). The four-role benchmark's batch died fail-fast at the third task: the fourth mandated specialist was never attempted, and the run paid two workers in full under a roster floor of four the wave could never reach. `OrchestrateOptions.parallelAdmission` names the alternatives: `'fail-fast'` (the default, the RV805 shape) stops at the first refusal; `'try-all'` attempts every task and reports every refusal in a `refusals` list beside the historical `refused` slot; `'all-or-none'` projects the whole batch against the live remainder with the embedded gate's own formula and refuses it typed (`code 'batch_atomic'`) with zero admissions when it cannot seat entirely, cancelling admitted siblings on a non-budget mid-batch failure. Independent of the policy, a declared `acceptance.minSpawnedChildren` arms the roster pre-check: a batch large enough to seat the floor whose feasible count cannot reach it is refused (`code 'roster_floor'`) before the first child is paid. Runtime behavior only: the tool's schema and description never move, so toolset hashes stay byte identical.
+
 ## 1.199.0
 
 ### Minor Changes
