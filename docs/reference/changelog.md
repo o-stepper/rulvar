@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+
 ### 1.203.0
 
 #### Patch Changes
@@ -1898,6 +1905,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+
 ### 1.203.0
 
 #### Patch Changes
@@ -3585,6 +3599,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
 
 ### 1.203.0
 
@@ -5721,6 +5742,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.204.0
+
+#### Minor Changes
+
+- efaec9b: Spawned children wait out exposure refusals instead of dying (RV2002). The third parity rerun terminally killed three of four workers, each ~550k tokens into research, with a pre-wire in-flight exposure refusal that would have been a parking for the root. Orchestrator-spawned children (spawn_agent and parallel_agents) now share the RV1902 wait posture: the refused child parks (the `budget:exposure-wait` event carries `scope: 'child'`), retries pre-wire when a live hold releases, and pays zero provider attempts while parked. Only a drained refusal (no live holder left to wait out) ends the seat, and it ends typed and cheap: `AgentError.reason 'exposure-drained'`, carried into the journaled terminal's `error.data.reason`, so the orchestrator tells a starved seat apart from a crashed child and can re-spawn it once money frees. The root keeps its documented forced-finish partial on the drained arm.
 
 ### 1.203.0
 
@@ -8139,6 +8166,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.204.0
+
 ### 1.203.0
 
 ### 1.202.0
@@ -8649,6 +8678,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+  - @rulvar/anthropic@1.204.0
+  - @rulvar/openai@1.204.0
+  - @rulvar/plan@1.204.0
+  - @rulvar/testing@1.204.0
 
 ### 1.203.0
 
@@ -10951,6 +10991,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+
 ### 1.203.0
 
 #### Patch Changes
@@ -12049,6 +12096,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
 
 ### 1.203.0
 
@@ -13939,6 +13993,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+
 ### 1.203.0
 
 #### Patch Changes
@@ -15740,6 +15801,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+  - eslint-plugin-rulvar@1.204.0
 
 ### 1.203.0
 
@@ -17707,6 +17776,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+  - @rulvar/anthropic@1.204.0
+  - @rulvar/openai@1.204.0
 
 ### 1.203.0
 
@@ -19961,6 +20039,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+
 ### 1.203.0
 
 #### Patch Changes
@@ -21770,6 +21855,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
+
 ### 1.203.0
 
 #### Patch Changes
@@ -22884,6 +22976,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
 
 ### 1.203.0
 
@@ -24630,6 +24729,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.204.0
+
+#### Patch Changes
+
+- Updated dependencies [efaec9b]
+  - @rulvar/core@1.204.0
 
 ### 1.203.0
 
