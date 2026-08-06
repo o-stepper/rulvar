@@ -1,5 +1,12 @@
 # @rulvar/executor
 
+## 1.203.0
+
+### Patch Changes
+
+- Updated dependencies [fb08c10]
+  - @rulvar/core@1.203.0
+
 ## 1.202.0
 
 ### Patch Changes
