@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { BudgetExhaustedError, ConfigError } from '../l0/errors.js';
 import type { Pricing } from '../l0/spi/provider.js';
 import { affordableOutputTokens } from '../model/pricing.js';
-import { RunBudget } from './budget.js';
+import { EXPOSURE_WAIT_SWEEP_MS, RunBudget } from './budget.js';
 
 const PRICED: Pricing = { inputUsdPerMTok: 3, outputUsdPerMTok: 15 };
 
@@ -364,6 +364,73 @@ describe('exposure holds release at the agent terminal (RV2001)', () => {
     expect(budget.liveExposureHolderCount).toBe(0);
     release?.();
     expect(budget.liveExposureUsd).toBe(0);
+  });
+});
+
+/**
+ * The exposure wait holds the event loop (RV2003). The parity rerun's
+ * process exited SILENTLY with the parked root's unsettled await as
+ * its only remaining work: the wait held no timer, so an empty loop
+ * simply ended the process mid-run. A parked waiter now arms a ref'd
+ * keepalive interval (disarmed with the last waiter), and each tick
+ * sweeps for the drained state so a wake lost to a future leak can
+ * never strand a waiter forever.
+ */
+describe('the parked-waiter keepalive and drained sweep (RV2003)', () => {
+  const TEN: Pricing = { inputUsdPerMTok: 1, outputUsdPerMTok: 10 };
+  const exposureBudget = (capUsd: number): RunBudget =>
+    new RunBudget({
+      maxInFlightExposureUsd: capUsd,
+      pricingOf: (servedBy) => (servedBy === 'fake:model' ? TEN : undefined),
+    });
+
+  it('a parked waiter arms the ref keepalive and the settle disarms it', async () => {
+    const budget = exposureBudget(0.02);
+    const release = budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:1');
+    // Internals peek, deliberately: the armed interval IS the
+    // mechanism under regression (the parity process died because
+    // nothing was armed), and Node offers no public "will the loop
+    // survive" probe to assert against.
+    const peek = budget as unknown as { waitKeepalive?: object };
+    expect(peek.waitKeepalive).toBeUndefined();
+    const parked = budget.awaitExposureRelease();
+    expect(peek.waitKeepalive).toBeDefined();
+    release?.();
+    await expect(parked).resolves.toBe('released');
+    expect(peek.waitKeepalive).toBeUndefined();
+  });
+
+  it('the sweep wakes a waiter drained when a lost wake stranded it', async () => {
+    const budget = exposureBudget(0.02);
+    budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:1');
+    const parked = budget.awaitExposureRelease();
+    // Simulate exactly the defect class the sweep exists for: the
+    // holds vanish WITHOUT the release chokepoint running (a future
+    // leak loses the wake). No public path can do this, which is the
+    // point: the sweep is defense in depth behind the event-driven
+    // wakes, and the internals write below is the simulated leak.
+    const peek = budget as unknown as {
+      exposureHolds: Map<string, number>;
+      inFlightExposureUsd: number;
+    };
+    peek.exposureHolds.clear();
+    peek.inFlightExposureUsd = 0;
+    await expect(parked).resolves.toBe('drained');
+  });
+
+  it('the sweep never wakes while any holder is live', async () => {
+    const budget = exposureBudget(0.02);
+    const release = budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:1');
+    const parked = budget.awaitExposureRelease();
+    let settled = false;
+    void parked.then(() => {
+      settled = true;
+    });
+    // Two sweep cadences pass with the hold live: no spurious drain.
+    await new Promise((resolve) => setTimeout(resolve, EXPOSURE_WAIT_SWEEP_MS * 2 + 50));
+    expect(settled).toBe(false);
+    release?.();
+    await expect(parked).resolves.toBe('released');
   });
 });
 

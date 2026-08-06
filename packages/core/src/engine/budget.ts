@@ -64,6 +64,19 @@ export const IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX = 'in flight exposure cap reached
 /** The run-root account scope. */
 export const ROOT_ACCOUNT = 'run';
 
+/**
+ * Cadence of the parked-waiter sweep (RV2003). The interval's first
+ * job is REFERENCE: a parked exposure wait used to hold nothing on the
+ * event loop, so a process whose only remaining work was the wait
+ * exited silently mid-run (the third parity rerun's terminal shape,
+ * `Warning: Detected unsettled top-level await`). While any waiter is
+ * parked, a ref'd timer keeps the loop alive; each tick additionally
+ * sweeps for the drained state (no holder of any kind left), waking
+ * every waiter 'drained' so a wake lost to a future leak can never
+ * strand them.
+ */
+export const EXPOSURE_WAIT_SWEEP_MS = 250;
+
 const ZERO_USAGE: Usage = {
   inputTokens: 0,
   outputTokens: 0,
@@ -231,9 +244,18 @@ export class RunBudget {
    * Waiters parked on the next exposure release (RV1902): the
    * orchestrate root's dispatch waits out a transient refusal here
    * instead of settling a budget error. Notified (and self-removed)
-   * on every hold release; never on spend, which only grows.
+   * on every hold release; never on spend, which only grows. Each
+   * waiter takes the wake flavor (RV2003): 'released' when money
+   * actually returned, 'drained' from the sweep when no holder of any
+   * kind is left to wait out.
    */
-  private readonly exposureWaiters = new Set<() => void>();
+  private readonly exposureWaiters = new Set<(outcome: 'released' | 'drained') => void>();
+  /**
+   * The parked-waiter keepalive (RV2003): live exactly while
+   * exposureWaiters is nonempty. See EXPOSURE_WAIT_SWEEP_MS for why
+   * it must REF the event loop.
+   */
+  private waitKeepalive: ReturnType<typeof setInterval> | undefined;
   /** Models already warned about; the warning fires once per model per run. */
   private readonly unpricedWarned = new Set<ModelRef>();
   /** Models whose price function already returned an invalid USD once. */
@@ -1012,7 +1034,33 @@ export class RunBudget {
     // agent terminal backstops whatever a lost closure leaked), so a
     // waiter subscribed while any hold was live is never stranded.
     for (const waiter of [...this.exposureWaiters]) {
-      waiter();
+      waiter('released');
+    }
+  }
+
+  /**
+   * The parked-waiter keepalive lifecycle (RV2003): armed with the
+   * first waiter, disarmed with the last. The interval is REF'd on
+   * purpose: the wait must hold the event loop open, because the
+   * parity rerun's process exited silently with the parked root's
+   * unsettled await as its only remaining work. Each tick sweeps for
+   * the drained state as defense in depth; every REAL transition
+   * already wakes waiters event-driven at its release.
+   */
+  private syncExposureKeepalive(): void {
+    if (this.exposureWaiters.size > 0) {
+      if (this.waitKeepalive === undefined) {
+        this.waitKeepalive = setInterval(() => {
+          if (this.exposureHolds.size === 0 && this.unattributedHoldCount === 0) {
+            for (const waiter of [...this.exposureWaiters]) {
+              waiter('drained');
+            }
+          }
+        }, EXPOSURE_WAIT_SWEEP_MS);
+      }
+    } else if (this.waitKeepalive !== undefined) {
+      clearInterval(this.waitKeepalive);
+      this.waitKeepalive = undefined;
     }
   }
 
@@ -1073,18 +1121,23 @@ export class RunBudget {
       return Promise.resolve('drained');
     }
     return new Promise((resolve) => {
-      const settle = (outcome: 'released' | 'aborted'): void => {
+      const settle = (outcome: 'released' | 'drained' | 'aborted'): void => {
         this.exposureWaiters.delete(waiter);
+        this.syncExposureKeepalive();
         signal?.removeEventListener('abort', onAbort);
         resolve(outcome);
       };
-      const waiter = (): void => {
-        settle('released');
+      const waiter = (outcome: 'released' | 'drained'): void => {
+        settle(outcome);
       };
       const onAbort = (): void => {
         settle('aborted');
       };
       this.exposureWaiters.add(waiter);
+      // The wait HOLDS the event loop from this moment (RV2003): a
+      // parked waiter as the process's only remaining work must hang
+      // visibly (and get swept drained), never exit silently.
+      this.syncExposureKeepalive();
       signal?.addEventListener('abort', onAbort, { once: true });
     });
   }

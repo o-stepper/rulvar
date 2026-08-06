@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+The quiescence guarantee: no silent exit (RV2003). The third parity rerun's process exited mid-run with an unsettled top-level await: the parked root's exposure wait held nothing on the event loop, and the journal kept a forever-running root with no `run_settle` and no terminal. Three guards close the class. A parked exposure waiter arms a ref'd keepalive interval (disarmed with the last waiter), so a process whose only remaining work is the wait hangs visibly instead of vanishing; each tick sweeps for the drained state (no holder of any kind left) and wakes waiters `'drained'` as defense in depth behind the event-driven wakes. The engine registers every unsettled run with a process `beforeExit` quiescence watchdog: an event loop about to die with an unsettled run forces that run through the ordinary cancel path, the RV1903 terminal barrier, `run_settle`, and a terminal envelope, even when the body is stuck on a bare promise no signal reaches (the settle race gains a watchdog arm). The invariant, pinned by a regression on the exact parity deadlock shape: no path ends the process while a run has no journaled terminal.

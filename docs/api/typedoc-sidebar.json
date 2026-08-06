@@ -2591,6 +2591,10 @@
             "link": "/api/@rulvar/core/variables/EVENT_SEGMENT_STRIDE.md"
           },
           {
+            "text": "EXPOSURE_WAIT_SWEEP_MS",
+            "link": "/api/@rulvar/core/variables/EXPOSURE_WAIT_SWEEP_MS.md"
+          },
+          {
             "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
             "link": "/api/@rulvar/core/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
           },
@@ -7547,6 +7551,10 @@
           {
             "text": "EVENT_SEGMENT_STRIDE",
             "link": "/api/@rulvar/rulvar/variables/EVENT_SEGMENT_STRIDE.md"
+          },
+          {
+            "text": "EXPOSURE_WAIT_SWEEP_MS",
+            "link": "/api/@rulvar/rulvar/variables/EXPOSURE_WAIT_SWEEP_MS.md"
           },
           {
             "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
