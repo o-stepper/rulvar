@@ -36,6 +36,7 @@ rulvar runs ls [--store PATH]
 rulvar runs audit [--store PATH] [--repair] [--no-load-repair]
 rulvar inspect <runId> [--store PATH]
 rulvar invoice <runId> [--store PATH] [--json]
+rulvar cost-audit <runId> [--store PATH] [--json]
 rulvar plan "<goal>" [--planning-budget-usd N] [--budget-usd N] [--allow-unbounded] [--dry-run]
 rulvar preflight <file|name> [--budget-usd N] [--profile NAME] [--spawns JSON] [--json]
 rulvar kb <list | inbox | gate | sweep>
@@ -50,6 +51,7 @@ rulvar kb <list | inbox | gate | sweep>
 | `runs audit` | Compare every run's meta row against its journal and name the divergences worker sweeps cannot see; `--repair` rewrites the sound ones from the journal. |
 | `inspect` | Print one run's journal-derived state: entries, suspensions, spend. |
 | `invoice` | Export the per-dispatch reconciliation ledger: one row per billable provider call (failed and retried attempts included) with the provider response id, plus the gross/net totals; `--json` for the machine-readable form. See [the invoice export](/guide/observability#the-invoice-export). |
+| `cost-audit` | Verify the one-denominator contract on a stored run (RV1910): the roster is closed, the settle is the billing boundary, and the settled fold, the invoice totals and the wire cardinality agree; exit 1 with the failing checks named, exactly what a pre-RV1904 journal reports. |
 | `plan` | Ask the planner to write a workflow script for a goal, then run it in the worker sandbox. |
 | `preflight` | Lint the effective config and estimate the run before any provider dispatch: effective merged limits per declared spawn, the admission projection, bottleneck ordering, and exposure floors; `--json` for the machine-readable report. See [the preflight estimator](/guide/budgets#the-preflight-estimator). |
 | `kb` | Maintain the [model knowledge](/guide/model-knowledge) claim store. |

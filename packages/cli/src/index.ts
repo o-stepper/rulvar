@@ -14,6 +14,7 @@ export {
   runCommand,
   resumeCommand,
   runsLsCommand,
+  costAuditCommand,
   inspectCommand,
   invoiceCommand,
   preflightCommand,

@@ -3100,6 +3100,24 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/settle-drain.test.ts',
   },
   {
+    id: 'cost-audit-roster-check',
+    doctrine:
+      'the cost audit flags a running agent entry with no terminal instead of averaging over it (RV1910): silencing roster-closed lets the benchmark recovery journal read as one clean denominator while its roster was still moving',
+    file: 'packages/cli/src/commands.ts',
+    find: "      name: 'roster-closed',\n      pass: openAgents.length === 0,",
+    replace: "      name: 'roster-closed',\n      pass: true,",
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'cost-audit-settle-boundary',
+    doctrine:
+      'the cost audit verifies that no agent entry follows run_settle (RV1910): silencing settle-is-billing-boundary lets the exact recovery shape, three child terminals after the settle, pass as audited truth',
+    file: 'packages/cli/src/commands.ts',
+    find: "      name: 'settle-is-billing-boundary',\n      pass: agentsAfterSettle.length === 0,",
+    replace: "      name: 'settle-is-billing-boundary',\n      pass: true,",
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
     id: 'batch-atomic-precheck',
     doctrine:
       "all-or-none projects the whole batch against the live remainder before any admission (RV1908): dropping the pre-check pays for a partial seat under a policy whose name promises zero-or-everything, and the mid-batch rollback cannot refund the admitted siblings' spend",

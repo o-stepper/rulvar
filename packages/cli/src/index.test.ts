@@ -249,6 +249,57 @@ export default {
     expect(inspect.outLines.join('\n')).toContain('open suspensions: 1');
   });
 
+  it('cost-audit verifies the one-denominator contract and flags a moving roster (RV1910)', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"x"}', '--store', '.rulvar'], { cwd, io });
+    const runId = runIdOf(io);
+
+    const clean = scriptedIo();
+    expect(await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: clean })).toBe(0);
+    const cleanText = clean.outLines.join('\n');
+    expect(cleanText).toContain('cost audit (one denominator)');
+    expect(cleanText).toContain('[pass] roster-closed');
+    expect(cleanText).toContain('[pass] settle-is-billing-boundary');
+    expect(cleanText).toContain('[pass] wires-match');
+
+    const jsonIo = scriptedIo();
+    expect(
+      await runCli(['cost-audit', runId, '--store', '.rulvar', '--json'], { cwd, io: jsonIo }),
+    ).toBe(0);
+    const parsedAudit = JSON.parse(jsonIo.outLines.join('\n')) as { verdict?: string };
+    expect(parsedAudit.verdict).toBe('one-denominator');
+
+    // Poison the journal with a straggler the pre-RV1904 lifecycle
+    // allowed: a running agent entry with no terminal, appended after
+    // the settle. The audit must flag it instead of averaging over it.
+    const journalPath = join(cwd, '.rulvar', `${runId}.jsonl`);
+    const lines = readFileSync(journalPath, 'utf8').trim().split('\n');
+    const parsedLines = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    const runningTemplate = parsedLines.find(
+      (entry) => entry.kind === 'agent' && entry.status === 'running',
+    );
+    expect(runningTemplate).toBeDefined();
+    const maxSeq = Math.max(...parsedLines.map((entry) => entry.seq as number));
+    const straggler = {
+      ...runningTemplate,
+      seq: maxSeq + 1,
+      scope: 'agent:99',
+      key: 'f'.repeat(typeof runningTemplate!.key === 'string' ? runningTemplate!.key.length : 8),
+      ordinal: 0,
+    };
+    writeFileSync(journalPath, `${lines.join('\n')}\n${JSON.stringify(straggler)}\n`, 'utf8');
+
+    const divergent = scriptedIo();
+    expect(await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: divergent })).toBe(
+      1,
+    );
+    const divergentText = divergent.outLines.join('\n');
+    expect(divergentText).toContain('cost audit (DIVERGENT)');
+    expect(divergentText).toContain('[FAIL] roster-closed');
+    expect(divergentText).toContain('[FAIL] settle-is-billing-boundary');
+  });
+
   it('invoice exports the reconciliation rows and totals for a stored run (P1.3)', async () => {
     const cwd = writeFixtureProject();
     const io = scriptedIo(['{"approved":true}']);

@@ -5,6 +5,7 @@
 import { ConfigError, sanitizeTerminalText } from '@rulvar/core';
 
 import {
+  costAuditCommand,
   inspectCommand,
   invoiceCommand,
   kbCommand,
@@ -47,6 +48,10 @@ billable provider call (failed and retried attempts included) with the
 provider's response id when the adapter surfaced one, plus the
 gross/net ledger totals (gross includes abandoned subtrees, exactly
 what the provider bills); --json emits the machine-readable form.
+cost-audit verifies the one-denominator contract on a stored run: the
+roster is closed, the settle is the billing boundary, and the settled
+fold, the invoice totals and the wire cardinality agree; exit 1 with
+the failing checks named when any diverge.
 preflight is the effective-config linter and dry-run estimator: it
 assembles the SAME options rulvar run would (config, module exports,
 --profile, --budget-usd) but constructs no engine and dispatches
@@ -101,6 +106,8 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
         return await inspectCommand(rest, context);
       case 'invoice':
         return await invoiceCommand(rest, context);
+      case 'cost-audit':
+        return await costAuditCommand(rest, context);
       case 'plan':
         return await planCommand(rest, context);
       case 'preflight':

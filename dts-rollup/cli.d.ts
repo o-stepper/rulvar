@@ -49,6 +49,18 @@ declare function inspectCommand(argv: string[], context: CommandContext): Promis
 */
 declare function invoiceCommand(argv: string[], context: CommandContext): Promise<number>;
 /**
+* cost-audit (RV1910): the denominator diagnostic over one stored run.
+* The four-role benchmark's recovery run produced four mutually
+* inconsistent cost views; the lifecycle now admits one, and this
+* command VERIFIES it on a concrete journal instead of trusting the
+* doctrine: the roster is closed (every agent entry terminal), the
+* settle is recorded and is the billing boundary, and the settled
+* fold, the invoice totals and the wire cardinality agree. Exit 1
+* with the failing checks named when any diverge, which is exactly
+* what a pre-RV1904 journal (the benchmark's own) reports.
+*/
+declare function costAuditCommand(argv: string[], context: CommandContext): Promise<number>;
+/**
 * rulvar preflight (the experiment-review P2.2; grammar in grammar.ts):
 * the effective-config linter and dry-run estimator. Loads the SAME
 * config, module, and run-profile merge `rulvar run` would assemble,
@@ -463,4 +475,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type PreflightDeclaration, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, preflightCommand, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type PreflightDeclaration, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, costAuditCommand, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, preflightCommand, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };
