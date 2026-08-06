@@ -92,6 +92,26 @@ Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
+### liveExposureHolderCount
+
+#### Get Signature
+
+```ts
+get liveExposureHolderCount(): number;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Live exposure holders: agents with a nonzero held balance (RV2001).
+Zero with live waiters means nothing can ever release, the drained
+signal the quiescence machinery keys on.
+
+##### Returns
+
+`number`
+
+***
+
 ### liveExposureUsd
 
 #### Get Signature
@@ -593,6 +613,39 @@ arithmetic so the two can never disagree about a refusal.
 
 ***
 
+### releaseExposureHolder()
+
+```ts
+releaseExposureHolder(holderScope): number;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The terminal backstop of the exposure surface (RV2001, the third
+parity rerun's quiescence deadlock): EVERY terminal of an agent
+invocation (ok, error, exhausted, cancelled) returns whatever live
+dispatch estimates that holder still has to the exposure budget.
+The attempt settle owns the per-hold closure in a finally, so this
+usually finds nothing; the parity crash proved a dispatch path can
+die without its closure (three killed children left 0.478 USD of
+live estimates parked against the cap forever, and the root's
+exposure wait starved on money no live dispatch was holding). A
+real release wakes the parked waiters exactly like the closure
+does; a holder with nothing held is a free no-op. Returns the USD
+actually returned.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `holderScope` | `string` |
+
+#### Returns
+
+`number`
+
+***
+
 ### releaseFinalizeReserve()
 
 ```ts
@@ -737,7 +790,8 @@ this number.
 reserveTurnExposure(
    servedBy, 
    estimatedInputTokens, 
-   plannedOutputTokens): (() => void) | undefined;
+   plannedOutputTokens, 
+   holderScope?): (() => void) | undefined;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -773,6 +827,7 @@ lifetime reserve and its own turn exposure would double-count.
 | `servedBy` | `` `${string}:${string}` `` |
 | `estimatedInputTokens` | `number` |
 | `plannedOutputTokens` | `number` |
+| `holderScope?` | `string` |
 
 #### Returns
 

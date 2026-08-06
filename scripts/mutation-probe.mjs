@@ -586,8 +586,8 @@ const MUTATIONS = [
     doctrine:
       'a settled attempt returns exactly its estimate to the exposure pool: a leak would starve every later dispatch under the cap (RV711)',
     file: 'packages/core/src/engine/budget.ts',
-    find: '      released = true;\n      this.inFlightExposureUsd = Math.max(0, this.inFlightExposureUsd - estimateUsd);',
-    replace: '      released = true;',
+    find: '      this.settleExposureRelease(amount);\n    };',
+    replace: '      void amount;\n    };',
     test: 'packages/core/src/engine/budget.test.ts',
   },
   {
@@ -3198,6 +3198,34 @@ const MUTATIONS = [
     find: "      if (\n        !(thrown instanceof BudgetExhaustedError) ||\n        (thrown.data as { reason?: string } | undefined)?.reason !== 'in-flight-exposure'\n      ) {",
     replace: '      if (true) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'exposure-terminal-release',
+    doctrine:
+      "an agent terminal returns every live dispatch estimate its holder still has (RV2001): dropping the release re-parks the parity rerun's 0.478 USD of dead children's estimates against the cap forever, and the exposure wait starves on money no live dispatch is holding",
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    this.exposureHolds.delete(holderScope);\n    this.settleExposureRelease(held);\n    return held;',
+    replace: '    this.exposureHolds.delete(holderScope);\n    return held;',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'exposure-late-closure-guard',
+    doctrine:
+      'a late attempt closure frees at most what its holder still holds (RV2001): dropping the clamp lets a closure firing after the terminal backstop eat the live estimates of OTHER holders, and the under-counted cap admits dispatches past the exposure bound',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '          const held = this.exposureHolds.get(holderScope) ?? 0;\n          amount = Math.min(amount, held);',
+    replace:
+      '          const held = this.exposureHolds.get(holderScope) ?? 0;\n          void held;',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'exposure-zero-holders-snap',
+    doctrine:
+      'the live exposure scalar snaps to exactly zero when the last hold of any kind releases (RV2001): dropping the snap leaves float residue parked against the cap, the epsilon-scale rebirth of the deadlock where the exposure wait starves on money nobody holds',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    if (this.exposureHolds.size === 0 && this.unattributedHoldCount === 0) {\n      this.inFlightExposureUsd = 0;\n    }',
+    replace: '    void this.unattributedHoldCount;',
+    test: 'packages/core/src/engine/budget.test.ts',
   },
 ];
 
