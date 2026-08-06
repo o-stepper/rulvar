@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+
 ### 1.206.0
 
 #### Patch Changes
@@ -1919,6 +1926,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+
 ### 1.206.0
 
 #### Patch Changes
@@ -3627,6 +3641,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
 
 ### 1.206.0
 
@@ -5784,6 +5805,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.207.0
+
+#### Minor Changes
+
+- 99beee2: Sequential roster feasibility (RV2005). The third parity rerun's model ignored the one-batch instruction and spawned seat by seat through spawn_agent, so the RV1908 batchGate never saw a batch: three seats were paid in full under an acceptance floor of four the money could never reach, and the settle verdict was bound to reject them. Under a declared `acceptance.minSpawnedChildren`, every SINGLE spawn_agent admission now projects the whole remaining roster with the shared RV2004 arithmetic (this seat's own dispatch projection per remaining seat, live in-flight exposure included) and refuses the FIRST infeasible seat with the typed `roster_floor` verdict, its arithmetic journaled on the decision, zero paid children. Batch seats skip the per-seat check (their batchGate judged the wave entire), and spawn-admission decisions now journal their true origin (`parallel_agents` seats no longer read as `spawn_agent`). For hosts that want the policy unsplittable, `OrchestrateOptions.requireBatchSpawn: 'reject-spawn-agent'` refuses every single spawn_agent call typed (`code 'batch_required'`, nothing journaled, nothing paid) so the model re-issues the wave as one parallel_agents batch.
 
 ### 1.206.0
 
@@ -8220,6 +8247,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.207.0
+
 ### 1.206.0
 
 ### 1.205.0
@@ -8736,6 +8765,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+  - @rulvar/anthropic@1.207.0
+  - @rulvar/openai@1.207.0
+  - @rulvar/plan@1.207.0
+  - @rulvar/testing@1.207.0
 
 ### 1.206.0
 
@@ -11071,6 +11111,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+
 ### 1.206.0
 
 #### Patch Changes
@@ -12190,6 +12237,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
 
 ### 1.206.0
 
@@ -14101,6 +14155,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+
 ### 1.206.0
 
 #### Patch Changes
@@ -15923,6 +15984,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+  - eslint-plugin-rulvar@1.207.0
 
 ### 1.206.0
 
@@ -17914,6 +17983,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+  - @rulvar/anthropic@1.207.0
+  - @rulvar/openai@1.207.0
 
 ### 1.206.0
 
@@ -20195,6 +20273,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+
 ### 1.206.0
 
 #### Patch Changes
@@ -22025,6 +22110,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
+
 ### 1.206.0
 
 #### Patch Changes
@@ -23160,6 +23252,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
 
 ### 1.206.0
 
@@ -24927,6 +25026,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.207.0
+
+#### Patch Changes
+
+- Updated dependencies [99beee2]
+  - @rulvar/core@1.207.0
 
 ### 1.206.0
 
