@@ -262,12 +262,21 @@ synthesis invocation, the forced-finish wake) instead WAIT the refusal out
 zero provider attempts while parked, and emits the typed
 `budget:exposure-wait` event with the refusal arithmetic; the four-role
 benchmark's recovery arm died exactly on the settle path, a root refused
-while its four admitted children were still finalizing. A drained refusal
+while its four admitted children were still finalizing. Orchestrator-spawned
+children (`spawn_agent` and `parallel_agents`) wait the same way (RV2002),
+with the event carrying `scope: 'child'`: the third parity rerun terminally
+killed three workers, each ~550k tokens into research, on a refusal that
+would have been a parking for the root, and a park costs nothing while a
+killed seat forfeits everything the child had built. A drained refusal
 (no live hold left to wait out; spend never shrinks, so nothing can turn it
-into a fit) settles the documented forced-finish partial: the run exhausts
-with the settled children's fold as its value and a journaled
-`orchestrator_finalize_fallback` decision (`reason 'exposure-abort'`), never
-a bare escape. Worst concurrent overshoot past the cap is thereby the estimate error
+into a fit) splits by scope: the ROOT settles the documented forced-finish
+partial, the run exhausting with the settled children's fold as its value
+and a journaled `orchestrator_finalize_fallback` decision
+(`reason 'exposure-abort'`), never a bare escape; a CHILD dies as the typed
+cheap `exposure-drained` refusal (`AgentError.reason 'exposure-drained'`,
+carried into the journaled terminal's `error.data.reason`), zero provider
+attempts by construction, so the orchestrator tells a starved seat apart
+from a crashed child and can re-spawn it once money frees. Worst concurrent overshoot past the cap is thereby the estimate error
 of the in-flight turns, not one whole turn per agent. The cap is off by
 default (wire traffic and journals stay byte-identical), applies at the run
 root, and reserves zero for models without a price row exactly as they debit

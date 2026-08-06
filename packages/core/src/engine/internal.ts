@@ -69,9 +69,16 @@ export const kFinalizeReserve: unique symbol = Symbol('rulvar.finalizeReserve');
  * benchmark's recovery arm died exactly there: the refusal is transient
  * by contract (budgets guide), but the refused agent was the workflow's
  * coordinating root, so its settle tore down the whole run while four
- * admitted children were still finalizing. Never part of the public
- * AgentOpts surface; plain agents keep the documented settle-as-budget-
- * error behavior, because their caller can catch and decide.
+ * admitted children were still finalizing. The 'child' flavor (RV2002)
+ * rides on orchestrator-spawned children (spawn_agent and
+ * parallel_agents): the same park-and-retry, but a DRAINED refusal
+ * (no live holder left to wait out) dies as the typed cheap
+ * 'exposure-drained' child refusal the orchestrator can tell apart
+ * from a crash and re-spawn, instead of the root's forced-finish
+ * partial; the third parity rerun killed three mid-research workers
+ * on exactly this path. Never part of the public AgentOpts surface;
+ * plain agents keep the documented settle-as-budget-error behavior,
+ * because their caller can catch and decide.
  */
 export const kExposureWait: unique symbol = Symbol('rulvar.exposureWait');
 
@@ -101,7 +108,7 @@ export interface InternalAgentHooks {
   };
   [kBootCheckpoint]?: string;
   [kFinalizeReserve]?: boolean;
-  [kExposureWait]?: boolean;
+  [kExposureWait]?: boolean | 'child';
 }
 
 /** Typed accessor used by the in-package consumers. */

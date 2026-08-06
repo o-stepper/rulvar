@@ -381,6 +381,14 @@ type AgentError = {
   retryable: boolean;
   retryAfterMs?: number;
   issues?: Issue$1[];
+  /**
+  * The typed refusal marker (RV2002): 'exposure-drained' names a
+  * spawned child refused pre-wire by the in-flight exposure cap with
+  * no live holder left to wait out. Zero provider attempts by
+  * construction, so the seat is cheap to re-spawn; an orchestrator
+  * treats it as a starved seat, never a crashed child.
+  */
+  reason?: "exposure-drained";
 };
 /**
 * Projects an AgentError to its WireError form: code 'agent', with kind,
@@ -2438,7 +2446,8 @@ type AgentEvents = {
 } | {
   type: "budget:exposure-wait";
   agentType: string;
-  label?: string; /** The refused model ref. */
+  label?: string; /** The waiting party: the orchestrate root or a spawned child. */
+  scope?: "root" | "child"; /** The refused model ref. */
   model?: string; /** The refusal arithmetic, verbatim from the typed refusal. */
   capUsd?: number;
   spentUsd?: number;
@@ -5489,12 +5498,19 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /**
   * The exposure-wait posture (RV1902): an in-flight exposure refusal
   * on this invocation parks until a live hold releases and retries
-  * pre-wire, instead of settling a budget error. Set only by the
-  * orchestrate-owned root dispatches (the coordination loop, the
-  * synthesis invocation, the forced-finish wake), whose settle would
-  * tear down the run its own admitted children are still funding.
+  * pre-wire, instead of settling a budget error. `true` is set only
+  * by the orchestrate-owned root dispatches (the coordination loop,
+  * the synthesis invocation, the forced-finish wake), whose settle
+  * would tear down the run its own admitted children are still
+  * funding. `'child'` (RV2002) rides on orchestrator-spawned
+  * children: the same park-and-retry, but the drained arm (no live
+  * holder left to wait out) dies as the typed cheap
+  * 'exposure-drained' refusal instead of the raw budget error, so
+  * the orchestrator can tell a starved seat apart from a crashed
+  * child and re-spawn it; the third parity rerun terminally killed
+  * three mid-research workers on exactly this path.
   */
-  exposureWait?: boolean;
+  exposureWait?: boolean | "child";
   events?: RuntimeEventSink;
   transcript?: {
     mintRef(): string;

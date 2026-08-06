@@ -3988,6 +3988,165 @@ describe('the root exposure wait (RV1902, the four-role benchmark recovery arm)'
   });
 });
 
+describe('the child exposure wait (RV2002, the third parity rerun)', () => {
+  // The parity rerun on the sized envelope killed three of four
+  // workers, each ~550k tokens into research, with a pre-wire
+  // exposure refusal that was TERMINAL on the child path while the
+  // same refusal on the root was a parking. A spawned child now parks
+  // exactly like the root and retries pre-wire; only the drained arm
+  // (no live holder left to wait out) dies, and it dies as the typed
+  // cheap 'exposure-drained' refusal the orchestrator can tell apart
+  // from a crash and re-spawn.
+  const ROUTING_2002 = { loop: 'fake:model', orchestrate: 'fake:model' } as const;
+
+  it('a refused child parks with the child-scope event and completes after a hold releases', async () => {
+    let releaseChildren: () => void = () => {};
+    const childrenGate = new Promise<void>((resolve) => {
+      releaseChildren = resolve;
+    });
+    let orchTurn = 0;
+    const inner = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'worked' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task B' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task C' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'all three joined' } } };
+    });
+    const adapter: typeof inner = {
+      ...inner,
+      async *stream(req, signal) {
+        if (agentTypeOf(req) !== '') {
+          await childrenGate;
+        }
+        yield* inner.stream(req, signal);
+      },
+    };
+    const { internals, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2002,
+      profiles: {
+        worker: { description: 'the gated worker', limits: { maxOutputTokensPerTurn: 2500 } },
+      },
+      budgetUsd: 10,
+      // Two gated child holds (about $0.026 each) fit; the third child
+      // does not (0.052 + 0.026 > 0.07), so it parks instead of dying.
+      maxInFlightExposureUsd: 0.07,
+    });
+    const wf = makeOrchestratorWorkflow('join the squeezed wave', {
+      limits: { maxOutputTokensPerTurn: 4000 },
+    });
+    const run = executeWorkflow(internals, wf, undefined);
+    let spins = 0;
+    while (
+      !events
+        .ofType('budget:exposure-wait')
+        .some((event) => (event as { scope?: string }).scope === 'child')
+    ) {
+      spins += 1;
+      expect(spins).toBeLessThan(2000);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    releaseChildren();
+    const outcome = await run;
+    expect(outcome).toBe('all three joined');
+
+    // The parked seat is a child: the event names the scope and the
+    // profile, and the wait was real (live holds existed).
+    const childWaits = events
+      .ofType('budget:exposure-wait')
+      .filter((event) => (event as { scope?: string }).scope === 'child');
+    expect(childWaits.length).toBeGreaterThanOrEqual(1);
+    expect(childWaits[0]).toMatchObject({ agentType: 'worker', willWait: true });
+    // Every child eventually reached the provider: the refusal killed
+    // nobody (the parity arm lost three workers here).
+    const workerCalls = adapter.calls.filter((req) => agentTypeOf(req) !== '');
+    expect(workerCalls).toHaveLength(3);
+    expect(events.ofType('agent:error')).toHaveLength(0);
+    expect(internals.budget.exhausted).toBe(false);
+  });
+
+  it('a drained child refusal is typed exposure-drained, costs nothing, and spares the run', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'unreachable worker' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'huge task' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'continued past the starved seat' } } };
+    });
+    const { internals, store, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2002,
+      // The worker's own worst-case turn (about $0.10) can never fit
+      // the cap; the root's (about $0.026) always does. Nothing is in
+      // flight when the child asks, so the refusal is drained.
+      profiles: {
+        worker: { description: 'the oversized worker', limits: { maxOutputTokensPerTurn: 10000 } },
+      },
+      budgetUsd: 10,
+      maxInFlightExposureUsd: 0.05,
+    });
+    const wf = makeOrchestratorWorkflow('spawn past the cap', {
+      limits: { maxOutputTokensPerTurn: 2500 },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    // The run survives: the starved seat settles typed and the
+    // orchestrator keeps coordinating, no forced finish, no exhaustion.
+    expect(outcome).toBe('continued past the starved seat');
+    expect(internals.budget.exhausted).toBe(false);
+
+    // The refused child cost nothing: zero provider attempts.
+    const workerCalls = adapter.calls.filter((req) => agentTypeOf(req) !== '');
+    expect(workerCalls).toHaveLength(0);
+    const waits = events.ofType('budget:exposure-wait');
+    expect(waits).toHaveLength(1);
+    expect(waits[0]).toMatchObject({ scope: 'child', agentType: 'worker', willWait: false });
+
+    // The typed marker rides the journaled terminal: an orchestrator
+    // (or a host reading the journal) tells the starved seat apart
+    // from a crashed child by the reason, not by parsing prose.
+    const entries = await store.load('test-run');
+    const childTerminal = entries.find(
+      (entry) =>
+        entry.kind === 'agent' &&
+        entry.status === 'error' &&
+        (entry.error?.data as { reason?: string } | undefined)?.reason === 'exposure-drained',
+    );
+    expect(childTerminal).toBeDefined();
+    expect((childTerminal?.error?.data as { kind?: string } | undefined)?.kind).toBe('budget');
+    expect(childTerminal?.error?.message).toContain('exposure pool drained');
+    // No forced-finish fallback: that arm belongs to the ROOT drained
+    // refusal, not to a starved child seat.
+    expect(
+      entries.some(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { reason?: string } | undefined)?.reason === 'exposure-abort',
+      ),
+    ).toBe(false);
+  });
+});
+
 describe('the terminal child barrier (RV1903, the four-role benchmark recovery journal)', () => {
   // The recovery journal recorded run_settle at sequence 18 and three
   // successful child terminals at 19..21: the returned outcome, the

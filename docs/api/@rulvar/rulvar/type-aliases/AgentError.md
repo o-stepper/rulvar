@@ -15,6 +15,7 @@ type AgentError = {
      | "tool"
      | "budget"
      | "terminal";
+  reason?: "exposure-drained";
   retryable: boolean;
   retryAfterMs?: number;
 };
@@ -50,6 +51,22 @@ kind:
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### reason?
+
+```ts
+optional reason?: "exposure-drained";
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The typed refusal marker (RV2002): 'exposure-drained' names a
+spawned child refused pre-wire by the in-flight exposure cap with
+no live holder left to wait out. Zero provider attempts by
+construction, so the seat is cheap to re-spawn; an orchestrator
+treats it as a starved seat, never a crashed child.
 
 ***
 

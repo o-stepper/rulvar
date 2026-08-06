@@ -79,6 +79,7 @@ type AgentEvents =
   inFlightUsd?: number;
   label?: string;
   model?: string;
+  scope?: "root" | "child";
   spentUsd?: number;
   type: "budget:exposure-wait";
   willWait: boolean;
@@ -280,6 +281,7 @@ vocabulary.
   inFlightUsd?: number;
   label?: string;
   model?: string;
+  scope?: "root" | "child";
   spentUsd?: number;
   type: "budget:exposure-wait";
   willWait: boolean;

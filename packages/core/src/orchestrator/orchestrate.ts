@@ -2665,6 +2665,13 @@ export function makeOrchestratorWorkflow(
         result: 'full',
         ...resolveDispatchOpts(spec, internals.defaults),
         [kOnRunning]: (seq: number) => resolveHandle(seq),
+        // The child exposure wait (RV2002): a pre-wire exposure
+        // refusal parks the child until a live hold releases instead
+        // of killing it mid-research (the third parity rerun lost
+        // three workers with ~550k-token contexts to exactly that
+        // death); the drained arm dies as the typed cheap
+        // 'exposure-drained' refusal the orchestrator can re-spawn.
+        [kExposureWait]: 'child',
       };
       const result = runtime.runInScope(childState, () =>
         (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(

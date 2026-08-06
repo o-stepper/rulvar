@@ -17,7 +17,7 @@ type WorkflowEvent = {
 } & WorkflowEventBody;
 ```
 
-Defined in: [packages/core/src/l0/events.ts:677](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L677)
+Defined in: [packages/core/src/l0/events.ts:684](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L684)
 
 The envelope: seq is an independent per-run
 telemetry counter, strictly increasing in emission order and DISTINCT
@@ -30,9 +30,9 @@ stream deltas are never re-emitted.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `parentSpanId?` | `string` | [packages/core/src/l0/events.ts:682](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L682) |
-| `replayed?` | `boolean` | [packages/core/src/l0/events.ts:683](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L683) |
-| `runId` | `string` | [packages/core/src/l0/events.ts:678](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L678) |
-| `seq` | `number` | [packages/core/src/l0/events.ts:679](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L679) |
-| `spanId` | `string` | [packages/core/src/l0/events.ts:681](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L681) |
-| `ts` | `string` | [packages/core/src/l0/events.ts:680](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L680) |
+| `parentSpanId?` | `string` | [packages/core/src/l0/events.ts:689](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L689) |
+| `replayed?` | `boolean` | [packages/core/src/l0/events.ts:690](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L690) |
+| `runId` | `string` | [packages/core/src/l0/events.ts:685](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L685) |
+| `seq` | `number` | [packages/core/src/l0/events.ts:686](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L686) |
+| `spanId` | `string` | [packages/core/src/l0/events.ts:688](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L688) |
+| `ts` | `string` | [packages/core/src/l0/events.ts:687](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L687) |

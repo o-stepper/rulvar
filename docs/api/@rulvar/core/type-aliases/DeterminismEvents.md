@@ -18,7 +18,7 @@ type DeterminismEvents = {
 };
 ```
 
-Defined in: [packages/core/src/l0/events.ts:498](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L498)
+Defined in: [packages/core/src/l0/events.ts:505](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L505)
 
 Bare-nondeterminism detection (RV-209). Emitted LIVE by the segment
 that observed the call, at most once per (category, provenance) per
@@ -39,7 +39,7 @@ classified and silenced, which is what keeps an SDK's internal
 category: "bare-date-now" | "bare-math-random";
 ```
 
-Defined in: [packages/core/src/l0/events.ts:501](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L501)
+Defined in: [packages/core/src/l0/events.ts:508](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L508)
 
 Which patched global fired.
 
@@ -51,7 +51,7 @@ Which patched global fired.
 optional column?: number;
 ```
 
-Defined in: [packages/core/src/l0/events.ts:515](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L515)
+Defined in: [packages/core/src/l0/events.ts:522](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L522)
 
 ***
 
@@ -61,7 +61,7 @@ Defined in: [packages/core/src/l0/events.ts:515](https://github.com/o-stepper/ru
 optional file?: string;
 ```
 
-Defined in: [packages/core/src/l0/events.ts:513](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L513)
+Defined in: [packages/core/src/l0/events.ts:520](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L520)
 
 Parsed location when the frame carries one, after redaction.
 
@@ -73,7 +73,7 @@ Parsed location when the frame carries one, after redaction.
 frame: string;
 ```
 
-Defined in: [packages/core/src/l0/events.ts:511](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L511)
+Defined in: [packages/core/src/l0/events.ts:518](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L518)
 
 The calling stack frame, after the configured redaction hook.
 
@@ -85,7 +85,7 @@ The calling stack frame, after the configured redaction hook.
 optional line?: number;
 ```
 
-Defined in: [packages/core/src/l0/events.ts:514](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L514)
+Defined in: [packages/core/src/l0/events.ts:521](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L521)
 
 ***
 
@@ -95,7 +95,7 @@ Defined in: [packages/core/src/l0/events.ts:514](https://github.com/o-stepper/ru
 provenance: "workflow" | "allowlisted";
 ```
 
-Defined in: [packages/core/src/l0/events.ts:509](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L509)
+Defined in: [packages/core/src/l0/events.ts:516](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L516)
 
 'workflow': the caller is workflow-origin code (the violation the
 guard exists for; rejects the run under `determinism.mode:
@@ -111,4 +111,4 @@ decision; emitted for visibility, never rejects.
 type: "determinism:warning";
 ```
 
-Defined in: [packages/core/src/l0/events.ts:499](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L499)
+Defined in: [packages/core/src/l0/events.ts:506](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L506)
