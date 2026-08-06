@@ -18,6 +18,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.208.0
+
+#### Minor Changes
+
+- e7d426f: First-class prompt-cache policy (RV2006). `ChatRequest.cacheHint` existed and the Anthropic adapter compiled it into `cache_control`, but nothing in the core ever populated it: the third parity rerun's workers re-paid the full input rate on every turn of their ~550k-token contexts (`cacheReadTokens 0` across the run), and the $6 envelope sized on OpenAI's implicit server cache was incomparable on Anthropic. The agent loop now compiles the hint on every tool-cycle turn: breakpoints after tools, after system, and after the deepest message, sliding with the history. Default ON exactly where the adapter declares the new `ModelCaps.promptCaching: 'explicit'` (the Anthropic adapter does); OpenAI declares `'implicit'` and undeclared adapters get byte-identical requests. Configure with `defaults.cache`, `AgentProfile.cache`, or per-call `opts.cache` (`CachePolicy { mode?: 'auto' | 'off'; ttl?: '5m' | '1h' }`), call over profile over engine. Billing note: on cache-capable Anthropic models this changes the wire requests of every loop turn to carry cache breakpoints, typically cutting long-cycle input cost several-fold (cached reads bill at a tenth of the input rate); `CostReport` cache accounting is unchanged, the hint never enters identity or journals, and `@rulvar/testing`'s `requestHash` strips it so existing cassettes replay byte for byte.
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+
 ### 1.207.0
 
 #### Patch Changes
@@ -1926,6 +1937,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+
 ### 1.207.0
 
 #### Patch Changes
@@ -3641,6 +3659,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
 
 ### 1.207.0
 
@@ -5805,6 +5830,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.208.0
+
+#### Minor Changes
+
+- e7d426f: First-class prompt-cache policy (RV2006). `ChatRequest.cacheHint` existed and the Anthropic adapter compiled it into `cache_control`, but nothing in the core ever populated it: the third parity rerun's workers re-paid the full input rate on every turn of their ~550k-token contexts (`cacheReadTokens 0` across the run), and the $6 envelope sized on OpenAI's implicit server cache was incomparable on Anthropic. The agent loop now compiles the hint on every tool-cycle turn: breakpoints after tools, after system, and after the deepest message, sliding with the history. Default ON exactly where the adapter declares the new `ModelCaps.promptCaching: 'explicit'` (the Anthropic adapter does); OpenAI declares `'implicit'` and undeclared adapters get byte-identical requests. Configure with `defaults.cache`, `AgentProfile.cache`, or per-call `opts.cache` (`CachePolicy { mode?: 'auto' | 'off'; ttl?: '5m' | '1h' }`), call over profile over engine. Billing note: on cache-capable Anthropic models this changes the wire requests of every loop turn to carry cache breakpoints, typically cutting long-cycle input cost several-fold (cached reads bill at a tenth of the input rate); `CostReport` cache accounting is unchanged, the hint never enters identity or journals, and `@rulvar/testing`'s `requestHash` strips it so existing cassettes replay byte for byte.
 
 ### 1.207.0
 
@@ -8247,6 +8278,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.208.0
+
 ### 1.207.0
 
 ### 1.206.0
@@ -8765,6 +8798,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+  - @rulvar/anthropic@1.208.0
+  - @rulvar/openai@1.208.0
+  - @rulvar/testing@1.208.0
+  - @rulvar/plan@1.208.0
 
 ### 1.207.0
 
@@ -11111,6 +11155,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+
 ### 1.207.0
 
 #### Patch Changes
@@ -12237,6 +12288,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.208.0
+
+#### Minor Changes
+
+- e7d426f: First-class prompt-cache policy (RV2006). `ChatRequest.cacheHint` existed and the Anthropic adapter compiled it into `cache_control`, but nothing in the core ever populated it: the third parity rerun's workers re-paid the full input rate on every turn of their ~550k-token contexts (`cacheReadTokens 0` across the run), and the $6 envelope sized on OpenAI's implicit server cache was incomparable on Anthropic. The agent loop now compiles the hint on every tool-cycle turn: breakpoints after tools, after system, and after the deepest message, sliding with the history. Default ON exactly where the adapter declares the new `ModelCaps.promptCaching: 'explicit'` (the Anthropic adapter does); OpenAI declares `'implicit'` and undeclared adapters get byte-identical requests. Configure with `defaults.cache`, `AgentProfile.cache`, or per-call `opts.cache` (`CachePolicy { mode?: 'auto' | 'off'; ttl?: '5m' | '1h' }`), call over profile over engine. Billing note: on cache-capable Anthropic models this changes the wire requests of every loop turn to carry cache breakpoints, typically cutting long-cycle input cost several-fold (cached reads bill at a tenth of the input rate); `CostReport` cache accounting is unchanged, the hint never enters identity or journals, and `@rulvar/testing`'s `requestHash` strips it so existing cassettes replay byte for byte.
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
 
 ### 1.207.0
 
@@ -14155,6 +14217,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+
 ### 1.207.0
 
 #### Patch Changes
@@ -15984,6 +16053,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+  - eslint-plugin-rulvar@1.208.0
 
 ### 1.207.0
 
@@ -17983,6 +18060,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+  - @rulvar/anthropic@1.208.0
+  - @rulvar/openai@1.208.0
 
 ### 1.207.0
 
@@ -20273,6 +20359,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+
 ### 1.207.0
 
 #### Patch Changes
@@ -22110,6 +22203,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
+
 ### 1.207.0
 
 #### Patch Changes
@@ -23252,6 +23352,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.208.0
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
 
 ### 1.207.0
 
@@ -25026,6 +25133,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.208.0
+
+#### Minor Changes
+
+- e7d426f: First-class prompt-cache policy (RV2006). `ChatRequest.cacheHint` existed and the Anthropic adapter compiled it into `cache_control`, but nothing in the core ever populated it: the third parity rerun's workers re-paid the full input rate on every turn of their ~550k-token contexts (`cacheReadTokens 0` across the run), and the $6 envelope sized on OpenAI's implicit server cache was incomparable on Anthropic. The agent loop now compiles the hint on every tool-cycle turn: breakpoints after tools, after system, and after the deepest message, sliding with the history. Default ON exactly where the adapter declares the new `ModelCaps.promptCaching: 'explicit'` (the Anthropic adapter does); OpenAI declares `'implicit'` and undeclared adapters get byte-identical requests. Configure with `defaults.cache`, `AgentProfile.cache`, or per-call `opts.cache` (`CachePolicy { mode?: 'auto' | 'off'; ttl?: '5m' | '1h' }`), call over profile over engine. Billing note: on cache-capable Anthropic models this changes the wire requests of every loop turn to carry cache breakpoints, typically cutting long-cycle input cost several-fold (cached reads bill at a tenth of the input rate); `CostReport` cache accounting is unchanged, the hint never enters identity or journals, and `@rulvar/testing`'s `requestHash` strips it so existing cassettes replay byte for byte.
+
+#### Patch Changes
+
+- Updated dependencies [e7d426f]
+  - @rulvar/core@1.208.0
 
 ### 1.207.0
 
