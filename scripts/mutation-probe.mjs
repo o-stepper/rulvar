@@ -3059,7 +3059,7 @@ const MUTATIONS = [
     doctrine:
       "an orchestrate-owned root dispatch waits out a transient in-flight exposure refusal instead of settling a budget error (RV1902): dropping the wait resurrects the recovery arm's death, a root refused pre-wire while its admitted children were still finalizing, tearing the run down around its own funded work",
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: "            if (\n              options.exposureWait !== true ||\n              refusalData?.reason !== 'in-flight-exposure' ||\n              awaitRelease === undefined\n            ) {",
+    find: "            if (\n              (options.exposureWait !== true && options.exposureWait !== 'child') ||\n              refusalData?.reason !== 'in-flight-exposure' ||\n              awaitRelease === undefined\n            ) {",
     replace: '            if (true) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
@@ -3226,6 +3226,24 @@ const MUTATIONS = [
     find: '    if (this.exposureHolds.size === 0 && this.unattributedHoldCount === 0) {\n      this.inFlightExposureUsd = 0;\n    }',
     replace: '    void this.unattributedHoldCount;',
     test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'child-exposure-park',
+    doctrine:
+      "a spawned child waits out a pre-wire exposure refusal exactly like the root (RV2002): dropping the child flavor returns the parity rerun's terminal child death, three workers killed mid-research by a refusal that parks the root",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        [kExposureWait]: 'child',",
+    replace: '',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'child-exposure-drained-typed',
+    doctrine:
+      "a drained child refusal dies as the typed cheap 'exposure-drained' seat the orchestrator can re-spawn (RV2002): dropping the arm settles the raw budget error, indistinguishable from a crashed child and unjournaled as a starved seat",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "              if (waitScope === 'child') {",
+    replace: '              if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
 ];
 

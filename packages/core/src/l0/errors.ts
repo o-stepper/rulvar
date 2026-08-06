@@ -466,6 +466,14 @@ export type AgentError = {
   retryable: boolean;
   retryAfterMs?: number;
   issues?: Issue[];
+  /**
+   * The typed refusal marker (RV2002): 'exposure-drained' names a
+   * spawned child refused pre-wire by the in-flight exposure cap with
+   * no live holder left to wait out. Zero provider attempts by
+   * construction, so the seat is cheap to re-spawn; an orchestrator
+   * treats it as a starved seat, never a crashed child.
+   */
+  reason?: 'exposure-drained';
 };
 
 /**
@@ -477,6 +485,9 @@ export function agentErrorToWire(error: AgentError, message: string): WireError 
   const data: { [key: string]: Json } = { kind: error.kind };
   if (error.retryAfterMs !== undefined) {
     data.retryAfterMs = error.retryAfterMs;
+  }
+  if (error.reason !== undefined) {
+    data.reason = error.reason;
   }
   if (error.issues !== undefined) {
     data.issues = error.issues.map((issue): Json => {

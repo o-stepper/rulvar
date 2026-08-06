@@ -2433,8 +2433,14 @@ export function createCtx(
     if (terminalTool !== undefined) {
       runAgentOptions.terminalTool = terminalTool;
     }
-    if ((opts as InternalAgentHooks)[kExposureWait] === true) {
-      runAgentOptions.exposureWait = true;
+    {
+      // The flavor rides through verbatim (RV2002): true is the
+      // orchestrate-owned root wait, 'child' the spawned-child wait
+      // whose drained arm dies typed instead of forcing the finish.
+      const exposureWait = (opts as InternalAgentHooks)[kExposureWait];
+      if (exposureWait === true || exposureWait === 'child') {
+        runAgentOptions.exposureWait = exposureWait;
+      }
     }
     runAgentOptions.checkpoint = checkpointPlumbing;
     if (opts.schema !== undefined) {

@@ -752,12 +752,19 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /**
    * The exposure-wait posture (RV1902): an in-flight exposure refusal
    * on this invocation parks until a live hold releases and retries
-   * pre-wire, instead of settling a budget error. Set only by the
-   * orchestrate-owned root dispatches (the coordination loop, the
-   * synthesis invocation, the forced-finish wake), whose settle would
-   * tear down the run its own admitted children are still funding.
+   * pre-wire, instead of settling a budget error. `true` is set only
+   * by the orchestrate-owned root dispatches (the coordination loop,
+   * the synthesis invocation, the forced-finish wake), whose settle
+   * would tear down the run its own admitted children are still
+   * funding. `'child'` (RV2002) rides on orchestrator-spawned
+   * children: the same park-and-retry, but the drained arm (no live
+   * holder left to wait out) dies as the typed cheap
+   * 'exposure-drained' refusal instead of the raw budget error, so
+   * the orchestrator can tell a starved seat apart from a crashed
+   * child and re-spawn it; the third parity rerun terminally killed
+   * three mid-research workers on exactly this path.
    */
-  exposureWait?: boolean;
+  exposureWait?: boolean | 'child';
   events?: RuntimeEventSink;
   transcript?: { mintRef(): string; put(ref: string, blob: Uint8Array): Promise<void> };
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
@@ -3530,18 +3537,20 @@ export async function runAgent<S extends SchemaSpec>(
                 : undefined;
             const awaitRelease = options.budget?.awaitExposureRelease;
             if (
-              options.exposureWait !== true ||
+              (options.exposureWait !== true && options.exposureWait !== 'child') ||
               refusalData?.reason !== 'in-flight-exposure' ||
               awaitRelease === undefined
             ) {
               throw thrown;
             }
+            const waitScope = options.exposureWait === 'child' ? 'child' : 'root';
             const willWait = (options.budget?.liveExposureUsd?.() ?? 0) > 0;
             events?.emit({
               type: 'budget:exposure-wait',
               agentType,
               label: options.label,
               model: target.resolved.ref,
+              scope: waitScope,
               ...(typeof refusalData.capUsd === 'number' ? { capUsd: refusalData.capUsd } : {}),
               ...(typeof refusalData.spentUsd === 'number'
                 ? { spentUsd: refusalData.spentUsd }
@@ -3555,6 +3564,34 @@ export async function runAgent<S extends SchemaSpec>(
               willWait,
             });
             if (!willWait) {
+              if (waitScope === 'child') {
+                // The drained child refusal (RV2002): no live holder is
+                // left to wait out, so parking would hang forever. The
+                // seat dies typed and CHEAP (zero provider attempts on
+                // this path by construction), distinguishable from a
+                // crashed child, so the orchestrator can re-spawn it
+                // once money frees; the raw refusal stays on the root,
+                // whose drained arm owns the forced-finish partial.
+                throw new BudgetExhaustedError(
+                  `exposure pool drained for the spawned child: ${
+                    thrown instanceof Error ? thrown.message : String(thrown)
+                  }`,
+                  {
+                    data: {
+                      reason: 'exposure-drained',
+                      ...(typeof refusalData.capUsd === 'number'
+                        ? { capUsd: refusalData.capUsd }
+                        : {}),
+                      ...(typeof refusalData.spentUsd === 'number'
+                        ? { spentUsd: refusalData.spentUsd }
+                        : {}),
+                      ...(typeof refusalData.estimateUsd === 'number'
+                        ? { estimateUsd: refusalData.estimateUsd }
+                        : {}),
+                    },
+                  },
+                );
+              }
               throw thrown;
             }
             const waitSignals = [options.signal, options.budget?.signal].filter(
@@ -4045,8 +4082,17 @@ export async function runAgent<S extends SchemaSpec>(
         throw thrown;
       }
       // Layer 2b denied the dispatch: same surface as a layer-2 block.
+      // The drained child refusal (RV2002) keeps its typed marker on
+      // the terminal so the orchestrator can tell a starved seat apart
+      // from a crashed child.
       status = 'error';
-      agentError = { kind: 'budget', retryable: false };
+      const drained =
+        (thrown.data as { reason?: string } | undefined)?.reason === 'exposure-drained';
+      agentError = {
+        kind: 'budget',
+        retryable: false,
+        ...(drained ? { reason: 'exposure-drained' as const } : {}),
+      };
       errorMessage = thrown.message;
       break;
     }

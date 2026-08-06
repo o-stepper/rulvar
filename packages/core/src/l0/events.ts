@@ -378,22 +378,29 @@ export type AgentEvents =
       willRetry: true;
     }
   /**
-   * A transient in-flight exposure refusal on an orchestrate-owned
-   * root dispatch (RV1902): the turn's worst-case estimate did not fit
-   * `maxInFlightExposureUsd` beside the live child dispatches, so the
-   * root parks until a hold releases and then retries, exactly the
-   * transient semantics the budgets guide promises. Healthy backpressure,
-   * not failure: no provider attempt, no ledger row, no journal entry.
-   * `willWait: false` names the drained arm: nothing is left to wait
-   * out (no live hold), so the refusal is terminal for the turn and the
-   * orchestration settles its documented forced-finish partial instead
-   * of tearing the run down. Plain (non-root) agents never emit this:
-   * they keep the documented settle-as-budget-error behavior.
+   * A transient in-flight exposure refusal on a waiting dispatch: the
+   * turn's worst-case estimate did not fit `maxInFlightExposureUsd`
+   * beside the live dispatches, so the invocation parks until a hold
+   * releases and then retries, exactly the transient semantics the
+   * budgets guide promises. Healthy backpressure, not failure: no
+   * provider attempt, no ledger row, no journal entry. `scope` names
+   * the waiting party: 'root' is the orchestrate-owned root dispatch
+   * (RV1902), 'child' an orchestrator-spawned child (RV2002; the
+   * third parity rerun terminally killed three mid-research workers
+   * where this event now fires). `willWait: false` names the drained
+   * arm: nothing is left to wait out (no live hold), so the refusal
+   * is terminal for the turn; the root settles its documented
+   * forced-finish partial, a child dies as the typed cheap
+   * 'exposure-drained' refusal the orchestrator can re-spawn. Plain
+   * agents outside the orchestration never emit this: they keep the
+   * documented settle-as-budget-error behavior.
    */
   | {
       type: 'budget:exposure-wait';
       agentType: string;
       label?: string;
+      /** The waiting party: the orchestrate root or a spawned child. */
+      scope?: 'root' | 'child';
       /** The refused model ref. */
       model?: string;
       /** The refusal arithmetic, verbatim from the typed refusal. */

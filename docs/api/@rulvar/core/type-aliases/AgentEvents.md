@@ -79,6 +79,7 @@ type AgentEvents =
   inFlightUsd?: number;
   label?: string;
   model?: string;
+  scope?: "root" | "child";
   spentUsd?: number;
   type: "budget:exposure-wait";
   willWait: boolean;
@@ -300,35 +301,42 @@ restores the legacy twin for consumers keyed to the old type.
   inFlightUsd?: number;
   label?: string;
   model?: string;
+  scope?: "root" | "child";
   spentUsd?: number;
   type: "budget:exposure-wait";
   willWait: boolean;
 }
 ```
 
-A transient in-flight exposure refusal on an orchestrate-owned
-root dispatch (RV1902): the turn's worst-case estimate did not fit
-`maxInFlightExposureUsd` beside the live child dispatches, so the
-root parks until a hold releases and then retries, exactly the
-transient semantics the budgets guide promises. Healthy backpressure,
-not failure: no provider attempt, no ledger row, no journal entry.
-`willWait: false` names the drained arm: nothing is left to wait
-out (no live hold), so the refusal is terminal for the turn and the
-orchestration settles its documented forced-finish partial instead
-of tearing the run down. Plain (non-root) agents never emit this:
-they keep the documented settle-as-budget-error behavior.
+A transient in-flight exposure refusal on a waiting dispatch: the
+turn's worst-case estimate did not fit `maxInFlightExposureUsd`
+beside the live dispatches, so the invocation parks until a hold
+releases and then retries, exactly the transient semantics the
+budgets guide promises. Healthy backpressure, not failure: no
+provider attempt, no ledger row, no journal entry. `scope` names
+the waiting party: 'root' is the orchestrate-owned root dispatch
+(RV1902), 'child' an orchestrator-spawned child (RV2002; the
+third parity rerun terminally killed three mid-research workers
+where this event now fires). `willWait: false` names the drained
+arm: nothing is left to wait out (no live hold), so the refusal
+is terminal for the turn; the root settles its documented
+forced-finish partial, a child dies as the typed cheap
+'exposure-drained' refusal the orchestrator can re-spawn. Plain
+agents outside the orchestration never emit this: they keep the
+documented settle-as-budget-error behavior.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L395) |
-| `capUsd?` | `number` | The refusal arithmetic, verbatim from the typed refusal. | [packages/core/src/l0/events.ts:400](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L400) |
-| `estimateUsd?` | `number` | - | [packages/core/src/l0/events.ts:403](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L403) |
-| `inFlightUsd?` | `number` | - | [packages/core/src/l0/events.ts:402](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L402) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:396](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L396) |
-| `model?` | `string` | The refused model ref. | [packages/core/src/l0/events.ts:398](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L398) |
-| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:401](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L401) |
-| `type` | `"budget:exposure-wait"` | - | [packages/core/src/l0/events.ts:394](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L394) |
-| `willWait` | `boolean` | - | [packages/core/src/l0/events.ts:404](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L404) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:400](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L400) |
+| `capUsd?` | `number` | The refusal arithmetic, verbatim from the typed refusal. | [packages/core/src/l0/events.ts:407](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L407) |
+| `estimateUsd?` | `number` | - | [packages/core/src/l0/events.ts:410](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L410) |
+| `inFlightUsd?` | `number` | - | [packages/core/src/l0/events.ts:409](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L409) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:401](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L401) |
+| `model?` | `string` | The refused model ref. | [packages/core/src/l0/events.ts:405](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L405) |
+| `scope?` | `"root"` \| `"child"` | The waiting party: the orchestrate root or a spawned child. | [packages/core/src/l0/events.ts:403](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L403) |
+| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:408](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L408) |
+| `type` | `"budget:exposure-wait"` | - | [packages/core/src/l0/events.ts:399](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L399) |
+| `willWait` | `boolean` | - | [packages/core/src/l0/events.ts:411](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L411) |
 
 ***
 
