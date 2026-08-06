@@ -36,7 +36,9 @@ database, no control plane.
   remaining budget buys, and live stream cuts on crossing. The residual overshoot is documented
   and provider-dependent: at most one in-flight turn per concurrent agent, because a provider
   bills tokens it has already generated. Exhaustion is a typed outcome with a full cost report,
-  never a bare null. [Budgets](https://docs.rulvar.com/guide/budgets)
+  never a bare null, and "full" is enforced by lifecycle: every child reaches a journaled
+  terminal before the settle exists, and the settled journal seals against late writes.
+  [Budgets](https://docs.rulvar.com/guide/budgets)
 - **Any vendor, per role.** First-class Anthropic and OpenAI adapters, an `openaiCompatible`
   factory for Ollama, vLLM, and gateways, and a bridge for any Vercel AI SDK `LanguageModelV4`
   (other specification versions are rejected with a typed error at runtime). Models are
