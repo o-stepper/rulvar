@@ -25,8 +25,14 @@ vocabulary (M6-T04).
 | ------ | ------ | ------ |
 | `runtime` | [`OrchestratorRuntime`](/api/@rulvar/core/interfaces/OrchestratorRuntime.md) | - |
 | `profileCardText` | `string` | - |
-| `options?` | \{ `childResultTools?`: `boolean`; `sectionalFinish?`: `boolean`; `settledResultsTool?`: `boolean`; \} | - |
+| `options?` | \{ `batchGate?`: \{ `admittedChildren`: () => `number`; `projectionUsd`: (`task`) => `number`; `remainderUsd`: () => `number` \| `undefined`; `rosterFloor?`: `number`; \}; `childResultTools?`: `boolean`; `parallelAdmission?`: `"fail-fast"` \| `"try-all"` \| `"all-or-none"`; `sectionalFinish?`: `boolean`; `settledResultsTool?`: `boolean`; \} | - |
+| `options.batchGate?` | \{ `admittedChildren`: () => `number`; `projectionUsd`: (`task`) => `number`; `remainderUsd`: () => `number` \| `undefined`; `rosterFloor?`: `number`; \} | The batch projection seam (RV1908): the live remainder and the per-task dispatch projection the embedded gate itself uses, plus the run's admitted-children count and the declared acceptance roster floor. Runtime behavior only, never part of the tool schema or description, so toolset hashes stay byte identical. |
+| `options.batchGate.admittedChildren?` | () => `number` | - |
+| `options.batchGate.projectionUsd?` | (`task`) => `number` | - |
+| `options.batchGate.remainderUsd?` | () => `number` \| `undefined` | - |
+| `options.batchGate.rosterFloor?` | `number` | - |
 | `options.childResultTools?` | `boolean` | - |
+| `options.parallelAdmission?` | `"fail-fast"` \| `"try-all"` \| `"all-or-none"` | The parallel_agents admission policy (RV1908); default 'fail-fast'. |
 | `options.sectionalFinish?` | `boolean` | - |
 | `options.settledResultsTool?` | `boolean` | The bulk settled-set read (RV1807), its own opt-in: adding a tool under the existing childResultTools flag would move every opted-in run's toolset hash and re-key their resumes, so the new tool re-keys only runs that opt into IT. |
 

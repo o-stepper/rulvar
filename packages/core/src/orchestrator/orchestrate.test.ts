@@ -4124,6 +4124,151 @@ describe('the terminal child barrier (RV1903, the four-role benchmark recovery j
   });
 });
 
+describe('the parallel_agents admission policy (RV1908, the benchmark batch)', () => {
+  // The benchmark's batch died fail-fast at the third task and the run
+  // paid two workers under a floor of four. The policy now names the
+  // alternatives: try-all reports every refusal, all-or-none refuses
+  // the whole batch typed with zero admissions, and a declared roster
+  // floor refuses the batch before the first child is paid.
+  const BATCH_PROFILES = {
+    product: { description: 'the product auditor', estCost: 0.62 },
+    finops: { description: 'the finops reviewer', estCost: 0.62 },
+    durability: { description: 'the durability reviewer', estCost: 0.62 },
+    adversarial: { description: 'the adversarial judge', estCost: 0.62 },
+  };
+  const ROUTING_1908 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+  const FOUR_TASKS = [
+    { agentType: 'product', prompt: 'audit the product surface' },
+    { agentType: 'finops', prompt: 'audit providers and finops' },
+    { agentType: 'durability', prompt: 'audit durability and operations' },
+    { agentType: 'adversarial', prompt: 'attack the strong claims' },
+  ];
+
+  function batchHarness(orchestrateOpts: Parameters<typeof makeOrchestratorWorkflow>[1]) {
+    let releaseChildren: () => void = () => {};
+    const childrenGate = new Promise<void>((resolve) => {
+      releaseChildren = resolve;
+    });
+    let orchTurn = 0;
+    let sawEmptyBatch = false;
+    const inner = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'worked' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return { toolCall: { name: 'parallel_agents', args: { tasks: FOUR_TASKS } } };
+      }
+      if (orchTurn === 2) {
+        releaseChildren();
+        const handles = handlesIn(req);
+        if (handles.length === 0) {
+          // The synthesis turn that follows must agree with the draft.
+          sawEmptyBatch = true;
+          return { toolCall: { name: 'finish', args: { result: 'nothing seated' } } };
+        }
+        return { toolCall: { name: 'await_all', args: { handles } } };
+      }
+      return {
+        toolCall: {
+          name: 'finish',
+          args: { result: sawEmptyBatch ? 'nothing seated' : 'batch settled' },
+        },
+      };
+    });
+    const adapter: typeof inner = {
+      ...inner,
+      async *stream(req, signal) {
+        if (agentTypeOf(req) !== '') {
+          await Promise.race([
+            childrenGate,
+            new Promise<void>((resolve) => {
+              signal?.addEventListener('abort', () => resolve(), { once: true });
+            }),
+          ]);
+          if (signal?.aborted === true) {
+            return;
+          }
+        }
+        yield* inner.stream(req, signal);
+      },
+    };
+    const harness = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_1908,
+      profiles: BATCH_PROFILES,
+      budgetUsd: 6,
+    });
+    const wf = makeOrchestratorWorkflow('seat the roster', {
+      budget: { capUsd: 4.5, capFraction: 1.0, synthesisReserveUsd: 1.0 },
+      synthesis: { limits: { maxTurns: 2 } },
+      ...orchestrateOpts,
+    });
+    return { ...harness, wf, adapter: inner };
+  }
+
+  function batchToolResult(adapter: { calls: ChatRequest[] }): string {
+    const orchCalls = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    return JSON.stringify(orchCalls[1]?.messages.at(-1)?.parts ?? []);
+  }
+
+  it('try-all attempts every task and reports every refusal', async () => {
+    const { internals, store, wf, adapter } = batchHarness({ parallelAdmission: 'try-all' });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('batch settled');
+    const verdicts = admissionEntries(await store.load('test-run')).map(
+      (entry) => (entry.value as { decision: { verdict: { kind: string } } }).decision.verdict.kind,
+    );
+    // All four were ATTEMPTED: two admits and two journaled rejections,
+    // where fail-fast would have stopped at the first refusal.
+    expect(verdicts).toEqual(['admit', 'admit', 'reject', 'reject']);
+    const seen = batchToolResult(adapter);
+    expect(seen).toContain('refusals');
+  });
+
+  it('all-or-none refuses the whole batch typed with zero admissions', async () => {
+    const { internals, store, wf, adapter } = batchHarness({ parallelAdmission: 'all-or-none' });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('nothing seated');
+    expect(admissionEntries(await store.load('test-run'))).toHaveLength(0);
+    const seen = batchToolResult(adapter);
+    expect(seen).toContain('batch_atomic');
+    // Zero child dispatches: nothing was paid.
+    expect(adapter.calls.filter((req) => agentTypeOf(req) !== '')).toHaveLength(0);
+  });
+
+  it('a declared roster floor refuses the batch before the first child is paid', async () => {
+    const { internals, store, wf, adapter } = batchHarness({
+      acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 4 },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    // The acceptance still rejects (zero spawned under the floor), but
+    // nothing was admitted and nothing was paid on the way there.
+    expect(String(thrown)).toMatch(/acceptance policy rejected/);
+    expect(admissionEntries(await store.load('test-run'))).toHaveLength(0);
+    expect(adapter.calls.filter((req) => agentTypeOf(req) !== '')).toHaveLength(0);
+    const seen = batchToolResult(adapter);
+    expect(seen).toContain('roster_floor');
+  });
+
+  it('a malformed policy refuses typed at construction', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('bad policy', {
+        parallelAdmission: 'sometimes' as unknown as 'fail-fast',
+      }),
+    ).toThrow(/parallelAdmission/);
+  });
+});
+
 describe('the terminal event semantics (RV1906, the four-role benchmark primary stream)', () => {
   // The primary run's stream read agent:end ok then run:end error with
   // nothing in between naming the policy verdict, and its artifacts

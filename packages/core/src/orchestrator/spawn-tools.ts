@@ -226,6 +226,21 @@ export function buildOrchestratorTools(
      * tool re-keys only runs that opt into IT.
      */
     settledResultsTool?: boolean;
+    /** The parallel_agents admission policy (RV1908); default 'fail-fast'. */
+    parallelAdmission?: 'fail-fast' | 'try-all' | 'all-or-none';
+    /**
+     * The batch projection seam (RV1908): the live remainder and the
+     * per-task dispatch projection the embedded gate itself uses, plus
+     * the run's admitted-children count and the declared acceptance
+     * roster floor. Runtime behavior only, never part of the tool
+     * schema or description, so toolset hashes stay byte identical.
+     */
+    batchGate?: {
+      rosterFloor?: number;
+      admittedChildren: () => number;
+      projectionUsd: (task: SpawnAgentParams) => number;
+      remainderUsd: () => number | undefined;
+    };
   },
 ): ToolDef[] {
   const spawnAgent = tool({
@@ -240,7 +255,67 @@ export function buildOrchestratorTools(
     parameters: PARALLEL_AGENTS_SCHEMA,
     execute: async (input) => {
       const tasks = (input as { tasks: SpawnAgentParams[] }).tasks;
+      const policy = options?.parallelAdmission ?? 'fail-fast';
+      const gate = options?.batchGate;
+      // The batch projections (RV1908): the SAME dispatch-projection
+      // formula the embedded gate runs, summed with the strict-at-fill
+      // rule, so the pre-checks and the live admissions cannot
+      // disagree about a seat.
+      if (gate !== undefined) {
+        const remainder = gate.remainderUsd();
+        if (remainder !== undefined) {
+          let accumulated = 0;
+          let feasible = 0;
+          for (const task of tasks) {
+            const projection = gate.projectionUsd(task);
+            // Exact fill passes, exactly the embedded gate's own rule
+            // (admit rejects only when remainder < projection + pending).
+            if (remainder < accumulated + projection) {
+              break;
+            }
+            accumulated += projection;
+            feasible += 1;
+          }
+          const admittedSoFar = gate.admittedChildren();
+          const floor = gate.rosterFloor;
+          if (
+            floor !== undefined &&
+            admittedSoFar + tasks.length >= floor &&
+            admittedSoFar + feasible < floor
+          ) {
+            // The roster pre-check (RV1908): the primary arm paid two
+            // workers in full under a floor of four the wave could
+            // never reach, and the settle verdict was bound to reject.
+            return {
+              handles: [],
+              refused: {
+                index: feasible,
+                code: 'roster_floor',
+                reason:
+                  `the batch can seat ${String(feasible)} of its ${String(tasks.length)} tasks ` +
+                  `under the live remainder, and the ${String(admittedSoFar)} already admitted ` +
+                  `cannot reach acceptance.minSpawnedChildren ${String(floor)}: refused before ` +
+                  'paying for a roster the settle verdict is bound to reject',
+              },
+            };
+          }
+          if (policy === 'all-or-none' && feasible < tasks.length) {
+            return {
+              handles: [],
+              refused: {
+                index: feasible,
+                code: 'batch_atomic',
+                reason:
+                  `all-or-none: the batch's ${String(tasks.length)} reserves do not fit the ` +
+                  `live remainder ${remainder.toFixed(4)} USD (${String(feasible)} would ` +
+                  'seat); nothing was admitted and nothing was paid',
+              },
+            };
+          }
+        }
+      }
       const handles: number[] = [];
+      const refusals: Array<{ index: number; code?: string; reason: string }> = [];
       // Sequential in submission order by design, and a refusal
       // mid-loop is part of the TYPED result, never a throw (RV805): a
       // thrown admission refusal used to swallow the whole tool call,
@@ -248,24 +323,50 @@ export function buildOrchestratorTools(
       // started, they kept running and spending invisibly, and the
       // natural reaction was to spawn the wave again. The partial shape
       // keeps every started handle awaitable and cancellable and names
-      // the refused index, the typed code, and the reason; tasks after
-      // the refusal are not attempted. The clean-wave result is byte
-      // for byte the historical { handles } shape.
+      // the refused index, the typed code, and the reason; under the
+      // default policy tasks after the refusal are not attempted, under
+      // 'try-all' every task is attempted and every refusal reported,
+      // and under 'all-or-none' a mid-batch failure cancels the
+      // admitted siblings (best-effort atomicity: admission cannot be
+      // undone, so the siblings settle cancelled). The clean-wave
+      // result is byte for byte the historical { handles } shape.
       for (const [index, task] of tasks.entries()) {
         let spawned: { handle: number };
         try {
           spawned = await runtime.spawn(task);
         } catch (thrown) {
-          return {
-            handles,
-            refused: {
-              index,
-              ...(thrown instanceof RulvarError ? { code: thrown.code } : {}),
-              reason: thrown instanceof Error ? thrown.message : String(thrown),
-            },
+          const failure = {
+            index,
+            ...(thrown instanceof RulvarError ? { code: thrown.code } : {}),
+            reason: thrown instanceof Error ? thrown.message : String(thrown),
           };
+          if (policy === 'try-all') {
+            refusals.push(failure);
+            continue;
+          }
+          if (policy === 'all-or-none' && handles.length > 0) {
+            for (const handle of handles) {
+              await runtime.cancel(handle, 'rulvar:batch-atomic-rollback');
+            }
+            return {
+              handles: [],
+              refused: {
+                ...failure,
+                reason:
+                  `all-or-none: task ${String(index)} failed after ${String(handles.length)} ` +
+                  `sibling(s) were admitted; the siblings were cancelled (${failure.reason})`,
+              },
+            };
+          }
+          return { handles, refused: failure };
         }
         handles.push(spawned.handle);
+      }
+      if (refusals.length > 0) {
+        // 'try-all': the first refusal keeps the historical `refused`
+        // slot so existing consumers read it unchanged; the full list
+        // rides beside it.
+        return { handles, refused: refusals[0], refusals };
       }
       return { handles };
     },

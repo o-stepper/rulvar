@@ -593,6 +593,24 @@ export interface OrchestrateOptions {
    */
   onUnsettledAtExit?: 'cancel' | 'drain';
   /**
+   * The parallel_agents admission policy (RV1908). 'fail-fast' (the
+   * default, the RV805 shape) admits in submission order and stops at
+   * the first refusal, tasks after it never attempted. 'try-all'
+   * attempts every task and reports every refusal, so one refused
+   * sibling no longer hides whether the rest would seat. 'all-or-none'
+   * projects the WHOLE batch against the live remainder first and
+   * refuses it typed with zero admissions when it cannot seat
+   * entirely; a non-budget failure mid-batch cancels the admitted
+   * siblings, best-effort atomicity over a machinery that cannot
+   * un-admit. Independent of the policy, a declared
+   * acceptance.minSpawnedChildren arms the roster pre-check: a batch
+   * large enough to seat the floor whose feasible count cannot reach
+   * it is refused before paying for the first child, the four-role
+   * benchmark's primary arm shape, where two workers were paid in
+   * full and the settle verdict was bound to reject them.
+   */
+  parallelAdmission?: 'fail-fast' | 'try-all' | 'all-or-none';
+  /**
    * The opt in deterministic host validation of the finish result, with
    * bounded repair; see {@link FinishValidationSpec}.
    */
@@ -1254,6 +1272,18 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     throw new ConfigError(
       "orchestrate onUnsettledAtExit must be 'cancel' or 'drain'; got " +
         `${String(opts.onUnsettledAtExit)}`,
+    );
+  }
+  if (
+    opts.parallelAdmission !== undefined &&
+    opts.parallelAdmission !== 'fail-fast' &&
+    opts.parallelAdmission !== 'try-all' &&
+    opts.parallelAdmission !== 'all-or-none'
+  ) {
+    // The runtime JS/JSON boundary: the type system cannot hold it.
+    throw new ConfigError(
+      "orchestrate parallelAdmission must be 'fail-fast', 'try-all' or 'all-or-none'; got " +
+        `${String(opts.parallelAdmission)}`,
     );
   }
   if (opts.acceptance !== undefined) {
@@ -3820,6 +3850,31 @@ export function makeOrchestratorWorkflow(
         childResultTools: opts?.exposeChildResultTools === true,
         settledResultsTool: opts?.exposeSettledResultsTool === true,
         sectionalFinish: coordSectionalFinish,
+        ...(opts?.parallelAdmission === undefined
+          ? {}
+          : { parallelAdmission: opts.parallelAdmission }),
+        // The batch projection seam (RV1908): the SAME remainder and
+        // dispatch projection the embedded spawn gate reads, plus the
+        // run's admitted-children count and the declared roster floor.
+        batchGate: {
+          ...((opts?.acceptance as { minSpawnedChildren?: number } | undefined)
+            ?.minSpawnedChildren === undefined
+            ? {}
+            : {
+                rosterFloor: (opts?.acceptance as { minSpawnedChildren?: number })
+                  ?.minSpawnedChildren,
+              }),
+          admittedChildren: () => admittedSpawnCount,
+          projectionUsd: (task) => {
+            const profile = internals.defaults.profiles?.[task.agentType];
+            return admission.projectedDispatchReserveUsd({
+              ...(profile?.estCost === undefined ? {} : { estCostUsd: profile.estCost }),
+              ...(task.budgetUsd === undefined ? {} : { budgetUsd: task.budgetUsd }),
+            });
+          },
+          remainderUsd: () =>
+            internals.budget.remainderOf(callingState.budgetScope ?? ROOT_ACCOUNT),
+        },
       }),
       ...(extension?.tools(io) ?? []),
     ];
