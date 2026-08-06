@@ -1575,6 +1575,14 @@
             "link": "/api/@rulvar/core/interfaces/SecretMasker.md"
           },
           {
+            "text": "SemanticPassesSummary",
+            "link": "/api/@rulvar/core/interfaces/SemanticPassesSummary.md"
+          },
+          {
+            "text": "SemanticPassSummary",
+            "link": "/api/@rulvar/core/interfaces/SemanticPassSummary.md"
+          },
+          {
             "text": "SerializationHook",
             "link": "/api/@rulvar/core/interfaces/SerializationHook.md"
           },
@@ -6511,6 +6519,14 @@
           {
             "text": "SecretMasker",
             "link": "/api/@rulvar/rulvar/interfaces/SecretMasker.md"
+          },
+          {
+            "text": "SemanticPassesSummary",
+            "link": "/api/@rulvar/rulvar/interfaces/SemanticPassesSummary.md"
+          },
+          {
+            "text": "SemanticPassSummary",
+            "link": "/api/@rulvar/rulvar/interfaces/SemanticPassSummary.md"
           },
           {
             "text": "SerializationHook",

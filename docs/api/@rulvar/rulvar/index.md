@@ -122,7 +122,7 @@ const engine = createEngine({
 | ------ | ------ |
 | [AbandonedSpendView](/api/@rulvar/rulvar/interfaces/AbandonedSpendView.md) | The abandoned-spend ledger fold. |
 | [AbandonFold](/api/@rulvar/rulvar/interfaces/AbandonFold.md) | - |
-| [AcceptanceChildSummary](/api/@rulvar/rulvar/interfaces/AcceptanceChildSummary.md) | One row of the acceptance fold's per-child roster (RV806): the settled status, the salvage arm that would have accepted the child (absent when none applied), and the evidence verdict where the child declared an evidence contract. `waivedBySalvage: true` marks a child whose evidence floor was NOT met but which a salvage arm accepted anyway; gate on it where waived evidence must not pass silently. `floorRequired: true` marks the opposite verdict under `acceptance.requireEvidenceFloor` (RV1207): the arm applied, the floor was not met, and the child was NOT promoted, so the row is diagnostic and the child counted against the policy. Since RV1412 an OK row can carry `floorRequired` too: the child settled 'ok' below its declared floor and the same flag excluded it from the policy count (without the flag such a row keeps `met: false` unmarked, and the child rides `belowFloorOkChildren` with a degradation note). |
+| [AcceptanceChildSummary](/api/@rulvar/rulvar/interfaces/AcceptanceChildSummary.md) | - |
 | [AdmissionDecision](/api/@rulvar/rulvar/interfaces/AdmissionDecision.md) | The full admission decision embedded in the carrying entry. |
 | [AdmissionStatsBefore](/api/@rulvar/rulvar/interfaces/AdmissionStatsBefore.md) | Live pre-append snapshot embedded in the decision entry (DEF-2/DEF-3). |
 | [AdmitLineage](/api/@rulvar/rulvar/interfaces/AdmitLineage.md) | The lineage block every non-reject verdict carries (DEF-3). |
@@ -354,6 +354,8 @@ const engine = createEngine({
 | [ScriptRunner](/api/@rulvar/rulvar/interfaces/ScriptRunner.md) | - |
 | [ScrubNote](/api/@rulvar/rulvar/interfaces/ScrubNote.md) | A scrub performed by the router; surfaced as a warning-level event by the engine. |
 | [SecretMasker](/api/@rulvar/rulvar/interfaces/SecretMasker.md) | A compiled masking policy: text and deep-JSON forms of one pattern set. |
+| [SemanticPassesSummary](/api/@rulvar/rulvar/interfaces/SemanticPassesSummary.md) | The three semantic passes' explicit summaries (RV1906). |
+| [SemanticPassSummary](/api/@rulvar/rulvar/interfaces/SemanticPassSummary.md) | One semantic pass's explicit summary (RV1906): `ran: true` means the pass executed (its findings and meta fields carry the details); `ran: false` names WHY in `reason` ('not-configured', 'run-rejected', 'valid-draft', 'not-run'), so an absent findings field can never be read as a clean pass. The four-role benchmark's artifacts carried `contradictions: null` and `claimConsistencyMeta: null`, and the judge had to annotate by hand that null meant NOT RUN. |
 | [SerializationHook](/api/@rulvar/rulvar/interfaces/SerializationHook.md) | createEngine({ serialization }): absent means identity, no wrapping. |
 | [ShellPatternRules](/api/@rulvar/rulvar/interfaces/ShellPatternRules.md) | - |
 | [ShellSegment](/api/@rulvar/rulvar/interfaces/ShellSegment.md) | Argv-parsing shell matcher (M5-T06): shell allow/ask/deny is matched through a real argv parser, never a string prefix. The composition rule is the entire point: for a compound command the verdict is the strictest across segments, and any unmatched segment yields ask, never a silent allow: `npm test; rm -rf /` MUST yield ask (or deny when rm patterns are denied) even when `npm test` is allow-listed. |

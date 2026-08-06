@@ -6,7 +6,7 @@
 
 # Interface: RunHandle\&lt;R\&gt;
 
-Defined in: [packages/core/src/engine/run-handle.ts:231](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L231)
+Defined in: [packages/core/src/engine/run-handle.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L254)
 
 ## Extended by
 
@@ -22,9 +22,9 @@ Defined in: [packages/core/src/engine/run-handle.ts:231](https://github.com/o-st
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | [packages/core/src/engine/run-handle.ts:234](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L234) |
-| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | [packages/core/src/engine/run-handle.ts:233](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L233) |
-| <a id="property-runid"></a> `runId` | `string` | [packages/core/src/engine/run-handle.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L232) |
+| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | [packages/core/src/engine/run-handle.ts:257](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L257) |
+| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | [packages/core/src/engine/run-handle.ts:256](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L256) |
+| <a id="property-runid"></a> `runId` | `string` | [packages/core/src/engine/run-handle.ts:255](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L255) |
 
 ## Methods
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:231](https://github.com/o-st
 cancel(reason?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L247)
+Defined in: [packages/core/src/engine/run-handle.ts:270](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L270)
 
 Cooperative cancellation; the run settles 'cancelled' with a complete CostReport.
 
@@ -56,13 +56,13 @@ Cooperative cancellation; the run settles 'cancelled' with a complete CostReport
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:235](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L235)
+Defined in: [packages/core/src/engine/run-handle.ts:258](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L258)
 
 #### Type Parameters
 
 | Type Parameter |
 | ------ |
-| `T` *extends* \| `"run:start"` \| `"run:end"` \| `"phase:start"` \| `"log"` \| `"budget:update"` \| `"external:waiting"` \| `"approval:pending"` \| `"child:start"` \| `"child:end"` \| `"agent:queued"` \| `"agent:start"` \| `"agent:phase:start"` \| `"agent:phase:end"` \| `"agent:end"` \| `"agent:error"` \| `"quota:denied"` \| `"budget:exposure-wait"` \| `"agent:schema-retry"` \| `"control:wire"` \| `"agent:stream"` \| `"tool:start"` \| `"tool:end"` \| `"determinism:warning"` \| `"plan:revised"` \| `"node:parked"` \| `"node:cancelled"` \| `"node:linked"` \| `"orchestrator:woke"` \| `"orchestrator:budget"` \| `"escalation:raised"` \| `"escalation:decided"` \| `"spawn:admitted"` \| `"spawn:rejected"` \| `"verify:failed"` \| `"ledger:op"` \| `"stall:detected"` \| `"guard:oscillation"` \| `"resolution:applied"` \| `"resolution:superseded"` \| `"termination:debit"` \| `"termination:denied"` \| `"termination:config-drift"` \| `"journal:compat"` |
+| `T` *extends* \| `"run:start"` \| `"run:end"` \| `"phase:start"` \| `"log"` \| `"budget:update"` \| `"external:waiting"` \| `"approval:pending"` \| `"child:start"` \| `"child:end"` \| `"agent:queued"` \| `"agent:start"` \| `"agent:phase:start"` \| `"agent:phase:end"` \| `"agent:end"` \| `"agent:error"` \| `"quota:denied"` \| `"budget:exposure-wait"` \| `"agent:schema-retry"` \| `"control:wire"` \| `"agent:stream"` \| `"tool:start"` \| `"tool:end"` \| `"determinism:warning"` \| `"plan:revised"` \| `"node:parked"` \| `"node:cancelled"` \| `"node:linked"` \| `"orchestrator:woke"` \| `"orchestrator:budget"` \| `"orchestrator:acceptance"` \| `"escalation:raised"` \| `"escalation:decided"` \| `"spawn:admitted"` \| `"spawn:rejected"` \| `"verify:failed"` \| `"ledger:op"` \| `"stall:detected"` \| `"guard:oscillation"` \| `"resolution:applied"` \| `"resolution:superseded"` \| `"termination:debit"` \| `"termination:denied"` \| `"termination:config-drift"` \| `"journal:compat"` |
 
 #### Parameters
 
@@ -83,7 +83,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:235](https://github.com/o-st
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:245](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L245)
+Defined in: [packages/core/src/engine/run-handle.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L268)
 
 Resolves an open awaitExternal suspension (DEF-4 signature): applied
 when this attempt wins the first-closing-wins fold; repeated

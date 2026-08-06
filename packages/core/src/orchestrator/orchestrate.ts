@@ -6920,6 +6920,26 @@ export function makeOrchestratorWorkflow(
         value: decision,
       });
     }
+    // The verdict speaks for itself on the stream (RV1906): between the
+    // root's honest agent:end ok and a rejected run:end there used to
+    // be silence, and the benchmark's operator had to reconstruct the
+    // policy fold by hand. Emitted from the ONE journaled decision,
+    // fresh and on the resume roll-forward alike.
+    internals.events.emit(
+      {
+        type: 'orchestrator:acceptance',
+        verdict: decision.verdict,
+        completion: decision.completion,
+        childStatusCounts: decision.childStatusCounts,
+        ...(decision.minSpawnedChildren === undefined
+          ? {}
+          : {
+              minSpawnedChildren: decision.minSpawnedChildren,
+              spawnedChildren: decision.spawnedChildren ?? 0,
+            }),
+      },
+      callingState.spanId,
+    );
     if (decision.verdict === 'rejected') {
       if (decision.synthesisSkipped !== undefined) {
         // The skip is a designed outcome, not a failure: the info log
@@ -6979,6 +6999,24 @@ export function makeOrchestratorWorkflow(
             ...(decision.synthesisSkipped === undefined
               ? {}
               : { synthesisSkipped: decision.synthesisSkipped }),
+            // The explicit pass summary (RV1906): a rejected run's
+            // absent contradictions field used to be indistinguishable
+            // from a pass that ran and found nothing; the summary says
+            // WHY nothing looked.
+            semanticPasses: {
+              contradictions:
+                opts.contradictions === undefined
+                  ? { ran: false, reason: 'not-configured' }
+                  : { ran: false, reason: 'run-rejected' },
+              claimConsistency:
+                opts.claimConsistency === undefined
+                  ? { ran: false, reason: 'not-configured' }
+                  : { ran: false, reason: 'run-rejected' },
+              synthesis:
+                opts.synthesis === undefined
+                  ? { ran: false, reason: 'not-configured' }
+                  : { ran: false, reason: 'run-rejected' },
+            } as unknown as Json,
           },
         },
       );
@@ -7126,6 +7164,31 @@ export function makeOrchestratorWorkflow(
               : { claimContradictions: claimFindingsFound }),
             claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
           }),
+      // The explicit pass summary (RV1906): {ran, reason} for every
+      // semantic pass, so an absent findings field can never read as a
+      // clean pass. The benchmark's recovery artifacts carried
+      // contradictions: null and claimConsistencyMeta: null, and the
+      // judge had to annotate by hand that null meant NOT RUN.
+      semanticPasses: {
+        contradictions:
+          opts?.contradictions === undefined
+            ? { ran: false, reason: 'not-configured' }
+            : contradictionsFound === undefined
+              ? { ran: false, reason: 'not-run' }
+              : { ran: true },
+        claimConsistency:
+          opts?.claimConsistency === undefined
+            ? { ran: false, reason: 'not-configured' }
+            : claimConsistencyMeta === undefined
+              ? { ran: false, reason: 'not-run' }
+              : { ran: true },
+        synthesis:
+          opts?.synthesis === undefined
+            ? { ran: false, reason: 'not-configured' }
+            : synthesisSkippedByValidDraft
+              ? { ran: false, reason: 'valid-draft' }
+              : { ran: true },
+      } as unknown as Json,
     };
   };
   return defineWorkflow({ name: ORCHESTRATE_WORKFLOW_NAME }, async (ctx): Promise<unknown> => {

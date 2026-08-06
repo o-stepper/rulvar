@@ -33,6 +33,20 @@ type CoreEvents =
   envelope: TerminalEnvelope;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
+  semanticPasses?: {
+     claimConsistency: {
+        ran: boolean;
+        reason?: string;
+     };
+     contradictions: {
+        ran: boolean;
+        reason?: string;
+     };
+     synthesis: {
+        ran: boolean;
+        reason?: string;
+     };
+  };
   settled?: false;
   settledReason?: "superseded";
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
@@ -123,6 +137,20 @@ Run lifecycle and core telemetry (M1 subset).
   envelope: TerminalEnvelope;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
+  semanticPasses?: {
+     claimConsistency: {
+        ran: boolean;
+        reason?: string;
+     };
+     contradictions: {
+        ran: boolean;
+        reason?: string;
+     };
+     synthesis: {
+        ran: boolean;
+        reason?: string;
+     };
+  };
   settled?: false;
   settledReason?: "superseded";
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
@@ -142,6 +170,16 @@ Run lifecycle and core telemetry (M1 subset).
 | `envelope` | [`TerminalEnvelope`](/api/@rulvar/rulvar/interfaces/TerminalEnvelope.md) | The unified terminal envelope (RV1105): every terminal fact in ONE shape, the same object the resolved outcome carries, so an event-only consumer assembles nothing. On the settled paths the sibling fields above stay byte for byte; when settlement did not hold, `envelope.settled` mirrors the `settled: false` mark (with `settledReason` inside for the superseded arc, RV1009). | `packages/core/dist/index.d.ts` |
 | `salvagedPartialChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `salvagedTerminalOutputChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses?` | \{ `claimConsistency`: \{ `ran`: `boolean`; `reason?`: `string`; \}; `contradictions`: \{ `ran`: `boolean`; `reason?`: `string`; \}; `synthesis`: \{ `ran`: `boolean`; `reason?`: `string`; \}; \} | The explicit semantic pass summaries (RV1906); same lift. Each pass carries {ran, reason?}, so an event-only consumer reads whether contradictions, claim consistency and synthesis actually looked, instead of decoding absence. | `packages/core/dist/index.d.ts` |
+| `semanticPasses.claimConsistency` | \{ `ran`: `boolean`; `reason?`: `string`; \} | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses.claimConsistency.ran` | `boolean` | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses.claimConsistency.reason?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses.contradictions` | \{ `ran`: `boolean`; `reason?`: `string`; \} | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses.contradictions.ran` | `boolean` | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses.contradictions.reason?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses.synthesis` | \{ `ran`: `boolean`; `reason?`: `string`; \} | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses.synthesis.ran` | `boolean` | - | `packages/core/dist/index.d.ts` |
+| `semanticPasses.synthesis.reason?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `settled?` | `false` | Present and false ONLY when nothing durable records this terminal: a settlement write failed (the run_settle journal append or the terminal RunMeta projection, RV907), or the segment was superseded (`settledReason` names it, RV1009). The status above is true as computation, but `handle.result` rejects typed instead of resolving (SettlementError or SupersededError), and an event-only consumer must not treat this terminal as green. After a settlement failure, resuming the run re-settles by replay (no provider call) and the settled terminal carries no field, byte for byte like every ordinary run. Never emitted true. | `packages/core/dist/index.d.ts` |
 | `settledReason?` | `"superseded"` | Present only beside `settled: false`, naming WHY the terminal refused green when the reason is not a settlement write fault: 'superseded' means the run_settle append bounced off the store's fence because a successor segment holds the lease and owns settlement (RV1009), and `handle.result` rejects with the typed SupersededError. A settlement WRITE failure keeps its historical shape (`settled: false` with no reason) byte for byte. | `packages/core/dist/index.d.ts` |
 | `status` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | - | `packages/core/dist/index.d.ts` |
