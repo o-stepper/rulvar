@@ -9421,6 +9421,24 @@ interface OrchestrateOptions {
   */
   onUnsettledAtExit?: "cancel" | "drain";
   /**
+  * The parallel_agents admission policy (RV1908). 'fail-fast' (the
+  * default, the RV805 shape) admits in submission order and stops at
+  * the first refusal, tasks after it never attempted. 'try-all'
+  * attempts every task and reports every refusal, so one refused
+  * sibling no longer hides whether the rest would seat. 'all-or-none'
+  * projects the WHOLE batch against the live remainder first and
+  * refuses it typed with zero admissions when it cannot seat
+  * entirely; a non-budget failure mid-batch cancels the admitted
+  * siblings, best-effort atomicity over a machinery that cannot
+  * un-admit. Independent of the policy, a declared
+  * acceptance.minSpawnedChildren arms the roster pre-check: a batch
+  * large enough to seat the floor whose feasible count cannot reach
+  * it is refused before paying for the first child, the four-role
+  * benchmark's primary arm shape, where two workers were paid in
+  * full and the settle verdict was bound to reject them.
+  */
+  parallelAdmission?: "fail-fast" | "try-all" | "all-or-none";
+  /**
   * The opt in deterministic host validation of the finish result, with
   * bounded repair; see {@link FinishValidationSpec}.
   */
@@ -13331,7 +13349,21 @@ declare function buildOrchestratorTools(runtime: OrchestratorRuntime, profileCar
   * opted-in run's toolset hash and re-key their resumes, so the new
   * tool re-keys only runs that opt into IT.
   */
-  settledResultsTool?: boolean;
+  settledResultsTool?: boolean; /** The parallel_agents admission policy (RV1908); default 'fail-fast'. */
+  parallelAdmission?: "fail-fast" | "try-all" | "all-or-none";
+  /**
+  * The batch projection seam (RV1908): the live remainder and the
+  * per-task dispatch projection the embedded gate itself uses, plus
+  * the run's admitted-children count and the declared acceptance
+  * roster floor. Runtime behavior only, never part of the tool
+  * schema or description, so toolset hashes stay byte identical.
+  */
+  batchGate?: {
+    rosterFloor?: number;
+    admittedChildren: () => number;
+    projectionUsd: (task: SpawnAgentParams) => number;
+    remainderUsd: () => number | undefined;
+  };
 }): ToolDef[];
 //#endregion
 //#region src/engine/events.d.ts

@@ -614,8 +614,8 @@ const MUTATIONS = [
     doctrine:
       'a mid-loop admission refusal in parallel_agents returns the started handles as a typed result: a throw loses the wave while the children keep spending (RV805)',
     file: 'packages/core/src/orchestrator/spawn-tools.ts',
-    find: '        } catch (thrown) {\n          return {',
-    replace: '        } catch (thrown) {\n          throw thrown;\n          return {',
+    find: '        } catch (thrown) {\n          const failure = {',
+    replace: '        } catch (thrown) {\n          throw thrown;\n          const failure = {',
     test: 'packages/core/src/orchestrator/spawn-tools.test.ts',
   },
   {
@@ -3098,6 +3098,24 @@ const MUTATIONS = [
     find: '    if (!this.sealedInternal) {\n      return undefined;\n    }',
     replace: '    if (true) {\n      return undefined;\n    }',
     test: 'packages/core/src/engine/settle-drain.test.ts',
+  },
+  {
+    id: 'batch-atomic-precheck',
+    doctrine:
+      "all-or-none projects the whole batch against the live remainder before any admission (RV1908): dropping the pre-check pays for a partial seat under a policy whose name promises zero-or-everything, and the mid-batch rollback cannot refund the admitted siblings' spend",
+    file: 'packages/core/src/orchestrator/spawn-tools.ts',
+    find: "          if (policy === 'all-or-none' && feasible < tasks.length) {",
+    replace: '          if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'roster-floor-precheck',
+    doctrine:
+      'a batch that cannot reach the declared acceptance floor is refused before the first child is paid (RV1908): dropping the pre-check returns the primary arm, two workers paid in full under a floor of four the wave could never reach',
+    file: 'packages/core/src/orchestrator/spawn-tools.ts',
+    find: '          if (\n            floor !== undefined &&\n            admittedSoFar + tasks.length >= floor &&\n            admittedSoFar + feasible < floor\n          ) {',
+    replace: '          if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
     id: 'exposure-cap-tight-finding',
