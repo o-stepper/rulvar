@@ -6199,6 +6199,25 @@ declare class RunBudget {
   /** Live dispatch estimates held by reserveTurnExposure (RV711). */
   private inFlightExposureUsd;
   /**
+  * The same live estimates attributed to their holders (RV2001): one
+  * entry per holder scope with a nonzero balance, kept in lockstep
+  * with the scalar above by every acquire and release. The holder is
+  * the agent invocation the dispatch belongs to, so a terminal can
+  * return whatever its agent still holds; entries at zero are removed,
+  * making the map size the live holder count.
+  */
+  private readonly exposureHolds;
+  /**
+  * Live holds taken without a holder attribution (a direct caller of
+  * reserveTurnExposure): counted so the zero-holders snap below knows
+  * when NOTHING is held. Subtraction leaves float residue (three 0.18
+  * releases leave 5.5e-17), and a residue above zero would park the
+  * exposure wait on money nobody holds, the epsilon-scale rebirth of
+  * the very deadlock RV2001 closes; when the last hold of any kind
+  * releases, the scalar snaps to exactly zero.
+  */
+  private unattributedHoldCount;
+  /**
   * Waiters parked on the next exposure release (RV1902): the
   * orchestrate root's dispatch waits out a transient refusal here
   * instead of settling a budget error. Notified (and self-removed)
@@ -6418,7 +6437,37 @@ declare class RunBudget {
   * (committedReserveUsd) stay out of the formula, because a child's
   * lifetime reserve and its own turn exposure would double-count.
   */
-  reserveTurnExposure(servedBy: ModelRef, estimatedInputTokens: number, plannedOutputTokens: number): (() => void) | undefined;
+  reserveTurnExposure(servedBy: ModelRef, estimatedInputTokens: number, plannedOutputTokens: number, holderScope?: string): (() => void) | undefined;
+  /**
+  * The one release chokepoint of the exposure scalar (RV2001):
+  * subtracts, snaps to exactly zero when no hold of any kind remains
+  * (float subtraction leaves residue, and a residue would park the
+  * exposure wait on money nobody holds), and wakes the parked
+  * waiters. Spend never shrinks, so releases stay the only wake
+  * source that can turn a refusal into a fit.
+  */
+  private settleExposureRelease;
+  /**
+  * The terminal backstop of the exposure surface (RV2001, the third
+  * parity rerun's quiescence deadlock): EVERY terminal of an agent
+  * invocation (ok, error, exhausted, cancelled) returns whatever live
+  * dispatch estimates that holder still has to the exposure budget.
+  * The attempt settle owns the per-hold closure in a finally, so this
+  * usually finds nothing; the parity crash proved a dispatch path can
+  * die without its closure (three killed children left 0.478 USD of
+  * live estimates parked against the cap forever, and the root's
+  * exposure wait starved on money no live dispatch was holding). A
+  * real release wakes the parked waiters exactly like the closure
+  * does; a holder with nothing held is a free no-op. Returns the USD
+  * actually returned.
+  */
+  releaseExposureHolder(holderScope: string): number;
+  /**
+  * Live exposure holders: agents with a nonzero held balance (RV2001).
+  * Zero with live waiters means nothing can ever release, the drained
+  * signal the quiescence machinery keys on.
+  */
+  get liveExposureHolderCount(): number;
   /** Live in-flight exposure currently held by open dispatches (RV1902). */
   get liveExposureUsd(): number;
   /**

@@ -288,6 +288,25 @@ admitted; that direction is fail closed, never silent uncapping.
 the `in-flight-exposure-cap` finding beside the `overshoot-exposure` number it
 bounds.
 
+The lifecycle of a held estimate (RV2001): the hold is taken pre-wire,
+attributed to the agent invocation whose dispatch it covers, and released the
+moment that attempt settles, so a backoff sleep or a queue wait never holds
+exposure past its own attempt. On top of the per-attempt release, EVERY
+terminal of the invocation (`ok`, `error`, `exhausted`, `cancelled`, thrown
+paths included) returns whatever its holder still holds, and the release
+snaps the live total to exactly zero when the last hold of any kind is gone.
+The backstop exists because the third parity rerun proved a dispatch path can
+die without its release: three children killed pre-wire by the cap left
+$0.478 of live estimates parked forever, and the root's exposure wait starved
+on money no live dispatch was holding while the process exited without a
+terminal. `RunBudget.liveExposureUsd` reads the live total,
+`RunBudget.liveExposureHolderCount` the number of agents with a nonzero held
+balance; zero holders beside live waiters means nothing can ever release,
+which is the drained signal the wait machinery keys on. A real backstop
+release wakes parked waiters exactly like the attempt release does, so a
+child death immediately unblocks the next admissible dispatch instead of
+starving it.
+
 ### Auditing spend per budget account
 
 `accountSpendFromJournal` (RV1505, closing the DEF-7 remainder) folds the

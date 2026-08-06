@@ -209,6 +209,25 @@ export class RunBudget {
   /** Live dispatch estimates held by reserveTurnExposure (RV711). */
   private inFlightExposureUsd = 0;
   /**
+   * The same live estimates attributed to their holders (RV2001): one
+   * entry per holder scope with a nonzero balance, kept in lockstep
+   * with the scalar above by every acquire and release. The holder is
+   * the agent invocation the dispatch belongs to, so a terminal can
+   * return whatever its agent still holds; entries at zero are removed,
+   * making the map size the live holder count.
+   */
+  private readonly exposureHolds = new Map<string, number>();
+  /**
+   * Live holds taken without a holder attribution (a direct caller of
+   * reserveTurnExposure): counted so the zero-holders snap below knows
+   * when NOTHING is held. Subtraction leaves float residue (three 0.18
+   * releases leave 5.5e-17), and a residue above zero would park the
+   * exposure wait on money nobody holds, the epsilon-scale rebirth of
+   * the very deadlock RV2001 closes; when the last hold of any kind
+   * releases, the scalar snaps to exactly zero.
+   */
+  private unattributedHoldCount = 0;
+  /**
    * Waiters parked on the next exposure release (RV1902): the
    * orchestrate root's dispatch waits out a transient refusal here
    * instead of settling a budget error. Notified (and self-removed)
@@ -895,6 +914,7 @@ export class RunBudget {
     servedBy: ModelRef,
     estimatedInputTokens: number,
     plannedOutputTokens: number,
+    holderScope?: string,
   ): (() => void) | undefined {
     const cap = this.maxInFlightExposureUsd;
     if (cap === undefined) {
@@ -935,20 +955,99 @@ export class RunBudget {
       );
     }
     this.inFlightExposureUsd += estimateUsd;
+    if (estimateUsd > 0) {
+      if (holderScope === undefined) {
+        this.unattributedHoldCount += 1;
+      } else {
+        this.exposureHolds.set(
+          holderScope,
+          (this.exposureHolds.get(holderScope) ?? 0) + estimateUsd,
+        );
+      }
+    }
     let released = false;
     return () => {
       if (released) {
         return;
       }
       released = true;
-      this.inFlightExposureUsd = Math.max(0, this.inFlightExposureUsd - estimateUsd);
-      // Wake the parked root dispatch (RV1902): every hold WILL release
-      // (the dispatch settle owns the closure in a finally), so a
-      // waiter subscribed while any hold was live is never stranded.
-      for (const waiter of [...this.exposureWaiters]) {
-        waiter();
+      // An attributed release frees at most what its holder still holds
+      // (RV2001): the terminal backstop below may have returned the
+      // money first, and a late attempt closure firing after it must
+      // not eat the live estimates of OTHER holders.
+      let amount = estimateUsd;
+      if (estimateUsd > 0) {
+        if (holderScope === undefined) {
+          this.unattributedHoldCount = Math.max(0, this.unattributedHoldCount - 1);
+        } else {
+          const held = this.exposureHolds.get(holderScope) ?? 0;
+          amount = Math.min(amount, held);
+          const next = held - amount;
+          if (next <= 0) {
+            this.exposureHolds.delete(holderScope);
+          } else {
+            this.exposureHolds.set(holderScope, next);
+          }
+        }
       }
+      this.settleExposureRelease(amount);
     };
+  }
+
+  /**
+   * The one release chokepoint of the exposure scalar (RV2001):
+   * subtracts, snaps to exactly zero when no hold of any kind remains
+   * (float subtraction leaves residue, and a residue would park the
+   * exposure wait on money nobody holds), and wakes the parked
+   * waiters. Spend never shrinks, so releases stay the only wake
+   * source that can turn a refusal into a fit.
+   */
+  private settleExposureRelease(amountUsd: number): void {
+    this.inFlightExposureUsd = Math.max(0, this.inFlightExposureUsd - amountUsd);
+    if (this.exposureHolds.size === 0 && this.unattributedHoldCount === 0) {
+      this.inFlightExposureUsd = 0;
+    }
+    // Wake the parked root dispatch (RV1902): every hold WILL release
+    // (the dispatch settle owns the closure in a finally, and the
+    // agent terminal backstops whatever a lost closure leaked), so a
+    // waiter subscribed while any hold was live is never stranded.
+    for (const waiter of [...this.exposureWaiters]) {
+      waiter();
+    }
+  }
+
+  /**
+   * The terminal backstop of the exposure surface (RV2001, the third
+   * parity rerun's quiescence deadlock): EVERY terminal of an agent
+   * invocation (ok, error, exhausted, cancelled) returns whatever live
+   * dispatch estimates that holder still has to the exposure budget.
+   * The attempt settle owns the per-hold closure in a finally, so this
+   * usually finds nothing; the parity crash proved a dispatch path can
+   * die without its closure (three killed children left 0.478 USD of
+   * live estimates parked against the cap forever, and the root's
+   * exposure wait starved on money no live dispatch was holding). A
+   * real release wakes the parked waiters exactly like the closure
+   * does; a holder with nothing held is a free no-op. Returns the USD
+   * actually returned.
+   */
+  releaseExposureHolder(holderScope: string): number {
+    const held = this.exposureHolds.get(holderScope) ?? 0;
+    if (held <= 0) {
+      this.exposureHolds.delete(holderScope);
+      return 0;
+    }
+    this.exposureHolds.delete(holderScope);
+    this.settleExposureRelease(held);
+    return held;
+  }
+
+  /**
+   * Live exposure holders: agents with a nonzero held balance (RV2001).
+   * Zero with live waiters means nothing can ever release, the drained
+   * signal the quiescence machinery keys on.
+   */
+  get liveExposureHolderCount(): number {
+    return this.exposureHolds.size;
   }
 
   /** Live in-flight exposure currently held by open dispatches (RV1902). */

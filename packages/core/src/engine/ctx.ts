@@ -2384,10 +2384,15 @@ export function createCtx(
                 estimatedInputTokens: number,
                 plannedOutputTokens: number,
               ) =>
+                // Holds are attributed to this invocation (RV2001) so
+                // its terminal can return whatever a lost attempt
+                // closure leaked; the dispatch seq is unique per
+                // logical invocation, redispatches included.
                 internals.budget.reserveTurnExposure(
                   servedBy,
                   estimatedInputTokens,
                   plannedOutputTokens,
+                  `agent:${running.seq}`,
                 ),
               // The exposure-wait pair (RV1902): wired with the cap so
               // an opted-in root dispatch can park on the next hold
@@ -2576,6 +2581,13 @@ export function createCtx(
       );
     } finally {
       exitActivity?.();
+      // The terminal backstop (RV2001): every settle of this
+      // invocation, thrown paths included, returns whatever in-flight
+      // exposure its dispatches still hold. The attempt finally owns
+      // the normal release, so this is money a lost closure leaked;
+      // leaving it parked would starve the exposure wait on estimates
+      // no live dispatch is holding (the parity quiescence deadlock).
+      internals.budget.releaseExposureHolder(`agent:${running.seq}`);
     }
     internals.budget.releaseReserve(reserve, budgetAccount);
 

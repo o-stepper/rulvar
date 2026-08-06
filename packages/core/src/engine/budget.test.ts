@@ -279,6 +279,95 @@ describe('the in-flight exposure reservation (RV711)', () => {
 });
 
 /**
+ * The terminal backstop of the exposure surface (RV2001, the twenty
+ * third improvement plan). The parity rerun on the sized envelope died
+ * on this exact hole: three children were killed pre-wire by the
+ * exposure cap, their live dispatch estimates (0.478 USD) stayed
+ * parked against the cap with no live dispatch holding them, and the
+ * root's exposure wait starved forever on money that could never
+ * release. Holds are now attributed to their holder, and EVERY agent
+ * terminal returns whatever its holder still has.
+ */
+describe('exposure holds release at the agent terminal (RV2001)', () => {
+  // 1 USD per MTok input, 10 USD per MTok output: (1000 in, 400 out)
+  // prices to exactly 0.005 USD per hold.
+  const TEN: Pricing = { inputUsdPerMTok: 1, outputUsdPerMTok: 10 };
+  const exposureBudget = (capUsd: number): RunBudget =>
+    new RunBudget({
+      maxInFlightExposureUsd: capUsd,
+      pricingOf: (servedBy) => (servedBy === 'fake:model' ? TEN : undefined),
+    });
+
+  it('a terminal returns everything its holder still holds and wakes the parked waiter', async () => {
+    const budget = exposureBudget(0.02);
+    // Two holds of one child leak (their attempt closures are lost),
+    // one hold of another child stays legitimately live.
+    budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:7');
+    budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:7');
+    budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:9');
+    expect(budget.liveExposureUsd).toBeCloseTo(0.015, 10);
+    expect(budget.liveExposureHolderCount).toBe(2);
+    const parked = budget.awaitExposureRelease();
+    expect(budget.releaseExposureHolder('agent:7')).toBeCloseTo(0.01, 10);
+    await expect(parked).resolves.toBe('released');
+    expect(budget.liveExposureUsd).toBeCloseTo(0.005, 10);
+    expect(budget.liveExposureHolderCount).toBe(1);
+  });
+
+  it('the parity shape: three dead children leave live estimates exactly zero', () => {
+    const budget = exposureBudget(6);
+    for (const holder of ['agent:2', 'agent:4', 'agent:6']) {
+      budget.reserveTurnExposure('fake:model', 100_000, 8_000, holder);
+    }
+    expect(budget.liveExposureUsd).toBeGreaterThan(0);
+    for (const holder of ['agent:2', 'agent:4', 'agent:6']) {
+      budget.releaseExposureHolder(holder);
+    }
+    // Strictly zero, never the 0.478 the parity run parked on.
+    expect(budget.liveExposureUsd).toBe(0);
+    expect(budget.liveExposureHolderCount).toBe(0);
+    expect(budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:8')).toBeDefined();
+  });
+
+  it('a late attempt closure after the backstop cannot eat the money of another holder', () => {
+    const budget = exposureBudget(0.02);
+    const lateClosure = budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:1');
+    budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:3');
+    expect(budget.releaseExposureHolder('agent:1')).toBeCloseTo(0.005, 10);
+    expect(budget.liveExposureUsd).toBeCloseTo(0.005, 10);
+    // The closure fires after its holder was already drained: it frees
+    // at most what the holder still holds, which is nothing.
+    lateClosure?.();
+    expect(budget.liveExposureUsd).toBeCloseTo(0.005, 10);
+    expect(budget.liveExposureHolderCount).toBe(1);
+  });
+
+  it('a holder with nothing held is a free no-op that wakes nobody', async () => {
+    const budget = exposureBudget(0.02);
+    budget.reserveTurnExposure('fake:model', 1000, 400, 'agent:5');
+    let woke = false;
+    void budget.awaitExposureRelease().then(() => {
+      woke = true;
+    });
+    expect(budget.releaseExposureHolder('agent:404')).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(woke).toBe(false);
+    expect(budget.releaseExposureHolder('agent:5')).toBeCloseTo(0.005, 10);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(woke).toBe(true);
+  });
+
+  it('an unattributed hold keeps the historical scalar behavior', () => {
+    const budget = exposureBudget(0.02);
+    const release = budget.reserveTurnExposure('fake:model', 1000, 400);
+    expect(budget.liveExposureUsd).toBeCloseTo(0.005, 10);
+    expect(budget.liveExposureHolderCount).toBe(0);
+    release?.();
+    expect(budget.liveExposureUsd).toBe(0);
+  });
+});
+
+/**
  * The strict pre-egress pricing gate (RV1508, the eighteenth
  * improvement plan). Dollars come from the price table, and a model
  * absent from it debits NOTHING, so every ceiling silently fails to
