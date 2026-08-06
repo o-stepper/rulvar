@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.206.0
+
+### Minor Changes
+
+- ec8e1f1: One admission arithmetic for preflight and the live spawn_agent verdict (RV2004). The third parity rerun's spawn verdicts journaled reserve/childCeiling $0.50 (the derived childBudgetFraction cap) under a declared profile estCost of $0.70 that dispatch actually committed: the journal lied about the held money, resume would have rolled the lie forward, and the 0.50 allowance would have severed the child mid-work. On the spawn-tool path (spawn_agent, parallel_agents), where the fraction never materializes as an account, the verdict reserve now IS the shared dispatch projection (the declared estimate or the flat default, clamped by an explicit budgetUsd alone), and every verdict names its derivation (`reserve.source`: estCost | default; `reserve.clampedBy`: explicit-budget | fraction-ceiling). Origins with a real allowance account (ctx.workflow) keep the historical fraction ceiling and clamp. Preflight gains the live-root-exposure term: the orchestrator's own worst-case turn floor now rides the embedded spawn gate and `admission.requiredMinimumCeilingUsd` (published as `admission.liveRootExposureTermUsd`), so the parity envelope's fourth seat, which fit the plain 5.95-under-6.00 arithmetic and was refused live, is refused in preflight too. The frozen cassette catalog is re-recorded for the additive `source`/`clampedBy` fields on journaled admission verdicts (journal-shape-revision, policy not identity: existing entries byte-identical, no hashVersion change).
+
 ## 1.205.0
 
 ### Minor Changes
