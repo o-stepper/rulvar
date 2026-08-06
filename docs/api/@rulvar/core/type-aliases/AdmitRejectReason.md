@@ -35,7 +35,7 @@ type AdmitRejectReason =
 };
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L98)
+Defined in: [packages/core/src/orchestrator/admission.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L115)
 
 The merged reject-code set.
 
@@ -87,11 +87,11 @@ The merged reject-code set.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/orchestrator/admission.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L121) |
-| `childAccount` | `string` | - | [packages/core/src/orchestrator/admission.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L122) |
-| `childCeilingUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L125) |
-| `code` | `"reserve_exceeds_budget"` | The declared estimate cannot fit the child's own ceiling: the host said the work costs more than the budget buys, so the op is bounced with the actionable correction BEFORE it changes plan state or consumes a spawn unit (the v1.7.0 follow-up review's P1). Heuristic reserves never produce this code; they clamp to the allowance instead. | [packages/core/src/orchestrator/admission.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L120) |
-| `estCostUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L123) |
-| `message` | `string` | - | [packages/core/src/orchestrator/admission.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L127) |
-| `minimumBudgetUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L126) |
-| `resolvedReserveUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L124) |
+| `agentType` | `string` | - | [packages/core/src/orchestrator/admission.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L138) |
+| `childAccount` | `string` | - | [packages/core/src/orchestrator/admission.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L139) |
+| `childCeilingUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L142) |
+| `code` | `"reserve_exceeds_budget"` | The declared estimate cannot fit the child's own ceiling: the host said the work costs more than the budget buys, so the op is bounced with the actionable correction BEFORE it changes plan state or consumes a spawn unit (the v1.7.0 follow-up review's P1). Heuristic reserves never produce this code; they clamp to the allowance instead. | [packages/core/src/orchestrator/admission.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L137) |
+| `estCostUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L140) |
+| `message` | `string` | - | [packages/core/src/orchestrator/admission.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L144) |
+| `minimumBudgetUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L143) |
+| `resolvedReserveUsd` | `number` | - | [packages/core/src/orchestrator/admission.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L141) |

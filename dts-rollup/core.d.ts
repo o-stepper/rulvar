@@ -6758,6 +6758,23 @@ interface BudgetReserve {
   reserveUsd: number;
   /** The child sub-account ceiling; absent when the parent is uncapped. */
   childCeilingUsd?: number;
+  /**
+  * The reserve derivation (RV2004): where reserveUsd came from, so a
+  * journal reader never reverse-engineers the arithmetic. 'estCost'
+  * is the declared estimate (spawn opts or the agentType profile),
+  * 'default' the engine flat reserve.
+  */
+  source?: "estCost" | "default";
+  /**
+  * Set when the derived reserve was clamped DOWN to the child's
+  * ceiling: 'explicit-budget' by a declared budgetUsd,
+  * 'fraction-ceiling' by the childBudgetFraction allowance an ORIGIN
+  * WITH a materialized allowance account enforces (ctx.workflow).
+  * The spawn-tool path never carries 'fraction-ceiling': its
+  * dispatch enforces no fraction account, and journaling that clamp
+  * is exactly the parity rerun's 0.50-versus-0.70 lie (RV2004).
+  */
+  clampedBy?: "explicit-budget" | "fraction-ceiling";
 }
 /** The lineage block every non-reject verdict carries (DEF-3). */
 interface AdmitLineage {
@@ -13096,6 +13113,18 @@ interface PreflightReport {
     * fourth workers. Present whenever the wave has rows.
     */
     requiredMinimumCeilingUsd?: number;
+    /**
+    * The live-root-exposure term of the wave projection (RV2004): the
+    * orchestrator's own worst-case turn floor, the money coordination
+    * has ALWAYS already spent (and holds in flight) by the time any
+    * spawn tool runs. The parity rerun's fourth seat fit the plain
+    * wave (5.95 under 6.00) and was refused live by exactly this
+    * term; the embedded spawn gate and requiredMinimumCeilingUsd now
+    * carry it, so a seat that cannot admit live cannot admit in
+    * preflight either. Present on orchestrate waves whose
+    * coordination turn prices.
+    */
+    liveRootExposureTermUsd?: number;
     wave: PreflightAdmissionRow[];
     admitted: number;
     denied: number;

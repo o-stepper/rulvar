@@ -108,7 +108,8 @@
               "verdict": {
                 "kind": "admit",
                 "reserve": {
-                  "reserveUsd": 0.5
+                  "reserveUsd": 0.5,
+                  "source": "default"
                 },
                 "spawnUnitsAfter": 127,
                 "lineage": {
@@ -308,7 +309,8 @@
               "verdict": {
                 "kind": "admit",
                 "reserve": {
-                  "reserveUsd": 0.5
+                  "reserveUsd": 0.5,
+                  "source": "default"
                 },
                 "spawnUnitsAfter": 126,
                 "lineage": {
@@ -343,7 +345,8 @@
               "verdict": {
                 "kind": "admit",
                 "reserve": {
-                  "reserveUsd": 0.5
+                  "reserveUsd": 0.5,
+                  "source": "default"
                 },
                 "spawnUnitsAfter": 125,
                 "lineage": {
@@ -378,7 +381,8 @@
               "verdict": {
                 "kind": "admit",
                 "reserve": {
-                  "reserveUsd": 0.5
+                  "reserveUsd": 0.5,
+                  "source": "default"
                 },
                 "spawnUnitsAfter": 124,
                 "lineage": {

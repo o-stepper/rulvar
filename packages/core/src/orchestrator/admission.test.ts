@@ -6,6 +6,7 @@ import {
   AdmissionController,
   DEFAULT_CHILD_BUDGET_FRACTION,
   DEFAULT_MAX_CHILDREN_PER_NODE,
+  dispatchProjectionReserveUsd,
   spawnDepthOf,
 } from './admission.js';
 
@@ -456,5 +457,138 @@ describe('admit implies dispatchable (the v1.7.0 follow-up review invariant)', (
     // The grid genuinely exercises both verdicts.
     expect(admitted).toBeGreaterThan(100);
     expect(rejected).toBeGreaterThan(100);
+  });
+});
+
+/**
+ * One reserve arithmetic for the wave projection, the live verdict and
+ * the dispatch commit (RV2004). The third parity rerun's spawn_agent
+ * verdicts journaled reserve/childCeiling 0.50 (the childBudgetFraction
+ * cap over the orchestrator remainder) while the profile declared
+ * estCost 0.70 and dispatch committed 0.70: the journal lied about the
+ * held money, resume would have rolled the lie forward, and the 0.50
+ * allowance would have severed the child mid-work. On the spawn-tool
+ * path the fraction never materializes as an account, so the verdict
+ * now IS the dispatch projection; origins whose allowance account is
+ * real (ctx.workflow) keep the historical clamp.
+ */
+describe('the spawn-tool verdict is the dispatch projection (RV2004)', () => {
+  function orchestratorState() {
+    const { admission, budget } = makeController({ budgetUsd: 6, maxDepth: 3 });
+    budget.openAccount('wf:orch:0', {
+      parentScope: 'run',
+      ceilingUsd: 3.15,
+      kind: 'orchestrator-cap',
+    });
+    // Shrink the remainder so the fraction cap (0.3 x 2.15 = 0.645)
+    // sits BELOW the declared 0.70 estimate: exactly the parity shape.
+    budget.commitSynthesisReserve('wf:orch:0', 1.0);
+    return { admission, budget };
+  }
+
+  it('the declared estimate survives the derived fraction on spawn_agent, with its derivation named', () => {
+    const { admission } = orchestratorState();
+    const decision = admission.admit(
+      {
+        origin: 'spawn_agent',
+        name: 'worker',
+        childScope: 'wf:orch:0/agent:2',
+        parentAccountScope: 'wf:orch:0',
+        estCostUsd: 0.7,
+        signature: { agentType: 'worker', isolation: 'none' },
+      },
+      { commitReserve: false },
+    );
+    expect(decision.verdict.kind).toBe('admit');
+    if (decision.verdict.kind !== 'admit') {
+      return;
+    }
+    const reserve = decision.verdict.reserve;
+    // 0.70, never the parity 0.50: the fraction ceiling neither clamps
+    // the reserve nor rides the verdict on this path.
+    expect(reserve.reserveUsd).toBeCloseTo(0.7, 10);
+    expect(reserve.source).toBe('estCost');
+    expect(reserve.clampedBy).toBeUndefined();
+    expect(reserve.childCeilingUsd).toBeUndefined();
+  });
+
+  it('an explicit spawn budget still clamps, labeled explicit-budget', () => {
+    const { admission } = orchestratorState();
+    const decision = admission.admit(
+      {
+        origin: 'spawn_agent',
+        name: 'worker',
+        childScope: 'wf:orch:0/agent:3',
+        parentAccountScope: 'wf:orch:0',
+        estCostUsd: 0.7,
+        budgetUsd: 0.3,
+        signature: { agentType: 'worker', isolation: 'none' },
+      },
+      { commitReserve: false },
+    );
+    expect(decision.verdict.kind).toBe('admit');
+    if (decision.verdict.kind !== 'admit') {
+      return;
+    }
+    const reserve = decision.verdict.reserve;
+    expect(reserve.reserveUsd).toBeCloseTo(0.3, 10);
+    expect(reserve.source).toBe('estCost');
+    expect(reserve.clampedBy).toBe('explicit-budget');
+    expect(reserve.childCeilingUsd).toBeCloseTo(0.3, 10);
+  });
+
+  it('ctx.workflow keeps the materialized fraction allowance and its clamp', () => {
+    const { admission } = orchestratorState();
+    const decision = admission.admit({
+      origin: 'ctx.workflow',
+      name: 'child',
+      childScope: 'wf:orch:0/wf:child:0',
+      parentAccountScope: 'wf:orch:0',
+      estCostUsd: 0.7,
+      signature: { agentType: 'child', isolation: 'none' },
+    });
+    expect(decision.verdict.kind).toBe('admit');
+    if (decision.verdict.kind !== 'admit') {
+      return;
+    }
+    const reserve = decision.verdict.reserve;
+    // The allowance account IS opened on this path, so the clamp is
+    // real: 0.3 x (3.15 - 1.00 synthesis) = 0.645.
+    expect(reserve.childCeilingUsd).toBeCloseTo(0.645, 10);
+    expect(reserve.reserveUsd).toBeCloseTo(0.645, 10);
+    expect(reserve.source).toBe('estCost');
+    expect(reserve.clampedBy).toBe('fraction-ceiling');
+  });
+
+  it('for one state the live verdict equals the shared dispatch projection, across the matrix', () => {
+    const flatReserveUsd = 0.5;
+    const matrix: Array<{ estCostUsd?: number; budgetUsd?: number }> = [
+      { estCostUsd: 0.7 },
+      { estCostUsd: 0.7, budgetUsd: 0.3 },
+      { budgetUsd: 0.4 },
+      {},
+    ];
+    for (const [index, gate] of matrix.entries()) {
+      const { admission } = orchestratorState();
+      const decision = admission.admit(
+        {
+          origin: 'spawn_agent',
+          name: 'worker',
+          childScope: `wf:orch:0/agent:${String(10 + index)}`,
+          parentAccountScope: 'wf:orch:0',
+          ...gate,
+          signature: { agentType: 'worker', isolation: 'none' },
+        },
+        { commitReserve: false },
+      );
+      expect(decision.verdict.kind).toBe('admit');
+      if (decision.verdict.kind !== 'admit') {
+        continue;
+      }
+      expect(decision.verdict.reserve.reserveUsd).toBeCloseTo(
+        dispatchProjectionReserveUsd(gate, flatReserveUsd),
+        10,
+      );
+    }
   });
 });

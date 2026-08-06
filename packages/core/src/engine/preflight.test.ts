@@ -1714,9 +1714,14 @@ describe('the exposure floor over time (RV1907, the recovery arm stall)', () => 
 
   it('reports the whole-wave ceiling floor the benchmark needed', () => {
     const report = preflightEstimate(shapedInput({ synthesisReserveUsd: 1.0 }));
-    // 3.50 orchestrator + 4 x 0.62 workers + 1.00 synthesis = 6.98:
-    // the $6.00 benchmark ceiling sat $0.98 below its own wave.
-    expect(report.admission.requiredMinimumCeilingUsd).toBeCloseTo(6.98, 10);
+    // 3.50 orchestrator + 4 x 0.62 workers + 1.00 synthesis = 6.98,
+    // plus the live-root-exposure term (RV2004): the orchestrator's
+    // own 4000-token turn floor, 0.04 at $10/MTok. The $6.00 benchmark
+    // ceiling sat below its own wave, and the parity rerun's fourth
+    // seat proved the plain 5.95-style figure still lies without the
+    // coordination term: the seat fit preflight and was refused live.
+    expect(report.admission.liveRootExposureTermUsd).toBeCloseTo(0.04, 10);
+    expect(report.admission.requiredMinimumCeilingUsd).toBeCloseTo(7.02, 10);
   });
 
   it('names a cap below the breathing floor and prices the equation', () => {
