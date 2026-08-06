@@ -10,7 +10,7 @@
 function hashRunOutput(value): string | undefined;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:808](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L808)
+Defined in: [packages/core/src/engine/engine.ts:820](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L820)
 
 sha256 hex over the JCS canonical serialization of a run's result
 value: the digest the engine records as `outputHash` on the journaled

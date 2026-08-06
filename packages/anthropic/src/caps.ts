@@ -70,6 +70,10 @@ function current(
       reasoningEfforts: ALL_EFFORTS,
       contextWindow,
       maxOutputTokens,
+      // Anthropic caching is EXPLICIT (RV2006): the adapter compiles
+      // ChatRequest.cacheHint into cache_control breakpoints, so the
+      // core's cache policy attaches hints here by default.
+      promptCaching: 'explicit',
       ...(pricing === undefined
         ? {}
         : {

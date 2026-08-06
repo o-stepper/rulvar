@@ -10,6 +10,6 @@
 const OPENAI_MODELS: Record<string, OpenAiModelInfo>;
 ```
 
-Defined in: [packages/openai/src/caps.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/caps.ts#L126)
+Defined in: [packages/openai/src/caps.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/caps.ts#L130)
 
 Static seed table of the current model set.

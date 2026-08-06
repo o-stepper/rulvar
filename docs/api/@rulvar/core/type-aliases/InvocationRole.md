@@ -17,7 +17,7 @@ type InvocationRole =
   | "synthesize";
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:211](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L211)
+Defined in: [packages/core/src/l0/messages.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L232)
 
 The seven invocation roles. 'synthesize' is the orchestrator's
 post-fan-in synthesis invocation (RV-211): it fires only when

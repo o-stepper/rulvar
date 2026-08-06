@@ -26,7 +26,7 @@ import {
   validateEvidenceContract,
 } from '../l0/validate-numbers.js';
 import type { WorkflowEventBody } from '../l0/events.js';
-import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
+import type { CachePolicy, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { ExecutorRegistry } from '../l0/spi/executor.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
 import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
@@ -152,6 +152,18 @@ export interface EngineDefaults {
    * (today's behavior); AgentProfile.countTokens overrides per profile.
    */
   countTokens?: 'allow' | 'deny';
+  /**
+   * The engine-wide prompt-cache policy (RV2006). Absent means 'auto':
+   * the agent loop attaches CacheHint breakpoints (after tools, after
+   * system, and the sliding deepest message, TTL '5m') on every turn
+   * served by an adapter that declares ModelCaps.promptCaching
+   * 'explicit', and attaches nothing anywhere else, so wire traffic to
+   * every other adapter stays byte identical. `{ mode: 'off' }` is the
+   * opt-out; AgentProfile.cache and the per-call opts override in that
+   * order. Transport-level cost optimization only: hints never enter
+   * identity, journals, or cassette keys.
+   */
+  cache?: CachePolicy;
 }
 
 export interface BudgetDefaults {
@@ -1541,6 +1553,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(defaults.toolsets === undefined ? {} : { toolsets: defaults.toolsets }),
         ...(defaults.gates === undefined ? {} : { gates: defaults.gates }),
         ...(defaults.countTokens === undefined ? {} : { countTokens: defaults.countTokens }),
+        ...(defaults.cache === undefined ? {} : { cache: defaults.cache }),
       },
       ...(options.telemetry === undefined ? {} : { telemetry: options.telemetry }),
       errorPolicy: wf.errorPolicy,

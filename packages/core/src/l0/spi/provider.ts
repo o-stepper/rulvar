@@ -111,6 +111,16 @@ export type ModelCaps = {
    * the wire. Absent means one, the historical floor.
    */
   minOutputTokensPerTurn?: number;
+  /**
+   * How this model's prompt caching is driven (RV2006). 'explicit'
+   * means the adapter compiles ChatRequest.cacheHint into provider
+   * cache directives (Anthropic cache_control) and the agent loop's
+   * cache policy attaches hints by default; 'implicit' means the
+   * provider caches server-side on its own and hints are neither
+   * needed nor sent (OpenAI). Absent means unknown: the loop attaches
+   * nothing and the wire stays byte identical to pre-RV2006 traffic.
+   */
+  promptCaching?: 'explicit' | 'implicit';
   /** Adapter-reported fallback only; the versioned price table wins. */
   pricing?: Pricing;
 };

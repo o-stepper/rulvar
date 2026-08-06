@@ -44,6 +44,10 @@ function responses(
       // terminal repair died exactly there). An API property, so every
       // row and the unknown-model fallback carry it alike.
       minOutputTokensPerTurn: 16,
+      // OpenAI caching is IMPLICIT (RV2006): the Responses API caches
+      // long stable prefixes server-side on its own, so the core's
+      // cache policy never sends a hint and the wire stays unchanged.
+      promptCaching: 'implicit',
       ...(pricing === undefined ? {} : { pricing }),
     },
     api: 'responses',
