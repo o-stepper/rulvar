@@ -4147,6 +4147,184 @@ describe('the child exposure wait (RV2002, the third parity rerun)', () => {
   });
 });
 
+describe('the sequential roster feasibility (RV2005, the third parity rerun)', () => {
+  // The parity model ignored the one-parallel_agents instruction and
+  // spawned seat by seat through spawn_agent, so the RV1908 batchGate
+  // never saw a batch: three seats were paid in full under a floor of
+  // four the money could never reach, and the settle verdict was bound
+  // to reject them. Every SINGLE spawn_agent admission now projects
+  // the whole remaining roster (this seat's own projection per seat,
+  // live exposure included) and refuses the FIRST infeasible seat
+  // typed 'roster_floor', zero paid children.
+  const ROUTING_2005 = { loop: 'fake:model', orchestrate: 'fake:model' } as const;
+  const SEAT_PROFILES = {
+    worker: { description: 'the estimated worker', estCost: 0.7 },
+  };
+
+  function seatBySeatAdapter(seats: number) {
+    let orchTurn = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'seated worker' };
+      }
+      orchTurn += 1;
+      if (orchTurn <= seats) {
+        return {
+          toolCall: {
+            name: 'spawn_agent',
+            args: { agentType: 'worker', prompt: `seat ${String(orchTurn)}` },
+          },
+        };
+      }
+      if (orchTurn === seats + 1) {
+        const handles = handlesIn(req);
+        if (handles.length > 0) {
+          return { toolCall: { name: 'await_all', args: { handles } } };
+        }
+      }
+      return { toolCall: { name: 'finish', args: { result: 'done coordinating' } } };
+    });
+  }
+
+  it('an infeasible roster refuses the FIRST seat typed with zero paid children', async () => {
+    const adapter = seatBySeatAdapter(4);
+    const { internals, store, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2005,
+      profiles: SEAT_PROFILES,
+      // Four declared seats at 0.70 need 2.80; the 2.5 ceiling cannot
+      // reach the floor, so the FIRST seat refuses before any child is
+      // paid (the parity arm paid three).
+      budgetUsd: 2.5,
+    });
+    const wf = makeOrchestratorWorkflow('the seat-by-seat parity roster', {
+      acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 4 },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    // The settle acceptance still rejects the empty roster; the new
+    // truth is WHERE the money stopped: before the first seat.
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const workerCalls = adapter.calls.filter((req) => agentTypeOf(req) !== '');
+    expect(workerCalls).toHaveLength(0);
+    const rejects = events
+      .ofType('spawn:rejected')
+      .filter((event) => (event as { code?: string }).code === 'roster_floor');
+    expect(rejects.length).toBeGreaterThanOrEqual(1);
+    const decision = (await store.load('test-run')).find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'spawn-admission' &&
+        (
+          entry.value as {
+            decision?: { verdict?: { reason?: { code?: string } } };
+          }
+        ).decision?.verdict?.reason?.code === 'roster_floor',
+    );
+    expect(decision).toBeDefined();
+    const reason = (
+      decision?.value as {
+        decision: { verdict: { reason: Record<string, unknown> } };
+      }
+    ).decision.verdict.reason;
+    expect(reason.floor).toBe(4);
+    expect(reason.admittedChildren).toBe(0);
+    expect(reason.seatsRemaining).toBe(4);
+    expect(reason.perSeatProjectionUsd).toBeCloseTo(0.7, 10);
+  });
+
+  it('a feasible roster admits seat by seat exactly as before', async () => {
+    const adapter = seatBySeatAdapter(2);
+    const { internals, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2005,
+      profiles: SEAT_PROFILES,
+      budgetUsd: 10,
+    });
+    const wf = makeOrchestratorWorkflow('the feasible pair', {
+      acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 2 },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    // A declared acceptance returns the result envelope.
+    expect((outcome as { result?: string }).result).toBe('done coordinating');
+    const workerCalls = adapter.calls.filter((req) => agentTypeOf(req) !== '');
+    expect(workerCalls).toHaveLength(2);
+    expect(
+      events
+        .ofType('spawn:rejected')
+        .filter((event) => (event as { code?: string }).code === 'roster_floor'),
+    ).toHaveLength(0);
+  });
+
+  it("requireBatchSpawn 'reject-spawn-agent' refuses the single spawn typed and unjournaled", async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'batched worker' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        // Model disobedience: the single spawn the option exists for.
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'solo seat' } },
+        };
+      }
+      if (orchTurn === 2) {
+        // The refusal taught it: the whole wave in ONE batch.
+        return {
+          toolCall: {
+            name: 'parallel_agents',
+            args: {
+              tasks: [
+                { agentType: 'worker', prompt: 'batched A' },
+                { agentType: 'worker', prompt: 'batched B' },
+              ],
+            },
+          },
+        };
+      }
+      if (orchTurn === 3) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'batched after the refusal' } } };
+    });
+    const { internals, store, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2005,
+      profiles: SEAT_PROFILES,
+      budgetUsd: 10,
+    });
+    const wf = makeOrchestratorWorkflow('force the batch', {
+      requireBatchSpawn: 'reject-spawn-agent',
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('batched after the refusal');
+    // The refusal was typed and free: the event fired, nothing was
+    // journaled for the refused single, and both batch seats ran.
+    expect(
+      events
+        .ofType('spawn:rejected')
+        .filter((event) => (event as { code?: string }).code === 'batch_required'),
+    ).toHaveLength(1);
+    const workerCalls = adapter.calls.filter((req) => agentTypeOf(req) !== '');
+    expect(workerCalls).toHaveLength(2);
+    const admissions = (await store.load('test-run')).filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'spawn-admission',
+    );
+    expect(admissions).toHaveLength(2);
+    for (const admission of admissions) {
+      expect((admission.value as { origin?: string }).origin).toBe('parallel_agents');
+    }
+  });
+});
+
 describe('the terminal child barrier (RV1903, the four-role benchmark recovery journal)', () => {
   // The recovery journal recorded run_settle at sequence 18 and three
   // successful child terminals at 19..21: the returned outcome, the

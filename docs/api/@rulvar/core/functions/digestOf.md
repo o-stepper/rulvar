@@ -13,7 +13,7 @@ function digestOf(
    includeFacts?): TaskDigest;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:249](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L249)
+Defined in: [packages/core/src/orchestrator/handles.ts:258](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L258)
 
 Folds one settled child into its digest (spawn-ordinal ordering is
 the caller's). `includeFacts` (RV1503) appends the replay-stable

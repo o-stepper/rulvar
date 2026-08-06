@@ -156,17 +156,26 @@ export interface SpawnRecord {
 
 /** The engine seam the spawn tools close over (never on ToolContext). */
 export interface OrchestratorRuntime {
-  spawn(params: {
-    agentType: string;
-    prompt: string;
-    outputSchemaRef?: string;
-    toolsetRef?: string;
-    budgetUsd?: number;
-    model_hint?: { startTier?: number };
-    approach?: string;
-    lineage?: { continues: string; relation?: string; causeRef: number };
-    taskClass?: string;
-  }): Promise<{ handle: number }>;
+  spawn(
+    params: {
+      agentType: string;
+      prompt: string;
+      outputSchemaRef?: string;
+      toolsetRef?: string;
+      budgetUsd?: number;
+      model_hint?: { startTier?: number };
+      approach?: string;
+      lineage?: { continues: string; relation?: string; causeRef: number };
+      taskClass?: string;
+    },
+    /**
+     * Which spawn tool asked (RV2005): batch seats admit under
+     * 'parallel_agents' and skip the sequential roster feasibility
+     * (their batchGate already judged the batch entire) and the
+     * requireBatchSpawn gate; absent means 'spawn_agent'.
+     */
+    origin?: 'spawn_agent' | 'parallel_agents',
+  ): Promise<{ handle: number }>;
   awaitAny(handles: number[]): Promise<TaskDigest>;
   awaitAll(handles: number[]): Promise<TaskDigest[]>;
   cancel(handle: number, reason?: string): Promise<{ cancelled: boolean; handle: number }>;

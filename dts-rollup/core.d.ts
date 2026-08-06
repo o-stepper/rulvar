@@ -6820,6 +6820,25 @@ type AdmitRejectReason = {
   oscillationCount: number;
 } | {
   /**
+  * The sequential roster feasibility refusal (RV2005): under a
+  * declared acceptance.minSpawnedChildren, the whole remaining
+  * roster (priced at this seat's own projection) plus the live
+  * in-flight exposure does not fit the parent remainder, so the
+  * FIRST infeasible seat refuses before any child is paid. The
+  * batchGate symmetry (RV1908) on the seat-by-seat path the
+  * parity rerun's model actually took, where three seats were
+  * paid in full under a floor of four the money could never
+  * reach.
+  */
+  code: "roster_floor";
+  floor: number;
+  admittedChildren: number;
+  seatsRemaining: number;
+  perSeatProjectionUsd: number;
+  liveExposureUsd: number;
+  remainderUsd: number;
+} | {
+  /**
   * The declared estimate cannot fit the child's own ceiling: the
   * host said the work costs more than the budget buys, so the op
   * is bounced with the actionable correction BEFORE it changes
@@ -6858,6 +6877,20 @@ interface AdmitSpec {
   * is dispatchable under the same snapshot, not just the first.
   */
   pendingReserveUsd?: number;
+  /**
+  * The sequential roster feasibility inputs (RV2005), passed by the
+  * SINGLE spawn_agent path when acceptance.minSpawnedChildren is
+  * declared: the admission projects the whole REMAINING roster at
+  * this seat's own dispatch projection, live in-flight exposure
+  * included, and refuses the first infeasible seat typed
+  * 'roster_floor' before any child is paid. Batch seats never carry
+  * this: the RV1908 batchGate already judged their batch entire.
+  */
+  roster?: {
+    floor: number;
+    admittedChildren: number;
+    liveExposureUsd: number;
+  };
   /**
   * Lineage continuation (DEF-3); absence mints a fresh lineage root. A
   * continuation demands a causeRef: the seq of the entry that caused the
@@ -8751,7 +8784,7 @@ interface OrchestratorRuntime {
       causeRef: number;
     };
     taskClass?: string;
-  }): Promise<{
+  }, origin?: "spawn_agent" | "parallel_agents"): Promise<{
     handle: number;
   }>;
   awaitAny(handles: number[]): Promise<TaskDigest>;
@@ -9551,6 +9584,19 @@ interface OrchestrateOptions {
   * full and the settle verdict was bound to reject them.
   */
   parallelAdmission?: "fail-fast" | "try-all" | "all-or-none";
+  /**
+  * The batch-spawn discipline (RV2005). The third parity rerun's
+  * model ignored the instruction to spawn its roster in one
+  * parallel_agents call and spawned seat by seat through spawn_agent,
+  * so the RV1908 batchGate never saw a batch and the roster
+  * feasibility rode on per-seat luck. 'reject-spawn-agent' refuses
+  * every SINGLE spawn_agent call typed (code 'batch_required',
+  * nothing journaled, nothing paid) so model disobedience cannot
+  * split the policy: the model reads the refusal and re-issues the
+  * wave as one parallel_agents batch. Absent, both tools behave as
+  * documented.
+  */
+  requireBatchSpawn?: "reject-spawn-agent";
   /**
   * The opt in deterministic host validation of the finish result, with
   * bounded repair; see {@link FinishValidationSpec}.

@@ -333,7 +333,7 @@ export function buildOrchestratorTools(
       for (const [index, task] of tasks.entries()) {
         let spawned: { handle: number };
         try {
-          spawned = await runtime.spawn(task);
+          spawned = await runtime.spawn(task, 'parallel_agents');
         } catch (thrown) {
           const failure = {
             index,
