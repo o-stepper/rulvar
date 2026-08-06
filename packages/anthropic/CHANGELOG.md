@@ -1,5 +1,12 @@
 # @rulvar/anthropic
 
+## 1.205.0
+
+### Patch Changes
+
+- Updated dependencies [6d224da]
+  - @rulvar/core@1.205.0
+
 ## 1.204.0
 
 ### Patch Changes
