@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.198.0
+
+### Minor Changes
+
+- c097c96: The terminal event semantics say what happened (RV1906). The four-role benchmark's primary stream read a root `agent:end` with status ok followed by a `run:end` error with nothing between them naming the policy fold, and its artifacts carried `contradictions: null` and `claimConsistencyMeta: null` that the judge had to annotate by hand as NOT RUN. The acceptance verdict now speaks on the stream: `orchestrator:acceptance` carries `verdict`, `completion`, `childStatusCounts` and the declared roster floor, emitted from the one journaled decision, fresh and on the resume roll-forward alike. And every semantic pass reports an explicit summary: `semanticPasses` ({`contradictions`, `claimConsistency`, `synthesis`}, each `{ran, reason?}` with reasons `'not-configured'`, `'run-rejected'`, `'valid-draft'`, `'not-run'`) rides the acceptance envelope, the typed rejection data, the `RunOutcome` and `run:end` through the same validated lift as the acceptance roster, so an absent findings field can never be read as a clean pass.
+
 ## 1.197.0
 
 ## 1.196.0
