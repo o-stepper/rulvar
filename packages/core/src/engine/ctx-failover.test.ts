@@ -84,7 +84,11 @@ describe('degenerate fallback through ctx (docs/04, 11.3)', () => {
     // TWO spawns (four entries): the failed weak attempt and the
     // strong fallback attempt under its own content key.
     expect(agentPairs).toHaveLength(4);
-    const decision = prior.find((e) => e.kind === 'decision');
+    const decision = prior.find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+    );
     expect(decision?.value).toMatchObject({
       decisionType: 'model.fallback',
       trigger: 'schema-exhausted',
@@ -124,7 +128,13 @@ describe('degenerate fallback through ctx (docs/04, 11.3)', () => {
     expect(replayStrong.calls).toHaveLength(0);
     // The decision entry was reused, never duplicated.
     const after = await store.load('test-run');
-    expect(after.filter((e) => e.kind === 'decision')).toHaveLength(1);
+    expect(
+      after.filter(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+      ),
+    ).toHaveLength(1);
   });
 
   it('does not fire for triggers outside on', async () => {

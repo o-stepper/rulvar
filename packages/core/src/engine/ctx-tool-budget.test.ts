@@ -522,7 +522,16 @@ describe('the durable tool budget summary (RV509)', () => {
     );
     expect(result.status).toBe('ok');
     await internals.replayer.flush();
-    const decisions = internals.replayer.snapshot().filter((entry) => entry.kind === 'decision');
+    // The RV2008 provider-call billing rows are lane infrastructure,
+    // not tool-budget decisions; the grant-free claim is about the
+    // budget surface.
+    const decisions = internals.replayer
+      .snapshot()
+      .filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+      );
     expect(decisions).toEqual([]);
   });
 });

@@ -79,7 +79,11 @@ describe('DEF-1 live cassettes (M3-T11)', () => {
     expect(outcome.value).toBe('migration retried per service');
     expect(preview.misses).toBe(0);
     expect(preview.reruns).toBe(0);
-    const decisionEntry = entries.find((e) => e.kind === 'decision');
+    const decisionEntry = entries.find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+    );
     expect(decisionEntry?.value).toMatchObject({
       decisionType: 'escalation.decision',
       countsAgainstLimit: true,
@@ -94,13 +98,15 @@ describe('DEF-1 live cassettes (M3-T11)', () => {
     const { entries } = cassette('crash-between-report-and-decision');
     // The scenario's precondition: the crash landed BEFORE the owner's
     // escalation decision was journaled. The journaled run settle
-    // (decisionType run_settle, fenced run state RFC phase 3) is a
-    // different decision entry and legitimately present.
+    // (decisionType run_settle, fenced run state RFC phase 3) and the
+    // incremental provider-call rows are different decision entries and
+    // legitimately present.
     expect(
       entries.some(
         (e) =>
           e.kind === 'decision' &&
-          (e.value as { decisionType?: string } | undefined)?.decisionType !== 'run_settle',
+          (e.value as { decisionType?: string } | undefined)?.decisionType !== 'run_settle' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
       ),
     ).toBe(false);
 
@@ -164,7 +170,11 @@ describe('DEF-1 live cassettes (M3-T11)', () => {
     const suspended = entries.find((e) => e.kind === 'approval');
     const resolution = entries.find((e) => e.kind === 'resolution');
     const terminal = entries.find((e) => e.kind === 'agent' && e.status === 'escalated');
-    const decisionEntry = entries.find((e) => e.kind === 'decision');
+    const decisionEntry = entries.find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+    );
     expect(suspended?.deadlineAt).toBeDefined();
     expect(resolution?.resolution?.by).toBe('timeout');
     expect(resolution?.resolution?.value).toMatchObject({ kind: 'cancel' });

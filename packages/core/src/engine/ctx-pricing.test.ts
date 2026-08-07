@@ -69,7 +69,11 @@ describe('pricing through ctx (M4-T06)', () => {
     expect(value).toEqual({ verdict: 'pass' });
     await internals.replayer.flush();
     const prior = await store.load('test-run');
-    const decision = prior.find((e) => e.kind === 'decision');
+    const decision = prior.find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+    );
     expect(decision?.value).toMatchObject({
       decisionType: 'model.fallback',
       pricingVersion: '2026-07-01',
@@ -99,7 +103,11 @@ describe('pricing through ctx (M4-T06)', () => {
     expect(replayStrong.calls).toHaveLength(0);
     // The journaled decision was REUSED: the resumed store (which holds
     // only its own appends) wrote no duplicate under the bumped table.
-    const appended = (await after.load('test-run')).filter((e) => e.kind === 'decision');
+    const appended = (await after.load('test-run')).filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+    );
     expect(appended).toHaveLength(0);
   });
 });

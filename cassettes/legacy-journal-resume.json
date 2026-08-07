@@ -16,6 +16,35 @@
     {
       "hashVersion": 2,
       "seq": 1,
+      "scope": "",
+      "key": "pc:0:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
       "ref": 0,
       "scope": "",
       "key": "hash-0001-------------------------------------------------------",
@@ -57,7 +86,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 2,
+      "seq": 3,
       "scope": "",
       "key": "hash-0002-------------------------------------------------------",
       "ordinal": 0,
@@ -68,8 +97,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 3,
-      "ref": 2,
+      "seq": 4,
+      "scope": "",
+      "key": "pc:3:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 3,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "ref": 3,
       "scope": "",
       "key": "hash-0002-------------------------------------------------------",
       "ordinal": 0,
@@ -110,7 +168,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 4,
+      "seq": 6,
       "scope": "",
       "key": "",
       "ordinal": 0,
@@ -153,7 +211,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 5,
+      "seq": 7,
       "scope": "",
       "key": "hash-0003-------------------------------------------------------",
       "ordinal": 0,
@@ -164,8 +222,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 6,
-      "ref": 5,
+      "seq": 8,
+      "scope": "",
+      "key": "pc:7:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 7,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 9,
+      "ref": 7,
       "scope": "",
       "key": "hash-0003-------------------------------------------------------",
       "ordinal": 0,
@@ -206,7 +293,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 7,
+      "seq": 10,
       "scope": "",
       "key": "hash-0007-------------------------------------------------------",
       "ordinal": 0,

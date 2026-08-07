@@ -63,6 +63,35 @@
     {
       "hashVersion": 2,
       "seq": 3,
+      "scope": "",
+      "key": "pc:2:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 2,
+        "record": {
+          "ordinal": 1,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
       "scope": "plan",
       "key": "hash-0005-------------------------------------------------------",
       "ordinal": 0,
@@ -154,7 +183,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 4,
+      "seq": 5,
       "scope": "plan/ULID-0001--------------------",
       "key": "hash-0010-------------------------------------------------------",
       "ordinal": 0,
@@ -165,7 +194,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 5,
+      "seq": 6,
       "scope": "plan",
       "key": "hash-0011-------------------------------------------------------",
       "ordinal": 0,
@@ -182,10 +211,10 @@
             "from": "ready",
             "to": "running",
             "cause": "child-result",
-            "causeRef": 4
+            "causeRef": 5
           }
         ],
-        "causeRef": 4,
+        "causeRef": 5,
         "planHashBefore": "hash-0009-------------------------------------------------------",
         "planHashAfter": "hash-0012-------------------------------------------------------",
         "hashVersion": 2
@@ -194,8 +223,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 6,
-      "ref": 4,
+      "seq": 7,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "pc:5:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 5,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:cheap",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 8,
+      "ref": 5,
       "scope": "plan/ULID-0001--------------------",
       "key": "hash-0010-------------------------------------------------------",
       "ordinal": 0,
@@ -236,7 +294,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 7,
+      "seq": 9,
       "scope": "plan",
       "key": "hash-0013-------------------------------------------------------",
       "ordinal": 0,
@@ -249,7 +307,7 @@
         "logicalTaskId": "ULID-0002--------------------",
         "nodeId": "ULID-0001--------------------",
         "trigger": "limit",
-        "attemptRef": 4,
+        "attemptRef": 5,
         "raisesRung": true,
         "rungIndexAfter": 1,
         "rungsRemainingAfter": 1,
@@ -259,7 +317,7 @@
             "logicalTaskId": "ULID-0002--------------------",
             "relation": "rung-retry",
             "attemptOrdinal": 1,
-            "causeRef": 4,
+            "causeRef": 5,
             "ancestry": [],
             "approachSig": "hash-0007-------------------------------------------------------",
             "approachSigCoarse": "hash-0008-------------------------------------------------------",
@@ -313,7 +371,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 8,
+      "seq": 10,
       "scope": "plan/ULID-0001--------------------",
       "key": "hash-0014-------------------------------------------------------",
       "ordinal": 0,
@@ -324,8 +382,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 9,
-      "ref": 8,
+      "seq": 11,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "pc:10:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 10,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:mid",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 12,
+      "ref": 10,
       "scope": "plan/ULID-0001--------------------",
       "key": "hash-0014-------------------------------------------------------",
       "ordinal": 0,
@@ -366,7 +453,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 10,
+      "seq": 13,
       "scope": "plan",
       "key": "hash-0015-------------------------------------------------------",
       "ordinal": 0,
@@ -379,7 +466,7 @@
         "logicalTaskId": "ULID-0002--------------------",
         "nodeId": "ULID-0001--------------------",
         "trigger": "limit",
-        "attemptRef": 8,
+        "attemptRef": 10,
         "raisesRung": true,
         "rungIndexAfter": 2,
         "rungsRemainingAfter": 0,
@@ -389,7 +476,7 @@
             "logicalTaskId": "ULID-0002--------------------",
             "relation": "rung-retry",
             "attemptOrdinal": 2,
-            "causeRef": 8,
+            "causeRef": 10,
             "ancestry": [],
             "approachSig": "hash-0007-------------------------------------------------------",
             "approachSigCoarse": "hash-0008-------------------------------------------------------",
@@ -443,7 +530,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 11,
+      "seq": 14,
       "scope": "plan/ULID-0001--------------------",
       "key": "hash-0016-------------------------------------------------------",
       "ordinal": 0,
@@ -454,7 +541,36 @@
     },
     {
       "hashVersion": 2,
-      "seq": 12,
+      "seq": 15,
+      "scope": "",
+      "key": "pc:2:2",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 2,
+        "record": {
+          "ordinal": 2,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 16,
       "scope": "plan",
       "key": "hash-0017-------------------------------------------------------",
       "ordinal": 0,
@@ -503,8 +619,39 @@
     },
     {
       "hashVersion": 2,
-      "seq": 13,
-      "ref": 11,
+      "seq": 17,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "pc:14:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 14,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:strong",
+          "attempt": 1,
+          "outcome": "aborted",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "usageApprox": true,
+          "aborted": "external"
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 18,
+      "ref": 14,
       "scope": "plan/ULID-0001--------------------",
       "key": "hash-0016-------------------------------------------------------",
       "ordinal": 0,
@@ -547,7 +694,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 14,
+      "seq": 19,
       "scope": "plan",
       "key": "hash-0019-------------------------------------------------------",
       "ordinal": 0,
@@ -564,10 +711,10 @@
             "from": "running",
             "to": "cancelled",
             "cause": "cancel-landed",
-            "causeRef": 13
+            "causeRef": 18
           }
         ],
-        "causeRef": 13,
+        "causeRef": 18,
         "planHashBefore": "hash-0018-------------------------------------------------------",
         "planHashAfter": "hash-0020-------------------------------------------------------",
         "hashVersion": 2
@@ -576,8 +723,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 15,
-      "ref": 4,
+      "seq": 20,
+      "scope": "",
+      "key": "pc:2:3",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 2,
+        "record": {
+          "ordinal": 3,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 21,
+      "ref": 5,
       "scope": "plan/ULID-0001--------------------",
       "key": "",
       "ordinal": 0,
@@ -586,8 +762,8 @@
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z",
       "abandon": {
-        "target": 4,
-        "authorizedBy": 14,
+        "target": 5,
+        "authorizedBy": 19,
         "reason": "cancel_task",
         "nodeId": "ULID-0001--------------------",
         "logicalTaskId": "ULID-0002--------------------",
@@ -597,7 +773,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 16,
+      "seq": 22,
       "scope": "plan",
       "key": "hash-0005-------------------------------------------------------",
       "ordinal": 1,
@@ -652,7 +828,7 @@
                 "kind": "admit_graft",
                 "donor": {
                   "nodeId": "ULID-0001--------------------",
-                  "rootEntryRef": 4,
+                  "rootEntryRef": 5,
                   "chain": [
                     "ULID-0001--------------------"
                   ],
@@ -667,7 +843,7 @@
                 "boot": {
                   "eligiblePaidUsd": 0.00012,
                   "worktreePinned": false,
-                  "checkpointRef": "ULID-0005--------------------/ckpt/4"
+                  "checkpointRef": "ULID-0005--------------------/ckpt/5"
                 },
                 "spawnUnitsAfter": 124,
                 "lineage": {
@@ -721,7 +897,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 17,
+      "seq": 23,
       "scope": "plan",
       "key": "hash-0022-------------------------------------------------------",
       "ordinal": 0,
@@ -741,13 +917,13 @@
         "mode": "graft",
         "claim": "exclusive",
         "reclaimedUsdAtLink": 0.00012,
-        "donorRootRef": 4
+        "donorRootRef": 5
       },
       "endedAt": "2026-02-01T00:00:00.000Z"
     },
     {
       "hashVersion": 2,
-      "seq": 18,
+      "seq": 24,
       "scope": "plan/ULID-0004--------------------",
       "key": "hash-0016-------------------------------------------------------",
       "ordinal": 0,
@@ -758,7 +934,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 19,
+      "seq": 25,
       "scope": "plan",
       "key": "hash-0023-------------------------------------------------------",
       "ordinal": 0,
@@ -775,10 +951,10 @@
             "from": "ready",
             "to": "running",
             "cause": "child-result",
-            "causeRef": 18
+            "causeRef": 24
           }
         ],
-        "causeRef": 18,
+        "causeRef": 24,
         "planHashBefore": "hash-0021-------------------------------------------------------",
         "planHashAfter": "hash-0024-------------------------------------------------------",
         "hashVersion": 2
@@ -787,8 +963,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 20,
-      "ref": 18,
+      "seq": 26,
+      "scope": "plan/ULID-0004--------------------",
+      "key": "pc:24:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 24,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:strong",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 27,
+      "ref": 24,
       "scope": "plan/ULID-0004--------------------",
       "key": "hash-0016-------------------------------------------------------",
       "ordinal": 0,
@@ -829,7 +1034,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 21,
+      "seq": 28,
       "scope": "plan",
       "key": "hash-0025-------------------------------------------------------",
       "ordinal": 0,
@@ -846,10 +1051,10 @@
             "from": "running",
             "to": "done",
             "cause": "child-result",
-            "causeRef": 20
+            "causeRef": 27
           }
         ],
-        "causeRef": 20,
+        "causeRef": 27,
         "planHashBefore": "hash-0024-------------------------------------------------------",
         "planHashAfter": "hash-0026-------------------------------------------------------",
         "hashVersion": 2
@@ -858,7 +1063,36 @@
     },
     {
       "hashVersion": 2,
-      "seq": 22,
+      "seq": 29,
+      "scope": "",
+      "key": "pc:2:4",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 2,
+        "record": {
+          "ordinal": 4,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 30,
       "scope": "agent:2",
       "key": "hash-0027-------------------------------------------------------",
       "ordinal": 0,
@@ -872,8 +1106,8 @@
     },
     {
       "hashVersion": 2,
-      "seq": 23,
-      "ref": 22,
+      "seq": 31,
+      "ref": 30,
       "scope": "agent:2",
       "key": "",
       "ordinal": 0,
@@ -882,7 +1116,7 @@
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z",
       "resolution": {
-        "target": 22,
+        "target": 30,
         "by": "quiescence",
         "value": {
           "digestSeq": 1,
@@ -955,14 +1189,14 @@
             }
           ],
           "escalations": [],
-          "planSeq": 21
+          "planSeq": 28
         }
       }
     },
     {
       "hashVersion": 2,
-      "seq": 24,
-      "ref": 22,
+      "seq": 32,
+      "ref": 30,
       "scope": "agent:2",
       "key": "",
       "ordinal": 0,
@@ -971,7 +1205,7 @@
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z",
       "resolution": {
-        "target": 22,
+        "target": 30,
         "by": "quiescence",
         "value": {
           "digestSeq": 1,
@@ -1044,13 +1278,42 @@
             }
           ],
           "escalations": [],
-          "planSeq": 21
+          "planSeq": 28
         }
       }
     },
     {
       "hashVersion": 2,
-      "seq": 25,
+      "seq": 33,
+      "scope": "",
+      "key": "pc:2:5",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 2,
+        "record": {
+          "ordinal": 5,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 34,
       "ref": 2,
       "scope": "",
       "key": "hash-0004-------------------------------------------------------",
@@ -1145,7 +1408,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 26,
+      "seq": 35,
       "scope": "",
       "key": "hash-0028-------------------------------------------------------",
       "ordinal": 0,

@@ -17,6 +17,93 @@
     {
       "hashVersion": 2,
       "seq": 1,
+      "scope": "",
+      "key": "pc:0:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 6,
+            "outputTokens": 11,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
+      "key": "pc:0:2",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 2,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 50,
+            "outputTokens": 11,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:02.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "scope": "",
+      "key": "pc:0:3",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 3,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 50,
+            "outputTokens": 11,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:03.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
       "ref": 0,
       "scope": "",
       "key": "3698eb437b45ad62cfe6ef1523250a4c359ed6f89fa971254d59f93c4e6830aa",
@@ -24,8 +111,8 @@
       "kind": "agent",
       "status": "error",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z",
-      "endedAt": "2026-02-01T00:00:01.000Z",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "endedAt": "2026-02-01T00:00:04.000Z",
       "error": {
         "code": "agent",
         "message": "no JSON value found in the model response",
@@ -97,28 +184,121 @@
     },
     {
       "hashVersion": 2,
-      "seq": 2,
+      "seq": 5,
       "scope": "",
       "key": "555e5c8bbdf0c964ad9264fa14a60a7d5439169569cbffdde958fd6b9ad22ea7",
       "ordinal": 0,
       "kind": "agent",
       "status": "running",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z",
+      "startedAt": "2026-02-01T00:00:05.000Z",
       "memoizeOutcome": true
     },
     {
       "hashVersion": 2,
-      "seq": 3,
-      "ref": 2,
+      "seq": 6,
+      "scope": "",
+      "key": "pc:5:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:06.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 5,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "error",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "usageApprox": true,
+          "errorCode": "rate-limit"
+        }
+      },
+      "endedAt": "2026-02-01T00:00:06.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
+      "scope": "",
+      "key": "pc:5:2",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:07.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 5,
+        "record": {
+          "ordinal": 2,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 2,
+          "outcome": "error",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "usageApprox": true,
+          "errorCode": "rate-limit"
+        }
+      },
+      "endedAt": "2026-02-01T00:00:07.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 8,
+      "scope": "",
+      "key": "pc:5:3",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:08.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 5,
+        "record": {
+          "ordinal": 3,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 3,
+          "outcome": "error",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "usageApprox": true,
+          "errorCode": "rate-limit"
+        }
+      },
+      "endedAt": "2026-02-01T00:00:08.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 9,
+      "ref": 5,
       "scope": "",
       "key": "555e5c8bbdf0c964ad9264fa14a60a7d5439169569cbffdde958fd6b9ad22ea7",
       "ordinal": 0,
       "kind": "agent",
       "status": "error",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:03.000Z",
-      "endedAt": "2026-02-01T00:00:03.000Z",
+      "startedAt": "2026-02-01T00:00:09.000Z",
+      "endedAt": "2026-02-01T00:00:09.000Z",
       "error": {
         "code": "agent",
         "message": "429 too many requests",
@@ -192,21 +372,21 @@
     },
     {
       "hashVersion": 2,
-      "seq": 4,
+      "seq": 10,
       "scope": "",
       "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
       "ordinal": 0,
       "kind": "decision",
       "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:04.000Z",
+      "startedAt": "2026-02-01T00:00:10.000Z",
       "value": {
         "decisionType": "run_settle",
         "runStatus": "ok",
         "segment": 1,
         "outputHash": "0e6615a24e65e0a8c4ba4ec7d75b50504d7185e2ae308e86d3cfd6c3262f24e8"
       },
-      "endedAt": "2026-02-01T00:00:04.000Z"
+      "endedAt": "2026-02-01T00:00:10.000Z"
     }
   ]
 }

@@ -2481,6 +2481,47 @@ export function createCtx(
         runAgentOptions.cache = cachePolicy;
       }
     }
+    // The incremental billing rows (RV2008): every ProviderCallRecord
+    // journals as its wire call settles, keyed deterministically by the
+    // dispatch seq and the record ordinal, so a process crash loses at
+    // most the one in-flight turn instead of the invocation's whole
+    // history (~$0.99 of the parity root's dispatches lived only in
+    // memory). The append is asynchronous by design: the loop never
+    // blocks its dispatch path on journal IO, and the terminal entry
+    // still carries the complete set, which cost-audit cross-checks
+    // against these rows. A failed append warns and the terminal set
+    // remains the canonical fold input, so the row lane degrades to
+    // exactly the pre-RV2008 durability, never worse.
+    runAgentOptions.billing = {
+      onProviderCall: (record) => {
+        void internals.replayer
+          .appendSinglePhase({
+            scope: state.scope,
+            key: `pc:${String(running.seq)}:${String(record.ordinal)}`,
+            kind: 'decision',
+            status: 'ok',
+            spanId,
+            site: 'provider-call',
+            value: {
+              decisionType: 'provider-call',
+              agentRef: running.seq,
+              record: record as unknown as Json,
+            },
+          })
+          .catch((thrown: unknown) => {
+            internals.events.emit(
+              {
+                type: 'log',
+                level: 'warn',
+                msg:
+                  'incremental billing row failed to append; the terminal entry remains the ' +
+                  `canonical record (${thrown instanceof Error ? thrown.message : String(thrown)})`,
+              },
+              spanId,
+            );
+          });
+      },
+    };
     runAgentOptions.summarize = summarize;
     if (profile?.compaction !== undefined) {
       runAgentOptions.compaction = profile.compaction;
