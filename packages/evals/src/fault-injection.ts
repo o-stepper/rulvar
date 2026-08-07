@@ -2022,6 +2022,329 @@ const benchmarkRecoveryRootExposure: FaultScenario = {
   },
 };
 
+/**
+ * The third parity rerun's terminal shape as a permanent gate (RV2009):
+ * the coordination turn eats most of the exposure cap, every spawned
+ * worker is refused DRAINED (typed 'exposure-drained', zero provider
+ * attempts, the RV2002 seat instead of the parity mid-research death),
+ * the next coordination turn drains too, and the run forced-finishes
+ * partial (RV1902) into an exhausted terminal with a sealed journal:
+ * run_settle recorded after every agent terminal, the settled fold and
+ * the invoice in one denominator (the RV2003 no-silent-exit invariant,
+ * where the parity process left a forever-running root and no settle).
+ */
+const parityQuiescenceDeadlock: FaultScenario = {
+  name: 'parity-quiescence-deadlock',
+  doctrine:
+    'the parity deadlock shape ends in an exhausted terminal, never a silent exit: drained ' +
+    "children die typed 'exposure-drained' at zero provider attempts (RV2001/RV2002), the " +
+    'root forced-finishes partial (RV1902), and run_settle seals a one-denominator journal ' +
+    '(RV2003); the parity rerun exited mid-run with none of these',
+  async run() {
+    const agentTypeOfReq = (req: ChatRequest): string =>
+      (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar?.agentType ??
+      '';
+    let orchTurn = 0;
+    const calls: ChatRequest[] = [];
+    const toolEvents = (name: string, args: unknown, id: string): ChatEvent[] => [
+      { type: 'tool-call-start', id, name },
+      { type: 'tool-call-delta', id, argsTextDelta: JSON.stringify(args) },
+      { type: 'tool-call-end', id, args },
+    ];
+    const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
+      id: 'fake',
+      calls,
+      caps: () => ({
+        contextWindow: 200_000,
+        maxOutputTokens: 16_000,
+        structuredOutput: 'native',
+        supportsTemperature: true,
+        supportsParallelTools: true,
+        reasoningEfforts: [],
+        pricing: { inputUsdPerMTok: 1, outputUsdPerMTok: 10 },
+      }),
+      async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+        const call = calls.length;
+        calls.push(req);
+        // Hop the microtask queue like a real transport before the
+        // first event.
+        await Promise.resolve();
+        if (agentTypeOfReq(req) !== '') {
+          yield { type: 'text-delta', text: 'unreachable worker' };
+          yield {
+            type: 'finish',
+            finish: { reason: 'stop' },
+            usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          };
+          return;
+        }
+        orchTurn += 1;
+        const turn =
+          orchTurn === 1
+            ? toolEvents(
+                'spawn_agent',
+                { agentType: 'worker', prompt: 'research A' },
+                `id-${String(call)}-0`,
+              ).concat(
+                toolEvents(
+                  'spawn_agent',
+                  { agentType: 'worker', prompt: 'research B' },
+                  `id-${String(call)}-1`,
+                ),
+                toolEvents(
+                  'spawn_agent',
+                  { agentType: 'worker', prompt: 'research C' },
+                  `id-${String(call)}-2`,
+                ),
+              )
+            : toolEvents('finish', { result: 'unreachable' }, `id-${String(call)}-0`);
+        for (const event of turn) {
+          yield event;
+        }
+        yield {
+          type: 'finish',
+          finish: { reason: 'tool-calls' },
+          usage: {
+            inputTokens: 10,
+            outputTokens: orchTurn === 1 ? 2000 : 5,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+          },
+        };
+      },
+    };
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: {
+          worker: {
+            description: 'the oversized worker',
+            limits: { maxOutputTokensPerTurn: 10000 },
+          },
+        },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('the parity shape', {
+      limits: { maxOutputTokensPerTurn: 2500 },
+    });
+    const waits: Array<{ scope?: string; willWait?: boolean }> = [];
+    const handle = engine.run(wf, undefined, {
+      runId: 'fault-parity-quiescence',
+      budgetUsd: 10,
+      maxInFlightExposureUsd: 0.04,
+    });
+    handle.on('budget:exposure-wait', (event) => waits.push(event));
+    const outcome = await handle.result;
+    const entries = await store.load('fault-parity-quiescence');
+    const drained = entries.filter(
+      (entry) =>
+        entry.kind === 'agent' &&
+        entry.status === 'error' &&
+        (entry.error?.data as { reason?: string } | undefined)?.reason === 'exposure-drained',
+    );
+    const workerCalls = calls.filter((req) => agentTypeOfReq(req) !== '');
+    const settle = [...entries]
+      .reverse()
+      .find(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType === 'run_settle',
+      );
+    const agentEntries = entries.filter((entry) => entry.kind === 'agent');
+    const runningSeqs = agentEntries
+      .filter((entry) => entry.status === 'running')
+      .map((entry) => entry.seq);
+    const rosterClosed = runningSeqs.every((seq) =>
+      agentEntries.some((entry) => entry.ref === seq && entry.status !== 'running'),
+    );
+    const invoice = invoiceFromJournal(
+      entries,
+      (servedBy, usage) =>
+        (usage.inputTokens / 1_000_000) * 1 + (usage.outputTokens / 1_000_000) * 10,
+    );
+    const envelope = outcome.value as
+      { forcedFinishFallback?: boolean; completion?: string } | undefined;
+    const matched =
+      outcome.status === 'exhausted' &&
+      envelope?.forcedFinishFallback === true &&
+      envelope.completion === 'partial' &&
+      drained.length === 3 &&
+      workerCalls.length === 0 &&
+      waits.some((event) => event.scope === 'child' && event.willWait === false) &&
+      settle !== undefined &&
+      rosterClosed &&
+      agentEntries.every((entry) => entry.seq < settle.seq) &&
+      typeof outcome.envelope.wireRequests === 'number' &&
+      outcome.envelope.wireRequests === invoice.cardinality.wireRequests &&
+      invoice.unsettled === undefined;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' (forcedFinishFallback=${String(envelope?.forcedFinishFallback)}, ` +
+          `completion=${String(envelope?.completion)}); ${String(drained.length)} drained child ` +
+          `terminal(s) at ${String(workerCalls.length)} worker call(s); roster closed=` +
+          `${String(rosterClosed)} before settle seq ${String(settle?.seq)}; wires ` +
+          `${String(outcome.envelope.wireRequests)} == invoice ` +
+          `${String(invoice.cardinality.wireRequests)}, unsettled lane absent=` +
+          `${String(invoice.unsettled === undefined)}`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          envelope: outcome.envelope,
+        }),
+        jsonArtifact('events.json', { waits }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
+/**
+ * The parity roster paid seat by seat under an unreachable floor, as a
+ * permanent gate (RV2009): every SINGLE spawn admission projects the
+ * whole remaining roster (RV2005) and the FIRST seat refuses typed
+ * 'roster_floor' with the arithmetic journaled, zero paid children;
+ * the parity arm paid three of four.
+ */
+const paritySequentialRosterFloor: FaultScenario = {
+  name: 'parity-sequential-roster-floor',
+  doctrine:
+    'a seat-by-seat roster under an unreachable acceptance floor refuses its FIRST seat ' +
+    "typed 'roster_floor' with the whole-roster arithmetic journaled and zero paid children " +
+    '(RV2005): the parity arm paid three seats the settle verdict was bound to reject',
+  async run() {
+    const agentTypeOfReq = (req: ChatRequest): string =>
+      (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar?.agentType ??
+      '';
+    let orchTurn = 0;
+    const calls: ChatRequest[] = [];
+    const toolEvents = (name: string, args: unknown, id: string): ChatEvent[] => [
+      { type: 'tool-call-start', id, name },
+      { type: 'tool-call-delta', id, argsTextDelta: JSON.stringify(args) },
+      { type: 'tool-call-end', id, args },
+    ];
+    const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
+      id: 'fake',
+      calls,
+      caps: () => ({
+        contextWindow: 200_000,
+        maxOutputTokens: 16_000,
+        structuredOutput: 'native',
+        supportsTemperature: true,
+        supportsParallelTools: true,
+        reasoningEfforts: [],
+        pricing: { inputUsdPerMTok: 1, outputUsdPerMTok: 10 },
+      }),
+      async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+        const call = calls.length;
+        calls.push(req);
+        // Hop the microtask queue like a real transport before the
+        // first event.
+        await Promise.resolve();
+        if (agentTypeOfReq(req) !== '') {
+          yield { type: 'text-delta', text: 'seated worker' };
+          yield {
+            type: 'finish',
+            finish: { reason: 'stop' },
+            usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          };
+          return;
+        }
+        orchTurn += 1;
+        const turn =
+          orchTurn === 1
+            ? toolEvents(
+                'spawn_agent',
+                { agentType: 'worker', prompt: 'seat 1' },
+                `id-${String(call)}-0`,
+              )
+            : toolEvents('finish', { result: 'stopped early' }, `id-${String(call)}-0`);
+        for (const event of turn) {
+          yield event;
+        }
+        yield {
+          type: 'finish',
+          finish: { reason: 'tool-calls' },
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        };
+      },
+    };
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: { description: 'the estimated worker', estCost: 0.7 } },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('the seat-by-seat parity roster', {
+      acceptance: { childPolicy: 'all-ok', minSpawnedChildren: 4 },
+    });
+    const rejects: Array<{ code?: string }> = [];
+    const handle = engine.run(wf, undefined, {
+      runId: 'fault-parity-roster',
+      budgetUsd: 2.5,
+    });
+    handle.on('spawn:rejected', (event) => rejects.push(event));
+    const outcome = await handle.result;
+    const entries = await store.load('fault-parity-roster');
+    const decision = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'spawn-admission' &&
+        (entry.value as { decision?: { verdict?: { reason?: { code?: string } } } }).decision
+          ?.verdict?.reason?.code === 'roster_floor',
+    );
+    const reason = (
+      decision?.value as
+        | {
+            decision: {
+              verdict: {
+                reason: {
+                  floor?: number;
+                  seatsRemaining?: number;
+                  perSeatProjectionUsd?: number;
+                };
+              };
+            };
+          }
+        | undefined
+    )?.decision.verdict.reason;
+    const workerCalls = calls.filter((req) => agentTypeOfReq(req) !== '');
+    const matched =
+      workerCalls.length === 0 &&
+      rejects.some((event) => event.code === 'roster_floor') &&
+      decision !== undefined &&
+      reason?.floor === 4 &&
+      reason.seatsRemaining === 4 &&
+      Math.abs((reason.perSeatProjectionUsd ?? 0) - 0.7) < 1e-9 &&
+      outcome.status === 'error';
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' with ${String(workerCalls.length)} worker call(s); ` +
+          `roster_floor rejected=${String(rejects.some((e) => e.code === 'roster_floor'))}, ` +
+          `journaled arithmetic floor=${String(reason?.floor)} seatsRemaining=` +
+          `${String(reason?.seatsRemaining)} perSeat=${String(reason?.perSeatProjectionUsd)}`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', { status: outcome.status, error: outcome.error ?? null }),
+        jsonArtifact('events.json', { rejects }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -2045,6 +2368,8 @@ const SCENARIOS: readonly FaultScenario[] = [
   tierCrossingLiveParity,
   benchmarkPrimaryPreflightParity,
   benchmarkRecoveryRootExposure,
+  parityQuiescenceDeadlock,
+  paritySequentialRosterFloor,
 ];
 
 /** The scenario names in run order. */

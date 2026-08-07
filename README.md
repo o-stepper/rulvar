@@ -38,6 +38,8 @@ database, no control plane.
   bills tokens it has already generated. Exhaustion is a typed outcome with a full cost report,
   never a bare null, and "full" is enforced by lifecycle: every child reaches a journaled
   terminal before the settle exists, and the settled journal seals against late writes.
+  No silent exit: every run reaches a journaled terminal, held by a parked-wait keepalive
+  and a process-exit watchdog even when the host code is stuck.
   [Budgets](https://docs.rulvar.com/guide/budgets)
 - **Any vendor, per role.** First-class Anthropic and OpenAI adapters, an `openaiCompatible`
   factory for Ollama, vLLM, and gateways, and a bridge for any Vercel AI SDK `LanguageModelV4`

@@ -10,7 +10,7 @@
 function runFaultInjection(options?): Promise<FaultInjectionReport>;
 ```
 
-Defined in: [packages/evals/src/fault-injection.ts:2059](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L2059)
+Defined in: [packages/evals/src/fault-injection.ts:2384](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L2384)
 
 Runs the fault-injection scenarios sequentially and reports each
 driven branch's observation; with `artifactsDir`, writes one
