@@ -575,6 +575,15 @@ export const DEFAULT_CITATION_PATTERN = '[\\w./-]+\\.\\w+:\\d+';
 export const DEFAULT_EVIDENCE_MIN_SHARE = 0.95;
 const MAX_LISTED_CITATIONS = 20;
 
+/**
+ * The evidence-grade verdict names its offending sentences (RV2105):
+ * bounded so a document written entirely in the graded register cannot
+ * balloon the journaled verdict or the repair prompt, truncated per
+ * sentence for the same reason.
+ */
+const MAX_NAMED_OFFENDING_SENTENCES = 5;
+const MAX_OFFENDING_SENTENCE_CHARS = 240;
+
 function listCitations(values: string[]): string {
   return values.length <= MAX_LISTED_CITATIONS
     ? values.join(', ')
@@ -953,28 +962,49 @@ export function evidenceGradeValidator(options?: {
     name: options?.name ?? 'evidence-grade',
     validate: (input) => {
       const unsupported: string[] = [];
+      const offenders: string[] = [];
       for (const sentence of sentencesOf(input.text)) {
         const haystack = sentence.toLowerCase();
         const found = lowered.filter((phrase) => haystack.includes(phrase));
         if (found.length === 0 || new RegExp(artifactPattern, '').test(sentence)) {
           continue;
         }
+        offenders.push(sentence);
         for (const phrase of found) {
           if (!unsupported.includes(phrase)) {
             unsupported.push(phrase);
           }
         }
       }
-      return unsupported.length === 0
-        ? ok
-        : {
-            ok: false,
-            reasons: [
-              `evidence-grade claims cite no run or repro artifact in their own sentence: ` +
-                `${listCitations(unsupported)}; each such claim must name a run id or a ` +
-                `file:line citation beside it`,
-            ],
-          };
+      if (unsupported.length === 0) {
+        return ok;
+      }
+      // The verdict names the sentences (RV2105): the phrase-only
+      // reason told the eighth parity run's synthesis "live-observed
+      // claims lack citations" somewhere in a 5000-word document, and
+      // both granted repairs failed to find them; the run failed
+      // closed with half its budget unspent. The offending sentences
+      // ride the reasons verbatim, bounded and whitespace-normalized,
+      // so a repair turn fixes exactly the lines the verdict judged.
+      const named = offenders.slice(0, MAX_NAMED_OFFENDING_SENTENCES).map((sentence) => {
+        const flat = sentence.replace(/\s+/gu, ' ').trim();
+        const clipped =
+          flat.length <= MAX_OFFENDING_SENTENCE_CHARS
+            ? flat
+            : `${flat.slice(0, MAX_OFFENDING_SENTENCE_CHARS)}...`;
+        return `offending sentence: "${clipped}"`;
+      });
+      const overflow = offenders.length - named.length;
+      return {
+        ok: false,
+        reasons: [
+          `evidence-grade claims cite no run or repro artifact in their own sentence: ` +
+            `${listCitations(unsupported)}; each such claim must name a run id or a ` +
+            `file:line citation beside it`,
+          ...named,
+          ...(overflow > 0 ? [`and ${String(overflow)} more offending sentences`] : []),
+        ],
+      };
     },
   };
 }

@@ -3503,6 +3503,15 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
+    id: 'evidence-grade-names-sentences',
+    doctrine:
+      "the evidence-grade verdict names its offending sentences verbatim, bounded and truncated (RV2105): the phrase-only reason told the eighth parity run's synthesis 'live-observed claims lack citations' over a 5000-word document, both granted repairs missed them, and the run failed closed with half its budget unspent",
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '          ...named,\n          ...(overflow > 0 ? [`and ${String(overflow)} more offending sentences`] : []),',
+    replace: '',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
     id: 'redemption-transport-retry',
     doctrine:
       'a synthesis attempt severed on the wire is granted at most one retry from the same remainder (RV2103): the cut stream is a death of the attempt, not of the money, and the sixth parity run declined with $0.9077 still uncommitted after a single idle abort',
