@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+
 ### 1.215.0
 
 #### Patch Changes
@@ -1986,6 +1993,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+
 ### 1.215.0
 
 #### Patch Changes
@@ -3757,6 +3771,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
 
 ### 1.215.0
 
@@ -5981,6 +6002,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.216.0
+
+#### Minor Changes
+
+- b357f4a: The evidence-grade verdict names its offending sentences (RV2105). The eighth parity run's synthesis was told `evidence-grade claims cite no run or repro artifact in their own sentence: live-observed` over a 5000-word document, repaired blind twice (the second repair fixed `production-proven` and never found the `live-observed` sentences), and the run failed closed with half its budget unspent. `evidenceGradeValidator` reasons now carry the offending sentences verbatim beside the phrase list, bounded to five and truncated per sentence (whitespace-normalized), with an `and N more offending sentences` tail, so a granted repair turn reads exactly the lines the verdict judged. The blindness audit covered every other finish validator: each already names its material (sections, headings, fields, citations, missing pool items, codepoints with context), so the fix is exactly one validator wide.
 
 ### 1.215.0
 
@@ -8471,6 +8498,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.216.0
+
 ### 1.215.0
 
 ### 1.214.0
@@ -9005,6 +9034,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+  - @rulvar/anthropic@1.216.0
+  - @rulvar/openai@1.216.0
+  - @rulvar/plan@1.216.0
+  - @rulvar/testing@1.216.0
 
 ### 1.215.0
 
@@ -11443,6 +11483,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+
 ### 1.215.0
 
 #### Patch Changes
@@ -12625,6 +12672,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
 
 ### 1.215.0
 
@@ -14603,6 +14657,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+
 ### 1.215.0
 
 #### Patch Changes
@@ -16488,6 +16549,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+  - eslint-plugin-rulvar@1.216.0
 
 ### 1.215.0
 
@@ -18551,6 +18620,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+  - @rulvar/anthropic@1.216.0
+  - @rulvar/openai@1.216.0
 
 ### 1.215.0
 
@@ -20913,6 +20991,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+
 ### 1.215.0
 
 #### Patch Changes
@@ -22806,6 +22891,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
+
 ### 1.215.0
 
 #### Patch Changes
@@ -24004,6 +24096,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
 
 ### 1.215.0
 
@@ -25834,6 +25933,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.216.0
+
+#### Patch Changes
+
+- Updated dependencies [b357f4a]
+  - @rulvar/core@1.216.0
 
 ### 1.215.0
 
