@@ -28,6 +28,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry } from '../model/router.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
+import type { RetryPolicy } from '../model/retry.js';
 import { AdmissionController } from '../orchestrator/admission.js';
 import { RunBudget } from './budget.js';
 import { accountSpendFromJournal } from './cost-report.js';
@@ -204,6 +205,8 @@ export interface TestInternalsOptions {
   /** The per-engine workflow registry (M6-T06). */
   workflows?: Record<string, unknown>;
   limits?: UsageLimits;
+  /** The engine-default transport RetryPolicy (call > profile > engine). */
+  retry?: RetryPolicy;
   permissions?: PermissionConfig;
   isolation?: IsolationProvider;
   onEscalation?: (
@@ -359,6 +362,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       ...(options.schemas === undefined ? {} : { schemas: options.schemas }),
       ...(options.workflows === undefined ? {} : { workflows: options.workflows }),
       ...(options.limits === undefined ? {} : { limits: options.limits }),
+      ...(options.retry === undefined ? {} : { retry: options.retry }),
       ...(options.permissions === undefined ? {} : { permissions: options.permissions }),
     },
     errorPolicy: options.errorPolicy ?? 'strict',

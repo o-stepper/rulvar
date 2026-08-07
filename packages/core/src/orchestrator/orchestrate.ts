@@ -6672,43 +6672,116 @@ export function makeOrchestratorWorkflow(
           record.abort();
         }
         await Promise.all(stragglers.map((record) => record.result));
-        try {
-          const synthesized = await runSynthesis(undefined);
-          return { ...foldEnvelope(), result: synthesized };
-        } catch (declined) {
-          // The declined redemption journals its verdict (RV2102): the
-          // fifth pair's silent fold hid WHY no synthesis ran (an
-          // admission refusal lived only in a swallowed throw). The
-          // decision carries the refusal text and the post-release
-          // remainder, so a journal reader can audit the arithmetic
-          // that declined the tail.
-          const declineKey = deriverV2.deriveKey({
-            kind: 'orchestrator-synthesis-redemption-declined',
-          });
-          if (
-            !internals.replayer
-              .snapshot()
-              .some((entry) => entry.kind === 'decision' && entry.key === declineKey)
-          ) {
-            await internals.replayer.appendSinglePhase({
-              scope: callingState.scope,
-              key: declineKey,
-              kind: 'decision',
-              status: 'ok',
-              spanId: internals.spans.mint(callingState.spanId),
-              site: 'orchestrator-budget',
-              value: {
-                decisionType: 'orchestrator_synthesis_redemption_declined',
-                reason:
-                  declined instanceof Error
-                    ? declined.message.slice(0, 300)
-                    : String(declined).slice(0, 300),
-                remainingUsd: internals.budget.remainingUsd() ?? null,
-                stragglersDrained: stragglers.length,
-              },
-            });
+        // The terminal behind the boundary re-mint (RV2103): the
+        // exhausted flag is armed at this fallback by design, so a
+        // synthesis attempt that dies ON the wire reaches the catch
+        // below as the ctx boundary's generic budget error, and the
+        // sixth parity run journaled "run budget ceiling reached" over
+        // a stream that idled out with $0.9077 uncommitted. The
+        // re-mint carries the terminal's seq in data.entryRef; the
+        // terminal entry carries the message and the error class that
+        // actually ended the attempt. A refusal thrown BEFORE dispatch
+        // (the admission arithmetic) has no terminal and its own
+        // message already tells the truth.
+        const synthesisTerminalOf = (declined: unknown) => {
+          if (!(declined instanceof BudgetExhaustedError)) {
+            return undefined;
           }
-          return foldEnvelope();
+          const entryRef = (declined.data as { entryRef?: unknown } | undefined)?.entryRef;
+          if (typeof entryRef !== 'number') {
+            return undefined;
+          }
+          return internals.replayer.snapshot().find((entry) => entry.seq === entryRef);
+        };
+        let synthesisTransportRetried = false;
+        for (;;) {
+          try {
+            const synthesized = await runSynthesis(undefined);
+            return { ...foldEnvelope(), result: synthesized };
+          } catch (declined) {
+            const terminal = synthesisTerminalOf(declined);
+            // One transport retry of the severed attempt (RV2103): a
+            // cut stream is a death of the ATTEMPT, not of the money,
+            // and the loop's own wire retries never cover a mid-stream
+            // idle abort (the loop terminates with retryable true,
+            // addressed to exactly this caller). The second attempt
+            // re-passes spawn admission from the live remainder, so an
+            // unaffordable retry declines below with the admission
+            // arithmetic instead of dispatching; the journaled retry
+            // decision keeps the second wire auditable, and a resume
+            // reruns the errored attempt under the memoize rules with
+            // the decision guard holding the record single.
+            if (
+              !synthesisTransportRetried &&
+              terminal !== undefined &&
+              terminal.error !== undefined &&
+              (terminal.error.data as { kind?: unknown } | undefined)?.kind === 'transport' &&
+              terminal.error.retryable === true
+            ) {
+              synthesisTransportRetried = true;
+              const retryKey = deriverV2.deriveKey({
+                kind: 'orchestrator-synthesis-redemption-retry',
+              });
+              if (
+                !internals.replayer
+                  .snapshot()
+                  .some((entry) => entry.kind === 'decision' && entry.key === retryKey)
+              ) {
+                await internals.replayer.appendSinglePhase({
+                  scope: callingState.scope,
+                  key: retryKey,
+                  kind: 'decision',
+                  status: 'ok',
+                  spanId: internals.spans.mint(callingState.spanId),
+                  site: 'orchestrator-budget',
+                  value: {
+                    decisionType: 'orchestrator_synthesis_redemption_retry',
+                    reason: terminal.error.message.slice(0, 300),
+                    terminalRef: terminal.seq,
+                    remainingUsd: internals.budget.remainingUsd() ?? null,
+                  },
+                });
+              }
+              continue;
+            }
+            // The declined redemption journals its verdict (RV2102):
+            // the fifth pair's silent fold hid WHY no synthesis ran
+            // (an admission refusal lived only in a swallowed throw).
+            // The reason is the terminal's own message when the
+            // attempt died on the wire (RV2103), the thrown text
+            // otherwise, beside the post-release remainder, so a
+            // journal reader can audit the arithmetic or the transport
+            // fault that declined the tail.
+            const declineKey = deriverV2.deriveKey({
+              kind: 'orchestrator-synthesis-redemption-declined',
+            });
+            if (
+              !internals.replayer
+                .snapshot()
+                .some((entry) => entry.kind === 'decision' && entry.key === declineKey)
+            ) {
+              await internals.replayer.appendSinglePhase({
+                scope: callingState.scope,
+                key: declineKey,
+                kind: 'decision',
+                status: 'ok',
+                spanId: internals.spans.mint(callingState.spanId),
+                site: 'orchestrator-budget',
+                value: {
+                  decisionType: 'orchestrator_synthesis_redemption_declined',
+                  reason: (
+                    terminal?.error?.message ??
+                    (declined instanceof Error ? declined.message : String(declined))
+                  ).slice(0, 300),
+                  ...(terminal === undefined ? {} : { terminalRef: terminal.seq }),
+                  remainingUsd: internals.budget.remainingUsd() ?? null,
+                  stragglersDrained: stragglers.length,
+                  transportRetries: synthesisTransportRetried ? 1 : 0,
+                },
+              });
+            }
+            return foldEnvelope();
+          }
         }
       }
       return foldEnvelope();

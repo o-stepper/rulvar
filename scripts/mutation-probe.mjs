@@ -3469,8 +3469,27 @@ const MUTATIONS = [
     doctrine:
       'a redemption that cannot fund the synthesis journals its verdict with the refusal arithmetic (RV2102): silencing the decision returns the declined tail to an unauditable swallowed throw',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "          if (\n            !internals.replayer\n              .snapshot()\n              .some((entry) => entry.kind === 'decision' && entry.key === declineKey)\n          ) {",
-    replace: '          if (false) {',
+    find: "            if (\n              !internals.replayer\n                .snapshot()\n                .some((entry) => entry.kind === 'decision' && entry.key === declineKey)\n            ) {",
+    replace: '            if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'redemption-terminal-truth',
+    doctrine:
+      "the declined verdict's reason carries the synthesis terminal's own message when the attempt died on the wire (RV2103): the exhausted flag is armed at the fallback by design, so without the entryRef lookup the verdict journals the ctx boundary's generic budget re-mint, exactly the sixth parity run's misleading record",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '                  reason: (\n                    terminal?.error?.message ??\n                    (declined instanceof Error ? declined.message : String(declined))\n                  ).slice(0, 300),',
+    replace:
+      '                  reason: (declined instanceof Error ? declined.message : String(declined)).slice(0, 300),',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'redemption-transport-retry',
+    doctrine:
+      'a synthesis attempt severed on the wire is granted at most one retry from the same remainder (RV2103): the cut stream is a death of the attempt, not of the money, and the sixth parity run declined with $0.9077 still uncommitted after a single idle abort',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "            if (\n              !synthesisTransportRetried &&\n              terminal !== undefined &&\n              terminal.error !== undefined &&\n              (terminal.error.data as { kind?: unknown } | undefined)?.kind === 'transport' &&\n              terminal.error.retryable === true\n            ) {",
+    replace: '            if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
 ];
