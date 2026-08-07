@@ -3455,6 +3455,24 @@ const MUTATIONS = [
     replace: '    reserveLineHeadroomUsd < 0 * Math.max(liveRootExposureTermUsd, 0.0001)',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'redemption-drains-stragglers',
+    doctrine:
+      "the redemption aborts and awaits every unsettled child BEFORE the synthesis dispatch (RV2102): a straggler's committed admission reserve and in-flight wire otherwise block the synthesis spawn the redemption exists for, exactly the fifth parity pair's death one layer under RV2101",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        const stragglers = [...byOrdinal.values()].filter((record) => record.settled === undefined);',
+    replace: '        const stragglers = [...byOrdinal.values()].filter(() => false);',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'redemption-declined-journaled',
+    doctrine:
+      'a redemption that cannot fund the synthesis journals its verdict with the refusal arithmetic (RV2102): silencing the decision returns the declined tail to an unauditable swallowed throw',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "          if (\n            !internals.replayer\n              .snapshot()\n              .some((entry) => entry.kind === 'decision' && entry.key === declineKey)\n          ) {",
+    replace: '          if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

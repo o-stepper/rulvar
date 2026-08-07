@@ -6632,7 +6632,7 @@ export function makeOrchestratorWorkflow(
         });
       }
       internals.budget.markExhausted();
-      const fold = {
+      const foldEnvelope = () => ({
         forcedFinishFallback: true,
         completion: 'partial',
         planHash: '',
@@ -6640,7 +6640,7 @@ export function makeOrchestratorWorkflow(
           .filter((record) => record.settled !== undefined)
           .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
           .map((record) => digestOf(record, record.settled as AgentResult<unknown>)),
-      };
+      });
       // The synthesis promise is redeemed, not abandoned (RV2101): the
       // reserve was held all run exactly so the tail could still run
       // at this boundary. With a configured synthesis step, the
@@ -6648,22 +6648,70 @@ export function makeOrchestratorWorkflow(
       // synthesize from, the EXISTING synthesis path runs with no
       // coordination draft (runSynthesis releases the reserve before
       // its dispatch, so the freed money funds it); its contracted
-      // output rides the fold envelope as `result`. Any refusal inside
-      // (admission against live children, a rejected finish) falls
-      // back to the pure fold: the redemption can only add.
+      // output rides the fold envelope as `result`.
       const synthesisReserveStillCommitted =
         orchestratorAccount !== undefined &&
         (internals.budget.accountView(orchestratorAccount)?.synthesisReserveUsd ?? 0) > 0;
       const anySettled = [...byOrdinal.values()].some((record) => record.settled !== undefined);
       if (opts?.synthesis !== undefined && synthesisReserveStillCommitted && anySettled) {
+        // The stragglers drain FIRST (RV2102): at the reserve line
+        // every remaining child's next turn faces the same refused
+        // arithmetic, but its committed admission reserve and any
+        // in-flight wire block the synthesis spawn the redemption
+        // exists for. The fifth parity pair proved both arms: a live
+        // worker's 0.66 reserve pushed the synthesis admission past
+        // the ceiling, and its post-boundary finalize burned 148k
+        // input tokens before teardown cancelled it. Abort every
+        // unsettled child and await its terminal: the reserves release
+        // at the terminals, no NEW wire dispatches past the boundary,
+        // and a severed in-flight stream bills as the documented
+        // layer-3 overshoot. Result promises never reject (the
+        // SpawnRecord contract), so the drain always settles.
+        const stragglers = [...byOrdinal.values()].filter((record) => record.settled === undefined);
+        for (const record of stragglers) {
+          record.abort();
+        }
+        await Promise.all(stragglers.map((record) => record.result));
         try {
           const synthesized = await runSynthesis(undefined);
-          return { ...fold, result: synthesized };
-        } catch {
-          return fold;
+          return { ...foldEnvelope(), result: synthesized };
+        } catch (declined) {
+          // The declined redemption journals its verdict (RV2102): the
+          // fifth pair's silent fold hid WHY no synthesis ran (an
+          // admission refusal lived only in a swallowed throw). The
+          // decision carries the refusal text and the post-release
+          // remainder, so a journal reader can audit the arithmetic
+          // that declined the tail.
+          const declineKey = deriverV2.deriveKey({
+            kind: 'orchestrator-synthesis-redemption-declined',
+          });
+          if (
+            !internals.replayer
+              .snapshot()
+              .some((entry) => entry.kind === 'decision' && entry.key === declineKey)
+          ) {
+            await internals.replayer.appendSinglePhase({
+              scope: callingState.scope,
+              key: declineKey,
+              kind: 'decision',
+              status: 'ok',
+              spanId: internals.spans.mint(callingState.spanId),
+              site: 'orchestrator-budget',
+              value: {
+                decisionType: 'orchestrator_synthesis_redemption_declined',
+                reason:
+                  declined instanceof Error
+                    ? declined.message.slice(0, 300)
+                    : String(declined).slice(0, 300),
+                remainingUsd: internals.budget.remainingUsd() ?? null,
+                stragglersDrained: stragglers.length,
+              },
+            });
+          }
+          return foldEnvelope();
         }
       }
-      return fold;
+      return foldEnvelope();
     }
     const liveTermination = extensionTermination;
     if (liveTermination !== undefined) {
