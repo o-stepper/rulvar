@@ -3177,8 +3177,8 @@ const MUTATIONS = [
     doctrine:
       'the two four-role benchmark cassettes stay registered in the fault kit (RV1905): dropping them from the scenario roster silently un-gates the exact primary and recovery shapes the twenty-second plan fixed, and the kit exists so a fixed defect can never become untested again',
     file: 'packages/evals/src/fault-injection.ts',
-    find: '  benchmarkPrimaryPreflightParity,\n  benchmarkRecoveryRootExposure,\n];',
-    replace: '];',
+    find: '  benchmarkPrimaryPreflightParity,\n  benchmarkRecoveryRootExposure,\n  parityQuiescenceDeadlock,',
+    replace: '  parityQuiescenceDeadlock,',
     test: 'packages/evals/src/fault-injection.test.ts',
   },
   {
@@ -3389,6 +3389,25 @@ const MUTATIONS = [
     find: "      name: 'incremental-rows-match',\n      pass: incrementalMismatches.length === 0,",
     replace: "      name: 'incremental-rows-match',\n      pass: true,",
     test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'parity-shapes-registered',
+    doctrine:
+      'the two parity crash shapes stay registered in the fault kit (RV2009): dropping them silently un-gates the exact quiescence deadlock and sequential roster shapes the twenty-third plan fixed, and the kit exists so a fixed defect can never become untested again',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '  parityQuiescenceDeadlock,\n  paritySequentialRosterFloor,\n];',
+    replace: '];',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'parity-deadlock-verdict',
+    doctrine:
+      "the parity deadlock gate's matched verdict derives from its observed surfaces (RV2009): inverting the first observed term must flip the whole gate to matched:false, proving the predicate is consulted rather than decorative",
+    file: 'packages/evals/src/fault-injection.ts',
+    find: "    const matched =\n      outcome.status === 'exhausted' &&\n      envelope?.forcedFinishFallback === true &&",
+    replace:
+      "    const matched =\n      outcome.status !== 'exhausted' &&\n      envelope?.forcedFinishFallback === true &&",
+    test: 'packages/evals/src/fault-injection.test.ts',
   },
   {
     id: 'require-batch-spawn-gate',

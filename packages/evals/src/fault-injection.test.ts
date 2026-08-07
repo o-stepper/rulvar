@@ -37,6 +37,8 @@ const EXPECTED = [
   'tier-crossing-live-parity',
   'benchmark-primary-preflight-parity',
   'benchmark-recovery-root-exposure',
+  'parity-quiescence-deadlock',
+  'parity-sequential-roster-floor',
 ];
 
 describe('the fault-injection kit (RV811)', () => {
