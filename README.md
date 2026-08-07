@@ -203,7 +203,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred ninety three rounds, verbatim in this repository's history:
+The one hundred ninety four rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -411,6 +411,7 @@ The one hundred ninety three rounds, verbatim in this repository's history:
 | v1.209.0      | c871ddc (#822): incremental billing journaling, every provider call journals its row at settle, invoices gain the unsettled lane, cost-audit gains incremental-rows-match                 | v1.210.0   |
 | v1.210.0      | d5a8a36 (#825): the parity crash shapes become permanent fault-kit gates, quiescence deadlock and sequential roster floor replay offline, docs carry no-silent-exit                       | v1.211.0   |
 | v1.211.0      | e6f8516 (#828): the reserve line is a boundary, tail reserves leave the exposure sum, a refused coordination turn settles partial and redeems the synthesis from its reserve              | v1.212.0   |
+| v1.212.0      | 61680df (#831): the redemption drains the stragglers first, unsettled children abort before the synthesis dispatch, a declined redemption journals its verdict arithmetic                 | v1.213.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
