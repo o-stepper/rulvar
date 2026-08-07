@@ -1814,6 +1814,94 @@ describe('the reserve line headroom (RV2101, the fourth parity run)', () => {
   });
 });
 
+describe('the synthesis reserve against the cap-sized composition (RV2104, the seventh parity run)', () => {
+  // The seventh parity run held a 0.70 reserve that passed the
+  // minimal-payload check, and the synthesis spent it whole on a
+  // composition truncated exactly at the 40000-token output cap; the
+  // granted repair turn was refused at a zero remainder. The finding
+  // prices ONE turn writing to the allowance (plus the declared input
+  // floor) and one more such turn when a repair reserve is declared.
+  function capInput(options: {
+    synthesisReserveUsd?: number;
+    repairTurnReserve?: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: { budgetUsd: 6 },
+      orchestrator: {
+        budget: {
+          capUsd: 2.95,
+          capFraction: 1.0,
+          ...(options.synthesisReserveUsd === undefined
+            ? {}
+            : { synthesisReserveUsd: options.synthesisReserveUsd }),
+        },
+        synthesis: {
+          limits: { maxTurns: 2, maxOutputTokensPerTurn: 40000 },
+          estInputTokens: 110000,
+        },
+        limits: { maxOutputTokensPerTurn: 36000 },
+      },
+      spawns: [{ label: 'worker', estCost: 0.42, limits: { maxOutputTokensPerTurn: 14000 } }],
+      ...(options.repairTurnReserve === undefined
+        ? {}
+        : {
+            finishValidation: {
+              validators: [
+                { name: 'sections', validate: () => ({ ok: false, reasons: ['unused'] }) },
+              ],
+              repairTurnReserve: options.repairTurnReserve,
+            },
+          }),
+    };
+  }
+
+  it('warns when the reserve funds a composition it cannot repair', () => {
+    // At the harness rates ($1/MTok in, $10/MTok out): 110000 input +
+    // 40000 output = $0.51 per allowance-sized turn, $1.02 with the
+    // declared repair turn, against the seventh envelope's 0.70 hold.
+    const report = preflightEstimate(capInput({ synthesisReserveUsd: 0.7, repairTurnReserve: 3 }));
+    const finding = report.findings.find(
+      (entry) => entry.code === 'synthesis-reserve-below-cap-composition',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('0.5100');
+    expect(finding?.message).toContain('1.0200');
+    expect(finding?.message).toContain('0.7000');
+  });
+
+  it('prices the composition alone without a repair reserve and stays silent above the arithmetic', () => {
+    // Composition only: $0.51 against a 0.45 hold warns, a 0.55 hold
+    // does not; with the repair turn declared, 1.05 clears the 1.02.
+    const bare = preflightEstimate(capInput({ synthesisReserveUsd: 0.45 }));
+    const bareFinding = bare.findings.find(
+      (entry) => entry.code === 'synthesis-reserve-below-cap-composition',
+    );
+    expect(bareFinding?.severity).toBe('warning');
+    expect(bareFinding?.message).toContain('0.5100');
+    expect(bareFinding?.message).not.toContain('one more such turn');
+    const funded = preflightEstimate(capInput({ synthesisReserveUsd: 0.55 }));
+    expect(
+      funded.findings.some((entry) => entry.code === 'synthesis-reserve-below-cap-composition'),
+    ).toBe(false);
+    const repairFunded = preflightEstimate(
+      capInput({ synthesisReserveUsd: 1.05, repairTurnReserve: 3 }),
+    );
+    expect(
+      repairFunded.findings.some(
+        (entry) => entry.code === 'synthesis-reserve-below-cap-composition',
+      ),
+    ).toBe(false);
+  });
+});
+
 describe('the tool budget extension projection (RV301, the seventh comparison experiment)', () => {
   it('the projections assume the fully extended cap', () => {
     const adapter = scriptedAdapter(() => ({ text: 'unused' }));

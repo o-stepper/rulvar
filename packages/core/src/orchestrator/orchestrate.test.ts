@@ -4504,6 +4504,128 @@ describe("the declined verdict tells the terminal's truth (RV2103, the sixth par
   });
 });
 
+describe("the refused turn's message rides the terminal (RV2104, the seventh parity run)", () => {
+  // The seventh parity run's synthesis composed to its output cap,
+  // failed the section validator on the truncation, was granted a
+  // repair, and the repair turn was refused at the crossed ceiling.
+  // The beforeTurn catch used to discard the refusal, so the terminal
+  // journaled the ctx fallback "agent terminated with status error"
+  // and the RV2103 declined verdict repeated it. The refusal's own
+  // message (the crossed account and the arithmetic) now rides the
+  // terminal and every truth surface that reads it.
+  const PROFILES_2104 = {
+    worker: {
+      description: 'the overshooting worker',
+      estCost: 0.008,
+      limits: { maxOutputTokensPerTurn: 2500 },
+    },
+  };
+  const ROUTING_2104 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+
+  it('a synthesis refused its granted repair journals the crossed-ceiling arithmetic', async () => {
+    let rootCall = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        // Past the 0.05 reserve line of the 0.10 ceiling: $0.082.
+        return { text: 'worked', usage: { inputTokens: 100, outputTokens: 8200 } };
+      }
+      rootCall += 1;
+      if (rootCall === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      if (rootCall === 2) {
+        return {
+          toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      // The synthesis composes a section-less finish whose stream
+      // bills past the root ceiling (the layer-3 overshoot); the
+      // validator rejects it and the granted repair turn faces
+      // beforeTurn at the crossed ceiling.
+      return {
+        toolCall: { name: 'finish', args: { result: 'TRUNCATED COMPOSITION' } },
+        usage: { inputTokens: 100, outputTokens: 3000 },
+      };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2104,
+      profiles: PROFILES_2104,
+      budgetUsd: 0.1,
+    });
+    const wf = makeOrchestratorWorkflow('coordinate to the line', {
+      budget: { capUsd: 0.09, capFraction: 1.0, synthesisReserveUsd: 0.05 },
+      synthesis: {
+        limits: { maxTurns: 3, maxOutputTokensPerTurn: 4000 },
+        estCost: 0.005,
+      },
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['FINDINGS'] })],
+        maxRepairs: 2,
+        repairTurnReserve: 2,
+      },
+      limits: { maxOutputTokensPerTurn: 1500 },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      result?: unknown;
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.result).toBeUndefined();
+    // Three non-worker dispatches: two coordination turns and the one
+    // synthesis composition; the refused repair turn never dispatched.
+    const rootRequests = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    expect(rootRequests).toHaveLength(3);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    // The repair WAS granted before the refusal: the journaled verdict.
+    const repairVerdict = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string; verdict?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation' &&
+        (entry.value as { verdict?: string } | undefined)?.verdict === 'repair',
+    );
+    expect(repairVerdict).toBeDefined();
+    // The synthesis terminal carries the refusal's own message.
+    const terminal = entries.find(
+      (entry) =>
+        entry.kind === 'agent' &&
+        entry.status === 'error' &&
+        (entry.error?.message ?? '').startsWith(
+          "budget ceiling reached before turn dispatch on account 'run'",
+        ),
+    );
+    expect(terminal).toBeDefined();
+    expect((terminal?.error?.data as { kind?: string } | undefined)?.kind).toBe('budget');
+    // The declined verdict repeats the terminal's truth, never the
+    // bare status fallback, and correctly grants no transport retry.
+    const declined = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_redemption_declined',
+    );
+    const value = declined?.value as
+      { reason?: string; terminalRef?: number; transportRetries?: number } | undefined;
+    expect(value).toBeDefined();
+    expect(String(value?.reason ?? '')).toMatch(
+      /^budget ceiling reached before turn dispatch on account 'run'/,
+    );
+    expect(value?.reason).not.toBe('agent terminated with status error');
+    expect(value?.terminalRef).toBe(terminal?.seq);
+    expect(value?.transportRetries).toBe(0);
+  });
+});
+
 describe('the child exposure wait (RV2002, the third parity rerun)', () => {
   // The parity rerun on the sized envelope killed three of four
   // workers, each ~550k tokens into research, with a pre-wire
