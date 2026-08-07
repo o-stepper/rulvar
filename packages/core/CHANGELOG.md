@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.213.0
+
+### Minor Changes
+
+- 61680df: The redemption drains the stragglers first (RV2102). The fifth parity pair reached the RV2101 redemption twice and lost the synthesis to the same next layer both times: a still-running child's committed admission reserve pushed the synthesis spawn past the ceiling (`spent ~5.0 + straggler reserve 0.66 + est 0.78 > 6.00`), the refusal lived only in a swallowed throw, and the straggler's post-boundary finalize burned 148k input tokens before teardown cancelled it. At the reserve line every remaining child faces the same refused arithmetic, so the redemption now aborts and awaits every unsettled child BEFORE the synthesis dispatch: their reserves release at their terminals, no NEW wire dispatches past the boundary, and a severed in-flight stream bills as the documented layer-3 overshoot. A redemption that still cannot fund the synthesis journals its verdict instead of folding silently: the `orchestrator_synthesis_redemption_declined` decision carries the refusal text, the post-release remainder, and the drained-straggler count. With the drain in place both fifth-pair runs would have funded their synthesis from the freed remainder.
+
 ## 1.212.0
 
 ### Minor Changes
