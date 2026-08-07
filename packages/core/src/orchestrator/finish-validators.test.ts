@@ -719,6 +719,50 @@ describe('evidenceGradeValidator (RV1212, the sixteenth experiment P2-3)', () =>
     expect(() => evidenceGradeValidator({ artifactPattern: 'x*' })).toThrow(/empty string/);
     expect(() => evidenceGradeValidator({ artifactPattern: '([' })).toThrow(/does not compile/);
   });
+
+  it('names the offending sentences verbatim, never the cited ones (RV2105)', () => {
+    // The eighth parity run's repair blindness: the phrase-only reason
+    // sent the synthesis hunting a 5000-word document; both granted
+    // repairs missed the sentences and the run failed closed.
+    const mixed =
+      'The loop is live-observed to retry three times.\n\n' +
+      'The clamp is live-observed at src/budget.ts:12 in the same sentence.\n\n' +
+      'Cost came from the provider bill.\n';
+    const verdict = evidenceGradeValidator().validate(text(mixed));
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons).toContain(
+      'offending sentence: "The loop is live-observed to retry three times."',
+    );
+    expect(verdict.reasons).toContain('offending sentence: "Cost came from the provider bill."');
+    expect(verdict.reasons.join(' ')).not.toContain('src/budget.ts:12');
+  });
+
+  it('bounds the named sentences and truncates a long one (RV2105)', () => {
+    const many = Array.from(
+      { length: 7 },
+      (_, i) => `Claim number ${String(i + 1)} is live-observed in the field.`,
+    ).join('\n\n');
+    const verdict = evidenceGradeValidator().validate(text(many));
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons.filter((r) => r.startsWith('offending sentence:'))).toHaveLength(5);
+    expect(verdict.reasons).toContain('and 2 more offending sentences');
+    const long = `This claim is live-observed ${'and elaborated '.repeat(30)}at great length.`;
+    const longVerdict = evidenceGradeValidator().validate(text(long));
+    expect(longVerdict.ok).toBe(false);
+    if (longVerdict.ok) {
+      return;
+    }
+    const named = longVerdict.reasons.find((r) => r.startsWith('offending sentence:'));
+    expect(named).toBeDefined();
+    expect(named?.endsWith('..."')).toBe(true);
+    expect((named ?? '').length).toBeLessThanOrEqual('offending sentence: ""...'.length + 240);
+  });
 });
 
 describe('citedValueValidator (RV1212, the sixteenth experiment P2-2)', () => {
