@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+
 ### 1.214.0
 
 #### Patch Changes
@@ -1979,6 +1986,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+
 ### 1.214.0
 
 #### Patch Changes
@@ -3743,6 +3757,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
 
 ### 1.214.0
 
@@ -5960,6 +5981,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.215.0
+
+#### Minor Changes
+
+- e1da4c7: The refused turn's message rides the terminal, and the synthesis reserve is priced against its own composition (RV2104). The seventh parity run's synthesis composed to its 40000-token output allowance, failed the section validator on the truncation, was granted a repair, and the repair turn was refused at the crossed ceiling; the terminal journaled a bare `agent terminated with status error` because every `beforeTurn` catch discarded the refusal's text, and the RV2103 declined verdict repeated it. The pre-dispatch ceiling guard's own message, naming the crossed account and the spent-of-ceiling arithmetic, now rides the agent terminal from all five refusal sites (the loop turn, summarize, finalize, extract, and the finalization-reserve skip's warn log), so the ctx terminal entry and the redemption's declined verdict tell the refusal's truth. Preflight grows `synthesis-reserve-below-cap-composition`: the minimal-payload check prices the shortest accepting finish, but a reasoning model writes to its allowance, so the finding prices one allowance-sized turn (plus the declared input floor) and one more when the validation declares a repair reserve, and warns when the committed `budget.synthesisReserveUsd` is smaller; the seventh run's 0.70 hold funded a composition it could not repair.
 
 ### 1.214.0
 
@@ -8444,6 +8471,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.215.0
+
 ### 1.214.0
 
 ### 1.213.0
@@ -8976,6 +9005,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+  - @rulvar/anthropic@1.215.0
+  - @rulvar/openai@1.215.0
+  - @rulvar/plan@1.215.0
+  - @rulvar/testing@1.215.0
 
 ### 1.214.0
 
@@ -11403,6 +11443,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+
 ### 1.214.0
 
 #### Patch Changes
@@ -12578,6 +12625,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
 
 ### 1.214.0
 
@@ -14549,6 +14603,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+
 ### 1.214.0
 
 #### Patch Changes
@@ -16427,6 +16488,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+  - eslint-plugin-rulvar@1.215.0
 
 ### 1.214.0
 
@@ -18482,6 +18551,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+  - @rulvar/anthropic@1.215.0
+  - @rulvar/openai@1.215.0
 
 ### 1.214.0
 
@@ -20835,6 +20913,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+
 ### 1.214.0
 
 #### Patch Changes
@@ -22721,6 +22806,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
+
 ### 1.214.0
 
 #### Patch Changes
@@ -23912,6 +24004,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
 
 ### 1.214.0
 
@@ -25735,6 +25834,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.215.0
+
+#### Patch Changes
+
+- Updated dependencies [e1da4c7]
+  - @rulvar/core@1.215.0
 
 ### 1.214.0
 
