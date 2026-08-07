@@ -180,6 +180,18 @@ export interface PreflightOrchestratorSpec {
     /** Mirrors OrchestrateSynthesis.context; default 'digests'. */
     context?: 'digests' | 'full';
   };
+  /**
+   * The claim-consistency judge's admission estimate (RV2106), exactly
+   * OrchestrateClaimConsistency.judge.estCost: the post-fan-in judge
+   * admits against the ORCHESTRATOR account, whose working room past
+   * the held synthesis reserve the coordination loop's own turns spend
+   * from first. Declaring the estimate lets the estimator judge that
+   * room statically (`orchestrator-working-room`); absent, the finding
+   * stays silent, exactly like every other undeclared input.
+   */
+  claimConsistency?: {
+    judge?: { estCost?: number };
+  };
 }
 
 /** The full input: engine surface, run surface, and the declared wave. */
@@ -807,6 +819,12 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       requirePositiveInteger(
         input.orchestrator.acceptance.minSpawnedChildren,
         'preflight.orchestrator.acceptance.minSpawnedChildren',
+      );
+    }
+    if (input.orchestrator.claimConsistency?.judge?.estCost !== undefined) {
+      requireNonNegativeNumber(
+        input.orchestrator.claimConsistency.judge.estCost,
+        'preflight.orchestrator.claimConsistency.judge.estCost',
       );
     }
     const spec = input.orchestrator.budget;
@@ -1977,6 +1995,37 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         'the run settles partial with the synthesis redeemed from its reserve (RV2101); size ' +
         'the wave below the line or raise the ceiling to keep coordinating past it',
     });
+  }
+  // The orchestrator working room (RV2106): the post-fan-in judge
+  // admits against the ORCHESTRATOR account, whose room past the held
+  // synthesis reserve the coordination loop's own turns spend from
+  // first. The ninth parity run held a 1.40 reserve under a 1.90 cap,
+  // the root's turns took 0.38 of the 0.50 room, and the declared 0.28
+  // judge estimate was refused after acceptance: the fan-out was
+  // complete, the draft composed, and the synthesis its reserve was
+  // funding never dispatched. The static minimum is one coordination
+  // turn floor plus the declared judge estimate.
+  {
+    const judgeEstUsd = input.orchestrator?.claimConsistency?.judge?.estCost;
+    if (judgeEstUsd !== undefined && effectiveCapUsd !== undefined && synthesisHoldUsd > 0) {
+      const workingRoomUsd = effectiveCapUsd - synthesisHoldUsd;
+      const neededUsd = liveRootExposureTermUsd + judgeEstUsd;
+      if (workingRoomUsd < neededUsd) {
+        say({
+          severity: 'warning',
+          code: 'orchestrator-working-room',
+          message:
+            `the orchestrator account's working room past the held synthesis reserve is ` +
+            `${workingRoomUsd.toFixed(4)} USD (cap ${effectiveCapUsd.toFixed(4)} minus the ` +
+            `${synthesisHoldUsd.toFixed(4)} USD hold), below one coordination turn floor ` +
+            `(${liveRootExposureTermUsd.toFixed(4)} USD) plus the declared ` +
+            `${judgeEstUsd.toFixed(4)} USD claim-consistency judge estimate: the judge ` +
+            'admission will be declined once the coordination loop has taken even one turn, ' +
+            'and the pass degrades to its journaled declined verdict (RV2106); raise the cap, ' +
+            'shrink the judge estimate, or shrink the synthesis reserve',
+        });
+      }
+    }
   }
   if (wave.length > 0 && denied > 0) {
     const deniedLabels = wave.filter((row) => !row.admitted).map((row) => row.label);

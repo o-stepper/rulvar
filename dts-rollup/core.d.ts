@@ -9992,6 +9992,17 @@ interface OrchestrateClaimConsistencyMeta {
   /** Present when the judge invocation did not settle ok. */
   judgeFailed?: true;
   /**
+  * Present when the judge invocation was refused ADMISSION and never
+  * dispatched (RV2106): the ninth parity run's judge estimate did not
+  * fit the orchestrator account's working room past the held
+  * synthesis reserve, and the bare refusal killed a run whose fan-out
+  * and draft were already complete. The declined pass degrades like a
+  * failed judge (the meta names it, the journaled decision carries
+  * the arithmetic, only the armed 'fail' posture stops the run) and
+  * the synthesis its reserve was holding money for still dispatches.
+  */
+  judgeDeclined?: true;
+  /**
   * The one field a consumer reads INSTEAD of inferring semantic
   * health from an empty findings array (RV1702):
   * {@link claimCoverageOf} over this meta, so `completion:
@@ -13067,6 +13078,20 @@ interface PreflightOrchestratorSpec {
     */
     exposeChildResultTools?: boolean; /** Mirrors OrchestrateSynthesis.context; default 'digests'. */
     context?: "digests" | "full";
+  };
+  /**
+  * The claim-consistency judge's admission estimate (RV2106), exactly
+  * OrchestrateClaimConsistency.judge.estCost: the post-fan-in judge
+  * admits against the ORCHESTRATOR account, whose working room past
+  * the held synthesis reserve the coordination loop's own turns spend
+  * from first. Declaring the estimate lets the estimator judge that
+  * room statically (`orchestrator-working-room`); absent, the finding
+  * stays silent, exactly like every other undeclared input.
+  */
+  claimConsistency?: {
+    judge?: {
+      estCost?: number;
+    };
   };
 }
 /** The full input: engine surface, run surface, and the declared wave. */

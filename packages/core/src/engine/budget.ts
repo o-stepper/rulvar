@@ -778,10 +778,21 @@ export class RunBudget {
         if (account.scope === ROOT_ACCOUNT) {
           this.exhaustedInternal = true;
         }
+        // The printed arithmetic closes (RV2106): the ninth parity
+        // run's refusal read "spent 0.3849 plus committed reserves
+        // 0.0000 plus the proposed reserve 0.2800 does not fit the
+        // ceiling 1.9000", numbers that fit with room to spare,
+        // because the held synthesis reserve that actually ate the
+        // room was in the sum and not in the message. The clause
+        // appears exactly when a hold exists, so hold-free refusals
+        // keep their bytes.
         throw new BudgetExhaustedError(
           `budget ceiling reached on account '${account.scope}': spent ` +
             `${account.spentUsd.toFixed(4)} USD plus committed reserves ` +
             `${(account.committedReserveUsd + account.finalizeReserveUsd).toFixed(4)} USD ` +
+            (account.synthesisReserveUsd > 0
+              ? `plus the held synthesis reserve ${account.synthesisReserveUsd.toFixed(4)} USD `
+              : '') +
             `plus the proposed reserve ${reserveUsd.toFixed(4)} USD does not fit the ` +
             `ceiling ${account.ceilingUsd.toFixed(4)} USD`,
           {
@@ -789,6 +800,8 @@ export class RunBudget {
               account: account.scope,
               spentUsd: account.spentUsd,
               committedReserveUsd: account.committedReserveUsd,
+              finalizeReserveUsd: account.finalizeReserveUsd,
+              synthesisReserveUsd: account.synthesisReserveUsd,
               proposedReserveUsd: reserveUsd,
               ceilingUsd: account.ceilingUsd,
             },

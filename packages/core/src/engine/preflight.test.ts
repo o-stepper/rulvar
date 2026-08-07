@@ -1814,6 +1814,56 @@ describe('the reserve line headroom (RV2101, the fourth parity run)', () => {
   });
 });
 
+describe('the orchestrator working room (RV2106, the ninth parity run)', () => {
+  // The ninth run held a 1.40 synthesis reserve under a 1.90 cap: the
+  // 0.50 working room could never seat the declared 0.28 judge once
+  // the coordination loop had taken even one 0.36 turn, and the live
+  // refusal arrived only after acceptance, with the fan-out complete.
+  function roomInput(options: {
+    capUsd: number;
+    judgeEstUsd?: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: { budgetUsd: 5 },
+      orchestrator: {
+        budget: { capUsd: options.capUsd, capFraction: 1.0, synthesisReserveUsd: 1.4 },
+        synthesis: { limits: { maxTurns: 2 } },
+        limits: { maxOutputTokensPerTurn: 36000 },
+        ...(options.judgeEstUsd === undefined
+          ? {}
+          : { claimConsistency: { judge: { estCost: options.judgeEstUsd } } }),
+      },
+      spawns: [{ label: 'worker', estCost: 0.53, limits: { maxOutputTokensPerTurn: 14000 } }],
+    };
+  }
+
+  it('warns when the room past the hold cannot seat one turn plus the judge', () => {
+    const report = preflightEstimate(roomInput({ capUsd: 1.9, judgeEstUsd: 0.28 }));
+    const finding = report.findings.find((entry) => entry.code === 'orchestrator-working-room');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('0.5000');
+    expect(finding?.message).toContain('0.3600');
+    expect(finding?.message).toContain('0.2800');
+  });
+
+  it('stays silent with real room and absent without the declared estimate', () => {
+    const roomy = preflightEstimate(roomInput({ capUsd: 2.4, judgeEstUsd: 0.28 }));
+    expect(roomy.findings.some((entry) => entry.code === 'orchestrator-working-room')).toBe(false);
+    const undeclared = preflightEstimate(roomInput({ capUsd: 1.9 }));
+    expect(undeclared.findings.some((entry) => entry.code === 'orchestrator-working-room')).toBe(
+      false,
+    );
+  });
+});
+
 describe('the synthesis reserve against the cap-sized composition (RV2104, the seventh parity run)', () => {
   // The seventh parity run held a 0.70 reserve that passed the
   // minimal-payload check, and the synthesis spent it whole on a

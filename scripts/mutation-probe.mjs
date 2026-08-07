@@ -3503,6 +3503,34 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
+    id: 'claim-judge-declined-degrades',
+    doctrine:
+      "the declined claim-judge admission degrades typed instead of killing the run (RV2106): the ninth parity run's judge estimate was refused against the orchestrator account after acceptance and the bare refusal settled exhausted with no fold and the funded synthesis never dispatched",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (!(declined instanceof BudgetExhaustedError)) {\n          throw declined;\n        }\n        claimConsistencyMeta = finishMeta({ judgeInvoked: false, judgeDeclined: true });',
+    replace:
+      '        if (true) {\n          throw declined;\n        }\n        claimConsistencyMeta = finishMeta({ judgeInvoked: false, judgeDeclined: true });',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'admit-refusal-names-hold',
+    doctrine:
+      "the admission refusal's printed arithmetic closes (RV2106): the ninth parity run's message said spent 0.3849 plus proposed 0.28 does not fit ceiling 1.90, numbers that fit with room to spare, because the held synthesis reserve that ate the room was in the sum and not in the message",
+    file: 'packages/core/src/engine/budget.ts',
+    find: "            (account.synthesisReserveUsd > 0\n              ? `plus the held synthesis reserve ${account.synthesisReserveUsd.toFixed(4)} USD `\n              : '') +",
+    replace: "            '' +",
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'orchestrator-working-room-finding',
+    doctrine:
+      "preflight judges the orchestrator account's working room past the held synthesis reserve against one coordination turn floor plus the declared claim-judge estimate (RV2106): the ninth parity run's 0.50 room could never seat the 0.28 judge and no static check said so",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '      if (workingRoomUsd < neededUsd) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'evidence-grade-names-sentences',
     doctrine:
       "the evidence-grade verdict names its offending sentences verbatim, bounded and truncated (RV2105): the phrase-only reason told the eighth parity run's synthesis 'live-observed claims lack citations' over a 5000-word document, both granted repairs missed them, and the run failed closed with half its budget unspent",
