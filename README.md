@@ -201,7 +201,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred eighty nine rounds, verbatim in this repository's history:
+The one hundred ninety rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -405,6 +405,7 @@ The one hundred eighty nine rounds, verbatim in this repository's history:
 | v1.205.0      | ec8e1f1 (#808): one admission arithmetic, the spawn verdict is the dispatch projection with its derivation named, preflight adds the live root exposure term to the required minimum      | v1.206.0   |
 | v1.206.0      | 99beee2 (#812): sequential roster feasibility, every single spawn projects the whole remaining roster and the first infeasible seat refuses typed roster_floor with zero paid children    | v1.207.0   |
 | v1.207.0      | e7d426f (#815): first-class prompt cache policy, the loop compiles sliding cacheHint breakpoints by default on explicit-caching adapters, long cycles stop re-paying their prefix         | v1.208.0   |
+| v1.208.0      | 514c7bb (#818): cache-aware preflight, every spawn report prices its loop input floors both uncached and cached, uncached-long-loop warns when a long cycle opts out                      | v1.209.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
