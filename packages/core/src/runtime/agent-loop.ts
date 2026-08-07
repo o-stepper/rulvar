@@ -4101,9 +4101,16 @@ export async function runAgent<S extends SchemaSpec>(
     try {
       options.budget?.beforeTurn();
     } catch (thrown) {
+      // The refusal's own message rides the terminal (RV2104): this
+      // catch used to discard it, and the seventh parity run's
+      // synthesis died between a granted repair verdict and its
+      // dispatch as a bare "agent terminated with status error" while
+      // the thrown text named the crossed account and the exact
+      // arithmetic. Every downstream truth surface (the ctx terminal
+      // entry, the RV2103 declined verdict) reads this message.
       status = 'error';
       agentError = { kind: 'budget', retryable: false };
-      void thrown;
+      errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
       break;
     }
     turns += 1;
@@ -4358,9 +4365,10 @@ export async function runAgent<S extends SchemaSpec>(
         }
         try {
           options.budget?.beforeTurn();
-        } catch {
+        } catch (thrown) {
           status = 'error';
           agentError = { kind: 'budget', retryable: false };
+          errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
           endPhase(summarizePhase, 'error');
           break;
         }
@@ -4578,11 +4586,12 @@ export async function runAgent<S extends SchemaSpec>(
     let proceed = true;
     try {
       options.budget?.beforeTurn();
-    } catch {
+    } catch (thrown) {
       events?.emit({
         type: 'log',
         level: 'warn',
         msg: 'the finalization reserve turn was skipped: the budget blocks further turns',
+        data: { reason: thrown instanceof Error ? thrown.message : String(thrown) },
       });
       proceed = false;
     }
@@ -4742,9 +4751,10 @@ export async function runAgent<S extends SchemaSpec>(
     let proceed = true;
     try {
       options.budget?.beforeTurn();
-    } catch {
+    } catch (thrown) {
       status = 'error';
       agentError = { kind: 'budget', retryable: false };
+      errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
       proceed = false;
     }
     if (proceed) {
@@ -4963,9 +4973,10 @@ export async function runAgent<S extends SchemaSpec>(
     while (status === 'ok') {
       try {
         options.budget?.beforeTurn();
-      } catch {
+      } catch (thrown) {
         status = 'error';
         agentError = { kind: 'budget', retryable: false };
+        errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
         break;
       }
       turns += 1;

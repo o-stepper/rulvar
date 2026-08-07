@@ -1735,6 +1735,57 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             }
           }
         }
+        // The cap-sized composition against the reserve (RV2104, the
+        // seventh parity run): the minimal-payload check above prices
+        // the SHORTEST accepting finish, but a reasoning model writes
+        // to its allowance. The seventh run's synthesis spent its
+        // whole 0.70 reserve on a composition truncated exactly at
+        // the 40000-token output cap, failed the section validator on
+        // the truncation, and the granted repair turn was refused at
+        // a zero remainder: the reserve funded a composition it could
+        // not repair. Price ONE turn at the output allowance plus the
+        // declared input floor, and one more such turn when the
+        // validation declares a repair reserve; a committed reserve
+        // below that number carries exactly that risk.
+        {
+          const pricing = pricingOf(servedBy);
+          const declared = input.orchestrator?.budget?.synthesisReserveUsd;
+          if (
+            pricing !== undefined &&
+            outputBound !== undefined &&
+            declared !== undefined &&
+            declared > 0
+          ) {
+            const compositionUsd = priceUsdOf(pricing, {
+              inputTokens: synthesis.estInputTokens ?? 0,
+              outputTokens: outputBound,
+              cacheReadTokens: 0,
+              cacheWriteTokens: 0,
+            });
+            const repairTurns = finishRepairReserve > 0 ? 1 : 0;
+            const requiredUsd = compositionUsd * (1 + repairTurns);
+            if (declared < requiredUsd) {
+              say({
+                severity: 'warning',
+                code: 'synthesis-reserve-below-cap-composition',
+                message:
+                  `a synthesis turn writing to its ${String(outputBound)} token output ` +
+                  `allowance over the declared ${String(synthesis.estInputTokens ?? 0)} input ` +
+                  `floor prices about ${compositionUsd.toFixed(4)} USD at the rates of ` +
+                  `'${servedBy}'` +
+                  (repairTurns > 0
+                    ? `, and the declared repair reserve prices one more such turn ` +
+                      `(about ${requiredUsd.toFixed(4)} USD total)`
+                    : '') +
+                  `; the committed synthesis reserve holds only ${declared.toFixed(4)} USD, so ` +
+                  'a composition cut at the allowance can fail its validators with no money ' +
+                  'left for the granted repair; hold the reserve at the cap arithmetic or ' +
+                  'lower maxOutputTokensPerTurn',
+                spawn: 'synthesis',
+              });
+            }
+          }
+        }
         const projected =
           projectedProviderTurnsOf(merged, overallExecutedCeiling(merged, toolCeilingsOf(merged))) +
           finishRepairReserve;

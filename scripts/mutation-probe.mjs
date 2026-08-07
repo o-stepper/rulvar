@@ -3484,6 +3484,25 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
+    id: 'before-turn-refusal-message',
+    doctrine:
+      "the beforeTurn refusal's own message rides the agent terminal (RV2104): the seventh parity run's synthesis died between a granted repair verdict and its dispatch as a bare 'agent terminated with status error' while the thrown text named the crossed account and the exact arithmetic",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "      // entry, the RV2103 declined verdict) reads this message.\n      status = 'error';\n      agentError = { kind: 'budget', retryable: false };\n      errorMessage = thrown instanceof Error ? thrown.message : String(thrown);\n      break;",
+    replace:
+      "      // entry, the RV2103 declined verdict) reads this message.\n      status = 'error';\n      agentError = { kind: 'budget', retryable: false };\n      break;",
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'synthesis-reserve-cap-composition',
+    doctrine:
+      "preflight prices the synthesis reserve against a composition written to the output allowance plus the declared repair turn (RV2104): the minimal-payload check alone passed the seventh parity run's 0.70 hold, and the cap-sized composition spent it whole with nothing left for the granted repair",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '            if (declared < requiredUsd) {',
+    replace: '            if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'redemption-transport-retry',
     doctrine:
       'a synthesis attempt severed on the wire is granted at most one retry from the same remainder (RV2103): the cut stream is a death of the attempt, not of the money, and the sixth parity run declined with $0.9077 still uncommitted after a single idle abort',
