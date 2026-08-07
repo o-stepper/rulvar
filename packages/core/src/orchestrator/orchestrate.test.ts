@@ -4090,6 +4090,222 @@ describe('the reserve line redemption (RV2101, the fourth parity run)', () => {
   });
 });
 
+describe('the redemption drains the stragglers first (RV2102, the fifth parity pair)', () => {
+  // The fifth parity pair reached the RV2101 redemption twice and
+  // died on the same next layer: a still-running child's committed
+  // admission reserve pushed the synthesis spawn past the ceiling,
+  // the refusal lived only in a swallowed throw, and the straggler's
+  // post-boundary finalize burned wire before teardown cancelled it.
+  // The redemption now aborts and awaits every unsettled child FIRST
+  // (their reserves release at their terminals) and a redemption that
+  // still cannot fund the synthesis journals its verdict.
+  const ROUTING_2102 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+
+  it('a straggler is drained before the synthesis dispatch and the redemption lands', async () => {
+    let rootCall = 0;
+    let releaseWorker: () => void = () => {};
+    const workerGate = new Promise<void>((resolve) => {
+      releaseWorker = resolve;
+    });
+    const inner = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        // Overshoots past the reserve line: $0.102 at the $10/MTok row.
+        return { text: 'worked', usage: { inputTokens: 100, outputTokens: 10200 } };
+      }
+      if (agentTypeOf(req) === 'sleeper') {
+        // Hangs mid-wire until the drain aborts it.
+        return { text: 'never', hangMs: 600000 };
+      }
+      rootCall += 1;
+      if (rootCall === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } },
+            { name: 'spawn_agent', args: { agentType: 'sleeper', prompt: 'stall' } },
+          ],
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      if (rootCall === 2) {
+        // The overshoot bills only while the coordination awaits, so
+        // the refusal deterministically lands on the THIRD turn.
+        releaseWorker();
+        return {
+          toolCall: { name: 'await_any', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      // The third non-worker dispatch IS the synthesis.
+      return { toolCall: { name: 'finish', args: { result: 'REDEEMED SYNTHESIS' } } };
+    });
+    const adapter: typeof inner = {
+      ...inner,
+      async *stream(req, signal) {
+        if (agentTypeOf(req) === 'worker') {
+          await workerGate;
+        }
+        yield* inner.stream(req, signal);
+      },
+    };
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2102,
+      profiles: {
+        worker: {
+          description: 'the overshooting worker',
+          estCost: 0.008,
+          limits: { maxOutputTokensPerTurn: 2500 },
+        },
+        sleeper: {
+          description: 'the straggler',
+          estCost: 0.012,
+          limits: { maxOutputTokensPerTurn: 2500 },
+        },
+      },
+      budgetUsd: 0.12,
+    });
+    const wf = makeOrchestratorWorkflow('coordinate to the line', {
+      budget: { capUsd: 0.09, capFraction: 1.0, synthesisReserveUsd: 0.05 },
+      synthesis: {
+        limits: { maxTurns: 2, maxOutputTokensPerTurn: 1200 },
+        // Fits only AFTER the straggler's 0.012 reserve releases:
+        // spent ~0.104 + 0.012 + 0.012 > 0.12, without it 0.116 fits.
+        estCost: 0.012,
+      },
+      limits: { maxOutputTokensPerTurn: 1500 },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      completion?: string;
+      result?: unknown;
+      completed?: unknown[];
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.completion).toBe('partial');
+    expect(envelope.result).toBe('REDEEMED SYNTHESIS');
+    // The drained straggler is settled by synthesis time, so the fold
+    // carries BOTH children.
+    expect(envelope.completed).toHaveLength(2);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    // Order is the doctrine: the straggler's cancelled terminal lands
+    // BEFORE the synthesis agent starts, so no reserve and no wire of
+    // the doomed child outlives the boundary into the tail.
+    const cancelledSeq = entries.find(
+      (entry) => entry.kind === 'agent' && entry.status === 'cancelled',
+    )?.seq;
+    const fallbackSeq = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finalize_fallback',
+    )?.seq;
+    const synthesisRunningSeq = entries
+      .filter((entry) => entry.kind === 'agent' && entry.status === 'running')
+      .at(-1)?.seq;
+    expect(cancelledSeq).toBeDefined();
+    expect(fallbackSeq).toBeDefined();
+    expect(synthesisRunningSeq).toBeDefined();
+    expect(cancelledSeq as number).toBeGreaterThan(fallbackSeq as number);
+    expect(cancelledSeq as number).toBeLessThan(synthesisRunningSeq as number);
+    // No decline decision: the redemption landed.
+    expect(
+      entries.some(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_synthesis_redemption_declined',
+      ),
+    ).toBe(false);
+  });
+
+  it('a redemption that still cannot fund the synthesis journals the declined verdict', async () => {
+    let rootCall = 0;
+    let releaseWorker: () => void = () => {};
+    const workerGate = new Promise<void>((resolve) => {
+      releaseWorker = resolve;
+    });
+    const inner = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'worked', usage: { inputTokens: 100, outputTokens: 8200 } };
+      }
+      rootCall += 1;
+      if (rootCall === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      if (rootCall === 2) {
+        releaseWorker();
+        return {
+          toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'UNREACHABLE' } } };
+    });
+    const adapter: typeof inner = {
+      ...inner,
+      async *stream(req, signal) {
+        if (agentTypeOf(req) === 'worker') {
+          await workerGate;
+        }
+        yield* inner.stream(req, signal);
+      },
+    };
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2102,
+      profiles: {
+        worker: {
+          description: 'the overshooting worker',
+          estCost: 0.008,
+          limits: { maxOutputTokensPerTurn: 2500 },
+        },
+      },
+      budgetUsd: 0.1,
+    });
+    const wf = makeOrchestratorWorkflow('coordinate to the line', {
+      budget: { capUsd: 0.09, capFraction: 1.0, synthesisReserveUsd: 0.05 },
+      synthesis: {
+        limits: { maxTurns: 2, maxOutputTokensPerTurn: 1200 },
+        // Cannot fit even after the release: spent ~0.083 + 0.05 > 0.10.
+        estCost: 0.05,
+      },
+      limits: { maxOutputTokensPerTurn: 1500 },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      result?: unknown;
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.result).toBeUndefined();
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const declined = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_redemption_declined',
+    );
+    const value = declined?.value as
+      { reason?: string; remainingUsd?: number; stragglersDrained?: number } | undefined;
+    expect(value).toBeDefined();
+    expect(String(value?.reason ?? '')).not.toBe('');
+    expect(value?.stragglersDrained).toBe(0);
+    expect(typeof value?.remainingUsd).toBe('number');
+    // No synthesis agent started: exactly two coordination dispatches
+    // reached the adapter.
+    const rootRequests = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    expect(rootRequests).toHaveLength(2);
+  });
+});
+
 describe('the child exposure wait (RV2002, the third parity rerun)', () => {
   // The parity rerun on the sized envelope killed three of four
   // workers, each ~550k tokens into research, with a pre-wire
