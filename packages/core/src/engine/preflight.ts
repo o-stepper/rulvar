@@ -424,6 +424,21 @@ export interface PreflightReport {
      * coordination turn prices.
      */
     liveRootExposureTermUsd?: number;
+    /**
+     * The reserve line (RV2101): the run ceiling minus the synthesis
+     * reserve, the boundary the budget chain fences every non-tail
+     * dispatch at while the promise is held. Present when a ceiling
+     * and a positive synthesis reserve are both declared.
+     */
+    reserveLineUsd?: number;
+    /**
+     * How far the admitted wave's steady state sits under the reserve
+     * line (RV2101). Child spend past the declared estimates consumes
+     * this headroom before the coordination loop is refused at the
+     * line; under two coordination turn floors the projection warns
+     * with `reserve-line-headroom`. Present beside reserveLineUsd.
+     */
+    reserveLineHeadroomUsd?: number;
     wave: PreflightAdmissionRow[];
     admitted: number;
     denied: number;
@@ -1875,6 +1890,43 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         // envelope read 5.95 under a 6.00 ceiling and still lost its
         // fourth seat live to the coordination money this term prices.
         liveRootExposureTermUsd;
+  // The reserve line (RV2101): with a synthesis promise held, the
+  // budget chain fences every non-tail dispatch at ceiling minus the
+  // reserve. The admitted wave's steady state is the spend that line
+  // must absorb, and child spend past the declared estimates consumes
+  // whatever headroom is left before the coordination loop itself is
+  // refused there: the fourth parity run cleared the static minimum by
+  // $0.05 and still missed the line by $0.065, one turn short of the
+  // synthesis its reserve was funding. The loop now settles partial at
+  // the line and redeems the reserve, but a wave sized onto the line
+  // still forfeits its coordination room, so the trajectory gets loud.
+  const reserveLineUsd =
+    ceilingUsd === undefined || synthesisHoldUsd <= 0 ? undefined : ceilingUsd - synthesisHoldUsd;
+  const reserveLineHeadroomUsd =
+    reserveLineUsd === undefined
+      ? undefined
+      : reserveLineUsd -
+        wave.filter((row) => row.admitted).reduce((sum, row) => sum + row.reserveUsd, 0);
+  if (
+    orchestrateWave &&
+    reserveLineUsd !== undefined &&
+    reserveLineHeadroomUsd !== undefined &&
+    wave.some((row) => row.admitted) &&
+    reserveLineHeadroomUsd < 2 * Math.max(liveRootExposureTermUsd, 0.0001)
+  ) {
+    say({
+      severity: 'warning',
+      code: 'reserve-line-headroom',
+      message:
+        `the admitted wave's steady state sits ${reserveLineHeadroomUsd.toFixed(4)} USD under ` +
+        `the reserve line ${reserveLineUsd.toFixed(4)} USD (the ceiling minus the synthesis ` +
+        `reserve), less than two coordination turn floors of headroom ` +
+        `(${liveRootExposureTermUsd.toFixed(4)} USD each): child spend past the declared ` +
+        'estimates eats that headroom, the coordination loop is then refused at the line, and ' +
+        'the run settles partial with the synthesis redeemed from its reserve (RV2101); size ' +
+        'the wave below the line or raise the ceiling to keep coordinating past it',
+    });
+  }
   if (wave.length > 0 && denied > 0) {
     const deniedLabels = wave.filter((row) => !row.admitted).map((row) => row.label);
     if (admitted === 0) {
@@ -1992,18 +2044,16 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         'estimate error of the in-flight turns, not one whole turn per agent',
     });
   }
-  // The exposure floor over time (RV1907): the recovery arm admitted
-  // all four workers and then had its root turn refused BESIDE them,
-  // because the cap must hold the reserves plus a full concurrent wave
-  // plus the coordinating turn at once. The static floor prices exactly
-  // that worst case from the declared shapes.
-  const requiredMinimumExposureUsd =
-    overshootOneTurnFloorUsd === undefined
-      ? undefined
-      : reservedForFinalizationUsd + synthesisHoldUsd + overshootOneTurnFloorUsd;
+  // The exposure floor over time (RV1907, re-priced by RV2101): the
+  // recovery arm admitted all four workers and then had its root turn
+  // refused BESIDE them. The live sum now counts spent money plus live
+  // dispatch estimates ONLY (the tail reserves are fenced by the
+  // budget chain, not the exposure cap), so the static floor is the
+  // concurrent wave's turn floors alone, priced from the declared
+  // shapes with the same rows as settlement.
+  const requiredMinimumExposureUsd = overshootOneTurnFloorUsd;
   if (
     exposureCapUsd !== undefined &&
-    overshootOneTurnFloorUsd !== undefined &&
     requiredMinimumExposureUsd !== undefined &&
     requiredMinimumExposureUsd > exposureCapUsd
   ) {
@@ -2012,12 +2062,10 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       code: 'exposure-cap-tight',
       message:
         `maxInFlightExposureUsd ${exposureCapUsd.toFixed(4)} USD sits below the declared ` +
-        `wave's breathing floor ${requiredMinimumExposureUsd.toFixed(4)} USD (finalize + ` +
-        `synthesis reserves ${(reservedForFinalizationUsd + synthesisHoldUsd).toFixed(4)} plus ` +
-        `the ${String(pricedTurns.length)} most expensive concurrent turn floors ` +
-        `${overshootOneTurnFloorUsd.toFixed(4)}): a coordinating turn beside a full child wave ` +
-        'will be refused pre-wire and park until a hold releases (RV1902); raise the cap to ' +
-        'at least the floor to avoid the stall entirely',
+        `wave's breathing floor ${requiredMinimumExposureUsd.toFixed(4)} USD (the ` +
+        `${String(pricedTurns.length)} most expensive concurrent turn floors): a coordinating ` +
+        'turn beside a full child wave will be refused pre-wire and park until a hold ' +
+        'releases (RV1902); raise the cap to at least the floor to avoid the stall entirely',
     });
   }
 
@@ -2342,6 +2390,8 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       synthesisReserveUsd: synthesisHoldUsd,
       ...(requiredMinimumCeilingUsd === undefined ? {} : { requiredMinimumCeilingUsd }),
       ...(liveRootExposureTermUsd > 0 ? { liveRootExposureTermUsd } : {}),
+      ...(reserveLineUsd === undefined ? {} : { reserveLineUsd }),
+      ...(reserveLineHeadroomUsd === undefined ? {} : { reserveLineHeadroomUsd }),
       wave,
       admitted,
       denied,

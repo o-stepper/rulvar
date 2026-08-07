@@ -6590,21 +6590,26 @@ export function makeOrchestratorWorkflow(
         ),
       );
     } catch (thrown) {
-      if (
-        !(thrown instanceof BudgetExhaustedError) ||
-        (thrown.data as { reason?: string } | undefined)?.reason !== 'in-flight-exposure'
-      ) {
+      const budgetReason =
+        thrown instanceof BudgetExhaustedError
+          ? (thrown.data as { reason?: string } | undefined)?.reason
+          : undefined;
+      if (budgetReason !== 'in-flight-exposure' && budgetReason !== 'output-floor') {
         throw thrown;
       }
-      // The drained exposure refusal (RV1902): the coordination turn
-      // cannot fit the cap and no live hold remains to wait out, so
-      // this is a genuine terminal, but the DOCUMENTED one: exhaustion
-      // with the settled partial, never a bare escape that tears the
-      // run down around its own evidence (the four-role benchmark's
-      // recovery arm settled a null-valued exhausted exactly there).
-      // No further dispatch is attempted, because any dispatch faces
-      // the same refused arithmetic; the fold below is pure over the
-      // settled records and journals its decision for replay identity.
+      // The refused coordination turn (RV1902, widened by RV2101): the
+      // exposure arm cannot fit the cap with no live hold left to wait
+      // out, and the output-floor arm cannot afford one output token
+      // past the reserve line. Both are genuine terminals, but the
+      // DOCUMENTED ones: exhaustion with the settled partial, never a
+      // bare escape that tears the run down around its own evidence
+      // (the four-role benchmark's recovery arm settled a null-valued
+      // exhausted on the first shape, and the fourth parity run died
+      // bare on the second, one turn short of the synthesis its
+      // reserve was holding money for). No further coordination
+      // dispatch is attempted, because it faces the same refused
+      // arithmetic; the fold below is pure over the settled records
+      // and journals its decision for replay identity.
       const exposureKey = deriverV2.deriveKey({ kind: 'orchestrator-exposure-fallback' });
       if (
         !internals.replayer
@@ -6620,14 +6625,14 @@ export function makeOrchestratorWorkflow(
           site: 'orchestrator-budget',
           value: {
             decisionType: 'orchestrator_finalize_fallback',
-            reason: 'exposure-abort',
+            reason: budgetReason === 'output-floor' ? 'budget-floor' : 'exposure-abort',
             turnsUsed: 0,
             foldParams: { planHash: '', digestOrdinalMax: wakeOrdinal },
           },
         });
       }
       internals.budget.markExhausted();
-      return {
+      const fold = {
         forcedFinishFallback: true,
         completion: 'partial',
         planHash: '',
@@ -6636,6 +6641,29 @@ export function makeOrchestratorWorkflow(
           .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
           .map((record) => digestOf(record, record.settled as AgentResult<unknown>)),
       };
+      // The synthesis promise is redeemed, not abandoned (RV2101): the
+      // reserve was held all run exactly so the tail could still run
+      // at this boundary. With a configured synthesis step, the
+      // reserve still committed, and at least one settled child to
+      // synthesize from, the EXISTING synthesis path runs with no
+      // coordination draft (runSynthesis releases the reserve before
+      // its dispatch, so the freed money funds it); its contracted
+      // output rides the fold envelope as `result`. Any refusal inside
+      // (admission against live children, a rejected finish) falls
+      // back to the pure fold: the redemption can only add.
+      const synthesisReserveStillCommitted =
+        orchestratorAccount !== undefined &&
+        (internals.budget.accountView(orchestratorAccount)?.synthesisReserveUsd ?? 0) > 0;
+      const anySettled = [...byOrdinal.values()].some((record) => record.settled !== undefined);
+      if (opts?.synthesis !== undefined && synthesisReserveStillCommitted && anySettled) {
+        try {
+          const synthesized = await runSynthesis(undefined);
+          return { ...fold, result: synthesized };
+        } catch {
+          return fold;
+        }
+      }
+      return fold;
     }
     const liveTermination = extensionTermination;
     if (liveTermination !== undefined) {

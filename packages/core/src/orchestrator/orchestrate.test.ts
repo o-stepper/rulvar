@@ -3990,6 +3990,106 @@ describe('the root exposure wait (RV1902, the four-role benchmark recovery arm)'
   });
 });
 
+describe('the reserve line redemption (RV2101, the fourth parity run)', () => {
+  // The fourth parity run's death: worker spend ran past the declared
+  // estimates to the reserve line (ceiling minus the synthesis
+  // reserve), the coordination loop's next turn was refused the
+  // one-token output floor there, and the typed refusal escaped bare:
+  // root error, no synthesis, the reserve intact and unreachable. The
+  // refusal now settles the documented fold, and the held synthesis
+  // promise is redeemed from its own reserve.
+  const PROFILES_2101 = {
+    worker: {
+      description: 'the overshooting worker',
+      estCost: 0.008,
+      limits: { maxOutputTokensPerTurn: 2500 },
+    },
+  };
+  const ROUTING_2101 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+
+  it('the coordination turn refused at the line redeems the synthesis from its reserve', async () => {
+    let rootCall = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        // The stream bills past the affordability clamp (the layer-3
+        // overshoot): 8200 output tokens at the $10/MTok row is
+        // $0.082, past the 0.05 reserve line of the 0.10 ceiling.
+        return { text: 'worked', usage: { inputTokens: 100, outputTokens: 8200 } };
+      }
+      rootCall += 1;
+      if (rootCall === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      if (rootCall === 2) {
+        return {
+          toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      // The third non-worker dispatch IS the synthesis: the refused
+      // coordination turn never reaches the adapter.
+      return { toolCall: { name: 'finish', args: { result: 'REDEEMED SYNTHESIS' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2101,
+      profiles: PROFILES_2101,
+      budgetUsd: 0.1,
+    });
+    const wf = makeOrchestratorWorkflow('coordinate to the line', {
+      budget: { capUsd: 0.09, capFraction: 1.0, synthesisReserveUsd: 0.05 },
+      synthesis: {
+        limits: { maxTurns: 2, maxOutputTokensPerTurn: 1200 },
+        estCost: 0.005,
+      },
+      limits: { maxOutputTokensPerTurn: 1500 },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      completion?: string;
+      result?: unknown;
+      completed?: unknown[];
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.completion).toBe('partial');
+    expect(envelope.result).toBe('REDEEMED SYNTHESIS');
+    expect(envelope.completed).toHaveLength(1);
+    expect(internals.budget.exhausted).toBe(true);
+    // Exactly three non-worker dispatches reached the adapter: two
+    // coordination turns and the synthesis; the refused third
+    // coordination turn produced no provider call.
+    const rootRequests = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    expect(rootRequests).toHaveLength(3);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const fallback = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finalize_fallback',
+    );
+    expect((fallback?.value as { reason?: string } | undefined)?.reason).toBe('budget-floor');
+    // Two agents settled ok (the worker and the redeemed synthesis);
+    // the refused coordination root carries its typed budget terminal.
+    const okAgents = entries.filter((entry) => entry.kind === 'agent' && entry.status === 'ok');
+    expect(okAgents).toHaveLength(2);
+    const rootTerminal = entries.find(
+      (entry) =>
+        entry.kind === 'agent' &&
+        entry.status === 'error' &&
+        (entry.error?.data as { reason?: string } | undefined)?.reason === 'output-floor',
+    );
+    expect(rootTerminal).toBeDefined();
+  });
+});
+
 describe('the child exposure wait (RV2002, the third parity rerun)', () => {
   // The parity rerun on the sized envelope killed three of four
   // workers, each ~550k tokens into research, with a pre-wire

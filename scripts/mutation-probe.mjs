@@ -3194,9 +3194,9 @@ const MUTATIONS = [
   {
     id: 'exposure-drained-partial',
     doctrine:
-      "a drained exposure refusal on the root settles the documented forced-finish partial, never a bare escape (RV1902): dropping the orchestrate catch returns the run to a null-valued exhausted with no journaled fallback decision, the recovery arm's exact terminal",
+      "a drained exposure refusal on the root settles the documented forced-finish partial, never a bare escape (RV1902; the guard widened by RV2101): dropping the orchestrate catch returns the run to a null-valued exhausted with no journaled fallback decision, the recovery arm's exact terminal",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "      if (\n        !(thrown instanceof BudgetExhaustedError) ||\n        (thrown.data as { reason?: string } | undefined)?.reason !== 'in-flight-exposure'\n      ) {",
+    find: "      if (budgetReason !== 'in-flight-exposure' && budgetReason !== 'output-floor') {",
     replace: '      if (true) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
@@ -3417,6 +3417,43 @@ const MUTATIONS = [
     find: "        if (origin === 'spawn_agent' && opts?.requireBatchSpawn === 'reject-spawn-agent') {",
     replace: '        if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'exposure-committed-excludes-tail-reserves',
+    doctrine:
+      'the in-flight exposure admission counts spent money plus live estimates alone (RV2101): the tail reserves are fenced by the budget chain, and restoring them to the sum makes the cap bind at cap minus reserves, refusing wire work while the actual exposure is far below the cap, exactly the third parity run death',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    const committed = root.spentUsd + this.inFlightExposureUsd;',
+    replace:
+      '    const committed =\n      root.spentUsd + root.finalizeReserveUsd + root.synthesisReserveUsd + this.inFlightExposureUsd;',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'output-floor-reason-survives-ctx',
+    doctrine:
+      "the coordination loop's output-floor refusal keeps its typed reason across the ctx boundary (RV2101): re-minting the error generic there was how the fourth parity run's root died bare one turn short of its funded synthesis",
+    file: 'packages/core/src/engine/ctx.ts',
+    find: "        result.error.reason === 'output-floor' &&",
+    replace: "        result.error.reason === 'never-output-floor' &&",
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'reserve-line-redeems-synthesis',
+    doctrine:
+      'a coordination turn refused at the reserve line settles the documented forced-finish partial and redeems the held synthesis promise from its own reserve (RV2101): narrowing the catch back to the exposure arm alone lets the budget-floor refusal escape bare with the reserve intact and unreachable',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (budgetReason !== 'in-flight-exposure' && budgetReason !== 'output-floor') {",
+    replace: "      if (budgetReason !== 'in-flight-exposure') {",
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'reserve-line-headroom-finding',
+    doctrine:
+      "preflight warns when the admitted wave's steady state sits within two coordination turn floors of the reserve line (RV2101): silencing the finding hides the trajectory both parity runs died on while every static minimum read green",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '    reserveLineHeadroomUsd < 2 * Math.max(liveRootExposureTermUsd, 0.0001)',
+    replace: '    reserveLineHeadroomUsd < 0 * Math.max(liveRootExposureTermUsd, 0.0001)',
+    test: 'packages/core/src/engine/preflight.test.ts',
   },
 ];
 

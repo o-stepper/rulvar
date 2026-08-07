@@ -233,7 +233,7 @@ describe('the in-flight exposure reservation (RV711)', () => {
     expect(() => budget.reserveTurnExposure('fake:model', 1000, 400)).toThrow(BudgetExhaustedError);
   });
 
-  it('spent money and the named reserves shrink the admissible exposure', () => {
+  it('spent money shrinks the admissible exposure; the tail reserves stay out of the sum', () => {
     const budget = exposureBudget(0.01);
     // 0.006 spent: one 0.005 estimate would need 0.011.
     budget.onUsage(
@@ -241,14 +241,19 @@ describe('the in-flight exposure reservation (RV711)', () => {
       'fake:model',
     );
     expect(() => budget.reserveTurnExposure('fake:model', 1000, 400)).toThrow(BudgetExhaustedError);
+    // The tail reserves are fenced by the budget chain (RV2101), not
+    // the exposure cap: with finalize 0.004 and synthesis 0.004
+    // committed on a 0.01 cap, the old sum refused the FIRST 0.005
+    // estimate (0.008 + 0.005 > 0.01) one turn short of the tail those
+    // reserves fund. Live exposure alone bounds the admissions now.
     const withReserves = exposureBudget(0.01);
     withReserves.commitFinalizeReserve('run', 0.004);
-    // 0.004 finalize reserve + 0.005 estimate fits the 0.01 cap.
+    withReserves.commitSynthesisReserve('run', 0.004);
     const release = withReserves.reserveTurnExposure('fake:model', 1000, 400);
     expect(release).toBeDefined();
-    release?.();
-    withReserves.commitSynthesisReserve('run', 0.002);
-    // 0.004 + 0.002 + 0.005 = 0.011 does not.
+    // The exact fill still admits, and the next refuses on live
+    // exposure alone.
+    expect(withReserves.reserveTurnExposure('fake:model', 1000, 400)).toBeDefined();
     expect(() => withReserves.reserveTurnExposure('fake:model', 1000, 400)).toThrow(
       BudgetExhaustedError,
     );

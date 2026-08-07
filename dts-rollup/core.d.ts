@@ -382,13 +382,18 @@ type AgentError = {
   retryAfterMs?: number;
   issues?: Issue$1[];
   /**
-  * The typed refusal marker (RV2002): 'exposure-drained' names a
-  * spawned child refused pre-wire by the in-flight exposure cap with
-  * no live holder left to wait out. Zero provider attempts by
-  * construction, so the seat is cheap to re-spawn; an orchestrator
-  * treats it as a starved seat, never a crashed child.
+  * The typed refusal marker (RV2002, widened by RV2101):
+  * 'exposure-drained' names a spawned child refused pre-wire by the
+  * in-flight exposure cap with no live holder left to wait out (zero
+  * provider attempts by construction, so the seat is cheap to
+  * re-spawn; an orchestrator treats it as a starved seat, never a
+  * crashed child). 'output-floor' names a turn refused pre-wire
+  * because the remaining budget past the held reserves cannot afford
+  * the model's output floor: at the reserve line this is the
+  * boundary where the coordination loop settles partial and the
+  * synthesis promise is redeemed, never a crash.
   */
-  reason?: "exposure-drained";
+  reason?: "exposure-drained" | "output-floor";
 };
 /**
 * Projects an AgentError to its WireError form: code 'agent', with kind,
@@ -6513,10 +6518,17 @@ declare class RunBudget {
   * price rows as the layer-2b clamp) right before the wire call and
   * releases at the attempt's settle, so the reservation lives exactly
   * as long as the exposure it covers. The admission refuses, typed
-  * and without waiting, when spent + the named reserves (finalize and
-  * synthesis money is promised elsewhere) + live reservations + this
+  * and without waiting, when spent + live reservations + this
   * estimate does not fit the cap; an exact fill admits, mirroring
-  * admitSpawn, and a full cap refuses even a zero estimate. A refusal
+  * admitSpawn, and a full cap refuses even a zero estimate. The tail
+  * reserves (finalize and synthesis) stay OUT of the sum (RV2101):
+  * the budget chain already fences them (remainingUsd subtracts the
+  * synthesis promise, and the finalize carve-out nets out of the
+  * orchestrator's own cap), so counting them here too made the cap
+  * bind at cap minus reserves while the actual wire risk was far
+  * below it: the fourth parity run's root was refused at spent
+  * 4.71 + reserve 1.00 against 5.70 with zero live estimates, one
+  * turn short of the synthesis the reserve existed to fund. A refusal
   * is TRANSIENT (in-flight money returns at settle), so it never
   * marks the run exhausted and never severs a stream. A model without
   * a price row reserves zero, exactly as it debits zero (the
@@ -13290,6 +13302,21 @@ interface PreflightReport {
     * coordination turn prices.
     */
     liveRootExposureTermUsd?: number;
+    /**
+    * The reserve line (RV2101): the run ceiling minus the synthesis
+    * reserve, the boundary the budget chain fences every non-tail
+    * dispatch at while the promise is held. Present when a ceiling
+    * and a positive synthesis reserve are both declared.
+    */
+    reserveLineUsd?: number;
+    /**
+    * How far the admitted wave's steady state sits under the reserve
+    * line (RV2101). Child spend past the declared estimates consumes
+    * this headroom before the coordination loop is refused at the
+    * line; under two coordination turn floors the projection warns
+    * with `reserve-line-headroom`. Present beside reserveLineUsd.
+    */
+    reserveLineHeadroomUsd?: number;
     wave: PreflightAdmissionRow[];
     admitted: number;
     denied: number;

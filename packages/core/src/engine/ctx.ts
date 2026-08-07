@@ -3165,6 +3165,29 @@ export function createCtx(
           },
         });
       }
+      // The reserve-line floor refusal keeps its typed reason across
+      // this boundary too (RV2101): no account closed (the held
+      // reserves are what the remainder cannot clear), and the
+      // orchestrator's coordination catch settles the documented
+      // partial and redeems the synthesis promise on exactly this
+      // marker; re-minting the error generic here was how the fourth
+      // parity run's root died bare one turn short of its funded
+      // synthesis.
+      if (
+        !internals.budget.exhausted &&
+        result.error?.kind === 'budget' &&
+        result.error.reason === 'output-floor' &&
+        result.errorMessage !== undefined
+      ) {
+        throw new BudgetExhaustedError(result.errorMessage, {
+          data: {
+            scope: state.scope,
+            entryRef: terminal.seq,
+            source: 'output-floor',
+            reason: 'output-floor',
+          },
+        });
+      }
       const diagnostics = internals.budget.exhaustionDiagnostics(state.budgetScope ?? ROOT_ACCOUNT);
       const crossed = diagnostics.crossed;
       const rootSuffix =
