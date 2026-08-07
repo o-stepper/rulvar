@@ -1,5 +1,16 @@
 # @rulvar/cli
 
+## 1.210.0
+
+### Minor Changes
+
+- c871ddc: Incremental billing journaling (RV2008). ProviderCallRecords rode ONLY the terminal agent entry, so when the third parity rerun's process died with the root still running, ~$0.99 of its dispatches existed nowhere durable: the live ledger read $4.467 while the journal folded $3.478. Every record now journals the moment its wire call settles, as a `provider-call` decision row keyed by the dispatch seq and the record ordinal in the invocation's own scope; the terminal entry still carries the canonical set, replayed segments append no duplicates, and the crash window shrinks from the invocation's whole history to the one in-flight turn. `invoiceFromJournal` gains the additive `unsettled` lane: dispatches of agents still running at the journal's edge, priced from the incremental rows and kept OUTSIDE the settled totals (run_settle stays the billing boundary). `rulvar cost-audit` grows a sixth check, `incremental-rows-match`: every settled agent's terminal dispatch set must equal its incremental rows, count and per-ordinal usage alike; agents with no rows (pre-RV2008 journals, replayed invocations) pass vacuously. The frozen cassette catalog is re-recorded for the additive rows (journal-shape-revision, policy not identity: existing entries byte-identical, no hashVersion change).
+
+### Patch Changes
+
+- Updated dependencies [c871ddc]
+  - @rulvar/core@1.210.0
+
 ## 1.209.0
 
 ### Patch Changes
