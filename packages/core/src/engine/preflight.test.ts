@@ -1732,7 +1732,10 @@ describe('the exposure floor over time (RV1907, the recovery arm stall)', () => 
     expect(finding?.severity).toBe('warning');
     expect(finding?.message).toContain('breathing floor');
     expect(finding?.message).toContain('RV1902');
-    expect(report.exposure.requiredMinimumExposureUsd).toBeGreaterThan(1.0);
+    // Re-priced by RV2101: the tail reserves are fenced by the budget
+    // chain, not the exposure cap, so the floor is the concurrent turn
+    // floors alone (0.04 orchestrator + 0.10 across the wave).
+    expect(report.exposure.requiredMinimumExposureUsd).toBeCloseTo(0.14, 10);
   });
 
   it('stays silent at a generous cap and still reports the floor without one', () => {
@@ -1742,10 +1745,72 @@ describe('the exposure floor over time (RV1907, the recovery arm stall)', () => 
     expect(generous.findings.some((entry) => entry.code === 'exposure-cap-tight')).toBe(false);
     const uncapped = preflightEstimate(shapedInput({ synthesisReserveUsd: 1.0 }));
     expect(uncapped.findings.some((entry) => entry.code === 'exposure-cap-tight')).toBe(false);
-    expect(uncapped.exposure.requiredMinimumExposureUsd).toBeGreaterThan(1.0);
+    expect(uncapped.exposure.requiredMinimumExposureUsd).toBeCloseTo(0.14, 10);
     expect(uncapped.exposure.requiredMinimumExposureUsd).toBe(
       generous.exposure.requiredMinimumExposureUsd,
     );
+  });
+});
+
+describe('the reserve line headroom (RV2101, the fourth parity run)', () => {
+  const WORKERS_2101 = ['product', 'finops', 'durability', 'adversarial'];
+  function parityInput(options: {
+    workerEstCostUsd: number;
+    synthesisReserveUsd?: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: { budgetUsd: 6 },
+      orchestrator: {
+        budget: {
+          capUsd: 2.95,
+          capFraction: 1.0,
+          ...(options.synthesisReserveUsd === undefined
+            ? {}
+            : { synthesisReserveUsd: options.synthesisReserveUsd }),
+        },
+        synthesis: { limits: { maxTurns: 2 } },
+        limits: { maxOutputTokensPerTurn: 36000 },
+      },
+      spawns: WORKERS_2101.map((label) => ({
+        label,
+        estCost: options.workerEstCostUsd,
+        limits: { maxOutputTokensPerTurn: 14000 },
+      })),
+    };
+  }
+
+  it('warns when the admitted wave sits within two coordination turns of the line', () => {
+    const report = preflightEstimate(
+      parityInput({ workerEstCostUsd: 0.66, synthesisReserveUsd: 1.0 }),
+    );
+    // The fourth parity envelope: steady state 1.95 + 4 x 0.66 = 4.59
+    // against the 5.00 line, 0.41 of headroom under two 0.36
+    // coordination turn floors. The run cleared the static minimum by
+    // $0.05 and still died $0.065 past the line.
+    expect(report.admission.reserveLineUsd).toBeCloseTo(5.0, 10);
+    expect(report.admission.reserveLineHeadroomUsd).toBeCloseTo(0.41, 10);
+    const finding = report.findings.find((entry) => entry.code === 'reserve-line-headroom');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('redeemed from its reserve');
+  });
+
+  it('stays silent with real coordination room and absent without a synthesis reserve', () => {
+    const roomy = preflightEstimate(
+      parityInput({ workerEstCostUsd: 0.5, synthesisReserveUsd: 1.0 }),
+    );
+    expect(roomy.findings.some((entry) => entry.code === 'reserve-line-headroom')).toBe(false);
+    expect(roomy.admission.reserveLineHeadroomUsd).toBeCloseTo(1.05, 10);
+    const unreserved = preflightEstimate(parityInput({ workerEstCostUsd: 0.66 }));
+    expect(unreserved.admission.reserveLineUsd).toBeUndefined();
+    expect(unreserved.findings.some((entry) => entry.code === 'reserve-line-headroom')).toBe(false);
   });
 });
 

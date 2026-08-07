@@ -805,10 +805,17 @@ estimate plus the planned output allowance, priced by the SAME
 price rows as the layer-2b clamp) right before the wire call and
 releases at the attempt's settle, so the reservation lives exactly
 as long as the exposure it covers. The admission refuses, typed
-and without waiting, when spent + the named reserves (finalize and
-synthesis money is promised elsewhere) + live reservations + this
+and without waiting, when spent + live reservations + this
 estimate does not fit the cap; an exact fill admits, mirroring
-admitSpawn, and a full cap refuses even a zero estimate. A refusal
+admitSpawn, and a full cap refuses even a zero estimate. The tail
+reserves (finalize and synthesis) stay OUT of the sum (RV2101):
+the budget chain already fences them (remainingUsd subtracts the
+synthesis promise, and the finalize carve-out nets out of the
+orchestrator's own cap), so counting them here too made the cap
+bind at cap minus reserves while the actual wire risk was far
+below it: the fourth parity run's root was refused at spent
+4.71 + reserve 1.00 against 5.70 with zero live estimates, one
+turn short of the synthesis the reserve existed to fund. A refusal
 is TRANSIENT (in-flight money returns at settle), so it never
 marks the run exhausted and never severs a stream. A model without
 a price row reserves zero, exactly as it debits zero (the

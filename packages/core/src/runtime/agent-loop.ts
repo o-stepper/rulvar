@@ -1307,12 +1307,16 @@ function applyOutputBudget(
   if (affordable < floor) {
     const zeroInputAffordable = hook(target.resolved.ref, 0);
     if (zeroInputAffordable !== undefined && zeroInputAffordable < floor) {
+      // The typed reason (RV2101) lets the orchestrator's coordination
+      // catch tell this refusal from a hard ceiling: at the reserve
+      // line the promised tail is still fundable and must run.
       throw new BudgetExhaustedError(
         floor === 1
           ? `the remaining budget cannot afford one output token from ${target.resolved.ref}; ` +
               'the turn was not dispatched'
           : `the remaining budget cannot afford the ${String(floor)} token output floor of ` +
               `${target.resolved.ref}; the turn was not dispatched`,
+        { data: { reason: 'output-floor' } },
       );
     }
     return { ...req, maxOutputTokens: floor };
@@ -4157,16 +4161,17 @@ export async function runAgent<S extends SchemaSpec>(
         throw thrown;
       }
       // Layer 2b denied the dispatch: same surface as a layer-2 block.
-      // The drained child refusal (RV2002) keeps its typed marker on
-      // the terminal so the orchestrator can tell a starved seat apart
-      // from a crashed child.
+      // The typed markers ride the terminal (RV2002, RV2101): a
+      // drained seat and a reserve-line floor refusal are boundaries
+      // the orchestrator must tell apart from a crashed agent.
       status = 'error';
-      const drained =
-        (thrown.data as { reason?: string } | undefined)?.reason === 'exposure-drained';
+      const typedReason = (thrown.data as { reason?: string } | undefined)?.reason;
       agentError = {
         kind: 'budget',
         retryable: false,
-        ...(drained ? { reason: 'exposure-drained' as const } : {}),
+        ...(typedReason === 'exposure-drained' || typedReason === 'output-floor'
+          ? { reason: typedReason }
+          : {}),
       };
       errorMessage = thrown.message;
       break;

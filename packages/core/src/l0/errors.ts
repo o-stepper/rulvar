@@ -467,13 +467,18 @@ export type AgentError = {
   retryAfterMs?: number;
   issues?: Issue[];
   /**
-   * The typed refusal marker (RV2002): 'exposure-drained' names a
-   * spawned child refused pre-wire by the in-flight exposure cap with
-   * no live holder left to wait out. Zero provider attempts by
-   * construction, so the seat is cheap to re-spawn; an orchestrator
-   * treats it as a starved seat, never a crashed child.
+   * The typed refusal marker (RV2002, widened by RV2101):
+   * 'exposure-drained' names a spawned child refused pre-wire by the
+   * in-flight exposure cap with no live holder left to wait out (zero
+   * provider attempts by construction, so the seat is cheap to
+   * re-spawn; an orchestrator treats it as a starved seat, never a
+   * crashed child). 'output-floor' names a turn refused pre-wire
+   * because the remaining budget past the held reserves cannot afford
+   * the model's output floor: at the reserve line this is the
+   * boundary where the coordination loop settles partial and the
+   * synthesis promise is redeemed, never a crash.
    */
-  reason?: 'exposure-drained';
+  reason?: 'exposure-drained' | 'output-floor';
 };
 
 /**
