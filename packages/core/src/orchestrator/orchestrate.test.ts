@@ -4306,6 +4306,204 @@ describe('the redemption drains the stragglers first (RV2102, the fifth parity p
   });
 });
 
+describe("the declined verdict tells the terminal's truth (RV2103, the sixth parity run)", () => {
+  // The sixth parity run's synthesis dispatched for the first time in
+  // six runs and died as "stream idle for 240000ms" with $0.9077 still
+  // uncommitted; the declined verdict then journaled the ctx
+  // boundary's re-mint ("run budget ceiling reached") because the
+  // exhausted flag was already armed at the fallback. The declined
+  // reason now carries the terminal's own message through
+  // data.entryRef, and a transport-severed attempt is retried exactly
+  // once from the same remainder before the redemption declines.
+  const PROFILES_2103 = {
+    worker: {
+      description: 'the overshooting worker',
+      estCost: 0.008,
+      limits: { maxOutputTokensPerTurn: 2500 },
+    },
+  };
+  const ROUTING_2103 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+
+  it('a synthesis severed on the wire is retried once and the redemption lands', async () => {
+    let rootCall = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        // Past the 0.05 reserve line of the 0.10 ceiling: $0.082.
+        return { text: 'worked', usage: { inputTokens: 100, outputTokens: 8200 } };
+      }
+      rootCall += 1;
+      if (rootCall === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      if (rootCall === 2) {
+        return {
+          toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      if (rootCall === 3) {
+        // The first synthesis attempt: the stream goes silent past the
+        // declared idle window and the loop severs it mid-wire.
+        return { text: 'never', hangMs: 600000 };
+      }
+      // The retried attempt lands.
+      return { toolCall: { name: 'finish', args: { result: 'RETRIED SYNTHESIS' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2103,
+      profiles: PROFILES_2103,
+      budgetUsd: 0.1,
+      // One dial per attempt: the wire retry chain is the loop's own
+      // layer, and these tests pin the REDEMPTION retry above it.
+      retry: { attempts: 1, backoff: { initialMs: 1, factor: 1, maxMs: 1 } },
+    });
+    const wf = makeOrchestratorWorkflow('coordinate to the line', {
+      budget: { capUsd: 0.09, capFraction: 1.0, synthesisReserveUsd: 0.05 },
+      synthesis: {
+        limits: { maxTurns: 2, maxOutputTokensPerTurn: 1200, streamIdleTimeoutMs: 60 },
+        estCost: 0.005,
+      },
+      limits: { maxOutputTokensPerTurn: 1500 },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      completion?: string;
+      result?: unknown;
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.completion).toBe('partial');
+    expect(envelope.result).toBe('RETRIED SYNTHESIS');
+    // Four non-worker dispatches: two coordination turns, the severed
+    // attempt, and the retry that landed.
+    const rootRequests = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    expect(rootRequests).toHaveLength(4);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const severed = entries.find(
+      (entry) =>
+        entry.kind === 'agent' &&
+        entry.status === 'error' &&
+        entry.error?.message === 'stream idle for 60ms',
+    );
+    expect(severed).toBeDefined();
+    expect((severed?.error?.data as { kind?: string } | undefined)?.kind).toBe('transport');
+    const retry = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_redemption_retry',
+    );
+    const retryValue = retry?.value as
+      { reason?: string; terminalRef?: number; remainingUsd?: number } | undefined;
+    expect(retryValue).toBeDefined();
+    expect(retryValue?.reason).toBe('stream idle for 60ms');
+    expect(retryValue?.terminalRef).toBe(severed?.seq);
+    expect(typeof retryValue?.remainingUsd).toBe('number');
+    // The redemption landed: no declined verdict.
+    expect(
+      entries.some(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_synthesis_redemption_declined',
+      ),
+    ).toBe(false);
+  });
+
+  it("a redemption declined after the retry journals the terminal's message, not the re-mint", async () => {
+    let rootCall = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'worked', usage: { inputTokens: 100, outputTokens: 8200 } };
+      }
+      rootCall += 1;
+      if (rootCall === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      if (rootCall === 2) {
+        return {
+          toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 50, outputTokens: 20 },
+        };
+      }
+      // Both synthesis attempts idle out mid-wire.
+      return { text: 'never', hangMs: 600000 };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2103,
+      profiles: PROFILES_2103,
+      budgetUsd: 0.1,
+      // One dial per attempt: the wire retry chain is the loop's own
+      // layer, and these tests pin the REDEMPTION retry above it.
+      retry: { attempts: 1, backoff: { initialMs: 1, factor: 1, maxMs: 1 } },
+    });
+    const wf = makeOrchestratorWorkflow('coordinate to the line', {
+      budget: { capUsd: 0.09, capFraction: 1.0, synthesisReserveUsd: 0.05 },
+      synthesis: {
+        limits: { maxTurns: 2, maxOutputTokensPerTurn: 1200, streamIdleTimeoutMs: 60 },
+        estCost: 0.005,
+      },
+      limits: { maxOutputTokensPerTurn: 1500 },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      result?: unknown;
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.result).toBeUndefined();
+    // Four non-worker dispatches: two coordination turns and exactly
+    // two synthesis attempts; the retry fires once, never a loop.
+    const rootRequests = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    expect(rootRequests).toHaveLength(4);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const declined = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_redemption_declined',
+    );
+    const value = declined?.value as
+      | {
+          reason?: string;
+          terminalRef?: number;
+          remainingUsd?: number;
+          stragglersDrained?: number;
+          transportRetries?: number;
+        }
+      | undefined;
+    expect(value).toBeDefined();
+    // The terminal's truth, never the boundary's generic budget text.
+    expect(value?.reason).toBe('stream idle for 60ms');
+    expect(value?.transportRetries).toBe(1);
+    expect(value?.stragglersDrained).toBe(0);
+    expect(typeof value?.remainingUsd).toBe('number');
+    // The named terminal is the SECOND severed attempt.
+    const severedSeqs = entries
+      .filter(
+        (entry) =>
+          entry.kind === 'agent' &&
+          entry.status === 'error' &&
+          entry.error?.message === 'stream idle for 60ms',
+      )
+      .map((entry) => entry.seq);
+    expect(severedSeqs).toHaveLength(2);
+    expect(value?.terminalRef).toBe(severedSeqs[1]);
+  });
+});
+
 describe('the child exposure wait (RV2002, the third parity rerun)', () => {
   // The parity rerun on the sized envelope killed three of four
   // workers, each ~550k tokens into research, with a pre-wire
