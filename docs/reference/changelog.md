@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+
 ### 1.213.0
 
 #### Patch Changes
@@ -1972,6 +1979,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+
 ### 1.213.0
 
 #### Patch Changes
@@ -3729,6 +3743,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
 
 ### 1.213.0
 
@@ -5939,6 +5960,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.214.0
+
+#### Minor Changes
+
+- c8af0ec: The declined verdict tells the terminal's truth, and a severed synthesis is retried once (RV2103). The sixth parity run's synthesis dispatched for the first time in six runs (the RV2102 drain worked by the book) and died as `stream idle for 240000ms` with $0.9077 still uncommitted; the declined verdict then journaled the ctx boundary's generic `run budget ceiling reached` because the exhausted flag is armed at the fallback by design. The declined reason now reads the terminal entry behind the re-mint's `data.entryRef` and carries the message that actually ended the attempt, with `terminalRef` naming the entry and `transportRetries` counting the second wire; a refusal thrown before dispatch keeps its own admission arithmetic. A synthesis attempt severed on the wire (a transport-class terminal marked retryable, past the loop's own wire retries) is granted at most one retry from the same remainder: the journaled `orchestrator_synthesis_redemption_retry` decision keeps the second attempt auditable, and an unaffordable retry declines through spawn admission instead of dispatching.
 
 ### 1.213.0
 
@@ -8417,6 +8444,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.214.0
+
 ### 1.213.0
 
 ### 1.212.0
@@ -8947,6 +8976,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+  - @rulvar/anthropic@1.214.0
+  - @rulvar/openai@1.214.0
+  - @rulvar/plan@1.214.0
+  - @rulvar/testing@1.214.0
 
 ### 1.213.0
 
@@ -11363,6 +11403,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+
 ### 1.213.0
 
 #### Patch Changes
@@ -12531,6 +12578,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
 
 ### 1.213.0
 
@@ -14495,6 +14549,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+
 ### 1.213.0
 
 #### Patch Changes
@@ -16366,6 +16427,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+  - eslint-plugin-rulvar@1.214.0
 
 ### 1.213.0
 
@@ -18413,6 +18482,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+  - @rulvar/anthropic@1.214.0
+  - @rulvar/openai@1.214.0
 
 ### 1.213.0
 
@@ -20757,6 +20835,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+
 ### 1.213.0
 
 #### Patch Changes
@@ -22636,6 +22721,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
+
 ### 1.213.0
 
 #### Patch Changes
@@ -23820,6 +23912,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
 
 ### 1.213.0
 
@@ -25636,6 +25735,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.214.0
+
+#### Patch Changes
+
+- Updated dependencies [c8af0ec]
+  - @rulvar/core@1.214.0
 
 ### 1.213.0
 

@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.214.0
+
+### Minor Changes
+
+- c8af0ec: The declined verdict tells the terminal's truth, and a severed synthesis is retried once (RV2103). The sixth parity run's synthesis dispatched for the first time in six runs (the RV2102 drain worked by the book) and died as `stream idle for 240000ms` with $0.9077 still uncommitted; the declined verdict then journaled the ctx boundary's generic `run budget ceiling reached` because the exhausted flag is armed at the fallback by design. The declined reason now reads the terminal entry behind the re-mint's `data.entryRef` and carries the message that actually ended the attempt, with `terminalRef` naming the entry and `transportRetries` counting the second wire; a refusal thrown before dispatch keeps its own admission arithmetic. A synthesis attempt severed on the wire (a transport-class terminal marked retryable, past the loop's own wire retries) is granted at most one retry from the same remainder: the journaled `orchestrator_synthesis_redemption_retry` decision keeps the second attempt auditable, and an unaffordable retry declines through spawn admission instead of dispatching.
+
 ## 1.213.0
 
 ### Minor Changes
