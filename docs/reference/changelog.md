@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+
 ### 1.211.0
 
 #### Patch Changes
@@ -1958,6 +1965,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+
 ### 1.211.0
 
 #### Patch Changes
@@ -3701,6 +3715,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
 
 ### 1.211.0
 
@@ -5897,6 +5918,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.212.0
+
+#### Minor Changes
+
+- e6f8516: The reserve line is a boundary, not a death (RV2101). The third and fourth parity runs died on the two denominators the settle-time reserves sat in: the third at spent $4.7064 plus the $1.00 synthesis reserve against the 5.70 in-flight exposure cap (drain cascade with zero live estimates), the fourth at spent $5.065 against `ceiling - reserve = 5.00` (the root refused one output token, the intact $1.00 reserve unreachable, no synthesis). Three fixes, one doctrine: money promised to the tail is fenced by the budget chain alone, and reaching its line runs the tail instead of killing the run. The in-flight exposure admission now counts `spent + live estimates` only (the finalize and synthesis reserves left the sum; the budget chain already fences them). The coordination loop's typed `output-floor` refusal (a new `AgentError.reason` beside `exposure-drained`, preserved across the ctx boundary like the in-flight marker) now settles the documented forced-finish partial with the journaled fallback decision (reason `budget-floor` beside `exposure-abort`), and when a synthesis step is configured with its reserve still committed and at least one settled child, the synthesis promise is REDEEMED: the ordinary synthesis invocation runs from the released reserve with no coordination draft and its contracted output rides the partial envelope as `result`. Preflight prices the budget-side trajectory beside the re-priced exposure floor: `admission.reserveLineUsd` and `admission.reserveLineHeadroomUsd`, with the `reserve-line-headroom` warning when the admitted wave's steady state sits within two coordination turn floors of the line, and `exposure.requiredMinimumExposureUsd` drops the tail reserves in lockstep with the live formula.
 
 ### 1.211.0
 
@@ -8363,6 +8390,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.212.0
+
 ### 1.211.0
 
 ### 1.210.0
@@ -8889,6 +8918,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+  - @rulvar/anthropic@1.212.0
+  - @rulvar/openai@1.212.0
+  - @rulvar/plan@1.212.0
+  - @rulvar/testing@1.212.0
 
 ### 1.211.0
 
@@ -11283,6 +11323,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+
 ### 1.211.0
 
 #### Patch Changes
@@ -12437,6 +12484,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
 
 ### 1.211.0
 
@@ -14387,6 +14441,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+
 ### 1.211.0
 
 #### Patch Changes
@@ -16244,6 +16305,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+  - eslint-plugin-rulvar@1.212.0
 
 ### 1.211.0
 
@@ -18275,6 +18344,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+  - @rulvar/anthropic@1.212.0
+  - @rulvar/openai@1.212.0
 
 ### 1.211.0
 
@@ -20601,6 +20679,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+
 ### 1.211.0
 
 #### Patch Changes
@@ -22466,6 +22551,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
+
 ### 1.211.0
 
 #### Patch Changes
@@ -23636,6 +23728,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
 
 ### 1.211.0
 
@@ -25438,6 +25537,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.212.0
+
+#### Patch Changes
+
+- Updated dependencies [e6f8516]
+  - @rulvar/core@1.212.0
 
 ### 1.211.0
 
