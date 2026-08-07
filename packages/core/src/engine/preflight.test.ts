@@ -2225,3 +2225,101 @@ describe('the turns-axis projection (RV1406, the seventeenth comparison experime
     ).toHaveLength(0);
   });
 });
+
+/**
+ * The cache-aware loop economics (RV2007). The parity rerun's workers
+ * re-paid a ~550k-token prompt at the full input rate on every turn
+ * (~$1.10 per worker per cycle at $2 per MTok) because the RV2006
+ * policy did not exist yet; the $6 envelope, sized on OpenAI's
+ * implicit cache, was incomparable on Anthropic. Preflight now prices
+ * BOTH loop floors per spawn and warns when a long cycle is about to
+ * run uncached on an explicit-caching adapter.
+ */
+describe('the cache-aware loop floors (RV2007)', () => {
+  const SONNET_LIKE = testCaps({
+    promptCaching: 'explicit',
+    pricing: {
+      inputUsdPerMTok: 2,
+      outputUsdPerMTok: 10,
+      cacheReadUsdPerMTok: 0.2,
+      cacheWriteUsdPerMTok: 2.5,
+    },
+  });
+
+  function parityWorkerReport(options?: { cacheMode?: 'off' }) {
+    const adapter = scriptedAdapter(() => ({ text: 'x' }), { caps: SONNET_LIKE });
+    return preflightEstimate({
+      engine: {
+        adapters: [adapter],
+        defaults: {
+          routing: { loop: SERVED },
+          ...(options?.cacheMode === undefined ? {} : { cache: { mode: options.cacheMode } }),
+        },
+      },
+      run: { budgetUsd: 6 },
+      spawns: [
+        {
+          label: 'parity-worker',
+          estCost: 0.7,
+          estInputTokens: 36_000,
+          limits: { maxTurns: 15, maxOutputTokensPerTurn: 2500 },
+        },
+      ],
+    });
+  }
+
+  it('prices the cached loop floor beside the uncached one, several-fold apart', () => {
+    const report = parityWorkerReport();
+    const spawn = report.spawns[0];
+    expect(spawn).toBeDefined();
+    const turns = spawn?.projectedProviderTurns ?? 0;
+    expect(turns).toBeGreaterThan(1);
+    // Uncached: the 36k-token floor re-billed at $2/MTok every turn.
+    expect(spawn?.uncachedLoopInputFloorUsd).toBeCloseTo(turns * 0.072, 10);
+    // Cached: one $2.5/MTok write plus $0.2/MTok reads on later turns.
+    expect(spawn?.cachedLoopInputFloorUsd).toBeCloseTo(0.09 + (turns - 1) * 0.0072, 10);
+    // The parity economics: the policy cuts the loop input floor
+    // several-fold (about $1.1 down to about $0.2 at 15 turns).
+    expect(
+      (spawn?.uncachedLoopInputFloorUsd ?? 0) / (spawn?.cachedLoopInputFloorUsd ?? 1),
+    ).toBeGreaterThan(3);
+    // Under the default policy (auto), no warning fires: the loop WILL
+    // cache.
+    expect(report.findings.filter((f) => f.code === 'uncached-long-loop')).toHaveLength(0);
+  });
+
+  it("warns 'uncached-long-loop' when the policy is off under a long cycle", () => {
+    const report = parityWorkerReport({ cacheMode: 'off' });
+    const finding = report.findings.find((f) => f.code === 'uncached-long-loop');
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('parity-worker');
+    expect(finding?.message).toContain('USD uncached');
+  });
+
+  it('stays silent without cache rates or on short loops', () => {
+    const noRates = scriptedAdapter(() => ({ text: 'x' }), {
+      caps: testCaps({ promptCaching: 'explicit' }),
+    });
+    const report = preflightEstimate({
+      engine: {
+        adapters: [noRates],
+        defaults: { routing: { loop: SERVED }, cache: { mode: 'off' } },
+      },
+      run: { budgetUsd: 6 },
+      spawns: [
+        {
+          label: 'unrated',
+          estCost: 0.5,
+          estInputTokens: 36_000,
+          limits: { maxTurns: 15, maxOutputTokensPerTurn: 2500 },
+        },
+      ],
+    });
+    // The uncached figure still prices (input rate exists); the cached
+    // one cannot, so the finding never fires half-informed.
+    expect(report.spawns[0]?.uncachedLoopInputFloorUsd).toBeGreaterThan(0);
+    expect(report.spawns[0]?.cachedLoopInputFloorUsd).toBeUndefined();
+    expect(report.findings.filter((f) => f.code === 'uncached-long-loop')).toHaveLength(0);
+  });
+});

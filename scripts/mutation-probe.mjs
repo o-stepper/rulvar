@@ -3346,6 +3346,24 @@ const MUTATIONS = [
     test: 'packages/testing/src/vcr.test.ts',
   },
   {
+    id: 'cached-loop-floor-priced',
+    doctrine:
+      'preflight prices the cached loop input floor beside the uncached one (RV2007): dropping the cached figure leaves the operator sizing envelopes at the parity economics, a 550k-token prefix re-billed at the full input rate every turn with no number saying it need not be',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '      if (pricing.cacheReadUsdPerMTok !== undefined && pricing.cacheWriteUsdPerMTok !== undefined) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'uncached-long-loop-warning',
+    doctrine:
+      "the 'uncached-long-loop' warning names a long cycle about to run with the cache policy off on an explicit-caching adapter (RV2007): silencing it lets the opt-out ride into exactly the envelope the parity rerun burned",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "    if (\n      caps?.promptCaching === 'explicit' &&\n      engine.defaults?.cache?.mode === 'off' &&",
+    replace: "    if (\n      false &&\n      engine.defaults?.cache?.mode === 'off' &&",
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'require-batch-spawn-gate',
     doctrine:
       "requireBatchSpawn 'reject-spawn-agent' refuses every single spawn_agent call typed so model disobedience cannot split the batch policy (RV2005): dropping the gate lets the seat-by-seat path bypass the batchGate the host demanded",

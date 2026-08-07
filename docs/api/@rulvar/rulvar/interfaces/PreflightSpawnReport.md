@@ -15,6 +15,7 @@ The effective picture of one declared spawn shape.
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-admissionreserveusd"></a> `admissionReserveUsd` | `number` | The layer-1 admission reserve this spawn would be admitted under. | `packages/core/dist/index.d.ts` |
+| <a id="property-cachedloopinputfloorusd"></a> `cachedLoopInputFloorUsd?` | `number` | The same loop under the RV2006 cache policy: one cache write of the prompt floor plus a cache read on every later turn, priced by the row's cache rates. Present beside the uncached figure when the row carries cache rates. The parity worker shape (36k-token prompt floor, a long cycle) prices the difference at roughly three to four times, the gap between four seats fitting a $6 envelope and three seats dying against it. | `packages/core/dist/index.d.ts` |
 | <a id="property-count"></a> `count` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-executedtoolcallceiling"></a> `executedToolCallCeiling` | `number` \| `null` | Executed-call ceiling across any tool mix; null = unlimited. | `packages/core/dist/index.d.ts` |
 | <a id="property-label"></a> `label` | `string` | - | `packages/core/dist/index.d.ts` |
@@ -27,4 +28,5 @@ The effective picture of one declared spawn shape.
 | <a id="property-servedby"></a> `servedBy?` | `` `${string}:${string}` `` | The resolved serving target; absent when no model resolves (see findings). | `packages/core/dist/index.d.ts` |
 | <a id="property-toolceilings"></a> `toolCeilings` | [`PreflightToolCeiling`](/api/@rulvar/rulvar/interfaces/PreflightToolCeiling.md)[] | Per-tool ceilings for every tool a cap or a unit cost names. | `packages/core/dist/index.d.ts` |
 | <a id="property-turnfloorusd"></a> `turnFloorUsd?` | `number` | The cost floor of ONE turn at the declared estimates: estInputTokens (default 0) plus the output bound, priced like settlement. A real turn grows with the prompt, so this is a floor, never a cap. | `packages/core/dist/index.d.ts` |
+| <a id="property-uncachedloopinputfloorusd"></a> `uncachedLoopInputFloorUsd?` | `number` | The loop's input floor over its projected turns, UNCACHED (RV2007): the declared prompt floor (`estInputTokens`) re-billed at the full input rate on every projected provider turn. A floor over the static prefix: real prompts grow. Present when the shape prices and projects more than one turn. | `packages/core/dist/index.d.ts` |
 | <a id="property-unpriced"></a> `unpriced?` | `true` | True when the serving model has no price row: a USD ceiling cannot bound it. | `packages/core/dist/index.d.ts` |

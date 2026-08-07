@@ -13131,6 +13131,24 @@ interface PreflightSpawnReport {
   * turn grows with the prompt, so this is a floor, never a cap.
   */
   turnFloorUsd?: number;
+  /**
+  * The loop's input floor over its projected turns, UNCACHED
+  * (RV2007): the declared prompt floor (`estInputTokens`) re-billed
+  * at the full input rate on every projected provider turn. A floor
+  * over the static prefix: real prompts grow. Present when the shape
+  * prices and projects more than one turn.
+  */
+  uncachedLoopInputFloorUsd?: number;
+  /**
+  * The same loop under the RV2006 cache policy: one cache write of
+  * the prompt floor plus a cache read on every later turn, priced by
+  * the row's cache rates. Present beside the uncached figure when
+  * the row carries cache rates. The parity worker shape (36k-token
+  * prompt floor, a long cycle) prices the difference at roughly
+  * three to four times, the gap between four seats fitting a $6
+  * envelope and three seats dying against it.
+  */
+  cachedLoopInputFloorUsd?: number;
   /** Executed-call ceiling across any tool mix; null = unlimited. */
   executedToolCallCeiling: number | null;
   /**

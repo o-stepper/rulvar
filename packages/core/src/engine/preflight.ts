@@ -307,6 +307,24 @@ export interface PreflightSpawnReport {
    * turn grows with the prompt, so this is a floor, never a cap.
    */
   turnFloorUsd?: number;
+  /**
+   * The loop's input floor over its projected turns, UNCACHED
+   * (RV2007): the declared prompt floor (`estInputTokens`) re-billed
+   * at the full input rate on every projected provider turn. A floor
+   * over the static prefix: real prompts grow. Present when the shape
+   * prices and projects more than one turn.
+   */
+  uncachedLoopInputFloorUsd?: number;
+  /**
+   * The same loop under the RV2006 cache policy: one cache write of
+   * the prompt floor plus a cache read on every later turn, priced by
+   * the row's cache rates. Present beside the uncached figure when
+   * the row carries cache rates. The parity worker shape (36k-token
+   * prompt floor, a long cycle) prices the difference at roughly
+   * three to four times, the gap between four seats fitting a $6
+   * envelope and three seats dying against it.
+   */
+  cachedLoopInputFloorUsd?: number;
   /** Executed-call ceiling across any tool mix; null = unlimited. */
   executedToolCallCeiling: number | null;
   /**
@@ -976,6 +994,61 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     const executedToolCallCeiling = overallExecutedCeiling(limits, toolCeilings);
     const projectedProviderTurns = projectedProviderTurnsOf(limits, executedToolCallCeiling);
 
+    // The cache-aware loop economics (RV2007): a tool cycle re-sends
+    // its prompt floor every turn. Uncached, the floor bills at the
+    // full input rate each time; under the RV2006 policy on an
+    // explicit-caching adapter it bills one cache write plus a read
+    // per later turn. Both are floors over the STATIC prefix (real
+    // prompts grow), priced by the same rows as settlement, so the
+    // report can say what a long cycle costs with and without the
+    // policy instead of leaving the operator to discover it live, the
+    // parity rerun's way.
+    let uncachedLoopInputFloorUsd: number | undefined;
+    let cachedLoopInputFloorUsd: number | undefined;
+    if (
+      pricing !== undefined &&
+      (spec.estInputTokens ?? 0) > 0 &&
+      Number.isFinite(projectedProviderTurns) &&
+      projectedProviderTurns > 1
+    ) {
+      const loopInputTokens = spec.estInputTokens ?? 0;
+      uncachedLoopInputFloorUsd =
+        projectedProviderTurns *
+        priceUsdOf(pricing, {
+          inputTokens: loopInputTokens,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+        });
+      if (pricing.cacheReadUsdPerMTok !== undefined && pricing.cacheWriteUsdPerMTok !== undefined) {
+        cachedLoopInputFloorUsd = priceUsdOf(pricing, {
+          inputTokens: projectedProviderTurns * loopInputTokens,
+          outputTokens: 0,
+          cacheReadTokens: (projectedProviderTurns - 1) * loopInputTokens,
+          cacheWriteTokens: loopInputTokens,
+        });
+      }
+    }
+    if (
+      caps?.promptCaching === 'explicit' &&
+      engine.defaults?.cache?.mode === 'off' &&
+      uncachedLoopInputFloorUsd !== undefined &&
+      cachedLoopInputFloorUsd !== undefined &&
+      projectedProviderTurns >= 4
+    ) {
+      say({
+        severity: 'warning',
+        code: 'uncached-long-loop',
+        message:
+          `spawn '${label}' projects ${String(projectedProviderTurns)} provider turns on the ` +
+          `explicit-caching '${servedBy ?? ''}' with the cache policy OFF: the loop's input ` +
+          `floor re-bills every turn (${uncachedLoopInputFloorUsd.toFixed(4)} USD uncached ` +
+          `against ${cachedLoopInputFloorUsd.toFixed(4)} USD under the default policy); drop ` +
+          "defaults.cache { mode: 'off' } or scope the opt-out to the profiles that need it",
+        spawn: label,
+      });
+    }
+
     for (const row of toolCeilings) {
       if (row.tool === ANY_TOOL) {
         continue;
@@ -1281,6 +1354,8 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       reserveSource,
       ...(outputBound === undefined ? {} : { maxOutputTokensPerTurn: outputBound }),
       ...(turnFloorUsd === undefined ? {} : { turnFloorUsd }),
+      ...(uncachedLoopInputFloorUsd === undefined ? {} : { uncachedLoopInputFloorUsd }),
+      ...(cachedLoopInputFloorUsd === undefined ? {} : { cachedLoopInputFloorUsd }),
       executedToolCallCeiling,
       projectedProviderTurns,
       toolCeilings,
