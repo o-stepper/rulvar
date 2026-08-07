@@ -262,6 +262,9 @@ export default {
     expect(cleanText).toContain('[pass] roster-closed');
     expect(cleanText).toContain('[pass] settle-is-billing-boundary');
     expect(cleanText).toContain('[pass] wires-match');
+    // The RV2008 lane: the fixture run journals incremental rows and
+    // they agree with the terminal set.
+    expect(cleanText).toContain('[pass] incremental-rows-match');
 
     const jsonIo = scriptedIo();
     expect(
@@ -298,6 +301,33 @@ export default {
     expect(divergentText).toContain('cost audit (DIVERGENT)');
     expect(divergentText).toContain('[FAIL] roster-closed');
     expect(divergentText).toContain('[FAIL] settle-is-billing-boundary');
+
+    // Poison an incremental row's usage (RV2008): the terminal set and
+    // the row lane now disagree, and the audit names the agent.
+    const poisoned = readFileSync(journalPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => {
+        const entry = JSON.parse(line) as {
+          kind?: string;
+          value?: { decisionType?: string; record?: { usage?: { outputTokens?: number } } };
+        };
+        if (
+          entry.kind === 'decision' &&
+          entry.value?.decisionType === 'provider-call' &&
+          entry.value.record?.usage !== undefined
+        ) {
+          entry.value.record.usage.outputTokens = 999_999;
+        }
+        return JSON.stringify(entry);
+      })
+      .join('\n');
+    writeFileSync(journalPath, `${poisoned}\n`, 'utf8');
+    const rowsDiverge = scriptedIo();
+    expect(
+      await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: rowsDiverge }),
+    ).toBe(1);
+    expect(rowsDiverge.outLines.join('\n')).toContain('[FAIL] incremental-rows-match');
   });
 
   it('invoice exports the reconciliation rows and totals for a stored run (P1.3)', async () => {

@@ -17,6 +17,35 @@
       "hashVersion": 2,
       "seq": 1,
       "scope": "",
+      "key": "pc:0:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 1,
+          "role": "orchestrate",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 85,
+            "outputTokens": 16,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
       "key": "",
       "ordinal": 0,
       "kind": "decision",
@@ -44,7 +73,7 @@
             },
             "spawnUnitsAfter": 499,
             "lineage": {
-              "logicalTaskId": "01KZBEF51VWJJ5XPMBFRPA34ZA",
+              "logicalTaskId": "01KZCW4YDA5DZFPMWPB3HY8BCM",
               "isNew": true,
               "depth": 1
             }
@@ -54,9 +83,9 @@
             "childrenOfParentBefore": 0,
             "depth": 1
           },
-          "nodeId": "01KZBEF51VWJJ5XPMBFRPA34ZB",
+          "nodeId": "01KZCW4YDA5DZFPMWPB3HY8BCN",
           "lineage": {
-            "logicalTaskId": "01KZBEF51VWJJ5XPMBFRPA34ZA",
+            "logicalTaskId": "01KZCW4YDA5DZFPMWPB3HY8BCM",
             "relation": "first",
             "attemptOrdinal": 0,
             "ancestry": [],
@@ -71,7 +100,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 2,
+      "seq": 3,
       "scope": "agent:0",
       "key": "ae9d47dac55afe83901ae91d0ad7f854bd72b63d3ac6e6869890ddf8554ff1e3",
       "ordinal": 0,
@@ -82,7 +111,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 3,
+      "seq": 4,
       "scope": "",
       "key": "",
       "ordinal": 1,
@@ -111,7 +140,7 @@
             },
             "spawnUnitsAfter": 498,
             "lineage": {
-              "logicalTaskId": "01KZBEF51WEHVT160RYZQ4X8CX",
+              "logicalTaskId": "01KZCW4YDBXE52SCVSFC1ZTNHF",
               "isNew": true,
               "depth": 1
             }
@@ -121,9 +150,9 @@
             "childrenOfParentBefore": 1,
             "depth": 1
           },
-          "nodeId": "01KZBEF51WEHVT160RYZQ4X8CY",
+          "nodeId": "01KZCW4YDBXE52SCVSFC1ZTNHG",
           "lineage": {
-            "logicalTaskId": "01KZBEF51WEHVT160RYZQ4X8CX",
+            "logicalTaskId": "01KZCW4YDBXE52SCVSFC1ZTNHF",
             "relation": "first",
             "attemptOrdinal": 0,
             "ancestry": [],
@@ -138,7 +167,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 4,
+      "seq": 5,
       "scope": "agent:0",
       "key": "3e440c3fca12e017f0382ba048046b39fb80c5f2352333b2e06f4cf8c21080ff",
       "ordinal": 0,
@@ -149,8 +178,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 5,
-      "ref": 2,
+      "seq": 6,
+      "scope": "agent:0",
+      "key": "pc:3:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 3,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 3,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
+      "ref": 3,
       "scope": "agent:0",
       "key": "ae9d47dac55afe83901ae91d0ad7f854bd72b63d3ac6e6869890ddf8554ff1e3",
       "ordinal": 0,
@@ -191,8 +249,68 @@
     },
     {
       "hashVersion": 2,
-      "seq": 6,
-      "ref": 4,
+      "seq": 8,
+      "scope": "agent:0",
+      "key": "pc:5:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 5,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 3,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 9,
+      "scope": "",
+      "key": "pc:0:2",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 2,
+          "role": "orchestrate",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "error",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "usageApprox": true,
+          "errorCode": "agent"
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 10,
+      "ref": 5,
       "scope": "agent:0",
       "key": "3e440c3fca12e017f0382ba048046b39fb80c5f2352333b2e06f4cf8c21080ff",
       "ordinal": 0,
@@ -234,7 +352,7 @@
   ],
   "extra": {
     "checkpoints": {
-      "m6-orchestrator-crash/ckpt/0": "AXsidiI6MSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IllvdSBhcmUgdGhlIG9yY2hlc3RyYXRvciBvZiBhIG11bHRpLWFnZW50IHJ1bi5cbkdPQUw6IG02IGNhc3NldHRlOiBnYXRoZXIgdHdvIGZhY3RzXG5cbkRlY29tcG9zZSB0aGUgZ29hbCBpbnRvIGNoaWxkIGFnZW50cyB3aXRoIHNwYXduX2FnZW50IG9yIHBhcmFsbGVsX2FnZW50cyxcbndhaXQgb24gdGhlaXIgaGFuZGxlcyB3aXRoIGF3YWl0X2FueSBvciBhd2FpdF9hbGwsIGNhbmNlbCBzdHJhZ2dsZXJzIHdpdGhcbmNhbmNlbF9hZ2VudCwgYW5kIHRlcm1pbmF0ZSB3aXRoIGZpbmlzaCh7IHJlc3VsdCB9KSB3aGVuIHRoZSBnb2FsIGlzIG1ldC5cblNwYXduIG9ubHkgd2hhdCB0aGUgZ29hbCBuZWVkcy4ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsInBhcnRzIjpbeyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtaQkVGNTFTTTRFMjRQRVRRQVk4TkY4NiIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEEifX0seyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtaQkVGNTFTTTRFMjRQRVRRQVk4TkY4NyIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEIifX1dfSx7InJvbGUiOiJ0b29sIiwicGFydHMiOlt7InR5cGUiOiJ0b29sLXJlc3VsdCIsImlkIjoiMDFLWkJFRjUxU000RTI0UEVUUUFZOE5GODYiLCJuYW1lIjoic3Bhd25fYWdlbnQiLCJyZXN1bHQiOnsiaGFuZGxlIjoyfX0seyJ0eXBlIjoidG9vbC1yZXN1bHQiLCJpZCI6IjAxS1pCRUY1MVNNNEUyNFBFVFFBWThORjg3IiwibmFtZSI6InNwYXduX2FnZW50IiwicmVzdWx0Ijp7ImhhbmRsZSI6NH19XX1dLCJ0dXJucyI6MSwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJ1c2FnZUJ5TW9kZWwiOlt7InNlcnZlZEJ5IjoiZmFrZTpmYWtlLW1vZGVsIiwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJyb2xlIjoib3JjaGVzdHJhdGUifV0sInRvb2xDYWxsc1VzZWQiOjIsInNjaGVtYUF0dGVtcHRzIjowLCJjb21wYWN0aW9uIjpbXSwicHJvdmlkZXJDYWxscyI6W3sib3JkaW5hbCI6MSwicm9sZSI6Im9yY2hlc3RyYXRlIiwic2VydmVkQnkiOiJmYWtlOmZha2UtbW9kZWwiLCJhdHRlbXB0IjoxLCJvdXRjb21lIjoib2siLCJ1c2FnZSI6eyJpbnB1dFRva2VucyI6ODUsIm91dHB1dFRva2VucyI6MTYsImNhY2hlUmVhZFRva2VucyI6MCwiY2FjaGVXcml0ZVRva2VucyI6MH19XX0="
+      "m6-orchestrator-crash/ckpt/0": "AXsidiI6MSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IllvdSBhcmUgdGhlIG9yY2hlc3RyYXRvciBvZiBhIG11bHRpLWFnZW50IHJ1bi5cbkdPQUw6IG02IGNhc3NldHRlOiBnYXRoZXIgdHdvIGZhY3RzXG5cbkRlY29tcG9zZSB0aGUgZ29hbCBpbnRvIGNoaWxkIGFnZW50cyB3aXRoIHNwYXduX2FnZW50IG9yIHBhcmFsbGVsX2FnZW50cyxcbndhaXQgb24gdGhlaXIgaGFuZGxlcyB3aXRoIGF3YWl0X2FueSBvciBhd2FpdF9hbGwsIGNhbmNlbCBzdHJhZ2dsZXJzIHdpdGhcbmNhbmNlbF9hZ2VudCwgYW5kIHRlcm1pbmF0ZSB3aXRoIGZpbmlzaCh7IHJlc3VsdCB9KSB3aGVuIHRoZSBnb2FsIGlzIG1ldC5cblNwYXduIG9ubHkgd2hhdCB0aGUgZ29hbCBuZWVkcy4ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsInBhcnRzIjpbeyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtaQ1c0WUQ5REdEUjlINzlGVFgzVlRYUiIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEEifX0seyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtaQ1c0WUQ5REdEUjlINzlGVFgzVlRYUyIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEIifX1dfSx7InJvbGUiOiJ0b29sIiwicGFydHMiOlt7InR5cGUiOiJ0b29sLXJlc3VsdCIsImlkIjoiMDFLWkNXNFlEOURHRFI5SDc5RlRYM1ZUWFIiLCJuYW1lIjoic3Bhd25fYWdlbnQiLCJyZXN1bHQiOnsiaGFuZGxlIjozfX0seyJ0eXBlIjoidG9vbC1yZXN1bHQiLCJpZCI6IjAxS1pDVzRZRDlER0RSOUg3OUZUWDNWVFhTIiwibmFtZSI6InNwYXduX2FnZW50IiwicmVzdWx0Ijp7ImhhbmRsZSI6NX19XX1dLCJ0dXJucyI6MSwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJ1c2FnZUJ5TW9kZWwiOlt7InNlcnZlZEJ5IjoiZmFrZTpmYWtlLW1vZGVsIiwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJyb2xlIjoib3JjaGVzdHJhdGUifV0sInRvb2xDYWxsc1VzZWQiOjIsInNjaGVtYUF0dGVtcHRzIjowLCJjb21wYWN0aW9uIjpbXSwicHJvdmlkZXJDYWxscyI6W3sib3JkaW5hbCI6MSwicm9sZSI6Im9yY2hlc3RyYXRlIiwic2VydmVkQnkiOiJmYWtlOmZha2UtbW9kZWwiLCJhdHRlbXB0IjoxLCJvdXRjb21lIjoib2siLCJ1c2FnZSI6eyJpbnB1dFRva2VucyI6ODUsIm91dHB1dFRva2VucyI6MTYsImNhY2hlUmVhZFRva2VucyI6MCwiY2FjaGVXcml0ZVRva2VucyI6MH19XX0="
     }
   }
 }

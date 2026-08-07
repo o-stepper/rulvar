@@ -5551,6 +5551,20 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   * else. See applyCachePolicy for the exact shape.
   */
   cache?: CachePolicy;
+  /**
+  * The incremental billing seam (RV2008): called with every
+  * ProviderCallRecord the moment the wire call settles and the record
+  * is minted, so the caller can journal it while the invocation is
+  * still running. The parity rerun lost ~$0.99 of root dispatches
+  * because records rode ONLY the terminal entry and the process died
+  * before one existed; with the seam the crash window shrinks to the
+  * single in-flight turn. Restored records (a checkpoint reboot)
+  * never re-emit: they were journaled by the segment that minted
+  * them.
+  */
+  billing?: {
+    onProviderCall: (record: ProviderCallRecord) => void;
+  };
   events?: RuntimeEventSink;
   transcript?: {
     mintRef(): string;
@@ -12630,6 +12644,32 @@ interface InvoiceExport {
   usageApprox?: boolean;
   /** The rates provenance (RV407); present when the caller declared it. */
   pricing?: InvoicePricingProvenance;
+  /**
+  * The unsettled lane (RV2008): dispatches whose agent is still
+  * RUNNING at the journal's edge, recovered from the incremental
+  * provider-call rows the loop journals as each wire call settles.
+  * Deliberately OUTSIDE the settled totals above: run_settle stays
+  * the billing boundary, and this section prices what the crash
+  * window preserved anyway, the ~$0.99 of parity root dispatches
+  * that used to live only in process memory. Present only when such
+  * rows exist; a journal whose roster is closed never carries it.
+  */
+  unsettled?: {
+    usd: number;
+    wireRequests: number;
+    rows: Array<{
+      agentRef: number;
+      scope: string;
+      ordinal: number;
+      servedBy: ModelRef;
+      role: string;
+      attempt: number;
+      outcome: string;
+      usage: Usage;
+      usd?: number;
+      responseId?: string;
+    }>;
+  };
 }
 /**
 * The pure invoice fold. Pass the same entries and price table you

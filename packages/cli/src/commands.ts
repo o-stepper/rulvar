@@ -971,6 +971,70 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
       ? []
       : entries.filter((entry) => entry.kind === 'agent' && entry.seq > settle.seq);
   const grossDelta = Math.abs(report.grossUsd - invoice.totalUsd);
+  // The incremental billing lane (RV2008): every settled agent whose
+  // journal carries provider-call rows must have them agree with its
+  // terminal providerCalls set, count and per-ordinal usage alike.
+  // Agents with no incremental rows pass vacuously: pre-RV2008
+  // segments and fully replayed invocations journal none, and the
+  // terminal set remains the canonical fold input either way.
+  const usageKey = (usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+  }): string =>
+    [usage.inputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens].join(
+      ':',
+    );
+  const incrementalByAgent = new Map<number, Map<number, string>>();
+  for (const entry of entries) {
+    if (entry.kind !== 'decision') {
+      continue;
+    }
+    const value = entry.value as
+      | {
+          decisionType?: string;
+          agentRef?: number;
+          record?: {
+            ordinal?: number;
+            usage?: {
+              inputTokens: number;
+              outputTokens: number;
+              cacheReadTokens: number;
+              cacheWriteTokens: number;
+            };
+          };
+        }
+      | undefined;
+    if (
+      value?.decisionType !== 'provider-call' ||
+      typeof value.agentRef !== 'number' ||
+      typeof value.record?.ordinal !== 'number' ||
+      value.record.usage === undefined
+    ) {
+      continue;
+    }
+    const byOrdinal = incrementalByAgent.get(value.agentRef) ?? new Map<number, string>();
+    byOrdinal.set(value.record.ordinal, usageKey(value.record.usage));
+    incrementalByAgent.set(value.agentRef, byOrdinal);
+  }
+  const incrementalMismatches: number[] = [];
+  for (const terminal of entries) {
+    if (terminal.kind !== 'agent' || terminal.status === 'running' || terminal.ref === undefined) {
+      continue;
+    }
+    const incremental = incrementalByAgent.get(terminal.ref);
+    if (incremental === undefined || incremental.size === 0) {
+      continue;
+    }
+    const records = terminal.providerCalls ?? [];
+    const matches =
+      records.length === incremental.size &&
+      records.every((record) => incremental.get(record.ordinal) === usageKey(record.usage));
+    if (!matches) {
+      incrementalMismatches.push(terminal.ref);
+    }
+  }
   const checks: Array<{ name: string; pass: boolean; detail: string }> = [
     {
       name: 'roster-closed',
@@ -1003,6 +1067,14 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
       name: 'wires-match',
       pass: (report.wireRequests ?? -1) === invoice.cardinality.wireRequests,
       detail: `fold wires ${String(report.wireRequests ?? 'absent')} vs invoice wires ${String(invoice.cardinality.wireRequests)}`,
+    },
+    {
+      name: 'incremental-rows-match',
+      pass: incrementalMismatches.length === 0,
+      detail:
+        incrementalMismatches.length === 0
+          ? 'every terminal dispatch set equals its incremental rows (RV2008; absent rows pass)'
+          : `terminal dispatch sets diverge from the incremental rows for agent seq ${incrementalMismatches.join(', ')}`,
     },
   ];
   const failed = checks.filter((check) => !check.pass);

@@ -16,6 +16,35 @@
     {
       "hashVersion": 2,
       "seq": 1,
+      "scope": "",
+      "key": "pc:0:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 9,
+            "outputTokens": 8,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
       "ref": 0,
       "scope": "",
       "key": "4a401a3b674bc272f6becd5e0985bcc67af797f39ca0b82d425f22836dbaf9b6",
@@ -23,8 +52,8 @@
       "kind": "agent",
       "status": "escalated",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z",
-      "endedAt": "2026-02-01T00:00:01.000Z",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "endedAt": "2026-02-01T00:00:02.000Z",
       "usage": {
         "inputTokens": 9,
         "outputTokens": 8,
@@ -76,21 +105,21 @@
     },
     {
       "hashVersion": 2,
-      "seq": 2,
+      "seq": 3,
       "scope": "",
       "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
       "ordinal": 0,
       "kind": "decision",
       "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z",
+      "startedAt": "2026-02-01T00:00:03.000Z",
       "value": {
         "decisionType": "run_settle",
         "runStatus": "ok",
         "segment": 1,
         "outputHash": "36b84be12058f4554187f6791e60977eeb914bd0499ec013a68ed8c238db9d25"
       },
-      "endedAt": "2026-02-01T00:00:02.000Z"
+      "endedAt": "2026-02-01T00:00:03.000Z"
     }
   ]
 }

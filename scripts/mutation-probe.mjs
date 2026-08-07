@@ -3364,6 +3364,33 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
+    id: 'incremental-billing-rows',
+    doctrine:
+      "every ProviderCallRecord journals the moment its wire call settles (RV2008): dropping the seam returns the parity crash window, an invocation's whole dispatch history living only in process memory until a terminal that may never come",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          options.billing?.onProviderCall(record);',
+    replace: '          void record;',
+    test: 'packages/core/src/engine/billing-rows.test.ts',
+  },
+  {
+    id: 'invoice-unsettled-lane',
+    doctrine:
+      'the invoice prices the unsettled lane from the incremental rows (RV2008): dropping it makes a crash journal fold to the settled money alone, hiding exactly the preserved dispatches the lane exists to recover',
+    file: 'packages/core/src/engine/invoice.ts',
+    find: "    if (\n      value?.decisionType !== 'provider-call' ||\n      typeof value.agentRef !== 'number' ||\n      terminalRefs.has(value.agentRef)\n    ) {",
+    replace: '    if (true) {',
+    test: 'packages/core/src/engine/billing-rows.test.ts',
+  },
+  {
+    id: 'cost-audit-incremental-check',
+    doctrine:
+      'cost-audit verifies terminal dispatch sets against the incremental rows (RV2008): silencing incremental-rows-match lets a poisoned or half-lost row lane read as audited truth beside a disagreeing terminal',
+    file: 'packages/cli/src/commands.ts',
+    find: "      name: 'incremental-rows-match',\n      pass: incrementalMismatches.length === 0,",
+    replace: "      name: 'incremental-rows-match',\n      pass: true,",
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
     id: 'require-batch-spawn-gate',
     doctrine:
       "requireBatchSpawn 'reject-spawn-agent' refuses every single spawn_agent call typed so model disobedience cannot split the batch policy (RV2005): dropping the gate lets the seat-by-seat path bypass the batchGate the host demanded",

@@ -16,6 +16,35 @@
     {
       "hashVersion": 2,
       "seq": 1,
+      "scope": "",
+      "key": "pc:0:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 4,
+            "outputTokens": 3,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
       "ref": 0,
       "scope": "",
       "key": "725510ad6bbd65f8c88bc7199a0f5ac4627acef4f9bc1f04c3b027fa92449ced",
@@ -23,8 +52,8 @@
       "kind": "agent",
       "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z",
-      "endedAt": "2026-02-01T00:00:01.000Z",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "endedAt": "2026-02-01T00:00:02.000Z",
       "value": "alpha done",
       "usage": {
         "inputTokens": 4,
@@ -57,40 +86,21 @@
     },
     {
       "hashVersion": 2,
-      "seq": 2,
+      "seq": 3,
       "scope": "",
       "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
       "ordinal": 0,
       "kind": "decision",
       "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z",
+      "startedAt": "2026-02-01T00:00:03.000Z",
       "value": {
         "decisionType": "run_settle",
         "runStatus": "ok",
         "segment": 1,
         "outputHash": "c48b5b1a9776c84602de2306d7903a7241158a5077e7a8519af75c33441b8334"
       },
-      "endedAt": "2026-02-01T00:00:02.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "seq": 3,
-      "ref": 0,
-      "scope": "",
-      "key": "",
-      "ordinal": 0,
-      "kind": "abandon",
-      "status": "ok",
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:03.000Z",
-      "abandon": {
-        "target": 0,
-        "authorizedBy": 0,
-        "reason": "first cancel",
-        "retainCheckpoint": true,
-        "retainWorktree": false
-      }
+      "endedAt": "2026-02-01T00:00:03.000Z"
     },
     {
       "hashVersion": 2,
@@ -103,6 +113,25 @@
       "status": "ok",
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:04.000Z",
+      "abandon": {
+        "target": 0,
+        "authorizedBy": 0,
+        "reason": "first cancel",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "ref": 0,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:05.000Z",
       "abandon": {
         "target": 0,
         "authorizedBy": 0,

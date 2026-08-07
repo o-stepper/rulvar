@@ -196,7 +196,11 @@ describe('terminal escalated status (M3-T07, BREAKING)', () => {
     expect(seen[0]?.escalation.kind).toBe('scope_bigger');
     await internals.replayer.flush();
     const entries = internals.replayer.snapshot();
-    const decisionEntry = entries.find((e) => e.kind === 'decision');
+    const decisionEntry = entries.find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+    );
     expect(decisionEntry?.value).toMatchObject({
       decisionType: 'escalation.decision',
       countsAgainstLimit: true,
@@ -231,7 +235,13 @@ describe('terminal escalated status (M3-T07, BREAKING)', () => {
     await createCtx(internals).agent('do the migration', { escalation: {}, result: 'full' });
     await internals.replayer.flush();
     const prior = await store.load('test-run');
-    expect(prior.some((e) => e.kind === 'decision')).toBe(false);
+    expect(
+      prior.some(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+      ),
+    ).toBe(false);
 
     // First resume: replays escalated, pays the decision live once.
     let hookCalls = 0;
@@ -343,7 +353,11 @@ describe('terminal escalated status (M3-T07, BREAKING)', () => {
     const suspended = entries.find((e) => e.kind === 'approval');
     const resolution = entries.find((e) => e.kind === 'resolution');
     const terminal = entries.find((e) => e.kind === 'agent' && e.status === 'escalated');
-    const decisionEntry = entries.find((e) => e.kind === 'decision');
+    const decisionEntry = entries.find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+    );
     expect(suspended?.deadlineAt).toBeDefined();
     expect(suspended?.value).toMatchObject({ toolName: 'escalate' });
     expect(resolution?.resolution?.by).toBe('external');
@@ -377,7 +391,11 @@ describe('terminal escalated status (M3-T07, BREAKING)', () => {
     const resolution = entries.find((e) => e.kind === 'resolution');
     expect(resolution?.resolution?.by).toBe('timeout');
     expect(resolution?.resolution?.value).toMatchObject({ kind: 'cancel' });
-    const decisionEntry = entries.find((e) => e.kind === 'decision');
+    const decisionEntry = entries.find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+    );
     expect(decisionEntry?.value).toMatchObject({
       decisionType: 'escalation.decision',
       decision: { kind: 'cancel', reason: 'nobody answered' },
@@ -436,7 +454,13 @@ describe('terminal escalated status (M3-T07, BREAKING)', () => {
       createCtx(internals).agent('go', { escalation: { minSpendUsd: 5 } }),
     ).rejects.toThrow(AgentCallError);
     await internals.replayer.flush();
-    const decisionEntry = internals.replayer.snapshot().find((e) => e.kind === 'decision');
+    const decisionEntry = internals.replayer
+      .snapshot()
+      .find(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType !== 'provider-call',
+      );
     expect(decisionEntry?.value).toMatchObject({ countsAgainstLimit: false });
   });
 });

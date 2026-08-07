@@ -16,6 +16,35 @@
     {
       "hashVersion": 2,
       "seq": 1,
+      "scope": "",
+      "key": "pc:0:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 1,
+          "role": "plan",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 1008,
+            "outputTokens": 31,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
       "ref": 0,
       "scope": "",
       "key": "1780869b32bab42d3d7e7075f80880bcc4cb433c623c4427359671bd8d60befb",
@@ -57,7 +86,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 2,
+      "seq": 3,
       "scope": "",
       "key": "15f84dfaa495f1c05d398c720bab4b2be097658686026882f8f7d877904f6e20",
       "ordinal": 0,
@@ -68,8 +97,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 3,
-      "ref": 2,
+      "seq": 4,
+      "scope": "",
+      "key": "pc:3:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 3,
+        "record": {
+          "ordinal": 1,
+          "role": "plan",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 132,
+            "outputTokens": 30,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "ref": 3,
       "scope": "",
       "key": "15f84dfaa495f1c05d398c720bab4b2be097658686026882f8f7d877904f6e20",
       "ordinal": 0,
@@ -110,7 +168,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 4,
+      "seq": 6,
       "scope": "",
       "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
       "ordinal": 0,

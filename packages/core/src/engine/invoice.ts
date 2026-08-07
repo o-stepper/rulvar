@@ -247,6 +247,32 @@ export interface InvoiceExport {
   usageApprox?: boolean;
   /** The rates provenance (RV407); present when the caller declared it. */
   pricing?: InvoicePricingProvenance;
+  /**
+   * The unsettled lane (RV2008): dispatches whose agent is still
+   * RUNNING at the journal's edge, recovered from the incremental
+   * provider-call rows the loop journals as each wire call settles.
+   * Deliberately OUTSIDE the settled totals above: run_settle stays
+   * the billing boundary, and this section prices what the crash
+   * window preserved anyway, the ~$0.99 of parity root dispatches
+   * that used to live only in process memory. Present only when such
+   * rows exist; a journal whose roster is closed never carries it.
+   */
+  unsettled?: {
+    usd: number;
+    wireRequests: number;
+    rows: Array<{
+      agentRef: number;
+      scope: string;
+      ordinal: number;
+      servedBy: ModelRef;
+      role: string;
+      attempt: number;
+      outcome: string;
+      usage: Usage;
+      usd?: number;
+      responseId?: string;
+    }>;
+  };
 }
 
 const USAGE_FIELDS = [
@@ -592,6 +618,79 @@ export function invoiceFromJournal(
     }
   }
   const unallocatedUsd = allocateRows(rows, entries, priceUsd, report.grossUsd);
+  // The unsettled lane (RV2008): incremental provider-call rows of
+  // agents with no terminal yet. Priced and summed apart from the
+  // settled totals, never folded into them.
+  const terminalRefs = new Set(
+    entries
+      .filter((entry) => entry.kind === 'agent' && entry.status !== 'running')
+      .map((entry) => entry.ref),
+  );
+  const runningBySeq = new Map(
+    entries
+      .filter((entry) => entry.kind === 'agent' && entry.status === 'running')
+      .map((entry) => [entry.seq, entry] as const),
+  );
+  const unsettledRows: NonNullable<InvoiceExport['unsettled']>['rows'] = [];
+  for (const entry of entries) {
+    if (entry.kind !== 'decision') {
+      continue;
+    }
+    const value = entry.value as
+      | {
+          decisionType?: string;
+          agentRef?: number;
+          record?: {
+            ordinal?: number;
+            role?: string;
+            servedBy?: string;
+            attempt?: number;
+            outcome?: string;
+            usage?: Usage;
+            responseId?: string;
+            wireRequests?: number;
+          };
+        }
+      | undefined;
+    if (
+      value?.decisionType !== 'provider-call' ||
+      typeof value.agentRef !== 'number' ||
+      terminalRefs.has(value.agentRef)
+    ) {
+      continue;
+    }
+    const running = runningBySeq.get(value.agentRef);
+    const record = value.record;
+    if (
+      running === undefined ||
+      record?.usage === undefined ||
+      typeof record.ordinal !== 'number' ||
+      typeof record.servedBy !== 'string'
+    ) {
+      continue;
+    }
+    const usd = rowUsd(priceUsd, record.servedBy as ModelRef, record.usage, entry.seq);
+    unsettledRows.push({
+      agentRef: value.agentRef,
+      scope: running.scope,
+      ordinal: record.ordinal,
+      servedBy: record.servedBy as ModelRef,
+      role: typeof record.role === 'string' ? record.role : 'loop',
+      attempt: typeof record.attempt === 'number' ? record.attempt : 1,
+      outcome: typeof record.outcome === 'string' ? record.outcome : 'ok',
+      usage: record.usage,
+      ...(usd === undefined ? {} : { usd }),
+      ...(typeof record.responseId === 'string' ? { responseId: record.responseId } : {}),
+    });
+  }
+  const unsettled =
+    unsettledRows.length === 0
+      ? undefined
+      : {
+          usd: unsettledRows.reduce((sum, row) => sum + (row.usd ?? 0), 0),
+          wireRequests: unsettledRows.length,
+          rows: unsettledRows,
+        };
   const usageApprox = report.usageApprox === true || report.abandoned.usageApprox === true;
   // Every row EXCEPT the unattributed remainders folds one dispatch: a
   // remainder is usage no record covers, so it represents no request
@@ -608,6 +707,7 @@ export function invoiceFromJournal(
     reconciliationFailures: rows.filter((row) => row.reconciliation !== 'provider-id-present')
       .length,
     cardinality: cardinalityOf(rows),
+    ...(unsettled === undefined ? {} : { unsettled }),
     ...((): { usageUnknownRows?: number } => {
       const count = rows.filter((row) => row.usageUnknown === true).length;
       return count === 0 ? {} : { usageUnknownRows: count };

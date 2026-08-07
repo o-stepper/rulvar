@@ -345,7 +345,7 @@ The budget machinery behind these numbers, including the `'exhausted'` outcome a
 
 ## The invoice export
 
-Reconciling a run against the provider's bill needs more than totals: it needs the individual wire calls. Every live provider dispatch, successful or not, mints a `ProviderCallRecord` on the terminal entry's `providerCalls` ledger:
+Reconciling a run against the provider's bill needs more than totals: it needs the individual wire calls. Every live provider dispatch, successful or not, mints a `ProviderCallRecord` on the terminal entry's `providerCalls` ledger, and since RV2008 the SAME record also journals the moment its wire call settles, as a `provider-call` decision row keyed by the dispatch seq and the record ordinal. The terminal set remains the canonical fold input; the incremental rows are the crash lane: the third parity rerun's process died with ~$0.99 of root dispatches living only in memory, and with the rows the loss window is the one in-flight turn. `invoiceFromJournal` surfaces rows of agents that never reached a terminal in the additive `unsettled` section, priced but OUTSIDE the settled totals (`run_settle` stays the billing boundary), and `rulvar cost-audit` cross-checks every settled agent's terminal set against its rows (`incremental-rows-match`; journals without rows pass vacuously):
 
 ```ts
 interface ProviderCallRecord {

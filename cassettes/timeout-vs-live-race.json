@@ -16,6 +16,35 @@
     {
       "hashVersion": 2,
       "seq": 1,
+      "scope": "",
+      "key": "pc:0:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 5,
+            "outputTokens": 8,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
       "ref": 0,
       "scope": "",
       "key": "1cdda66658302cb36772fb0a943e9dbd9e10554ed44c81697258f7078c9a00cd",
@@ -23,8 +52,8 @@
       "kind": "agent",
       "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z",
-      "endedAt": "2026-02-01T00:00:01.000Z",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "endedAt": "2026-02-01T00:00:02.000Z",
       "value": "analysis: rollback recommended",
       "usage": {
         "inputTokens": 5,
@@ -57,14 +86,14 @@
     },
     {
       "hashVersion": 2,
-      "seq": 2,
+      "seq": 3,
       "scope": "",
       "key": "f386e47323556640f8ec0d00bfc8694b6d705dd1d8aee57c02962c56cf8eb364",
       "ordinal": 0,
       "kind": "external",
       "status": "suspended",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z",
+      "startedAt": "2026-02-01T00:00:03.000Z",
       "value": {
         "key": "escalation-report",
         "prompt": "Escalation decision required",
@@ -84,44 +113,25 @@
     },
     {
       "hashVersion": 2,
-      "seq": 3,
+      "seq": 4,
       "scope": "",
       "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
       "ordinal": 0,
       "kind": "decision",
       "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:03.000Z",
+      "startedAt": "2026-02-01T00:00:04.000Z",
       "value": {
         "decisionType": "run_settle",
         "runStatus": "suspended",
         "segment": 1
       },
-      "endedAt": "2026-02-01T00:00:03.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "seq": 4,
-      "ref": 2,
-      "scope": "",
-      "key": "",
-      "ordinal": 0,
-      "kind": "resolution",
-      "status": "ok",
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:04.000Z",
-      "resolution": {
-        "target": 2,
-        "by": "external",
-        "value": {
-          "decision": "rollback"
-        }
-      }
+      "endedAt": "2026-02-01T00:00:04.000Z"
     },
     {
       "hashVersion": 2,
       "seq": 5,
-      "ref": 2,
+      "ref": 3,
       "scope": "",
       "key": "",
       "ordinal": 0,
@@ -130,7 +140,26 @@
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:05.000Z",
       "resolution": {
-        "target": 2,
+        "target": 3,
+        "by": "external",
+        "value": {
+          "decision": "rollback"
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "ref": 3,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:06.000Z",
+      "resolution": {
+        "target": 3,
         "by": "timeout",
         "value": {
           "decision": "abort"
@@ -139,21 +168,21 @@
     },
     {
       "hashVersion": 2,
-      "seq": 6,
+      "seq": 7,
       "scope": "",
       "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
       "ordinal": 1,
       "kind": "decision",
       "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:06.000Z",
+      "startedAt": "2026-02-01T00:00:07.000Z",
       "value": {
         "decisionType": "run_settle",
         "runStatus": "ok",
         "segment": 2,
         "outputHash": "569add61e6af70d749e9b4d560766c9d8afa25182058f2c2b3f76497af2d09cf"
       },
-      "endedAt": "2026-02-01T00:00:06.000Z"
+      "endedAt": "2026-02-01T00:00:07.000Z"
     }
   ]
 }

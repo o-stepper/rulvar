@@ -16,6 +16,35 @@
     {
       "hashVersion": 2,
       "seq": 1,
+      "scope": "",
+      "key": "pc:0:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 0,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 3,
+            "outputTokens": 6,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
       "ref": 0,
       "scope": "",
       "key": "bcd63ae56ce1f274e91de79e12ed1bee946e8484ffcf92a583503e3240b3ac38",
@@ -57,7 +86,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 2,
+      "seq": 3,
       "scope": "par:0:0",
       "key": "6435b422b68a9851278541010135a502a77f231f93ddd0f4e3bb4fcff2b30f51",
       "ordinal": 0,
@@ -68,8 +97,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 3,
-      "ref": 2,
+      "seq": 4,
+      "scope": "par:0:0",
+      "key": "pc:3:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 3,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 3,
+            "outputTokens": 6,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "ref": 3,
       "scope": "par:0:0",
       "key": "6435b422b68a9851278541010135a502a77f231f93ddd0f4e3bb4fcff2b30f51",
       "ordinal": 0,
@@ -110,7 +168,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 4,
+      "seq": 6,
       "scope": "par:0:1",
       "key": "22845d09543c5a41e92ebfb55afa1450676f2f410fcc1d318bd7da84baa0f527",
       "ordinal": 0,
@@ -121,8 +179,37 @@
     },
     {
       "hashVersion": 2,
-      "seq": 5,
-      "ref": 4,
+      "seq": 7,
+      "scope": "par:0:1",
+      "key": "pc:6:1",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "provider-call",
+        "agentRef": 6,
+        "record": {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 3,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 8,
+      "ref": 6,
       "scope": "par:0:1",
       "key": "22845d09543c5a41e92ebfb55afa1450676f2f410fcc1d318bd7da84baa0f527",
       "ordinal": 0,
@@ -163,7 +250,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 6,
+      "seq": 9,
       "scope": "",
       "key": "6c60111d0dcc006febb08f6e903ec3dd5f19d5bd3deee568fd3664ce8a48464e",
       "ordinal": 0,
@@ -179,7 +266,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 7,
+      "seq": 10,
       "scope": "",
       "key": "c5b8d13c2fa0478047c2832cadd90c9a2d53e2c4d562abbb24b8f9ba0c8cd2d2",
       "ordinal": 0,
@@ -190,8 +277,8 @@
     },
     {
       "hashVersion": 2,
-      "seq": 8,
-      "ref": 7,
+      "seq": 11,
+      "ref": 10,
       "scope": "",
       "key": "c5b8d13c2fa0478047c2832cadd90c9a2d53e2c4d562abbb24b8f9ba0c8cd2d2",
       "ordinal": 0,
@@ -204,7 +291,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 9,
+      "seq": 12,
       "scope": "",
       "key": "6b4a14b25869089d273c87703b2155a4dc006c77240af50cd63439410e1b0407",
       "ordinal": 0,
@@ -220,7 +307,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 10,
+      "seq": 13,
       "scope": "",
       "key": "f34e53ce273a0ae1b64c57d9a339e37ec825857f3a9a3a6f2f3fa7eed4e34b56",
       "ordinal": 0,
@@ -236,7 +323,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 11,
+      "seq": 14,
       "scope": "",
       "key": "6c60111d0dcc006febb08f6e903ec3dd5f19d5bd3deee568fd3664ce8a48464e",
       "ordinal": 1,
@@ -252,7 +339,7 @@
     },
     {
       "hashVersion": 2,
-      "seq": 12,
+      "seq": 15,
       "scope": "",
       "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
       "ordinal": 0,

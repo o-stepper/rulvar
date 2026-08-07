@@ -777,6 +777,18 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * else. See applyCachePolicy for the exact shape.
    */
   cache?: CachePolicy;
+  /**
+   * The incremental billing seam (RV2008): called with every
+   * ProviderCallRecord the moment the wire call settles and the record
+   * is minted, so the caller can journal it while the invocation is
+   * still running. The parity rerun lost ~$0.99 of root dispatches
+   * because records rode ONLY the terminal entry and the process died
+   * before one existed; with the seam the crash window shrinks to the
+   * single in-flight turn. Restored records (a checkpoint reboot)
+   * never re-emit: they were journaled by the segment that minted
+   * them.
+   */
+  billing?: { onProviderCall: (record: ProviderCallRecord) => void };
   events?: RuntimeEventSink;
   transcript?: { mintRef(): string; put(ref: string, blob: Uint8Array): Promise<void> };
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
@@ -3877,6 +3889,9 @@ export async function runAgent<S extends SchemaSpec>(
             record.errorCode = outcome.wireError.code;
           }
           providerCalls.push(record);
+          // The incremental billing seam (RV2008): the record leaves
+          // the process the moment it exists, not with the terminal.
+          options.billing?.onProviderCall(record);
           // The money twin of the record (RV702): this call priced
           // individually, at the same chokepoint that minted it, so the
           // phase deltas and the invocation total fold per request.
