@@ -203,7 +203,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred ninety six rounds, verbatim in this repository's history:
+The one hundred ninety seven rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -414,6 +414,7 @@ The one hundred ninety six rounds, verbatim in this repository's history:
 | v1.212.0      | 61680df (#831): the redemption drains the stragglers first, unsettled children abort before the synthesis dispatch, a declined redemption journals its verdict arithmetic                 | v1.213.0   |
 | v1.213.0      | c8af0ec (#834): the declined redemption verdict reads the synthesis terminal behind the ctx re-mint, terminalRef and transportRetries journaled, a wire-severed attempt earns one retry   | v1.214.0   |
 | v1.214.0      | e1da4c7 (#837): the beforeTurn refusal message rides the agent terminal from five catch sites, preflight prices the synthesis reserve against a cap composition plus the repair turn      | v1.215.0   |
+| v1.215.0      | b357f4a (#840): the evidence-grade verdict names its offending sentences verbatim beside the phrase list, bounded and truncated, so a granted repair reads exactly the judged lines       | v1.216.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
