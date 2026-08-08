@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+
 ### 1.223.0
 
 #### Patch Changes
@@ -2043,6 +2050,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+
 ### 1.223.0
 
 #### Patch Changes
@@ -3871,6 +3885,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
 
 ### 1.223.0
 
@@ -6152,6 +6173,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.224.0
+
+#### Minor Changes
+
+- 4eca1a3: The resume-time budget override (RV2208). A run that died against its own `budgetUsd` was unfinishable by doctrine: the RunMeta-recorded ceiling governed every later segment, `ResumeOptions` deliberately carried no budget field, and the only way forward re-paid the whole journaled prefix as a fresh run. `ResumeOptions.run` (`{ budgetUsd?, maxInFlightExposureUsd? }`) is the one explicit door: each value is validated exactly like its `RunOptions` counterpart, applies to the resumed segment and the run's remaining life, and is recorded back by the segment's first meta write, so a LATER bare resume restores the overridden posture rather than the genesis one. The change is never silent: before the meta mirror flips, the segment journals a `run_budget_override` decision naming the recorded value, the applied value, the source, and the settled spend it was judged against (`null` records a run that started uncapped). A `budgetUsd` below the journal's settled spend refuses with a typed `ConfigError` before ownership, meta, or any append: such a ceiling would exhaust the segment before its first turn and read like a fresh money death. Absent fields keep the recorded values, an absent object keeps the historical behavior byte for byte, and `strictPricing` deliberately stays out of the override: pricing hygiene is not a per-segment decision.
 
 ### 1.223.0
 
@@ -8691,6 +8718,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.224.0
+
 ### 1.223.0
 
 ### 1.222.0
@@ -9241,6 +9270,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+  - @rulvar/anthropic@1.224.0
+  - @rulvar/openai@1.224.0
+  - @rulvar/plan@1.224.0
+  - @rulvar/testing@1.224.0
 
 ### 1.223.0
 
@@ -11768,6 +11808,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+
 ### 1.223.0
 
 #### Patch Changes
@@ -13007,6 +13054,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
 
 ### 1.223.0
 
@@ -15042,6 +15096,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+
 ### 1.223.0
 
 #### Patch Changes
@@ -16984,6 +17045,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+  - eslint-plugin-rulvar@1.224.0
 
 ### 1.223.0
 
@@ -19112,6 +19181,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+  - @rulvar/anthropic@1.224.0
+  - @rulvar/openai@1.224.0
 
 ### 1.223.0
 
@@ -21547,6 +21625,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+
 ### 1.223.0
 
 #### Patch Changes
@@ -23497,6 +23582,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
+
 ### 1.223.0
 
 #### Patch Changes
@@ -24752,6 +24844,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
 
 ### 1.223.0
 
@@ -26639,6 +26738,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.224.0
+
+#### Patch Changes
+
+- Updated dependencies [4eca1a3]
+  - @rulvar/core@1.224.0
 
 ### 1.223.0
 
