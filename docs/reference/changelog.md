@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+
 ### 1.217.0
 
 #### Patch Changes
@@ -2000,6 +2007,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+
 ### 1.217.0
 
 #### Patch Changes
@@ -3785,6 +3799,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
 
 ### 1.217.0
 
@@ -6023,6 +6044,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.218.0
+
+#### Minor Changes
+
+- 088bda6: The lifetime spawn counter survives resume, the accepted-finish synthesis decline journals its verdict, and preflight prices the tail's spawn budget (RV2201). The seventh subscription parity run was killed mid-fan-out and resumed: the resumed segment seeded the counter from the journal fold (5 agents) and the roll-forward of the four journaled child admissions incremented it AGAIN, so the post-acceptance tail starved at 9 against a cap of 8 with its money whole: the claim judge declined typed (the RV2106 catch holds for non-monetary refusals), and the synthesis spawn refusal reached the terminal as a bare message with no decision entry while its 1.40 reserve sat intact. Three fixes: `admitRecovered` no longer increments the lifetime counter, so each spawned agent counts a single time across the run's whole life, never twice (at its fresh admission, or through the seed of whichever segment rolls it forward), and the c7 kill-and-resume shape now seats its judge and synthesis; a synthesis admission refused after the validated coordination finish journals `orchestrator_synthesis_redemption_declined` with the refusal's reason, the remainder, the live `spawnHeadroom`, and `path: 'accepted-finish'`, the same verdict the redemption path writes, so a journal reader asks one question either way; and preflight grows `tail-spawn-budget` (the declared wave rows are already denied row by row against the cap, but the claim judge and the synthesis spawn after the fan-out and no row priced them) plus the `orchestrator.headroomTurns` knob for the previously hardwired `reserve-line-headroom` threshold (default 2, 0 silences the fence). journal-shape-revision: `statsBefore.spawnsBefore` embedded in post-resume admission decisions now reflects the once-per-life count (the crash-during-revision and config-drift-resume cassettes re-recorded with exactly that one value changed); already-journaled entries replay verbatim, so existing journals stay valid.
 
 ### 1.217.0
 
@@ -8525,6 +8552,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.218.0
+
 ### 1.217.0
 
 ### 1.216.0
@@ -9063,6 +9092,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+  - @rulvar/anthropic@1.218.0
+  - @rulvar/openai@1.218.0
+  - @rulvar/plan@1.218.0
+  - @rulvar/testing@1.218.0
 
 ### 1.217.0
 
@@ -11523,6 +11563,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+
 ### 1.217.0
 
 #### Patch Changes
@@ -12719,6 +12766,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
 
 ### 1.217.0
 
@@ -14711,6 +14765,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+
 ### 1.217.0
 
 #### Patch Changes
@@ -16610,6 +16671,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+  - eslint-plugin-rulvar@1.218.0
 
 ### 1.217.0
 
@@ -18689,6 +18758,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+  - @rulvar/anthropic@1.218.0
+  - @rulvar/openai@1.218.0
 
 ### 1.217.0
 
@@ -21069,6 +21147,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+
 ### 1.217.0
 
 #### Patch Changes
@@ -22976,6 +23061,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
+
 ### 1.217.0
 
 #### Patch Changes
@@ -24188,6 +24280,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
 
 ### 1.217.0
 
@@ -26032,6 +26131,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.218.0
+
+#### Patch Changes
+
+- Updated dependencies [088bda6]
+  - @rulvar/core@1.218.0
 
 ### 1.217.0
 
