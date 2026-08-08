@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+
 ### 1.219.0
 
 #### Patch Changes
@@ -2014,6 +2021,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+
 ### 1.219.0
 
 #### Patch Changes
@@ -3813,6 +3827,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
 
 ### 1.219.0
 
@@ -6065,6 +6086,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.220.0
+
+#### Minor Changes
+
+- 0babe70: The failure envelope carries the pass truth (RV2203). Two live terminals hid facts their journals held: the RV2106 mirror run's error terminal read `claimConsistencyMeta: null` over a journaled declined-judge verdict, and the seventh subscription parity resume settled exhausted with `completion: null` and `childStatusCounts: null` over a journaled accepted acceptance with four ok children, because the exhausted path lifted only from the partial value and the raw `BudgetExhaustedError` carried nothing. Three fixes: the orchestrator enriches every synthesis-path failure with the acceptance snapshot, the claim-consistency meta, and the `{ran, reason}` pass summaries (the budget class is preserved, so `exhausted` stays `exhausted`, and the ok envelope and the failure enrichment now build their summaries with one shared builder whose synthesis arm reads `synthesis-failed` on the failure path); the run-completion lift falls back to the enriched error data on the exhausted path; and the lift itself (with `run:end` and `RunOutcome`) grows `claimConsistencyMeta` and `synthesisSkipped` under the established mirror posture, valid shapes mirrored, malformed shapes silently absent, on every terminal, ok and failed alike.
 
 ### 1.219.0
 
@@ -8579,6 +8606,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.220.0
+
 ### 1.219.0
 
 ### 1.218.0
@@ -9121,6 +9150,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+  - @rulvar/anthropic@1.220.0
+  - @rulvar/openai@1.220.0
+  - @rulvar/plan@1.220.0
+  - @rulvar/testing@1.220.0
 
 ### 1.219.0
 
@@ -11603,6 +11643,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+
 ### 1.219.0
 
 #### Patch Changes
@@ -12813,6 +12860,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
 
 ### 1.219.0
 
@@ -14819,6 +14873,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+
 ### 1.219.0
 
 #### Patch Changes
@@ -16732,6 +16793,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+  - eslint-plugin-rulvar@1.220.0
 
 ### 1.219.0
 
@@ -18827,6 +18896,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+  - @rulvar/anthropic@1.220.0
+  - @rulvar/openai@1.220.0
 
 ### 1.219.0
 
@@ -21225,6 +21303,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+
 ### 1.219.0
 
 #### Patch Changes
@@ -23146,6 +23231,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
+
 ### 1.219.0
 
 #### Patch Changes
@@ -24372,6 +24464,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
 
 ### 1.219.0
 
@@ -26230,6 +26329,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.220.0
+
+#### Patch Changes
+
+- Updated dependencies [0babe70]
+  - @rulvar/core@1.220.0
 
 ### 1.219.0
 
