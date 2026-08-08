@@ -467,7 +467,7 @@
                 }
               },
               "statsBefore": {
-                "spawnsBefore": 3,
+                "spawnsBefore": 2,
                 "childrenOfParentBefore": 0,
                 "depth": 1
               },

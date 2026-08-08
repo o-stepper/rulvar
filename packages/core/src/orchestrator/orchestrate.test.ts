@@ -6451,3 +6451,75 @@ describe('the sectional repair and the evidence index (RV808b)', () => {
     ).toThrow(/incremental/);
   });
 });
+
+describe('the post-acceptance synthesis decline (RV2201, the seventh subscription parity run)', () => {
+  // The kill+resume exercise starved the lifetime spawn counter after
+  // an ACCEPTED acceptance verdict: the synthesis admission refused
+  // with its reserve's money whole, and the refusal reached the
+  // terminal as a bare message with no decision entry. The decline now
+  // journals the same verdict the redemption path writes, so a journal
+  // reader asks one question either way: why did the tail not run.
+  const ROUTING_2201 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+
+  it('a synthesis spawn refused after the accepted finish journals the declined verdict', async () => {
+    let rootCall = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'dug the facts', usage: { inputTokens: 40, outputTokens: 10 } };
+      }
+      rootCall += 1;
+      if (rootCall === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } },
+          usage: { inputTokens: 30, outputTokens: 10 },
+        };
+      }
+      if (rootCall === 2) {
+        return {
+          toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 30, outputTokens: 10 },
+        };
+      }
+      return {
+        toolCall: { name: 'finish', args: { result: 'the composed draft' } },
+        usage: { inputTokens: 30, outputTokens: 10 },
+      };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2201,
+      profiles: { worker: { description: 'digger', estCost: 0.01 } },
+      budgetUsd: 1,
+      // The root and its one child seat exactly: the synthesis starves
+      // on the counter, not on money.
+      lifetimeSpawnCap: 2,
+    });
+    const wf = makeOrchestratorWorkflow('coordinate then compose', {
+      synthesis: { limits: { maxTurns: 2 }, estCost: 0.01 },
+    });
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow(/lifetime spawn cap/);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const decline = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_redemption_declined',
+    );
+    expect(decline).toBeDefined();
+    const value = decline?.value as {
+      reason?: string;
+      path?: string;
+      spawnHeadroom?: number;
+      remainingUsd?: number | null;
+    };
+    expect(value.path).toBe('accepted-finish');
+    expect(value.reason).toContain('lifetime spawn cap');
+    expect(value.spawnHeadroom).toBe(0);
+    expect(typeof value.remainingUsd).toBe('number');
+  });
+});

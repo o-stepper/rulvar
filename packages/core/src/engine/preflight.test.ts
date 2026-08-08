@@ -2526,3 +2526,101 @@ describe('the cache-aware loop floors (RV2007)', () => {
     expect(report.findings.filter((f) => f.code === 'uncached-long-loop')).toHaveLength(0);
   });
 });
+
+describe('the lifetime spawn budget of the tail (RV2201, the seventh subscription parity run)', () => {
+  // The wave rows the projection already denies row by row against the
+  // counter; the judge and the synthesis spawn after the fan-out, and
+  // no row priced them. The subscription resume starved exactly that
+  // tail under a cap of 8 with its money whole.
+  function tailInput(options: {
+    lifetimeSpawnCap: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+        budgetDefaults: { lifetimeSpawnCap: options.lifetimeSpawnCap },
+      },
+      run: { budgetUsd: 20 },
+      orchestrator: {
+        budget: { capUsd: 3.2, capFraction: 1.0, synthesisReserveUsd: 1.4 },
+        synthesis: { limits: { maxTurns: 2 } },
+        limits: { maxOutputTokensPerTurn: 36000 },
+        claimConsistency: { judge: { estCost: 0.28 } },
+      },
+      spawns: ['a', 'b', 'c', 'd'].map((label) => ({
+        label,
+        estCost: 1,
+        limits: { maxOutputTokensPerTurn: 14000 },
+      })),
+    };
+  }
+
+  it('warns when the declared tail starves on the counter', () => {
+    // The wave is 5 rows (the orchestrator included) plus the judge
+    // plus the synthesis: 7 planned invocations against a cap of 6.
+    const report = preflightEstimate(tailInput({ lifetimeSpawnCap: 6 }));
+    const finding = report.findings.find((entry) => entry.code === 'tail-spawn-budget');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('7 against budgetDefaults.lifetimeSpawnCap 6');
+    expect(finding?.message).toContain('declines typed');
+  });
+
+  it('warns on an exact fill and stays silent with one spawn of headroom', () => {
+    const exact = preflightEstimate(tailInput({ lifetimeSpawnCap: 7 }));
+    const finding = exact.findings.find((entry) => entry.code === 'tail-spawn-budget');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('zero spawn headroom');
+    const roomy = preflightEstimate(tailInput({ lifetimeSpawnCap: 8 }));
+    expect(roomy.findings.some((entry) => entry.code === 'tail-spawn-budget')).toBe(false);
+  });
+});
+
+describe('the reserve line headroom threshold knob (RV2201)', () => {
+  // The fourth parity envelope again: 0.41 of headroom under the
+  // default two 0.36 turn floors warns; a 1-turn threshold clears it;
+  // 0 silences the finding entirely; 3 keeps it loud.
+  function knobInput(headroomTurns?: number): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: { budgetUsd: 6 },
+      orchestrator: {
+        budget: { capUsd: 2.95, capFraction: 1.0, synthesisReserveUsd: 1.0 },
+        synthesis: { limits: { maxTurns: 2 } },
+        limits: { maxOutputTokensPerTurn: 36000 },
+        ...(headroomTurns === undefined ? {} : { headroomTurns }),
+      },
+      spawns: ['product', 'finops', 'durability', 'adversarial'].map((label) => ({
+        label,
+        estCost: 0.66,
+        limits: { maxOutputTokensPerTurn: 14000 },
+      })),
+    };
+  }
+
+  it('the declared threshold widens, narrows, and silences the fence', () => {
+    const defaulted = preflightEstimate(knobInput());
+    expect(
+      defaulted.findings.find((entry) => entry.code === 'reserve-line-headroom')?.message,
+    ).toContain('less than 2 coordination turn floors');
+    const narrow = preflightEstimate(knobInput(1));
+    expect(narrow.findings.some((entry) => entry.code === 'reserve-line-headroom')).toBe(false);
+    const silenced = preflightEstimate(knobInput(0));
+    expect(silenced.findings.some((entry) => entry.code === 'reserve-line-headroom')).toBe(false);
+    const widened = preflightEstimate(knobInput(3));
+    expect(widened.findings.find((entry) => entry.code === 'reserve-line-headroom')?.severity).toBe(
+      'warning',
+    );
+  });
+});
