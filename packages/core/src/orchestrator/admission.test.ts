@@ -331,7 +331,12 @@ describe('AdmissionController', () => {
     admission.recoverSettled('run');
     admission.recoverSettled('run');
     expect(budget.committedReserveUsd).toBe(0);
-    expect(budget.spent().agentsSpawned).toBe(2);
+    // The node counters re-register; the LIFETIME counter does not
+    // move (RV2201): every recovered agent already counted through the
+    // resume seed's journal fold, and the incrementing roll-forward
+    // double-counted the seventh subscription parity run's children to
+    // 9 against a cap of 8, starving the post-acceptance tail.
+    expect(budget.spent().agentsSpawned).toBe(0);
     const rejected = admission.admit({
       origin: 'ctx.workflow',
       name: 'c',
@@ -352,7 +357,8 @@ describe('AdmissionController', () => {
       lineage: { logicalTaskId: '01PRIOR00000000000000000000', isNew: true, depth: 1 },
     });
     expect(budget.committedReserveUsd).toBe(0.9);
-    expect(budget.spent().agentsSpawned).toBe(1);
+    // Recovered, so never re-counted against the lifetime cap (RV2201).
+    expect(budget.spent().agentsSpawned).toBe(0);
   });
 });
 

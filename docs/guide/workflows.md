@@ -289,7 +289,7 @@ The scheduler bounds live model calls without you writing any queuing code:
 | Nesting depth | 1 (hard ceiling 4) | `budgetDefaults.maxDepth` |
 | Child budget fraction | 0.3 of the parent remainder | `budgetDefaults.childBudgetFraction` |
 
-Excess tasks queue on a per-run semaphore; `ctx.parallel` branches and `ctx.pipeline` stage applications all schedule through it. Dispatch is at-least-once: after a crash, an entry that was mid-flight is redispatched on resume, and deduplication comes from the journal, not the scheduler, so at-least-once dispatch never becomes pay-twice.
+Excess tasks queue on a per-run semaphore; `ctx.parallel` branches and `ctx.pipeline` stage applications all schedule through it. Dispatch is at-least-once: after a crash, an entry that was mid-flight is redispatched on resume, and deduplication comes from the journal, not the scheduler, so at-least-once dispatch never becomes pay-twice. The lifetime spawn cap counts each spawned agent once across the run's whole life (RV2201): a resumed segment seeds the counter from the journal fold, and the roll-forward of already-journaled admissions never re-increments it, so a kill and resume cannot starve the tail of a plan the cap seated. The seventh subscription parity run resumed four recovered children into a doubled count of 9 against a cap of 8, and its post-acceptance judge and synthesis both refused on the counter with their money whole.
 
 ## The phase chain
 

@@ -6470,7 +6470,20 @@ declare class RunBudget {
   /**
   * Resume roll-forward: commits a reserve recovered from a journaled
   * spawn-admission decision entry without re-evaluating admission
-  * (reserves are recovered, never re-estimated).
+  * (reserves are recovered, never re-estimated). The lifetime spawn
+  * counter does NOT increment here (RV2201): every agent the
+  * roll-forward re-covers already counted through the resume seed,
+  * whose journal fold counts each dispatched agent entry, so an
+  * incrementing roll-forward double-counts every recovered child.
+  * The seventh subscription parity run resumed a killed 4-child
+  * fan-out into a seed of 5, re-counted the children to 9 against a
+  * cap of 8, and the post-acceptance tail starved on the counter
+  * while the synthesis reserve's money sat whole: the judge declined
+  * typed, the synthesis spawn refusal reached the terminal, and the
+  * accepted dossier was lost. Each spawned agent counts a single
+  * time across the run's whole life, never twice: at its fresh
+  * admitSpawn, or through the seed of whichever segment rolls it
+  * forward.
   */
   admitRecovered(reserveUsd: number, accountScope?: string): void;
   /**
@@ -13093,6 +13106,15 @@ interface PreflightOrchestratorSpec {
       estCost?: number;
     };
   };
+  /**
+  * The `reserve-line-headroom` threshold in coordination turn floors
+  * (RV2201; previously hardwired to 2): the finding warns when the
+  * admitted wave's steady state sits closer to the reserve line than
+  * this many coordination turn floors. Raise it for waves whose
+  * children routinely overrun their declared estimates; 0 silences
+  * the finding entirely. Default 2.
+  */
+  headroomTurns?: number;
 }
 /** The full input: engine surface, run surface, and the declared wave. */
 interface PreflightInput {

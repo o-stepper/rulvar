@@ -6889,6 +6889,47 @@ export function makeOrchestratorWorkflow(
      * rejection-past-the-bound error keeps its own
      * repairsUsed/maxRepairs/failed untouched.
      */
+    // The post-acceptance synthesis decline journals its verdict
+    // (RV2201): the seventh subscription parity run resumed into a
+    // starved lifetime spawn counter, the synthesis admission refused
+    // AFTER the accepted acceptance verdict, and the refusal reached
+    // the terminal as a bare message with no decision entry: the
+    // reserve's money was whole and the journal said nothing about why
+    // no synthesis ran. Same decision type as the redemption decline
+    // (RV2102), because a journal reader asks one question either way:
+    // why did the tail not run. The two sites cannot both fire in one
+    // run: the redemption path exists only when the coordination loop
+    // died at its budget boundary, this one only when it finished.
+    const journalSynthesisAdmissionDecline = async (thrown: unknown): Promise<void> => {
+      if (!(thrown instanceof BudgetExhaustedError)) {
+        return;
+      }
+      const declineKey = deriverV2.deriveKey({
+        kind: 'orchestrator-synthesis-redemption-declined',
+      });
+      if (
+        internals.replayer
+          .snapshot()
+          .some((entry) => entry.kind === 'decision' && entry.key === declineKey)
+      ) {
+        return;
+      }
+      await internals.replayer.appendSinglePhase({
+        scope: callingState.scope,
+        key: declineKey,
+        kind: 'decision',
+        status: 'ok',
+        spanId: internals.spans.mint(callingState.spanId),
+        site: 'orchestrator-budget',
+        value: {
+          decisionType: 'orchestrator_synthesis_redemption_declined',
+          reason: thrown.message.slice(0, 300),
+          remainingUsd: internals.budget.remainingUsd() ?? null,
+          spawnHeadroom: internals.budget.spawnHeadroom,
+          path: 'accepted-finish',
+        },
+      });
+    };
     const enrichSynthesisFailure = (
       thrown: unknown,
       snapshot?: {
@@ -6966,6 +7007,7 @@ export function makeOrchestratorWorkflow(
       try {
         return await runSynthesis(result.output);
       } catch (thrown) {
+        await journalSynthesisAdmissionDecline(thrown);
         return enrichSynthesisFailure(thrown);
       }
     }
@@ -7414,6 +7456,7 @@ export function makeOrchestratorWorkflow(
     try {
       synthesizedFinal = await runSynthesis(result.output);
     } catch (thrown) {
+      await journalSynthesisAdmissionDecline(thrown);
       // The full acceptance snapshot rides the failure (cycle 73): the
       // error outcome names the same degradation facts the ok envelope
       // below reports, salvage lists included.

@@ -192,6 +192,15 @@ export interface PreflightOrchestratorSpec {
   claimConsistency?: {
     judge?: { estCost?: number };
   };
+  /**
+   * The `reserve-line-headroom` threshold in coordination turn floors
+   * (RV2201; previously hardwired to 2): the finding warns when the
+   * admitted wave's steady state sits closer to the reserve line than
+   * this many coordination turn floors. Raise it for waves whose
+   * children routinely overrun their declared estimates; 0 silences
+   * the finding entirely. Default 2.
+   */
+  headroomTurns?: number;
 }
 
 /** The full input: engine surface, run surface, and the declared wave. */
@@ -1976,12 +1985,18 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       ? undefined
       : reserveLineUsd -
         wave.filter((row) => row.admitted).reduce((sum, row) => sum + row.reserveUsd, 0);
+  // The threshold is a declared knob since RV2201 (headroomTurns,
+  // default the old hardwired 2): waves whose children routinely
+  // overrun their estimates deserve a wider fence, and 0 silences the
+  // finding for hosts that size onto the line deliberately.
+  const headroomTurns = input.orchestrator?.headroomTurns ?? 2;
   if (
     orchestrateWave &&
     reserveLineUsd !== undefined &&
     reserveLineHeadroomUsd !== undefined &&
     wave.some((row) => row.admitted) &&
-    reserveLineHeadroomUsd < 2 * Math.max(liveRootExposureTermUsd, 0.0001)
+    headroomTurns > 0 &&
+    reserveLineHeadroomUsd < headroomTurns * Math.max(liveRootExposureTermUsd, 0.0001)
   ) {
     say({
       severity: 'warning',
@@ -1989,7 +2004,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       message:
         `the admitted wave's steady state sits ${reserveLineHeadroomUsd.toFixed(4)} USD under ` +
         `the reserve line ${reserveLineUsd.toFixed(4)} USD (the ceiling minus the synthesis ` +
-        `reserve), less than two coordination turn floors of headroom ` +
+        `reserve), less than ${String(headroomTurns)} coordination turn floors of headroom ` +
         `(${liveRootExposureTermUsd.toFixed(4)} USD each): child spend past the declared ` +
         'estimates eats that headroom, the coordination loop is then refused at the line, and ' +
         'the run settles partial with the synthesis redeemed from its reserve (RV2101); size ' +
@@ -2025,6 +2040,47 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             'shrink the judge estimate, or shrink the synthesis reserve',
         });
       }
+    }
+  }
+  // The lifetime spawn budget of the tail (RV2201): every agent
+  // invocation draws from budgetDefaults.lifetimeSpawnCap: the wave
+  // rows above (the orchestrator row included) the projection already
+  // denies row by row (`deniedBy: 'spawn-cap'`), but the
+  // claim-consistency judge and the synthesis spawn AFTER the fan-out
+  // and no row prices them against the counter. The seventh
+  // subscription parity run seated its whole plan under a cap of 8 and
+  // starved the post-acceptance tail with its money whole; the counter
+  // now counts each agent once across segments, but a cap sized below
+  // the declared plan still starves the tail deterministically, and an
+  // exact fill leaves no headroom for anything the plan did not name.
+  // Fires only on a fully admitted wave: a denied wave is already loud
+  // through partial-admission or nothing-admitted.
+  if (orchestrateWave && wave.length > 0 && admitted === wave.length) {
+    const lifetimeSpawnCap = input.engine?.budgetDefaults?.lifetimeSpawnCap ?? 500;
+    const judgeDeclared = input.orchestrator?.claimConsistency?.judge !== undefined;
+    const synthesisDeclared = input.orchestrator?.synthesis !== undefined;
+    const plannedSpawns = wave.length + (judgeDeclared ? 1 : 0) + (synthesisDeclared ? 1 : 0);
+    const spawnHeadroom = lifetimeSpawnCap - plannedSpawns;
+    if (spawnHeadroom <= 0) {
+      const breakdown =
+        `the admitted wave of ${String(wave.length)} agent invocations` +
+        (judgeDeclared ? ' plus the claim-consistency judge' : '') +
+        (synthesisDeclared ? ' plus the synthesis invocation' : '') +
+        ` is ${String(plannedSpawns)} against budgetDefaults.lifetimeSpawnCap ` +
+        String(lifetimeSpawnCap);
+      say({
+        severity: 'warning',
+        code: 'tail-spawn-budget',
+        message:
+          spawnHeadroom < 0
+            ? breakdown +
+              ': the post-fan-in tail starves on the counter with its money whole: the judge ' +
+              'admission declines typed (RV2106) and the synthesis spawn journals its declined ' +
+              'verdict (RV2201) instead of composing; raise the cap to seat the declared tail'
+            : breakdown +
+              ': an exact fill leaves zero spawn headroom, so nothing the plan did not name (a ' +
+              're-spawned child, a second pass) can ever be admitted; raise the cap for margin',
+      });
     }
   }
   if (wave.length > 0 && denied > 0) {

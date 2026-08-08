@@ -666,3 +666,38 @@ describe('the per-account resume seed (RV1505)', () => {
     }
   });
 });
+
+describe('the lifetime spawn counter across segments (RV2201, the seventh subscription parity run)', () => {
+  const NO_USAGE = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+
+  it('a recovered admission never re-counts an agent the seed already counted', () => {
+    // The killed fan-out's journal fold seeded 5 agents (the root and
+    // four workers); the resumed segment's roll-forward re-covered the
+    // four children, and an incrementing counter starved the judge and
+    // the synthesis against a cap of 8 with their money whole.
+    const budget = new RunBudget({
+      ceilingUsd: 20,
+      lifetimeSpawnCap: 8,
+      seed: { usd: 3, usage: NO_USAGE, agentsSpawned: 5 },
+    });
+    for (let child = 0; child < 4; child += 1) {
+      budget.admitRecovered(1);
+    }
+    expect(budget.spawnHeadroom).toBe(3);
+    // The post-acceptance tail seats fresh: the judge and the synthesis.
+    budget.admitSpawn(0.3);
+    budget.admitSpawn(0.8);
+    expect(budget.spawnHeadroom).toBe(1);
+  });
+
+  it('fresh spawns still consume the counter to its cap', () => {
+    const budget = new RunBudget({
+      ceilingUsd: 20,
+      lifetimeSpawnCap: 2,
+      seed: { usd: 0.5, usage: NO_USAGE, agentsSpawned: 1 },
+    });
+    budget.admitSpawn(0.1);
+    expect(budget.spawnHeadroom).toBe(0);
+    expect(() => budget.admitSpawn(0.1)).toThrow(BudgetExhaustedError);
+  });
+});

@@ -3451,7 +3451,7 @@ const MUTATIONS = [
     doctrine:
       "preflight warns when the admitted wave's steady state sits within two coordination turn floors of the reserve line (RV2101): silencing the finding hides the trajectory both parity runs died on while every static minimum read green",
     file: 'packages/core/src/engine/preflight.ts',
-    find: '    reserveLineHeadroomUsd < 2 * Math.max(liveRootExposureTermUsd, 0.0001)',
+    find: '    reserveLineHeadroomUsd < headroomTurns * Math.max(liveRootExposureTermUsd, 0.0001)',
     replace: '    reserveLineHeadroomUsd < 0 * Math.max(liveRootExposureTermUsd, 0.0001)',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
@@ -3547,6 +3547,43 @@ const MUTATIONS = [
     find: "            if (\n              !synthesisTransportRetried &&\n              terminal !== undefined &&\n              terminal.error !== undefined &&\n              (terminal.error.data as { kind?: unknown } | undefined)?.kind === 'transport' &&\n              terminal.error.retryable === true\n            ) {",
     replace: '            if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'admit-recovered-never-recounts',
+    doctrine:
+      'the lifetime spawn counter counts each agent once across the whole life of the run (RV2201): the seventh subscription parity resume seeded 5 agents from the journal fold, re-counted the four recovered children to 9 against a cap of 8, and starved the post-acceptance tail with its money whole',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '  admitRecovered(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {\n    for (const account of this.chainOf(accountScope)) {',
+    replace:
+      '  admitRecovered(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {\n    this.agentsSpawnedInternal += 1;\n    for (const account of this.chainOf(accountScope)) {',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'synthesis-decline-journals-accepted-finish',
+    doctrine:
+      "a synthesis admission refused after the validated coordination finish journals the declined verdict (RV2201): the seventh subscription parity resume refused the spawn on the counter with the reserve's dollars whole and the terminal carried a bare message the journal never explained",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (!(thrown instanceof BudgetExhaustedError)) {\n        return;\n      }',
+    replace: '      if (true) {\n        return;\n      }',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'tail-spawn-budget-finding',
+    doctrine:
+      'preflight prices the post-fan-in tail against the lifetime spawn cap (RV2201): the wave rows are denied row by row, but the claim judge and the synthesis spawn after the fan-out and no row priced them, so a cap below the plan starved the tail with no static warning',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '    if (spawnHeadroom <= 0) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'reserve-line-headroom-knob',
+    doctrine:
+      'the reserve-line headroom threshold is a declared knob (RV2201): headroomTurns widens the fence for waves that overrun their estimates and 0 silences it, where the hardwired 2 answered nobody',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '  const headroomTurns = input.orchestrator?.headroomTurns ?? 2;',
+    replace: '  const headroomTurns = 2;',
+    test: 'packages/core/src/engine/preflight.test.ts',
   },
 ];
 
