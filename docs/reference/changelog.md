@@ -18,6 +18,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+
 ### 1.222.0
 
 #### Patch Changes
@@ -2035,6 +2043,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+
 ### 1.222.0
 
 #### Patch Changes
@@ -3855,6 +3871,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
 
 ### 1.222.0
 
@@ -6128,6 +6152,13 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.223.0
+
+#### Minor Changes
+
+- 549aabd: The bare root ceiling folds documented (RV2205). A coordination turn refused by the RUN account's own hard crossing was the last undocumented money death of the loop: the exposure and reserve-line arms fold typed (RV1902, RV2101), but a crossing that named the run root itself, whether the ctx boundary re-mint (`source: 'root'`, a crossing detected at or after execution: the first parity run's shape, B0 drained by children while the root sat at 16% of its cap) or a pre-admission refusal of the coordinator's own seat (`account: 'run'`), rethrew bare and tore the run down around its settled children. Both shapes now fold through the SAME forced-finish machinery: the journaled `orchestrator_finalize_fallback` decision gains reason `'budget-ceiling'` beside `'budget-floor'` and `'exposure-abort'`, the settled children ride the partial envelope, and the synthesis redemption stays free to try: past a crossed run ceiling its spawn admission declines with the arithmetic and journals the declined verdict (RV2102), which is the honest record, not a special case; with nothing settled the redemption arm correctly stays out. Orchestrator-cap crossings keep their dedicated atCap machinery, and unrecognized budget shapes still rethrow.
+- 549aabd: The unfunded repair grant declines typed (RV2207). Validation can grant a repair the budget will never execute: the seventh parity run's synthesis died between a granted repair verdict and its dispatch, and even with the refusal's message riding the terminal (RV2104) the death stayed a generic budget re-mint with no journal record of the grant the money never covered. The agent loop now marks exactly that refusal (a would-be turn following a rejected terminal-tool exchange carries `the granted repair turn could not be funded:` in front of the crossed-account arithmetic), the coordination path reads the marked terminal behind the re-mint's `entryRef` (the RV2103 pattern), journals `orchestrator_repair_grant_declined` with the reason, the terminal reference, and the remainder, and fails the run as a TYPED validation failure (`FailRunError: the orchestrator finish could not complete its granted repair`) instead of the generic budget error; on the synthesis path the redemption's declined verdict repeats the same marked message through its terminal read, so both repair surfaces tell one story.
 
 ### 1.222.0
 
@@ -8660,6 +8691,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.223.0
+
 ### 1.222.0
 
 ### 1.221.0
@@ -9208,6 +9241,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+  - @rulvar/anthropic@1.223.0
+  - @rulvar/openai@1.223.0
+  - @rulvar/plan@1.223.0
+  - @rulvar/testing@1.223.0
 
 ### 1.222.0
 
@@ -11723,6 +11768,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+
 ### 1.222.0
 
 #### Patch Changes
@@ -12954,6 +13007,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
 
 ### 1.222.0
 
@@ -14981,6 +15042,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+
 ### 1.222.0
 
 #### Patch Changes
@@ -16915,6 +16984,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+  - eslint-plugin-rulvar@1.223.0
 
 ### 1.222.0
 
@@ -19034,6 +19112,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+  - @rulvar/anthropic@1.223.0
+  - @rulvar/openai@1.223.0
 
 ### 1.222.0
 
@@ -21459,6 +21547,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+
 ### 1.222.0
 
 #### Patch Changes
@@ -23401,6 +23497,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
+
 ### 1.222.0
 
 #### Patch Changes
@@ -24648,6 +24752,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
 
 ### 1.222.0
 
@@ -26527,6 +26639,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.223.0
+
+#### Patch Changes
+
+- Updated dependencies [549aabd]
+- Updated dependencies [549aabd]
+  - @rulvar/core@1.223.0
 
 ### 1.222.0
 
