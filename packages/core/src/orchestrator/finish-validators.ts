@@ -995,12 +995,23 @@ export function evidenceGradeValidator(options?: {
         return `offending sentence: "${clipped}"`;
       });
       const overflow = offenders.length - named.length;
+      // The guidance is composition-safe (RV2202): the older "name a
+      // run id or a file:line citation beside it" was obeyed literally
+      // by the RV2106 mirror run's synthesis, which wove inline run
+      // ids into sentences that already carried source citations; the
+      // cited-value validator then rejected exactly those sentences
+      // (a run id is never in the cited window), the model sat between
+      // two contradicting verdicts, and both granted repairs burned. A
+      // reason is a repair instruction, so it must be executable
+      // without violating any sibling validator in the bundle.
       return {
         ok: false,
         reasons: [
           `evidence-grade claims cite no run or repro artifact in their own sentence: ` +
-            `${listCitations(unsupported)}; each such claim must name a run id or a ` +
-            `file:line citation beside it`,
+            `${listCitations(unsupported)}; give each such claim a file:line citation in ` +
+            `its own sentence, or state its run id in a SEPARATE sentence carrying no ` +
+            `source citation (a run id written beside a path:line citation is not in the ` +
+            `cited window and trades this failure for a cited-value one)`,
           ...named,
           ...(overflow > 0 ? [`and ${String(overflow)} more offending sentences`] : []),
         ],

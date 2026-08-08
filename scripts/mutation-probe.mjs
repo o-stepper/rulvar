@@ -3585,6 +3585,16 @@ const MUTATIONS = [
     replace: '  const headroomTurns = 2;',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'evidence-grade-guidance-composes',
+    doctrine:
+      "a validator reason is a repair instruction and must be executable without violating any sibling in the bundle (RV2202): the RV2106 mirror run's synthesis obeyed the older 'beside it' wording literally, wove inline run ids into citation-bearing sentences, and cited-value rejected exactly those sentences, burning both repairs between two individually correct validators",
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '            `${listCitations(unsupported)}; give each such claim a file:line citation in ` +\n            `its own sentence, or state its run id in a SEPARATE sentence carrying no ` +\n            `source citation (a run id written beside a path:line citation is not in the ` +\n            `cited window and trades this failure for a cited-value one)`,',
+    replace:
+      '            `${listCitations(unsupported)}; each such claim must name a run id or a ` +\n            `file:line citation beside it`,',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

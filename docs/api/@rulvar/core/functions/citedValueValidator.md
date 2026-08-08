@@ -10,7 +10,7 @@
 function citedValueValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1066](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1066)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1077](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1077)
 
 Requires a cited location to actually carry the value the sentence
 asserts (RV1212, the sixteenth comparison experiment P2-2). Citation

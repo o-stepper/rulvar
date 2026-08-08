@@ -1011,3 +1011,50 @@ describe('formatCharacterValidator (RV1509)', () => {
     expect(() => formatCharacterValidator({ allow: ['x'] })).toThrow(ConfigError);
   });
 });
+
+describe('the repair guidance composes across the bundle (RV2202, the RV2106 mirror run)', () => {
+  const LINES: Record<number, string> = { 12: 'const maxAttempts = 3;' };
+  const resolve = (citation: { path: string; line: number }): string | undefined =>
+    citation.path === 'src/retry.ts' && citation.line >= 1 && citation.line <= 40
+      ? (LINES[citation.line] ?? '')
+      : undefined;
+
+  it('the verdict steers toward the separate-sentence composition', () => {
+    const verdict = evidenceGradeValidator().validate(
+      text('The loop is live-observed to retry three times.'),
+    );
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons[0]).toContain('SEPARATE sentence carrying no source citation');
+    expect(verdict.reasons[0]).toContain('trades this failure for a cited-value one');
+    expect(verdict.reasons[0]).not.toContain('beside it');
+  });
+
+  it('text following the guidance passes evidence-grade AND cited-value together', () => {
+    // A value sentence with its citation, and the graded claim in its
+    // own sentence carrying the run id: the shape the verdict steers to.
+    const guided =
+      'The retry loop caps attempts at `3` (`src/retry.ts:12`). ' +
+      'That cap is live-observed in run 01KZGBNQJJMPX512BTHP0F5GNZ.';
+    expect(evidenceGradeValidator().validate(text(guided)).ok).toBe(true);
+    expect(citedValueValidator({ resolve }).validate(text(guided)).ok).toBe(true);
+  });
+
+  it('the mirror-run trap shape still fails cited-value, never both repairs', () => {
+    // What the older wording produced: an inline run id woven into the
+    // citation-bearing sentence. evidence-grade is satisfied (a run
+    // artifact rides the sentence), and cited-value rejects the run id
+    // against the cited window: the exact c3 collision, now named by
+    // the guidance instead of steered into.
+    const trap = 'The cap is live-observed as `01KZGBNQJJMPX512BTHP0F5GNZ` at `src/retry.ts:12`.';
+    expect(evidenceGradeValidator().validate(text(trap)).ok).toBe(true);
+    const verdict = citedValueValidator({ resolve }).validate(text(trap));
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons.join(' ')).toContain('01KZGBNQJJMPX512BTHP0F5GNZ');
+  });
+});
