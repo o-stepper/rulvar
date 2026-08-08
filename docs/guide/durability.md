@@ -134,8 +134,21 @@ Now `engine.resume('review-pr-4242', review, { args: 4242 })` replays it:
 You paid for the interrupted reviewer's remaining turns and the merge agent. The step, the finished reviewer, and every dollar recorded before the crash are read back: the ledger is a fold over the journal, not process memory, so the resumed run's spent figures and its final cost report stay truthful, and the pre-crash spend counts against the same ceiling the run started with.
 
 ::: info The budgetUsd ceiling survives resume through the run record
-The dollar ceiling set at `engine.run(...)` time is recorded in the run's store metadata (`RunMeta.budgetUsd`) and restored on every resume: the restored pre-crash spend counts against the restored ceiling, and `ResumeOptions` deliberately carries no budget field, so no API can raise the ceiling after start, restarts included. Two degradation notes: the ceiling rides the run record rather than the content-addressed journal, so a custom store must round-trip optional `RunMeta` fields (the conformance kit checks this), and a journal written before the field existed resumes uncapped.
+The dollar ceiling set at `engine.run(...)` time is recorded in the run's store metadata (`RunMeta.budgetUsd`) and restored on every resume: the restored pre-crash spend counts against the restored ceiling, and nothing changes the posture silently. Two degradation notes: the ceiling rides the run record rather than the content-addressed journal, so a custom store must round-trip optional `RunMeta` fields (the conformance kit checks this), and a journal written before the field existed resumes uncapped.
 :::
+
+### Raising a ceiling at resume time
+
+A run that died against its own `budgetUsd` used to be unfinishable: the recorded ceiling governed every later segment and `ResumeOptions` deliberately carried no budget field, so the only way forward was a fresh run that re-paid the whole journaled prefix. `ResumeOptions.run` is the one explicit door through that doctrine:
+
+```ts
+const resumed = engine.resume('review-pr-4242', review, {
+  args: 4242,
+  run: { budgetUsd: 14, maxInFlightExposureUsd: 3 },
+});
+```
+
+Each supplied value is validated exactly like its `RunOptions` counterpart and applies to the resumed segment and the run's remaining life: the segment's first meta write records it back into `RunMeta`, so a LATER bare resume restores the overridden posture, not the genesis one. The change is never silent: before the meta mirror flips, the segment journals a `run_budget_override` decision naming the recorded value, the applied value, the source, and the settled spend it was judged against (a run that started uncapped records `null` for the old value). A `budgetUsd` below the journal's settled spend refuses with a typed `ConfigError` before ownership, meta, or any append: such a ceiling would exhaust the segment before its first turn and read like a fresh money death. Absent fields keep the recorded values; an absent `run` object keeps the historical behavior byte for byte, and `strictPricing` deliberately stays out of the override: pricing hygiene is not a per-segment decision.
 
 ## Previewing a resume before paying
 

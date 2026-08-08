@@ -366,8 +366,10 @@ export interface RunOptions {
    * used to be per-invocation and unrecorded, so a resumed segment
    * silently ran without the bound the original invocation declared
    * (the seventeenth comparison benchmark's top FinOps gap). A run
-   * started without the cap stays uncapped for its whole life, and
-   * ResumeOptions deliberately has no field to override it.
+   * started without the cap stays uncapped for its whole life unless
+   * a host changes the posture through the explicit, validated,
+   * journaled ResumeOptions.run override (RV2208); nothing changes it
+   * silently.
    */
   maxInFlightExposureUsd?: number;
   /**
@@ -380,7 +382,9 @@ export interface RunOptions {
    * and `allowUnpriced` (exact model refs the host KNOWS are free,
    * the explicit exception). Recorded in RunMeta at genesis and
    * restored on every resume, the exposure cap's rule (RV1504): a
-   * FinOps posture a resumed segment silently drops is not a posture.
+   * FinOps posture a resumed segment silently drops is not a posture
+   * (and unlike the two ceilings, ResumeOptions.run has no field for
+   * this gate: pricing hygiene is not a per-segment decision).
    * Absent by default: dispatch behavior stays byte identical, and an
    * unpriced model keeps debiting nothing, the documented ceiling
    * hole this mode exists to close.
@@ -493,6 +497,24 @@ export interface ResumeOptions {
    * meta/blob surfaces remain advisory (the fenced run state RFC).
    */
   lease?: Lease;
+  /**
+   * Ceiling overrides for the resumed segment and the run's remaining
+   * life (RV2208). The RV1504 rule stands: the RunMeta-recorded
+   * posture is what a bare resume restores; this field is the ONE
+   * explicit way to change that posture after genesis. Each supplied
+   * value is validated exactly like its RunOptions counterpart,
+   * applied to this segment's budget, written back by the segment's
+   * first meta write (a LATER bare resume restores the overridden
+   * posture, not the genesis one), and journaled as a
+   * `run_budget_override` decision naming the recorded and applied
+   * values and the settled spend it was judged against. A `budgetUsd`
+   * below the journal's settled spend refuses typed before ownership,
+   * meta, or any append: such a ceiling would exhaust the segment
+   * before its first turn and read like a fresh money death. Absent
+   * fields keep the recorded values; an absent object keeps the
+   * historical behavior byte for byte.
+   */
+  run?: { budgetUsd?: number; maxInFlightExposureUsd?: number };
 }
 
 export interface ResumeHandle<R> extends RunHandle<R> {
@@ -510,7 +532,9 @@ export interface Engine {
    * A compiled run resumes WITHOUT wf: the engine rehydrates the
    * persisted source pinned by workflowHash; supplying a compiled wf
    * whose source hash differs from the recorded one is a typed
-   * ConfigError (M6-T02).
+   * ConfigError (M6-T02). ResumeOptions.run (RV2208) overrides the
+   * recorded budget ceilings for the run's remaining life, with a
+   * journaled decision and a typed floor at the settled spend.
    */
   resume<A, R>(
     runId: string,
@@ -1152,19 +1176,27 @@ export function createEngine(options: CreateEngineOptions): Engine {
     lease?: Lease;
     /**
      * The RunMeta-recorded ceiling (B0): a resumed run keeps the
-     * original invocation's bound, and ResumeOptions deliberately has
-     * no field to override it.
+     * original invocation's bound, and the ONLY thing that changes it
+     * is the explicit, journaled budgetOverride below (RV2208).
      */
     budgetUsd?: number;
     /**
      * The RunMeta-recorded in-flight exposure cap (RV1504), the
      * budgetUsd rule exactly: a resumed run keeps the original
-     * invocation's cap, ResumeOptions deliberately has no field to
-     * override it, and absence stays absent (a run started uncapped
+     * invocation's cap unless budgetOverride names a new one, and
+     * absence stays absent (a run started uncapped
      * resumes uncapped, and a store that dropped the field degrades
      * honestly rather than inventing a bound).
      */
     maxInFlightExposureUsd?: number;
+    /**
+     * The explicit resume-time ceiling override (RV2208), already
+     * validated by resume(): applied over the recorded values,
+     * recorded back by this segment's putMeta, journaled as a
+     * run_budget_override decision before the meta mirror flips.
+     * Carries only the fields the host actually passed.
+     */
+    budgetOverride?: { budgetUsd?: number; maxInFlightExposureUsd?: number };
     /**
      * The RunMeta-recorded strict pricing gate (RV1508), the exposure
      * cap's rule: restored verbatim, no ResumeOptions override,
@@ -1314,15 +1346,21 @@ export function createEngine(options: CreateEngineOptions): Engine {
     let budgetSeed:
       | { usd: number; usage: Usage; agentsSpawned: number; accounts?: Record<string, number> }
       | undefined;
-    // B0 is immutable across the run's whole life: a fresh run takes it
-    // from RunOptions, a resumed run restores the RunMeta-recorded
-    // value, and no API can change it after start.
-    const ceilingUsd = opts?.budgetUsd ?? resumeCtx?.budgetUsd;
-    // The exposure cap follows the SAME rule since RV1504: a fresh run
-    // takes it from RunOptions, a resumed run restores the
-    // RunMeta-recorded value, and a run started without one stays
-    // uncapped for its whole life.
-    const exposureCapUsd = opts?.maxInFlightExposureUsd ?? resumeCtx?.maxInFlightExposureUsd;
+    // B0 is immutable across the run's whole life with ONE exception:
+    // a fresh run takes it from RunOptions, a resumed run restores the
+    // RunMeta-recorded value, and the only API that changes it after
+    // start is the explicit, validated, journaled ResumeOptions.run
+    // override (RV2208), which putMeta below records as the run's new
+    // posture so later bare resumes restore the OVERRIDDEN bound.
+    const ceilingUsd =
+      opts?.budgetUsd ?? resumeCtx?.budgetOverride?.budgetUsd ?? resumeCtx?.budgetUsd;
+    // The exposure cap follows the SAME rule since RV1504, override
+    // included: a run started without one stays uncapped until a host
+    // explicitly caps it through the journaled override.
+    const exposureCapUsd =
+      opts?.maxInFlightExposureUsd ??
+      resumeCtx?.budgetOverride?.maxInFlightExposureUsd ??
+      resumeCtx?.maxInFlightExposureUsd;
     // The strict pricing gate follows the same recording rule (RV1508):
     // a fresh run canonicalizes RunOptions (true means the bare
     // object), a resumed run restores the RunMeta-recorded shape
@@ -1413,6 +1451,19 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // segment to the decisions a continuous run would have made.
         accounts: accountSpendFromJournal(replayer.snapshot(), priorPriceUsd),
       };
+      // The override floor (RV2208): a ceiling below the settled spend
+      // the seed restores would exhaust the segment before its first
+      // turn, a fresh money death the host asked for by accident.
+      // Refused typed here, before ownership, meta, or any append.
+      const overrideCeilingUsd = resumeCtx.budgetOverride?.budgetUsd;
+      if (overrideCeilingUsd !== undefined && budgetSeed.usd > overrideCeilingUsd) {
+        throw new ConfigError(
+          `ResumeOptions.run.budgetUsd ${String(overrideCeilingUsd)} is below the ` +
+            `${budgetSeed.usd.toFixed(4)} USD the journal already records as settled spend; ` +
+            'a ceiling below spent exhausts the resumed segment before its first turn. ' +
+            'Pass a value at or above the recorded spend, or resume without the override',
+        );
+      }
     }
     const controller = new AbortController();
     let cancelReason: string | undefined;
@@ -1787,6 +1838,50 @@ export function createEngine(options: CreateEngineOptions): Engine {
           new TextEncoder().encode(compiled.source),
           segmentLease.current,
         );
+      }
+      // The override decision (RV2208): journal first, meta mirror
+      // second, so the posture flip putMeta records is never ahead of
+      // the journaled authority that explains it. Keyed by segment, so
+      // a later segment's own override appends beside this one instead
+      // of colliding with it. A dry-run preview appends nothing,
+      // exactly like putMeta.
+      if (resumeCtx?.budgetOverride !== undefined && resumeCtx.strict !== true) {
+        const override = resumeCtx.budgetOverride;
+        await replayer.appendSinglePhase({
+          scope: '',
+          key: deriverV2.deriveKey({
+            kind: 'run-budget-override',
+            segment: segmentsBefore + 1,
+          }),
+          kind: 'decision',
+          status: 'ok',
+          spanId: rootSpanId,
+          site: 'run-budget-override',
+          value: {
+            decisionType: 'run_budget_override',
+            source: 'resume-options',
+            segment: segmentsBefore + 1,
+            // Json has no undefined, and 'was uncapped' is a fact the
+            // audit needs: null records it.
+            ...(override.budgetUsd === undefined
+              ? {}
+              : {
+                  budgetUsd: {
+                    recorded: resumeCtx.budgetUsd ?? null,
+                    applied: override.budgetUsd,
+                  },
+                }),
+            ...(override.maxInFlightExposureUsd === undefined
+              ? {}
+              : {
+                  maxInFlightExposureUsd: {
+                    recorded: resumeCtx.maxInFlightExposureUsd ?? null,
+                    applied: override.maxInFlightExposureUsd,
+                  },
+                }),
+            ...(budgetSeed === undefined ? {} : { settledSpendUsd: budgetSeed.usd }),
+          },
+        });
       }
       await putMeta('running');
       bus.emit(
@@ -2335,6 +2430,17 @@ export function createEngine(options: CreateEngineOptions): Engine {
       previewResolve = resolve;
     });
     const handlePromise = (async () => {
+      // The override values are validated first, before any store read
+      // (RV2208), exactly like their RunOptions counterparts.
+      if (resumeOptions?.run?.budgetUsd !== undefined) {
+        requireNonNegativeNumber(resumeOptions.run.budgetUsd, 'ResumeOptions.run.budgetUsd');
+      }
+      if (resumeOptions?.run?.maxInFlightExposureUsd !== undefined) {
+        requireNonNegativeNumber(
+          resumeOptions.run.maxInFlightExposureUsd,
+          'ResumeOptions.run.maxInFlightExposureUsd',
+        );
+      }
       // Exact lookup through the optional store capability; stores
       // without it fall back to the historical full listRuns scan.
       const meta = await readRunMeta(journal, runId);
@@ -2451,12 +2557,26 @@ export function createEngine(options: CreateEngineOptions): Engine {
           { code: 'RULVAR_LEGACY_CACHE_SEMANTICS', type: 'RulvarWarning' },
         );
       }
+      // An override object with neither field is a no-op, not a
+      // decision: nothing to apply, nothing to journal.
+      const runOverride = resumeOptions?.run;
+      const budgetOverride =
+        runOverride === undefined ||
+        (runOverride.budgetUsd === undefined && runOverride.maxInFlightExposureUsd === undefined)
+          ? undefined
+          : {
+              ...(runOverride.budgetUsd === undefined ? {} : { budgetUsd: runOverride.budgetUsd }),
+              ...(runOverride.maxInFlightExposureUsd === undefined
+                ? {}
+                : { maxInFlightExposureUsd: runOverride.maxInFlightExposureUsd }),
+            };
       return run(bound, resumeOptions?.args, undefined, {
         runId,
         priorEntries,
         strict: resumeOptions?.dryRun ?? false,
         invalidate: resumeOptions?.invalidate ?? [],
         ...(resumeOptions?.lease === undefined ? {} : { lease: resumeOptions.lease }),
+        ...(budgetOverride === undefined ? {} : { budgetOverride }),
         // The recorded B0 travels back in: journals whose store dropped
         // the field (or predates it) resume uncapped, exactly as before.
         ...(typeof meta?.budgetUsd === 'number' ? { budgetUsd: meta.budgetUsd } : {}),

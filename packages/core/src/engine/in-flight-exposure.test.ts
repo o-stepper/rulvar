@@ -131,7 +131,8 @@ describe('RunOptions.maxInFlightExposureUsd (RV711)', () => {
  * declared: the seventeenth comparison benchmark named the silent
  * uncapping its top FinOps gap. The cap is now recorded in RunMeta at
  * genesis, exactly like budgetUsd, and travels back in on resume;
- * ResumeOptions deliberately has no field to override it.
+ * the only thing that changes it is the explicit, journaled
+ * ResumeOptions.run override (RV2208).
  */
 describe('the exposure cap on resume (RV1504)', () => {
   const LIMITS = { maxOutputTokensPerTurn: 100 };

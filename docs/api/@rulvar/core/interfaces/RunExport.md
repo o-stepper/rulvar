@@ -6,7 +6,7 @@
 
 # Interface: RunExport
 
-Defined in: [packages/core/src/engine/engine.ts:590](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L590)
+Defined in: [packages/core/src/engine/engine.ts:614](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L614)
 
 The portable bundle exportRun produces and importRun consumes (RV-217).
 
@@ -14,7 +14,7 @@ The portable bundle exportRun produces and importRun consumes (RV-217).
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-blobs"></a> `blobs` | \{ `data`: [`Bytes`](/api/@rulvar/core/type-aliases/Bytes.md); `ref`: `string`; \}[] | - | [packages/core/src/engine/engine.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L595) |
-| <a id="property-entries"></a> `entries` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md)[] | - | [packages/core/src/engine/engine.ts:594](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L594) |
-| <a id="property-meta"></a> `meta?` | [`RunMeta`](/api/@rulvar/core/type-aliases/RunMeta.md) | Absent when the source store had no meta row for the run. | [packages/core/src/engine/engine.ts:593](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L593) |
-| <a id="property-runid"></a> `runId` | `string` | - | [packages/core/src/engine/engine.ts:591](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L591) |
+| <a id="property-blobs"></a> `blobs` | \{ `data`: [`Bytes`](/api/@rulvar/core/type-aliases/Bytes.md); `ref`: `string`; \}[] | - | [packages/core/src/engine/engine.ts:619](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L619) |
+| <a id="property-entries"></a> `entries` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md)[] | - | [packages/core/src/engine/engine.ts:618](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L618) |
+| <a id="property-meta"></a> `meta?` | [`RunMeta`](/api/@rulvar/core/type-aliases/RunMeta.md) | Absent when the source store had no meta row for the run. | [packages/core/src/engine/engine.ts:617](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L617) |
+| <a id="property-runid"></a> `runId` | `string` | - | [packages/core/src/engine/engine.ts:615](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L615) |
