@@ -10,7 +10,7 @@
 function formatCharacterValidator(options?): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1308)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1319](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1319)
 
 Rejects invisible Unicode format characters in the result text
 (RV1509, the eighteenth improvement plan). The seventeenth
