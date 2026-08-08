@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+
 ### 1.220.0
 
 #### Patch Changes
@@ -2021,6 +2028,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+
 ### 1.220.0
 
 #### Patch Changes
@@ -3827,6 +3841,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
 
 ### 1.220.0
 
@@ -6086,6 +6107,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.221.0
+
+#### Minor Changes
+
+- 032ce93: The exposure drain grants a mid-work seat one clamped finalization turn (RV2204). The third parity rerun killed three workers ~30 turns into research with evidence pools of 17 and 22 under a floor of 24 and a CONFIGURED finalization window: the drain came before the window, and the window's play needs the very wire the drain refuses, because a drained seat's next ordinary turn re-prices the whole per-turn allowance the pool just refused. With `limits.finalizationReserve.maxOutputTokens` declared, a drained seat that already completed a turn now spends ONE finalization turn before its typed `exposure-drained` terminal: the output clamp shrinks the turn's exposure estimate to the summary allowance, the `finalizationWindow.allow` list rides as the turn's only tools so outstanding `record_evidence` calls land in parallel through the ordinary tool machinery, and the drain instruction is request-only, mirroring the tool-budget reserve turn. Best effort on every edge: a refusal of even the clamped estimate warns and keeps the typed terminal, and a seat with NO completed turns keeps dying at zero provider attempts (the RV2002 doctrine, pinned). Preflight learns the funding truth: `drained-finalization-unfunded` (info) names a window declared under an in-flight exposure cap with no reserve to fund the grant, and `inert-finalization-reserve` stops warning when the exposure cap alone gives the reserve a trip path.
 
 ### 1.220.0
 
@@ -8606,6 +8633,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.221.0
+
 ### 1.220.0
 
 ### 1.219.0
@@ -9150,6 +9179,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+  - @rulvar/anthropic@1.221.0
+  - @rulvar/openai@1.221.0
+  - @rulvar/plan@1.221.0
+  - @rulvar/testing@1.221.0
 
 ### 1.220.0
 
@@ -11643,6 +11683,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+
 ### 1.220.0
 
 #### Patch Changes
@@ -12860,6 +12907,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
 
 ### 1.220.0
 
@@ -14873,6 +14927,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+
 ### 1.220.0
 
 #### Patch Changes
@@ -16793,6 +16854,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+  - eslint-plugin-rulvar@1.221.0
 
 ### 1.220.0
 
@@ -18896,6 +18965,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+  - @rulvar/anthropic@1.221.0
+  - @rulvar/openai@1.221.0
 
 ### 1.220.0
 
@@ -21303,6 +21381,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+
 ### 1.220.0
 
 #### Patch Changes
@@ -23231,6 +23316,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
+
 ### 1.220.0
 
 #### Patch Changes
@@ -24464,6 +24556,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
 
 ### 1.220.0
 
@@ -26329,6 +26428,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.221.0
+
+#### Patch Changes
+
+- Updated dependencies [032ce93]
+  - @rulvar/core@1.221.0
 
 ### 1.220.0
 
