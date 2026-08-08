@@ -949,6 +949,17 @@ export interface OrchestrateClaimConsistencyMeta {
   /** Present when the judge invocation did not settle ok. */
   judgeFailed?: true;
   /**
+   * Present when the judge invocation was refused ADMISSION and never
+   * dispatched (RV2106): the ninth parity run's judge estimate did not
+   * fit the orchestrator account's working room past the held
+   * synthesis reserve, and the bare refusal killed a run whose fan-out
+   * and draft were already complete. The declined pass degrades like a
+   * failed judge (the meta names it, the journaled decision carries
+   * the arithmetic, only the armed 'fail' posture stops the run) and
+   * the synthesis its reserve was holding money for still dispatches.
+   */
+  judgeDeclined?: true;
+  /**
    * The one field a consumer reads INSTEAD of inferring semantic
    * health from an empty findings array (RV1702):
    * {@link claimCoverageOf} over this meta, so `completion:
@@ -5439,6 +5450,7 @@ export function makeOrchestratorWorkflow(
       const finishMeta = (flags: {
         judgeInvoked: boolean;
         judgeFailed?: true;
+        judgeDeclined?: true;
       }): OrchestrateClaimConsistencyMeta => {
         const bare = { ...metaBase, ...flags };
         return { ...bare, coverage: claimCoverageOf(bare) };
@@ -5565,12 +5577,77 @@ export function makeOrchestratorWorkflow(
         ...(spec.judge?.effort === undefined ? {} : { effort: spec.judge.effort }),
         ...(spec.judge?.estCost === undefined ? {} : { estCost: spec.judge.estCost }),
       };
-      const judged = await runtime.runInScope(judgeState, () =>
-        (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
-          judgePrompt,
-          judgeOpts,
-        ),
-      );
+      let judged: AgentResult<unknown>;
+      try {
+        judged = await runtime.runInScope(judgeState, () =>
+          (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+            judgePrompt,
+            judgeOpts,
+          ),
+        );
+      } catch (declined) {
+        // The declined judge admission degrades typed (RV2106): the
+        // ninth parity run's judge estimate did not fit the
+        // orchestrator account's working room past the held synthesis
+        // reserve, and the pre-dispatch refusal flew out of the
+        // coordination bare: exhausted, no fold, the synthesis its
+        // reserve was holding money for never dispatched, four ok
+        // children and a composed draft lost. The judge is optional
+        // enrichment: the refusal journals its verdict with the
+        // arithmetic, the meta names the declined pass beside the
+        // judgeFailed precedent, and only the armed 'fail' posture
+        // stops the run, because a gate armed to stop the run must
+        // not pass silently when its judge cannot be seated.
+        if (!(declined instanceof BudgetExhaustedError)) {
+          throw declined;
+        }
+        claimConsistencyMeta = finishMeta({ judgeInvoked: false, judgeDeclined: true });
+        const declineKey = deriverV2.deriveKey({ kind: 'orchestrator-claim-judge-declined' });
+        if (
+          !internals.replayer
+            .snapshot()
+            .some((entry) => entry.kind === 'decision' && entry.key === declineKey)
+        ) {
+          await internals.replayer.appendSinglePhase({
+            scope: callingState.scope,
+            key: declineKey,
+            kind: 'decision',
+            status: 'ok',
+            spanId: internals.spans.mint(callingState.spanId),
+            site: 'orchestrator-budget',
+            value: {
+              decisionType: 'orchestrator_claim_judge_declined',
+              reason: declined.message.slice(0, 300),
+              remainingUsd:
+                internals.budget.remainingUsd(orchestratorAccount ?? ROOT_ACCOUNT) ?? null,
+            },
+          });
+        }
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg: 'orchestrator claim consistency judge declined by admission',
+            data: { reason: declined.message.slice(0, 300) },
+          },
+          callingState.spanId,
+        );
+        if (onFound === 'fail') {
+          throw new FailRunError(
+            'the claim-consistency judge could not be admitted within the orchestrator ' +
+              'account, so the armed fail posture cannot pass the draft: ' +
+              declined.message.slice(0, 300),
+            {
+              data: {
+                source: 'orchestrator_claim_consistency',
+                claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+                ...(snapshot ?? {}),
+              },
+            },
+          );
+        }
+        return;
+      }
       if (judged.status !== 'ok' || judged.output === null || judged.output === undefined) {
         // The judge died: nothing was judged, and saying "no findings"
         // would claim the pool agreed. The meta names the failure; only

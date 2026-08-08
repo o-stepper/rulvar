@@ -820,6 +820,95 @@ describe('critical coverage and run-facts grounding wired into the orchestrator 
   });
 });
 
+describe('the declined judge admission degrades typed (RV2106, the ninth parity run)', () => {
+  // The ninth parity run: four ok children, a composed and accepted
+  // draft, and the claim judge's 0.28 estimate refused against the
+  // orchestrator account's working room past the held synthesis
+  // reserve; the bare refusal killed the run with the synthesis its
+  // reserve was funding never dispatched. The refusal now journals its
+  // verdict, the meta names the declined pass, and the synthesis runs.
+  function declinedHarness() {
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    const judge = scriptedAdapter((): ScriptedTurn => JUDGE_FINDS, { id: 'judge' });
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: 'final text' } } }),
+      { id: 'strong' },
+    );
+    return makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: { worker: { description: 'reads one span', estCost: 0.001 } },
+      budgetUsd: 0.5,
+    });
+  }
+  const DECLINED_OPTS = {
+    acceptance: { childPolicy: 'all-ok' as const },
+    // Working room past the hold: 0.06 - 0.05 = 0.01; the judge's
+    // 0.02 estimate cannot seat once the coordination turns spent.
+    budget: { capUsd: 0.06, capFraction: 1.0, synthesisReserveUsd: 0.05 },
+    synthesis: { limits: { maxTurns: 2 }, estCost: 0.005 },
+  };
+
+  it('journals the declined verdict, names the meta, and still dispatches the synthesis', async () => {
+    const { internals, store, events } = declinedHarness();
+    const wf = makeOrchestratorWorkflow('audit the executor', {
+      ...DECLINED_OPTS,
+      claimConsistency: { judge: { model: 'judge:model', estCost: 0.02 } },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      claimContradictions?: unknown[];
+      claimConsistencyMeta?: { judgeInvoked?: boolean; judgeDeclined?: boolean };
+    };
+    // The synthesis its reserve was funding DID dispatch.
+    expect(envelope).toMatchObject({});
+    const meta = envelope.claimConsistencyMeta;
+    expect(meta?.judgeInvoked).toBe(false);
+    expect(meta?.judgeDeclined).toBe(true);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const declined = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_claim_judge_declined',
+    );
+    const value = declined?.value as { reason?: string; remainingUsd?: number } | undefined;
+    expect(value).toBeDefined();
+    // The refusal's own arithmetic, the held reserve named (RV2106).
+    expect(String(value?.reason ?? '')).toContain('held synthesis reserve 0.0500');
+    expect(typeof value?.remainingUsd).toBe('number');
+    // The synthesis agent settled ok with the final text.
+    const synthesized = entries.find(
+      (entry) => entry.kind === 'agent' && entry.status === 'ok' && entry.value === 'final text',
+    );
+    expect(synthesized).toBeDefined();
+    const warn = events
+      .ofType('log')
+      .find(
+        (event) =>
+          (event as { msg?: string }).msg ===
+          'orchestrator claim consistency judge declined by admission',
+      );
+    expect(warn).toBeDefined();
+  });
+
+  it("the armed 'fail' posture cannot pass a draft its judge could not be seated for", async () => {
+    const { internals } = declinedHarness();
+    const wf = makeOrchestratorWorkflow('audit the executor', {
+      ...DECLINED_OPTS,
+      claimConsistency: { onFound: 'fail', judge: { model: 'judge:model', estCost: 0.02 } },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as Error).message)).toContain('could not be admitted');
+  });
+});
+
 describe('the claim-coverage grade (RV1702)', () => {
   it('derives the closed vocabulary with judge-failed strongest, then critical, then partial', () => {
     const base = { draftCitingSentences: 4, truncated: false, coveredCitingSentences: 4 };

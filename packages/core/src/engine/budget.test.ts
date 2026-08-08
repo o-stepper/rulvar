@@ -79,6 +79,50 @@ describe('projected layer-1 admission', () => {
   });
 });
 
+describe('the refusal names the held synthesis reserve (RV2106, the ninth parity run)', () => {
+  it('prints the hold so the arithmetic closes, and stamps it on the data', () => {
+    // The ninth run's refusal read "spent 0.3849 plus committed
+    // reserves 0.0000 plus the proposed reserve 0.2800 does not fit
+    // the ceiling 1.9000": numbers that fit with room to spare,
+    // because the 1.40 hold that ate the room was in the sum and not
+    // in the message.
+    const budget = new RunBudget({ ceilingUsd: 5 });
+    budget.openAccount('orchestrator', { ceilingUsd: 0.06 });
+    budget.commitSynthesisReserve('orchestrator', 0.05);
+    let thrown: unknown;
+    try {
+      budget.admitSpawn(0.02, 'orchestrator');
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(BudgetExhaustedError);
+    const refusal = thrown as BudgetExhaustedError;
+    expect(refusal.message).toContain('plus the held synthesis reserve 0.0500 USD');
+    expect(refusal.message).toContain('the proposed reserve 0.0200 USD');
+    const data = refusal.data as {
+      synthesisReserveUsd?: number;
+      finalizeReserveUsd?: number;
+    };
+    expect(data.synthesisReserveUsd).toBe(0.05);
+    expect(data.finalizeReserveUsd).toBe(0);
+  });
+
+  it('keeps the hold-free refusal bytes unchanged', () => {
+    const budget = new RunBudget({ ceilingUsd: 0.001 });
+    let thrown: unknown;
+    try {
+      budget.admitSpawn(0.01);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(BudgetExhaustedError);
+    expect((thrown as Error).message).toContain(
+      'committed reserves 0.0000 USD plus the proposed reserve 0.0100 USD',
+    );
+    expect((thrown as Error).message).not.toContain('held synthesis reserve');
+  });
+});
+
 describe('layer 2b: maxAffordableOutputTokens', () => {
   it('derives affordable output from the remaining budget and the output price', () => {
     const budget = pricedBudget({ ceilingUsd: 0.001, pricing: { 'fake:model': PRICED } });
