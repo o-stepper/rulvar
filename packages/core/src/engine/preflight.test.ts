@@ -2624,3 +2624,71 @@ describe('the reserve line headroom threshold knob (RV2201)', () => {
     );
   });
 });
+
+describe('the drained-finalization funding (RV2204, the third parity rerun)', () => {
+  function drainInput(options: {
+    exposureCap?: number;
+    reserve?: boolean;
+    window?: boolean;
+    toolCap?: boolean;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED } },
+      },
+      run: {
+        budgetUsd: 5,
+        ...(options.exposureCap === undefined
+          ? {}
+          : { maxInFlightExposureUsd: options.exposureCap }),
+      },
+      spawns: [
+        {
+          label: 'digger',
+          estCost: 0.1,
+          limits: {
+            maxOutputTokensPerTurn: 2500,
+            ...(options.toolCap === false ? {} : { maxToolCalls: 40 }),
+            ...(options.window === false
+              ? {}
+              : { finalizationWindow: { reserveCalls: 4, allow: ['record_evidence'] } }),
+            ...(options.reserve === true ? { finalizationReserve: { maxOutputTokens: 400 } } : {}),
+          },
+        },
+      ],
+    };
+  }
+
+  it('names a window under an exposure cap with no reserve to fund the grant', () => {
+    const unfunded = preflightEstimate(drainInput({ exposureCap: 0.5 }));
+    const finding = unfunded.findings.find(
+      (entry) => entry.code === 'drained-finalization-unfunded',
+    );
+    expect(finding?.severity).toBe('info');
+    expect(finding?.message).toContain('RV2204');
+    const funded = preflightEstimate(drainInput({ exposureCap: 0.5, reserve: true }));
+    expect(funded.findings.some((entry) => entry.code === 'drained-finalization-unfunded')).toBe(
+      false,
+    );
+    const uncapped = preflightEstimate(drainInput({}));
+    expect(uncapped.findings.some((entry) => entry.code === 'drained-finalization-unfunded')).toBe(
+      false,
+    );
+  });
+
+  it('a reserve without tool limiters is inert only without the exposure cap', () => {
+    // The drain learned to spend the reserve (RV2204): under a declared
+    // in-flight cap the reserve is no longer inert without tool caps.
+    const inert = preflightEstimate(drainInput({ reserve: true, window: false, toolCap: false }));
+    expect(inert.findings.some((entry) => entry.code === 'inert-finalization-reserve')).toBe(true);
+    const armed = preflightEstimate(
+      drainInput({ exposureCap: 0.5, reserve: true, window: false, toolCap: false }),
+    );
+    expect(armed.findings.some((entry) => entry.code === 'inert-finalization-reserve')).toBe(false);
+  });
+});

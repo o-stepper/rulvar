@@ -3622,6 +3622,35 @@ const MUTATIONS = [
     replace: '      if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'drained-finalization-grant',
+    doctrine:
+      'a mid-work drained seat spends one clamped finalization turn before its typed terminal (RV2204): the third parity rerun killed three workers ~30 turns into research with evidence pools of 17 and 22 under a floor of 24 and a configured finalization window the drain never let play',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "        typedReason === 'exposure-drained' &&\n        limits.finalizationReserve !== undefined &&\n        turns > 1 &&\n        !drainFinalizationRan",
+    replace:
+      "        typedReason === 'exposure-drained' &&\n        limits.finalizationReserve !== undefined &&\n        false &&\n        !drainFinalizationRan",
+    test: 'packages/core/src/runtime/drained-finalization.test.ts',
+  },
+  {
+    id: 'drained-zero-cost-doctrine',
+    doctrine:
+      'a seat drained before its first completed turn keeps dying free (RV2002, held by RV2204): nothing to summarize, nothing paid, and the grant fires only past the first completed turn',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "        typedReason === 'exposure-drained' &&\n        limits.finalizationReserve !== undefined &&\n        turns > 1 &&\n        !drainFinalizationRan",
+    replace:
+      "        typedReason === 'exposure-drained' &&\n        limits.finalizationReserve !== undefined &&\n        turns > 0 &&\n        !drainFinalizationRan",
+    test: 'packages/core/src/runtime/drained-finalization.test.ts',
+  },
+  {
+    id: 'drained-finalization-unfunded-finding',
+    doctrine:
+      'preflight names a finalization window declared under an exposure cap with no reserve to fund the drained-finalization grant (RV2204): the third rerun shipped exactly that contradiction with no static warning',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '    if (\n      limits.finalizationWindow !== undefined &&\n      limits.finalizationReserve?.maxOutputTokens === undefined &&\n      input.run?.maxInFlightExposureUsd !== undefined\n    ) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

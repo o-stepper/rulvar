@@ -4061,6 +4061,137 @@ export async function runAgent<S extends SchemaSpec>(
   ];
   const loopCursor = { index: 0 };
 
+  /**
+   * The drained-finalization grant (RV2204, the third parity rerun).
+   * The exposure drain is terminal mid-work: spend only grows, so a
+   * seat refused with no live holder left can never dispatch an
+   * ordinary turn again. The third parity rerun killed three workers
+   * ~30 turns into research with evidence pools of 17 and 22 under a
+   * floor of 24 and a CONFIGURED finalization window: the drain came
+   * before the window, and the window's play needs the very wire the
+   * drain refuses. With `limits.finalizationReserve.maxOutputTokens`
+   * declared, a drained seat that already did work now spends ONE
+   * clamped finalization turn before its typed terminal: the output
+   * clamp shrinks the turn's exposure estimate (the full estimate was
+   * refused; the clamped one prices the summary allowance instead of
+   * the whole per-turn cap), the finalization-window allowlist rides
+   * as the turn's only tools so outstanding record_evidence calls can
+   * land in parallel, and the executed calls persist through the
+   * ordinary tool machinery. Best effort, exactly like the tool-budget
+   * reserve turn: a refusal of even the clamped estimate warns and
+   * keeps the typed drained terminal; a seat with NO completed turns
+   * keeps dying free (the RV2002 zero-cost doctrine: nothing to
+   * summarize, nothing paid).
+   */
+  let drainFinalizationRan = false;
+  const runDrainFinalization = async (refusal: string): Promise<void> => {
+    const allow = limits.finalizationWindow?.allow;
+    const allowedTools =
+      allow === undefined
+        ? undefined
+        : options.tools?.contracts.filter((contract) => allow.includes(contract.name));
+    const toolsRide = allowedTools !== undefined && allowedTools.length > 0;
+    const drainMessages: Msg[] = [
+      ...messages,
+      {
+        role: 'user',
+        parts: [
+          {
+            type: 'text',
+            text:
+              `The run's in-flight exposure pool is drained; no further ordinary turns can ` +
+              `dispatch (${refusal}). This is your single finalization turn` +
+              (toolsRide
+                ? `: record any outstanding evidence with the allowed tools IN THIS turn ` +
+                  `(parallel calls), then close`
+                : `: close`) +
+              ` with your best final summary of the work already done.`,
+          },
+        ],
+      },
+    ];
+    let grant: Awaited<ReturnType<typeof dispatchPhase>> | undefined;
+    try {
+      grant = await dispatchPhase({
+        role: primaryRole,
+        chain: loopChain,
+        cursor: loopCursor,
+        requestFor: (target) => {
+          let req = buildRequest(
+            target.resolved,
+            projectHistory(drainMessages, providerOf(target.adapter)),
+            limits,
+            toolsRide ? allowedTools : undefined,
+          );
+          const reserveMax = limits.finalizationReserve?.maxOutputTokens;
+          if (reserveMax !== undefined) {
+            req = {
+              ...req,
+              maxOutputTokens: Math.min(req.maxOutputTokens ?? reserveMax, reserveMax),
+            };
+          }
+          req = applyCachePolicy(req, target, options.cache);
+          return applyOutputBudget(req, target, options.budget);
+        },
+        streamOptionsFor: (target) => {
+          const drainStreamOptions: Parameters<typeof streamTurn>[2] = {
+            idleTimeoutMs: limits.streamIdleTimeoutMs,
+            signals: options.signal === undefined ? [] : [options.signal],
+            onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+          };
+          if (options.budget?.signal !== undefined) {
+            drainStreamOptions.budgetSignal = options.budget.signal;
+          }
+          if (options.stream === true) {
+            drainStreamOptions.onDelta = (delta) => events?.emit({ type: 'agent:stream', delta });
+          }
+          return drainStreamOptions;
+        },
+      });
+    } catch (grantThrown) {
+      if (!(grantThrown instanceof BudgetExhaustedError)) {
+        throw grantThrown;
+      }
+      events?.emit({
+        type: 'log',
+        level: 'warn',
+        msg: `the drained-finalization turn was skipped: ${grantThrown.message}`,
+      });
+      return;
+    }
+    const { outcome: grantOutcome, target: grantTarget } = grant;
+    servedBy = grantTarget.resolved.ref;
+    usageApprox = usageApprox || grantOutcome.usageApprox;
+    messages.push(
+      assistantMsg(
+        grantOutcome.turn,
+        liftRetainedParts(grantOutcome.providerMetadata, grantTarget.adapter),
+      ),
+    );
+    if (toolsRide && grantOutcome.turn.toolCalls.length > 0) {
+      try {
+        await runToolCalls(grantOutcome.turn.toolCalls, []);
+      } catch (toolThrown) {
+        events?.emit({
+          type: 'log',
+          level: 'warn',
+          msg: `a drained-finalization tool call failed: ${
+            toolThrown instanceof Error ? toolThrown.message : String(toolThrown)
+          }`,
+        });
+      }
+    }
+    events?.emit({
+      type: 'log',
+      level: 'info',
+      msg: 'the drained seat spent its finalization turn',
+      data: {
+        toolCalls: grantOutcome.turn.toolCalls.length,
+        outputTokens: grantOutcome.usage.outputTokens,
+      },
+    });
+  };
+
   // A pending-turn limit hit above skips the loop entirely.
   loop: while (status === 'ok' && !finishedViaTool) {
     // Per-agent wall clock.
@@ -4171,8 +4302,20 @@ export async function runAgent<S extends SchemaSpec>(
       // The typed markers ride the terminal (RV2002, RV2101): a
       // drained seat and a reserve-line floor refusal are boundaries
       // the orchestrator must tell apart from a crashed agent.
-      status = 'error';
       const typedReason = (thrown.data as { reason?: string } | undefined)?.reason;
+      // The drained-finalization grant (RV2204): a mid-work drained
+      // seat with a declared finalization reserve spends one clamped
+      // turn before the typed terminal; see runDrainFinalization.
+      if (
+        typedReason === 'exposure-drained' &&
+        limits.finalizationReserve !== undefined &&
+        turns > 1 &&
+        !drainFinalizationRan
+      ) {
+        drainFinalizationRan = true;
+        await runDrainFinalization(thrown.message);
+      }
+      status = 'error';
       agentError = {
         kind: 'budget',
         retryable: false,

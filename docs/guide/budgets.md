@@ -280,9 +280,22 @@ partial, the run exhausting with the settled children's fold as its value
 and a journaled `orchestrator_finalize_fallback` decision
 (`reason 'exposure-abort'`), never a bare escape; a CHILD dies as the typed
 cheap `exposure-drained` refusal (`AgentError.reason 'exposure-drained'`,
-carried into the journaled terminal's `error.data.reason`), zero provider
-attempts by construction, so the orchestrator tells a starved seat apart
-from a crashed child and can re-spawn it once money frees.
+carried into the journaled terminal's `error.data.reason`), so the
+orchestrator tells a starved seat apart from a crashed child and can
+re-spawn it once money frees. A seat drained before its first completed
+turn costs zero provider attempts by construction; a seat drained
+MID-WORK with `limits.finalizationReserve.maxOutputTokens` declared first
+spends one clamped finalization turn (RV2204, the third parity rerun:
+three workers died ~30 turns into research with evidence pools of 17 and
+22 under a floor of 24 and a configured finalization window the drain
+never let play): the clamp shrinks the turn's exposure estimate to the
+summary allowance, the [finalization window](/guide/agents#the-finalization-window)
+allowlist rides as the turn's only tools so outstanding
+`record_evidence` calls land in parallel, and a refusal of even the
+clamped estimate warns and keeps the typed drained terminal, best effort
+exactly like the tool-budget reserve turn. Preflight's
+`drained-finalization-unfunded` info names a window declared under an
+exposure cap with no reserve to fund the grant.
 
 The wait can never end the process silently (RV2003). The third parity
 rerun's terminal shape was exactly that: the root parked with nothing on
