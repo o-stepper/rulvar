@@ -205,6 +205,16 @@ export type RunOutcome<R> = {
   /** The explicit semantic pass summaries (RV1906); same lift and posture. */
   semanticPasses?: SemanticPassesSummary;
   /**
+   * The claim-consistency pass meta (`judgeInvoked`, `judgeDeclined`,
+   * the pair counts), lifted from the same envelope or typed error
+   * data (RV2203). The RV2106 mirror run journaled its declined judge
+   * and the error terminal carried null: the truth now rides every
+   * terminal that has it, ok and failed alike.
+   */
+  claimConsistencyMeta?: Record<string, unknown>;
+  /** The synthesis-skip marker from the same envelope; same lift and posture (RV2203). */
+  synthesisSkipped?: boolean | string;
+  /**
    * Children accepted through validated terminal output salvage on
    * 'limit'; same lift and posture.
    */

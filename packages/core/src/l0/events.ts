@@ -71,6 +71,15 @@ export type CoreEvents =
         claimConsistency: { ran: boolean; reason?: string };
         synthesis: { ran: boolean; reason?: string };
       };
+      /**
+       * The claim-consistency pass meta, lifted from the same envelope
+       * (or typed error data) when it carries a valid object (RV2203);
+       * `judgeDeclined` rides here on the failed terminals that used to
+       * read null while the journal held the verdict.
+       */
+      claimConsistencyMeta?: Record<string, unknown>;
+      /** The synthesis-skip marker from the same envelope; same lift (RV2203). */
+      synthesisSkipped?: boolean | string;
       /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
       salvagedTerminalOutputChildren?: string[];
       /**

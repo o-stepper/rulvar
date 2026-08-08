@@ -634,6 +634,8 @@ function liftRunCompletion(candidate: unknown):
       belowFloorOkChildren?: string[];
       acceptanceChildren?: AcceptanceChildSummary[];
       semanticPasses?: SemanticPassesSummary;
+      claimConsistencyMeta?: Record<string, unknown>;
+      synthesisSkipped?: boolean | string;
     }
   | undefined {
   if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
@@ -652,6 +654,8 @@ function liftRunCompletion(candidate: unknown):
     belowFloorOkChildren?: string[];
     acceptanceChildren?: AcceptanceChildSummary[];
     semanticPasses?: SemanticPassesSummary;
+    claimConsistencyMeta?: Record<string, unknown>;
+    synthesisSkipped?: boolean | string;
   } = { completion };
   const counts = (candidate as { childStatusCounts?: unknown }).childStatusCounts;
   if (typeof counts === 'object' && counts !== null && !Array.isArray(counts)) {
@@ -768,6 +772,23 @@ function liftRunCompletion(candidate: unknown):
         synthesis: { ...synthesis },
       };
     }
+  }
+  // The judge-pass meta and the synthesis-skip marker (RV2203), same
+  // posture as the roster: the RV2106 mirror run journaled its
+  // declined judge and the error terminal carried claimConsistencyMeta
+  // null, so the only truth lived in the journal. A valid object
+  // mirrors shallowly; anything malformed drops silently.
+  const metaCandidate = (candidate as { claimConsistencyMeta?: unknown }).claimConsistencyMeta;
+  if (
+    typeof metaCandidate === 'object' &&
+    metaCandidate !== null &&
+    !Array.isArray(metaCandidate)
+  ) {
+    lifted.claimConsistencyMeta = { ...(metaCandidate as Record<string, unknown>) };
+  }
+  const skippedCandidate = (candidate as { synthesisSkipped?: unknown }).synthesisSkipped;
+  if (typeof skippedCandidate === 'boolean' || typeof skippedCandidate === 'string') {
+    lifted.synthesisSkipped = skippedCandidate;
   }
   return lifted;
 }
@@ -1993,13 +2014,23 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // outcome and the event can never disagree. Replay re-executes the
       // workflow and recomputes the same value, so the lifted fields are
       // identical live and replayed.
-      const lifted = liftRunCompletion(
+      let lifted = liftRunCompletion(
         status === 'ok' || status === 'exhausted'
           ? outcomeFacts.value
           : status === 'error'
             ? wireError?.data
             : undefined,
       );
+      // The exhausted fallback (RV2203): an exhausted run whose partial
+      // value carries no envelope still reports through its enriched
+      // error data. The seventh subscription parity resume settled
+      // exhausted on a spawn-cap refusal AFTER its acceptance verdict
+      // recorded accepted/complete with four ok children, and the
+      // terminal read completion null with children null: the error
+      // carried the truth and the lift never looked.
+      if (lifted === undefined && status === 'exhausted') {
+        lifted = liftRunCompletion(wireError?.data);
+      }
       if (lifted !== undefined) {
         outcomeFacts.completion = lifted.completion;
         if (lifted.childStatusCounts !== undefined) {
@@ -2022,6 +2053,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.semanticPasses !== undefined) {
           outcomeFacts.semanticPasses = lifted.semanticPasses;
+        }
+        if (lifted.claimConsistencyMeta !== undefined) {
+          outcomeFacts.claimConsistencyMeta = lifted.claimConsistencyMeta;
+        }
+        if (lifted.synthesisSkipped !== undefined) {
+          outcomeFacts.synthesisSkipped = lifted.synthesisSkipped;
         }
       }
       // The journaled settle (fenced run state RFC, phase 3): the run's

@@ -3595,6 +3595,33 @@ const MUTATIONS = [
       '            `${listCitations(unsupported)}; each such claim must name a run id or a ` +\n            `file:line citation beside it`,',
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
+  {
+    id: 'exhausted-lift-reads-error-data',
+    doctrine:
+      'the exhausted terminal lifts its completion facts from the enriched error data when the partial value carries no envelope (RV2203): the seventh subscription parity resume settled exhausted with completion null over a journaled accepted acceptance',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "      if (lifted === undefined && status === 'exhausted') {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/run-completion.test.ts',
+  },
+  {
+    id: 'claim-meta-rides-the-lift',
+    doctrine:
+      "the claim-consistency meta mirrors onto the outcome and run:end through the same lift as completion (RV2203): the RV2106 mirror run's error terminal read claimConsistencyMeta null over a journal holding the declined-judge verdict",
+    file: 'packages/core/src/engine/engine.ts',
+    find: '  const metaCandidate = (candidate as { claimConsistencyMeta?: unknown }).claimConsistencyMeta;',
+    replace: '  const metaCandidate = undefined;',
+    test: 'packages/core/src/engine/run-completion.test.ts',
+  },
+  {
+    id: 'budget-class-failure-enriched',
+    doctrine:
+      'a synthesis-path budget failure rethrows its own class with the acceptance facts and pass summaries widened onto its data (RV2203): the class is the status, and the raw rethrow left the exhausted terminal blind to the accepted acceptance it followed',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (thrown instanceof BudgetExhaustedError) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

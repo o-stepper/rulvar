@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { FailRunError } from '../l0/errors.js';
+import { BudgetExhaustedError, FailRunError } from '../l0/errors.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from './engine.js';
 import { defineWorkflow } from './ctx.js';
@@ -353,5 +353,76 @@ describe('the acceptance children lift (RV806)', () => {
     expect(
       (runEnd as { acceptanceChildren?: unknown } | undefined)?.acceptanceChildren,
     ).toBeUndefined();
+  });
+});
+
+describe('the failure envelope carries the pass truth (RV2203)', () => {
+  // The seventh subscription parity resume settled exhausted on a
+  // spawn-cap refusal AFTER its acceptance verdict recorded
+  // accepted/complete with four ok children, and the terminal read
+  // completion null with children null; the RV2106 mirror run's error
+  // terminal read claimConsistencyMeta null over a journal holding the
+  // declined-judge verdict. The lift now reads the enriched error data
+  // on the exhausted path and mirrors the claim meta on every path.
+  it('an exhausted run with no value envelope lifts from its enriched error data', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'famine' }, async () => {
+      await Promise.resolve();
+      throw new BudgetExhaustedError('engine lifetime spawn cap reached (8 spawns per run)', {
+        data: {
+          completion: 'complete',
+          childStatusCounts: { ok: 4 },
+          degradedReasons: [],
+          claimConsistencyMeta: { judgeInvoked: false, judgeDeclined: true },
+        },
+      });
+    });
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.status).toBe('exhausted');
+    expect(outcome.completion).toBe('complete');
+    expect(outcome.childStatusCounts).toEqual({ ok: 4 });
+    expect(
+      (outcome as { claimConsistencyMeta?: Record<string, unknown> }).claimConsistencyMeta,
+    ).toEqual({ judgeInvoked: false, judgeDeclined: true });
+    expect(
+      (runEnd as { claimConsistencyMeta?: Record<string, unknown> } | undefined)
+        ?.claimConsistencyMeta,
+    ).toEqual({ judgeInvoked: false, judgeDeclined: true });
+  });
+
+  it('an error run lifts the claim meta and the synthesis-skip marker from its typed data', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'rejected' }, async () => {
+      await Promise.resolve();
+      throw new FailRunError('finish failed host validation', {
+        data: {
+          completion: 'complete',
+          childStatusCounts: { ok: 4 },
+          claimConsistencyMeta: { judgeInvoked: false, judgeDeclined: true },
+          synthesisSkipped: false,
+        },
+      });
+    });
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.status).toBe('error');
+    expect(outcome.completion).toBe('complete');
+    expect(
+      (outcome as { claimConsistencyMeta?: Record<string, unknown> }).claimConsistencyMeta,
+    ).toEqual({ judgeInvoked: false, judgeDeclined: true });
+    expect((outcome as { synthesisSkipped?: boolean | string }).synthesisSkipped).toBe(false);
+  });
+
+  it('malformed claim meta drops silently, exactly like the roster', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'malformed' }, async () => {
+      await Promise.resolve();
+      throw new FailRunError('rejected', {
+        data: { completion: 'rejected', claimConsistencyMeta: 'nonsense', synthesisSkipped: 7 },
+      });
+    });
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.completion).toBe('rejected');
+    expect((outcome as { claimConsistencyMeta?: unknown }).claimConsistencyMeta).toBeUndefined();
+    expect((outcome as { synthesisSkipped?: unknown }).synthesisSkipped).toBeUndefined();
   });
 });
