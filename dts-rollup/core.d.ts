@@ -2162,7 +2162,15 @@ type CoreEvents = {
       ran: boolean;
       reason?: string;
     };
-  }; /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
+  };
+  /**
+  * The claim-consistency pass meta, lifted from the same envelope
+  * (or typed error data) when it carries a valid object (RV2203);
+  * `judgeDeclined` rides here on the failed terminals that used to
+  * read null while the journal held the verdict.
+  */
+  claimConsistencyMeta?: Record<string, unknown>; /** The synthesis-skip marker from the same envelope; same lift (RV2203). */
+  synthesisSkipped?: boolean | string; /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
   salvagedTerminalOutputChildren?: string[];
   /**
   * Children that settled 'ok' below their declared evidence floor
@@ -11304,6 +11312,15 @@ type RunOutcome<R> = {
   degradedReasons?: string[]; /** Children accepted by acceptPartialChildren; same lift and posture. */
   salvagedPartialChildren?: string[]; /** The explicit semantic pass summaries (RV1906); same lift and posture. */
   semanticPasses?: SemanticPassesSummary;
+  /**
+  * The claim-consistency pass meta (`judgeInvoked`, `judgeDeclined`,
+  * the pair counts), lifted from the same envelope or typed error
+  * data (RV2203). The RV2106 mirror run journaled its declined judge
+  * and the error terminal carried null: the truth now rides every
+  * terminal that has it, ok and failed alike.
+  */
+  claimConsistencyMeta?: Record<string, unknown>; /** The synthesis-skip marker from the same envelope; same lift and posture (RV2203). */
+  synthesisSkipped?: boolean | string;
   /**
   * Children accepted through validated terminal output salvage on
   * 'limit'; same lift and posture.

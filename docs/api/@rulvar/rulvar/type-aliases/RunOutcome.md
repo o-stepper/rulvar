@@ -11,6 +11,7 @@ type RunOutcome<R> = {
   acceptanceChildren?: AcceptanceChildSummary[];
   belowFloorOkChildren?: string[];
   childStatusCounts?: Record<string, number>;
+  claimConsistencyMeta?: Record<string, unknown>;
   completion?: "complete" | "partial" | "rejected";
   cost: CostReport;
   degradedReasons?: string[];
@@ -22,6 +23,7 @@ type RunOutcome<R> = {
   salvagedTerminalOutputChildren?: string[];
   semanticPasses?: SemanticPassesSummary;
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  synthesisSkipped?: boolean | string;
   usage: Usage;
   value?: R;
 };
@@ -86,6 +88,22 @@ Settled child statuses by status name, lifted from the same
 envelope (or typed error data) when it carries a valid record of
 nonnegative integers; the mirror of the `run:end` field. Absent
 otherwise.
+
+***
+
+### claimConsistencyMeta?
+
+```ts
+optional claimConsistencyMeta?: Record<string, unknown>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The claim-consistency pass meta (`judgeInvoked`, `judgeDeclined`,
+the pair counts), lifted from the same envelope or typed error
+data (RV2203). The RV2106 mirror run journaled its declined judge
+and the error terminal carried null: the truth now rides every
+terminal that has it, ok and failed alike.
 
 ***
 
@@ -227,6 +245,16 @@ Defined in: `packages/core/dist/index.d.ts`
 
 ```ts
 status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### synthesisSkipped?
+
+```ts
+optional synthesisSkipped?: boolean | string;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`

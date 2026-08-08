@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
-import { ConfigError, FailRunError } from '../l0/errors.js';
+import { BudgetExhaustedError, ConfigError, FailRunError } from '../l0/errors.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { defineWorkflow, executeWorkflow } from '../engine/ctx.js';
 import {
@@ -6521,5 +6521,66 @@ describe('the post-acceptance synthesis decline (RV2201, the seventh subscriptio
     expect(value.reason).toContain('lifetime spawn cap');
     expect(value.spawnHeadroom).toBe(0);
     expect(typeof value.remainingUsd).toBe('number');
+  });
+});
+
+describe('the failure envelope carries the pass truth (RV2203, the seventh subscription parity resume)', () => {
+  const ROUTING_2203 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+
+  it('a starved synthesis rethrows its class with the acceptance facts and pass summaries', async () => {
+    let rootCall = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'dug the facts', usage: { inputTokens: 40, outputTokens: 10 } };
+      }
+      rootCall += 1;
+      if (rootCall === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } },
+          usage: { inputTokens: 30, outputTokens: 10 },
+        };
+      }
+      if (rootCall === 2) {
+        return {
+          toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 30, outputTokens: 10 },
+        };
+      }
+      return {
+        toolCall: { name: 'finish', args: { result: 'the composed draft' } },
+        usage: { inputTokens: 30, outputTokens: 10 },
+      };
+    });
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2203,
+      profiles: { worker: { description: 'digger', estCost: 0.01 } },
+      budgetUsd: 1,
+      lifetimeSpawnCap: 2,
+    });
+    const wf = makeOrchestratorWorkflow('coordinate then compose', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 2 }, estCost: 0.01 },
+    });
+    const thrown = await executeWorkflow(internals, wf, undefined).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    // The class is the status: the enrichment rebuilds the same class.
+    expect(thrown).toBeInstanceOf(BudgetExhaustedError);
+    const data = (thrown as BudgetExhaustedError).data as {
+      completion?: string;
+      childStatusCounts?: Record<string, number>;
+      degradedReasons?: string[];
+      semanticPasses?: { synthesis?: { ran?: boolean; reason?: string } };
+    };
+    expect(data.completion).toBe('complete');
+    expect(data.childStatusCounts).toEqual({ ok: 1 });
+    expect(data.degradedReasons).toEqual([]);
+    expect(data.semanticPasses?.synthesis).toEqual({ ran: false, reason: 'synthesis-failed' });
   });
 });

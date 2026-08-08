@@ -6930,6 +6930,26 @@ export function makeOrchestratorWorkflow(
         },
       });
     };
+    /**
+     * The pass summaries as one builder (RV2203): the ok envelope and
+     * the failure enrichment must tell the same {ran, reason} story,
+     * with only the synthesis arm differing by path.
+     */
+    const semanticPassesSummary = (synthesis: { ran: boolean; reason?: string }): Json => ({
+      contradictions:
+        opts?.contradictions === undefined
+          ? { ran: false, reason: 'not-configured' }
+          : contradictionsFound === undefined
+            ? { ran: false, reason: 'not-run' }
+            : { ran: true },
+      claimConsistency:
+        opts?.claimConsistency === undefined
+          ? { ran: false, reason: 'not-configured' }
+          : claimConsistencyMeta === undefined
+            ? { ran: false, reason: 'not-run' }
+            : { ran: true },
+      synthesis,
+    });
     const enrichSynthesisFailure = (
       thrown: unknown,
       snapshot?: {
@@ -6940,6 +6960,30 @@ export function makeOrchestratorWorkflow(
         salvagedTerminalOutputChildren?: Json;
       },
     ): never => {
+      // The failure envelope carries the pass truth (RV2203): the
+      // RV2106 mirror run's error terminal read claimConsistencyMeta
+      // null over a journal holding the declined-judge verdict, and
+      // the seventh subscription parity resume settled exhausted with
+      // completion null over a journaled accepted acceptance. The same
+      // facts the ok envelope reports ride every enriched failure.
+      const passTruth: Record<string, Json> = {
+        ...(claimConsistencyMeta === undefined
+          ? {}
+          : { claimConsistencyMeta: claimConsistencyMeta as unknown as Json }),
+        semanticPasses: semanticPassesSummary({ ran: false, reason: 'synthesis-failed' }),
+      };
+      if (thrown instanceof BudgetExhaustedError) {
+        // The class is the status: BudgetExhaustedError derives the
+        // 'exhausted' outcome, so the enrichment rebuilds the same
+        // class with the same message and the widened data.
+        throw new BudgetExhaustedError(thrown.message, {
+          data: {
+            ...((thrown.data ?? {}) as Record<string, Json>),
+            ...(snapshot ?? {}),
+            ...passTruth,
+          },
+        });
+      }
       if (!(thrown instanceof FailRunError)) {
         throw thrown;
       }
@@ -6958,6 +7002,7 @@ export function makeOrchestratorWorkflow(
         data: {
           ...base,
           ...(snapshot ?? {}),
+          ...passTruth,
           ...(spent.length === 0 || base.repairsUsed !== undefined
             ? {}
             : {
@@ -7553,26 +7598,13 @@ export function makeOrchestratorWorkflow(
       // clean pass. The benchmark's recovery artifacts carried
       // contradictions: null and claimConsistencyMeta: null, and the
       // judge had to annotate by hand that null meant NOT RUN.
-      semanticPasses: {
-        contradictions:
-          opts?.contradictions === undefined
-            ? { ran: false, reason: 'not-configured' }
-            : contradictionsFound === undefined
-              ? { ran: false, reason: 'not-run' }
-              : { ran: true },
-        claimConsistency:
-          opts?.claimConsistency === undefined
-            ? { ran: false, reason: 'not-configured' }
-            : claimConsistencyMeta === undefined
-              ? { ran: false, reason: 'not-run' }
-              : { ran: true },
-        synthesis:
-          opts?.synthesis === undefined
-            ? { ran: false, reason: 'not-configured' }
-            : synthesisSkippedByValidDraft
-              ? { ran: false, reason: 'valid-draft' }
-              : { ran: true },
-      } as unknown as Json,
+      semanticPasses: semanticPassesSummary(
+        opts?.synthesis === undefined
+          ? { ran: false, reason: 'not-configured' }
+          : synthesisSkippedByValidDraft
+            ? { ran: false, reason: 'valid-draft' }
+            : { ran: true },
+      ),
     };
   };
   return defineWorkflow({ name: ORCHESTRATE_WORKFLOW_NAME }, async (ctx): Promise<unknown> => {
