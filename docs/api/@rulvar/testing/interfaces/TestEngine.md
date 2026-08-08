@@ -208,7 +208,9 @@ loudly and proceeds (the journal decides replay per content keys).
 A compiled run resumes WITHOUT wf: the engine rehydrates the
 persisted source pinned by workflowHash; supplying a compiled wf
 whose source hash differs from the recorded one is a typed
-ConfigError (M6-T02).
+ConfigError (M6-T02). ResumeOptions.run (RV2208) overrides the
+recorded budget ceilings for the run's remaining life, with a
+journaled decision and a typed floor at the settled spend.
 
 #### Type Parameters
 

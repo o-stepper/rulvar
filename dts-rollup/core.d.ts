@@ -7623,8 +7623,10 @@ interface RunOptions {
   * used to be per-invocation and unrecorded, so a resumed segment
   * silently ran without the bound the original invocation declared
   * (the seventeenth comparison benchmark's top FinOps gap). A run
-  * started without the cap stays uncapped for its whole life, and
-  * ResumeOptions deliberately has no field to override it.
+  * started without the cap stays uncapped for its whole life unless
+  * a host changes the posture through the explicit, validated,
+  * journaled ResumeOptions.run override (RV2208); nothing changes it
+  * silently.
   */
   maxInFlightExposureUsd?: number;
   /**
@@ -7637,7 +7639,9 @@ interface RunOptions {
   * and `allowUnpriced` (exact model refs the host KNOWS are free,
   * the explicit exception). Recorded in RunMeta at genesis and
   * restored on every resume, the exposure cap's rule (RV1504): a
-  * FinOps posture a resumed segment silently drops is not a posture.
+  * FinOps posture a resumed segment silently drops is not a posture
+  * (and unlike the two ceilings, ResumeOptions.run has no field for
+  * this gate: pricing hygiene is not a per-segment decision).
   * Absent by default: dispatch behavior stays byte identical, and an
   * unpriced model keeps debiting nothing, the documented ceiling
   * hole this mode exists to close.
@@ -7711,6 +7715,27 @@ interface ResumeOptions {
   * meta/blob surfaces remain advisory (the fenced run state RFC).
   */
   lease?: Lease;
+  /**
+  * Ceiling overrides for the resumed segment and the run's remaining
+  * life (RV2208). The RV1504 rule stands: the RunMeta-recorded
+  * posture is what a bare resume restores; this field is the ONE
+  * explicit way to change that posture after genesis. Each supplied
+  * value is validated exactly like its RunOptions counterpart,
+  * applied to this segment's budget, written back by the segment's
+  * first meta write (a LATER bare resume restores the overridden
+  * posture, not the genesis one), and journaled as a
+  * `run_budget_override` decision naming the recorded and applied
+  * values and the settled spend it was judged against. A `budgetUsd`
+  * below the journal's settled spend refuses typed before ownership,
+  * meta, or any append: such a ceiling would exhaust the segment
+  * before its first turn and read like a fresh money death. Absent
+  * fields keep the recorded values; an absent object keeps the
+  * historical behavior byte for byte.
+  */
+  run?: {
+    budgetUsd?: number;
+    maxInFlightExposureUsd?: number;
+  };
 }
 interface ResumeHandle<R> extends RunHandle<R> {
   /** Resolves at settle with the replay accounting. */
@@ -7726,7 +7751,9 @@ interface Engine {
   * A compiled run resumes WITHOUT wf: the engine rehydrates the
   * persisted source pinned by workflowHash; supplying a compiled wf
   * whose source hash differs from the recorded one is a typed
-  * ConfigError (M6-T02).
+  * ConfigError (M6-T02). ResumeOptions.run (RV2208) overrides the
+  * recorded budget ceilings for the run's remaining life, with a
+  * journaled decision and a typed floor at the settled spend.
   */
   resume<A, R>(runId: string, wf?: Workflow<A, R> | CompiledWorkflow, options?: ResumeOptions): ResumeHandle<R>;
   /**

@@ -3687,6 +3687,33 @@ const MUTATIONS = [
     replace: '        if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'resume-override-reaches-the-ceiling',
+    doctrine:
+      "ResumeOptions.run.budgetUsd is what the resumed segment's budget actually enforces (RV2208): dropping the override arm resumes the raise under the genesis ceiling, and the run the host just paid to finish dies exhausted against the very bound the override replaced",
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      opts?.budgetUsd ?? resumeCtx?.budgetOverride?.budgetUsd ?? resumeCtx?.budgetUsd;',
+    replace: '      opts?.budgetUsd ?? resumeCtx?.budgetUsd;',
+    test: 'packages/core/src/engine/run-budget-override.test.ts',
+  },
+  {
+    id: 'resume-override-spent-floor',
+    doctrine:
+      'a budgetUsd override below the settled spend refuses typed before any side effect (RV2208): severing the floor admits a ceiling the seed already exceeds, and the segment exhausts before its first turn instead of refusing with the spend arithmetic',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      if (overrideCeilingUsd !== undefined && budgetSeed.usd > overrideCeilingUsd) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/run-budget-override.test.ts',
+  },
+  {
+    id: 'resume-override-journals-decision',
+    doctrine:
+      "a ceiling change is never silent (RV2208): dropping the run_budget_override append applies the new posture with no journaled decision naming the recorded and applied values, and the audit reads a bound the run's own history cannot explain",
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      if (resumeCtx?.budgetOverride !== undefined && resumeCtx.strict !== true) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/run-budget-override.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
