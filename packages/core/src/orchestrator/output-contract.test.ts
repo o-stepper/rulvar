@@ -335,3 +335,90 @@ describe('contract exactness: the deep freeze, the per validator goldens, the kn
     expect(() => finishContract({ sections: ['``` output'] })).not.toThrow();
   });
 });
+
+describe('the counted section patterns (RV2206, the subscription parity series)', () => {
+  const MANIFEST = {
+    sections: ['## Findings', '## Negative scenarios'],
+    words: { min: 10, max: 400 },
+    sectionPatterns: [
+      {
+        section: '## Negative scenarios',
+        pattern: '\\bN(\\d{2})\\.',
+        min: 3,
+        samples: ['N01. the first', 'N02. the second', 'N03. the third'],
+        label: 'numbered negative scenarios',
+      },
+    ],
+  };
+
+  it('builds, self checks, and enforces distinct-by-capture counting', () => {
+    const contract = finishContract(MANIFEST);
+    const validator = contract.validators.find(
+      (candidate) => candidate.name === 'contract-section-patterns',
+    );
+    expect(validator).toBeDefined();
+    const text = (value: string) => ({ result: value, text: value });
+    // Three DISTINCT ids satisfy.
+    expect(
+      validator!.validate(text('## Findings\nfine\n## Negative scenarios\nN01. a\nN02. b\nN03. c'))
+        .ok,
+    ).toBe(true);
+    // A repeated id counts once: 2 distinct of 3 required.
+    const repeated = validator!.validate(
+      text('## Findings\nfine\n## Negative scenarios\nN01. a\nN01. again\nN02. b'),
+    );
+    expect(repeated.ok).toBe(false);
+    if (!repeated.ok) {
+      expect(repeated.reasons[0]).toContain("'## Negative scenarios'");
+      expect(repeated.reasons[0]).toContain('2 distinct numbered negative scenarios');
+      expect(repeated.reasons[0]).toContain('add the missing 1');
+    }
+    // Ids in the WRONG section do not count for the demand.
+    const misplaced = validator!.validate(
+      text('## Findings\nN01. a\nN02. b\nN03. c\n## Negative scenarios\nprose only'),
+    );
+    expect(misplaced.ok).toBe(false);
+    // The prompt states the demand with the first sample.
+    expect(
+      contract.promptLines.some(
+        (line) =>
+          line.includes("'## Negative scenarios'") &&
+          line.includes('3') &&
+          line.includes('N01. the first'),
+      ),
+    ).toBe(true);
+    // The golden reject is registered for the validator.
+    expect(
+      contract.goldenRejects.some((entry) => entry.validator === 'contract-section-patterns'),
+    ).toBe(true);
+  });
+
+  it('refuses contradictions at construction', () => {
+    expect(() =>
+      finishContract({
+        ...MANIFEST,
+        sectionPatterns: [{ ...MANIFEST.sectionPatterns[0], section: '## Missing' }],
+      }),
+    ).toThrow(/is not a declared section/);
+    expect(() =>
+      finishContract({
+        ...MANIFEST,
+        sectionPatterns: [
+          { ...MANIFEST.sectionPatterns[0], samples: ['N01. only', 'N01. repeat'] },
+        ],
+      }),
+    ).toThrow(/distinct captures, below min/);
+    expect(() =>
+      finishContract({
+        ...MANIFEST,
+        sectionPatterns: [{ ...MANIFEST.sectionPatterns[0], samples: ['no match here'] }],
+      }),
+    ).toThrow(/does not match its pattern/);
+    expect(() =>
+      finishContract({
+        words: { min: 5 },
+        sectionPatterns: MANIFEST.sectionPatterns,
+      }),
+    ).toThrow(/requires sections/);
+  });
+});

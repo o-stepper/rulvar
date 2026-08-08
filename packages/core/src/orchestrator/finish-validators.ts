@@ -738,6 +738,144 @@ export function evidencePreservedValidator(options?: {
 }
 
 /**
+ * One counted per-section pattern demand of
+ * {@link sectionPatternCountValidator} (RV2206).
+ */
+export interface SectionPatternEntry {
+  /** The section marker the demand binds to. */
+  section: string;
+  /**
+   * Regex source. A capture group makes the count DISTINCT by the
+   * first capture (the parity contract's N01..N48 ids count once
+   * each, however often an id repeats); without a capture the raw
+   * match count applies.
+   */
+  pattern: string;
+  flags?: string;
+  /** Matches (distinct captures when capturing) required in the slice. */
+  min: number;
+  /** Short human name for reasons (e.g. 'numbered negative scenarios'). */
+  label?: string;
+}
+
+/**
+ * Counted collections inside named sections (RV2206, the subscription
+ * parity series). The engine validated citations per section since the
+ * v1.71 review, but the numbered collections the parity contract
+ * demands (48 N-case ids, 16 counterexample ids) were policed by
+ * nothing: the second accepted dossier carried 0 and 0 against an
+ * instruction naming both, and only a runner-side format pre-teach
+ * closed the gap, by hope rather than contract. Each entry slices its
+ * section exactly like sectionCitationsValidator (first marker
+ * occurrence to the next marker in position order) and counts matches,
+ * DISTINCT by first capture when the pattern captures; the reasons
+ * name the section, the label, the found count against the minimum,
+ * and with a capturing pattern the missing count in ids, so a repair
+ * turn knows exactly what to add (the RV2105 lesson). Default name
+ * 'section-pattern-counts'.
+ */
+export function sectionPatternCountValidator(options: {
+  sections: readonly string[];
+  entries: readonly SectionPatternEntry[];
+  name?: string;
+  match?: SectionMatchMode;
+  fencedCode?: FencedCodeMode;
+}): FinishValidator {
+  const sections = requireNonEmptyStrings(
+    options.sections,
+    'sectionPatternCountValidator sections',
+  );
+  if (options.entries.length === 0) {
+    throw new ConfigError('sectionPatternCountValidator entries must be a non empty array');
+  }
+  for (const entry of options.entries) {
+    if (!sections.includes(entry.section)) {
+      throw new ConfigError(
+        `sectionPatternCountValidator entry section '${entry.section}' is not a declared section`,
+      );
+    }
+    const globalFlags = (entry.flags ?? '').includes('g')
+      ? (entry.flags ?? '')
+      : `${entry.flags ?? ''}g`;
+    try {
+      new RegExp(entry.pattern, globalFlags);
+    } catch (thrown) {
+      throw new ConfigError(
+        `sectionPatternCountValidator pattern does not compile: ${
+          thrown instanceof Error ? thrown.message : String(thrown)
+        }`,
+      );
+    }
+    if (!Number.isInteger(entry.min) || entry.min < 1) {
+      throw new ConfigError(
+        `sectionPatternCountValidator min must be a positive integer; got ${String(entry.min)}`,
+      );
+    }
+  }
+  const match =
+    options.match === undefined
+      ? 'anywhere'
+      : requireSectionMatchMode(options.match, 'sectionPatternCountValidator match');
+  const fencedCode =
+    options.fencedCode === undefined
+      ? 'counted'
+      : requireFencedCodeMode(options.fencedCode, 'sectionPatternCountValidator fencedCode');
+  const qualifier = missingSectionQualifier(match, fencedCode);
+  const counted = fencedCode === 'excluded' ? ' (fenced code excluded)' : '';
+  return {
+    name: options.name ?? 'section-pattern-counts',
+    validate: (input) => {
+      const scope = fencedCode === 'excluded' ? stripFencedBlocks(input.text) : input.text;
+      const positions = new Map<string, number>();
+      for (const section of sections) {
+        const at = sectionPosition(scope, section, match);
+        if (at >= 0) {
+          positions.set(section, at);
+        }
+      }
+      const ordered = [...positions.entries()].sort((a, b) => a[1] - b[1]);
+      const reasons: string[] = [];
+      for (const entry of options.entries) {
+        const at = positions.get(entry.section);
+        const what = entry.label ?? `matches of /${entry.pattern}/`;
+        if (at === undefined) {
+          reasons.push(
+            `required section '${entry.section}' is missing${qualifier}, ` +
+              `so its ${what} count cannot be judged`,
+          );
+          continue;
+        }
+        const next = ordered.find(([, position]) => position > at);
+        const slice = scope.slice(at, next === undefined ? scope.length : next[1]);
+        const globalFlags = (entry.flags ?? '').includes('g')
+          ? (entry.flags ?? '')
+          : `${entry.flags ?? ''}g`;
+        const captures = new Set<string>();
+        let raw = 0;
+        let capturing = false;
+        for (const found of slice.matchAll(new RegExp(entry.pattern, globalFlags))) {
+          raw += 1;
+          if (found[1] !== undefined) {
+            capturing = true;
+            captures.add(found[1]);
+          }
+        }
+        const count = capturing ? captures.size : raw;
+        if (count < entry.min) {
+          reasons.push(
+            `section '${entry.section}' carries ${String(count)}` +
+              `${capturing ? ' distinct' : ''} ${what} against the required ` +
+              `${String(entry.min)}${counted}; add the missing ` +
+              `${String(entry.min - count)} inside that section`,
+          );
+        }
+      }
+      return reasons.length === 0 ? ok : { ok: false, reasons };
+    },
+  };
+}
+
+/**
  * Requires at least `min` matches of `pattern` INSIDE every named
  * section (the v1.71 experiment review, P1.2: a total citation count
  * hides sections carrying zero provenance). A section's slice runs

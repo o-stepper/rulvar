@@ -10,7 +10,7 @@
 function selfTestFinishValidation(options): FinishSelfTestReport;
 ```
 
-Defined in: [packages/core/src/orchestrator/output-contract.ts:660](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L660)
+Defined in: [packages/core/src/orchestrator/output-contract.ts:859](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L859)
 
 Runs a configured validator set against golden fixtures BEFORE any
 provider call exists (the v1.71 experiment review, P0.3): the accept

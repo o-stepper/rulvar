@@ -10,7 +10,7 @@
 function citationTargetsValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1210)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1348](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1348)
 
 Resolves EVERY citation of the result text against the host's own
 source snapshot (RV1401, the seventeenth comparison experiment
