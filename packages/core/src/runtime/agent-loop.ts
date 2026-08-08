@@ -4241,7 +4241,26 @@ export async function runAgent<S extends SchemaSpec>(
       // entry, the RV2103 declined verdict) reads this message.
       status = 'error';
       agentError = { kind: 'budget', retryable: false };
-      errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
+      // The unfunded repair grant names itself (RV2207): a granted
+      // repair turn refused here used to read like any other budget
+      // stop, and the orchestrator could not tell a mid-work ceiling
+      // from a grant the money never covered (the seventh parity run's
+      // synthesis died exactly between a granted repair verdict and
+      // its dispatch). The marker is a single-producer contract with
+      // the orchestrator's typed decline.
+      const lastMessage = messages[messages.length - 1];
+      const repairPending =
+        grantedRepairTurns > 0 &&
+        lastMessage !== undefined &&
+        lastMessage.parts.some(
+          (part) =>
+            part.type === 'tool-result' &&
+            part.name === options.terminalTool?.name &&
+            (part as { isError?: boolean }).isError === true,
+        );
+      errorMessage =
+        (repairPending ? 'the granted repair turn could not be funded: ' : '') +
+        (thrown instanceof Error ? thrown.message : String(thrown));
       break;
     }
     turns += 1;
