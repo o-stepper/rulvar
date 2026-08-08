@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+
 ### 1.216.0
 
 #### Patch Changes
@@ -1993,6 +2000,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+
 ### 1.216.0
 
 #### Patch Changes
@@ -3771,6 +3785,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
 
 ### 1.216.0
 
@@ -6002,6 +6023,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.217.0
+
+#### Minor Changes
+
+- ab80b97: The declined judge admission degrades typed, the refusal names its holds, and preflight prices the working room (RV2106). The ninth parity run finished its whole fan-out (four ok children, a composed and accepted draft) and then died bare: the claim-consistency judge's 0.28 admission estimate did not fit the orchestrator account's working room past the held 1.40 synthesis reserve, the pre-dispatch refusal flew out of the coordination uncaught, and the run settled exhausted with no fold and the funded synthesis never dispatched, while the refusal message printed arithmetic that fit with room to spare because the hold was in the sum and not in the text. Three fixes: the declined judge admission journals `orchestrator_claim_judge_declined` with the refusal text and the post-refusal remainder, the meta carries `judgeDeclined: true` beside the `judgeFailed` precedent, the synthesis still runs, and only the armed `'fail'` posture stops the run; the admission refusal message gains a `plus the held synthesis reserve N USD` clause exactly when a hold exists (hold-free refusals keep their bytes) with `synthesisReserveUsd` and `finalizeReserveUsd` stamped on the error data; and preflight grows `orchestrator-working-room`, judging `effectiveCap - synthesisReserveUsd` against one coordination turn floor plus the newly declarable `orchestrator.claimConsistency.judge.estCost`.
 
 ### 1.216.0
 
@@ -8498,6 +8525,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.217.0
+
 ### 1.216.0
 
 ### 1.215.0
@@ -9034,6 +9063,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+  - @rulvar/anthropic@1.217.0
+  - @rulvar/openai@1.217.0
+  - @rulvar/plan@1.217.0
+  - @rulvar/testing@1.217.0
 
 ### 1.216.0
 
@@ -11483,6 +11523,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+
 ### 1.216.0
 
 #### Patch Changes
@@ -12672,6 +12719,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
 
 ### 1.216.0
 
@@ -14657,6 +14711,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+
 ### 1.216.0
 
 #### Patch Changes
@@ -16549,6 +16610,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+  - eslint-plugin-rulvar@1.217.0
 
 ### 1.216.0
 
@@ -18620,6 +18689,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+  - @rulvar/anthropic@1.217.0
+  - @rulvar/openai@1.217.0
 
 ### 1.216.0
 
@@ -20991,6 +21069,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+
 ### 1.216.0
 
 #### Patch Changes
@@ -22891,6 +22976,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
+
 ### 1.216.0
 
 #### Patch Changes
@@ -24096,6 +24188,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
 
 ### 1.216.0
 
@@ -25933,6 +26032,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.217.0
+
+#### Patch Changes
+
+- Updated dependencies [ab80b97]
+  - @rulvar/core@1.217.0
 
 ### 1.216.0
 
