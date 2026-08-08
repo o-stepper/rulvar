@@ -1067,6 +1067,10 @@
             "link": "/api/@rulvar/core/interfaces/FinishContractManifest.md"
           },
           {
+            "text": "FinishContractSectionPattern",
+            "link": "/api/@rulvar/core/interfaces/FinishContractSectionPattern.md"
+          },
+          {
             "text": "FinishSelfTestFailure",
             "link": "/api/@rulvar/core/interfaces/FinishSelfTestFailure.md"
           },
@@ -1581,6 +1585,10 @@
           {
             "text": "SecretMasker",
             "link": "/api/@rulvar/core/interfaces/SecretMasker.md"
+          },
+          {
+            "text": "SectionPatternEntry",
+            "link": "/api/@rulvar/core/interfaces/SectionPatternEntry.md"
           },
           {
             "text": "SemanticPassesSummary",
@@ -3591,6 +3599,10 @@
           {
             "text": "sectionCitationsValidator",
             "link": "/api/@rulvar/core/functions/sectionCitationsValidator.md"
+          },
+          {
+            "text": "sectionPatternCountValidator",
+            "link": "/api/@rulvar/core/functions/sectionPatternCountValidator.md"
           },
           {
             "text": "selectStructuredOutputTier",
@@ -5997,6 +6009,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/FinishContractManifest.md"
           },
           {
+            "text": "FinishContractSectionPattern",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishContractSectionPattern.md"
+          },
+          {
             "text": "FinishSelfTestFailure",
             "link": "/api/@rulvar/rulvar/interfaces/FinishSelfTestFailure.md"
           },
@@ -6535,6 +6551,10 @@
           {
             "text": "SecretMasker",
             "link": "/api/@rulvar/rulvar/interfaces/SecretMasker.md"
+          },
+          {
+            "text": "SectionPatternEntry",
+            "link": "/api/@rulvar/rulvar/interfaces/SectionPatternEntry.md"
           },
           {
             "text": "SemanticPassesSummary",
@@ -8581,6 +8601,10 @@
           {
             "text": "sectionCitationsValidator",
             "link": "/api/@rulvar/rulvar/functions/sectionCitationsValidator.md"
+          },
+          {
+            "text": "sectionPatternCountValidator",
+            "link": "/api/@rulvar/rulvar/functions/sectionPatternCountValidator.md"
           },
           {
             "text": "selectStructuredOutputTier",

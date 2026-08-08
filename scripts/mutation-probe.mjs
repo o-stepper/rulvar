@@ -3651,6 +3651,15 @@ const MUTATIONS = [
     replace: '    if (false) {',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'section-patterns-distinct-count',
+    doctrine:
+      'counted section collections are distinct by first capture (RV2206): a repeated id counts once, so 48 numbered scenarios means 48 DIFFERENT ids, the demand the second accepted subscription dossier failed at 0 against an instruction naming it',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '        const count = capturing ? captures.size : raw;',
+    replace: '        const count = raw;',
+    test: 'packages/core/src/orchestrator/output-contract.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

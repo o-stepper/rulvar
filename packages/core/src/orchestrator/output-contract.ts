@@ -19,6 +19,7 @@ import {
   minMatchesValidator,
   requiredSectionsValidator,
   sectionCitationsValidator,
+  sectionPatternCountValidator,
   wordCountValidator,
   type FencedCodeMode,
   type FinishValidationInput,
@@ -50,6 +51,25 @@ export interface FinishContractCitations {
   sample?: string;
 }
 
+/** One counted per-section collection demand (RV2206). */
+export interface FinishContractSectionPattern {
+  /** A declared section marker this demand binds to. */
+  section: string;
+  /** Regex source; a capture group makes counting DISTINCT by first capture. */
+  pattern: string;
+  flags?: string;
+  /** Matches (distinct captures when capturing) required inside the section. */
+  min: number;
+  /**
+   * Literal matches for the golden fixtures and the prompt. Single
+   * line each; with a capturing pattern they must together carry at
+   * least `min` distinct captures.
+   */
+  samples: string[];
+  /** Short human name for prompts and reasons. */
+  label?: string;
+}
+
 /**
  * The single source of truth of a textual finish contract: what the
  * prompt promises IS what the validators enforce. Declare only textual
@@ -74,6 +94,16 @@ export interface FinishContractManifest {
   words?: { min?: number; max?: number };
   /** Citation demands over the result text. */
   citations?: FinishContractCitations;
+  /**
+   * Counted collections inside named sections (RV2206): each entry
+   * demands at least `min` matches of `pattern` inside `section`'s
+   * slice, DISTINCT by first capture when the pattern captures.
+   * Requires `sections`. The `samples` are literal matches embedded in
+   * the golden fixtures and quoted by the prompt: with a capturing
+   * pattern they must carry at least `min` DISTINCT captures, because
+   * the accept skeleton must itself satisfy the demand.
+   */
+  sectionPatterns?: FinishContractSectionPattern[];
   /**
    * Whether fenced code blocks count (cycle 74): 'counted' (the
    * default) or 'excluded' (fenced code is removed before section
@@ -169,7 +199,7 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
   if (typeof manifest !== 'object' || manifest === null) {
     throw new ConfigError('finishContract manifest must be an object');
   }
-  const { sections, sectionsMatch, words, citations, fencedCode } = manifest;
+  const { sections, sectionsMatch, words, citations, sectionPatterns, fencedCode } = manifest;
   if (sections === undefined && words === undefined && citations === undefined) {
     throw new ConfigError('finishContract manifest must declare sections, words, or citations');
   }
@@ -284,6 +314,102 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
     };
   }
 
+  let normalizedSectionPatterns:
+    | Array<{
+        section: string;
+        pattern: string;
+        flags?: string;
+        min: number;
+        samples: string[];
+        label?: string;
+      }>
+    | undefined;
+  if (sectionPatterns !== undefined) {
+    if (!Array.isArray(sectionPatterns) || sectionPatterns.length === 0) {
+      throw new ConfigError('finishContract sectionPatterns must be a non empty array');
+    }
+    if (normalizedSections === undefined) {
+      throw new ConfigError('finishContract sectionPatterns requires sections');
+    }
+    normalizedSectionPatterns = [];
+    for (const entry of sectionPatterns) {
+      if (typeof entry !== 'object' || entry === null) {
+        throw new ConfigError('finishContract sectionPatterns entries must be objects');
+      }
+      if (!normalizedSections.includes(entry.section)) {
+        throw new ConfigError(
+          `finishContract sectionPatterns section '${String(entry.section)}' is not a ` +
+            'declared section',
+        );
+      }
+      requirePositiveInt(entry.min, 'finishContract sectionPatterns min');
+      const entryFlags = entry.flags ?? '';
+      const entryGlobal = entryFlags.includes('g') ? entryFlags : `${entryFlags}g`;
+      try {
+        new RegExp(entry.pattern, entryGlobal);
+      } catch (thrown) {
+        throw new ConfigError(
+          `finishContract sectionPatterns pattern does not compile: ${
+            thrown instanceof Error ? thrown.message : String(thrown)
+          }`,
+        );
+      }
+      if (!Array.isArray(entry.samples) || entry.samples.length === 0) {
+        throw new ConfigError(
+          'finishContract sectionPatterns samples must be a non empty array: the golden ' +
+            'fixtures embed literal matches',
+        );
+      }
+      const captures = new Set<string>();
+      let capturing = false;
+      for (const sample of entry.samples) {
+        if (typeof sample !== 'string' || sample.length === 0 || sample.includes('\n')) {
+          throw new ConfigError(
+            'finishContract sectionPatterns samples must be non empty single lines',
+          );
+        }
+        const found = [...sample.matchAll(new RegExp(entry.pattern, entryGlobal))];
+        if (found.length === 0) {
+          throw new ConfigError(
+            `finishContract sectionPatterns sample '${sample}' does not match its pattern`,
+          );
+        }
+        for (const one of found) {
+          if (one[1] !== undefined) {
+            capturing = true;
+            captures.add(one[1]);
+          }
+        }
+        if (normalizedSections.some((section) => sample.includes(section))) {
+          throw new ConfigError(
+            'finishContract sectionPatterns samples must not contain a declared section marker',
+          );
+        }
+      }
+      if (capturing && captures.size < entry.min) {
+        throw new ConfigError(
+          `finishContract sectionPatterns samples carry ${String(captures.size)} distinct ` +
+            `captures, below min ${String(entry.min)}: the golden accept skeleton could ` +
+            'never satisfy the demand it embeds',
+        );
+      }
+      if (!capturing && entry.samples.length < entry.min) {
+        throw new ConfigError(
+          `finishContract sectionPatterns needs at least min samples without a capture ` +
+            `group; got ${String(entry.samples.length)} of ${String(entry.min)}`,
+        );
+      }
+      normalizedSectionPatterns.push({
+        section: entry.section,
+        pattern: entry.pattern,
+        ...(entryFlags === '' ? {} : { flags: entryFlags }),
+        min: entry.min,
+        samples: [...entry.samples],
+        ...(entry.label === undefined ? {} : { label: entry.label }),
+      });
+    }
+  }
+
   // The exactness knobs (cycle 74): explicit defaults normalize away,
   // so a manifest declaring 'anywhere' or 'counted' hashes exactly
   // like one declaring nothing.
@@ -325,6 +451,16 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
         );
       }
     }
+    for (const entry of normalizedSectionPatterns ?? []) {
+      for (const sample of entry.samples) {
+        if (opensFence.test(sample)) {
+          throw new ConfigError(
+            `finishContract sectionPatterns sample '${sample}' would open a code fence ` +
+              "under fencedCode 'excluded'",
+          );
+        }
+      }
+    }
     if (normalizedCitations !== undefined && opensFence.test(normalizedCitations.sample)) {
       throw new ConfigError(
         `finishContract citations.sample '${normalizedCitations.sample}' would open a code ` +
@@ -338,6 +474,9 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
     ...(normalizedSectionsMatch === undefined ? {} : { sectionsMatch: normalizedSectionsMatch }),
     ...(normalizedWords === undefined ? {} : { words: normalizedWords }),
     ...(normalizedCitations === undefined ? {} : { citations: normalizedCitations }),
+    ...(normalizedSectionPatterns === undefined
+      ? {}
+      : { sectionPatterns: normalizedSectionPatterns }),
     ...(normalizedFencedCode === undefined ? {} : { fencedCode: normalizedFencedCode }),
   };
   const hash = createHash('sha256').update(jcsSerialize(normalized), 'utf8').digest('hex');
@@ -353,6 +492,13 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
   }
   if (normalizedCitations !== undefined) {
     Object.freeze(normalizedCitations);
+  }
+  if (normalizedSectionPatterns !== undefined) {
+    for (const entry of normalizedSectionPatterns) {
+      Object.freeze(entry.samples);
+      Object.freeze(entry);
+    }
+    Object.freeze(normalizedSectionPatterns);
   }
 
   const matchOption =
@@ -394,6 +540,23 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
         flags: normalizedCitations.flags,
         min: normalizedCitations.perSection,
         name: 'contract-section-citations',
+        ...matchOption,
+        ...fencedOption,
+      }),
+    );
+  }
+  if (normalizedSectionPatterns !== undefined && normalizedSections !== undefined) {
+    validators.push(
+      sectionPatternCountValidator({
+        sections: normalizedSections,
+        entries: normalizedSectionPatterns.map((entry) => ({
+          section: entry.section,
+          pattern: entry.pattern,
+          ...(entry.flags === undefined ? {} : { flags: entry.flags }),
+          min: entry.min,
+          ...(entry.label === undefined ? {} : { label: entry.label }),
+        })),
+        name: 'contract-section-patterns',
         ...matchOption,
         ...fencedOption,
       }),
@@ -442,6 +605,13 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
       );
     }
   }
+  for (const entry of normalizedSectionPatterns ?? []) {
+    const what = entry.label ?? `matches of /${entry.pattern}/`;
+    promptLines.push(
+      `Section '${entry.section}' must contain at least ${String(entry.min)} ` +
+        `distinct ${what} (for example '${entry.samples[0]}').`,
+    );
+  }
   if (normalizedFencedCode === 'excluded') {
     promptLines.push(
       'Text inside fenced code blocks (``` or ~~~) does not count toward sections, word ' +
@@ -460,6 +630,11 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
     if (normalizedCitations !== undefined && perSection > 0) {
       const sample = normalizedCitations.sample;
       lines.push(Array.from({ length: perSection }, () => sample).join(' '));
+    }
+    for (const entry of normalizedSectionPatterns ?? []) {
+      if (entry.section === section) {
+        lines.push(...entry.samples);
+      }
     }
   }
   if (normalizedCitations !== undefined) {
@@ -553,6 +728,30 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
           goldenText
             .split('\n')
             .filter((line) => line !== last)
+            .join('\n'),
+        );
+        break;
+      }
+      case 'contract-section-patterns': {
+        if (normalizedSectionPatterns === undefined || normalizedSectionPatterns.length === 0) {
+          break;
+        }
+        // Boundary sharp: the skeleton minus ONE sample line of the
+        // first demand counts min - 1 distinct matches.
+        const first = normalizedSectionPatterns[0];
+        const dropped = first.samples[first.samples.length - 1];
+        let removed = false;
+        addGoldenReject(
+          validator,
+          goldenText
+            .split('\n')
+            .filter((line) => {
+              if (!removed && line === dropped) {
+                removed = true;
+                return false;
+              }
+              return true;
+            })
             .join('\n'),
         );
         break;

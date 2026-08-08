@@ -10,7 +10,7 @@
 function finishContract(manifest): FinishContract;
 ```
 
-Defined in: [packages/core/src/orchestrator/output-contract.ts:168](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L168)
+Defined in: [packages/core/src/orchestrator/output-contract.ts:198](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L198)
 
 Builds a [FinishContract](/api/@rulvar/core/interfaces/FinishContract.md) from one manifest: validation and the
 golden fixtures happen HERE, at configuration time, so a
