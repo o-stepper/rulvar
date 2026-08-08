@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.220.0
+
+### Minor Changes
+
+- 0babe70: The failure envelope carries the pass truth (RV2203). Two live terminals hid facts their journals held: the RV2106 mirror run's error terminal read `claimConsistencyMeta: null` over a journaled declined-judge verdict, and the seventh subscription parity resume settled exhausted with `completion: null` and `childStatusCounts: null` over a journaled accepted acceptance with four ok children, because the exhausted path lifted only from the partial value and the raw `BudgetExhaustedError` carried nothing. Three fixes: the orchestrator enriches every synthesis-path failure with the acceptance snapshot, the claim-consistency meta, and the `{ran, reason}` pass summaries (the budget class is preserved, so `exhausted` stays `exhausted`, and the ok envelope and the failure enrichment now build their summaries with one shared builder whose synthesis arm reads `synthesis-failed` on the failure path); the run-completion lift falls back to the enriched error data on the exhausted path; and the lift itself (with `run:end` and `RunOutcome`) grows `claimConsistencyMeta` and `synthesisSkipped` under the established mirror posture, valid shapes mirrored, malformed shapes silently absent, on every terminal, ok and failed alike.
+
 ## 1.219.0
 
 ### Minor Changes
