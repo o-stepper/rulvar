@@ -1208,14 +1208,43 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     if (
       limits.finalizationReserve !== undefined &&
       limits.maxToolCalls === undefined &&
-      limits.toolUnits === undefined
+      limits.toolUnits === undefined &&
+      // The reserve stopped being inert without tool limiters once the
+      // exposure drain learned to spend it (RV2204): under a declared
+      // in-flight cap a mid-work drained seat runs one clamped
+      // finalization turn on exactly this reserve.
+      input.run?.maxInFlightExposureUsd === undefined
     ) {
       say({
         severity: 'warning',
         code: 'inert-finalization-reserve',
         message:
           `spawn '${label}' sets finalizationReserve without maxToolCalls or toolUnits: ` +
-          `no tool budget limiter exists for it to fire on`,
+          `no tool budget limiter exists for it to fire on, and no in-flight exposure cap ` +
+          `is declared for the drained-finalization grant (RV2204) to spend it at`,
+        spawn: label,
+      });
+    }
+    if (
+      limits.finalizationWindow !== undefined &&
+      limits.finalizationReserve?.maxOutputTokens === undefined &&
+      input.run?.maxInFlightExposureUsd !== undefined
+    ) {
+      // The drain against the window (RV2204, the third parity rerun):
+      // the drain refuses the very wire the window's play needs, and
+      // the grant that resolves the contradiction is funded by the
+      // clamped finalizationReserve turn. Without the reserve the
+      // window stays unreachable at the drain: the third rerun's
+      // workers died with evidence pools of 17 and 22 under a floor of
+      // 24 and a configured window that never got to play.
+      say({
+        severity: 'info',
+        code: 'drained-finalization-unfunded',
+        message:
+          `spawn '${label}' declares finalizationWindow under an in-flight exposure cap but no ` +
+          `finalizationReserve.maxOutputTokens: a mid-work exposure drain refuses the wire the ` +
+          `window needs, and without the reserve's clamped turn the seat dies with its window ` +
+          `unplayed (RV2204); declare the reserve to fund one drained-finalization turn`,
         spawn: label,
       });
     }
