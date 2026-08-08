@@ -203,7 +203,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The one hundred ninety nine rounds, verbatim in this repository's history:
+The two hundred rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -417,6 +417,7 @@ The one hundred ninety nine rounds, verbatim in this repository's history:
 | v1.215.0      | b357f4a (#840): the evidence-grade verdict names its offending sentences verbatim beside the phrase list, bounded and truncated, so a granted repair reads exactly the judged lines       | v1.216.0   |
 | v1.216.0      | ab80b97 (#843): a declined claim-judge admission journals its verdict and the synthesis still runs, the refusal names its held reserves, preflight prices the orchestrator working room   | v1.217.0   |
 | v1.217.0      | 088bda6 (#846): the lifetime spawn counter survives resume, a synthesis refused after the accepted finish journals its verdict, preflight prices the tail spawn budget                    | v1.218.0   |
+| v1.218.0      | 65a4ce7 (#849): a validator reason is a repair instruction and must be executable without violating any sibling; evidence-grade steers to the separate-sentence composition               | v1.219.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
