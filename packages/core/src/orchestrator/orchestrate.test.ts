@@ -4595,12 +4595,15 @@ describe("the refused turn's message rides the terminal (RV2104, the seventh par
         (entry.value as { verdict?: string } | undefined)?.verdict === 'repair',
     );
     expect(repairVerdict).toBeDefined();
-    // The synthesis terminal carries the refusal's own message.
+    // The synthesis terminal carries the refusal's own message, and
+    // since RV2207 the unfunded repair grant names itself in front of
+    // the arithmetic.
     const terminal = entries.find(
       (entry) =>
         entry.kind === 'agent' &&
         entry.status === 'error' &&
-        (entry.error?.message ?? '').startsWith(
+        (entry.error?.message ?? '').startsWith('the granted repair turn could not be funded: ') &&
+        (entry.error?.message ?? '').includes(
           "budget ceiling reached before turn dispatch on account 'run'",
         ),
     );
@@ -4618,7 +4621,7 @@ describe("the refused turn's message rides the terminal (RV2104, the seventh par
       { reason?: string; terminalRef?: number; transportRetries?: number } | undefined;
     expect(value).toBeDefined();
     expect(String(value?.reason ?? '')).toMatch(
-      /^budget ceiling reached before turn dispatch on account 'run'/,
+      /^the granted repair turn could not be funded: budget ceiling reached before turn dispatch on account 'run'/,
     );
     expect(value?.reason).not.toBe('agent terminated with status error');
     expect(value?.terminalRef).toBe(terminal?.seq);
@@ -6582,5 +6585,125 @@ describe('the failure envelope carries the pass truth (RV2203, the seventh subsc
     expect(data.childStatusCounts).toEqual({ ok: 1 });
     expect(data.degradedReasons).toEqual([]);
     expect(data.semanticPasses?.synthesis).toEqual({ ran: false, reason: 'synthesis-failed' });
+  });
+});
+
+describe('the unfunded repair grant declines typed (RV2207, the seventh parity run)', () => {
+  const ROUTING_2207 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+
+  it('a repair the budget cannot fund journals the declined grant and fails typed', async () => {
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      // The finish is too short for the contract: the validation
+      // rejects with a granted repair, and the repair turn's
+      // beforeTurn refuses on the crossed run ceiling.
+      return {
+        toolCall: { name: 'finish', args: { result: 'short' } },
+        usage: { inputTokens: 200, outputTokens: 500 },
+      };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2207,
+      budgetUsd: 0.01,
+      flatReserveUsd: 0,
+    });
+    // Most of B0 is already spent: the first turn fits, its own usage
+    // crosses, and the granted repair turn cannot be funded.
+    internals.budget.onUsage(
+      { inputTokens: 0, outputTokens: 700, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      'fake:model',
+    );
+    const wf = makeOrchestratorWorkflow('finish then repair', {
+      finishValidation: {
+        validators: [wordCountValidator({ min: 50 })],
+        maxRepairs: 1,
+        repairTurnReserve: 1,
+      },
+    });
+    const thrown = await executeWorkflow(internals, wf, undefined).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as Error).message)).toContain('could not complete its granted repair');
+    expect(String((thrown as Error).message)).toContain('could not be funded');
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const declined = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_repair_grant_declined',
+    );
+    expect(declined).toBeDefined();
+    const value = declined?.value as { reason?: string; remainingUsd?: number | null };
+    expect(String(value.reason)).toContain('could not be funded');
+    expect(typeof value.remainingUsd).toBe('number');
+  });
+});
+
+describe('the bare root ceiling folds documented (RV2205)', () => {
+  const ROUTING_2205 = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+
+  it('a run-ceiling crossing on the root folds partial with the budget-ceiling decision', async () => {
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      return { text: 'never dispatched', usage: { inputTokens: 10, outputTokens: 10 } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING_2205,
+      profiles: { worker: { description: 'digger', estCost: 0.005 } },
+      budgetUsd: 0.1,
+    });
+    // The first parity run's shape: B0 drained by spend the root's own
+    // account never held (the workers), the root far below its cap.
+    // The pre-charge lands on the run root, the coordination loop's
+    // first admission refuses on the crossed run account, and that
+    // used to fly bare out of the catch.
+    internals.budget.onUsage(
+      { inputTokens: 0, outputTokens: 10200, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      'fake:model',
+    );
+    const wf = makeOrchestratorWorkflow('coordinate past the ceiling', {
+      budget: { capUsd: 5, capFraction: 1.0, synthesisReserveUsd: 0.02 },
+      synthesis: { limits: { maxTurns: 2 }, estCost: 0.01 },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      forcedFinishFallback?: boolean;
+      completion?: string;
+      completed?: unknown[];
+    };
+    expect(envelope.forcedFinishFallback).toBe(true);
+    expect(envelope.completion).toBe('partial');
+    expect(envelope.completed).toHaveLength(0);
+    expect(internals.budget.exhausted).toBe(true);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const fallback = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finalize_fallback',
+    );
+    expect((fallback?.value as { reason?: string } | undefined)?.reason).toBe('budget-ceiling');
+    // With NOTHING settled there is nothing to synthesize from, so the
+    // redemption arm correctly stays out entirely: no decline decision
+    // and no synthesis dispatch. A ceiling crossed WITH settled
+    // children walks the same shared redemption path RV2102 pins.
+    const declined = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_redemption_declined',
+    );
+    expect(declined).toBeUndefined();
   });
 });

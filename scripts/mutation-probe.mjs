@@ -3194,9 +3194,9 @@ const MUTATIONS = [
   {
     id: 'exposure-drained-partial',
     doctrine:
-      "a drained exposure refusal on the root settles the documented forced-finish partial, never a bare escape (RV1902; the guard widened by RV2101): dropping the orchestrate catch returns the run to a null-valued exhausted with no journaled fallback decision, the recovery arm's exact terminal",
+      "a drained exposure refusal on the root settles the documented forced-finish partial, never a bare escape (RV1902; the guard widened by RV2101 and re-widened by RV2205 to the root and run crossings): dropping the orchestrate catch returns the run to a null-valued exhausted with no journaled fallback decision, the recovery arm's exact terminal",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "      if (budgetReason !== 'in-flight-exposure' && budgetReason !== 'output-floor') {",
+    find: "      if (\n        budgetReason !== 'in-flight-exposure' &&\n        budgetReason !== 'output-floor' &&\n        crossed?.source !== 'root' &&\n        crossed?.account !== 'run'\n      ) {",
     replace: '      if (true) {',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
@@ -3440,10 +3440,11 @@ const MUTATIONS = [
   {
     id: 'reserve-line-redeems-synthesis',
     doctrine:
-      'a coordination turn refused at the reserve line settles the documented forced-finish partial and redeems the held synthesis promise from its own reserve (RV2101): narrowing the catch back to the exposure arm alone lets the budget-floor refusal escape bare with the reserve intact and unreachable',
+      'a coordination turn refused at the reserve line settles the documented forced-finish partial and redeems the held synthesis promise from its own reserve (RV2101): severing the floor arm alone (the RV2205 crossing arms stay in place) lets the budget-floor refusal escape bare with the reserve intact and unreachable',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "      if (budgetReason !== 'in-flight-exposure' && budgetReason !== 'output-floor') {",
-    replace: "      if (budgetReason !== 'in-flight-exposure') {",
+    find: "      if (\n        budgetReason !== 'in-flight-exposure' &&\n        budgetReason !== 'output-floor' &&\n        crossed?.source !== 'root' &&\n        crossed?.account !== 'run'\n      ) {",
+    replace:
+      "      if (\n        budgetReason !== 'in-flight-exposure' &&\n        crossed?.source !== 'root' &&\n        crossed?.account !== 'run'\n      ) {",
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
@@ -3488,9 +3489,8 @@ const MUTATIONS = [
     doctrine:
       "the beforeTurn refusal's own message rides the agent terminal (RV2104): the seventh parity run's synthesis died between a granted repair verdict and its dispatch as a bare 'agent terminated with status error' while the thrown text named the crossed account and the exact arithmetic",
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: "      // entry, the RV2103 declined verdict) reads this message.\n      status = 'error';\n      agentError = { kind: 'budget', retryable: false };\n      errorMessage = thrown instanceof Error ? thrown.message : String(thrown);\n      break;",
-    replace:
-      "      // entry, the RV2103 declined verdict) reads this message.\n      status = 'error';\n      agentError = { kind: 'budget', retryable: false };\n      break;",
+    find: "      errorMessage =\n        (repairPending ? 'the granted repair turn could not be funded: ' : '') +\n        (thrown instanceof Error ? thrown.message : String(thrown));\n      break;",
+    replace: '      break;',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
@@ -3618,8 +3618,8 @@ const MUTATIONS = [
     doctrine:
       'a synthesis-path budget failure rethrows its own class with the acceptance facts and pass summaries widened onto its data (RV2203): the class is the status, and the raw rethrow left the exhausted terminal blind to the accepted acceptance it followed',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '      if (thrown instanceof BudgetExhaustedError) {',
-    replace: '      if (false) {',
+    find: '      if (thrown instanceof BudgetExhaustedError) {\n        // The class is the status:',
+    replace: '      if (false) {\n        // The class is the status:',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
@@ -3659,6 +3659,33 @@ const MUTATIONS = [
     find: '        const count = capturing ? captures.size : raw;',
     replace: '        const count = raw;',
     test: 'packages/core/src/orchestrator/output-contract.test.ts',
+  },
+  {
+    id: 'bare-root-ceiling-folds',
+    doctrine:
+      "a coordination turn refused by the RUN account's own hard crossing folds through the documented fallback instead of rethrowing bare (RV2205): the last undocumented money death of the loop, the first parity run's shape with B0 drained while the root sat at 16% of its cap",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        crossed?.source !== 'root' &&\n        crossed?.account !== 'run'",
+    replace: '        true',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'unfunded-repair-marker',
+    doctrine:
+      "the unfunded repair grant names itself on the terminal (RV2207): the seventh parity run's synthesis died between a granted repair verdict and its dispatch, and the refusal read like any other budget stop",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '      const repairPending =\n        grantedRepairTurns > 0 &&',
+    replace: '      const repairPending =\n        false &&\n        grantedRepairTurns > 0 &&',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'repair-grant-declined-journaled',
+    doctrine:
+      'a coordination repair the money never covered journals its declined grant and fails as a typed validation failure (RV2207), instead of the generic budget re-mint with no journal record',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        if (repairMessage.includes('the granted repair turn could not be funded: ')) {",
+    replace: '        if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
 ];
 

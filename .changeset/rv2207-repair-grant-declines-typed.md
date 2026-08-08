@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+The unfunded repair grant declines typed (RV2207). Validation can grant a repair the budget will never execute: the seventh parity run's synthesis died between a granted repair verdict and its dispatch, and even with the refusal's message riding the terminal (RV2104) the death stayed a generic budget re-mint with no journal record of the grant the money never covered. The agent loop now marks exactly that refusal (a would-be turn following a rejected terminal-tool exchange carries `the granted repair turn could not be funded:` in front of the crossed-account arithmetic), the coordination path reads the marked terminal behind the re-mint's `entryRef` (the RV2103 pattern), journals `orchestrator_repair_grant_declined` with the reason, the terminal reference, and the remainder, and fails the run as a TYPED validation failure (`FailRunError: the orchestrator finish could not complete its granted repair`) instead of the generic budget error; on the synthesis path the redemption's declined verdict repeats the same marked message through its terminal read, so both repair surfaces tell one story.

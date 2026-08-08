@@ -6667,11 +6667,79 @@ export function makeOrchestratorWorkflow(
         ),
       );
     } catch (thrown) {
+      // The unfunded repair grant declines typed (RV2207): the seventh
+      // parity run's synthesis died between a granted repair verdict
+      // and its dispatch, and even with the refusal's message riding
+      // the terminal (RV2104) the death stayed an untyped budget error
+      // with no journal record of the grant the money never covered.
+      // The ctx boundary re-mints budget deaths generically, so the
+      // agent-loop marker survives only on the terminal entry behind
+      // data.entryRef (the RV2103 pattern): the decline journals the
+      // arithmetic and the run fails as a TYPED validation failure,
+      // enriched with the same pass truth every other synthesis-path
+      // failure carries (RV2203).
+      if (thrown instanceof BudgetExhaustedError) {
+        const repairEntryRef = (thrown.data as { entryRef?: unknown } | undefined)?.entryRef;
+        const repairTerminal =
+          typeof repairEntryRef === 'number'
+            ? internals.replayer.snapshot().find((entry) => entry.seq === repairEntryRef)
+            : undefined;
+        const repairMessage = repairTerminal?.error?.message ?? '';
+        if (repairMessage.includes('the granted repair turn could not be funded: ')) {
+          const repairDeclineKey = deriverV2.deriveKey({
+            kind: 'orchestrator-repair-grant-declined',
+          });
+          if (
+            !internals.replayer
+              .snapshot()
+              .some((entry) => entry.kind === 'decision' && entry.key === repairDeclineKey)
+          ) {
+            await internals.replayer.appendSinglePhase({
+              scope: callingState.scope,
+              key: repairDeclineKey,
+              kind: 'decision',
+              status: 'ok',
+              spanId: internals.spans.mint(callingState.spanId),
+              site: 'orchestrator-budget',
+              value: {
+                decisionType: 'orchestrator_repair_grant_declined',
+                reason: repairMessage.slice(0, 300),
+                terminalRef: repairTerminal?.seq ?? null,
+                remainingUsd: internals.budget.remainingUsd() ?? null,
+              },
+            });
+          }
+          throw new FailRunError(
+            `the orchestrator finish could not complete its granted repair: ${repairMessage}`,
+            { data: { source: 'orchestrator_finish_validation' } },
+          );
+        }
+      }
       const budgetReason =
         thrown instanceof BudgetExhaustedError
           ? (thrown.data as { reason?: string } | undefined)?.reason
           : undefined;
-      if (budgetReason !== 'in-flight-exposure' && budgetReason !== 'output-floor') {
+      // The bare root ceiling folds documented (RV2205): a coordination
+      // turn refused by the RUN account's own hard crossing (the ctx
+      // boundary re-mint with source 'root', or a pre-admission refusal
+      // of the coordinator's own seat with account 'run') used to
+      // rethrow bare, the last undocumented money death of the loop. It
+      // folds through the SAME machinery as the exposure and floor
+      // arms, and the synthesis redemption below stays free to TRY:
+      // past a crossed run ceiling its spawn admission declines with
+      // the arithmetic and journals the declined verdict (RV2102). The
+      // orchestrator cap keeps its dedicated atCap machinery, and any
+      // other unrecognized budget shape still rethrows.
+      const crossed =
+        thrown instanceof BudgetExhaustedError
+          ? (thrown.data as { source?: string; account?: string } | undefined)
+          : undefined;
+      if (
+        budgetReason !== 'in-flight-exposure' &&
+        budgetReason !== 'output-floor' &&
+        crossed?.source !== 'root' &&
+        crossed?.account !== 'run'
+      ) {
         throw thrown;
       }
       // The refused coordination turn (RV1902, widened by RV2101): the
@@ -6702,7 +6770,12 @@ export function makeOrchestratorWorkflow(
           site: 'orchestrator-budget',
           value: {
             decisionType: 'orchestrator_finalize_fallback',
-            reason: budgetReason === 'output-floor' ? 'budget-floor' : 'exposure-abort',
+            reason:
+              budgetReason === 'output-floor'
+                ? 'budget-floor'
+                : budgetReason === 'in-flight-exposure'
+                  ? 'exposure-abort'
+                  : 'budget-ceiling',
             turnsUsed: 0,
             foldParams: { planHash: '', digestOrdinalMax: wakeOrdinal },
           },
