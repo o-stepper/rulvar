@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+
 ### 1.221.0
 
 #### Patch Changes
@@ -2028,6 +2035,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+
 ### 1.221.0
 
 #### Patch Changes
@@ -3841,6 +3855,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
 
 ### 1.221.0
 
@@ -6107,6 +6128,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.222.0
+
+#### Minor Changes
+
+- 8326268: Counted section collections join the finish contract (RV2206). The parity contract demands numbered collections (48 `N01.`-style negative scenarios, 16 `C01.` counterexamples), and nothing enforced them: the second accepted subscription dossier carried 0 and 0 against a synthesis instruction naming both, and only a runner-side format pre-teach closed the gap, by hope rather than contract, while citations enjoyed per-section validation since v1.71. `finishContract` grows `sectionPatterns`: per entry, at least `min` matches of a regex INSIDE a named section's slice, DISTINCT by first capture when the pattern captures (a repeated id counts once), with literal `samples` embedded in the golden fixtures and quoted by the prompt statement (with a capturing pattern the samples must carry `min` distinct captures, because the accept skeleton must satisfy the demand it embeds, and a boundary-sharp reject golden drops exactly one sample line). The standalone validator is `sectionPatternCountValidator` (`contract-section-patterns` inside the bundle); a deficit reason names the section, the label, the found-against-required count, and how many are missing, so a repair turn knows exactly what to add. Absent the field, the manifest normalizes, hashes, and behaves byte-identically.
 
 ### 1.221.0
 
@@ -8633,6 +8660,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.222.0
+
 ### 1.221.0
 
 ### 1.220.0
@@ -9179,6 +9208,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+  - @rulvar/anthropic@1.222.0
+  - @rulvar/openai@1.222.0
+  - @rulvar/plan@1.222.0
+  - @rulvar/testing@1.222.0
 
 ### 1.221.0
 
@@ -11683,6 +11723,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+
 ### 1.221.0
 
 #### Patch Changes
@@ -12907,6 +12954,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
 
 ### 1.221.0
 
@@ -14927,6 +14981,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+
 ### 1.221.0
 
 #### Patch Changes
@@ -16854,6 +16915,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+  - eslint-plugin-rulvar@1.222.0
 
 ### 1.221.0
 
@@ -18965,6 +19034,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+  - @rulvar/anthropic@1.222.0
+  - @rulvar/openai@1.222.0
 
 ### 1.221.0
 
@@ -21381,6 +21459,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+
 ### 1.221.0
 
 #### Patch Changes
@@ -23316,6 +23401,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
+
 ### 1.221.0
 
 #### Patch Changes
@@ -24556,6 +24648,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
 
 ### 1.221.0
 
@@ -26428,6 +26527,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.222.0
+
+#### Patch Changes
+
+- Updated dependencies [8326268]
+  - @rulvar/core@1.222.0
 
 ### 1.221.0
 
