@@ -203,7 +203,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The two hundred four rounds, verbatim in this repository's history:
+The two hundred five rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -422,6 +422,7 @@ The two hundred four rounds, verbatim in this repository's history:
 | v1.220.0      | 032ce93 (#854): a mid-work exposure-drained seat spends one clamped finalization turn with the window allowlist tools before its typed terminal; preflight names the unfunded grant       | v1.221.0   |
 | v1.221.0      | 8326268 (#857): the finish contract counts its collections: sectionPatterns holds per-section minimums of distinct matches, the deficit reason names the section and the shortfall        | v1.222.0   |
 | v1.222.0      | 549aabd (#860): a bare run-account crossing folds typed budget-ceiling, children ride the partial envelope; an unfunded granted repair declines journaled with its marked terminal        | v1.223.0   |
+| v1.223.0      | 4eca1a3 (#863): ResumeOptions.run raises a dead run ceiling for the segment and its remaining life, journaled as a decision; a ceiling under the settled spend refuses typed              | v1.224.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
