@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
+
 ### 1.225.0
 
 #### Patch Changes
@@ -2056,6 +2062,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
+
 ### 1.225.0
 
 #### Patch Changes
@@ -3897,6 +3909,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
 
 ### 1.225.0
 
@@ -6195,6 +6213,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.226.0
 
 ### 1.225.0
 
@@ -8742,6 +8762,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.226.0
+
 ### 1.225.0
 
 ### 1.224.0
@@ -9296,6 +9318,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.226.0
+
+#### Minor Changes
+
+- bef8621: The parity crash shapes become permanent fault-kit gates, and the telemetry target gets its honest boundary (RV2210). Three scenarios, zero paid calls, each driving a branch a parity run died on and asserting the documented typed observable, fail closed. `parity-reserve-line-redemption` (RV2101): the coordination turn refused at spent + held synthesis reserve + proposed folds typed `'budget-floor'` and the held reserve then FUNDS the synthesis whose result rides the partial envelope; the scenario drives the same shape through `makeOrchestratorWorkflow` AND through the PlanRunner extension and demands the identical fold and the identical redeemed result from both, the DEF-7 redemption parity verified rather than assumed. `resume-spawn-famine` (RV2201): the kill-mid-fan-out journal resumes at the EXACT lifetime spawn cap to the finished dossier, recovered agents re-admitted but never re-counted, no cap decline journaled, only the unsettled workers re-paid. `validator-guidance-conflict` (RV2202): the c3 trap finish repairs in ONE round because the evidence-grade reason names the composition that cannot trip its cited-value sibling, with the guidance bytes asserted on the repair exchange itself. Docs truths ride along: the evals scenario list catches up (the RV2009 parity gates included), the observability guide gains the postFanInShare targeting rule (on clustered-settle profiles the share's overlap ceiling is the settle spread itself, so target `postFanIn.coordinationModelMs` and `finalCompositionMs` absolutes, with the subscription series' accepted-dossier baseline as the worked example), and the terminal contract names the RV2203 guarantee that failed terminals carry the same lifted facts.
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.226.0
+- @rulvar/core@1.226.0
+- @rulvar/openai@1.226.0
+- @rulvar/plan@1.226.0
+- @rulvar/testing@1.226.0
 
 ### 1.225.0
 
@@ -11844,6 +11880,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
+
 ### 1.225.0
 
 #### Patch Changes
@@ -13096,6 +13138,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
 
 ### 1.225.0
 
@@ -15144,6 +15192,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
+
 ### 1.225.0
 
 #### Patch Changes
@@ -17099,6 +17153,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
+- eslint-plugin-rulvar@1.226.0
 
 ### 1.225.0
 
@@ -19242,6 +19303,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.226.0
+- @rulvar/core@1.226.0
+- @rulvar/openai@1.226.0
 
 ### 1.225.0
 
@@ -21694,6 +21763,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
+
 ### 1.225.0
 
 #### Patch Changes
@@ -23657,6 +23732,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
+
 ### 1.225.0
 
 #### Patch Changes
@@ -24925,6 +25006,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
 
 ### 1.225.0
 
@@ -26825,6 +26912,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.226.0
+
+#### Patch Changes
+
+- @rulvar/core@1.226.0
 
 ### 1.225.0
 
