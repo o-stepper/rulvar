@@ -85,6 +85,153 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
   return undefined;
 }
 
+/**
+ * Whether a terminal figure counts THIS segment's work or the whole
+ * logical run (RV2510).
+ *
+ * * `'segment'`: only the segment that produced this terminal. A
+ *   resumed run reports the resumed segment's number, and the figure
+ *   for the logical run is the SUM over every segment
+ *   ({@link logicalRunTelemetry} computes it).
+ * * `'cumulative'`: the whole logical run, every prior segment
+ *   included, because the figure folds from the journal (money, usage),
+ *   resumes from the journaled ledger (the spawn count), or is
+ *   RE-DERIVED by replay (the loss list: a resumed segment re-executes
+ *   the workflow and reads the same journaled terminals, so the drops
+ *   of earlier segments come back). Summing these across segments
+ *   double counts.
+ * * `'terminal'`: not a count at all: a claim about the run as it
+ *   stands at this settle, which a later segment can only replace.
+ */
+export type TelemetryScope = 'segment' | 'cumulative' | 'terminal';
+
+/**
+ * The scope of every field the engine writes onto a terminal (RV2510),
+ * as one exported table rather than as sentences scattered through
+ * field docs.
+ *
+ * The twenty-fifth comparison run was killed and resumed, and its two
+ * terminals mixed both kinds with nothing marking which was which: the
+ * money was cumulative, the wake count and the replay figures were not,
+ * and reconciling them into one honest account of the logical run was
+ * hand work over a joined journal. Keys are field paths as a consumer
+ * reads them off `RunOutcome` (`cost.orchestrator.wakes`); the
+ * doctrine test holds this table against the keys a real outcome
+ * carries, so a new terminal field cannot ship without declaring what
+ * it counts.
+ */
+export const TERMINAL_TELEMETRY_SCOPE: Readonly<Record<string, TelemetryScope>> = Object.freeze({
+  status: 'terminal',
+  value: 'terminal',
+  error: 'terminal',
+  envelope: 'terminal',
+  completion: 'terminal',
+  childStatusCounts: 'cumulative',
+  degradedReasons: 'cumulative',
+  salvagedPartialChildren: 'cumulative',
+  salvagedTerminalOutputChildren: 'cumulative',
+  belowFloorOkChildren: 'cumulative',
+  acceptanceChildren: 'cumulative',
+  semanticPasses: 'terminal',
+  claimConsistencyMeta: 'terminal',
+  synthesisSkipped: 'terminal',
+  deliverableAccepted: 'terminal',
+  resultAvailable: 'terminal',
+  acceptedArtifactRef: 'terminal',
+  rejectedFinishCandidates: 'cumulative',
+  dropped: 'cumulative',
+  pending: 'terminal',
+  usage: 'cumulative',
+  cost: 'cumulative',
+  'cost.totalUsd': 'cumulative',
+  'cost.grossUsd': 'cumulative',
+  'cost.wireRequests': 'cumulative',
+  'cost.orchestrator.spentUsd': 'cumulative',
+  'cost.orchestrator.wakes': 'segment',
+  'cost.orchestrator.forcedFinish': 'segment',
+  'cost.orchestrator.reserveUsedUsd': 'segment',
+  transportRetries: 'segment',
+  schemaRejectedFinishExchanges: 'segment',
+  schemaRecoveredFinishExchanges: 'segment',
+});
+
+/** One logical run's telemetry, folded across every segment (RV2510). */
+export interface LogicalRunTelemetry {
+  /** How many settles the journal records: the number of segments that ran. */
+  segments: number;
+  /** Each segment's settled status, in journal order. */
+  statuses: RunStatus[];
+  /**
+   * Journal entries each segment APPENDED, in the same order: its own
+   * share of the run's durable work, which is the one honest
+   * per-segment measure of effort a resumed run has. A pure-replay
+   * segment that appended nothing but its settle reads 1.
+   */
+  entriesPerSegment: number[];
+  /**
+   * Entries the run holds in total. Equal to the sum of
+   * `entriesPerSegment` plus whatever follows the last settle: the
+   * partition is exact BECAUSE it is a partition, which is what makes
+   * this figure safe to read beside a cumulative one.
+   */
+  entries: number;
+  /**
+   * Entries appended AFTER the last settle. Nonzero means the journal
+   * continued past its terminal (RV1407: a detached resolution
+   * awaiting its resume, or a successor segment over a stale settle),
+   * so the last status is not the run's last word.
+   */
+  entriesAfterLastSettle: number;
+}
+
+/**
+ * Folds a run's journal into the logical run's telemetry (RV2510): how
+ * many segments ran, how each settled, and how much durable work each
+ * one did, from entries the journal already holds. No new field, so it
+ * reads journals written by every prior version exactly as well as
+ * today's.
+ *
+ * The replay dedup is the design. Cumulative figures are deliberately
+ * NOT here: money and usage fold from the WHOLE journal through
+ * `costReportFromJournal` and the usage ledger, and re-summing them per
+ * segment would count every replayed operation once per segment that
+ * replayed it, which is exactly the reconciliation this fold exists to
+ * make unnecessary. What it reports instead is a PARTITION of the
+ * journal by settle boundary, so no entry is counted twice by
+ * construction, and the segment-scoped figures a terminal carries
+ * ({@link TERMINAL_TELEMETRY_SCOPE} names them) can be read against the
+ * segment that produced them.
+ */
+export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRunTelemetry {
+  const statuses: RunStatus[] = [];
+  const entriesPerSegment: number[] = [];
+  let sinceLastSettle = 0;
+  for (const entry of entries) {
+    sinceLastSettle += 1;
+    if (entry.kind !== 'decision') {
+      continue;
+    }
+    const value = entry.value as { decisionType?: unknown; runStatus?: unknown } | undefined;
+    if (
+      value?.decisionType !== RUN_SETTLE_DECISION_TYPE ||
+      typeof value.runStatus !== 'string' ||
+      !RUN_STATUSES.has(value.runStatus)
+    ) {
+      continue;
+    }
+    statuses.push(value.runStatus as RunStatus);
+    entriesPerSegment.push(sinceLastSettle);
+    sinceLastSettle = 0;
+  }
+  return {
+    segments: statuses.length,
+    statuses,
+    entriesPerSegment,
+    entries: entries.length,
+    entriesAfterLastSettle: sinceLastSettle,
+  };
+}
+
 export type RunAuditVerdict = 'consistent' | 'meta-behind' | 'stranded' | 'suspect';
 
 export interface RunStateAudit {
