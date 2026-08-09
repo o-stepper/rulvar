@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.224.0
+
+### Minor Changes
+
+- 4eca1a3: The resume-time budget override (RV2208). A run that died against its own `budgetUsd` was unfinishable by doctrine: the RunMeta-recorded ceiling governed every later segment, `ResumeOptions` deliberately carried no budget field, and the only way forward re-paid the whole journaled prefix as a fresh run. `ResumeOptions.run` (`{ budgetUsd?, maxInFlightExposureUsd? }`) is the one explicit door: each value is validated exactly like its `RunOptions` counterpart, applies to the resumed segment and the run's remaining life, and is recorded back by the segment's first meta write, so a LATER bare resume restores the overridden posture rather than the genesis one. The change is never silent: before the meta mirror flips, the segment journals a `run_budget_override` decision naming the recorded value, the applied value, the source, and the settled spend it was judged against (`null` records a run that started uncapped). A `budgetUsd` below the journal's settled spend refuses with a typed `ConfigError` before ownership, meta, or any append: such a ceiling would exhaust the segment before its first turn and read like a fresh money death. Absent fields keep the recorded values, an absent object keeps the historical behavior byte for byte, and `strictPricing` deliberately stays out of the override: pricing hygiene is not a per-segment decision.
+
 ## 1.223.0
 
 ### Minor Changes
