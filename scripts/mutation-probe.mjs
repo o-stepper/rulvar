@@ -3395,8 +3395,8 @@ const MUTATIONS = [
     doctrine:
       'the two parity crash shapes stay registered in the fault kit (RV2009): dropping them silently un-gates the exact quiescence deadlock and sequential roster shapes the twenty-third plan fixed, and the kit exists so a fixed defect can never become untested again',
     file: 'packages/evals/src/fault-injection.ts',
-    find: '  parityQuiescenceDeadlock,\n  paritySequentialRosterFloor,\n];',
-    replace: '];',
+    find: '  parityQuiescenceDeadlock,\n  paritySequentialRosterFloor,\n  parityReserveLineRedemption,',
+    replace: '  parityReserveLineRedemption,',
     test: 'packages/evals/src/fault-injection.test.ts',
   },
   {
@@ -3740,6 +3740,33 @@ const MUTATIONS = [
     find: '  const maxPositionals = grammar.positionals.length + (grammar.optionalPositionals?.length ?? 0);',
     replace: '  const maxPositionals = grammar.positionals.length;',
     test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'fault-kit-reserve-line-drive',
+    doctrine:
+      'the reserve-line scenario actually HOLDS the synthesis reserve that crosses the line (RV2210): with the reserve zeroed the coordination turn fits, no budget-floor fold fires, no redemption runs, and the scenario must report matched false instead of vouching for a branch it never entered',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '        budget: { capUsd: 0.03, synthesisReserveUsd: 0.02, finalizeReserveUsd: 0 },',
+    replace: '        budget: { capUsd: 0.03, finalizeReserveUsd: 0 },',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-famine-cut-drive',
+    doctrine:
+      'the resume-famine scenario actually CUTS the journal mid-fan-out (RV2210): with the whole settled journal carried over, nothing recovers, the resumed segment replays free, and the live-worker-call assertion must report matched false instead of vouching for a recovery path never driven',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '    const cut = entriesA.slice(0, firstWorkerOk + 1);',
+    replace: '    const cut = entriesA;',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
+    id: 'fault-kit-guidance-trap-drive',
+    doctrine:
+      'the guidance-conflict scenario actually SERVES the trap finish first (RV2210): with the corrected finish served from the first attempt no rejection exists, no repair exchange carries the guidance bytes, and the scenario must report matched false instead of vouching for a convergence never exercised',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '        const result = finishAttempts === 1 ? TRAP_FINISH : FIXED_FINISH;',
+    replace: '        const result = FIXED_FINISH;',
+    test: 'packages/evals/src/fault-injection.test.ts',
   },
 ];
 

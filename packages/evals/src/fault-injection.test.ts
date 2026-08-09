@@ -39,6 +39,9 @@ const EXPECTED = [
   'benchmark-recovery-root-exposure',
   'parity-quiescence-deadlock',
   'parity-sequential-roster-floor',
+  'parity-reserve-line-redemption',
+  'resume-spawn-famine',
+  'validator-guidance-conflict',
 ];
 
 describe('the fault-injection kit (RV811)', () => {

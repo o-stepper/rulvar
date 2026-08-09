@@ -6,7 +6,7 @@
 
 # Interface: FaultScenarioArtifact
 
-Defined in: [packages/evals/src/fault-injection.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L64)
+Defined in: [packages/evals/src/fault-injection.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L66)
 
 One artifact a scenario leaves, JSON or raw text.
 
@@ -14,5 +14,5 @@ One artifact a scenario leaves, JSON or raw text.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-content"></a> `content` | `string` | [packages/evals/src/fault-injection.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L66) |
-| <a id="property-name"></a> `name` | `string` | [packages/evals/src/fault-injection.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L65) |
+| <a id="property-content"></a> `content` | `string` | [packages/evals/src/fault-injection.ts:68](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L68) |
+| <a id="property-name"></a> `name` | `string` | [packages/evals/src/fault-injection.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L67) |
