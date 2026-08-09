@@ -1205,10 +1205,14 @@ export function evidenceGradeValidator(options?: {
       // idless wording asked for "its run id" while the artifact
       // pattern accepted only ULIDs behind the literal word `run`, so
       // a run whose id was shaped otherwise had no executable repair
-      // at all. With the id in hand the remedy is one edit, and the
-      // composition warning stays: the graded sentence must carry no
-      // source citation, or cited-value judges the id against the
-      // cited window and rejects it.
+      // at all. With the id in hand the remedy is one edit.
+      //
+      // The two arms carry DIFFERENT composition advice, and both are
+      // true (RV2502). When the runtime supplies the id, cited-value
+      // reads that same id as identity and the graded sentence may
+      // carry a citation as well. When it does not, cited-value has no
+      // id to recognise, so the id must stay in a sentence of its own
+      // or it becomes an asserted value the cited line cannot carry.
       return {
         ok: false,
         reasons: [
@@ -1220,10 +1224,9 @@ export function evidenceGradeValidator(options?: {
               `cited window and trades this failure for a cited-value one)`
             : `evidence-grade claims cite no run or repro artifact in their own sentence: ` +
               `${listCitations(unsupported)}; write this run's id ${runId} inside each such ` +
-              `sentence, or give the claim a file:line citation instead, and keep that ` +
-              `sentence free of source citations (a run id written beside a path:line ` +
-              `citation is not in the cited window and trades this failure for a ` +
-              `cited-value one)`,
+              `sentence, or give the claim a file:line citation instead (the id may share a ` +
+              `sentence with a source citation: cited-value reads a run id as identity, not ` +
+              `as a value asserted about the cited line)`,
           ...named,
           ...(overflow > 0 ? [`and ${String(overflow)} more offending sentences`] : []),
         ],
@@ -1240,6 +1243,17 @@ export interface CitationTarget {
 
 /** Splits a citation into its path and line halves at the LAST colon. */
 const CITATION_TAIL = /^(.*):(\d+)$/u;
+
+/**
+ * A commit sha span (RV2502). Twelve hex characters is the floor: real
+ * abbreviations run 7 to 12 and full shas 40, while shorter hex words
+ * (`deadbeef`) are ordinary literals a document may legitimately assert
+ * about a cited line, so they stay judged.
+ */
+const COMMIT_SHA_SPAN = /^[0-9a-f]{12,64}$/u;
+
+/** A release version span (RV2502), with an optional tail. */
+const VERSION_SPAN = /^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z][0-9A-Za-z.-]*)?$/u;
 
 /**
  * True when `value` occurs in `haystack` as a WHOLE token (RV1402, the
@@ -1278,6 +1292,27 @@ function containsToken(haystack: string, value: string): boolean {
  * ({@link citationTargetsValidator} judges every citation with no such
  * precondition).
  *
+ * One span class is IDENTITY, not assertion (RV2502, the 1.226.0
+ * comparison run): a span naming the artefact under review says which
+ * commit, run, or release the document is about, and asserts nothing
+ * about any cited line. That run's synthesis wrote its frozen commit
+ * sha beside source citations and the validator demanded the sha appear
+ * in the cited source, an impossible repair, in the same verdict that
+ * demanded three real value fixes; two granted repairs burned and the
+ * finish was rejected. Three shapes are structural and always excluded:
+ * a commit sha (12 to 64 hex characters, long enough that ordinary hex
+ * literals stay judged), a release version (`1.2.3`, `v1.2.3`, with an
+ * optional prerelease or build tail), and the run's own id when the
+ * runtime supplies `runId`. Host vocabulary is declared: `notValues`
+ * lists spans this document writes as identity, verdict words like
+ * `conditionally ready` among them.
+ *
+ * The run-id exclusion is what makes the bundle self consistent
+ * (RV2501, RV2202): the evidence grade instructs a failing model to
+ * write this run's id inside the offending sentence, and before RV2502
+ * doing so beside a citation traded an evidence-grade failure for a
+ * cited-value one. The two repair instructions now compose.
+ *
  * `resolve` is host code and must be PURE over a snapshot the host
  * froze before the run, exactly like every other finish validator: a
  * resolver that reads the filesystem live would make a verdict depend
@@ -1292,10 +1327,24 @@ export function citedValueValidator(options: {
   window?: number;
   /** Overrides {@link DEFAULT_CITATION_PATTERN}; must capture `path:line`. */
   pattern?: string;
+  /**
+   * Spans this host writes as IDENTITY rather than as a value asserted
+   * about a citation (RV2502), matched whole and case sensitively.
+   * Commit shas, versions, and the run's own id need no declaration.
+   */
+  notValues?: readonly string[];
   name?: string;
 }): FinishValidator {
   if (typeof options.resolve !== 'function') {
     throw new ConfigError('citedValueValidator resolve must be a function');
+  }
+  if (options.notValues !== undefined) {
+    if (
+      !Array.isArray(options.notValues) ||
+      options.notValues.some((value) => typeof value !== 'string' || value.length === 0)
+    ) {
+      throw new ConfigError('citedValueValidator notValues must be an array of non empty strings');
+    }
   }
   const window = options.window ?? 0;
   if (!Number.isInteger(window) || window < 0) {
@@ -1313,15 +1362,34 @@ export function citedValueValidator(options: {
       }`,
     );
   }
+  const declaredNotValues = new Set(options.notValues ?? []);
   return {
     name: options.name ?? 'cited-value',
     validate: (input) => {
       const reasons: string[] = [];
+      // The run's own id is an identity span (RV2502), on the same
+      // terms the evidence grade accepts it (RV2501): a trimmed id of
+      // at least MIN_RUN_ID_ARTIFACT_CHARS characters, so a blank or
+      // stub id can never blanket-excuse short spans.
+      const runId =
+        typeof input.runId === 'string' && input.runId.trim().length >= MIN_RUN_ID_ARTIFACT_CHARS
+          ? input.runId.trim()
+          : undefined;
+      /**
+       * True when the span NAMES the artefact under review instead of
+       * asserting something about a cited line (RV2502).
+       */
+      const isIdentity = (span: string): boolean =>
+        declaredNotValues.has(span) ||
+        span === runId ||
+        COMMIT_SHA_SPAN.test(span) ||
+        VERSION_SPAN.test(span);
       for (const sentence of sentencesOf(input.text)) {
         // Inline-code spans first: the ones that parse as `path:line`
         // are the citations, the rest are the values asserted about
-        // them. Both come from the same span vocabulary, so a value
-        // written as prose never enters the judgment.
+        // them, minus the identity spans. Both come from the same span
+        // vocabulary, so a value written as prose never enters the
+        // judgment.
         const spans = [...sentence.matchAll(/`([^`]+)`/gu)].map((match) => match[1]);
         const citations: CitationTarget[] = [];
         const values: string[] = [];
@@ -1334,7 +1402,7 @@ export function citedValueValidator(options: {
             new RegExp(`^${pattern}$`, '').test(span)
           ) {
             citations.push({ path: parsed[1], line });
-          } else {
+          } else if (!isIdentity(span)) {
             values.push(span);
           }
         }

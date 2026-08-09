@@ -6,7 +6,7 @@
 
 # Interface: CitationTarget
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1236](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1236)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1239](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1239)
 
 One resolved citation target: the source line the citation points at.
 
@@ -14,5 +14,5 @@ One resolved citation target: the source line the citation points at.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-line"></a> `line` | `number` | [packages/core/src/orchestrator/finish-validators.ts:1238](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1238) |
-| <a id="property-path"></a> `path` | `string` | [packages/core/src/orchestrator/finish-validators.ts:1237](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1237) |
+| <a id="property-line"></a> `line` | `number` | [packages/core/src/orchestrator/finish-validators.ts:1241](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1241) |
+| <a id="property-path"></a> `path` | `string` | [packages/core/src/orchestrator/finish-validators.ts:1240](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1240) |
