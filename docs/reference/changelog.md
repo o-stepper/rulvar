@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
+
 ### 1.224.0
 
 #### Patch Changes
@@ -2050,6 +2056,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
+
 ### 1.224.0
 
 #### Patch Changes
@@ -3885,6 +3897,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.225.0
+
+#### Minor Changes
+
+- a2770e6: The cost-audit catalog sweep (RV2209). The parity sessions verified the one-denominator contract seven journals at a time, one `rulvar cost-audit <runId>` invocation each; a catalog posture check should cost one command. `rulvar cost-audit --all --store <dir>` runs the same six checks (roster closed, settle recorded, settle is the billing boundary, fold matches invoice, wires match, incremental rows match) over EVERY run the store lists, in run-id order whatever the store returns, one summary row each naming the verdict, the passed-of-total checks with the failing names, the gross, and the wire count, and exits 1 when ANY run diverges; `--json` carries the same per-run shapes under `runs` with the sweep verdict on top. The single-run form is unchanged byte for byte and stays the deep view; a runId beside `--all` (or neither) refuses typed. Under the hood the grammar grows optional positionals (rendered bracketed on every usage surface, arity admits required through required plus optional), and the six checks are extracted into one audit function both forms share.
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
 
 ### 1.224.0
 
@@ -6173,6 +6195,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.225.0
 
 ### 1.224.0
 
@@ -8718,6 +8742,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.225.0
+
 ### 1.224.0
 
 ### 1.223.0
@@ -9270,6 +9296,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.225.0
+- @rulvar/core@1.225.0
+- @rulvar/openai@1.225.0
+- @rulvar/plan@1.225.0
+- @rulvar/testing@1.225.0
 
 ### 1.224.0
 
@@ -11808,6 +11844,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
+
 ### 1.224.0
 
 #### Patch Changes
@@ -13054,6 +13096,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
 
 ### 1.224.0
 
@@ -15096,6 +15144,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
+
 ### 1.224.0
 
 #### Patch Changes
@@ -17045,6 +17099,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
+- eslint-plugin-rulvar@1.225.0
 
 ### 1.224.0
 
@@ -19181,6 +19242,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.225.0
+- @rulvar/core@1.225.0
+- @rulvar/openai@1.225.0
 
 ### 1.224.0
 
@@ -21625,6 +21694,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
+
 ### 1.224.0
 
 #### Patch Changes
@@ -23582,6 +23657,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
+
 ### 1.224.0
 
 #### Patch Changes
@@ -24844,6 +24925,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
 
 ### 1.224.0
 
@@ -26738,6 +26825,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.225.0
+
+#### Patch Changes
+
+- @rulvar/core@1.225.0
 
 ### 1.224.0
 

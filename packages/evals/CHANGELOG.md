@@ -1,5 +1,15 @@
 # @rulvar/evals
 
+## 1.225.0
+
+### Patch Changes
+
+- @rulvar/anthropic@1.225.0
+- @rulvar/core@1.225.0
+- @rulvar/openai@1.225.0
+- @rulvar/plan@1.225.0
+- @rulvar/testing@1.225.0
+
 ## 1.224.0
 
 ### Patch Changes

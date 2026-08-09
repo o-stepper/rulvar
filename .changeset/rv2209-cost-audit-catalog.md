@@ -1,5 +1,0 @@
----
-'@rulvar/cli': minor
----
-
-The cost-audit catalog sweep (RV2209). The parity sessions verified the one-denominator contract seven journals at a time, one `rulvar cost-audit <runId>` invocation each; a catalog posture check should cost one command. `rulvar cost-audit --all --store <dir>` runs the same six checks (roster closed, settle recorded, settle is the billing boundary, fold matches invoice, wires match, incremental rows match) over EVERY run the store lists, in run-id order whatever the store returns, one summary row each naming the verdict, the passed-of-total checks with the failing names, the gross, and the wire count, and exits 1 when ANY run diverges; `--json` carries the same per-run shapes under `runs` with the sweep verdict on top. The single-run form is unchanged byte for byte and stays the deep view; a runId beside `--all` (or neither) refuses typed. Under the hood the grammar grows optional positionals (rendered bracketed on every usage surface, arity admits required through required plus optional), and the six checks are extracted into one audit function both forms share.
