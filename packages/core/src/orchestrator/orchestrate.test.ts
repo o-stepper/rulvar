@@ -5750,6 +5750,141 @@ describe('conditional synthesis: skipWhenDraftValid (RV510)', () => {
   });
 });
 
+describe('the no-regression floor under the synthesis (RV2505, the 1.226.0 comparison run)', () => {
+  // The comparison run's coordination draft satisfied the whole
+  // contract, skipWhenDraftValid was off because the operator wanted
+  // the composing pass, and the synthesis then failed the same bundle
+  // three times and died mid repair: the run settled with no result at
+  // all. With the floor on, the draft the contract accepts settles it.
+  const SECTIONED = '## Findings\nEverything the contract demands.';
+  const SECTIONLESS = 'a schema-valid candidate without the required section';
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const CONTRACT = () => ({
+    validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+    maxRepairs: 2,
+  });
+  /** Coordination draft first, then every synthesis turn serves `final`. */
+  function draftThenSynthesis(draft: string, final: string) {
+    let call = 0;
+    return scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      return call === 1
+        ? { toolCall: { name: 'finish', args: { result: draft } } }
+        : { toolCall: { name: 'finish', args: { result: final } } };
+    });
+  }
+  const fallbackDecisions = (entries: readonly JournalEntry[], type: string): JournalEntry[] =>
+    entries.filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType === type,
+    );
+
+  it('settles on the draft the contract accepts when the synthesis fails it, journaled and announced', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, SECTIONLESS);
+    const { internals, events } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 6 }, fallbackToValidDraft: true },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SECTIONED);
+    // The synthesis was paid for and did fail: the draft turn plus the
+    // composition and its granted repairs.
+    expect(adapter.calls.length).toBeGreaterThan(2);
+    await internals.replayer.flush();
+    const entries = internals.replayer.snapshot();
+    const regressed = fallbackDecisions(entries, 'orchestrator_synthesis_regressed');
+    expect(regressed).toHaveLength(1);
+    const value = regressed[0]?.value as {
+      reason?: string;
+      validators?: string[];
+      draftHash?: string;
+      failed?: unknown;
+    };
+    expect(value.validators).toEqual(['required-sections']);
+    expect(value.draftHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(typeof value.reason).toBe('string');
+    // The accepted arm carries no draft failures: there were none.
+    expect(value.failed).toBeUndefined();
+    expect(fallbackDecisions(entries, 'orchestrator_synthesis_fallback_declined')).toHaveLength(0);
+    const logs = events.ofType('log') as Array<{ msg: string; data?: { reason?: string } }>;
+    expect(logs.some((entry) => entry.msg === 'orchestrator synthesis regressed')).toBe(true);
+  });
+
+  it('declines typed when the draft fails too, and the original failure rethrows', async () => {
+    const adapter = draftThenSynthesis(SECTIONLESS, SECTIONLESS);
+    const { internals, events } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 6 }, fallbackToValidDraft: true },
+      finishValidation: CONTRACT(),
+    });
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow();
+    await internals.replayer.flush();
+    const entries = internals.replayer.snapshot();
+    expect(fallbackDecisions(entries, 'orchestrator_synthesis_regressed')).toHaveLength(0);
+    const declined = fallbackDecisions(entries, 'orchestrator_synthesis_fallback_declined');
+    expect(declined).toHaveLength(1);
+    const value = declined[0]?.value as { failed?: { name: string; reasons: string[] }[] };
+    expect(value.failed?.map((row) => row.name)).toEqual(['required-sections']);
+    const logs = events.ofType('log') as Array<{ msg: string; data?: { draftFailed?: string[] } }>;
+    const declineLog = logs.find(
+      (entry) => entry.msg === 'orchestrator synthesis fallback declined',
+    );
+    expect(declineLog?.data?.draftFailed).toEqual(['required-sections']);
+  });
+
+  it('the default is off: the same failing synthesis kills the run and nothing journals', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, SECTIONLESS);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 6 } },
+      finishValidation: CONTRACT(),
+    });
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow();
+    await internals.replayer.flush();
+    const entries = internals.replayer.snapshot();
+    expect(fallbackDecisions(entries, 'orchestrator_synthesis_regressed')).toHaveLength(0);
+    expect(fallbackDecisions(entries, 'orchestrator_synthesis_fallback_declined')).toHaveLength(0);
+  });
+
+  it('with acceptance configured the envelope names the regression beside the draft result', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, SECTIONLESS);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 }, fallbackToValidDraft: true },
+      finishValidation: CONTRACT(),
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      result: unknown;
+      completion: string;
+      synthesisRegressed?: { reason: string; decisionRef: number };
+    };
+    expect(outcome.result).toBe(SECTIONED);
+    expect(outcome.completion).toBe('complete');
+    expect(outcome.synthesisRegressed?.decisionRef).toBeGreaterThan(0);
+    expect(typeof outcome.synthesisRegressed?.reason).toBe('string');
+  });
+
+  it('is a boolean and needs a contract to judge by', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        synthesis: { limits: { maxTurns: 3 }, fallbackToValidDraft: 'yes' } as never,
+        finishValidation: CONTRACT(),
+      }),
+    ).toThrow(/fallbackToValidDraft must be a boolean/);
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        synthesis: { limits: { maxTurns: 3 }, fallbackToValidDraft: true },
+      }),
+    ).toThrow(/fallbackToValidDraft requires finishValidation/);
+  });
+});
+
 describe('recovered attempts alias by admission identity (RV609)', () => {
   /** Runs phase 1 (spawn one child, make it terminal per the script,
    * crash the coordinator), returns the truncated journal and the old

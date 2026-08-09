@@ -1135,6 +1135,39 @@ export interface OrchestrateSynthesis {
    */
   carryDraftGaps?: boolean;
   /**
+   * The no-regression floor under the synthesis (RV2505, the 1.226.0
+   * comparison run). That run's coordination draft satisfied the FULL
+   * declared contract, `skipWhenDraftValid` was off because the
+   * operator wanted the composing pass anyway, and the synthesis then
+   * failed the same bundle three times and died mid repair: the run
+   * settled with NO result at all, having paid for four workers, the
+   * draft that would have passed, and three rejected compositions.
+   * With `true`, a synthesis that fails terminally does not throw away
+   * a draft the contract accepts. The failure is caught at the
+   * post-fan-in chokepoint, the coordination draft is judged by the
+   * same `finishValidation.validators` that bind the synthesis finish,
+   * and a draft every validator accepts becomes the run result under a
+   * journaled 'orchestrator_synthesis_regressed' decision (the failure
+   * message, the validator names, the draft hash, the contract
+   * generation) plus a warn 'orchestrator synthesis regressed' log; the
+   * envelope carries `synthesisRegressed`. A draft that fails too
+   * journals 'orchestrator_synthesis_fallback_declined' naming ITS
+   * failing validators and the original failure rethrows untouched, so
+   * the decline is auditable instead of silent. Deterministic by
+   * construction: only the declared contract judges, never a quality
+   * heuristic, and the verdict is a pure function of the draft, so a
+   * resume re-derives it without re-running the paid invocation.
+   * Requires `finishValidation` (a ConfigError at intake otherwise:
+   * without a contract there is nothing to judge either document by),
+   * which transitively limits it to mode 'single'. Orthogonal to
+   * `skipWhenDraftValid`: that gate decides whether to PAY for the
+   * synthesis, this floor decides what to do when the paid one comes
+   * back worse than the draft, and with both on a valid draft skips
+   * before there is anything to regress. Default false: no catch, no
+   * decision entry, no envelope field, byte for byte.
+   */
+  fallbackToValidDraft?: boolean;
+  /**
    * The structured evidence index (RV808b): a deterministic per-child
    * citation map in the 'single' synthesis prompt, so the composing
    * model can target its reads instead of re-reading the whole
@@ -1626,6 +1659,20 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         throw new ConfigError(
           'orchestrate synthesis.carryDraftGaps requires skipWhenDraftValid: the gaps ARE the ' +
             'failed pre-pass verdict, and without the pre-pass there is nothing to carry',
+        );
+      }
+    }
+    const floor = (synthesis as { fallbackToValidDraft?: unknown }).fallbackToValidDraft;
+    if (floor !== undefined) {
+      if (typeof floor !== 'boolean') {
+        throw new ConfigError(
+          'orchestrate synthesis.fallbackToValidDraft must be a boolean; got ' + typeof floor,
+        );
+      }
+      if (floor && opts.finishValidation === undefined) {
+        throw new ConfigError(
+          'orchestrate synthesis.fallbackToValidDraft requires finishValidation: without a ' +
+            'declared finish contract there is nothing to judge the draft valid by',
         );
       }
     }
@@ -7037,6 +7084,123 @@ export function makeOrchestratorWorkflow(
             : { ran: true },
       synthesis,
     });
+    /**
+     * The no-regression fallback verdict (RV2505), set only when the
+     * floor actually caught a failing synthesis: the truncated failure
+     * message and the journal seq of the decision that recorded it.
+     */
+    let synthesisRegressed: { reason: string; decisionRef: number } | undefined;
+    /**
+     * The no-regression floor under the synthesis (RV2505, the 1.226.0
+     * comparison run): a synthesis that fails terminally must not throw
+     * away a coordination draft the SAME declared contract accepts.
+     * Judges the draft with the validator bundle, journals what it
+     * found either way, and answers whether the caller should settle on
+     * the draft instead of rethrowing. Pure: the verdict is a function
+     * of the draft and the validators, so a resume that re-fails the
+     * synthesis re-derives the identical answer, and the journaled
+     * decision is reused rather than duplicated.
+     */
+    const draftFallbackOnRegression = async (
+      draft: unknown,
+      thrown: unknown,
+    ): Promise<{ used: boolean }> => {
+      const floorOn = opts?.synthesis?.fallbackToValidDraft === true;
+      if (!floorOn || validationSpec === undefined) {
+        return { used: false };
+      }
+      if (thrown instanceof ConfigError) {
+        // A ConfigError is the CONTRACT being broken, not the model
+        // failing it: the documented remedy is to fix the config and
+        // resume, and settling on a draft would bury the defect. The
+        // skip pre-pass rethrows validator ConfigErrors for the same
+        // reason.
+        return { used: false };
+      }
+      const draftValue = (draft ?? null) as Json | null;
+      const draftHash = createHash('sha256').update(jcsSerialize(draftValue), 'utf8').digest('hex');
+      const validatorNames = validationSpec.validators.map((validator) => validator.name);
+      const input: FinishValidationInput = {
+        result: draftValue,
+        text: typeof draftValue === 'string' ? draftValue : JSON.stringify(draftValue),
+        children: validationChildren(),
+      };
+      // Every validator runs: the whole point of the decline entry is
+      // to name what the draft itself failed, so the first-failure
+      // short circuit of the skip pre-pass would under-report here.
+      const failed: { name: string; reasons: string[] }[] = [];
+      for (const validator of validationSpec.validators) {
+        let verdict: FinishValidationVerdict;
+        try {
+          verdict = validator.validate(input);
+        } catch (validatorThrew) {
+          throw new ConfigError(
+            `finish validator '${validator.name}' threw instead of returning a verdict ` +
+              'during the fallbackToValidDraft judgement: ' +
+              (validatorThrew instanceof Error ? validatorThrew.message : String(validatorThrew)),
+          );
+        }
+        if (!verdict.ok) {
+          failed.push({ name: validator.name, reasons: verdict.reasons });
+        }
+      }
+      const regressed = failed.length === 0;
+      const reason = (thrown instanceof Error ? thrown.message : String(thrown)).slice(0, 300);
+      const key = deriverV2.deriveKey({
+        kind: regressed
+          ? 'orchestrator-synthesis-regressed'
+          : 'orchestrator-synthesis-fallback-declined',
+      });
+      const prior = internals.replayer
+        .snapshot()
+        .find((entry) => entry.kind === 'decision' && entry.key === key);
+      const entryRef =
+        prior?.seq ??
+        (
+          await internals.replayer.appendSinglePhase({
+            scope: callingState.scope,
+            key,
+            kind: 'decision',
+            status: 'ok',
+            spanId: internals.spans.mint(callingState.spanId),
+            site: 'orchestrator-synthesis-fallback',
+            value: {
+              decisionType: regressed
+                ? 'orchestrator_synthesis_regressed'
+                : 'orchestrator_synthesis_fallback_declined',
+              reason,
+              validators: validatorNames,
+              ...(regressed ? {} : { failed: failed as unknown as Json }),
+              // The same binding the skip and gaps decisions carry
+              // (RV603): the contract generation and the judged draft.
+              ...(validationSpec.contract === undefined
+                ? {}
+                : { contractHash: validationSpec.contract.hash }),
+              draftHash,
+            },
+          })
+        ).seq;
+      internals.events.emit(
+        {
+          type: 'log',
+          level: 'warn',
+          msg: regressed
+            ? 'orchestrator synthesis regressed'
+            : 'orchestrator synthesis fallback declined',
+          data: {
+            reason,
+            decisionRef: entryRef,
+            ...(regressed ? {} : { draftFailed: failed.map((row) => row.name) }),
+          },
+        },
+        callingState.spanId,
+      );
+      if (!regressed) {
+        return { used: false };
+      }
+      synthesisRegressed = { reason, decisionRef: entryRef };
+      return { used: true };
+    };
     const enrichSynthesisFailure = (
       thrown: unknown,
       snapshot?: {
@@ -7140,6 +7304,12 @@ export function makeOrchestratorWorkflow(
         return await runSynthesis(result.output);
       } catch (thrown) {
         await journalSynthesisAdmissionDecline(thrown);
+        // The no-regression floor (RV2505). Without an acceptance
+        // policy the return value is the bare result, so the draft
+        // rides it directly and the journaled decision is the record.
+        if ((await draftFallbackOnRegression(result.output, thrown)).used) {
+          return result.output;
+        }
         return enrichSynthesisFailure(thrown);
       }
     }
@@ -7589,26 +7759,33 @@ export function makeOrchestratorWorkflow(
       synthesizedFinal = await runSynthesis(result.output);
     } catch (thrown) {
       await journalSynthesisAdmissionDecline(thrown);
-      // The full acceptance snapshot rides the failure (cycle 73): the
-      // error outcome names the same degradation facts the ok envelope
-      // below reports, salvage lists included.
-      enrichSynthesisFailure(thrown, {
-        completion: decision.completion,
-        childStatusCounts: decision.childStatusCounts,
-        degradedReasons: decision.degradedReasons,
-        ...(decision.salvagedPartialChildren === undefined
-          ? {}
-          : { salvagedPartialChildren: decision.salvagedPartialChildren }),
-        ...(decision.salvagedTerminalOutputChildren === undefined
-          ? {}
-          : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
-        ...(decision.belowFloorOkChildren === undefined
-          ? {}
-          : { belowFloorOkChildren: decision.belowFloorOkChildren }),
-        ...(decision.children === undefined
-          ? {}
-          : { acceptanceChildren: decision.children as unknown as Json }),
-      });
+      // The no-regression floor (RV2505): a draft the declared contract
+      // accepts becomes the result instead of the run settling with
+      // nothing, and the envelope says so.
+      if ((await draftFallbackOnRegression(result.output, thrown)).used) {
+        synthesizedFinal = result.output;
+      } else {
+        // The full acceptance snapshot rides the failure (cycle 73): the
+        // error outcome names the same degradation facts the ok envelope
+        // below reports, salvage lists included.
+        enrichSynthesisFailure(thrown, {
+          completion: decision.completion,
+          childStatusCounts: decision.childStatusCounts,
+          degradedReasons: decision.degradedReasons,
+          ...(decision.salvagedPartialChildren === undefined
+            ? {}
+            : { salvagedPartialChildren: decision.salvagedPartialChildren }),
+          ...(decision.salvagedTerminalOutputChildren === undefined
+            ? {}
+            : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+          ...(decision.belowFloorOkChildren === undefined
+            ? {}
+            : { belowFloorOkChildren: decision.belowFloorOkChildren }),
+          ...(decision.children === undefined
+            ? {}
+            : { acceptanceChildren: decision.children as unknown as Json }),
+        });
+      }
     }
     const envelopeSchemaRecovered =
       (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;
@@ -7655,6 +7832,10 @@ export function makeOrchestratorWorkflow(
       ...(synthesisSkippedByValidDraft
         ? { synthesisSkipped: 'synthesis_skipped_by_valid_draft' as const }
         : {}),
+      // The no-regression floor (RV2505): present only when a failing
+      // synthesis was actually caught and the draft settled the run, so
+      // every pre-existing envelope stays byte identical.
+      ...(synthesisRegressed === undefined ? {} : { synthesisRegressed }),
       // The contradiction pass (RV1302): present whenever the pass was
       // configured, EMPTY when it ran and the pool agreed. The
       // distinction is the point: an absent field says nothing looked,

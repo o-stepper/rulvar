@@ -10320,6 +10320,39 @@ interface OrchestrateSynthesis {
   */
   carryDraftGaps?: boolean;
   /**
+  * The no-regression floor under the synthesis (RV2505, the 1.226.0
+  * comparison run). That run's coordination draft satisfied the FULL
+  * declared contract, `skipWhenDraftValid` was off because the
+  * operator wanted the composing pass anyway, and the synthesis then
+  * failed the same bundle three times and died mid repair: the run
+  * settled with NO result at all, having paid for four workers, the
+  * draft that would have passed, and three rejected compositions.
+  * With `true`, a synthesis that fails terminally does not throw away
+  * a draft the contract accepts. The failure is caught at the
+  * post-fan-in chokepoint, the coordination draft is judged by the
+  * same `finishValidation.validators` that bind the synthesis finish,
+  * and a draft every validator accepts becomes the run result under a
+  * journaled 'orchestrator_synthesis_regressed' decision (the failure
+  * message, the validator names, the draft hash, the contract
+  * generation) plus a warn 'orchestrator synthesis regressed' log; the
+  * envelope carries `synthesisRegressed`. A draft that fails too
+  * journals 'orchestrator_synthesis_fallback_declined' naming ITS
+  * failing validators and the original failure rethrows untouched, so
+  * the decline is auditable instead of silent. Deterministic by
+  * construction: only the declared contract judges, never a quality
+  * heuristic, and the verdict is a pure function of the draft, so a
+  * resume re-derives it without re-running the paid invocation.
+  * Requires `finishValidation` (a ConfigError at intake otherwise:
+  * without a contract there is nothing to judge either document by),
+  * which transitively limits it to mode 'single'. Orthogonal to
+  * `skipWhenDraftValid`: that gate decides whether to PAY for the
+  * synthesis, this floor decides what to do when the paid one comes
+  * back worse than the draft, and with both on a valid draft skips
+  * before there is anything to regress. Default false: no catch, no
+  * decision entry, no envelope field, byte for byte.
+  */
+  fallbackToValidDraft?: boolean;
+  /**
   * The structured evidence index (RV808b): a deterministic per-child
   * citation map in the 'single' synthesis prompt, so the composing
   * model can target its reads instead of re-reading the whole
