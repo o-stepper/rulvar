@@ -203,7 +203,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The two hundred six rounds, verbatim in this repository's history:
+The two hundred seven rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -424,6 +424,7 @@ The two hundred six rounds, verbatim in this repository's history:
 | v1.222.0      | 549aabd (#860): a bare run-account crossing folds typed budget-ceiling, children ride the partial envelope; an unfunded granted repair declines journaled with its marked terminal        | v1.223.0   |
 | v1.223.0      | 4eca1a3 (#863): ResumeOptions.run raises a dead run ceiling for the segment and its remaining life, journaled as a decision; a ceiling under the settled spend refuses typed              | v1.224.0   |
 | v1.224.0      | a2770e6 (#867): cost-audit --all sweeps every run the store lists, one summary row each and exit 1 on any divergence; the grammar renders optional positionals bracketed                  | v1.225.0   |
+| v1.225.0      | bef8621 (#869): three parity crash shapes become fault-kit gates: the reserve-line redemption on both arms (DEF-7 parity), the spawn-famine resume, the one-round guidance repair         | v1.226.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
