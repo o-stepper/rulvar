@@ -3587,6 +3587,33 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/budget.test.ts',
   },
   {
+    id: 'synthesis-regression-floor-is-opt-in',
+    doctrine:
+      'the no-regression floor under the synthesis is opt-in (RV2505): every run without fallbackToValidDraft keeps dying on a failing synthesis exactly as before, byte for byte, and only a host that declared the floor settles on its draft',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      const floorOn = opts?.synthesis?.fallbackToValidDraft === true;',
+    replace: '      const floorOn = true;',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'synthesis-regression-judges-the-draft',
+    doctrine:
+      'the floor settles on the draft only when the DECLARED contract accepts it (RV2505): a draft that fails the same bundle is not a floor, it is a second failure, so the original error rethrows and the decline is journaled with the validators the draft itself failed',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      const regressed = failed.length === 0;',
+    replace: '      const regressed = true;',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'synthesis-regression-decline-names-validators',
+    doctrine:
+      "the declined verdict names the draft's OWN failing validators (RV2505): a decline that records only the synthesis failure leaves the operator unable to tell a draft that nearly passed from one that was never close",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '              ...(regressed ? {} : { failed: failed as unknown as Json }),',
+    replace: '              ...(regressed ? {} : {}),',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
     id: 'synthesis-decline-journals-accepted-finish',
     doctrine:
       "a synthesis admission refused after the validated coordination finish journals the declined verdict (RV2201): the seventh subscription parity resume refused the spawn on the counter with the reserve's dollars whole and the terminal carried a bare message the journal never explained",
