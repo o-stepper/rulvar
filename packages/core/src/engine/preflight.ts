@@ -254,7 +254,11 @@ export interface PreflightInput {
      * Mirrors FinishValidationSpec.maxRepairs (default
      * {@link DEFAULT_FINISH_MAX_REPAIRS}): with zero, the first
      * rejection is final and there is no repair exchange to fund, so
-     * the repair-reserve-unfunded warning stays silent.
+     * the repair-reserve-unfunded warning stays silent. It also SIZES
+     * the mandatory synthesis tail (RV2504): every granted repair can
+     * write to the output allowance, so the tail
+     * `synthesis-reserve-below-cap-composition` prices is one
+     * composition plus this many turns, whatever the turn reserve says.
      */
     maxRepairs?: number;
     /**
@@ -1800,9 +1804,18 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         // the truncation, and the granted repair turn was refused at
         // a zero remainder: the reserve funded a composition it could
         // not repair. Price ONE turn at the output allowance plus the
-        // declared input floor, and one more such turn when the
-        // validation declares a repair reserve; a committed reserve
-        // below that number carries exactly that risk.
+        // declared input floor, and one more for EVERY repair the
+        // validation grants; a committed reserve below that number
+        // carries exactly that risk.
+        //
+        // The tail is counted off maxRepairs, not off repairTurnReserve
+        // (RV2504, the 1.226.0 comparison run). The reserve is a TURN
+        // budget; the money is spent by every repair the runtime is
+        // willing to GRANT, whether it comes out of reserved turns or
+        // ordinary ones. That run declared maxRepairs 2 with a 1.53
+        // hold under exactly two composition turns of price, so the
+        // old one-repair arithmetic passed the config that then died
+        // on its second repair with the first still uncomposed.
         {
           const pricing = pricingOf(servedBy);
           const declared = input.orchestrator?.budget?.synthesisReserveUsd;
@@ -1818,25 +1831,65 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
               cacheReadTokens: 0,
               cacheWriteTokens: 0,
             });
-            const repairTurns = finishRepairReserve > 0 ? 1 : 0;
-            const requiredUsd = compositionUsd * (1 + repairTurns);
-            if (declared < requiredUsd) {
+            const grantedRepairs =
+              input.finishValidation === undefined
+                ? 0
+                : (input.finishValidation.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS);
+            const tailTurns = 1 + grantedRepairs;
+            const requiredUsd = compositionUsd * tailTurns;
+            // Two rooms hold the tail, and the declared plan
+            // guarantees each of them only at the reserve line, the
+            // worst case where the coordination loop has spent every
+            // dollar the fence lets it (RV2101). The reserve room is
+            // the hold itself. The exposure room is what the RV711
+            // ceiling still allows above that line: the exposure cap
+            // bounds spent-plus-in-flight on the RUN account, so a cap
+            // below the ceiling silently shortens the tail no matter
+            // how much money the hold carries. The comparison run held
+            // 1.53 for a 2.295 tail and left it 1.23 of exposure room:
+            // both rooms were short, and the synthesis died mid repair
+            // with 0.385 of its envelope unspent.
+            const exposureCapUsd = input.run?.maxInFlightExposureUsd;
+            const reserveLineUsd = ceilingUsd === undefined ? undefined : ceilingUsd - declared;
+            const exposureRoomUsd =
+              exposureCapUsd === undefined || reserveLineUsd === undefined
+                ? undefined
+                : exposureCapUsd - reserveLineUsd;
+            const reserveShort = declared < requiredUsd;
+            const exposureShort = exposureRoomUsd !== undefined && exposureRoomUsd < requiredUsd;
+            if (reserveShort || exposureShort) {
               say({
-                severity: 'warning',
+                // Both rooms short is not a tighter warning, it is a
+                // tail the declared numbers cannot finish on either
+                // ceiling: no coordination frugality reaches past the
+                // smaller of two rooms that are both under the price.
+                severity: reserveShort && exposureShort ? 'error' : 'warning',
                 code: 'synthesis-reserve-below-cap-composition',
                 message:
-                  `a synthesis turn writing to its ${String(outputBound)} token output ` +
-                  `allowance over the declared ${String(synthesis.estInputTokens ?? 0)} input ` +
-                  `floor prices about ${compositionUsd.toFixed(4)} USD at the rates of ` +
-                  `'${servedBy}'` +
-                  (repairTurns > 0
-                    ? `, and the declared repair reserve prices one more such turn ` +
-                      `(about ${requiredUsd.toFixed(4)} USD total)`
-                    : '') +
-                  `; the committed synthesis reserve holds only ${declared.toFixed(4)} USD, so ` +
-                  'a composition cut at the allowance can fail its validators with no money ' +
-                  'left for the granted repair; hold the reserve at the cap arithmetic or ' +
-                  'lower maxOutputTokensPerTurn',
+                  `the mandatory synthesis tail is ${String(tailTurns)} turn(s) (one composition ` +
+                  (grantedRepairs === 0
+                    ? 'and no granted repair'
+                    : `plus the ${String(grantedRepairs)} granted repair(s)`) +
+                  `), each writing to its ${String(outputBound)} token output allowance over the ` +
+                  `declared ${String(synthesis.estInputTokens ?? 0)} input floor: ` +
+                  `${String(tailTurns)} x ${compositionUsd.toFixed(4)} = ` +
+                  `${requiredUsd.toFixed(4)} USD at the rates of '${servedBy}'` +
+                  (reserveShort
+                    ? `; the committed synthesis reserve holds only ${declared.toFixed(4)} USD`
+                    : `; the committed ${declared.toFixed(4)} USD reserve covers it`) +
+                  (exposureRoomUsd === undefined
+                    ? ''
+                    : exposureShort
+                      ? `, and maxInFlightExposureUsd ` +
+                        `${(exposureCapUsd ?? 0).toFixed(4)} leaves only ` +
+                        `${exposureRoomUsd.toFixed(4)} USD above the reserve line ` +
+                        `${(reserveLineUsd ?? 0).toFixed(4)} USD`
+                      : `, and the exposure ceiling leaves ${exposureRoomUsd.toFixed(4)} USD ` +
+                        `above the reserve line`) +
+                  ': a composition cut at the allowance can fail its validators with no room ' +
+                  'left for the repairs the runtime will grant; hold the reserve at the tail ' +
+                  'arithmetic, raise maxInFlightExposureUsd toward the ceiling, lower ' +
+                  'maxOutputTokensPerTurn, or grant fewer repairs',
                 spawn: 'synthesis',
               });
             }

@@ -13277,7 +13277,11 @@ interface PreflightInput {
     * Mirrors FinishValidationSpec.maxRepairs (default
     * {@link DEFAULT_FINISH_MAX_REPAIRS}): with zero, the first
     * rejection is final and there is no repair exchange to fund, so
-    * the repair-reserve-unfunded warning stays silent.
+    * the repair-reserve-unfunded warning stays silent. It also SIZES
+    * the mandatory synthesis tail (RV2504): every granted repair can
+    * write to the output allowance, so the tail
+    * `synthesis-reserve-below-cap-composition` prices is one
+    * composition plus this many turns, whatever the turn reserve says.
     */
     maxRepairs?: number;
     /**

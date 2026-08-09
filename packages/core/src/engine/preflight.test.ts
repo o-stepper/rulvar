@@ -25,7 +25,7 @@ import { tool } from '../tools/tool.js';
 import { mergeUsageLimits } from '../runtime/usage-limits.js';
 import { defineWorkflow } from './ctx.js';
 import { createEngine } from './engine.js';
-import { preflightEstimate } from './preflight.js';
+import { preflightEstimate, type PreflightFinding } from './preflight.js';
 import { scriptedAdapter, testCaps } from './test-harness.js';
 
 const SERVED: ModelRef = 'fake:m1';
@@ -1870,7 +1870,9 @@ describe('the synthesis reserve against the cap-sized composition (RV2104, the s
   // composition truncated exactly at the 40000-token output cap; the
   // granted repair turn was refused at a zero remainder. The finding
   // prices ONE turn writing to the allowance (plus the declared input
-  // floor) and one more such turn when a repair reserve is declared.
+  // floor) and one more for every repair the validation grants (RV2504;
+  // the default grant is one, so these seventh-run numbers are
+  // unchanged).
   function capInput(options: {
     synthesisReserveUsd?: number;
     repairTurnReserve?: number;
@@ -1949,6 +1951,131 @@ describe('the synthesis reserve against the cap-sized composition (RV2104, the s
         (entry) => entry.code === 'synthesis-reserve-below-cap-composition',
       ),
     ).toBe(false);
+  });
+});
+
+describe('the mandatory tail against both ceilings (RV2504, the 1.226.0 comparison run)', () => {
+  // The comparison run declared a 1.53 synthesis reserve, a 45000 token
+  // input floor, an 18000 token output allowance and maxRepairs 2, on a
+  // model priced 5 in / 30 out. One composition turn is 0.7650 USD, so
+  // the hold was EXACTLY two of them: it passed the RV2104 check, which
+  // priced one repair, and the tail the runtime actually grants is
+  // three turns, 2.2950 USD. The run then died mid repair with 0.385 of
+  // its 6.00 envelope unspent, because the 5.70 exposure ceiling had
+  // left the tail only 1.23 USD above the 4.47 reserve line.
+  const RATES = { inputUsdPerMTok: 5, outputUsdPerMTok: 30 };
+
+  function tailInput(options: {
+    synthesisReserveUsd: number;
+    maxRepairs?: number;
+    maxInFlightExposureUsd?: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000, pricing: RATES }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: {
+        budgetUsd: 6,
+        ...(options.maxInFlightExposureUsd === undefined
+          ? {}
+          : { maxInFlightExposureUsd: options.maxInFlightExposureUsd }),
+      },
+      orchestrator: {
+        budget: {
+          capUsd: 3,
+          capFraction: 1.0,
+          synthesisReserveUsd: options.synthesisReserveUsd,
+        },
+        synthesis: {
+          limits: { maxTurns: 6, maxOutputTokensPerTurn: 18000 },
+          estInputTokens: 45000,
+        },
+        limits: { maxOutputTokensPerTurn: 32000 },
+      },
+      spawns: [{ label: 'worker', estCost: 0.48, limits: { maxOutputTokensPerTurn: 14000 } }],
+      finishValidation: {
+        validators: [{ name: 'sections', validate: () => ({ ok: false, reasons: ['unused'] }) }],
+        repairTurnReserve: 3,
+        ...(options.maxRepairs === undefined ? {} : { maxRepairs: options.maxRepairs }),
+      },
+    };
+  }
+
+  function tailFinding(report: ReturnType<typeof preflightEstimate>): PreflightFinding | undefined {
+    return report.findings.find(
+      (entry) => entry.code === 'synthesis-reserve-below-cap-composition',
+    );
+  }
+
+  it("errors with the run's own arithmetic when neither room can pay the tail", () => {
+    const finding = tailFinding(
+      preflightEstimate(
+        tailInput({ synthesisReserveUsd: 1.53, maxRepairs: 2, maxInFlightExposureUsd: 5.7 }),
+      ),
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain('3 turn(s) (one composition plus the 2 granted repair(s))');
+    expect(finding?.message).toContain('3 x 0.7650 = 2.2950 USD');
+    expect(finding?.message).toContain('holds only 1.5300 USD');
+    expect(finding?.message).toContain('leaves only 1.2300 USD above the reserve line 4.4700 USD');
+    expect(finding?.spawn).toBe('synthesis');
+  });
+
+  it('counts the turns off maxRepairs, not off the repair turn reserve', () => {
+    // The same 1.53 hold under maxRepairs 1 is exactly the tail price,
+    // which is how the run's config passed the RV2104 arithmetic: the
+    // reserve arm goes quiet at 2 x 0.7650 and only the exposure arm
+    // still fires. Under maxRepairs 0 the tail is one turn and both
+    // rooms cover it.
+    const oneRepair = tailFinding(
+      preflightEstimate(
+        tailInput({ synthesisReserveUsd: 1.53, maxRepairs: 1, maxInFlightExposureUsd: 5.7 }),
+      ),
+    );
+    expect(oneRepair?.severity).toBe('warning');
+    expect(oneRepair?.message).toContain('2 x 0.7650 = 1.5300 USD');
+    expect(oneRepair?.message).toContain('the committed 1.5300 USD reserve covers it');
+    const noRepair = tailFinding(
+      preflightEstimate(
+        tailInput({ synthesisReserveUsd: 1.53, maxRepairs: 0, maxInFlightExposureUsd: 5.7 }),
+      ),
+    );
+    expect(noRepair).toBeUndefined();
+  });
+
+  it('warns on one short room and stays silent when both cover the tail', () => {
+    // Exposure alone: a 2.50 hold covers the 2.2950 tail, but a 4.00
+    // exposure ceiling leaves only 0.50 above the 3.50 reserve line.
+    const exposureOnly = tailFinding(
+      preflightEstimate(
+        tailInput({ synthesisReserveUsd: 2.5, maxRepairs: 2, maxInFlightExposureUsd: 4 }),
+      ),
+    );
+    expect(exposureOnly?.severity).toBe('warning');
+    expect(exposureOnly?.message).toContain('the committed 2.5000 USD reserve covers it');
+    expect(exposureOnly?.message).toContain('leaves only 0.5000 USD above the reserve line');
+    // Reserve alone: with no exposure cap declared there is no second
+    // room to be short of, which is the historical warning shape.
+    const reserveOnly = tailFinding(
+      preflightEstimate(tailInput({ synthesisReserveUsd: 1.53, maxRepairs: 2 })),
+    );
+    expect(reserveOnly?.severity).toBe('warning');
+    expect(reserveOnly?.message).toContain('holds only 1.5300 USD');
+    expect(reserveOnly?.message).not.toContain('reserve line');
+    // Both rooms: a 2.40 hold with the exposure ceiling AT the run
+    // ceiling leaves the tail its 2.2950 twice over.
+    expect(
+      tailFinding(
+        preflightEstimate(
+          tailInput({ synthesisReserveUsd: 2.4, maxRepairs: 2, maxInFlightExposureUsd: 6 }),
+        ),
+      ),
+    ).toBeUndefined();
   });
 });
 

@@ -3498,8 +3498,37 @@ const MUTATIONS = [
     doctrine:
       "preflight prices the synthesis reserve against a composition written to the output allowance plus the declared repair turn (RV2104): the minimal-payload check alone passed the seventh parity run's 0.70 hold, and the cap-sized composition spent it whole with nothing left for the granted repair",
     file: 'packages/core/src/engine/preflight.ts',
-    find: '            if (declared < requiredUsd) {',
+    find: '            if (reserveShort || exposureShort) {',
     replace: '            if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'synthesis-tail-counts-granted-repairs',
+    doctrine:
+      "the mandatory synthesis tail is one composition plus EVERY repair maxRepairs grants, not one (RV2504): the reserve is a turn budget and the money is spent by every repair the runtime will dispatch, so the comparison run's 1.53 hold passed a check that priced two turns while the runtime was free to take three",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '            const tailTurns = 1 + grantedRepairs;',
+    replace: '            const tailTurns = 1 + (grantedRepairs > 0 ? 1 : 0);',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'synthesis-tail-exposure-room',
+    doctrine:
+      'the tail is priced against the exposure room above the reserve line as well as against the hold (RV2504): an in-flight exposure cap below the run ceiling shortens the tail no matter how much money the reserve carries, which is how the comparison run died mid repair with 0.385 unspent',
+    file: 'packages/core/src/engine/preflight.ts',
+    find:
+      '            const exposureShort = exposureRoomUsd !== undefined && ' +
+      'exposureRoomUsd < requiredUsd;',
+    replace: '            const exposureShort = false;',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'synthesis-tail-both-rooms-error',
+    doctrine:
+      'a tail neither room can pay is an error finding, not a warning (RV2504): with both the hold and the exposure room under the tail price there is no coordination frugality that reaches past the smaller of them, so the preflight command must exit non-zero',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "                severity: reserveShort && exposureShort ? 'error' : 'warning',",
+    replace: "                severity: 'warning',",
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
