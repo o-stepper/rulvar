@@ -1,5 +1,29 @@
 # @rulvar/evals
 
+## 1.227.0
+
+### Minor Changes
+
+- f262e9f: The run's own id becomes an artifact the evidence grade accepts (RV2501). `evidenceGradeValidator` demands that a `live-observed`, `provider bill` or `production-proven` sentence name an artifact IN THAT SENTENCE, and `DEFAULT_ARTIFACT_PATTERN` only ever matched a `path:line` citation or a ULID behind the literal word `run`. Every other run id was therefore unnameable: the 1.226.0 comparison run carried the id `comparison-rulvar-v12260-aug09-1786272840549`, its verdict told the synthesis to state that id, the pattern matched nothing it could write, and the run spent both granted repairs and failed closed on two sentences telling the truth about the run they were part of. `FinishValidationInput` now carries `runId`, and the orchestrator runtime supplies it at every gate that judges a finish: the validator-bound finish, the contract draft gate, and the `skipWhenDraftValid` pre-pass. A sentence carrying that id verbatim as a whole identifier satisfies the grade, and the verdict NAMES the id it wants written, so the repair instruction is executable instead of aspirational while the RV2202 composition warning stands (a run id written beside a `path:line` citation is not in the cited window and trades this failure for a `cited-value` one, so the graded sentence must carry no source citation). The intake is bounded like every sibling: an id shorter than six characters is ignored, because a two character id would satisfy nearly every sentence by accident, the same fail open the empty-pattern guard refuses; the id is credited only as a whole identifier, so `x<id>y` is never an artifact; and with no `runId` supplied the verdict is byte identical to the historical one. The same defect had a second half in the prompt: the opt-in `RUN FACTS:` line (RV1503) ends in the `live-observed` register, the composing model is told to reproduce run facts only from it, and the line named no artifact at all, so the engine was steering its own synthesis into a sentence its own default bundle refuses. The line now carries `runId` in its JSON and reads `live-observed by run <id>` in the same sentence as the graded phrase, so quoting it faithfully passes `evidenceGradeValidator` and, carrying no source citation, passes `citedValueValidator` beside it; a test asserts exactly that over the bytes the engine actually writes, with the id-less contrast asserted as the historical failure. The RUN FACTS line stays folded only from replay-stable material, so a resumed synthesis re-derives identical bytes; hosts that pin synthesis prompt bytes across engine versions should expect this line to have changed. The `validator-guidance-conflict` fault scenario drives the new arm end to end: its corrected finish now carries the run's OWN id rather than a fabricated ULID, and the scenario asserts the repair exchange names that id verbatim beside the citation-free composition, so the guidance the fault kit gates is the guidance a run can actually execute.
+- f191ff7: Identity spans are not asserted values (RV2502). `citedValueValidator` reads every non-citation inline span in a citing sentence as a value asserted about that citation, and the 1.226.0 comparison run showed the class that rule over-reaches: its synthesis wrote the frozen commit sha `f8d9c5131c99c843ed23da22af20651f95377dd0` beside source citations, and the verdict demanded the sha appear in the cited source, an impossible repair delivered in the same reason list as three real value fixes; both granted repairs burned and the finish was rejected. A span naming the artefact under review says which commit, run, or release the document is about and asserts nothing about any cited line. Three shapes are now structural and always excluded: a commit sha (12 to 64 hex characters, a floor low enough for every real abbreviation and high enough that ordinary hex literals like `deadbeef` stay judged), a release version (`1.2.3`, `v1.2.3`, optional prerelease or build tail), and the run's own id when the runtime supplies `runId`, on the same six-character floor the evidence grade uses. Host vocabulary is declared rather than guessed: the new `notValues` option lists the spans a document writes as identity, verdict words like `conditionally ready` among them, matched whole and case sensitively; a malformed list is a `ConfigError` at construction. Nothing else relaxes, and a genuine value the cited line does not carry still fails in the very same sentence as an excused sha.
+
+  The run-id exclusion makes the shipped bundle self consistent. `evidenceGradeValidator` instructs a failing model to write this run's id inside the offending sentence (RV2501), and RV2202's warning existed because obeying that beside a citation traded an evidence-grade failure for a cited-value one, the trap that burned both repairs of the third subscription run. The two arms of the grade's reason now each name the composition that is TRUE for them: with the id in hand the graded sentence may carry a citation as well, and without one the older separation advice stands, because there the sibling has no id to recognise. The `validator-guidance-conflict` fault scenario converges on the direct shape, the run's own id written beside the citation in the graded sentence, which neither validator could accept before.
+
+### Patch Changes
+
+- Updated dependencies [f262e9f]
+- Updated dependencies [f191ff7]
+- Updated dependencies [fbbfbe8]
+- Updated dependencies [263b5e8]
+- Updated dependencies [db4d56d]
+- Updated dependencies [41f93a9]
+- Updated dependencies [98c8ca9]
+  - @rulvar/core@1.227.0
+  - @rulvar/anthropic@1.227.0
+  - @rulvar/openai@1.227.0
+  - @rulvar/plan@1.227.0
+  - @rulvar/testing@1.227.0
+
 ## 1.226.0
 
 ### Minor Changes
