@@ -3040,8 +3040,8 @@ const MUTATIONS = [
     doctrine:
       "every assembly of the claim-consistency meta derives its grade from its own counts (RV1702): hardcoding 'full' resurrects the benchmark's exact failure, completion 'complete' plus contradictions [] reading as semantic green over 40 of 144 citing sentences",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '        return { ...bare, coverage: claimCoverageOf(bare) };',
-    replace: "        return { ...bare, coverage: 'full' as const };",
+    find: '          coverage: claimCoverageOf(bare),',
+    replace: "          coverage: 'full' as const,",
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
@@ -4028,6 +4028,42 @@ const MUTATIONS = [
     replace:
       '    {\n      lifted.rejectedFinishCandidates = rejectedCandidates.filter(validRow).map((row) => ({\n        ...row,\n      }));\n    }',
     test: 'packages/core/src/engine/run-completion.test.ts',
+  },
+  {
+    id: 'claim-verdict-names-its-document',
+    doctrine:
+      'every claim-consistency verdict stamps WHICH document it read (RV2509): the pass judges the draft and the synthesis then rewrites it, so a coverage grade with no judgedStage is a claim about a document no consumer ever receives',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          judgedStage: stage,',
+    replace: "          judgedStage: 'draft',",
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'final-stage-judges-the-shipped-artifact',
+    doctrine:
+      "claimConsistency.stage 'final' and 'both' judge the artifact the run SETTLES on (RV2509): re-judging the draft after the synthesis would spend a second judge to re-confirm the verdict the run already had",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');",
+    replace: "      await runClaimConsistencyPass(result.output, acceptanceSnapshot, 'final');",
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'both-stage-keeps-the-draft-verdict',
+    doctrine:
+      "under stage 'both' the pre-synthesis verdict survives the final one (RV2509): the final pass overwrites the live meta, and losing the draft verdict erases the record of the gate that let the synthesis run at all",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;",
+    replace: '      claimConsistencyDraftMeta = undefined;',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'draft-to-final-rewrite-is-a-comparison',
+    doctrine:
+      'draftToFinal.rewritten compares the two hashes (RV2509): hardwiring it true would report a rewrite over a synthesis that returned the draft untouched, and the whole point of the field is telling those two runs apart',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '              rewritten: draftHash !== finalHash,',
+    replace: '              rewritten: true,',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
 ];
 

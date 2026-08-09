@@ -432,6 +432,11 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
     expect(finding?.draftExcerpt).toBe(DRAFT_INVERTED.replace('draft: ', 'draft: '));
     expect(finding?.pool[0]?.excerpt).toBe(POOL_READING);
     expect(finding?.reason).toBe('the draft inverts the recorded reading');
+    // The verdict says WHICH document it read (RV2509); the hash is
+    // read back typed so the exact-shape assertion stays exact.
+    const judgedHash = (outcome.claimConsistencyMeta as { judgedHash?: unknown } | undefined)
+      ?.judgedHash;
+    expect(judgedHash).toMatch(/^[0-9a-f]{64}$/);
     expect(outcome.claimConsistencyMeta).toEqual({
       poolChildren: 1,
       draftCitingSentences: 1,
@@ -440,6 +445,8 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       coveredCitingSentences: 1,
       judgeInvoked: true,
       coverage: 'full',
+      judgedStage: 'draft',
+      judgedHash,
     });
     // Exactly one judge invocation, carrying the pairs it must rule on.
     expect(judge.calls).toHaveLength(1);
@@ -470,6 +477,9 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
     )) as Record<string, unknown>;
     expect(judge.calls).toHaveLength(0);
     expect(outcome.claimContradictions).toEqual([]);
+    const vacuousHash = (outcome.claimConsistencyMeta as { judgedHash?: unknown } | undefined)
+      ?.judgedHash;
+    expect(vacuousHash).toMatch(/^[0-9a-f]{64}$/);
     expect(outcome.claimConsistencyMeta).toEqual({
       poolChildren: 1,
       draftCitingSentences: 0,
@@ -480,6 +490,8 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       // Not 'full' (RV2508): this configured pass verified nothing,
       // and the zero denominator is exactly what the grade must say.
       coverage: 'vacuous',
+      judgedStage: 'draft',
+      judgedHash: vacuousHash,
     });
   });
 
@@ -1085,5 +1097,102 @@ describe('the declared coverage floors (RV1809)', () => {
         claimConsistency: { onLowCoverage: 'fail' },
       }),
     ).toThrow(/needs a declared floor/);
+  });
+});
+
+describe('the semantic gate reaches the FINAL artifact (RV2509)', () => {
+  // The pass has always read the coordination draft, before the
+  // synthesis. That ordering is right (a bad draft must not pay for a
+  // composition) and it cannot verify the document that shipped: the
+  // twenty-fifth comparison run's judge cleared a draft the synthesis
+  // then rewrote three times over.
+  const FINAL_INVERTED =
+    'final: an audit-write failure does not turn success into failure [src/exec.ts:256-296].';
+
+  function stageHarness(finalText: string) {
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    const judge = scriptedAdapter((): ScriptedTurn => JUDGE_AGREES, { id: 'judge' });
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: finalText } } }),
+      { id: 'strong' },
+    );
+    const { internals, events } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    return { internals, events, judge };
+  }
+  const run = async (stage: 'draft' | 'final' | 'both' | undefined, finalText = FINAL_INVERTED) => {
+    const { internals, judge } = stageHarness(finalText);
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { limits: { maxTurns: 3 } },
+        claimConsistency: { ...JUDGE_MODEL, ...(stage === undefined ? {} : { stage }) },
+      }),
+      undefined,
+    )) as {
+      claimConsistencyMeta?: Record<string, unknown>;
+      claimConsistencyDraftMeta?: Record<string, unknown>;
+      draftToFinal?: {
+        draftHash: string;
+        finalHash: string;
+        rewritten: boolean;
+        claimsJudgedOn?: string;
+      };
+    };
+    return { outcome, judgeCalls: judge.calls.length };
+  };
+
+  it('the default judges the draft and SAYS so beside a rewritten final', async () => {
+    const { outcome, judgeCalls } = await run(undefined);
+    expect(judgeCalls).toBe(1);
+    expect(outcome.claimConsistencyMeta?.judgedStage).toBe('draft');
+    // The reading that used to be impossible: this verdict is about a
+    // document the synthesis replaced.
+    expect(outcome.draftToFinal?.rewritten).toBe(true);
+    expect(outcome.draftToFinal?.claimsJudgedOn).toBe('draft');
+    expect(outcome.claimConsistencyMeta?.judgedHash).toBe(outcome.draftToFinal?.draftHash);
+    expect(outcome.claimConsistencyMeta?.judgedHash).not.toBe(outcome.draftToFinal?.finalHash);
+    expect(outcome.claimConsistencyDraftMeta).toBeUndefined();
+  });
+
+  it("'final' judges the shipped artifact, once", async () => {
+    const { outcome, judgeCalls } = await run('final');
+    expect(judgeCalls).toBe(1);
+    expect(outcome.claimConsistencyMeta?.judgedStage).toBe('final');
+    expect(outcome.claimConsistencyMeta?.judgedHash).toBe(outcome.draftToFinal?.finalHash);
+    expect(outcome.draftToFinal?.claimsJudgedOn).toBe('final');
+  });
+
+  it("'both' keeps the pre-synthesis gate and reports the final on the headline meta", async () => {
+    const { outcome, judgeCalls } = await run('both');
+    expect(judgeCalls).toBe(2);
+    expect(outcome.claimConsistencyMeta?.judgedStage).toBe('final');
+    expect(outcome.claimConsistencyMeta?.judgedHash).toBe(outcome.draftToFinal?.finalHash);
+    expect(outcome.claimConsistencyDraftMeta?.judgedStage).toBe('draft');
+    expect(outcome.claimConsistencyDraftMeta?.judgedHash).toBe(outcome.draftToFinal?.draftHash);
+  });
+
+  it('a synthesis that returns the draft unchanged reports rewritten false', async () => {
+    const { outcome } = await run(undefined, DRAFT_INVERTED);
+    expect(outcome.draftToFinal?.rewritten).toBe(false);
+    expect(outcome.draftToFinal?.draftHash).toBe(outcome.draftToFinal?.finalHash);
+  });
+
+  it('rejects an unknown stage, and a post-draft stage without a synthesis', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('audit', {
+        synthesis: { limits: { maxTurns: 3 } },
+        claimConsistency: { stage: 'shipped' as unknown as 'final' },
+      }),
+    ).toThrow(/stage must be 'draft', 'final' or 'both'/);
+    expect(() =>
+      makeOrchestratorWorkflow('audit', {
+        claimConsistency: { stage: 'final' },
+      }),
+    ).toThrow(/stage 'final' requires synthesis/);
   });
 });
