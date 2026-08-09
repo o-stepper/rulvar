@@ -9,16 +9,19 @@
 ```ts
 type RunOutcome<R> = {
   acceptanceChildren?: AcceptanceChildSummary[];
+  acceptedArtifactRef?: number;
   belowFloorOkChildren?: string[];
   childStatusCounts?: Record<string, number>;
   claimConsistencyMeta?: Record<string, unknown>;
   completion?: "complete" | "partial" | "rejected";
   cost: CostReport;
   degradedReasons?: string[];
+  deliverableAccepted?: boolean;
   dropped: DroppedItem[];
   envelope: TerminalEnvelope;
   error?: WireError;
   pending: PendingExternal[];
+  resultAvailable?: boolean;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
   semanticPasses?: SemanticPassesSummary;
@@ -45,7 +48,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:165](https://github.com/o-st
 optional acceptanceChildren?: AcceptanceChildSummary[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:242](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L242)
+Defined in: [packages/core/src/engine/run-handle.ts:281](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L281)
 
 The per-child machine roster of the acceptance fold (RV806), lifted
 from the same envelope (or typed error data) under the same
@@ -60,13 +63,35 @@ acceptance decision.
 
 ***
 
+### acceptedArtifactRef?
+
+```ts
+optional acceptedArtifactRef?: number;
+```
+
+Defined in: [packages/core/src/engine/run-handle.ts:255](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L255)
+
+The journal seq of the decision entry that records the acceptance
+of the artifact this terminal carries (RV2506); same lift and
+posture, absent whenever `deliverableAccepted` is not true. Three
+different entries answer to it, which is the point of having one
+field: the accepted `orchestrator_finish_validation` decision on
+the ordinary path, the `orchestrator_synthesis_skip` decision when
+the RV510 gate settled on a valid draft, and the
+`orchestrator_synthesis_regressed` decision when the RV2505 floor
+handed a failing synthesis back to its draft. Read it with
+`rulvar inspect` (or any journal reader) to see WHICH validators
+rendered the acceptance and over WHICH draft hash.
+
+***
+
 ### belowFloorOkChildren?
 
 ```ts
 optional belowFloorOkChildren?: string[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:229](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L229)
+Defined in: [packages/core/src/engine/run-handle.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L268)
 
 Children that settled 'ok' below their declared evidence floor
 (RV1412); same lift and posture. A fact list in both modes: under
@@ -138,7 +163,7 @@ workflow makes no completion claim.
 cost: CostReport;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:248](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L248)
+Defined in: [packages/core/src/engine/run-handle.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L287)
 
 ***
 
@@ -160,13 +185,37 @@ claim was made.
 
 ***
 
+### deliverableAccepted?
+
+```ts
+optional deliverableAccepted?: boolean;
+```
+
+Defined in: [packages/core/src/engine/run-handle.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L232)
+
+Whether the artifact THIS terminal carries was accepted by the
+declared finish contract (RV2506), lifted from the same envelope or
+typed error data. The one question `status` and `completion` cannot
+answer between them: the 1.226.0 comparison run accepted its
+children (`completion: 'complete'` was earned by the acceptance
+policy over child statuses), then failed its synthesis against the
+contract three times and settled carrying nothing the contract ever
+accepted, and the scoring harness read `status: 'ok'` and could not
+tell. Absent, NEVER false, when no `finishValidation` was declared:
+nothing judged anything, and absence means NOT RECORDED (RV1209).
+False means a contract was declared and the artifact here did not
+pass it, including the case where nothing was ever judged because
+the run died first.
+
+***
+
 ### dropped
 
 ```ts
 dropped: DroppedItem[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:244](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L244)
+Defined in: [packages/core/src/engine/run-handle.ts:283](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L283)
 
 Pipeline drops and onError:'null' losses; silent losses are forbidden.
 
@@ -178,7 +227,7 @@ Pipeline drops and onError:'null' losses; silent losses are forbidden.
 envelope: TerminalEnvelope;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:258](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L258)
+Defined in: [packages/core/src/engine/run-handle.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L297)
 
 The unified terminal envelope (RV1105): every terminal fact in ONE
 shape, assembled once at the settlement chokepoint and shared with
@@ -206,9 +255,26 @@ Defined in: [packages/core/src/engine/run-handle.ts:168](https://github.com/o-st
 pending: PendingExternal[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:246](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L246)
+Defined in: [packages/core/src/engine/run-handle.ts:285](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L285)
 
 Suspensions open at settle time (M2).
+
+***
+
+### resultAvailable?
+
+```ts
+optional resultAvailable?: boolean;
+```
+
+Defined in: [packages/core/src/engine/run-handle.ts:241](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L241)
+
+Whether this terminal carries a deliverable to read at all
+(RV2506); same lift and posture. False on every enriched failure
+(an `error` outcome carries no value by construction) and on an
+accepted run whose synthesis resolved to null. Distinct from
+`deliverableAccepted`: an unjudged artifact still EXISTS, and a run
+with no artifact still has a completion claim.
 
 ***
 
@@ -230,7 +296,7 @@ Children accepted by acceptPartialChildren; same lift and posture.
 optional salvagedTerminalOutputChildren?: string[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:221](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L221)
+Defined in: [packages/core/src/engine/run-handle.ts:260](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L260)
 
 Children accepted through validated terminal output salvage on
 'limit'; same lift and posture.
@@ -277,7 +343,7 @@ The synthesis-skip marker from the same envelope; same lift and posture (RV2203)
 usage: Usage;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L247)
+Defined in: [packages/core/src/engine/run-handle.ts:286](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L286)
 
 ***
 

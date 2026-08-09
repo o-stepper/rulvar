@@ -3945,6 +3945,52 @@ const MUTATIONS = [
     replace: '        const result = FIXED_FINISH;',
     test: 'packages/evals/src/fault-injection.test.ts',
   },
+  {
+    id: 'deliverable-verdict-absent-without-contract',
+    doctrine:
+      'an undeclared finish contract leaves the deliverable claim ABSENT, never false (RV2506 under RV1209): a run nobody judged is not a run that failed judgement, and a false there would license a consumer to reject every terminal from a host that judges its artifacts itself',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (validationSpec === undefined) {\n        return { resultAvailable };\n      }',
+    replace:
+      '      if (validationSpec === undefined) {\n        return { resultAvailable, deliverableAccepted: false };\n      }',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'deliverable-verdict-counts-the-regression-floor',
+    doctrine:
+      'the RV2505 floor IS an acceptance and reports as one (RV2506): the draft it settles on passed the whole declared bundle, so a terminal that reads deliverableAccepted false over it would send a consumer looking for a failure that never happened',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (synthesisRegressed !== undefined) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'deliverable-verdict-counts-the-valid-draft-skip',
+    doctrine:
+      'the RV510 skip is an acceptance too (RV2506): the pre-pass judged the draft with the same validators and the synthesis never ran, so the acceptance lives in the skip decision and nowhere else, and without that arm a skipped run reads as an unaccepted deliverable',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (synthesisSkipDecisionRef !== undefined) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'deliverable-verdict-rides-the-failed-terminal',
+    doctrine:
+      'the deliverable verdict rides the FAILED terminal as well as the ok one (RV2506): the comparison run died with its children accepted and its artifact unaccepted, which is exactly the terminal a post-mortem policy must read without opening the journal',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        ...(validationSpec === undefined ? {} : { deliverableAccepted: false }),',
+    replace: '        ...{},',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'deliverable-verdict-lifts-booleans-only',
+    doctrine:
+      'the deliverable claims mirror onto the terminal only as booleans (RV2506, the lift posture since RV-207): a truthy string where a verdict belongs must mirror NOTHING, because a consumer gating on === true is defeated the moment the field can hold a value the engine never validated',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "  if (typeof acceptedCandidate === 'boolean') {",
+    replace: '  if (acceptedCandidate !== undefined) {',
+    test: 'packages/core/src/engine/run-completion.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -157,7 +157,7 @@ type AdaptiveEvents =
 };
 ```
 
-Defined in: [packages/core/src/l0/events.ts:541](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L541)
+Defined in: [packages/core/src/l0/events.ts:558](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L558)
 
 Adaptive orchestration, resolutions, and
 accounting: emitted only by runs where the corresponding machinery is
@@ -254,17 +254,17 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `atCap` | `boolean` | - | [packages/core/src/l0/events.ts:574](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L574) |
-| `capUsd?` | `number` | - | [packages/core/src/l0/events.ts:576](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L576) |
-| `finalizeReserveUsd?` | `number` | - | [packages/core/src/l0/events.ts:577](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L577) |
-| `orchestratorCapUsd?` | `number` | - | [packages/core/src/l0/events.ts:581](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L581) |
-| `orchestratorShare?` | `number` | - | [packages/core/src/l0/events.ts:582](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L582) |
-| `orchestratorSpentUsd?` | `number` | - | [packages/core/src/l0/events.ts:580](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L580) |
-| `runCeilingUsd?` | `number` | - | [packages/core/src/l0/events.ts:579](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L579) |
-| `runSpentUsd?` | `number` | - | [packages/core/src/l0/events.ts:578](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L578) |
-| `softWarning?` | `boolean` | - | [packages/core/src/l0/events.ts:583](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L583) |
-| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:575](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L575) |
-| `type` | `"orchestrator:budget"` | Two emitted shapes share the discriminant: the cap-freeze form carries { atCap: true, spentUsd, capUsd, finalizeReserveUsd }, and the per-wake digest form carries atCap plus the passive WakeBudgetBlock fields (runSpentUsd .. softWarning). | [packages/core/src/l0/events.ts:573](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L573) |
+| `atCap` | `boolean` | - | [packages/core/src/l0/events.ts:591](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L591) |
+| `capUsd?` | `number` | - | [packages/core/src/l0/events.ts:593](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L593) |
+| `finalizeReserveUsd?` | `number` | - | [packages/core/src/l0/events.ts:594](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L594) |
+| `orchestratorCapUsd?` | `number` | - | [packages/core/src/l0/events.ts:598](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L598) |
+| `orchestratorShare?` | `number` | - | [packages/core/src/l0/events.ts:599](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L599) |
+| `orchestratorSpentUsd?` | `number` | - | [packages/core/src/l0/events.ts:597](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L597) |
+| `runCeilingUsd?` | `number` | - | [packages/core/src/l0/events.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L596) |
+| `runSpentUsd?` | `number` | - | [packages/core/src/l0/events.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L595) |
+| `softWarning?` | `boolean` | - | [packages/core/src/l0/events.ts:600](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L600) |
+| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:592](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L592) |
+| `type` | `"orchestrator:budget"` | Two emitted shapes share the discriminant: the cap-freeze form carries { atCap: true, spentUsd, capUsd, finalizeReserveUsd }, and the per-wake digest form carries atCap plus the passive WakeBudgetBlock fields (runSpentUsd .. softWarning). | [packages/core/src/l0/events.ts:590](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L590) |
 
 ***
 
@@ -334,12 +334,12 @@ facts of the ONE journaled acceptance decision.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:621](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L621) |
-| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:618](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L618) |
-| `logicalTaskId` | `string` | - | [packages/core/src/l0/events.ts:622](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L622) |
-| `spawnUnitsAfter?` | `number` | Spawn-unit balance after the budget-layer debit. Present on budget-layer admissions (the orchestrator spawn tools and ctx.workflow children); absent on lineage-layer admissions (ctx.agent roots), whose spawn-unit debit rides the dispatch itself (v1.22.0 review P2-5). | [packages/core/src/l0/events.ts:630](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L630) |
-| `type` | `"spawn:admitted"` | - | [packages/core/src/l0/events.ts:617](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L617) |
-| `verdict` | `"admit"` \| `"reuse_full"` \| `"admit_graft"` | The admitting arms of the unified AdmitVerdict union. | [packages/core/src/l0/events.ts:620](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L620) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:638](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L638) |
+| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:635](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L635) |
+| `logicalTaskId` | `string` | - | [packages/core/src/l0/events.ts:639](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L639) |
+| `spawnUnitsAfter?` | `number` | Spawn-unit balance after the budget-layer debit. Present on budget-layer admissions (the orchestrator spawn tools and ctx.workflow children); absent on lineage-layer admissions (ctx.agent roots), whose spawn-unit debit rides the dispatch itself (v1.22.0 review P2-5). | [packages/core/src/l0/events.ts:647](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L647) |
+| `type` | `"spawn:admitted"` | - | [packages/core/src/l0/events.ts:634](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L634) |
+| `verdict` | `"admit"` \| `"reuse_full"` \| `"admit_graft"` | The admitting arms of the unified AdmitVerdict union. | [packages/core/src/l0/events.ts:637](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L637) |
 
 ***
 
@@ -357,11 +357,11 @@ facts of the ONE journaled acceptance decision.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:641](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L641) |
-| `code` | `string` | - | [packages/core/src/l0/events.ts:640](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L640) |
-| `entryRef?` | `number` | The journaled admission decision entry; absent for the pre-admission config gates (orchestrate maxSpawns), which reject before anything is journaled. | [packages/core/src/l0/events.ts:639](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L639) |
-| `logicalTaskId?` | `string` | - | [packages/core/src/l0/events.ts:642](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L642) |
-| `type` | `"spawn:rejected"` | - | [packages/core/src/l0/events.ts:633](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L633) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:658](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L658) |
+| `code` | `string` | - | [packages/core/src/l0/events.ts:657](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L657) |
+| `entryRef?` | `number` | The journaled admission decision entry; absent for the pre-admission config gates (orchestrate maxSpawns), which reject before anything is journaled. | [packages/core/src/l0/events.ts:656](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L656) |
+| `logicalTaskId?` | `string` | - | [packages/core/src/l0/events.ts:659](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L659) |
+| `type` | `"spawn:rejected"` | - | [packages/core/src/l0/events.ts:650](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L650) |
 
 ***
 
@@ -500,7 +500,7 @@ facts of the ONE journaled acceptance decision.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `code` | `"HASH_VERSION_TOO_OLD"` \| `"HASH_VERSION_TOO_NEW"` | - | [packages/core/src/l0/events.ts:677](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L677) |
-| `found` | `number` | - | [packages/core/src/l0/events.ts:678](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L678) |
-| `type` | `"journal:compat"` | Declared for hosts; not emitted today. The compatibility scan runs strictly before a run's event stream exists, so the refusal travels only as the typed JournalCompatibilityError (which carries the same fields). | [packages/core/src/l0/events.ts:676](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L676) |
-| `window` | \[`number`, `number`\] | - | [packages/core/src/l0/events.ts:679](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L679) |
+| `code` | `"HASH_VERSION_TOO_OLD"` \| `"HASH_VERSION_TOO_NEW"` | - | [packages/core/src/l0/events.ts:694](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L694) |
+| `found` | `number` | - | [packages/core/src/l0/events.ts:695](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L695) |
+| `type` | `"journal:compat"` | Declared for hosts; not emitted today. The compatibility scan runs strictly before a run's event stream exists, so the refusal travels only as the typed JournalCompatibilityError (which carries the same fields). | [packages/core/src/l0/events.ts:693](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L693) |
+| `window` | \[`number`, `number`\] | - | [packages/core/src/l0/events.ts:696](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L696) |
