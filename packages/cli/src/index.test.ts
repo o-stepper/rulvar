@@ -330,6 +330,87 @@ export default {
     expect(rowsDiverge.outLines.join('\n')).toContain('[FAIL] incremental-rows-match');
   });
 
+  it('cost-audit --all sweeps the catalog and exits 1 when any run diverges (RV2209)', async () => {
+    const cwd = writeFixtureProject();
+    const first = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"a"}', '--store', '.rulvar'], {
+      cwd,
+      io: first,
+    });
+    const green = runIdOf(first);
+    const second = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"b"}', '--store', '.rulvar'], {
+      cwd,
+      io: second,
+    });
+    const broken = runIdOf(second);
+
+    // Two green runs: one summary row each, exit 0.
+    const clean = scriptedIo();
+    expect(await runCli(['cost-audit', '--all', '--store', '.rulvar'], { cwd, io: clean })).toBe(0);
+    const cleanText = clean.outLines.join('\n');
+    expect(cleanText).toContain('cost audit: 2 runs, 0 divergent');
+    expect(cleanText).toContain(`${green}: one denominator | checks 6/6`);
+
+    // Break the second journal the pre-RV1904 way (the benchmark
+    // recovery shape): a running agent straggler appended after the
+    // settle. The sweep must carry one green and one divergent row and
+    // exit 1; averaging over the catalog is exactly what it exists to
+    // refuse.
+    const journalPath = join(cwd, '.rulvar', `${broken}.jsonl`);
+    const lines = readFileSync(journalPath, 'utf8').trim().split('\n');
+    const parsedLines = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    const runningTemplate = parsedLines.find(
+      (entry) => entry.kind === 'agent' && entry.status === 'running',
+    );
+    expect(runningTemplate).toBeDefined();
+    const maxSeq = Math.max(...parsedLines.map((entry) => entry.seq as number));
+    const straggler = {
+      ...runningTemplate,
+      seq: maxSeq + 1,
+      scope: 'agent:99',
+      key: 'f'.repeat(typeof runningTemplate!.key === 'string' ? runningTemplate!.key.length : 8),
+      ordinal: 0,
+    };
+    writeFileSync(journalPath, `${lines.join('\n')}\n${JSON.stringify(straggler)}\n`, 'utf8');
+
+    const swept = scriptedIo();
+    expect(await runCli(['cost-audit', '--all', '--store', '.rulvar'], { cwd, io: swept })).toBe(1);
+    const sweptText = swept.outLines.join('\n');
+    expect(sweptText).toContain('cost audit: 2 runs, 1 divergent');
+    expect(sweptText).toContain(`${green}: one denominator | checks 6/6`);
+    expect(sweptText).toContain(
+      `${broken}: DIVERGENT | checks 4/6 (failed roster-closed, settle-is-billing-boundary)`,
+    );
+
+    // JSON: the per-run shapes ride under runs, the sweep verdict on
+    // top, and the exit code is the same 1.
+    const jsonIo = scriptedIo();
+    expect(
+      await runCli(['cost-audit', '--all', '--store', '.rulvar', '--json'], { cwd, io: jsonIo }),
+    ).toBe(1);
+    const parsedSweep = JSON.parse(jsonIo.outLines.join('\n')) as {
+      verdict: string;
+      divergent: number;
+      runs: Array<{ runId: string; verdict: string }>;
+    };
+    expect(parsedSweep.verdict).toBe('divergent');
+    expect(parsedSweep.divergent).toBe(1);
+    expect(parsedSweep.runs).toHaveLength(2);
+    expect(parsedSweep.runs.find((run) => run.runId === broken)?.verdict).toBe('divergent');
+
+    // The ambiguous forms refuse typed: a runId beside --all, and
+    // neither.
+    const both = scriptedIo();
+    expect(
+      await runCli(['cost-audit', green, '--all', '--store', '.rulvar'], { cwd, io: both }),
+    ).toBe(1);
+    expect(both.errLines.join('\n')).toContain('--all audits every run of the store');
+    const neither = scriptedIo();
+    expect(await runCli(['cost-audit', '--store', '.rulvar'], { cwd, io: neither })).toBe(1);
+    expect(neither.errLines.join('\n')).toContain('name a runId, or audit the whole store');
+  });
+
   it('invoice exports the reconciliation rows and totals for a stored run (P1.3)', async () => {
     const cwd = writeFixtureProject();
     const io = scriptedIo(['{"approved":true}']);
