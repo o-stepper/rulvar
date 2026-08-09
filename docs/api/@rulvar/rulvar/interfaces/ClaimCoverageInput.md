@@ -17,6 +17,7 @@ The subset of the claim-consistency meta the grade derives from.
 | <a id="property-coveredcitingsentences"></a> `coveredCitingSentences` | `number` | Citing sentences with at least one judged pair. | `packages/core/dist/index.d.ts` |
 | <a id="property-criticaluncoveredtotal"></a> `criticalUncoveredTotal?` | `number` | Uncapped count of declared critical anchors with no judged pair. | `packages/core/dist/index.d.ts` |
 | <a id="property-draftcitingsentences"></a> `draftCitingSentences` | `number` | Draft sentences carrying at least one parsable anchor. | `packages/core/dist/index.d.ts` |
+| <a id="property-judgedeclined"></a> `judgeDeclined?` | `true` | True when the judge invocation was refused ADMISSION and never dispatched (RV2106). The orchestrator already spreads the flag into the meta it grades, so nothing at the call site changes. | `packages/core/dist/index.d.ts` |
 | <a id="property-judgefailed"></a> `judgeFailed?` | `true` | True when the judge invocation did not settle ok. | `packages/core/dist/index.d.ts` |
 | <a id="property-runfactpairstruncated"></a> `runFactPairsTruncated?` | `true` | True when the run-facts pair bound cut the run-claim pairs. | `packages/core/dist/index.d.ts` |
 | <a id="property-truncated"></a> `truncated` | `boolean` | True when the pair bound cut the fold. | `packages/core/dist/index.d.ts` |

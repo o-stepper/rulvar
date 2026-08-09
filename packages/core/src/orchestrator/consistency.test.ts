@@ -477,7 +477,9 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       truncated: false,
       coveredCitingSentences: 0,
       judgeInvoked: false,
-      coverage: 'full',
+      // Not 'full' (RV2508): this configured pass verified nothing,
+      // and the zero denominator is exactly what the grade must say.
+      coverage: 'vacuous',
     });
   });
 
@@ -923,12 +925,35 @@ describe('the claim-coverage grade (RV1702)', () => {
     expect(claimCoverageOf({ ...base, criticalUncoveredTotal: 2, judgeFailed: true })).toBe(
       'judge-failed',
     );
-    // A zero-count meta from a legacy engine grades vacuously full: the
-    // helper is total over metas written before the field shipped.
-    expect(
-      claimCoverageOf({ draftCitingSentences: 0, truncated: false, coveredCitingSentences: 0 }),
-    ).toBe('full');
     expect(claimCoverageOf({ ...base, criticalUncoveredTotal: 0 })).toBe('full');
+  });
+
+  it('a declined judge and a zero denominator get their own words (RV2508)', () => {
+    const base = { draftCitingSentences: 4, truncated: false, coveredCitingSentences: 4 };
+    // A judge refused ADMISSION never dispatched (RV2106), so nothing
+    // was judged: the flag outranks everything the counts could say,
+    // because those counts describe a pass that did not happen.
+    expect(claimCoverageOf({ ...base, judgeDeclined: true })).toBe('judge-declined');
+    expect(claimCoverageOf({ ...base, truncated: true, judgeDeclined: true })).toBe(
+      'judge-declined',
+    );
+    expect(claimCoverageOf({ ...base, criticalUncoveredTotal: 2, judgeDeclined: true })).toBe(
+      'judge-declined',
+    );
+    // A failed invocation still outranks a declined one: the two causes
+    // are worth telling apart, and a failure at least had an
+    // invocation to fail.
+    expect(claimCoverageOf({ ...base, judgeDeclined: true, judgeFailed: true })).toBe(
+      'judge-failed',
+    );
+    // The zero denominator is its own word, not the strongest one.
+    const empty = { draftCitingSentences: 0, truncated: false, coveredCitingSentences: 0 };
+    expect(claimCoverageOf(empty)).toBe('vacuous');
+    // It stays below every stronger reading of the same meta.
+    expect(claimCoverageOf({ ...empty, criticalUncoveredTotal: 1 })).toBe('critical-uncovered');
+    expect(claimCoverageOf({ ...empty, truncated: true })).toBe('partial');
+    expect(claimCoverageOf({ ...empty, judgeDeclined: true })).toBe('judge-declined');
+    expect(claimCoverageOf({ ...empty, judgeFailed: true })).toBe('judge-failed');
   });
 
   it('a bounded pass grades the envelope partial, in counts and in name', async () => {
