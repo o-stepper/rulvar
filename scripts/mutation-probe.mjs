@@ -3000,6 +3000,33 @@ const MUTATIONS = [
     test: 'scripts/docs-lint.test.mjs',
   },
   {
+    id: 'claim-coverage-declined-judge',
+    doctrine:
+      'a judge refused ADMISSION judged nothing, and the grade must say so (RV2508 over RV2106): without this branch the declined flag is invisible to the grade, the counts of a pass that never happened decide the word, and a declined judge over a citation-free draft graded the strongest word in the vocabulary',
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: '  if (meta.judgeDeclined === true) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-coverage-vacuous-denominator',
+    doctrine:
+      "a zero denominator is not full coverage (RV2508): a configured claim-consistency pass over a draft carrying no citing sentence verified nothing, and grading that 'full' is the same silent green RV1702 exists to abolish, at its extreme",
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: '  if (meta.draftCitingSentences === 0) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'strict-claim-coverage-declined-exit',
+    doctrine:
+      "--strict exits nonzero on a declined judge exactly as on a failed one (RV2508): nothing was judged either way, and a run that reads 'complete' with an unjudged draft is the mechanical green the strict grade reading exists to catch",
+    file: 'packages/cli/src/drive.ts',
+    find: "  if (grade === 'judge-failed' || grade === 'judge-declined' || grade === 'critical-uncovered') {",
+    replace: "  if (grade === 'judge-failed' || grade === 'critical-uncovered') {",
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
     id: 'claim-coverage-critical-precedence',
     doctrine:
       "the claim-coverage grade ranks an unjudged DECLARED claim above ordinary truncation (RV1702): skipping the critical branch grades a run with named-but-unverified claims as merely 'partial' or even 'full', and the caller's own declaration is what the grade exists to honor",
@@ -3020,9 +3047,9 @@ const MUTATIONS = [
   {
     id: 'strict-claim-coverage-exit',
     doctrine:
-      "the CLI strict gate exits nonzero on 'judge-failed' and 'critical-uncovered' coverage (RV1702): dropping the branch returns strict to the posture where a dead judge and unverified declared claims pass as green, the two states the flag exists to refuse",
+      "the CLI strict gate exits nonzero on 'judge-failed' and 'critical-uncovered' coverage (RV1702, widened to 'judge-declined' by RV2508): dropping the branch returns strict to the posture where a dead judge and unverified declared claims pass as green, the states the flag exists to refuse",
     file: 'packages/cli/src/drive.ts',
-    find: "  if (grade === 'judge-failed' || grade === 'critical-uncovered') {",
+    find: "  if (grade === 'judge-failed' || grade === 'judge-declined' || grade === 'critical-uncovered') {",
     replace: '  if (false) {',
     test: 'packages/cli/src/index.test.ts',
   },

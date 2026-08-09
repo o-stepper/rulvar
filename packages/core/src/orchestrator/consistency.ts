@@ -514,16 +514,26 @@ export function pairRunFactClaims(
  *
  * - `'full'`: every citing sentence the draft carries had at least one
  *   judged pair, nothing was cut by a bound, no declared critical
- *   anchor was missed, and the judge (when needed) settled ok. A draft
- *   with zero citing sentences grades `'full'` vacuously: there was
- *   nothing to verify, and saying `'partial'` would imply a subset was
- *   chosen.
+ *   anchor was missed, and the judge (when needed) settled ok.
+ * - `'vacuous'` (RV2508): the draft carried NO citing sentence, so the
+ *   configured pass verified nothing. This used to grade `'full'` on
+ *   the reasoning that saying `'partial'` would imply a subset was
+ *   chosen, which is true and beside the point: `'full'` is the
+ *   strongest word in the vocabulary and it was standing over a
+ *   denominator of zero, the same silent green the grade exists to
+ *   abolish, at its extreme.
  * - `'partial'`: the pass verified a strict subset: the pair bound
  *   truncated the fold, a run-facts bound truncated the run-claim
  *   pairs, or citing sentences exist that no judged pair covers.
  * - `'critical-uncovered'`: at least one DECLARED critical anchor got
  *   no judged pair; stronger than `'partial'` because the caller named
  *   exactly these claims as the ones that must not go unverified.
+ * - `'judge-declined'` (RV2508): the judge invocation was refused
+ *   ADMISSION and never dispatched (RV2106), so nothing was judged at
+ *   all. It ranks with a failed judge and above everything the counts
+ *   could say, because those counts describe a pass that did not
+ *   happen; before this the flag was invisible to the grade and a
+ *   declined judge over a citation-free draft graded `'full'`.
  * - `'judge-failed'`: the judge invocation did not settle ok, so
  *   nothing was judged at all; every other reading of the meta is
  *   moot.
@@ -532,7 +542,8 @@ export function pairRunFactClaims(
  * and total over metas written BEFORE the grade shipped, so a consumer
  * can grade a persisted outcome from an older engine.
  */
-export type ClaimCoverageGrade = 'full' | 'partial' | 'critical-uncovered' | 'judge-failed';
+export type ClaimCoverageGrade =
+  'full' | 'vacuous' | 'partial' | 'critical-uncovered' | 'judge-declined' | 'judge-failed';
 
 /** The subset of the claim-consistency meta the grade derives from. */
 export interface ClaimCoverageInput {
@@ -548,12 +559,26 @@ export interface ClaimCoverageInput {
   runFactPairsTruncated?: true;
   /** True when the judge invocation did not settle ok. */
   judgeFailed?: true;
+  /**
+   * True when the judge invocation was refused ADMISSION and never
+   * dispatched (RV2106). The orchestrator already spreads the flag into
+   * the meta it grades, so nothing at the call site changes.
+   */
+  judgeDeclined?: true;
 }
 
 /** Derives the {@link ClaimCoverageGrade} of a claim-consistency meta. */
 export function claimCoverageOf(meta: ClaimCoverageInput): ClaimCoverageGrade {
   if (meta.judgeFailed === true) {
     return 'judge-failed';
+  }
+  // A declined judge never dispatched, so nothing was judged at all
+  // (RV2508): it outranks everything the counts could say, because
+  // those counts describe a pass that did not happen. Below
+  // 'judge-failed' only because a failure at least had an invocation
+  // to fail, and the two causes are worth telling apart.
+  if (meta.judgeDeclined === true) {
+    return 'judge-declined';
   }
   if ((meta.criticalUncoveredTotal ?? 0) > 0) {
     return 'critical-uncovered';
@@ -564,6 +589,14 @@ export function claimCoverageOf(meta: ClaimCoverageInput): ClaimCoverageGrade {
     meta.coveredCitingSentences < meta.draftCitingSentences
   ) {
     return 'partial';
+  }
+  // Nothing to verify is not the strongest word in the vocabulary
+  // (RV2508). A draft carrying no citing sentence under a CONFIGURED
+  // claim-consistency pass verified nothing, and grading that 'full'
+  // is exactly the silent green RV1702 exists to abolish. It sits
+  // below 'partial' because no subset was chosen: there was no set.
+  if (meta.draftCitingSentences === 0) {
+    return 'vacuous';
   }
   return 'full';
 }

@@ -234,8 +234,10 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
 /** The closed grade vocabulary strict accepts from a persisted meta. */
 const COVERAGE_GRADES: readonly ClaimCoverageGrade[] = [
   'full',
+  'vacuous',
   'partial',
   'critical-uncovered',
+  'judge-declined',
   'judge-failed',
 ];
 
@@ -261,6 +263,7 @@ function coverageGradeOf(value: unknown): ClaimCoverageGrade | undefined {
     criticalUncoveredTotal?: unknown;
     runFactPairsTruncated?: unknown;
     judgeFailed?: unknown;
+    judgeDeclined?: unknown;
   };
   const stamped = COVERAGE_GRADES.find((grade) => grade === record.coverage);
   if (stamped !== undefined) {
@@ -282,6 +285,7 @@ function coverageGradeOf(value: unknown): ClaimCoverageGrade | undefined {
       : {}),
     ...(record.runFactPairsTruncated === true ? { runFactPairsTruncated: true as const } : {}),
     ...(record.judgeFailed === true ? { judgeFailed: true as const } : {}),
+    ...(record.judgeDeclined === true ? { judgeDeclined: true as const } : {}),
   });
 }
 
@@ -299,12 +303,16 @@ function coverageGradeOf(value: unknown): ClaimCoverageGrade | undefined {
  * semantic green while the claim judge saw 40 of 144 citing sentences.
  * So strict also reads the claim-coverage grade (RV1702) when the
  * outcome carries a claim-consistency meta: `'judge-failed'` (nothing
- * was judged) and `'critical-uncovered'` (declared claims went
- * unverified) exit nonzero, because both previously slipped through
- * strict as green; `'partial'` prints its counts to stderr and keeps
- * the exit, because the bounded pass is the documented default and
- * declaring critical anchors is the opt-in that makes the subset
- * enforceable.
+ * was judged), `'judge-declined'` (RV2508: the judge was refused
+ * admission and never dispatched, so nothing was judged either) and
+ * `'critical-uncovered'` (declared claims went unverified) exit
+ * nonzero, because all three previously slipped through strict as
+ * green; `'partial'` prints its counts to stderr and keeps the exit,
+ * because the bounded pass is the documented default and declaring
+ * critical anchors is the opt-in that makes the subset enforceable,
+ * and `'vacuous'` (RV2508: the draft cited nothing, so the configured
+ * pass verified nothing) prints and keeps the exit too, because
+ * citing nothing breaks no contract the pass declares.
  */
 export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: CliIo): number {
   if (base !== 0 || outcome.status !== 'ok') {
@@ -327,12 +335,17 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     return 1;
   }
   const grade = coverageGradeOf(value);
-  if (grade === 'judge-failed' || grade === 'critical-uncovered') {
+  if (grade === 'judge-failed' || grade === 'judge-declined' || grade === 'critical-uncovered') {
     io.err(
       `strict: claim coverage '${grade}': ` +
         (grade === 'judge-failed'
           ? 'the claim-consistency judge did not settle ok, so nothing was judged'
-          : 'declared critical anchors got no judged pair'),
+          : grade === 'judge-declined'
+            ? // RV2508: a declined judge is a refused ADMISSION, not a
+              // failed invocation, and nothing was judged either way.
+              'the claim-consistency judge was refused admission and never dispatched, so ' +
+              'nothing was judged'
+            : 'declared critical anchors got no judged pair'),
     );
     return 1;
   }
@@ -361,6 +374,17 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
       "strict: claim coverage 'partial': the judge saw a bounded subset of the citing " +
         'sentences; declare critical anchors (or raise the pair bound) to make the subset ' +
         'enforceable',
+    );
+  }
+  // A vacuous grade keeps the exit (RV2508): a draft that cites nothing
+  // broke no contract the pass declares. It is still worth saying out
+  // loud, because a configured claim-consistency pass over a citation
+  // free document verified nothing at all, and that used to read as
+  // the strongest grade in the vocabulary.
+  if (grade === 'vacuous') {
+    io.err(
+      "strict: claim coverage 'vacuous': the draft carried no citing sentence, so the " +
+        'configured claim-consistency pass verified nothing',
     );
   }
   return base;

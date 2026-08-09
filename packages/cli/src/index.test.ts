@@ -1401,6 +1401,63 @@ describe('--strict reads the claim-coverage grade (RV1702)', () => {
     expect(io.errLines.join('\n')).toContain("claim coverage 'judge-failed'");
   });
 
+  it('judge-declined exits 1 too: a judge refused admission judged nothing (RV2508)', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      completeWith({
+        draftCitingSentences: 3,
+        truncated: false,
+        coveredCitingSentences: 3,
+        judgeInvoked: false,
+        judgeDeclined: true,
+        coverage: 'judge-declined',
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    expect(io.errLines.join('\n')).toContain("claim coverage 'judge-declined'");
+    expect(io.errLines.join('\n')).toContain('refused admission and never dispatched');
+  });
+
+  it('a declined judge in an unstamped meta still grades and exits (RV2508)', () => {
+    // The grade is derived, not trusted: a meta persisted without the
+    // coverage field grades through claimCoverageOf, and the declined
+    // flag must survive that path too.
+    const io = scriptedIo();
+    const code = strictExitCode(
+      completeWith({
+        draftCitingSentences: 3,
+        truncated: false,
+        coveredCitingSentences: 3,
+        judgeInvoked: false,
+        judgeDeclined: true,
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    expect(io.errLines.join('\n')).toContain("claim coverage 'judge-declined'");
+  });
+
+  it('vacuous keeps the exit and says so: nothing cited is nothing verified (RV2508)', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      completeWith({
+        draftCitingSentences: 0,
+        truncated: false,
+        coveredCitingSentences: 0,
+        judgeInvoked: false,
+        coverage: 'vacuous',
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(0);
+    expect(io.errLines.join('\n')).toContain("claim coverage 'vacuous'");
+    expect(io.errLines.join('\n')).toContain('verified nothing');
+  });
+
   it('a stamped lowCoverage block exits 1 with the ratios printed (RV1809)', () => {
     const io = scriptedIo();
     const code = strictExitCode(
