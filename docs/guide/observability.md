@@ -56,7 +56,7 @@ All four family unions are exported from `@rulvar/core` as `CoreEvents`, `AgentE
 | Event | Fires when | Notable fields |
 |---|---|---|
 | `run:start` | The run begins (`resumed: true` on resume). | `workflow`, `resumed` |
-| `run:end` | The run settles. | `status`, `totalUsd`, `usageApprox?`, `completion?`, `childStatusCounts?`, `degradedReasons?`, `salvagedPartialChildren?`, `salvagedTerminalOutputChildren?`, `belowFloorOkChildren?`, `acceptanceChildren?`, `semanticPasses?`, `claimConsistencyMeta?`, `synthesisSkipped?`, `settled?`, `envelope` |
+| `run:end` | The run settles. | `status`, `totalUsd`, `usageApprox?`, `completion?`, `childStatusCounts?`, `degradedReasons?`, `salvagedPartialChildren?`, `salvagedTerminalOutputChildren?`, `belowFloorOkChildren?`, `acceptanceChildren?`, `semanticPasses?`, `claimConsistencyMeta?`, `synthesisSkipped?`, `deliverableAccepted?`, `resultAvailable?`, `acceptedArtifactRef?`, `settled?`, `envelope` |
 | `phase:start` | A `ctx.phase` block opens. | `phase` |
 | `log` | The workflow or engine logs a line. | `level`, `msg`, `data?` |
 | `budget:update` | Spend or committed reserves changed. | `spentUsd`, `remainingUsd`, `committedReserveUsd` |
@@ -92,6 +92,35 @@ The rule to build on: an effect DURING the run belongs to a tool, behind the [pe
 - Treat the money as what `costBasis` declares: `'locally-estimated'` dollars are the caller's pricing table over journaled usage, a management figure, not an invoice; reconciliation against what the provider actually billed goes through the [invoice export](#the-invoice-export) and `reconcileStatement`, which carry their own provenance and refuse what they cannot prove.
 - Absence is a fact with a meaning: an absent `completion` means no claim was made (gate as if incomplete, not as if complete), an absent `contradictions` field means nothing looked, and on a `provenance: 'journal'` envelope an absent `error` (or an absent `completion` under a pre-lift settle) means NOT RECORDED. Read the absence doctrine of each field before treating missing as clean.
 - The same fields hold on FAILED terminals (RV2203): an exhausted or errored run still carries the acceptance facts, `claimConsistencyMeta`, and `synthesisSkipped` when the run earned them, lifted from the enriched error data, so a post-mortem policy reads the run's terminal truth from the outcome instead of re-deriving it from the journal. On engines that predate the lift, a failed terminal's `null` there means NOT MIRRORED, not "did not happen": the journal stays the authority.
+- Ask about the DELIVERABLE separately from the work (RV2506). `completion` is the acceptance policy's claim over CHILD statuses; it says nothing about whether the artifact the terminal carries ever passed the finish contract. The twenty-fifth comparison run accepted four ok children, failed its synthesis against the same bundle three times, and settled carrying nothing the contract accepted, and the scoring harness read `status: 'ok'` and could not tell. Three lifted fields answer it directly: `deliverableAccepted` (the contract's verdict on THIS artifact), `resultAvailable` (whether there is an artifact to read at all), and `acceptedArtifactRef` (the journal seq of the decision that records the acceptance, so the validators and the draft hash behind it are one `rulvar inspect` away). `deliverableAccepted` is ABSENT, never false, when no `finishValidation` was declared: nothing judged anything.
+
+#### The deliverable truth table {#the-deliverable-truth-table}
+
+Every reading a consumer can meet, and what each one licenses. `settled: false` (RV907, RV1009) overrides every row: nothing durable records that terminal, so there is nothing to act on however green it reads.
+
+| `status` | `completion` | `resultAvailable` | `deliverableAccepted` | What happened | Act on the artifact |
+| --- | --- | --- | --- | --- | --- |
+| `ok` | `complete` | `true` | `true` | The children were accepted and the finish contract accepted the artifact. | Yes, this is the only fully green row |
+| `ok` | `partial` | `true` | `true` | Accepted degradation (salvaged children, a waived evidence floor) under an artifact the contract accepted. | Only under a policy that names the degradation it tolerates |
+| `ok` | `complete` | `true` | `false` | The child roster passed; the artifact did NOT pass the contract. The run settled on unvalidated output (`orchestrator_synthesis_fallback`) or on a draft carried past its gaps. | No |
+| `ok` | `complete` | `true` | absent | No finish contract was declared, so nothing judged the artifact. | Only where your own policy is the judge |
+| `ok` | any | `false` | any | The run settled with no artifact (a synthesis that resolved null). | No, there is nothing to act on |
+| `error` | `complete` | `false` | `false` | The acceptance verdict passed and the finish then failed the contract, or the synthesis died: the enriched failure carries the acceptance facts. | No |
+| `exhausted` | `complete` | `false` | `false` | Same shape, the money ran out in the tail; `acceptanceChildren` still names what the children produced. | No, but the children's work is salvageable |
+| `error` | absent | absent | absent | Nothing reached the envelope. Read `error.data.source` for which gate refused. | No |
+
+The normative predicate, in the fields above rather than in prose:
+
+```ts
+const deliverableUsable = (outcome: RunOutcome<unknown>): boolean =>
+  outcome.envelope.settled === true &&
+  outcome.status === 'ok' &&
+  outcome.completion === 'complete' &&
+  outcome.resultAvailable === true &&
+  outcome.deliverableAccepted === true;
+```
+
+Note the last conjunct is `=== true`, not `!== false`: a deployment that requires a judged deliverable must DECLARE `finishValidation`, because absence is the honest answer of a run where nothing judged anything, and treating it as permission is the same mistake as reading `status: 'ok'` alone. A deployment that judges the artifact itself drops that conjunct deliberately, having decided who the judge is.
 
 The shortest form: the engine proves what happened and what it cost; whether that earns an effect is a decision the consumer must make with its own policy, and every field above exists so that policy has honest inputs.
 

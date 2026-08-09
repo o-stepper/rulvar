@@ -5150,6 +5150,14 @@ export function makeOrchestratorWorkflow(
      * reports the machine reason through it.
      */
     let synthesisSkippedByValidDraft = false;
+    /**
+     * The journal seq of the skip decision that carried the RV510 gate
+     * (RV2506): the addressable provenance of the artifact a skipped
+     * run settles on, since a skipped synthesis leaves no accepted
+     * finish-validation decision behind and the draft's acceptance
+     * lives in the skip entry instead.
+     */
+    let synthesisSkipDecisionRef: number | undefined;
 
     /**
      * The bounded contradiction pass's findings (RV1302), set exactly
@@ -5872,6 +5880,7 @@ export function makeOrchestratorWorkflow(
           .at(-1);
         if (prior !== undefined && applies(prior.value as Parameters<typeof applies>[0])) {
           synthesisSkippedByValidDraft = true;
+          synthesisSkipDecisionRef = prior.seq;
           announceSkip(prior.seq);
           return draft;
         }
@@ -6057,6 +6066,7 @@ export function makeOrchestratorWorkflow(
               internals.budget.releaseSynthesisReserve(orchestratorAccount);
             }
             synthesisSkippedByValidDraft = true;
+            synthesisSkipDecisionRef = skipEntry.seq;
             announceSkip(skipEntry.seq);
             return draft;
           }
@@ -7201,6 +7211,75 @@ export function makeOrchestratorWorkflow(
       synthesisRegressed = { reason, decisionRef: entryRef };
       return { used: true };
     };
+    /**
+     * The explicit deliverable verdict (RV2506, the 1.226.0 comparison
+     * run): whether the artifact THIS terminal carries was accepted by
+     * the declared finish contract, whether there is an artifact to
+     * read at all, and where its acceptance is journaled. The harness
+     * that scored the comparison could not answer the first question
+     * from the terminal: it read `status: 'ok'`, and the run had in
+     * fact accepted its children, failed its synthesis three times,
+     * and settled carrying nothing the contract ever accepted. Every
+     * input is a fact the run already journaled, so the verdict is
+     * derived, never remembered, and a resume re-derives the same one.
+     *
+     * `deliverableAccepted` is ABSENT (never false) when no
+     * `finishValidation` was declared: nothing judged anything, and
+     * the RV1209 provenance doctrine says absence means NOT RECORDED.
+     * `acceptedArtifactRef` names the decision entry that holds the
+     * acceptance, which is the finish-validation decision on the
+     * ordinary path, the RV510 skip decision when the gate skipped the
+     * synthesis, and the RV2505 regression decision when a failing
+     * synthesis handed the run back to its draft: three different
+     * entries, one question, one field.
+     */
+    const deliverableVerdict = (
+      artifact: unknown,
+    ): {
+      deliverableAccepted?: boolean;
+      resultAvailable: boolean;
+      acceptedArtifactRef?: number;
+    } => {
+      const resultAvailable = artifact !== undefined && artifact !== null;
+      if (validationSpec === undefined) {
+        return { resultAvailable };
+      }
+      if (synthesisRegressed !== undefined) {
+        return {
+          resultAvailable,
+          deliverableAccepted: true,
+          acceptedArtifactRef: synthesisRegressed.decisionRef,
+        };
+      }
+      if (synthesisSkipDecisionRef !== undefined) {
+        return {
+          resultAvailable,
+          deliverableAccepted: true,
+          acceptedArtifactRef: synthesisSkipDecisionRef,
+        };
+      }
+      // The LAST accepted verdict of the CURRENT contract generation:
+      // a fixed contract supersedes the acceptance rendered under the
+      // old one (cycle 73), exactly as the repair budget does.
+      const accepted = internals.replayer
+        .snapshot()
+        .filter((entry) => {
+          if (entry.kind !== 'decision' || entry.scope !== callingState.scope) {
+            return false;
+          }
+          const value = entry.value as
+            { decisionType?: string; verdict?: string; contractHash?: string } | undefined;
+          return (
+            value?.decisionType === 'orchestrator_finish_validation' &&
+            value.verdict === 'accepted' &&
+            contractGenerationCurrent(value)
+          );
+        })
+        .at(-1);
+      return accepted === undefined
+        ? { resultAvailable, deliverableAccepted: false }
+        : { resultAvailable, deliverableAccepted: true, acceptedArtifactRef: accepted.seq };
+    };
     const enrichSynthesisFailure = (
       thrown: unknown,
       snapshot?: {
@@ -7222,6 +7301,14 @@ export function makeOrchestratorWorkflow(
           ? {}
           : { claimConsistencyMeta: claimConsistencyMeta as unknown as Json }),
         semanticPasses: semanticPassesSummary({ ran: false, reason: 'synthesis-failed' }),
+        // The deliverable verdict rides the FAILED terminal too
+        // (RV2506). Nothing reaches this enrichment with an accepted
+        // artifact: an accepted synthesis never throws, and the RV2505
+        // floor returns before the rethrow, so the honest reading of
+        // every enriched failure is the same one, and it stays absent
+        // where no contract was ever declared.
+        resultAvailable: false,
+        ...(validationSpec === undefined ? {} : { deliverableAccepted: false }),
       };
       if (thrown instanceof BudgetExhaustedError) {
         // The class is the status: BudgetExhaustedError derives the
@@ -7789,9 +7876,23 @@ export function makeOrchestratorWorkflow(
     }
     const envelopeSchemaRecovered =
       (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;
+    const deliverable = deliverableVerdict(synthesizedFinal);
     return {
       result: synthesizedFinal,
       completion: decision.completion,
+      // The explicit deliverable verdict (RV2506): the three questions
+      // a consumer used to answer by parsing the result shape and
+      // digging the journal. `resultAvailable` always rides;
+      // `deliverableAccepted` and `acceptedArtifactRef` ride exactly
+      // when a finish contract judged something, so an envelope from a
+      // run without one stays byte identical.
+      resultAvailable: deliverable.resultAvailable,
+      ...(deliverable.deliverableAccepted === undefined
+        ? {}
+        : { deliverableAccepted: deliverable.deliverableAccepted }),
+      ...(deliverable.acceptedArtifactRef === undefined
+        ? {}
+        : { acceptedArtifactRef: deliverable.acceptedArtifactRef }),
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
       ...(decision.salvagedPartialChildren === undefined

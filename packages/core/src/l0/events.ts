@@ -80,6 +80,23 @@ export type CoreEvents =
       claimConsistencyMeta?: Record<string, unknown>;
       /** The synthesis-skip marker from the same envelope; same lift (RV2203). */
       synthesisSkipped?: boolean | string;
+      /**
+       * Whether the artifact this terminal carries was accepted by the
+       * declared finish contract, and whether there is one to read at
+       * all (RV2506); same lift. `deliverableAccepted` is absent, never
+       * false, when no finish contract was declared. The pair is what
+       * `status` and `completion` cannot say between them: an accepted
+       * child roster over a synthesis that never passed its contract
+       * reads `status: 'ok'`, `completion: 'complete'`,
+       * `deliverableAccepted: false`.
+       */
+      deliverableAccepted?: boolean;
+      resultAvailable?: boolean;
+      /**
+       * The journal seq of the decision recording that acceptance
+       * (RV2506); absent whenever `deliverableAccepted` is not true.
+       */
+      acceptedArtifactRef?: number;
       /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
       salvagedTerminalOutputChildren?: string[];
       /**

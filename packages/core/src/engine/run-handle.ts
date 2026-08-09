@@ -215,6 +215,45 @@ export type RunOutcome<R> = {
   /** The synthesis-skip marker from the same envelope; same lift and posture (RV2203). */
   synthesisSkipped?: boolean | string;
   /**
+   * Whether the artifact THIS terminal carries was accepted by the
+   * declared finish contract (RV2506), lifted from the same envelope or
+   * typed error data. The one question `status` and `completion` cannot
+   * answer between them: the 1.226.0 comparison run accepted its
+   * children (`completion: 'complete'` was earned by the acceptance
+   * policy over child statuses), then failed its synthesis against the
+   * contract three times and settled carrying nothing the contract ever
+   * accepted, and the scoring harness read `status: 'ok'` and could not
+   * tell. Absent, NEVER false, when no `finishValidation` was declared:
+   * nothing judged anything, and absence means NOT RECORDED (RV1209).
+   * False means a contract was declared and the artifact here did not
+   * pass it, including the case where nothing was ever judged because
+   * the run died first.
+   */
+  deliverableAccepted?: boolean;
+  /**
+   * Whether this terminal carries a deliverable to read at all
+   * (RV2506); same lift and posture. False on every enriched failure
+   * (an `error` outcome carries no value by construction) and on an
+   * accepted run whose synthesis resolved to null. Distinct from
+   * `deliverableAccepted`: an unjudged artifact still EXISTS, and a run
+   * with no artifact still has a completion claim.
+   */
+  resultAvailable?: boolean;
+  /**
+   * The journal seq of the decision entry that records the acceptance
+   * of the artifact this terminal carries (RV2506); same lift and
+   * posture, absent whenever `deliverableAccepted` is not true. Three
+   * different entries answer to it, which is the point of having one
+   * field: the accepted `orchestrator_finish_validation` decision on
+   * the ordinary path, the `orchestrator_synthesis_skip` decision when
+   * the RV510 gate settled on a valid draft, and the
+   * `orchestrator_synthesis_regressed` decision when the RV2505 floor
+   * handed a failing synthesis back to its draft. Read it with
+   * `rulvar inspect` (or any journal reader) to see WHICH validators
+   * rendered the acceptance and over WHICH draft hash.
+   */
+  acceptedArtifactRef?: number;
+  /**
    * Children accepted through validated terminal output salvage on
    * 'limit'; same lift and posture.
    */

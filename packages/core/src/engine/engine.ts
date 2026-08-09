@@ -687,6 +687,9 @@ function liftRunCompletion(candidate: unknown):
       semanticPasses?: SemanticPassesSummary;
       claimConsistencyMeta?: Record<string, unknown>;
       synthesisSkipped?: boolean | string;
+      deliverableAccepted?: boolean;
+      resultAvailable?: boolean;
+      acceptedArtifactRef?: number;
     }
   | undefined {
   if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
@@ -707,6 +710,9 @@ function liftRunCompletion(candidate: unknown):
     semanticPasses?: SemanticPassesSummary;
     claimConsistencyMeta?: Record<string, unknown>;
     synthesisSkipped?: boolean | string;
+    deliverableAccepted?: boolean;
+    resultAvailable?: boolean;
+    acceptedArtifactRef?: number;
   } = { completion };
   const counts = (candidate as { childStatusCounts?: unknown }).childStatusCounts;
   if (typeof counts === 'object' && counts !== null && !Array.isArray(counts)) {
@@ -840,6 +846,30 @@ function liftRunCompletion(candidate: unknown):
   const skippedCandidate = (candidate as { synthesisSkipped?: unknown }).synthesisSkipped;
   if (typeof skippedCandidate === 'boolean' || typeof skippedCandidate === 'string') {
     lifted.synthesisSkipped = skippedCandidate;
+  }
+  // The deliverable verdict (RV2506), same posture as everything
+  // above: the two claims mirror only as booleans and the reference
+  // only as a journal seq, so a workflow that puts a truthy string
+  // where a verdict belongs mirrors nothing rather than a green
+  // reading. The three travel together but lift independently: a
+  // consumer that reads `deliverableAccepted` on an engine whose
+  // producer wrote only `resultAvailable` reads absence, which is the
+  // honest answer.
+  const acceptedCandidate = (candidate as { deliverableAccepted?: unknown }).deliverableAccepted;
+  if (typeof acceptedCandidate === 'boolean') {
+    lifted.deliverableAccepted = acceptedCandidate;
+  }
+  const availableCandidate = (candidate as { resultAvailable?: unknown }).resultAvailable;
+  if (typeof availableCandidate === 'boolean') {
+    lifted.resultAvailable = availableCandidate;
+  }
+  const artifactRefCandidate = (candidate as { acceptedArtifactRef?: unknown }).acceptedArtifactRef;
+  if (
+    typeof artifactRefCandidate === 'number' &&
+    Number.isSafeInteger(artifactRefCandidate) &&
+    artifactRefCandidate >= 0
+  ) {
+    lifted.acceptedArtifactRef = artifactRefCandidate;
   }
   return lifted;
 }
@@ -2192,6 +2222,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.synthesisSkipped !== undefined) {
           outcomeFacts.synthesisSkipped = lifted.synthesisSkipped;
+        }
+        if (lifted.deliverableAccepted !== undefined) {
+          outcomeFacts.deliverableAccepted = lifted.deliverableAccepted;
+        }
+        if (lifted.resultAvailable !== undefined) {
+          outcomeFacts.resultAvailable = lifted.resultAvailable;
+        }
+        if (lifted.acceptedArtifactRef !== undefined) {
+          outcomeFacts.acceptedArtifactRef = lifted.acceptedArtifactRef;
         }
       }
       // The journaled settle (fenced run state RFC, phase 3): the run's

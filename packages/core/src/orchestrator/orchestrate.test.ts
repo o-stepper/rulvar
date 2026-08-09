@@ -1273,6 +1273,10 @@ describe('acceptance: the child completion policy (v1.40.0 improvement plan)', (
       completion: 'complete',
       childStatusCounts: { ok: 2 },
       degradedReasons: [],
+      // The deliverable verdict (RV2506): there IS an artifact, and no
+      // finish contract was declared, so `deliverableAccepted` is
+      // absent rather than false. Nothing judged anything.
+      resultAvailable: true,
       // The per-child machine roster (RV806): both children ok, no
       // salvage, no declared evidence contract.
       acceptanceChildren: [
@@ -5882,6 +5886,130 @@ describe('the no-regression floor under the synthesis (RV2505, the 1.226.0 compa
         synthesis: { limits: { maxTurns: 3 }, fallbackToValidDraft: true },
       }),
     ).toThrow(/fallbackToValidDraft requires finishValidation/);
+  });
+});
+
+describe('the explicit deliverable verdict on the terminal (RV2506)', () => {
+  // The scoring harness of the 1.226.0 comparison read `status: 'ok'`
+  // over a run that had accepted its children, failed its synthesis
+  // against the contract, and settled carrying nothing the contract
+  // ever accepted. Three fields answer that question directly.
+  const SECTIONED = '## Findings\nEverything the contract demands.';
+  const SECTIONLESS = 'a schema-valid candidate without the required section';
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const CONTRACT = () => ({
+    validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+    maxRepairs: 2,
+  });
+  function draftThenSynthesis(draft: string, final: string) {
+    let call = 0;
+    return scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      return call === 1
+        ? { toolCall: { name: 'finish', args: { result: draft } } }
+        : { toolCall: { name: 'finish', args: { result: final } } };
+    });
+  }
+  interface Verdict {
+    result: unknown;
+    deliverableAccepted?: boolean;
+    resultAvailable?: boolean;
+    acceptedArtifactRef?: number;
+    synthesisRegressed?: { decisionRef: number };
+  }
+  const decisionAt = (entries: readonly JournalEntry[], seq: number): string | undefined =>
+    (entries.find((entry) => entry.seq === seq)?.value as { decisionType?: string } | undefined)
+      ?.decisionType;
+
+  it('an accepted synthesis reports true and points at the verdict that accepted it', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, SECTIONED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 } },
+      finishValidation: CONTRACT(),
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as Verdict;
+    expect(envelope.deliverableAccepted).toBe(true);
+    expect(envelope.resultAvailable).toBe(true);
+    await internals.replayer.flush();
+    const entries = internals.replayer.snapshot();
+    expect(decisionAt(entries, envelope.acceptedArtifactRef ?? -1)).toBe(
+      'orchestrator_finish_validation',
+    );
+  });
+
+  it('without a declared contract the claim is ABSENT, never false', async () => {
+    const adapter = draftThenSynthesis(SECTIONLESS, SECTIONLESS);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 } },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as Verdict;
+    // Nothing judged anything, so there is no verdict to report; the
+    // artifact still exists and the run still says so.
+    expect('deliverableAccepted' in (envelope as object)).toBe(false);
+    expect('acceptedArtifactRef' in (envelope as object)).toBe(false);
+    expect(envelope.resultAvailable).toBe(true);
+  });
+
+  it('the RV2505 floor is an acceptance: the ref is the regression decision', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, SECTIONLESS);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 }, fallbackToValidDraft: true },
+      finishValidation: CONTRACT(),
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as Verdict;
+    expect(envelope.result).toBe(SECTIONED);
+    expect(envelope.deliverableAccepted).toBe(true);
+    expect(envelope.acceptedArtifactRef).toBe(envelope.synthesisRegressed?.decisionRef);
+    await internals.replayer.flush();
+    expect(decisionAt(internals.replayer.snapshot(), envelope.acceptedArtifactRef ?? -1)).toBe(
+      'orchestrator_synthesis_regressed',
+    );
+  });
+
+  it('the RV510 skip is an acceptance too: the ref is the skip decision', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, SECTIONED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 }, skipWhenDraftValid: true },
+      finishValidation: CONTRACT(),
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as Verdict;
+    expect(envelope.deliverableAccepted).toBe(true);
+    await internals.replayer.flush();
+    expect(decisionAt(internals.replayer.snapshot(), envelope.acceptedArtifactRef ?? -1)).toBe(
+      'orchestrator_synthesis_skip',
+    );
+  });
+
+  it('the failed terminal carries the same verdict, false, with no ref', async () => {
+    const adapter = draftThenSynthesis(SECTIONED, SECTIONLESS);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 } },
+      finishValidation: CONTRACT(),
+    });
+    const thrown = await executeWorkflow(internals, wf, undefined).then(
+      () => undefined,
+      (error: unknown) => error as { data?: Record<string, unknown> },
+    );
+    const data = thrown?.data ?? {};
+    // The exact shape the comparison harness needed and did not have:
+    // an accepted child roster over a deliverable nothing accepted.
+    expect(data.completion).toBe('complete');
+    expect(data.deliverableAccepted).toBe(false);
+    expect(data.resultAvailable).toBe(false);
+    expect('acceptedArtifactRef' in data).toBe(false);
   });
 });
 

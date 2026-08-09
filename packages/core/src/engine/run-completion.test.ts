@@ -412,6 +412,72 @@ describe('the failure envelope carries the pass truth (RV2203)', () => {
     expect((outcome as { synthesisSkipped?: boolean | string }).synthesisSkipped).toBe(false);
   });
 
+  it('lifts the deliverable verdict onto both surfaces (RV2506)', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'deliverable' }, async () => {
+      await Promise.resolve();
+      return {
+        completion: 'complete',
+        deliverableAccepted: true,
+        resultAvailable: true,
+        acceptedArtifactRef: 41,
+      };
+    });
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    const read = outcome as {
+      deliverableAccepted?: boolean;
+      resultAvailable?: boolean;
+      acceptedArtifactRef?: number;
+    };
+    expect(read.deliverableAccepted).toBe(true);
+    expect(read.resultAvailable).toBe(true);
+    expect(read.acceptedArtifactRef).toBe(41);
+    const event = runEnd as { deliverableAccepted?: boolean; acceptedArtifactRef?: number };
+    expect(event.deliverableAccepted).toBe(true);
+    expect(event.acceptedArtifactRef).toBe(41);
+  });
+
+  it('an error run lifts a false deliverable verdict from its typed data (RV2506)', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'unaccepted' }, async () => {
+      await Promise.resolve();
+      throw new FailRunError('the orchestrator finish failed host validation', {
+        data: {
+          completion: 'complete',
+          childStatusCounts: { ok: 4 },
+          deliverableAccepted: false,
+          resultAvailable: false,
+        },
+      });
+    });
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    // The pair that says it: the children were accepted, the
+    // deliverable was not.
+    expect(outcome.completion).toBe('complete');
+    expect((outcome as { deliverableAccepted?: boolean }).deliverableAccepted).toBe(false);
+    expect((outcome as { resultAvailable?: boolean }).resultAvailable).toBe(false);
+  });
+
+  it('a malformed deliverable verdict drops silently rather than reading green (RV2506)', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'malformed-verdict' }, async () => {
+      await Promise.resolve();
+      return {
+        completion: 'complete',
+        // A truthy string where a verdict belongs, and a fractional
+        // journal seq: both mirror nothing.
+        deliverableAccepted: 'yes',
+        resultAvailable: 1,
+        acceptedArtifactRef: 4.5,
+      };
+    });
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.completion).toBe('complete');
+    expect((outcome as { deliverableAccepted?: unknown }).deliverableAccepted).toBeUndefined();
+    expect((outcome as { resultAvailable?: unknown }).resultAvailable).toBeUndefined();
+    expect((outcome as { acceptedArtifactRef?: unknown }).acceptedArtifactRef).toBeUndefined();
+  });
+
   it('malformed claim meta drops silently, exactly like the roster', async () => {
     const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
     const wf = defineWorkflow({ name: 'malformed' }, async () => {
