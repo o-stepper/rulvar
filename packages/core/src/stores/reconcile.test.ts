@@ -13,7 +13,14 @@ import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine, type Engine } from '../engine/engine.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import { scriptedAdapter } from '../engine/test-harness.js';
-import { auditRun, auditRuns, lastRunSettle, reconcileRunMeta } from './reconcile.js';
+import {
+  auditRun,
+  auditRuns,
+  lastRunSettle,
+  logicalRunTelemetry,
+  reconcileRunMeta,
+  TERMINAL_TELEMETRY_SCOPE,
+} from './reconcile.js';
 
 const wf = defineWorkflow({ name: 'reconcile-wf' }, async (ctx) => {
   const note = await ctx.agent('do the work');
@@ -195,5 +202,94 @@ describe('auditRun and reconcileRunMeta', () => {
     const { repaired } = await reconcileRunMeta(store, 'R1', { lease });
     expect(repaired).toBe(true);
     expect(seen).toEqual([lease]);
+  });
+});
+
+describe('the logical run telemetry over every segment (RV2510)', () => {
+  // The twenty-fifth comparison run was killed and resumed, and its two
+  // terminals mixed cumulative money with segment-scoped counters,
+  // nothing marking which was which. This fold answers for the LOGICAL
+  // run, and the scope table says which field needs which reading.
+  const work = (seq: number): JournalEntry =>
+    ({
+      seq,
+      kind: 'fact',
+      scope: '',
+      status: 'ok',
+      site: 'x',
+      value: {},
+    }) as unknown as JournalEntry;
+  const settle = (seq: number, runStatus: string): JournalEntry =>
+    ({
+      seq,
+      kind: 'decision',
+      scope: '',
+      status: 'ok',
+      site: 'run-settle',
+      value: { decisionType: 'run_settle', runStatus, segment: seq },
+    }) as unknown as JournalEntry;
+
+  it('partitions the journal by settle boundary, so no entry is counted twice', () => {
+    const total = logicalRunTelemetry([
+      work(1),
+      work(2),
+      settle(3, 'exhausted'),
+      work(4),
+      settle(5, 'ok'),
+    ]);
+    expect(total.segments).toBe(2);
+    expect(total.statuses).toEqual(['exhausted', 'ok']);
+    // The figure no single terminal carries: what each segment
+    // actually did, and the two add up to the whole journal.
+    expect(total.entriesPerSegment).toEqual([3, 2]);
+    expect(total.entries).toBe(5);
+    expect(total.entriesPerSegment.reduce((a, b) => a + b, 0)).toBe(total.entries);
+    expect(total.entriesAfterLastSettle).toBe(0);
+  });
+
+  it('names the entries that continued PAST the last settle', () => {
+    const total = logicalRunTelemetry([work(1), settle(2, 'suspended'), work(3), work(4)]);
+    // The journal is not terminal here (RV1407), and the aggregate says
+    // so instead of presenting the last status as the run's last word.
+    expect(total.entriesAfterLastSettle).toBe(2);
+    expect(total.entriesPerSegment).toEqual([2]);
+  });
+
+  it('a journal with no settle at all folds to zero segments, not to a guess', () => {
+    const total = logicalRunTelemetry([work(1), work(2)]);
+    expect(total.segments).toBe(0);
+    expect(total.statuses).toEqual([]);
+    expect(total.entriesAfterLastSettle).toBe(2);
+  });
+
+  it('deliberately carries no cumulative figure: summing those double counts', () => {
+    const total = logicalRunTelemetry([work(1), settle(2, 'ok')]);
+    // Money and usage fold from the whole journal already; a per-segment
+    // sum would count every replayed operation once per segment that
+    // replayed it, which is exactly the reconciliation this fold exists
+    // to make unnecessary.
+    expect('totalUsd' in total).toBe(false);
+    expect('usage' in total).toBe(false);
+    expect(TERMINAL_TELEMETRY_SCOPE['cost.totalUsd']).toBe('cumulative');
+    expect(TERMINAL_TELEMETRY_SCOPE['cost.orchestrator.wakes']).toBe('segment');
+  });
+
+  it('folds a real run, and every terminal field declares a scope', async () => {
+    const journal = new InMemoryStore();
+    const engine = makeEngine(journal);
+    const outcome = await engine.run(wf, undefined, { runId: 'SCOPE-RUN' }).result;
+    expect(outcome.status).toBe('ok');
+    const loaded = await journal.load('SCOPE-RUN');
+    const total = logicalRunTelemetry(loaded);
+    expect(total.segments).toBe(1);
+    expect(total.statuses).toEqual(['ok']);
+    expect(total.entriesPerSegment).toEqual([loaded.length]);
+    expect(total.entriesAfterLastSettle).toBe(0);
+    // The gate: a new terminal field cannot ship without declaring what
+    // it counts, because this reads the keys a real outcome carries.
+    const undeclared = Object.keys(outcome).filter(
+      (key) => TERMINAL_TELEMETRY_SCOPE[key] === undefined,
+    );
+    expect(undeclared).toEqual([]);
   });
 });

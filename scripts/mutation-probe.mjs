@@ -4065,6 +4065,33 @@ const MUTATIONS = [
     replace: '              rewritten: true,',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
+  {
+    id: 'logical-telemetry-partitions-by-settle',
+    doctrine:
+      'the logical aggregate PARTITIONS the journal at each settle boundary (RV2510): a running total that never resets reports segment two as having done every entry segment one did, which is the double count the fold exists to prevent',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '    entriesPerSegment.push(sinceLastSettle);\n    sinceLastSettle = 0;',
+    replace: '    entriesPerSegment.push(sinceLastSettle);',
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
+  {
+    id: 'logical-telemetry-names-the-non-terminal-tail',
+    doctrine:
+      "entries appended PAST the last settle are reported, not folded away (RV2510 with RV1407): a journal that continued past its terminal has no last word yet, and silently zeroing the tail presents a stale settle as the run's verdict",
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '    entriesAfterLastSettle: sinceLastSettle,',
+    replace: '    entriesAfterLastSettle: 0,',
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
+  {
+    id: 'terminal-scope-declares-the-segment-fields',
+    doctrine:
+      "the scope table calls the per-segment counters 'segment' (RV2510): read as cumulative, a resumed run's wake count looks like the whole logical run's and the reconciliation the table exists to remove comes straight back",
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: "  'cost.orchestrator.wakes': 'segment',",
+    replace: "  'cost.orchestrator.wakes': 'cumulative',",
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

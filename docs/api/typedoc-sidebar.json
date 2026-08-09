@@ -1207,6 +1207,10 @@
             "link": "/api/@rulvar/core/interfaces/LineageStats.md"
           },
           {
+            "text": "LogicalRunTelemetry",
+            "link": "/api/@rulvar/core/interfaces/LogicalRunTelemetry.md"
+          },
+          {
             "text": "McpConfig",
             "link": "/api/@rulvar/core/interfaces/McpConfig.md"
           },
@@ -2317,6 +2321,10 @@
             "link": "/api/@rulvar/core/type-aliases/TaskSpec.md"
           },
           {
+            "text": "TelemetryScope",
+            "link": "/api/@rulvar/core/type-aliases/TelemetryScope.md"
+          },
+          {
             "text": "TerminalOutcomeFacts",
             "link": "/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md"
           },
@@ -2781,6 +2789,10 @@
           {
             "text": "SPAWN_AGENT_SCHEMA",
             "link": "/api/@rulvar/core/variables/SPAWN_AGENT_SCHEMA.md"
+          },
+          {
+            "text": "TERMINAL_TELEMETRY_SCOPE",
+            "link": "/api/@rulvar/core/variables/TERMINAL_TELEMETRY_SCOPE.md"
           },
           {
             "text": "TOOL_NAME_PATTERN",
@@ -3267,6 +3279,10 @@
           {
             "text": "localKeyProvider",
             "link": "/api/@rulvar/core/functions/localKeyProvider.md"
+          },
+          {
+            "text": "logicalRunTelemetry",
+            "link": "/api/@rulvar/core/functions/logicalRunTelemetry.md"
           },
           {
             "text": "makeOrchestratorWorkflow",
@@ -6157,6 +6173,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/LineageStats.md"
           },
           {
+            "text": "LogicalRunTelemetry",
+            "link": "/api/@rulvar/rulvar/interfaces/LogicalRunTelemetry.md"
+          },
+          {
             "text": "McpConfig",
             "link": "/api/@rulvar/rulvar/interfaces/McpConfig.md"
           },
@@ -7299,6 +7319,10 @@
             "link": "/api/@rulvar/rulvar/type-aliases/TaskSpec.md"
           },
           {
+            "text": "TelemetryScope",
+            "link": "/api/@rulvar/rulvar/type-aliases/TelemetryScope.md"
+          },
+          {
             "text": "TerminalOutcomeFacts",
             "link": "/api/@rulvar/rulvar/type-aliases/TerminalOutcomeFacts.md"
           },
@@ -7775,6 +7799,10 @@
           {
             "text": "SPAWN_AGENT_SCHEMA",
             "link": "/api/@rulvar/rulvar/variables/SPAWN_AGENT_SCHEMA.md"
+          },
+          {
+            "text": "TERMINAL_TELEMETRY_SCOPE",
+            "link": "/api/@rulvar/rulvar/variables/TERMINAL_TELEMETRY_SCOPE.md"
           },
           {
             "text": "TOOL_NAME_PATTERN",
@@ -8265,6 +8293,10 @@
           {
             "text": "localKeyProvider",
             "link": "/api/@rulvar/rulvar/functions/localKeyProvider.md"
+          },
+          {
+            "text": "logicalRunTelemetry",
+            "link": "/api/@rulvar/rulvar/functions/logicalRunTelemetry.md"
           },
           {
             "text": "makeOrchestratorWorkflow",
