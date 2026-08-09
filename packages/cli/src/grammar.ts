@@ -28,6 +28,14 @@ export interface CommandGrammar {
   command: string;
   /** Positional placeholders; the arity is EXACT (nothing extra rides along). */
   positionals: string[];
+  /**
+   * Positionals the command accepts but does not demand (RV2209), e.g.
+   * cost-audit's `<runId>` beside `--all`. Rendered bracketed in every
+   * usage surface; the arity check admits required through required
+   * plus optional, nothing further. Which combinations are VALID stays
+   * a command-level rule (the grammar knows shapes, not semantics).
+   */
+  optionalPositionals?: string[];
   flags: FlagGrammar[];
   /** Trailing usage note, e.g. '(no aliases in v1)'. */
   note?: string;
@@ -89,8 +97,9 @@ export const GRAMMAR: {
   invoice: { command: 'invoice', positionals: ['<runId>'], flags: [STORE, { name: 'json' }] },
   'cost-audit': {
     command: 'cost-audit',
-    positionals: ['<runId>'],
-    flags: [STORE, { name: 'json' }],
+    positionals: [],
+    optionalPositionals: ['<runId>'],
+    flags: [STORE, { name: 'all' }, { name: 'json' }],
   },
   plan: {
     command: 'plan',
@@ -166,11 +175,17 @@ function renderFlags(flags: FlagGrammar[]): string[] {
   return tokens;
 }
 
+/** Optional positionals rendered bracketed, e.g. `[<runId>]` (RV2209). */
+function bracketedOptionals(grammar: CommandGrammar): string[] {
+  return (grammar.optionalPositionals ?? []).map((placeholder) => `[${placeholder}]`);
+}
+
 /** The full invocation shape, e.g. `rulvar run <file|name> [--args JSON] ...`. */
 export function invocationOf(grammar: CommandGrammar): string {
   const parts = [
     `rulvar ${grammar.command}`,
     ...grammar.positionals,
+    ...bracketedOptionals(grammar),
     ...renderFlags(grammar.flags),
   ];
   if (grammar.note !== undefined) {
@@ -202,7 +217,9 @@ export function helpCommandLines(): string[] {
     GRAMMAR.plan,
     GRAMMAR.preflight,
   ];
-  const heads = top.map((grammar) => ['rulvar', grammar.command, ...grammar.positionals].join(' '));
+  const heads = top.map((grammar) =>
+    ['rulvar', grammar.command, ...grammar.positionals, ...bracketedOptionals(grammar)].join(' '),
+  );
   const kbHead = 'rulvar kb <list | inbox | gate | sweep>';
   const width = Math.max(...heads.map((head) => head.length), kbHead.length);
   const lines = top.map((grammar, index) => {
@@ -234,7 +251,13 @@ export function docsGrammarLines(): string[] {
   ];
   return [
     ...top.map((grammar) =>
-      ['rulvar', grammar.command, ...grammar.positionals, ...renderFlags(grammar.flags)].join(' '),
+      [
+        'rulvar',
+        grammar.command,
+        ...grammar.positionals,
+        ...bracketedOptionals(grammar),
+        ...renderFlags(grammar.flags),
+      ].join(' '),
     ),
     'rulvar kb <list | inbox | gate | sweep>',
   ];
@@ -314,8 +337,9 @@ export function parseCommand(grammar: CommandGrammar, argv: string[]): ParsedCom
   if (raw.positionals.length < grammar.positionals.length) {
     throw new ConfigError(usageOf(grammar));
   }
-  if (raw.positionals.length > grammar.positionals.length) {
-    const extra = raw.positionals[grammar.positionals.length];
+  const maxPositionals = grammar.positionals.length + (grammar.optionalPositionals?.length ?? 0);
+  if (raw.positionals.length > maxPositionals) {
+    const extra = raw.positionals[maxPositionals];
     throw new ConfigError(`unexpected extra argument '${extra}'; ${usageOf(grammar)}`);
   }
   const values: ParsedCommand['values'] = {};

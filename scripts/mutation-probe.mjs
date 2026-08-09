@@ -3714,6 +3714,33 @@ const MUTATIONS = [
     replace: '      if (false) {',
     test: 'packages/core/src/engine/run-budget-override.test.ts',
   },
+  {
+    id: 'cost-audit-all-signals-divergence',
+    doctrine:
+      'the catalog sweep exits 1 when ANY run diverges (RV2209): silencing the sweep exit averages a broken journal into a green catalog, exactly the per-run-at-a-time blindness the flag exists to close',
+    file: 'packages/cli/src/commands.ts',
+    find: '  return divergent.length === 0 ? 0 : 1;\n}',
+    replace: '  return 0;\n}',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'cost-audit-all-exclusive-forms',
+    doctrine:
+      'a runId beside --all refuses typed (RV2209): dropping the guard silently audits the named run and ignores the flag, and the host reads a single-run verdict as a catalog posture',
+    file: 'packages/cli/src/commands.ts',
+    find: '  if (all && runId !== undefined) {',
+    replace: '  if (false) {',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'optional-positional-arity',
+    doctrine:
+      "the grammar admits required through required plus optional positionals, nothing further (RV2209): dropping the optional term from the ceiling refuses cost-audit's own runId as an extra argument",
+    file: 'packages/cli/src/grammar.ts',
+    find: '  const maxPositionals = grammar.positionals.length + (grammar.optionalPositionals?.length ?? 0);',
+    replace: '  const maxPositionals = grammar.positionals.length;',
+    test: 'packages/cli/src/index.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -37,6 +37,7 @@ import {
   type DeterminismEvents,
   type EvidenceRef,
   type GateRecord,
+  type JournalEntry,
   type JournalPricingSnapshot,
   type LeasableStore,
   type Lease,
@@ -49,6 +50,7 @@ import {
   type PreflightSpawnSpec,
   type RunMeta,
   type RunOptions,
+  type Usage,
   type Workflow,
 } from '@rulvar/core';
 
@@ -920,35 +922,24 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
 }
 
 /**
- * cost-audit (RV1910): the denominator diagnostic over one stored run.
- * The four-role benchmark's recovery run produced four mutually
- * inconsistent cost views; the lifecycle now admits one, and this
- * command VERIFIES it on a concrete journal instead of trusting the
- * doctrine: the roster is closed (every agent entry terminal), the
- * settle is recorded and is the billing boundary, and the settled
- * fold, the invoice totals and the wire cardinality agree. Exit 1
- * with the failing checks named when any diverge, which is exactly
- * what a pre-RV1904 journal (the benchmark's own) reports.
+ * The six checks of one journal (RV1910, extracted for RV2209): the
+ * roster is closed, the settle is recorded and is the billing
+ * boundary, the settled fold, the invoice totals and the wire
+ * cardinality agree, and the incremental rows match their terminals.
  */
-export async function costAuditCommand(argv: string[], context: CommandContext): Promise<number> {
-  const parsed = parseCommand(GRAMMAR['cost-audit'], argv);
-  const runId = parsed.positionals[0];
-  const store = parsed.values.store as string | undefined;
-  const json = parsed.values.json === true;
-  const config = await loadCliConfig(context.cwd);
-  const assembled = assembleEngine({
-    config,
-    ...(store === undefined ? {} : { storePath: store }),
-    cwd: context.cwd,
-  });
-  const meta = await readRunMeta(assembled.store, runId);
-  if (meta === undefined) {
-    throw new ConfigError(`run '${runId}' not found in the store`);
-  }
-  const entries = await assembled.store.load(runId);
+interface RunCostAudit {
+  report: ReturnType<typeof costReportFromJournal>;
+  invoice: ReturnType<typeof invoiceFromJournal>;
+  checks: Array<{ name: string; pass: boolean; detail: string }>;
+  failed: Array<{ name: string; pass: boolean; detail: string }>;
+}
+
+function auditJournalEntries(
+  entries: JournalEntry[],
+  basePriceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined,
+): RunCostAudit {
   const snapshot = journalPricingSnapshot(entries);
-  const composed =
-    snapshot === undefined ? assembled.priceUsd : snapshot.composedPriceUsd(assembled.priceUsd);
+  const composed = snapshot === undefined ? basePriceUsd : snapshot.composedPriceUsd(basePriceUsd);
   const report = costReportFromJournal(entries, composed);
   const invoice = invoiceFromJournal(entries, composed);
   const terminalRefs = new Set(
@@ -1078,43 +1069,130 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
     },
   ];
   const failed = checks.filter((check) => !check.pass);
+  return { report, invoice, checks, failed };
+}
+
+/** The one JSON shape of a run's audit, shared by both command forms. */
+function costAuditRunJson(runId: string, audit: RunCostAudit): Record<string, unknown> {
+  return {
+    runId,
+    verdict: audit.failed.length === 0 ? 'one-denominator' : 'divergent',
+    settled: {
+      totalUsd: audit.report.totalUsd,
+      grossUsd: audit.report.grossUsd,
+      wireRequests: audit.report.wireRequests ?? null,
+    },
+    invoice: {
+      totalUsd: audit.invoice.totalUsd,
+      rows: audit.invoice.rows.length,
+      wireRequests: audit.invoice.cardinality.wireRequests,
+    },
+    checks: audit.checks,
+  };
+}
+
+/**
+ * cost-audit (RV1910): the denominator diagnostic over one stored run.
+ * The four-role benchmark's recovery run produced four mutually
+ * inconsistent cost views; the lifecycle now admits one, and this
+ * command VERIFIES it on a concrete journal instead of trusting the
+ * doctrine: the roster is closed (every agent entry terminal), the
+ * settle is recorded and is the billing boundary, and the settled
+ * fold, the invoice totals and the wire cardinality agree. Exit 1
+ * with the failing checks named when any diverge, which is exactly
+ * what a pre-RV1904 journal (the benchmark's own) reports. `--all`
+ * (RV2209) runs the same six checks over EVERY run the store lists,
+ * one summary row each, exit 1 when any run diverges: the parity
+ * sessions audited seven journals one invocation at a time, and a
+ * catalog posture check should cost one command.
+ */
+export async function costAuditCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseCommand(GRAMMAR['cost-audit'], argv);
+  const runId = parsed.positionals[0];
+  const all = parsed.values.all === true;
+  const store = parsed.values.store as string | undefined;
+  const json = parsed.values.json === true;
+  if (all && runId !== undefined) {
+    throw new ConfigError(
+      `--all audits every run of the store; drop the '${runId}' positional; ` +
+        usageOf(GRAMMAR['cost-audit']),
+    );
+  }
+  if (!all && runId === undefined) {
+    throw new ConfigError(
+      `name a runId, or audit the whole store with --all; ${usageOf(GRAMMAR['cost-audit'])}`,
+    );
+  }
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(store === undefined ? {} : { storePath: store }),
+    cwd: context.cwd,
+  });
+  if (runId !== undefined) {
+    const meta = await readRunMeta(assembled.store, runId);
+    if (meta === undefined) {
+      throw new ConfigError(`run '${runId}' not found in the store`);
+    }
+    const entries = await assembled.store.load(runId);
+    const audit = auditJournalEntries(entries, assembled.priceUsd);
+    if (json) {
+      context.io.out(JSON.stringify(costAuditRunJson(runId, audit), null, 2));
+      return audit.failed.length === 0 ? 0 : 1;
+    }
+    context.io.out(
+      `run ${runId}: cost audit (${audit.failed.length === 0 ? 'one denominator' : 'DIVERGENT'})`,
+    );
+    context.io.out(
+      `settled: gross $${audit.report.grossUsd.toFixed(4)} | net $${audit.report.totalUsd.toFixed(4)} | wires ${String(audit.report.wireRequests ?? 'absent')}`,
+    );
+    context.io.out(
+      `invoice: total $${audit.invoice.totalUsd.toFixed(4)} | rows ${String(audit.invoice.rows.length)} | wires ${String(audit.invoice.cardinality.wireRequests)}`,
+    );
+    for (const check of audit.checks) {
+      context.io.out(`  [${check.pass ? 'pass' : 'FAIL'}] ${check.name}: ${check.detail}`);
+    }
+    return audit.failed.length === 0 ? 0 : 1;
+  }
+  // The catalog sweep: deterministic order whatever the store returns,
+  // so two audits of the same directory diff cleanly.
+  const metas = await assembled.store.listRuns();
+  const sorted = [...metas].sort((a, b) => (a.runId < b.runId ? -1 : a.runId > b.runId ? 1 : 0));
+  const rows: Array<{ runId: string; audit: RunCostAudit }> = [];
+  for (const meta of sorted) {
+    const entries = await assembled.store.load(meta.runId);
+    rows.push({ runId: meta.runId, audit: auditJournalEntries(entries, assembled.priceUsd) });
+  }
+  const divergent = rows.filter((row) => row.audit.failed.length > 0);
   if (json) {
     context.io.out(
       JSON.stringify(
         {
-          runId,
-          verdict: failed.length === 0 ? 'one-denominator' : 'divergent',
-          settled: {
-            totalUsd: report.totalUsd,
-            grossUsd: report.grossUsd,
-            wireRequests: report.wireRequests ?? null,
-          },
-          invoice: {
-            totalUsd: invoice.totalUsd,
-            rows: invoice.rows.length,
-            wireRequests: invoice.cardinality.wireRequests,
-          },
-          checks,
+          verdict: divergent.length === 0 ? 'one-denominator' : 'divergent',
+          divergent: divergent.length,
+          runs: rows.map((row) => costAuditRunJson(row.runId, row.audit)),
         },
         null,
         2,
       ),
     );
-    return failed.length === 0 ? 0 : 1;
+    return divergent.length === 0 ? 0 : 1;
   }
   context.io.out(
-    `run ${runId}: cost audit (${failed.length === 0 ? 'one denominator' : 'DIVERGENT'})`,
+    `cost audit: ${String(rows.length)} run${rows.length === 1 ? '' : 's'}, ` +
+      `${String(divergent.length)} divergent`,
   );
-  context.io.out(
-    `settled: gross $${report.grossUsd.toFixed(4)} | net $${report.totalUsd.toFixed(4)} | wires ${String(report.wireRequests ?? 'absent')}`,
-  );
-  context.io.out(
-    `invoice: total $${invoice.totalUsd.toFixed(4)} | rows ${String(invoice.rows.length)} | wires ${String(invoice.cardinality.wireRequests)}`,
-  );
-  for (const check of checks) {
-    context.io.out(`  [${check.pass ? 'pass' : 'FAIL'}] ${check.name}: ${check.detail}`);
+  for (const row of rows) {
+    const failedNames = row.audit.failed.map((check) => check.name).join(', ');
+    context.io.out(
+      `  ${row.runId}: ${row.audit.failed.length === 0 ? 'one denominator' : 'DIVERGENT'} | ` +
+        `checks ${String(row.audit.checks.length - row.audit.failed.length)}/${String(row.audit.checks.length)}` +
+        `${failedNames === '' ? '' : ` (failed ${failedNames})`} | ` +
+        `gross $${row.audit.report.grossUsd.toFixed(4)} | ` +
+        `wires ${String(row.audit.report.wireRequests ?? 'absent')}`,
+    );
   }
-  return failed.length === 0 ? 0 : 1;
+  return divergent.length === 0 ? 0 : 1;
 }
 
 /** Formats an optional USD number for the preflight text rows. */
