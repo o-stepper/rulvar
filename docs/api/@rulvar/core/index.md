@@ -305,6 +305,7 @@ exactly the pieces you need, for example
 | [ReconcileStatementOptions](/api/@rulvar/core/interfaces/ReconcileStatementOptions.md) | - |
 | [RefEntryAppender](/api/@rulvar/core/interfaces/RefEntryAppender.md) | The append surface the arbiter drives (implemented by the Replayer). |
 | [RefusalInfo](/api/@rulvar/core/interfaces/RefusalInfo.md) | - |
+| [RejectedFinishCandidate](/api/@rulvar/core/interfaces/RejectedFinishCandidate.md) | One finish candidate the declared contract did NOT accept (RV2507). The 1.226.0 comparison run rejected three syntheses; nothing on its terminal said so, nothing said whether the three differed from each other, and the only way to read them was an external script that re-parsed the whole agent transcript. The row is the artifact that dig produced, made first class. |
 | [RepeatedClaim](/api/@rulvar/core/interfaces/RepeatedClaim.md) | One claim reported more than once across the input rows. |
 | [RepositoryResearchToolset](/api/@rulvar/core/interfaces/RepositoryResearchToolset.md) | - |
 | [RepositoryResearchToolsetOptions](/api/@rulvar/core/interfaces/RepositoryResearchToolsetOptions.md) | - |

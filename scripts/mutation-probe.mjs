@@ -3991,6 +3991,44 @@ const MUTATIONS = [
     replace: '  if (acceptedCandidate !== undefined) {',
     test: 'packages/core/src/engine/run-completion.test.ts',
   },
+  {
+    id: 'rejected-candidate-identity-is-free',
+    doctrine:
+      'the identity of a rejected candidate is recorded WITHOUT the retention opt-in (RV2507): the hash and the size come from bytes the validator already held, and gating them behind retention would leave the default terminal saying only that something failed, which is the exact blindness the comparison analysis had to script around',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        const rejectedCandidate = failed.length > 0;',
+    replace:
+      '        const rejectedCandidate =\n          failed.length > 0 && validationSpec.retainRejectedCandidates === true;',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'rejected-candidate-bytes-are-opt-in',
+    doctrine:
+      'a COPY of the rejected document is written only where the host declared retainRejectedCandidates (RV2507): storage is the one cost of this feature and every run that never asked for it must keep writing exactly the blobs it wrote before',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (rejectedCandidate && validationSpec.retainRejectedCandidates === true) {',
+    replace: '        if (rejectedCandidate) {',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'rejected-candidates-ride-the-accepted-terminal',
+    doctrine:
+      'the rejected candidates ride the OK terminal too (RV2507): a run that recovered on its second attempt still owes a post-mortem the first, and reporting them only on failure hides every repair a passing run needed',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      ...(envelopeRejectedCandidates.length === 0\n        ? {}\n        : { rejectedFinishCandidates: envelopeRejectedCandidates }),',
+    replace: '      ...{},',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'rejected-candidates-drop-as-a-whole-list',
+    doctrine:
+      'one malformed row drops the WHOLE rejected-candidate list (RV2507, the roster posture since RV806): a partial history read as complete is worse than no history, because a consumer counting attempts would under-report exactly the runs that misbehaved most',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '    if (rejectedCandidates.every(validRow)) {\n      lifted.rejectedFinishCandidates = rejectedCandidates.map((row) => ({ ...row }));\n    }',
+    replace:
+      '    {\n      lifted.rejectedFinishCandidates = rejectedCandidates.filter(validRow).map((row) => ({\n        ...row,\n      }));\n    }',
+    test: 'packages/core/src/engine/run-completion.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

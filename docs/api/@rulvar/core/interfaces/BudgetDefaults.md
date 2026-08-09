@@ -6,14 +6,14 @@
 
 # Interface: BudgetDefaults
 
-Defined in: [packages/core/src/engine/engine.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L169)
+Defined in: [packages/core/src/engine/engine.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L170)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-childbudgetfraction"></a> `childBudgetFraction?` | `number` | Fraction of the parent remainder (minus the parent finalize reserve) a child sub-account may take; default 0.3 (M6-T06). | [packages/core/src/engine/engine.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L178) |
-| <a id="property-flatreserveusd"></a> `flatReserveUsd?` | `number` | Last resort of the admission reserve formula; default 0.50. | [packages/core/src/engine/engine.ts:171](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L171) |
-| <a id="property-lifetimespawncap"></a> `lifetimeSpawnCap?` | `number` | Engine kill switch; default 500 spawns per run. | [packages/core/src/engine/engine.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L173) |
-| <a id="property-lineage"></a> `lineage?` | `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/core/interfaces/EscalationLimits.md)\&gt; | Lineage limits (DEF-3): maxEscalationsPerLogicalTask (default 2) and maxAttemptsPerLogicalTask (default 8), monotonically consumed. The validator rejects the pre-rename knob name maxEscalationsPerNode with a migration hint (XF-10). | [packages/core/src/engine/engine.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L187) |
-| <a id="property-maxdepth"></a> `maxDepth?` | `number` | AdmissionController nesting depth; default 1, hard ceiling 4. | [packages/core/src/engine/engine.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L180) |
+| <a id="property-childbudgetfraction"></a> `childBudgetFraction?` | `number` | Fraction of the parent remainder (minus the parent finalize reserve) a child sub-account may take; default 0.3 (M6-T06). | [packages/core/src/engine/engine.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L179) |
+| <a id="property-flatreserveusd"></a> `flatReserveUsd?` | `number` | Last resort of the admission reserve formula; default 0.50. | [packages/core/src/engine/engine.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L172) |
+| <a id="property-lifetimespawncap"></a> `lifetimeSpawnCap?` | `number` | Engine kill switch; default 500 spawns per run. | [packages/core/src/engine/engine.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L174) |
+| <a id="property-lineage"></a> `lineage?` | `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/core/interfaces/EscalationLimits.md)\&gt; | Lineage limits (DEF-3): maxEscalationsPerLogicalTask (default 2) and maxAttemptsPerLogicalTask (default 8), monotonically consumed. The validator rejects the pre-rename knob name maxEscalationsPerNode with a migration hint (XF-10). | [packages/core/src/engine/engine.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L188) |
+| <a id="property-maxdepth"></a> `maxDepth?` | `number` | AdmissionController nesting depth; default 1, hard ceiling 4. | [packages/core/src/engine/engine.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L181) |

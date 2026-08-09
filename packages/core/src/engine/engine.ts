@@ -82,6 +82,7 @@ import { EVENT_SEGMENT_STRIDE, EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
 import {
   type AcceptanceChildSummary,
+  type RejectedFinishCandidate,
   type SemanticPassesSummary,
   type PendingExternal,
   type RunHandle,
@@ -690,6 +691,7 @@ function liftRunCompletion(candidate: unknown):
       deliverableAccepted?: boolean;
       resultAvailable?: boolean;
       acceptedArtifactRef?: number;
+      rejectedFinishCandidates?: RejectedFinishCandidate[];
     }
   | undefined {
   if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
@@ -713,6 +715,7 @@ function liftRunCompletion(candidate: unknown):
     deliverableAccepted?: boolean;
     resultAvailable?: boolean;
     acceptedArtifactRef?: number;
+    rejectedFinishCandidates?: RejectedFinishCandidate[];
   } = { completion };
   const counts = (candidate as { childStatusCounts?: unknown }).childStatusCounts;
   if (typeof counts === 'object' && counts !== null && !Array.isArray(counts)) {
@@ -870,6 +873,48 @@ function liftRunCompletion(candidate: unknown):
     artifactRefCandidate >= 0
   ) {
     lifted.acceptedArtifactRef = artifactRefCandidate;
+  }
+  // The rejected candidates (RV2507), same posture as the acceptance
+  // roster: every row must be well formed or the whole list drops, so
+  // a partially shaped array can never read as the complete history of
+  // what the contract refused.
+  const rejectedCandidates = (candidate as { rejectedFinishCandidates?: unknown })
+    .rejectedFinishCandidates;
+  if (Array.isArray(rejectedCandidates)) {
+    const validRow = (row: unknown): row is RejectedFinishCandidate => {
+      if (typeof row !== 'object' || row === null) {
+        return false;
+      }
+      const { callId, verdict, hash, chars, failed, ref } = row as {
+        callId?: unknown;
+        verdict?: unknown;
+        hash?: unknown;
+        chars?: unknown;
+        failed?: unknown;
+        ref?: unknown;
+      };
+      return (
+        typeof callId === 'string' &&
+        (verdict === 'repair' || verdict === 'rejected') &&
+        typeof hash === 'string' &&
+        typeof chars === 'number' &&
+        Number.isSafeInteger(chars) &&
+        chars >= 0 &&
+        (ref === undefined || typeof ref === 'string') &&
+        Array.isArray(failed) &&
+        failed.every(
+          (entry) =>
+            typeof entry === 'object' &&
+            entry !== null &&
+            typeof (entry as { name?: unknown }).name === 'string' &&
+            Array.isArray((entry as { reasons?: unknown }).reasons) &&
+            (entry as { reasons: unknown[] }).reasons.every((reason) => typeof reason === 'string'),
+        )
+      );
+    };
+    if (rejectedCandidates.every(validRow)) {
+      lifted.rejectedFinishCandidates = rejectedCandidates.map((row) => ({ ...row }));
+    }
   }
   return lifted;
 }
@@ -2231,6 +2276,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.acceptedArtifactRef !== undefined) {
           outcomeFacts.acceptedArtifactRef = lifted.acceptedArtifactRef;
+        }
+        if (lifted.rejectedFinishCandidates !== undefined) {
+          outcomeFacts.rejectedFinishCandidates = lifted.rejectedFinishCandidates;
         }
       }
       // The journaled settle (fenced run state RFC, phase 3): the run's

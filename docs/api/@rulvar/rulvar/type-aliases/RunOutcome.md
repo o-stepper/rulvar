@@ -21,6 +21,7 @@ type RunOutcome<R> = {
   envelope: TerminalEnvelope;
   error?: WireError;
   pending: PendingExternal[];
+  rejectedFinishCandidates?: RejectedFinishCandidate[];
   resultAvailable?: boolean;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
@@ -254,6 +255,25 @@ pending: PendingExternal[];
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### rejectedFinishCandidates?
+
+```ts
+optional rejectedFinishCandidates?: RejectedFinishCandidate[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Every finish candidate the declared contract did NOT accept, in the
+order they were judged (RV2507); same lift and posture. Present
+only when there was at least one, so a run that passed first try
+keeps its exact terminal. It rides the ok terminal as well as the
+failed one: a run that recovered on its second attempt still owes a
+post-mortem the first, and the comparison analysis that had to
+reconstruct three rejected syntheses from a transcript is the
+reason the field exists.
 
 ***
 

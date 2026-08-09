@@ -478,6 +478,39 @@ describe('the failure envelope carries the pass truth (RV2203)', () => {
     expect((outcome as { acceptedArtifactRef?: unknown }).acceptedArtifactRef).toBeUndefined();
   });
 
+  it('lifts the rejected candidates, and drops a partly shaped list whole (RV2507)', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const good = {
+      callId: 'call-1',
+      verdict: 'rejected',
+      hash: 'a'.repeat(64),
+      chars: 120,
+      failed: [{ name: 'evidence-grade', reasons: ['two sentences'] }],
+      ref: 'run/finish-rejected/call-1',
+    };
+    const wf = defineWorkflow({ name: 'rejections' }, async () => {
+      await Promise.resolve();
+      return { completion: 'rejected', rejectedFinishCandidates: [good] };
+    });
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    expect((outcome as { rejectedFinishCandidates?: unknown[] }).rejectedFinishCandidates).toEqual([
+      good,
+    ]);
+    // One malformed row and the WHOLE list drops: a partial history
+    // read as complete is worse than no history.
+    const partial = defineWorkflow({ name: 'partial-rejections' }, async () => {
+      await Promise.resolve();
+      return {
+        completion: 'rejected',
+        rejectedFinishCandidates: [good, { ...good, verdict: 'maybe' }],
+      };
+    });
+    const second = await runAndCaptureEnd(engine, partial);
+    expect(
+      (second.outcome as { rejectedFinishCandidates?: unknown }).rejectedFinishCandidates,
+    ).toBeUndefined();
+  });
+
   it('malformed claim meta drops silently, exactly like the roster', async () => {
     const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
     const wf = defineWorkflow({ name: 'malformed' }, async () => {

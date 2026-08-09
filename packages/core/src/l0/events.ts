@@ -97,6 +97,21 @@ export type CoreEvents =
        * (RV2506); absent whenever `deliverableAccepted` is not true.
        */
       acceptedArtifactRef?: number;
+      /**
+       * Every finish candidate the declared contract did NOT accept, in
+       * judgement order (RV2507); same lift, absent when there was
+       * none. Each row identifies the candidate (`callId`, `hash`,
+       * `chars`) and names the validators that rejected it, with `ref`
+       * pointing at the retained bytes where the host asked for them.
+       */
+      rejectedFinishCandidates?: {
+        callId: string;
+        verdict: 'repair' | 'rejected';
+        hash: string;
+        chars: number;
+        failed: { name: string; reasons: string[] }[];
+        ref?: string;
+      }[];
       /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
       salvagedTerminalOutputChildren?: string[];
       /**

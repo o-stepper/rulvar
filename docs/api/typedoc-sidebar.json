@@ -1459,6 +1459,10 @@
             "link": "/api/@rulvar/core/interfaces/RefusalInfo.md"
           },
           {
+            "text": "RejectedFinishCandidate",
+            "link": "/api/@rulvar/core/interfaces/RejectedFinishCandidate.md"
+          },
+          {
             "text": "RepeatedClaim",
             "link": "/api/@rulvar/core/interfaces/RepeatedClaim.md"
           },
@@ -6419,6 +6423,10 @@
           {
             "text": "RefusalInfo",
             "link": "/api/@rulvar/rulvar/interfaces/RefusalInfo.md"
+          },
+          {
+            "text": "RejectedFinishCandidate",
+            "link": "/api/@rulvar/rulvar/interfaces/RejectedFinishCandidate.md"
           },
           {
             "text": "RenderProgressOptions",
