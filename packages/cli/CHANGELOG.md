@@ -1,5 +1,11 @@
 # @rulvar/cli
 
+## 1.226.0
+
+### Patch Changes
+
+- @rulvar/core@1.226.0
+
 ## 1.225.0
 
 ### Minor Changes
