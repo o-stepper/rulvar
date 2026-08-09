@@ -235,3 +235,110 @@ describe('the exposure cap on resume (RV1504)', () => {
     expect(value.wave.map((entry) => entry.status)).toEqual(['ok', 'ok', 'ok']);
   });
 });
+
+/**
+ * The exposure room clamps a lone dispatch instead of refusing it
+ * (RV2503). The 1.226.0 comparison run's mandatory repair turn was
+ * refused before any provider call: nothing else was in flight, the
+ * budget still held 0.8642 USD, and the FULL 18000 token plan priced
+ * 0.7066 USD against 0.5642 USD of room. Re-issued after the operator
+ * raised the ceiling, the same work wrote 12840 output tokens and cost
+ * 0.4788 USD. A refusal with nothing live buys nothing: no hold will
+ * release, so the only choices are a shorter turn or no turn. With
+ * siblings live the refusal stays exactly as RV711 wrote it.
+ */
+describe('a lone dispatch is clamped, not refused (RV2503)', () => {
+  const SOLO_WF = defineWorkflow({ name: 'solo' }, async (ctx) => {
+    const one = await ctx.agent('probe', { result: 'full' });
+    return one.status;
+  });
+
+  function soloEngine() {
+    const adapter = scriptedAdapter(() => ({ text: 'ok' }));
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    return { adapter, engine };
+  }
+
+  // testCaps pricing: 1 USD per MTok input, 10 USD per MTok output. A
+  // 1000 token plan is therefore 0.01 USD of output, which does not fit
+  // a 0.004 USD cap, while a few hundred tokens do.
+  const LIMITS = { maxOutputTokensPerTurn: 1000 };
+
+  it('shortens the plan to what the room affords and dispatches it', async () => {
+    const { adapter, engine } = soloEngine();
+    const outcome = await engine.run(SOLO_WF, undefined, {
+      limits: LIMITS,
+      maxInFlightExposureUsd: 0.004,
+      clampTurnToExposure: true,
+    }).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('ok');
+    // The turn ran, and it ran shorter: the historical path refused it
+    // outright with the cap arithmetic in a typed error.
+    expect(adapter.calls).toHaveLength(1);
+    const planned = adapter.calls[0]?.maxOutputTokens;
+    expect(planned).toBeGreaterThan(0);
+    expect(planned).toBeLessThan(LIMITS.maxOutputTokensPerTurn);
+  });
+
+  it('clamps with no USD ceiling configured at all: the two ceilings are independent', async () => {
+    const { adapter, engine } = soloEngine();
+    const outcome = await engine.run(SOLO_WF, undefined, {
+      limits: LIMITS,
+      maxInFlightExposureUsd: 0.004,
+      clampTurnToExposure: true,
+      budgetUsd: undefined,
+    }).result;
+    expect(outcome.status).toBe('ok');
+    expect(adapter.calls[0]?.maxOutputTokens).toBeLessThan(LIMITS.maxOutputTokensPerTurn);
+  });
+
+  it('leaves the full plan alone when the room affords it', async () => {
+    const { adapter, engine } = soloEngine();
+    const outcome = await engine.run(SOLO_WF, undefined, {
+      limits: LIMITS,
+      maxInFlightExposureUsd: 999,
+      clampTurnToExposure: true,
+    }).result;
+    expect(outcome.status).toBe('ok');
+    expect(adapter.calls[0]?.maxOutputTokens).toBe(LIMITS.maxOutputTokensPerTurn);
+  });
+
+  it('a room below the output floor still refuses typed, never a truncated turn', async () => {
+    const { adapter, engine } = soloEngine();
+    const outcome = await engine.run(SOLO_WF, undefined, {
+      limits: LIMITS,
+      maxInFlightExposureUsd: 0.0000001,
+      clampTurnToExposure: true,
+    }).result;
+    expect(outcome.status).toBe('exhausted');
+    expect(outcome.error?.message ?? '').toContain('in flight exposure cap reached');
+    // Not an output-floor verdict: the orchestrator's coordination
+    // catch reads that one as a still fundable tail (RV2101).
+    expect(outcome.error?.message ?? '').not.toContain('cannot afford one output token');
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('without the opt-in the same room refuses, the historical path', async () => {
+    const { adapter, engine } = soloEngine();
+    const outcome = await engine.run(SOLO_WF, undefined, {
+      limits: LIMITS,
+      maxInFlightExposureUsd: 0.004,
+    }).result;
+    expect(outcome.status).toBe('exhausted');
+    expect(outcome.error?.message ?? '').toContain('in flight exposure cap reached');
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('a non boolean opt-in is a synchronous ConfigError before any journal write', () => {
+    const { engine } = soloEngine();
+    expect(() =>
+      engine.run(SOLO_WF, undefined, {
+        clampTurnToExposure: 'yes' as unknown as boolean,
+      }),
+    ).toThrow(ConfigError);
+  });
+});

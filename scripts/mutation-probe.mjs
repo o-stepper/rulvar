@@ -3660,6 +3660,24 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/runfacts.test.ts',
   },
   {
+    id: 'exposure-clamp-is-opt-in',
+    doctrine:
+      'the lone-dispatch exposure clamp runs only where a host declared it (RV2503): armed by default it would rewrite the drained-refusal terminals RV1902, RV2002 and RV2003 built out of live parity deaths, turning a documented forced-finish partial into a silently shorter turn',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    if (!this.clampTurnToExposure || cap === undefined || this.inFlightExposureUsd > 0) {',
+    replace: '    if (cap === undefined || this.inFlightExposureUsd > 0) {',
+    test: 'packages/core/src/engine/in-flight-exposure.test.ts',
+  },
+  {
+    id: 'exposure-clamp-lone-dispatch-only',
+    doctrine:
+      'the exposure clamp answers only for a dispatch alone in flight (RV2503): with siblings live the refusal is transient, the RV1902 wait parks on it and the turn runs at full length when a hold releases, so shortening it would trade a complete answer for a truncated one and buy nothing',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    if (!this.clampTurnToExposure || cap === undefined || this.inFlightExposureUsd > 0) {',
+    replace: '    if (!this.clampTurnToExposure || cap === undefined) {',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
     id: 'exhausted-lift-reads-error-data',
     doctrine:
       'the exhausted terminal lifts its completion facts from the enriched error data when the partial value carries no envelope (RV2203): the seventh subscription parity resume settled exhausted with completion null over a journaled accepted acceptance',

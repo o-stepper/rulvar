@@ -297,6 +297,31 @@ exactly like the tool-budget reserve turn. Preflight's
 `drained-finalization-unfunded` info names a window declared under an
 exposure cap with no reserve to fund the grant.
 
+`RunOptions.clampTurnToExposure` (RV2503) adds the other answer to a drained
+refusal: shorten the turn instead of losing it. The budget ceiling has always
+clamped a turn's `maxOutputTokens` to what the remaining money affords (layer
+2b); the exposure ceiling only ever said yes or no, so a dispatch whose FULL
+plan overshot the line was refused even when a shorter one fit and the budget
+could pay for it. The 1.226.0 comparison run died there: nothing was in
+flight, the budget still held $0.8642, the mandatory repair turn's 18,000
+token plan priced $0.7066 against $0.5642 of room, and the dispatch was
+refused before any provider call; the same work, re-issued after an operator
+raised the ceiling, wrote 12,840 output tokens for $0.4788 and fit the very
+ceiling that refused it. Armed, the clamp prices the room the same way the
+admission charges it and lowers the plan to fit.
+
+Scoped deliberately, and off unless declared. It applies only to a dispatch
+with NOTHING else in flight, because that refusal is permanent: no hold will
+ever release to fund the full plan, and the RV2003 sweep wakes such a waiter
+`drained` for exactly that reason. With siblings live the refusal is
+transient, the waits above park on it, and the wave keeps the full-length
+turn RV711 promised. When the room cannot fund even the serving model's
+output floor the clamp stands aside, so a real exposure exhaustion still
+refuses through the typed `in-flight-exposure` path and every drained
+terminal above keeps its shape. Absent, dispatch behavior is byte identical.
+Like `strictPricing`, it is a per-segment posture: it is not recorded in
+RunMeta, and a resumed segment carries only what its own options declare.
+
 The wait can never end the process silently (RV2003). The third parity
 rerun's terminal shape was exactly that: the root parked with nothing on
 the event loop, and Node exited mid-run with an unsettled top-level await,

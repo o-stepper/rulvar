@@ -701,3 +701,96 @@ describe('the lifetime spawn counter across segments (RV2201, the seventh subscr
     expect(() => budget.admitSpawn(0.1)).toThrow(BudgetExhaustedError);
   });
 });
+
+/**
+ * Layer 2b against the exposure ceiling (RV2503). The 1.226.0
+ * comparison run held 0.8642 USD of budget and 0.5642 USD of exposure
+ * room, and its mandatory repair turn was refused before any provider
+ * call because the FULL 18000 token plan priced 0.7066 USD. Re-issued
+ * after the operator raised the ceiling, that turn wrote 12840 output
+ * tokens for 0.4788 USD: it fit the ceiling that refused it. The room
+ * now answers how long a turn it affords, and only for a dispatch with
+ * nothing else in flight, where the refusal is permanent rather than
+ * the transient RV711 wave refusal RV1902 parks on.
+ */
+describe('the exposure room clamps the plan it can still afford (RV2503)', () => {
+  // The comparison run's serving model: 5 USD per MTok input, 30 per
+  // MTok output, no long-context tier reached at this prompt size.
+  const SOL: Pricing = { inputUsdPerMTok: 5, outputUsdPerMTok: 30 };
+  const ZERO_USAGE = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const CAP = 5.7;
+  const SPENT = 5.1358257;
+  const ESTIMATED_INPUT = 33_320;
+
+  function atTheComparisonTail(): RunBudget {
+    return new RunBudget({
+      ceilingUsd: 6,
+      maxInFlightExposureUsd: CAP,
+      clampTurnToExposure: true,
+      pricingOf: (servedBy) => (servedBy === 'openai:sol' ? SOL : undefined),
+      seed: { usd: SPENT, usage: ZERO_USAGE, agentsSpawned: 1 },
+    });
+  }
+
+  it('affords the turn the full plan could not buy', () => {
+    const budget = atTheComparisonTail();
+    const affordable = budget.maxExposureOutputTokens('openai:sol', ESTIMATED_INPUT);
+    // The room is CAP - SPENT = 0.5642 USD, of which the prompt takes
+    // 0.1666; the rest buys 13253 output tokens, and the turn that was
+    // refused went on to write 12840.
+    expect(affordable).toBe(
+      affordableOutputTokens(SOL, CAP - SPENT, ESTIMATED_INPUT) as unknown as number,
+    );
+    expect(affordable).toBeGreaterThanOrEqual(12_840);
+    expect(affordable).toBeLessThan(18_000);
+    // The clamped plan fits the very admission that refused the full
+    // one: no throw, and the hold releases cleanly.
+    const release = budget.reserveTurnExposure('openai:sol', ESTIMATED_INPUT, affordable ?? 0);
+    expect(release).toBeTypeOf('function');
+    release?.();
+    // The full plan is still refused, exactly as before.
+    expect(() => budget.reserveTurnExposure('openai:sol', ESTIMATED_INPUT, 18_000)).toThrow(
+      BudgetExhaustedError,
+    );
+  });
+
+  it('stays silent while anything else is in flight, so the wave keeps its refusal', () => {
+    const budget = atTheComparisonTail();
+    const release = budget.reserveTurnExposure('openai:sol', 100, 1);
+    expect(budget.maxExposureOutputTokens('openai:sol', ESTIMATED_INPUT)).toBeUndefined();
+    release?.();
+    expect(budget.maxExposureOutputTokens('openai:sol', ESTIMATED_INPUT)).toBeGreaterThan(0);
+  });
+
+  it('is inert without a cap and without a price row', () => {
+    const uncapped = new RunBudget({
+      ceilingUsd: 6,
+      clampTurnToExposure: true,
+      pricingOf: () => SOL,
+    });
+    expect(uncapped.maxExposureOutputTokens('openai:sol', 10)).toBeUndefined();
+    const unpriced = new RunBudget({
+      maxInFlightExposureUsd: CAP,
+      clampTurnToExposure: true,
+      pricingOf: () => undefined,
+    });
+    // And inert without the opt-in, whatever else is configured.
+    const unarmed = new RunBudget({ maxInFlightExposureUsd: CAP, pricingOf: () => SOL });
+    expect(unarmed.maxExposureOutputTokens('openai:sol', 10)).toBeUndefined();
+    expect(unpriced.maxExposureOutputTokens('openai:sol', 10)).toBeUndefined();
+  });
+
+  it('answers at or below zero once the exposure line is already crossed', () => {
+    const budget = new RunBudget({
+      maxInFlightExposureUsd: 1,
+      clampTurnToExposure: true,
+      pricingOf: () => SOL,
+      seed: { usd: 2, usage: ZERO_USAGE, agentsSpawned: 1 },
+    });
+    // The same convention the budget sibling inherits from
+    // affordableOutputTokens: not even the prompt fits, so the answer
+    // is not a length. The loop ignores it and the exposure admission
+    // refuses with its own typed reason.
+    expect(budget.maxExposureOutputTokens('openai:sol', 10)).toBeLessThanOrEqual(0);
+  });
+});
