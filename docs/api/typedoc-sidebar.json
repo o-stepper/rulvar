@@ -1271,6 +1271,10 @@
             "link": "/api/@rulvar/core/interfaces/OrchestrateContradictionsMeta.md"
           },
           {
+            "text": "OrchestrateDraftToFinal",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateDraftToFinal.md"
+          },
+          {
             "text": "OrchestrateOptions",
             "link": "/api/@rulvar/core/interfaces/OrchestrateOptions.md"
           },
@@ -6219,6 +6223,10 @@
           {
             "text": "OrchestrateContradictionsMeta",
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateContradictionsMeta.md"
+          },
+          {
+            "text": "OrchestrateDraftToFinal",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateDraftToFinal.md"
           },
           {
             "text": "OrchestrateOptions",

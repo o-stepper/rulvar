@@ -818,6 +818,35 @@ export interface OrchestrateClaimConsistency {
    * silently when its judge dies.
    */
   onFound?: 'report' | 'carry' | 'fail';
+  /**
+   * WHICH document the pass judges (RV2509), default `'draft'`, the
+   * historical behavior byte for byte. The pass has always read the
+   * coordination draft, strictly BEFORE the synthesis, so that a draft
+   * contradicting its own pool fails before anything pays to compose
+   * it. That ordering is right and stays; what it cannot do is verify
+   * the document that actually SHIPPED. The synthesis rewrites the
+   * draft, and under `'draft'` the semantic verdict on the terminal
+   * describes a document no consumer ever receives: the twenty-fifth
+   * comparison run's judge cleared a draft and the synthesis then
+   * composed a different text three times over.
+   *
+   * `'final'` moves the pass after the synthesis, over the artifact the
+   * run settles on. `'both'` keeps the pre-synthesis gate AND judges
+   * the final, at the price of a second judge invocation; the terminal
+   * then reports the FINAL pass in `claimConsistencyMeta` (the shipped
+   * document is what a consumer gates on) and the earlier one in
+   * `claimConsistencyDraftMeta`.
+   *
+   * Every meta says which document it read (`judgedStage`,
+   * `judgedHash`), and the envelope's `draftToFinal` says whether the
+   * synthesis changed the document at all, so the question "is this
+   * verdict about what I received" is a field read under every setting,
+   * including the default.
+   *
+   * Meaningful only with a `synthesis` configured: without one the
+   * draft IS the final and all three settings judge the same document.
+   */
+  stage?: 'draft' | 'final' | 'both';
   /** The judge invocation's own knobs; the routing chain applies otherwise. */
   judge?: {
     /** Model override for the judge invocation. */
@@ -995,6 +1024,40 @@ export interface OrchestrateClaimConsistencyMeta {
    * "fully verified" when the judge saw 40 of 144 citing sentences.
    */
   coverage: ClaimCoverageGrade;
+  /**
+   * WHICH document this verdict describes (RV2509): `'draft'` for the
+   * pre-synthesis pass, `'final'` for a pass over the artifact the run
+   * settles on. Always present since RV2509, so a coverage grade can
+   * never be read as a claim about the shipped document when it was
+   * rendered over the draft the synthesis replaced.
+   */
+  judgedStage: 'draft' | 'final';
+  /**
+   * sha256 over the canonical document this verdict read (RV2509).
+   * Compare it against the envelope's `draftToFinal.finalHash`: equal
+   * means the judged document IS the one that shipped, unequal means
+   * the synthesis rewrote what the judge cleared.
+   */
+  judgedHash: string;
+}
+
+/**
+ * How the shipped artifact relates to the draft the run composed it
+ * from (RV2509), present on the acceptance envelope whenever a
+ * synthesis was configured. Two hashes and the answer they imply: a
+ * semantic verdict rendered over the draft describes the final only
+ * when `rewritten` is false, and until this shipped a consumer had no
+ * way to ask.
+ */
+export interface OrchestrateDraftToFinal {
+  /** sha256 over the canonical coordination draft. */
+  draftHash: string;
+  /** sha256 over the canonical artifact the run settled on. */
+  finalHash: string;
+  /** False exactly when the two hashes agree: the synthesis returned the draft unchanged. */
+  rewritten: boolean;
+  /** Which documents the claim-consistency pass actually judged; absent when it never ran. */
+  claimsJudgedOn?: 'draft' | 'final' | 'both';
 }
 
 /**
@@ -1918,6 +1981,24 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
             "deterministic 'incremental' reconciliation has no prompt for the findings to ride",
         );
       }
+    }
+    // Which document the pass judges (RV2509). A stage that reaches
+    // past the draft needs a synthesis to reach past: without one the
+    // draft IS the final, and silently accepting the setting would let
+    // a host believe it verified a composition that never happened.
+    const stage = (consistency as { stage?: unknown }).stage ?? 'draft';
+    if (stage !== 'draft' && stage !== 'final' && stage !== 'both') {
+      throw new ConfigError(
+        "orchestrate claimConsistency.stage must be 'draft', 'final' or 'both'; got " +
+          JSON.stringify((consistency as { stage?: unknown }).stage),
+      );
+    }
+    if (stage !== 'draft' && opts.synthesis === undefined) {
+      throw new ConfigError(
+        `orchestrate claimConsistency.stage '${stage}' requires synthesis: without the ` +
+          'post-fan-in invocation the coordination draft IS the final artifact, and the ' +
+          "default 'draft' already judges it",
+      );
     }
     if (consistency.pattern !== undefined) {
       if (typeof consistency.pattern !== 'string') {
@@ -5272,6 +5353,18 @@ export function makeOrchestratorWorkflow(
     /** Set whenever the pass ran, findings or not (the RV1404 pairing). */
     let claimConsistencyMeta: OrchestrateClaimConsistencyMeta | undefined;
     /**
+     * Which document the claim-consistency pass judges (RV2509),
+     * default `'draft'`: the historical ordering, byte for byte.
+     */
+    const claimStage = opts?.claimConsistency?.stage ?? 'draft';
+    /**
+     * Under `stage: 'both'` the pre-synthesis verdict, kept beside the
+     * final one (RV2509): `claimConsistencyMeta` reports the SHIPPED
+     * document because that is what a consumer gates on, and the draft
+     * verdict is the record of the gate that let the synthesis run.
+     */
+    let claimConsistencyDraftMeta: OrchestrateClaimConsistencyMeta | undefined;
+    /**
      * The salvage arms the acceptance decision counted (RV1403), set on
      * the accepted path AFTER the decision, fresh or rolled forward
      * from the journal, so live and resume read the same lists; a
@@ -5425,6 +5518,7 @@ export function makeOrchestratorWorkflow(
     const runClaimConsistencyPass = async (
       draft: unknown,
       snapshot?: Record<string, Json>,
+      stage: 'draft' | 'final' = 'draft',
     ): Promise<void> => {
       const spec = opts?.claimConsistency;
       if (spec === undefined) {
@@ -5603,7 +5697,19 @@ export function makeOrchestratorWorkflow(
         judgeDeclined?: true;
       }): OrchestrateClaimConsistencyMeta => {
         const bare = { ...metaBase, ...flags };
-        return { ...bare, coverage: claimCoverageOf(bare) };
+        // The provenance of the verdict (RV2509), stamped at the one
+        // assembly every exit path passes through: WHICH document this
+        // meta read, and its hash, so a grade rendered over a draft the
+        // synthesis then replaced can never be read as a claim about
+        // the shipped artifact.
+        return {
+          ...bare,
+          coverage: claimCoverageOf(bare),
+          judgedStage: stage,
+          judgedHash: createHash('sha256')
+            .update(jcsSerialize(draft ?? null), 'utf8')
+            .digest('hex'),
+        };
       };
       // The low-coverage gate (RV1809) fires BEFORE the judge
       // dispatch, exactly like the uncovered-critical gate below: a
@@ -5720,7 +5826,11 @@ export function makeOrchestratorWorkflow(
       const judgeOpts: AgentOpts & { result: 'full' } = {
         role: 'synthesize',
         result: 'full',
-        label: CLAIM_JUDGE_LABEL,
+        // The final pass gets its own label (RV2509) so the two judge
+        // invocations of `stage: 'both'` are separable in telemetry;
+        // the draft label is unchanged, so every existing run reduces
+        // exactly as before.
+        label: stage === 'draft' ? CLAIM_JUDGE_LABEL : `${CLAIM_JUDGE_LABEL}-final`,
         schema: CLAIM_JUDGE_SCHEMA,
         limits: spec.judge?.limits ?? { maxTurns: DEFAULT_CLAIM_JUDGE_MAX_TURNS },
         ...(spec.judge?.model === undefined ? {} : { model: spec.judge.model }),
@@ -5752,7 +5862,17 @@ export function makeOrchestratorWorkflow(
           throw declined;
         }
         claimConsistencyMeta = finishMeta({ judgeInvoked: false, judgeDeclined: true });
-        const declineKey = deriverV2.deriveKey({ kind: 'orchestrator-claim-judge-declined' });
+        // The key stays byte identical for the draft pass and gains a
+        // suffix for the final one (RV2509): under `stage: 'both'` two
+        // declines can happen in one run, and a shared key would let
+        // the second reuse the first's entry and report the wrong
+        // arithmetic.
+        const declineKey = deriverV2.deriveKey({
+          kind:
+            stage === 'draft'
+              ? 'orchestrator-claim-judge-declined'
+              : 'orchestrator-claim-judge-declined-final',
+        });
         if (
           !internals.replayer
             .snapshot()
@@ -7510,19 +7630,32 @@ export function makeOrchestratorWorkflow(
       // against, but the chokepoint is the same one: the pass runs
       // before the synthesis dispatch it may cancel.
       await runContradictionPass();
-      await runClaimConsistencyPass(result.output);
+      if (claimStage !== 'final') {
+        await runClaimConsistencyPass(result.output);
+      }
+      let bare: unknown;
       try {
-        return await runSynthesis(result.output);
+        bare = await runSynthesis(result.output);
       } catch (thrown) {
         await journalSynthesisAdmissionDecline(thrown);
         // The no-regression floor (RV2505). Without an acceptance
         // policy the return value is the bare result, so the draft
         // rides it directly and the journaled decision is the record.
         if ((await draftFallbackOnRegression(result.output, thrown)).used) {
-          return result.output;
+          bare = result.output;
+        } else {
+          return enrichSynthesisFailure(thrown);
         }
-        return enrichSynthesisFailure(thrown);
       }
+      // The final gate (RV2509): the shipped artifact judged by the
+      // same pass, after the synthesis rewrote it. Without an
+      // acceptance envelope there is nowhere to report the meta, so
+      // this arm exists for its GATE: an armed 'fail' posture still
+      // stops a run whose composition contradicts its own pool.
+      if (claimStage !== 'draft') {
+        await runClaimConsistencyPass(bare, undefined, 'final');
+      }
+      return bare;
     }
 
     // The acceptance settle: the JOURNALED decision entry is the
@@ -7952,7 +8085,7 @@ export function makeOrchestratorWorkflow(
     // contradicts ITSELF fails before anything pays for a judge, and a
     // draft that contradicts its pool fails before anything pays for a
     // synthesis.
-    await runClaimConsistencyPass(result.output, {
+    const acceptanceSnapshot = {
       completion: decision.completion,
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
@@ -7962,7 +8095,14 @@ export function makeOrchestratorWorkflow(
       ...(decision.salvagedTerminalOutputChildren === undefined
         ? {}
         : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
-    });
+    };
+    // Under `stage: 'final'` there is no pre-synthesis verdict at all
+    // (RV2509): the gate the host asked for is over the composition,
+    // and paying a judge to clear a draft it will not ship is exactly
+    // the spend that setting exists to avoid.
+    if (claimStage !== 'final') {
+      await runClaimConsistencyPass(result.output, acceptanceSnapshot);
+    }
     // Synthesis runs strictly AFTER the accepted verdict: a rejected run
     // never pays for a synthesis invocation (RV-211).
     let synthesizedFinal: unknown;
@@ -7998,9 +8138,40 @@ export function makeOrchestratorWorkflow(
         });
       }
     }
+    // The final gate (RV2509), strictly AFTER the synthesis and before
+    // the envelope: the pass judges the document the run actually
+    // ships, and its failure posture is the pass's own, so an armed
+    // 'fail' stops the run over a composition that contradicts the
+    // pool it was composed from. Under 'both' the draft verdict is
+    // preserved first, because this call overwrites the live one.
+    if (claimStage !== 'draft') {
+      claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;
+      await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+    }
     const envelopeSchemaRecovered =
       (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;
     const deliverable = deliverableVerdict(synthesizedFinal);
+    // The draft-to-final provenance (RV2509), present whenever a
+    // synthesis was configured: two hashes and the answer they imply,
+    // so "is this semantic verdict about what I received" is a field
+    // read rather than an inference from ordering rules.
+    const draftToFinal: OrchestrateDraftToFinal | undefined =
+      opts?.synthesis === undefined
+        ? undefined
+        : (() => {
+            const hashOf = (value: unknown): string =>
+              createHash('sha256')
+                .update(jcsSerialize(value ?? null), 'utf8')
+                .digest('hex');
+            const draftHash = hashOf(result.output);
+            const finalHash = hashOf(synthesizedFinal);
+            return {
+              draftHash,
+              finalHash,
+              rewritten: draftHash !== finalHash,
+              ...(claimConsistencyMeta === undefined ? {} : { claimsJudgedOn: claimStage }),
+            };
+          })();
     const envelopeRejectedCandidates = rejectedFinishCandidates();
     return {
       result: synthesizedFinal,
@@ -8093,6 +8264,19 @@ export function makeOrchestratorWorkflow(
               : { claimContradictions: claimFindingsFound }),
             claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
           }),
+      // The pre-synthesis verdict under `stage: 'both'` (RV2509),
+      // absent under every other setting so each existing envelope
+      // stays byte identical. Its `judgedStage` says 'draft' and its
+      // `judgedHash` names the document it read, so the pair is
+      // self-describing without reference to which field it rides.
+      ...(claimConsistencyDraftMeta === undefined
+        ? {}
+        : { claimConsistencyDraftMeta: claimConsistencyDraftMeta as unknown as Json }),
+      // The draft-to-final provenance (RV2509): present whenever a
+      // synthesis was configured, so a consumer holding a semantic
+      // verdict can tell whether the document it judged is the one
+      // that shipped.
+      ...(draftToFinal === undefined ? {} : { draftToFinal: draftToFinal as unknown as Json }),
       // The explicit pass summary (RV1906): {ran, reason} for every
       // semantic pass, so an absent findings field can never read as a
       // clean pass. The benchmark's recovery artifacts carried
