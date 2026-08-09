@@ -7988,6 +7988,15 @@ interface FinishValidationInput {
   * evidence the children actually produced.
   */
   readonly children?: readonly FinishValidationChild[];
+  /**
+  * The id of the run being judged (RV2501). Optional in the TYPE only
+  * so hand built inputs stay source compatible; the orchestrator
+  * runtime always supplies it, at every gate that judges a finish
+  * (the validator-bound finish, the contract draft gate, and the
+  * skipWhenDraftValid pre-pass), so a validator can accept the run's
+  * own id as the artifact a claim about THIS run points at.
+  */
+  readonly runId?: string;
 }
 /** The verdict of one validator over one finish attempt. */
 type FinishValidationVerdict = {
@@ -8281,7 +8290,22 @@ declare const DEFAULT_ARTIFACT_PATTERN = "(?:run[ -]?[0-9A-HJKMNP-TV-Z]{6,26}|[\
 * paragraphs away no longer satisfies the grade. Purely textual: what
 * the referenced artifact contains is
 * {@link citedValueValidator}'s question, and whether it exists on
-* disk is the host's. Default name 'evidence-grade'.
+* disk is the host's.
+*
+* The run's OWN id is an artifact (RV2501). `DEFAULT_ARTIFACT_PATTERN`
+* only ever matched the literal word `run` followed by a ULID, so the
+* escape the verdict advertised was unreachable for every run whose id
+* the engine did not mint in that exact shape: the comparison run's
+* `comparison-rulvar-v12260-aug09-...` matched nothing, its synthesis
+* had no artifact it could name, and a document that told the truth
+* about the run it was part of could not be written at all. When
+* {@link FinishValidationInput.runId} is supplied (the orchestrator
+* runtime always supplies it), a sentence carrying that id verbatim as
+* a whole token satisfies the grade, and the verdict names the id so
+* the repair instruction is executable rather than aspirational. An id
+* shorter than `MIN_RUN_ID_ARTIFACT_CHARS` (six) is ignored, and
+* without an id the verdict is byte identical to the historical one.
+* Default name 'evidence-grade'.
 */
 declare function evidenceGradeValidator(options?: {
   /** Overrides {@link DEFAULT_EVIDENCE_GRADE_PHRASES}; matched case-insensitively. */phrases?: readonly string[]; /** Overrides {@link DEFAULT_ARTIFACT_PATTERN}. */

@@ -10,7 +10,7 @@
 function sectionPatternCountValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:777](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L777)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:811](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L811)
 
 Counted collections inside named sections (RV2206, the subscription
 parity series). The engine validated citations per section since the

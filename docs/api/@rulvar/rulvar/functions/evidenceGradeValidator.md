@@ -25,7 +25,22 @@ or a `path:line` citation by default), so moving the evidence three
 paragraphs away no longer satisfies the grade. Purely textual: what
 the referenced artifact contains is
 [citedValueValidator](/api/@rulvar/rulvar/functions/citedValueValidator.md)'s question, and whether it exists on
-disk is the host's. Default name 'evidence-grade'.
+disk is the host's.
+
+The run's OWN id is an artifact (RV2501). `DEFAULT_ARTIFACT_PATTERN`
+only ever matched the literal word `run` followed by a ULID, so the
+escape the verdict advertised was unreachable for every run whose id
+the engine did not mint in that exact shape: the comparison run's
+`comparison-rulvar-v12260-aug09-...` matched nothing, its synthesis
+had no artifact it could name, and a document that told the truth
+about the run it was part of could not be written at all. When
+[FinishValidationInput.runId](/api/@rulvar/rulvar/interfaces/FinishValidationInput.md#property-runid) is supplied (the orchestrator
+runtime always supplies it), a sentence carrying that id verbatim as
+a whole token satisfies the grade, and the verdict names the id so
+the repair instruction is executable rather than aspirational. An id
+shorter than `MIN_RUN_ID_ARTIFACT_CHARS` (six) is ignored, and
+without an id the verdict is byte identical to the historical one.
+Default name 'evidence-grade'.
 
 ## Parameters
 

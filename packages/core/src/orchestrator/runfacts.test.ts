@@ -17,6 +17,7 @@ import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 
 import { makeOrchestratorWorkflow } from './orchestrate.js';
+import { citedValueValidator, evidenceGradeValidator } from './finish-validators.js';
 
 const PROFILES = { worker: { description: 'reads one span' } };
 
@@ -180,6 +181,7 @@ describe('execution self-facts (RV1503)', () => {
     >;
     expect(parsed).toEqual({
       scope: 'settled-children-only',
+      runId: internals.runId,
       children: 1,
       byStatus: { ok: 1 },
       ...EXPECTED_FACTS,
@@ -188,10 +190,44 @@ describe('execution self-facts (RV1503)', () => {
     // they are (RV1807): the child-only scope is part of the quoted
     // bytes, so the composing model cannot honestly print them as the
     // whole workflow's totals.
-    expect(line).toContain('live-observed by this run');
+    expect(line).toContain(`live-observed by run ${internals.runId}`);
     expect(line).toContain('production evidence it is not');
     expect(line).toContain('settled children ONLY');
     expect(line).toContain("the whole run's totals are the terminal envelope and invoice");
+  });
+
+  it('the line the engine writes passes the grade the engine ships (RV2501)', async () => {
+    // The composition the 1.226.0 comparison run could not satisfy:
+    // the RUN FACTS line ends in the `live-observed` register, the
+    // synthesis is told to reproduce run facts only from it, and the
+    // default evidence-grade validator then rejected every quote of
+    // it because the line named no artifact at all. The line now
+    // carries its own run id in the same sentence, so quoting it is
+    // not a validator failure, and the cited-value sibling stays
+    // satisfied because the sentence carries no source citation.
+    const { internals, synthesis } = factsHarness();
+    await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('read the span', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { runFacts: true },
+      }),
+      undefined,
+    );
+    const prompt = synthesis.calls[0] === undefined ? '' : textOf(synthesis.calls[0]);
+    const line = prompt.split('\n').find((row) => row.startsWith('RUN FACTS: ')) ?? '';
+    expect(line).not.toBe('');
+    const judged = { result: line, text: line, runId: internals.runId };
+    expect(evidenceGradeValidator().validate(judged).ok).toBe(true);
+    expect(citedValueValidator({ resolve: () => 'unused' }).validate(judged).ok).toBe(true);
+    // The contrast: the same bytes judged without the run id are
+    // exactly the failure the comparison run died on.
+    const blind = evidenceGradeValidator().validate({ result: line, text: line });
+    expect(blind.ok).toBe(false);
+    if (blind.ok) {
+      return;
+    }
+    expect(blind.reasons[0]).toContain('live-observed');
   });
 
   it('keeps the synthesis prompt byte identical without runFacts', async () => {
