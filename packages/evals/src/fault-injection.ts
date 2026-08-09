@@ -32,6 +32,8 @@ import {
   LeaseHeldError,
   makeOrchestratorWorkflow,
   memoryQuotaLimiter,
+  citedValueValidator,
+  evidenceGradeValidator,
   preflightEstimate,
   priceComponentsOf,
   SettlementError,
@@ -2345,6 +2347,545 @@ const paritySequentialRosterFloor: FaultScenario = {
   },
 };
 
+/** Shared tool-call event triple for scripted orchestrator streams. */
+const scriptedToolEvents = (name: string, args: unknown, id: string): ChatEvent[] => [
+  { type: 'tool-call-start', id, name },
+  { type: 'tool-call-delta', id, argsTextDelta: JSON.stringify(args) },
+  { type: 'tool-call-end', id, args },
+];
+
+const scriptedAgentType = (req: ChatRequest): string =>
+  (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar?.agentType ?? '';
+
+const scriptedCaps = (): ModelCaps => ({
+  contextWindow: 200_000,
+  maxOutputTokens: 16_000,
+  structuredOutput: 'native',
+  supportsTemperature: true,
+  supportsParallelTools: true,
+  reasoningEfforts: [],
+  pricing: { inputUsdPerMTok: 1, outputUsdPerMTok: 10 },
+});
+
+/**
+ * The reserve line and its redemption, in BOTH drive modes (RV2101,
+ * DEF-7). The first paid parity runs died bare exactly here: the
+ * coordination turn whose spent + held synthesis reserve + proposed
+ * crossed the orchestrator cap tore the run down with the reserve
+ * intact and unreachable. The fold is now typed 'budget-floor' and the
+ * held reserve FUNDS the synthesis the run kept it for; the PlanRunner
+ * extension arm must produce the same fold and the same redeemed
+ * result, which is the DEF-7 parity this scenario documents.
+ */
+const parityReserveLineRedemption: FaultScenario = {
+  name: 'parity-reserve-line-redemption',
+  doctrine:
+    "a coordination turn refused at the reserve line folds typed 'budget-floor' and the held " +
+    'synthesis reserve funds the redemption whose result rides the partial envelope (RV2101); ' +
+    'the PlanRunner extension arm produces the same fold and the same redeemed result (DEF-7)',
+  async run() {
+    interface ArmResult {
+      status: string;
+      error?: string;
+      forcedFinishFallback: unknown;
+      completion: unknown;
+      result: unknown;
+      fallbackReason: unknown;
+      rootClassCalls: number;
+      workerOkTerminals: number;
+      settleRecorded: boolean;
+      entries: JournalEntry[];
+    }
+    const runArm = async (mode: 'workflow' | 'extension'): Promise<ArmResult> => {
+      const calls: ChatRequest[] = [];
+      const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
+        id: 'fake',
+        calls,
+        caps: scriptedCaps,
+        async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+          const call = calls.length;
+          calls.push(req);
+          await Promise.resolve();
+          if (scriptedAgentType(req) !== '') {
+            yield { type: 'text-delta', text: 'settled evidence' };
+            yield {
+              type: 'finish',
+              finish: { reason: 'stop' },
+              usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+            };
+            return;
+          }
+          const isRoot = (req.tools ?? []).some((tool) => tool.name === 'spawn_agent');
+          if (!isRoot) {
+            // The synthesis dispatch: the redemption's spawn carries no
+            // orchestration tools, only its own finish contract, and
+            // the loop demands tool progress. Cheap by construction,
+            // funded by the freed reserve.
+            for (const event of scriptedToolEvents(
+              'finish',
+              { result: 'the redeemed synthesis' },
+              `id-${String(call)}-0`,
+            )) {
+              yield event;
+            }
+            yield {
+              type: 'finish',
+              finish: { reason: 'tool-calls' },
+              usage: { inputTokens: 12, outputTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
+            };
+            return;
+          }
+          const rootCalls = calls.filter(
+            (prior) =>
+              scriptedAgentType(prior) === '' &&
+              (prior.tools ?? []).some((tool) => tool.name === 'spawn_agent'),
+          ).length;
+          const turn =
+            rootCalls === 1
+              ? scriptedToolEvents(
+                  'spawn_agent',
+                  { agentType: 'worker', prompt: 'gather A' },
+                  `id-${String(call)}-0`,
+                ).concat(
+                  scriptedToolEvents(
+                    'spawn_agent',
+                    { agentType: 'worker', prompt: 'gather B' },
+                    `id-${String(call)}-1`,
+                  ),
+                )
+              : scriptedToolEvents('finish', { result: 'unreachable' }, `id-${String(call)}-0`);
+          for (const event of turn) {
+            yield event;
+          }
+          yield {
+            type: 'finish',
+            finish: { reason: 'tool-calls' },
+            // 1000 output tokens = 0.01 USD of orchestrator spend: the
+            // decisive arithmetic below is spent 0.01 + held reserve
+            // 0.02 + proposed ~0.01 against the 0.03 cap. Without the
+            // reserve the next turn would FIT; the reserve is what
+            // crosses the line, the RV2101 signature.
+            usage: {
+              inputTokens: 10,
+              outputTokens: 1000,
+              cacheReadTokens: 0,
+              cacheWriteTokens: 0,
+            },
+          };
+        },
+      };
+      const store = new InMemoryStore();
+      const engine = createEngine({
+        adapters: [adapter],
+        stores: { journal: store },
+        defaults: {
+          routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+          profiles: { worker: { description: 'the cheap gatherer' } },
+        },
+      });
+      const opts = {
+        limits: { maxOutputTokensPerTurn: 1000 },
+        // The synthesis estimate must fit the post-release room (cap
+        // 0.03 minus spent 0.01): the default 0.5 USD spawn estimate
+        // would decline the very redemption the scenario drives.
+        synthesis: { estCost: 0.006, limits: { maxOutputTokensPerTurn: 500 } },
+        // finalizeReserveUsd 0 pins both arms to the same arithmetic:
+        // the extension defaults a 1.0 USD finalize reserve, far above
+        // this scenario's whole cap.
+        budget: { capUsd: 0.03, synthesisReserveUsd: 0.02, finalizeReserveUsd: 0 },
+      };
+      const runId = `fault-reserve-line-${mode}`;
+      const outcome =
+        mode === 'workflow'
+          ? await engine.run(makeOrchestratorWorkflow('the reserve line shape', opts), undefined, {
+              runId,
+              budgetUsd: 10,
+            }).result
+          : await orchestratePlanned(engine, 'the reserve line shape', opts, { runId }).result;
+      const entries = await store.load(runId);
+      const fallback = entries.find(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_finalize_fallback',
+      );
+      const settle = entries.some(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType === 'run_settle',
+      );
+      const value = outcome.value as
+        { forcedFinishFallback?: unknown; completion?: unknown; result?: unknown } | undefined;
+      return {
+        status: outcome.status,
+        error: outcome.error?.message,
+        forcedFinishFallback: value?.forcedFinishFallback,
+        completion: value?.completion,
+        result: value?.result,
+        fallbackReason: (fallback?.value as { reason?: unknown } | undefined)?.reason,
+        rootClassCalls: calls.filter((req) => scriptedAgentType(req) === '').length,
+        workerOkTerminals: entries.filter(
+          (entry) => entry.kind === 'agent' && entry.status === 'ok',
+        ).length,
+        settleRecorded: settle,
+        entries,
+      };
+    };
+    const arms = {
+      workflow: await runArm('workflow'),
+      extension: await runArm('extension'),
+    };
+    const armMatched = (arm: ArmResult): boolean =>
+      arm.status === 'exhausted' &&
+      arm.forcedFinishFallback === true &&
+      arm.completion === 'partial' &&
+      arm.result === 'the redeemed synthesis' &&
+      arm.fallbackReason === 'budget-floor' &&
+      // Root turn 1 plus the synthesis dispatch; the refused
+      // coordination turn never reached the wire.
+      arm.rootClassCalls === 2 &&
+      arm.settleRecorded;
+    const matched = armMatched(arms.workflow) && armMatched(arms.extension);
+    return {
+      observation: {
+        matched,
+        detail:
+          `workflow arm '${arms.workflow.status}' reason=${String(arms.workflow.fallbackReason)} ` +
+          `result=${JSON.stringify(arms.workflow.result)} rootCalls=` +
+          `${String(arms.workflow.rootClassCalls)}; extension arm '${arms.extension.status}' ` +
+          `reason=${String(arms.extension.fallbackReason)} result=` +
+          `${JSON.stringify(arms.extension.result)} rootCalls=` +
+          `${String(arms.extension.rootClassCalls)} (DEF-7 parity: both arms fold ` +
+          "'budget-floor' and both redeem the synthesis from the held reserve)",
+      },
+      artifacts: [
+        jsonArtifact('arms.json', {
+          workflow: { ...arms.workflow, entries: undefined },
+          extension: { ...arms.extension, entries: undefined },
+        }),
+        jsonArtifact('journal-workflow.json', arms.workflow.entries),
+        jsonArtifact('journal-extension.json', arms.extension.entries),
+      ],
+    };
+  },
+};
+
+/**
+ * The c7 resume famine, closed (RV2201). The kill-mid-fan-out journal
+ * of the seventh subscription run resumed to an ACCEPTED acceptance and
+ * then starved: recovered agents were re-counted against
+ * lifetimeSpawnCap, the judge fell to a typed decline naming the cap,
+ * and the synthesis spawn died exhausted with the money reserve intact.
+ * The counter now counts a scope a single time across the run's whole
+ * life, so the exact-cap resume finishes its dossier.
+ */
+const resumeSpawnFamine: FaultScenario = {
+  name: 'resume-spawn-famine',
+  doctrine:
+    'a resume re-admits recovered agents without re-counting them against lifetimeSpawnCap ' +
+    '(RV2201): the kill-mid-fan-out journal resumes to the finished dossier at the EXACT cap, ' +
+    "with no 'lifetime spawn cap' decline journaled and only the unsettled workers re-paid; " +
+    'the c7 resume starved its judge and synthesis on re-counted admissions',
+  async run() {
+    const makeAdapter = (): ProviderAdapter & { calls: ChatRequest[] } => {
+      const calls: ChatRequest[] = [];
+      return {
+        id: 'fake',
+        calls,
+        caps: scriptedCaps,
+        async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+          const call = calls.length;
+          calls.push(req);
+          await Promise.resolve();
+          if (scriptedAgentType(req) !== '') {
+            yield { type: 'text-delta', text: 'gathered evidence' };
+            yield {
+              type: 'finish',
+              finish: { reason: 'stop' },
+              usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+            };
+            return;
+          }
+          const isRoot = (req.tools ?? []).some((tool) => tool.name === 'spawn_agent');
+          if (!isRoot) {
+            for (const event of scriptedToolEvents(
+              'finish',
+              { result: 'the resumed dossier' },
+              `id-${String(call)}-0`,
+            )) {
+              yield event;
+            }
+            yield {
+              type: 'finish',
+              finish: { reason: 'tool-calls' },
+              usage: { inputTokens: 12, outputTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
+            };
+            return;
+          }
+          const rootCalls = calls.filter(
+            (prior) =>
+              scriptedAgentType(prior) === '' &&
+              (prior.tools ?? []).some((tool) => tool.name === 'spawn_agent'),
+          ).length;
+          const turn =
+            rootCalls === 1
+              ? scriptedToolEvents(
+                  'spawn_agent',
+                  { agentType: 'worker', prompt: 'gather A' },
+                  `id-${String(call)}-0`,
+                ).concat(
+                  scriptedToolEvents(
+                    'spawn_agent',
+                    { agentType: 'worker', prompt: 'gather B' },
+                    `id-${String(call)}-1`,
+                  ),
+                  scriptedToolEvents(
+                    'spawn_agent',
+                    { agentType: 'worker', prompt: 'gather C' },
+                    `id-${String(call)}-2`,
+                  ),
+                )
+              : scriptedToolEvents(
+                  'finish',
+                  { result: 'the coordination draft' },
+                  `id-${String(call)}-0`,
+                );
+          for (const event of turn) {
+            yield event;
+          }
+          yield {
+            type: 'finish',
+            finish: { reason: 'tool-calls' },
+            usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          };
+        },
+      };
+    };
+    // The exact-cap arithmetic: one straight run of this shape spawns
+    // the coordination root, three workers, and one synthesis, and the
+    // cap is set to exactly that lifetime count. A resume that
+    // re-counted its recovered agents (the pre-RV2201 doctrine) blows
+    // this cap and dies the c7 death; the once-per-life counter
+    // finishes the dossier inside it.
+    const LIFETIME_SPAWNS = 5;
+    const opts = {
+      synthesis: { estCost: 0.006, limits: { maxOutputTokensPerTurn: 500 } },
+      budget: { finalizeReserveUsd: 0 },
+    };
+    const wf = makeOrchestratorWorkflow('the resumable fan-out', opts);
+    const makeEngine = (adapter: ProviderAdapter, store: InMemoryStore) =>
+      createEngine({
+        adapters: [adapter],
+        stores: { journal: store },
+        budgetDefaults: { lifetimeSpawnCap: LIFETIME_SPAWNS },
+        defaults: {
+          routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+          profiles: { worker: { description: 'the resumable gatherer' } },
+        },
+      });
+    const storeA = new InMemoryStore();
+    const seedAdapter = makeAdapter();
+    const seeded = await makeEngine(seedAdapter, storeA).run(wf, undefined, {
+      runId: 'fault-resume-famine',
+      budgetUsd: 10,
+    }).result;
+    if (seeded.status !== 'ok') {
+      throw new Error(`fault kit: the seeding run settled '${seeded.status}' instead of ok`);
+    }
+    const entriesA = await storeA.load('fault-resume-famine');
+    // The kill window: cut right after the FIRST worker terminal, so
+    // one worker replays settled, two resume as recovered mid-flight
+    // work, and the coordination, the fan-in, and the synthesis all
+    // still lie ahead of the resumed segment.
+    const firstWorkerOk = entriesA.findIndex(
+      (entry) => entry.kind === 'agent' && entry.status === 'ok',
+    );
+    if (firstWorkerOk < 0) {
+      throw new Error('fault kit: the seeding journal carries no worker terminal to cut at');
+    }
+    const cut = entriesA.slice(0, firstWorkerOk + 1);
+    const storeB = new InMemoryStore();
+    for (const entry of cut) {
+      await storeB.append('fault-resume-famine', entry);
+    }
+    const resumeAdapter = makeAdapter();
+    const resumed = await makeEngine(resumeAdapter, storeB).resume('fault-resume-famine', wf)
+      .result;
+    const entriesB = await storeB.load('fault-resume-famine');
+    const capDeclines = entriesB.filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        JSON.stringify(entry.value ?? {}).includes('lifetime spawn cap'),
+    );
+    const redemptionDeclines = entriesB.filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_redemption_declined',
+    );
+    const liveWorkerCalls = resumeAdapter.calls.filter(
+      (req) => scriptedAgentType(req) !== '',
+    ).length;
+    const distinctAgentScopes = new Set(
+      entriesB
+        .filter((entry) => entry.kind === 'agent' && entry.status === 'running')
+        .map((entry) => `${entry.scope}#${String(entry.key)}`),
+    ).size;
+    const matched =
+      resumed.status === 'ok' &&
+      // The ok path returns the synthesis output itself: the dossier
+      // composed by the RESUMED segment's synthesis spawn, the very
+      // agent the re-counted cap used to starve.
+      resumed.value === 'the resumed dossier' &&
+      capDeclines.length === 0 &&
+      redemptionDeclines.length === 0 &&
+      // Only the two unsettled workers re-paid; the settled one
+      // replayed free.
+      liveWorkerCalls === 2 &&
+      distinctAgentScopes === LIFETIME_SPAWNS;
+    return {
+      observation: {
+        matched,
+        detail:
+          `resumed '${resumed.status}' result=${JSON.stringify(resumed.value)} at ` +
+          `lifetimeSpawnCap ${String(LIFETIME_SPAWNS)} ` +
+          `(${String(distinctAgentScopes)} distinct lifetime agent scopes); cap declines ` +
+          `journaled=${String(capDeclines.length)}, redemption declines=` +
+          `${String(redemptionDeclines.length)}, live worker calls in the resumed segment=` +
+          `${String(liveWorkerCalls)} (the settled worker replayed free)`,
+      },
+      artifacts: [
+        jsonArtifact('journal-cut.json', cut),
+        jsonArtifact('resume-outcome.json', {
+          status: resumed.status,
+          value: resumed.value ?? null,
+          liveWorkerCalls,
+        }),
+        jsonArtifact('journal-resumed.json', entriesB),
+      ],
+    };
+  },
+};
+
+/**
+ * The c3 validator trap, converging (RV2202). The third subscription
+ * run was pinned between two verdicts: evidence-grade demanded a run id
+ * beside the live-observed claim, the model wove the id into a cited
+ * sentence, cited-value lawfully rejected the id as a value absent from
+ * the cited window, and both repairs burned without an exit. The
+ * evidence-grade reason now NAMES the safe composition (the run id in
+ * its own sentence carrying no source citation), so the same trap
+ * converges in one repair round with cited-value silent.
+ */
+const validatorGuidanceConflict: FaultScenario = {
+  name: 'validator-guidance-conflict',
+  doctrine:
+    'the evidence-grade reason names the SAFE composition against its cited-value sibling ' +
+    '(RV2202): the c3 trap finish repairs in ONE round by moving the run id into its own ' +
+    'sentence, with cited-value never rejecting; the third subscription run burned both ' +
+    'repairs between the two verdicts',
+  async run() {
+    const TRAP_FINISH =
+      'The reserve fold is live-observed under sustained load. ' +
+      'The engine seals the journal at settle (README.md:3).';
+    // The safe composition the reason names: the graded claim carries
+    // its run id in the SAME sentence (the artifact pattern's `run
+    // <id>` arm) and that sentence carries no source citation, so
+    // cited-value has nothing to judge; the citation lives in its own
+    // sentence beside it.
+    const FIXED_FINISH =
+      'The reserve fold is live-observed under sustained load in run ' +
+      '01ARZ3NDEKTSV4RRFFQ69G5FAV. The engine seals the journal at settle (README.md:3).';
+    const calls: ChatRequest[] = [];
+    let finishAttempts = 0;
+    const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
+      id: 'fake',
+      calls,
+      caps: scriptedCaps,
+      async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+        const call = calls.length;
+        calls.push(req);
+        await Promise.resolve();
+        finishAttempts += 1;
+        const result = finishAttempts === 1 ? TRAP_FINISH : FIXED_FINISH;
+        for (const event of scriptedToolEvents('finish', { result }, `id-${String(call)}-0`)) {
+          yield event;
+        }
+        yield {
+          type: 'finish',
+          finish: { reason: 'tool-calls' },
+          usage: { inputTokens: 10, outputTokens: 40, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        };
+      },
+    };
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model', orchestrate: 'fake:model' } },
+    });
+    const resolveSource = (target: { path: string; line: number }): string | undefined =>
+      target.path === 'README.md'
+        ? 'the rulvar engine\nholds one denominator\nthe engine seals the journal at settle\n'
+        : undefined;
+    const wf = makeOrchestratorWorkflow('the guidance trap', {
+      finishValidation: {
+        validators: [
+          evidenceGradeValidator(),
+          citedValueValidator({ resolve: resolveSource, window: 2 }),
+        ],
+        maxRepairs: 2,
+        repairTurnReserve: 2,
+      },
+    });
+    const outcome = await engine.run(wf, undefined, {
+      runId: 'fault-guidance-conflict',
+      budgetUsd: 10,
+    }).result;
+    const entries = await store.load('fault-guidance-conflict');
+    // The repair exchange bytes: the second root request carries the
+    // rejected finish tool-result, whose reason must steer to the safe
+    // composition instead of into the sibling validator.
+    const repairRequest = calls[1];
+    const repairBytes = JSON.stringify(repairRequest?.messages ?? []);
+    const guidanceQuoted =
+      repairBytes.includes('SEPARATE sentence') && repairBytes.includes('run id');
+    const citedValueNamed = repairBytes.includes('cited-value one');
+    const decisionsText = JSON.stringify(
+      entries.filter((entry) => entry.kind === 'decision').map((entry) => entry.value ?? null),
+    );
+    const citedValueRejected = decisionsText.includes('"cited-value"')
+      ? decisionsText.includes('not present inside the cited window')
+      : false;
+    const matched =
+      outcome.status === 'ok' &&
+      outcome.value === FIXED_FINISH &&
+      // Exactly one repair round: the trap finish and the corrected
+      // finish, nothing burned between the two verdicts.
+      finishAttempts === 2 &&
+      guidanceQuoted &&
+      citedValueNamed &&
+      !citedValueRejected;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' after ${String(finishAttempts)} finish attempt(s); the ` +
+          `repair exchange quoted the safe composition (SEPARATE sentence + run id: ` +
+          `${String(guidanceQuoted)}) and named the cited-value trade ` +
+          `(${String(citedValueNamed)}); cited-value rejected=${String(citedValueRejected)}; ` +
+          `final result carries the separate-sentence run id: ` +
+          `${String(outcome.value === FIXED_FINISH)}`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', { status: outcome.status, value: outcome.value ?? null }),
+        { name: 'repair-request.json', content: repairBytes },
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -2370,6 +2911,9 @@ const SCENARIOS: readonly FaultScenario[] = [
   benchmarkRecoveryRootExposure,
   parityQuiescenceDeadlock,
   paritySequentialRosterFloor,
+  parityReserveLineRedemption,
+  resumeSpawnFamine,
+  validatorGuidanceConflict,
 ];
 
 /** The scenario names in run order. */
