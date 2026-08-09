@@ -21,6 +21,7 @@ type RunOutcome<R> = {
   envelope: TerminalEnvelope;
   error?: WireError;
   pending: PendingExternal[];
+  rejectedFinishCandidates?: RejectedFinishCandidate[];
   resultAvailable?: boolean;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
@@ -32,7 +33,7 @@ type RunOutcome<R> = {
 };
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L165)
+Defined in: [packages/core/src/engine/run-handle.ts:197](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L197)
 
 ## Type Parameters
 
@@ -48,7 +49,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:165](https://github.com/o-st
 optional acceptanceChildren?: AcceptanceChildSummary[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:281](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L281)
+Defined in: [packages/core/src/engine/run-handle.ts:324](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L324)
 
 The per-child machine roster of the acceptance fold (RV806), lifted
 from the same envelope (or typed error data) under the same
@@ -69,7 +70,7 @@ acceptance decision.
 optional acceptedArtifactRef?: number;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:255](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L255)
+Defined in: [packages/core/src/engine/run-handle.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L287)
 
 The journal seq of the decision entry that records the acceptance
 of the artifact this terminal carries (RV2506); same lift and
@@ -91,7 +92,7 @@ rendered the acceptance and over WHICH draft hash.
 optional belowFloorOkChildren?: string[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L268)
+Defined in: [packages/core/src/engine/run-handle.ts:311](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L311)
 
 Children that settled 'ok' below their declared evidence floor
 (RV1412); same lift and posture. A fact list in both modes: under
@@ -107,7 +108,7 @@ counted against the policy.
 optional childStatusCounts?: Record<string, number>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:192](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L192)
+Defined in: [packages/core/src/engine/run-handle.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L224)
 
 Settled child statuses by status name, lifted from the same
 envelope (or typed error data) when it carries a valid record of
@@ -122,7 +123,7 @@ otherwise.
 optional claimConsistencyMeta?: Record<string, unknown>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L214)
+Defined in: [packages/core/src/engine/run-handle.ts:246](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L246)
 
 The claim-consistency pass meta (`judgeInvoked`, `judgeDeclined`,
 the pair counts), lifted from the same envelope or typed error
@@ -138,7 +139,7 @@ terminal that has it, ok and failed alike.
 optional completion?: "complete" | "partial" | "rejected";
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L185)
+Defined in: [packages/core/src/engine/run-handle.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L217)
 
 The semantic completion lift, mirrored from `run:end` (RV-207 tail;
 the 1.65.0 experiment review, P0.5): present when the workflow
@@ -163,7 +164,7 @@ workflow makes no completion claim.
 cost: CostReport;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L287)
+Defined in: [packages/core/src/engine/run-handle.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L330)
 
 ***
 
@@ -173,7 +174,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:287](https://github.com/o-st
 optional degradedReasons?: string[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L202)
+Defined in: [packages/core/src/engine/run-handle.ts:234](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L234)
 
 Per-child degradation notes, lifted from the same envelope (or
 typed error data) when it carries a valid string array (the fifth
@@ -191,7 +192,7 @@ claim was made.
 optional deliverableAccepted?: boolean;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L232)
+Defined in: [packages/core/src/engine/run-handle.ts:264](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L264)
 
 Whether the artifact THIS terminal carries was accepted by the
 declared finish contract (RV2506), lifted from the same envelope or
@@ -215,7 +216,7 @@ the run died first.
 dropped: DroppedItem[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:283](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L283)
+Defined in: [packages/core/src/engine/run-handle.ts:326](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L326)
 
 Pipeline drops and onError:'null' losses; silent losses are forbidden.
 
@@ -227,7 +228,7 @@ Pipeline drops and onError:'null' losses; silent losses are forbidden.
 envelope: TerminalEnvelope;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L297)
+Defined in: [packages/core/src/engine/run-handle.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L340)
 
 The unified terminal envelope (RV1105): every terminal fact in ONE
 shape, assembled once at the settlement chokepoint and shared with
@@ -245,7 +246,7 @@ event alone.
 optional error?: WireError;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:168](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L168)
+Defined in: [packages/core/src/engine/run-handle.ts:200](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L200)
 
 ***
 
@@ -255,9 +256,28 @@ Defined in: [packages/core/src/engine/run-handle.ts:168](https://github.com/o-st
 pending: PendingExternal[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:285](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L285)
+Defined in: [packages/core/src/engine/run-handle.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L328)
 
 Suspensions open at settle time (M2).
+
+***
+
+### rejectedFinishCandidates?
+
+```ts
+optional rejectedFinishCandidates?: RejectedFinishCandidate[];
+```
+
+Defined in: [packages/core/src/engine/run-handle.ts:298](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L298)
+
+Every finish candidate the declared contract did NOT accept, in the
+order they were judged (RV2507); same lift and posture. Present
+only when there was at least one, so a run that passed first try
+keeps its exact terminal. It rides the ok terminal as well as the
+failed one: a run that recovered on its second attempt still owes a
+post-mortem the first, and the comparison analysis that had to
+reconstruct three rejected syntheses from a transcript is the
+reason the field exists.
 
 ***
 
@@ -267,7 +287,7 @@ Suspensions open at settle time (M2).
 optional resultAvailable?: boolean;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:241](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L241)
+Defined in: [packages/core/src/engine/run-handle.ts:273](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L273)
 
 Whether this terminal carries a deliverable to read at all
 (RV2506); same lift and posture. False on every enriched failure
@@ -284,7 +304,7 @@ with no artifact still has a completion claim.
 optional salvagedPartialChildren?: string[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:204](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L204)
+Defined in: [packages/core/src/engine/run-handle.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L236)
 
 Children accepted by acceptPartialChildren; same lift and posture.
 
@@ -296,7 +316,7 @@ Children accepted by acceptPartialChildren; same lift and posture.
 optional salvagedTerminalOutputChildren?: string[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:260](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L260)
+Defined in: [packages/core/src/engine/run-handle.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L303)
 
 Children accepted through validated terminal output salvage on
 'limit'; same lift and posture.
@@ -309,7 +329,7 @@ Children accepted through validated terminal output salvage on
 optional semanticPasses?: SemanticPassesSummary;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:206](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L206)
+Defined in: [packages/core/src/engine/run-handle.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L238)
 
 The explicit semantic pass summaries (RV1906); same lift and posture.
 
@@ -321,7 +341,7 @@ The explicit semantic pass summaries (RV1906); same lift and posture.
 status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L166)
+Defined in: [packages/core/src/engine/run-handle.ts:198](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L198)
 
 ***
 
@@ -331,7 +351,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:166](https://github.com/o-st
 optional synthesisSkipped?: boolean | string;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L216)
+Defined in: [packages/core/src/engine/run-handle.ts:248](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L248)
 
 The synthesis-skip marker from the same envelope; same lift and posture (RV2203).
 
@@ -343,7 +363,7 @@ The synthesis-skip marker from the same envelope; same lift and posture (RV2203)
 usage: Usage;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:286](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L286)
+Defined in: [packages/core/src/engine/run-handle.ts:329](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L329)
 
 ***
 
@@ -353,4 +373,4 @@ Defined in: [packages/core/src/engine/run-handle.ts:286](https://github.com/o-st
 optional value?: R;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L167)
+Defined in: [packages/core/src/engine/run-handle.ts:199](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L199)

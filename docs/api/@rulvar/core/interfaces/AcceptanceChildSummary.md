@@ -6,18 +6,18 @@
 
 # Interface: AcceptanceChildSummary
 
-Defined in: [packages/core/src/engine/run-handle.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L152)
+Defined in: [packages/core/src/engine/run-handle.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L184)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-child"></a> `child` | `string` | [packages/core/src/engine/run-handle.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L153) |
-| <a id="property-evidence"></a> `evidence?` | \{ `floorRequired?`: `true`; `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \} | [packages/core/src/engine/run-handle.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L156) |
-| `evidence.floorRequired?` | `true` | [packages/core/src/engine/run-handle.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L161) |
-| `evidence.met` | `boolean` | [packages/core/src/engine/run-handle.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L159) |
-| `evidence.minEntries` | `number` | [packages/core/src/engine/run-handle.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L158) |
-| `evidence.recordedEntries` | `number` | [packages/core/src/engine/run-handle.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L157) |
-| `evidence.waivedBySalvage?` | `true` | [packages/core/src/engine/run-handle.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L160) |
-| <a id="property-salvage"></a> `salvage?` | `"partial"` \| `"terminal-output"` | [packages/core/src/engine/run-handle.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L155) |
-| <a id="property-status"></a> `status` | `string` | [packages/core/src/engine/run-handle.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L154) |
+| <a id="property-child"></a> `child` | `string` | [packages/core/src/engine/run-handle.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L185) |
+| <a id="property-evidence"></a> `evidence?` | \{ `floorRequired?`: `true`; `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \} | [packages/core/src/engine/run-handle.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L188) |
+| `evidence.floorRequired?` | `true` | [packages/core/src/engine/run-handle.ts:193](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L193) |
+| `evidence.met` | `boolean` | [packages/core/src/engine/run-handle.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L191) |
+| `evidence.minEntries` | `number` | [packages/core/src/engine/run-handle.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L190) |
+| `evidence.recordedEntries` | `number` | [packages/core/src/engine/run-handle.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L189) |
+| `evidence.waivedBySalvage?` | `true` | [packages/core/src/engine/run-handle.ts:192](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L192) |
+| <a id="property-salvage"></a> `salvage?` | `"partial"` \| `"terminal-output"` | [packages/core/src/engine/run-handle.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L187) |
+| <a id="property-status"></a> `status` | `string` | [packages/core/src/engine/run-handle.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L186) |

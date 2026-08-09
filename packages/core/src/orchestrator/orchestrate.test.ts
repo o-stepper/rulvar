@@ -6013,6 +6013,126 @@ describe('the explicit deliverable verdict on the terminal (RV2506)', () => {
   });
 });
 
+describe('the rejected candidates are first-class terminal artifacts (RV2507)', () => {
+  // The comparison run rejected three syntheses and the only reader
+  // was an external script over the whole agent transcript. Nothing
+  // said how many there were, whether they differed, or where to find
+  // them.
+  const SECTIONED = '## Findings\nEverything the contract demands.';
+  const SECTIONLESS = 'a schema-valid candidate without the required section';
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const CONTRACT = (extra?: { retainRejectedCandidates?: boolean }) => ({
+    validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+    maxRepairs: 2,
+    ...(extra ?? {}),
+  });
+  /** Serves `attempts` in order and repeats the last one thereafter. */
+  function serves(...attempts: string[]) {
+    let call = 0;
+    return scriptedAdapter((): ScriptedTurn => {
+      const text = attempts[Math.min(call, attempts.length - 1)] ?? '';
+      call += 1;
+      return { toolCall: { name: 'finish', args: { result: text } } };
+    });
+  }
+  interface Row {
+    callId: string;
+    verdict: string;
+    hash: string;
+    chars: number;
+    failed: { name: string; reasons: string[] }[];
+    ref?: string;
+  }
+
+  it('a run that recovered still reports what it rejected, identified and sized', async () => {
+    // Draft, one rejected synthesis, then a passing one.
+    const adapter = serves(SECTIONED, SECTIONLESS, SECTIONED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 } },
+      finishValidation: CONTRACT(),
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      rejectedFinishCandidates?: Row[];
+    };
+    const rows = envelope.rejectedFinishCandidates ?? [];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.verdict).toBe('repair');
+    expect(rows[0]?.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(rows[0]?.chars).toBe(SECTIONLESS.length);
+    expect(rows[0]?.failed.map((row) => row.name)).toEqual(['required-sections']);
+    // The bytes are a storage decision the host did not make here.
+    expect(rows[0]?.ref).toBeUndefined();
+  });
+
+  it('a clean first-try finish keeps its terminal exactly as before', async () => {
+    const adapter = serves(SECTIONED, SECTIONED);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 } },
+      finishValidation: CONTRACT(),
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as object;
+    expect('rejectedFinishCandidates' in envelope).toBe(false);
+  });
+
+  it('retention makes the candidate addressable: the ref reads back verbatim', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const adapter = serves(SECTIONED, SECTIONLESS, SECTIONED);
+    const { internals } = makeInternals({ adapters: [adapter], transcripts, ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 6 } },
+      finishValidation: CONTRACT({ retainRejectedCandidates: true }),
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as {
+      rejectedFinishCandidates?: Row[];
+    };
+    const ref = envelope.rejectedFinishCandidates?.[0]?.ref;
+    expect(ref).toBeDefined();
+    // One get, no transcript parsing, no external script.
+    const blob = await transcripts.get(ref ?? '');
+    expect(blob).not.toBeNull();
+    expect(new TextDecoder().decode(blob ?? new Uint8Array())).toBe(SECTIONLESS);
+  });
+
+  it('the failed terminal carries every attempt, the last one verdict rejected', async () => {
+    // maxRepairs 2: three judged candidates, none accepted.
+    const adapter = serves(SECTIONED, SECTIONLESS);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 8 } },
+      finishValidation: CONTRACT(),
+    });
+    const thrown = await executeWorkflow(internals, wf, undefined).then(
+      () => undefined,
+      (error: unknown) => error as { data?: { rejectedFinishCandidates?: Row[] } },
+    );
+    const rows = thrown?.data?.rejectedFinishCandidates ?? [];
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.verdict)).toEqual(['repair', 'repair', 'rejected']);
+    // Every attempt served the SAME document: one hash across three
+    // rows is the reading that used to be invisible, and it is a
+    // different failure from three genuine attempts.
+    expect(new Set(rows.map((row) => row.hash)).size).toBe(1);
+    expect(new Set(rows.map((row) => row.callId)).size).toBe(3);
+  });
+
+  it('is a boolean at intake', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('assess', {
+        finishValidation: CONTRACT({ retainRejectedCandidates: 'yes' as unknown as boolean }),
+      }),
+    ).toThrow(/retainRejectedCandidates must be a boolean/);
+  });
+});
+
 describe('recovered attempts alias by admission identity (RV609)', () => {
   /** Runs phase 1 (spawn one child, make it terminal per the script,
    * crash the coordinator), returns the truncated journal and the old

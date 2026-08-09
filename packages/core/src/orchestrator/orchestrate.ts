@@ -62,7 +62,11 @@ import { lastRunSettle } from '../stores/reconcile.js';
 import type { AgentOpts, AgentProfile, Ctx, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
-import type { AcceptanceChildSummary, RunHandle } from '../engine/run-handle.js';
+import type {
+  AcceptanceChildSummary,
+  RejectedFinishCandidate,
+  RunHandle,
+} from '../engine/run-handle.js';
 import type { AdmissionDecision } from './admission.js';
 import { dedupeRepeatedClaims, type RepeatedClaim } from './claims.js';
 import {
@@ -392,6 +396,30 @@ export interface FinishValidationSpec {
    * finish fails the run.
    */
   maxRepairs?: number;
+  /**
+   * Retain the BYTES of every rejected finish candidate as its own
+   * addressable transcript blob (RV2507, the 1.226.0 comparison run),
+   * default off. The identity of a rejected candidate always rides the
+   * terminal (`rejectedFinishCandidates`: the call id, the sha256 that
+   * names WHICH document drew the verdict, its size, and the validator
+   * diffs); that costs nothing, because it is derived from decisions
+   * the journal already holds. A COPY of the document costs storage,
+   * so it is a decision the host makes: with this on, each rejected
+   * candidate is written to `<runId>/finish-rejected/<callId>` and the
+   * terminal row carries its `ref`, one `transcripts.get` away from the
+   * bytes. Turn it on for evaluation and comparison runs. The
+   * comparison run's three rejected syntheses were reachable only by an
+   * external script that re-parsed the whole agent transcript; nothing
+   * on the terminal or in the journal said where they were, or even
+   * that they differed from each other.
+   *
+   * Bounded by construction: at most `maxRepairs + 1` candidates per
+   * finish-validated invocation, under the run's own prefix, so
+   * `Engine.deleteRun` cascades over them like every other run blob. A
+   * store that refuses the write costs the run nothing: the row keeps
+   * its identity and drops its `ref`, and absence means NOT RECORDED.
+   */
+  retainRejectedCandidates?: boolean;
   /**
    * The repair turn reserve (the v1.71 experiment review, P0.4; the
    * reserve RV-204 deliberately deferred). A nonnegative integer,
@@ -1430,6 +1458,12 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       requireNonNegativeInteger(
         (fv as { repairTurnReserve?: unknown }).repairTurnReserve as number,
         'orchestrate finishValidation.repairTurnReserve',
+      );
+    }
+    const retain = (fv as { retainRejectedCandidates?: unknown }).retainRejectedCandidates;
+    if (retain !== undefined && typeof retain !== 'boolean') {
+      throw new ConfigError(
+        'orchestrate finishValidation.retainRejectedCandidates must be a boolean',
       );
     }
     const draftPolicy = (fv as { draftPolicy?: unknown }).draftPolicy;
@@ -4044,6 +4078,18 @@ export function makeOrchestratorWorkflow(
        * recorded before 1.77.
        */
       contractHash?: string;
+      /**
+       * The rejected candidate's identity and address (RV2507),
+       * written on every NON-accepted verdict: the sha256 over the
+       * canonical candidate says WHICH document drew this verdict, the
+       * char count says how big it was, and `candidateRef` is the
+       * transcript blob holding the bytes verbatim, present only under
+       * `retainRejectedCandidates`. All three absent on an accepted
+       * verdict and on every decision journaled before RV2507.
+       */
+      candidateHash?: string;
+      candidateChars?: number;
+      candidateRef?: string;
     }
     const finishValidationError = (decision: FinishValidationDecision): FailRunError =>
       new FailRunError(
@@ -4352,6 +4398,44 @@ export function makeOrchestratorWorkflow(
         const repairsUsed = known.filter(
           (candidate) => candidate.verdict !== 'accepted' && contractGenerationCurrent(candidate),
         ).length;
+        // The rejected candidate becomes addressable (RV2507). The
+        // identity is free and always recorded: the hash names WHICH
+        // document drew the verdict and the count says how big it was,
+        // both derived from bytes already in hand. The BYTES are
+        // retained only under the declared opt-in, because a copy is a
+        // storage decision the host owns, and the guide says to turn
+        // it on for evaluation runs. A store that refuses the write
+        // must never cost a run its verdict: the ref stays absent, and
+        // absence means NOT RECORDED (RV1209).
+        const rejectedCandidate = failed.length > 0;
+        let candidateRef: string | undefined;
+        if (rejectedCandidate && validationSpec.retainRejectedCandidates === true) {
+          const ref = `${internals.runId}/finish-rejected/${call.id}`;
+          try {
+            await internals.transcripts.put(
+              ref,
+              new TextEncoder().encode(input.text),
+              internals.lease,
+            );
+            candidateRef = ref;
+          } catch (writeFailed) {
+            internals.events.emit(
+              {
+                type: 'log',
+                level: 'warn',
+                msg: 'orchestrator rejected finish candidate not retained',
+                data: {
+                  ref,
+                  reason: (writeFailed instanceof Error
+                    ? writeFailed.message
+                    : String(writeFailed)
+                  ).slice(0, 200),
+                },
+              },
+              callingState.spanId,
+            );
+          }
+        }
         decision = {
           decisionType: 'orchestrator_finish_validation',
           callId: call.id,
@@ -4363,6 +4447,15 @@ export function makeOrchestratorWorkflow(
           ...(validationSpec.contract === undefined
             ? {}
             : { contractHash: validationSpec.contract.hash }),
+          ...(rejectedCandidate
+            ? {
+                candidateHash: createHash('sha256')
+                  .update(jcsSerialize(result), 'utf8')
+                  .digest('hex'),
+                candidateChars: input.text.length,
+                ...(candidateRef === undefined ? {} : { candidateRef }),
+              }
+            : {}),
         };
         await internals.replayer.appendSinglePhase({
           scope: callingState.scope,
@@ -7280,6 +7373,30 @@ export function makeOrchestratorWorkflow(
         ? { resultAvailable, deliverableAccepted: false }
         : { resultAvailable, deliverableAccepted: true, acceptedArtifactRef: accepted.seq };
     };
+    /**
+     * The rejected candidates of the CURRENT contract generation, in
+     * judgement order (RV2507): a pure fold over decisions the journal
+     * already holds, so a resume re-derives the identical list without
+     * re-running a validator. A superseded generation's rejections stay
+     * in the journal as the history they are and drop out here, exactly
+     * as they drop out of the repair budget.
+     */
+    const rejectedFinishCandidates = (): RejectedFinishCandidate[] =>
+      validationDecisions()
+        .filter(
+          (decision) =>
+            decision.verdict !== 'accepted' &&
+            contractGenerationCurrent(decision) &&
+            decision.candidateHash !== undefined,
+        )
+        .map((decision) => ({
+          callId: decision.callId,
+          verdict: decision.verdict as 'repair' | 'rejected',
+          hash: decision.candidateHash ?? '',
+          chars: decision.candidateChars ?? 0,
+          failed: decision.failed,
+          ...(decision.candidateRef === undefined ? {} : { ref: decision.candidateRef }),
+        }));
     const enrichSynthesisFailure = (
       thrown: unknown,
       snapshot?: {
@@ -7310,6 +7427,13 @@ export function makeOrchestratorWorkflow(
         resultAvailable: false,
         ...(validationSpec === undefined ? {} : { deliverableAccepted: false }),
       };
+      // What the contract rejected on the way here (RV2507): the
+      // failure terminal is exactly where a post-mortem looks, and it
+      // used to name the LAST verdict's validators and nothing else.
+      const rejected = rejectedFinishCandidates();
+      if (rejected.length > 0) {
+        passTruth.rejectedFinishCandidates = rejected as unknown as Json;
+      }
       if (thrown instanceof BudgetExhaustedError) {
         // The class is the status: BudgetExhaustedError derives the
         // 'exhausted' outcome, so the enrichment rebuilds the same
@@ -7877,6 +8001,7 @@ export function makeOrchestratorWorkflow(
     const envelopeSchemaRecovered =
       (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;
     const deliverable = deliverableVerdict(synthesizedFinal);
+    const envelopeRejectedCandidates = rejectedFinishCandidates();
     return {
       result: synthesizedFinal,
       completion: decision.completion,
@@ -7893,6 +8018,12 @@ export function makeOrchestratorWorkflow(
       ...(deliverable.acceptedArtifactRef === undefined
         ? {}
         : { acceptedArtifactRef: deliverable.acceptedArtifactRef }),
+      // What the contract rejected before it accepted (RV2507): absent
+      // when a finish passed first try, so every envelope of a clean
+      // run stays byte identical.
+      ...(envelopeRejectedCandidates.length === 0
+        ? {}
+        : { rejectedFinishCandidates: envelopeRejectedCandidates }),
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
       ...(decision.salvagedPartialChildren === undefined

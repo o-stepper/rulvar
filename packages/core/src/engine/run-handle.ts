@@ -149,6 +149,38 @@ export interface SemanticPassesSummary {
   synthesis: SemanticPassSummary;
 }
 
+/**
+ * One finish candidate the declared contract did NOT accept (RV2507).
+ * The 1.226.0 comparison run rejected three syntheses; nothing on its
+ * terminal said so, nothing said whether the three differed from each
+ * other, and the only way to read them was an external script that
+ * re-parsed the whole agent transcript. The row is the artifact that
+ * dig produced, made first class.
+ *
+ * `hash` is the sha256 over the canonical candidate: two rows with the
+ * same hash are the model serving the same document twice, which is a
+ * different failure from three genuine attempts and used to be
+ * invisible. `ref` is present exactly under
+ * `finishValidation.retainRejectedCandidates`, and points at a
+ * transcript blob holding the candidate verbatim; without it the row
+ * still identifies and sizes what was rejected, and names the
+ * validators that did it.
+ */
+export interface RejectedFinishCandidate {
+  /** The finish tool call this candidate arrived on. */
+  callId: string;
+  /** `'repair'` when another turn was granted, `'rejected'` when this was the last. */
+  verdict: 'repair' | 'rejected';
+  /** sha256 over the canonical candidate; identity, not location. */
+  hash: string;
+  /** The candidate's length in characters, honest whether or not the bytes were retained. */
+  chars: number;
+  /** Each validator that rejected it, with its reasons: the diff. */
+  failed: { name: string; reasons: string[] }[];
+  /** Transcript ref holding the bytes; absent unless retention is on and the write succeeded. */
+  ref?: string;
+}
+
 export interface AcceptanceChildSummary {
   child: string;
   status: string;
@@ -253,6 +285,17 @@ export type RunOutcome<R> = {
    * rendered the acceptance and over WHICH draft hash.
    */
   acceptedArtifactRef?: number;
+  /**
+   * Every finish candidate the declared contract did NOT accept, in the
+   * order they were judged (RV2507); same lift and posture. Present
+   * only when there was at least one, so a run that passed first try
+   * keeps its exact terminal. It rides the ok terminal as well as the
+   * failed one: a run that recovered on its second attempt still owes a
+   * post-mortem the first, and the comparison analysis that had to
+   * reconstruct three rejected syntheses from a transcript is the
+   * reason the field exists.
+   */
+  rejectedFinishCandidates?: RejectedFinishCandidate[];
   /**
    * Children accepted through validated terminal output salvage on
    * 'limit'; same lift and posture.

@@ -34,6 +34,17 @@ type CoreEvents =
   degradedReasons?: string[];
   deliverableAccepted?: boolean;
   envelope: TerminalEnvelope;
+  rejectedFinishCandidates?: {
+     callId: string;
+     chars: number;
+     failed: {
+        name: string;
+        reasons: string[];
+     }[];
+     hash: string;
+     ref?: string;
+     verdict: "repair" | "rejected";
+  }[];
   resultAvailable?: boolean;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
@@ -143,6 +154,17 @@ Run lifecycle and core telemetry (M1 subset).
   degradedReasons?: string[];
   deliverableAccepted?: boolean;
   envelope: TerminalEnvelope;
+  rejectedFinishCandidates?: {
+     callId: string;
+     chars: number;
+     failed: {
+        name: string;
+        reasons: string[];
+     }[];
+     hash: string;
+     ref?: string;
+     verdict: "repair" | "rejected";
+  }[];
   resultAvailable?: boolean;
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
@@ -181,6 +203,7 @@ Run lifecycle and core telemetry (M1 subset).
 | `degradedReasons?` | `string`[] | Per-child degradation notes, lifted from the same envelope (or typed error data) when it carries a valid string array (the fifth experiment, cycle 75). An empty array is the workflow's claim of zero degradation; absence means no claim. The outcome mirror spreads the SAME lift, so the surfaces cannot disagree. | `packages/core/dist/index.d.ts` |
 | `deliverableAccepted?` | `boolean` | Whether the artifact this terminal carries was accepted by the declared finish contract, and whether there is one to read at all (RV2506); same lift. `deliverableAccepted` is absent, never false, when no finish contract was declared. The pair is what `status` and `completion` cannot say between them: an accepted child roster over a synthesis that never passed its contract reads `status: 'ok'`, `completion: 'complete'`, `deliverableAccepted: false`. | `packages/core/dist/index.d.ts` |
 | `envelope` | [`TerminalEnvelope`](/api/@rulvar/rulvar/interfaces/TerminalEnvelope.md) | The unified terminal envelope (RV1105): every terminal fact in ONE shape, the same object the resolved outcome carries, so an event-only consumer assembles nothing. On the settled paths the sibling fields above stay byte for byte; when settlement did not hold, `envelope.settled` mirrors the `settled: false` mark (with `settledReason` inside for the superseded arc, RV1009). | `packages/core/dist/index.d.ts` |
+| `rejectedFinishCandidates?` | \{ `callId`: `string`; `chars`: `number`; `failed`: \{ `name`: `string`; `reasons`: `string`[]; \}[]; `hash`: `string`; `ref?`: `string`; `verdict`: `"repair"` \| `"rejected"`; \}[] | Every finish candidate the declared contract did NOT accept, in judgement order (RV2507); same lift, absent when there was none. Each row identifies the candidate (`callId`, `hash`, `chars`) and names the validators that rejected it, with `ref` pointing at the retained bytes where the host asked for them. | `packages/core/dist/index.d.ts` |
 | `resultAvailable?` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `salvagedPartialChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `salvagedTerminalOutputChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
