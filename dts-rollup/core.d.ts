@@ -5225,6 +5225,17 @@ interface BudgetHooks {
   */
   remainingUsd?: () => number | undefined;
   /**
+  * Layer 2b asked of the IN-FLIGHT EXPOSURE ceiling (RV2503), wired
+  * only when the cap is configured: the output tokens the exposure
+  * room still affords for this prompt. The dispatch clamps to it too,
+  * so a turn whose full plan overshoots the exposure line is SHORTENED
+  * rather than refused while the budget can still pay for it. An
+  * answer below the serving model's output floor is ignored, so a
+  * genuine exposure exhaustion still refuses through
+  * `admitTurnExposure` with its own typed reason.
+  */
+  maxExposureOutputTokens?: (servedBy: ModelRef, estimatedInputTokens: number) => number | undefined;
+  /**
   * The in-flight exposure admission (RV711), wired only when the cap
   * is configured. Called synchronously right before each provider
   * dispatch attempt with the attempt's own request estimate: the
@@ -6270,6 +6281,8 @@ declare class RunBudget {
   * reservation surface is inert and reserveTurnExposure never binds.
   */
   readonly maxInFlightExposureUsd?: number;
+  /** The opt-in lone-dispatch clamp (RV2503); see maxExposureOutputTokens. */
+  private readonly clampTurnToExposure;
   private readonly lifetimeSpawnCap;
   private readonly events?;
   private readonly priceUsd?;
@@ -6334,7 +6347,8 @@ declare class RunBudget {
   private readonly invalidPriceWarned;
   constructor(options: {
     ceilingUsd?: number; /** The opt-in in-flight exposure cap (RV711); see reserveTurnExposure. */
-    maxInFlightExposureUsd?: number;
+    maxInFlightExposureUsd?: number; /** The opt-in lone-dispatch clamp (RV2503); see maxExposureOutputTokens. */
+    clampTurnToExposure?: boolean;
     lifetimeSpawnCap?: number;
     events?: RuntimeEventSink;
     priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined; /** Raw price-row resolution for the layer-2b output bound. */
@@ -6636,6 +6650,53 @@ declare class RunBudget {
   */
   remainingUsd(accountScope?: string): number | undefined;
   maxAffordableOutputTokens(servedBy: ModelRef, estimatedInputTokens: number, accountScope?: string): number | undefined;
+  /**
+  * The same layer-2b question asked of the IN-FLIGHT EXPOSURE ceiling
+  * (RV2503): the output tokens `cap - spent - live estimates` still
+  * affords from `servedBy` for an estimated prompt, priced by the
+  * settlement function like every other estimate here.
+  *
+  * The clamp above has always existed for the budget ceiling while
+  * {@link reserveTurnExposure} only ever answered yes or no, so a
+  * turn whose FULL planned output overshot the exposure line was
+  * refused outright even when a shorter one fit and the budget could
+  * pay for it. The 1.226.0 comparison run died exactly there: it held
+  * 0.8642 USD of budget, the exposure ceiling had 0.5642 USD of room,
+  * the mandatory repair turn was estimated at 0.7066 USD against an
+  * 18000 token output plan, and the dispatch was refused before any
+  * provider call. The same turn, re-issued after the operator raised
+  * the ceiling, wrote 12840 output tokens and cost 0.4788 USD: it fit
+  * the ceiling that refused it, and a clamp to the ~13253 tokens the
+  * room afforded would have let it run.
+  *
+  * Answered ONLY for a dispatch that is alone in flight, which is the
+  * whole difference between a refusal that means something and one
+  * that means nothing. With siblings live the refusal is TRANSIENT:
+  * RV1902 parks on it and the turn runs at its full planned length
+  * the moment one of them releases, so shortening it would trade a
+  * complete answer for a truncated one and buy nothing. With nothing
+  * live the refusal is PERMANENT (RV2003's sweep wakes such a waiter
+  * 'drained' precisely because no hold will ever return), and the
+  * only choices left are a shorter turn or no turn at all. The
+  * concurrent-wave bound of RV711 is therefore untouched.
+  *
+  * Opt-in through `RunOptions.clampTurnToExposure`, so the drained
+  * refusal terminals RV1902, RV2002 and RV2003 built out of live
+  * parity deaths keep their shapes until a host asks for this one.
+  *
+  * Undefined when the clamp is not armed, when the cap is not
+  * configured, when anything is in flight, or when the model has no
+  * price row, so a run that declares nothing keeps every byte of its
+  * historical path. Zero or
+  * negative when the room cannot even pay for the prompt, the same
+  * convention {@link maxAffordableOutputTokens} inherits from
+  * `affordableOutputTokens`; the caller decides what a sub-floor
+  * answer means, and the loop deliberately ignores one so a true
+  * exposure exhaustion still refuses through
+  * {@link reserveTurnExposure} with its own typed reason instead of
+  * an output-floor verdict.
+  */
+  maxExposureOutputTokens(servedBy: ModelRef, estimatedInputTokens: number): number | undefined;
   /**
   * Live accounting; spend propagates from `accountScope` to every
   * ancestor. Crossing a ceiling severs the crossing account's subtree
@@ -7629,6 +7690,33 @@ interface RunOptions {
   * silently.
   */
   maxInFlightExposureUsd?: number;
+  /**
+  * Layer 2b against the exposure ceiling (RV2503), opt-in and
+  * meaningful only beside `maxInFlightExposureUsd`. Armed, a dispatch
+  * with NOTHING else in flight has its planned output clamped to the
+  * tokens the remaining exposure room affords instead of being
+  * refused outright, exactly as the budget ceiling has always clamped
+  * it. The 1.226.0 comparison run is the case: nothing was live, the
+  * budget still held 0.8642 USD, the mandatory repair turn's FULL
+  * 18000 token plan priced 0.7066 USD against 0.5642 USD of room, and
+  * the dispatch was refused before any provider call; the same work,
+  * re-issued after an operator raised the ceiling, wrote 12840 output
+  * tokens for 0.4788 USD. A refusal with nothing live buys nothing,
+  * because no hold will ever release to fund the full plan.
+  *
+  * Deliberately scoped and deliberately off by default. With siblings
+  * in flight the refusal is transient and the RV1902/RV2002 waits
+  * park on it, so the wave keeps the full-length turn RV711 promised
+  * and nothing here applies. When the room cannot even fund the
+  * serving model's output floor, the clamp stands aside and the
+  * dispatch refuses through the usual typed `in-flight-exposure`
+  * path, so the drained-refusal terminals (RV1902, RV2002, RV2003)
+  * keep their shapes. Absent, every byte of dispatch behavior is
+  * historical. Like `strictPricing`, this is a per-segment posture: it
+  * is not recorded in RunMeta and a resumed segment carries only what
+  * its own options declare.
+  */
+  clampTurnToExposure?: boolean;
   /**
   * The opt-in strict pre-egress pricing gate (RV1508): every paid
   * dispatch must resolve a well-formed price row for its serving

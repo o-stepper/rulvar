@@ -356,6 +356,20 @@ export interface BudgetHooks {
    */
   remainingUsd?: () => number | undefined;
   /**
+   * Layer 2b asked of the IN-FLIGHT EXPOSURE ceiling (RV2503), wired
+   * only when the cap is configured: the output tokens the exposure
+   * room still affords for this prompt. The dispatch clamps to it too,
+   * so a turn whose full plan overshoots the exposure line is SHORTENED
+   * rather than refused while the budget can still pay for it. An
+   * answer below the serving model's output floor is ignored, so a
+   * genuine exposure exhaustion still refuses through
+   * `admitTurnExposure` with its own typed reason.
+   */
+  maxExposureOutputTokens?: (
+    servedBy: ModelRef,
+    estimatedInputTokens: number,
+  ) => number | undefined;
+  /**
    * The in-flight exposure admission (RV711), wired only when the cap
    * is configured. Called synchronously right before each provider
    * dispatch attempt with the attempt's own request estimate: the
@@ -1297,15 +1311,45 @@ function applyOutputBudget(
     );
   }
   const hook = budget?.maxAffordableOutputTokens;
-  if (hook === undefined) {
+  const exposureHook = budget?.maxExposureOutputTokens;
+  if (hook === undefined && exposureHook === undefined) {
     return req;
   }
-  const affordable = hook(target.resolved.ref, estimateInputTokens(req.messages));
+  const estimatedInput = estimateInputTokens(req.messages);
+  const budgetAffordable = hook?.(target.resolved.ref, estimatedInput);
+  // The exposure room clamps the same plan (RV2503), and it clamps
+  // whether or not a USD ceiling is configured: the two ceilings are
+  // independent. The ledger answers only for a dispatch alone in
+  // flight, so a concurrent wave keeps the RV711 refusal it has always
+  // had. Honoured only while the room still affords the model's output
+  // floor: below it the turn is a REAL exposure refusal and
+  // admitTurnExposure must be the one to say so, with
+  // `reason: 'in-flight-exposure'` rather than an output-floor verdict
+  // the orchestrator's coordination catch reads as a fundable tail.
+  // The guard is belt and braces rather than load bearing (no probe
+  // can kill it): the admission below re-prices the same plan with the
+  // same function, so a sub-floor room refuses either way. It keeps
+  // the loop from rewriting a request it is about to lose.
+  const exposureAffordable = exposureHook?.(target.resolved.ref, estimatedInput);
+  const usableExposure =
+    exposureAffordable !== undefined && exposureAffordable >= floor
+      ? exposureAffordable
+      : undefined;
+  const affordable =
+    budgetAffordable === undefined
+      ? usableExposure
+      : usableExposure === undefined
+        ? budgetAffordable
+        : Math.min(budgetAffordable, usableExposure);
   if (affordable === undefined) {
     return req;
   }
+  // Reachable only through the budget arm: `usableExposure` is at or
+  // above the floor by construction, so a sub-floor minimum is always
+  // the budget's answer and the zero-input probe below still asks the
+  // question it has always asked.
   if (affordable < floor) {
-    const zeroInputAffordable = hook(target.resolved.ref, 0);
+    const zeroInputAffordable = hook?.(target.resolved.ref, 0);
     if (zeroInputAffordable !== undefined && zeroInputAffordable < floor) {
       // The typed reason (RV2101) lets the orchestrator's coordination
       // catch tell this refusal from a hard ceiling: at the reserve

@@ -6,7 +6,7 @@
 
 # Interface: ToolCallRequest
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:492](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L492)
+Defined in: [packages/core/src/runtime/agent-loop.ts:506](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L506)
 
 One model-issued tool call as the loop dispatches it.
 
@@ -14,6 +14,6 @@ One model-issued tool call as the loop dispatches it.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-args"></a> `args` | `unknown` | [packages/core/src/runtime/agent-loop.ts:495](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L495) |
-| <a id="property-id"></a> `id` | `string` | [packages/core/src/runtime/agent-loop.ts:493](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L493) |
-| <a id="property-name"></a> `name` | `string` | [packages/core/src/runtime/agent-loop.ts:494](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L494) |
+| <a id="property-args"></a> `args` | `unknown` | [packages/core/src/runtime/agent-loop.ts:509](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L509) |
+| <a id="property-id"></a> `id` | `string` | [packages/core/src/runtime/agent-loop.ts:507](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L507) |
+| <a id="property-name"></a> `name` | `string` | [packages/core/src/runtime/agent-loop.ts:508](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L508) |

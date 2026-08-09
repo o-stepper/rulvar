@@ -373,6 +373,33 @@ export interface RunOptions {
    */
   maxInFlightExposureUsd?: number;
   /**
+   * Layer 2b against the exposure ceiling (RV2503), opt-in and
+   * meaningful only beside `maxInFlightExposureUsd`. Armed, a dispatch
+   * with NOTHING else in flight has its planned output clamped to the
+   * tokens the remaining exposure room affords instead of being
+   * refused outright, exactly as the budget ceiling has always clamped
+   * it. The 1.226.0 comparison run is the case: nothing was live, the
+   * budget still held 0.8642 USD, the mandatory repair turn's FULL
+   * 18000 token plan priced 0.7066 USD against 0.5642 USD of room, and
+   * the dispatch was refused before any provider call; the same work,
+   * re-issued after an operator raised the ceiling, wrote 12840 output
+   * tokens for 0.4788 USD. A refusal with nothing live buys nothing,
+   * because no hold will ever release to fund the full plan.
+   *
+   * Deliberately scoped and deliberately off by default. With siblings
+   * in flight the refusal is transient and the RV1902/RV2002 waits
+   * park on it, so the wave keeps the full-length turn RV711 promised
+   * and nothing here applies. When the room cannot even fund the
+   * serving model's output floor, the clamp stands aside and the
+   * dispatch refuses through the usual typed `in-flight-exposure`
+   * path, so the drained-refusal terminals (RV1902, RV2002, RV2003)
+   * keep their shapes. Absent, every byte of dispatch behavior is
+   * historical. Like `strictPricing`, this is a per-segment posture: it
+   * is not recorded in RunMeta and a resumed segment carries only what
+   * its own options declare.
+   */
+  clampTurnToExposure?: boolean;
+  /**
    * The opt-in strict pre-egress pricing gate (RV1508): every paid
    * dispatch must resolve a well-formed price row for its serving
    * model BEFORE the wire call, or the dispatch refuses typed
@@ -1256,6 +1283,16 @@ export function createEngine(options: CreateEngineOptions): Engine {
     if (opts?.maxInFlightExposureUsd !== undefined) {
       requireNonNegativeNumber(opts.maxInFlightExposureUsd, 'RunOptions.maxInFlightExposureUsd');
     }
+    // Fail closed on intake (RV2503): a truthy string would arm a
+    // dispatch posture the host never asked for, and a typo'd flag
+    // that silently reads as off is the same hazard from the other
+    // side.
+    if (opts?.clampTurnToExposure !== undefined && typeof opts.clampTurnToExposure !== 'boolean') {
+      throw new ConfigError(
+        'RunOptions.clampTurnToExposure must be a boolean; got ' +
+          JSON.stringify(opts.clampTurnToExposure),
+      );
+    }
     if (
       opts?.strictPricing !== undefined &&
       typeof opts.strictPricing !== 'boolean' &&
@@ -1384,6 +1421,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
         ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
+        ...(opts?.clampTurnToExposure === true ? { clampTurnToExposure: true as const } : {}),
         ...(strictPricing === undefined ? {} : { strictPricing, now: realNow }),
         lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
         events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },

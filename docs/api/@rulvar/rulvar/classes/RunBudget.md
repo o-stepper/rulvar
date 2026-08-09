@@ -27,8 +27,9 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `now?`: () => `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `accounts?`: `Readonly`\&lt;`Record`\&lt;`string`, `number`\&gt;\&gt;; `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; `strictPricing?`: \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \}; \} | - |
+| `options` | \{ `ceilingUsd?`: `number`; `clampTurnToExposure?`: `boolean`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `maxInFlightExposureUsd?`: `number`; `now?`: () => `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `accounts?`: `Readonly`\&lt;`Record`\&lt;`string`, `number`\&gt;\&gt;; `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; `strictPricing?`: \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \}; \} | - |
 | `options.ceilingUsd?` | `number` | - |
+| `options.clampTurnToExposure?` | `boolean` | - |
 | `options.events?` | [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md) | - |
 | `options.lifetimeSpawnCap?` | `number` | - |
 | `options.maxInFlightExposureUsd?` | `number` | - |
@@ -491,6 +492,72 @@ Defined in: `packages/core/dist/index.d.ts`
 | `servedBy` | `` `${string}:${string}` `` |
 | `estimatedInputTokens` | `number` |
 | `accountScope?` | `string` |
+
+#### Returns
+
+`number` \| `undefined`
+
+***
+
+### maxExposureOutputTokens()
+
+```ts
+maxExposureOutputTokens(servedBy, estimatedInputTokens): number | undefined;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The same layer-2b question asked of the IN-FLIGHT EXPOSURE ceiling
+(RV2503): the output tokens `cap - spent - live estimates` still
+affords from `servedBy` for an estimated prompt, priced by the
+settlement function like every other estimate here.
+
+The clamp above has always existed for the budget ceiling while
+[reserveTurnExposure](/api/@rulvar/rulvar/classes/RunBudget.md#reserveturnexposure) only ever answered yes or no, so a
+turn whose FULL planned output overshot the exposure line was
+refused outright even when a shorter one fit and the budget could
+pay for it. The 1.226.0 comparison run died exactly there: it held
+0.8642 USD of budget, the exposure ceiling had 0.5642 USD of room,
+the mandatory repair turn was estimated at 0.7066 USD against an
+18000 token output plan, and the dispatch was refused before any
+provider call. The same turn, re-issued after the operator raised
+the ceiling, wrote 12840 output tokens and cost 0.4788 USD: it fit
+the ceiling that refused it, and a clamp to the ~13253 tokens the
+room afforded would have let it run.
+
+Answered ONLY for a dispatch that is alone in flight, which is the
+whole difference between a refusal that means something and one
+that means nothing. With siblings live the refusal is TRANSIENT:
+RV1902 parks on it and the turn runs at its full planned length
+the moment one of them releases, so shortening it would trade a
+complete answer for a truncated one and buy nothing. With nothing
+live the refusal is PERMANENT (RV2003's sweep wakes such a waiter
+'drained' precisely because no hold will ever return), and the
+only choices left are a shorter turn or no turn at all. The
+concurrent-wave bound of RV711 is therefore untouched.
+
+Opt-in through `RunOptions.clampTurnToExposure`, so the drained
+refusal terminals RV1902, RV2002 and RV2003 built out of live
+parity deaths keep their shapes until a host asks for this one.
+
+Undefined when the clamp is not armed, when the cap is not
+configured, when anything is in flight, or when the model has no
+price row, so a run that declares nothing keeps every byte of its
+historical path. Zero or
+negative when the room cannot even pay for the prompt, the same
+convention [maxAffordableOutputTokens](/api/@rulvar/rulvar/classes/RunBudget.md#maxaffordableoutputtokens) inherits from
+`affordableOutputTokens`; the caller decides what a sub-floor
+answer means, and the loop deliberately ignores one so a true
+exposure exhaustion still refuses through
+[reserveTurnExposure](/api/@rulvar/rulvar/classes/RunBudget.md#reserveturnexposure) with its own typed reason instead of
+an output-floor verdict.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `servedBy` | `` `${string}:${string}` `` |
+| `estimatedInputTokens` | `number` |
 
 #### Returns
 

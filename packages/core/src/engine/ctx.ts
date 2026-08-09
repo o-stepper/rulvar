@@ -2396,6 +2396,12 @@ export function createCtx(
         ...(internals.budget.maxInFlightExposureUsd === undefined
           ? {}
           : {
+              // Layer 2b against the exposure ceiling (RV2503): the
+              // clamp reads the same room admitTurnExposure below
+              // charges, so a shortened plan is admitted instead of
+              // refused whenever the budget can still pay for it.
+              maxExposureOutputTokens: (servedBy: ModelRef, estimatedInputTokens: number) =>
+                internals.budget.maxExposureOutputTokens(servedBy, estimatedInputTokens),
               admitTurnExposure: (
                 servedBy: ModelRef,
                 estimatedInputTokens: number,
