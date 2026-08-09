@@ -65,7 +65,7 @@ The single home of provider wire formats: canonical messages made of ordered par
 
 ### Model router and capability registry
 
-Vendor neutrality at every call. The model is resolved on every invocation along the chain call override, then agent profile, then workflow default, then engine default, tagged with one of six invocation roles (`orchestrate`, `plan`, `loop`, `finalize`, `extract`, `summarize`). The router scrubs illegal parameters against each model's declared capabilities, selects the structured-output tier, prices usage from a versioned price table, and enforces role quality floors. Registries are per engine; there is no global mutable registry anywhere. A transport failover changes only which model served the call, never the journal identity, so replay stays stable and cost attribution stays honest. See [Model routing](/guide/model-routing).
+Vendor neutrality at every call. The model is resolved on every invocation along the chain call override, then agent profile, then workflow default, then engine default, tagged with one of <!-- roles:count -->seven<!-- /roles --> invocation roles (<!-- roles:list -->`orchestrate`, `plan`, `loop`, `finalize`, `extract`, `summarize`, `synthesize`<!-- /roles -->). The router scrubs illegal parameters against each model's declared capabilities, selects the structured-output tier, prices usage from a versioned price table, and enforces role quality floors. Registries are per engine; there is no global mutable registry anywhere. A transport failover changes only which model served the call, never the journal identity, so replay stays stable and cost attribution stays honest. See [Model routing](/guide/model-routing).
 
 ### Agent runtime
 

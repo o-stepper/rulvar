@@ -10,7 +10,12 @@
  * model, and a turn that cannot afford one output token is denied before
  * dispatch. Layer 3: the AbortSignal ceiling severing live streams, with
  * partial usage written usageApprox.
- * B0 is immutable after start: no API tops it up.
+ * B0 is immutable WITHIN a segment: no API tops up a live run's ceiling
+ * (RV2511 corrects the older "immutable after start", which RV2208 made
+ * false). The one thing that can change it is `ResumeOptions.run`, an
+ * explicit host decision journaled as its own decision entry, and it
+ * takes effect only by opening a NEW segment: a live run can never
+ * raise the bound it is already being measured against.
  *
  * The account tree: the run root plus one
  * sub-account per admitted child workflow (and, from M7, the orchestrator

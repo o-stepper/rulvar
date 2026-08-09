@@ -14,7 +14,7 @@ This page explains the reasoning. The user-facing guarantees that fall out of it
 | Goal | Enforcing mechanism |
 | --- | --- |
 | Vendor neutrality by construction | The `ProviderAdapter` SPI; zero provider SDKs in the core |
-| Multi-model at every level | Per-invocation resolution chain and six invocation roles |
+| Multi-model at every level | Per-invocation resolution chain and <!-- roles:count -->seven<!-- /roles --> invocation roles |
 | Three modes on one runtime | One engine, one journal, one budget path for all modes |
 | Embeddability first | Optional shells on public APIs; terminating guard fallbacks |
 | Durability, never pay twice | Content-addressed memoizing journal with scoped forward-matching |
@@ -42,7 +42,7 @@ See [Providers](/guide/providers) for adapter details and [Adapter authors](/gui
 
 ### Multi-model at every level
 
-The model is resolved on **every invocation**, not once per agent, through a fixed chain: call override, then agent profile, then workflow defaults, then engine defaults. Within a single agent, the six invocation roles (`loop`, `extract`, `finalize`, `summarize`, `plan`, `orchestrate`) can each route to a different model of a different provider; a history projector owns cross-provider history correctness so the mixing is safe, not hopeful.
+The model is resolved on **every invocation**, not once per agent, through a fixed chain: call override, then agent profile, then workflow defaults, then engine defaults. Within a single agent, the <!-- roles:count -->seven<!-- /roles --> invocation roles (<!-- roles:list -->`orchestrate`, `plan`, `loop`, `finalize`, `extract`, `summarize`, `synthesize`<!-- /roles -->) can each route to a different model of a different provider; a history projector owns cross-provider history correctness so the mixing is safe, not hopeful.
 
 ```ts
 import { defineWorkflow } from '@rulvar/core';

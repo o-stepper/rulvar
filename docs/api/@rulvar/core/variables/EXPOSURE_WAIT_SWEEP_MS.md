@@ -10,7 +10,7 @@
 const EXPOSURE_WAIT_SWEEP_MS: 250 = 250;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L78)
+Defined in: [packages/core/src/engine/budget.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L83)
 
 Cadence of the parked-waiter sweep (RV2003). The interval's first
 job is REFERENCE: a parked exposure wait used to hold nothing on the

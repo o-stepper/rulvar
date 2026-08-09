@@ -36,7 +36,7 @@ const engine = createEngine({
 | Profile field | What it defaults |
 |---|---|
 | `model` | The model for all roles of this agent; a `ModelRef` like `'anthropic:claude-sonnet-5'`, a `ModelChoice`, or a ladder. |
-| `routing` | Per-role model overrides, keyed by any of the seven [invocation roles](#invocation-roles). |
+| `routing` | Per-role model overrides, keyed by any of the <!-- roles:count -->seven<!-- /roles --> [invocation roles](#invocation-roles). |
 | `effort` | Canonical reasoning effort: `low`, `medium`, `high`, `xhigh`, or `max`. |
 | `tools` | The default toolset: `ToolDef` values, tool sources, or registered toolset names from `defaults.toolsets` ([tools guide](/guide/tools#attaching-tools-to-agents)). |
 | `limits` | `UsageLimits` merged below per-call limits and above engine defaults. |

@@ -343,6 +343,12 @@ jobs:
       # v1.109.0 row cited an abbreviation contained by no branch for
       # eleven releases; provenance the eye cannot check is a CI fact.
       - run: node scripts/readme-release-shas.mjs
+      # The invocation-role prose against the exported union (RV2511):
+      # `InvocationRole` grew a seventh member when the synthesis role
+      # shipped, and two guides went on saying six and listing six, in
+      # prose that also ships inside llms-full.txt. The gate makes the
+      # union the only author of that count and that list.
+      - run: node scripts/docs-role-truth.mjs
       # The linter's own regression tests (sentence sentinels, negation
       # handling). The glob is expanded by the Node test runner itself,
       # so every scripts/**/*.test.mjs joins CI by construction instead
