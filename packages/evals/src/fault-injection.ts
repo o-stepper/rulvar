@@ -2774,28 +2774,33 @@ const resumeSpawnFamine: FaultScenario = {
  * sentence, cited-value lawfully rejected the id as a value absent from
  * the cited window, and both repairs burned without an exit. The
  * evidence-grade reason now NAMES the safe composition (the run id in
- * its own sentence carrying no source citation), so the same trap
- * converges in one repair round with cited-value silent.
+ * a sentence carrying no source citation), so the same trap converges
+ * in one repair round with cited-value silent. It also names the id
+ * ITSELF (RV2501): the 1.226.0 comparison run obeyed the same reason
+ * with an id no artifact pattern could match, so the instruction was
+ * unexecutable and both repairs burned again. The corrected finish
+ * here carries THIS run's own id, the arm that needs no ULID at all.
  */
 const validatorGuidanceConflict: FaultScenario = {
   name: 'validator-guidance-conflict',
   doctrine:
     'the evidence-grade reason names the SAFE composition against its cited-value sibling ' +
-    '(RV2202): the c3 trap finish repairs in ONE round by moving the run id into its own ' +
-    'sentence, with cited-value never rejecting; the third subscription run burned both ' +
-    'repairs between the two verdicts',
+    'and names the run id it wants written (RV2202, RV2501): the c3 trap finish repairs in ' +
+    "ONE round by carrying THIS run's own id, with cited-value never rejecting; the third " +
+    'subscription run burned both repairs between the two verdicts, and the 1.226.0 ' +
+    'comparison run burned both again on an id no artifact pattern could match',
   async run() {
     const TRAP_FINISH =
       'The reserve fold is live-observed under sustained load. ' +
       'The engine seals the journal at settle (README.md:3).';
     // The safe composition the reason names: the graded claim carries
-    // its run id in the SAME sentence (the artifact pattern's `run
-    // <id>` arm) and that sentence carries no source citation, so
-    // cited-value has nothing to judge; the citation lives in its own
-    // sentence beside it.
+    // THIS RUN'S OWN id in the SAME sentence (RV2501, the arm that
+    // needs no ULID shaped id at all) and that sentence carries no
+    // source citation, so cited-value has nothing to judge; the
+    // citation lives in its own sentence beside it.
     const FIXED_FINISH =
       'The reserve fold is live-observed under sustained load in run ' +
-      '01ARZ3NDEKTSV4RRFFQ69G5FAV. The engine seals the journal at settle (README.md:3).';
+      'fault-guidance-conflict. The engine seals the journal at settle (README.md:3).';
     const calls: ChatRequest[] = [];
     let finishAttempts = 0;
     const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
@@ -2849,7 +2854,8 @@ const validatorGuidanceConflict: FaultScenario = {
     const repairRequest = calls[1];
     const repairBytes = JSON.stringify(repairRequest?.messages ?? []);
     const guidanceQuoted =
-      repairBytes.includes('SEPARATE sentence') && repairBytes.includes('run id');
+      repairBytes.includes("write this run's id fault-guidance-conflict") &&
+      repairBytes.includes('free of source citations');
     const citedValueNamed = repairBytes.includes('cited-value one');
     const decisionsText = JSON.stringify(
       entries.filter((entry) => entry.kind === 'decision').map((entry) => entry.value ?? null),
@@ -2871,10 +2877,10 @@ const validatorGuidanceConflict: FaultScenario = {
         matched,
         detail:
           `run '${outcome.status}' after ${String(finishAttempts)} finish attempt(s); the ` +
-          `repair exchange quoted the safe composition (SEPARATE sentence + run id: ` +
-          `${String(guidanceQuoted)}) and named the cited-value trade ` +
+          `repair exchange named the run id and the citation-free composition ` +
+          `(${String(guidanceQuoted)}) and named the cited-value trade ` +
           `(${String(citedValueNamed)}); cited-value rejected=${String(citedValueRejected)}; ` +
-          `final result carries the separate-sentence run id: ` +
+          `final result carries this run's own id in the graded sentence: ` +
           `${String(outcome.value === FIXED_FINISH)}`,
       },
       artifacts: [

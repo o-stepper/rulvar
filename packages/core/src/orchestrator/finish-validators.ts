@@ -77,6 +77,15 @@ export interface FinishValidationInput {
    * evidence the children actually produced.
    */
   readonly children?: readonly FinishValidationChild[];
+  /**
+   * The id of the run being judged (RV2501). Optional in the TYPE only
+   * so hand built inputs stay source compatible; the orchestrator
+   * runtime always supplies it, at every gate that judges a finish
+   * (the validator-bound finish, the contract draft gate, and the
+   * skipWhenDraftValid pre-pass), so a validator can accept the run's
+   * own id as the artifact a claim about THIS run points at.
+   */
+  readonly runId?: string;
 }
 
 /** The verdict of one validator over one finish attempt. */
@@ -584,6 +593,31 @@ const MAX_LISTED_CITATIONS = 20;
 const MAX_NAMED_OFFENDING_SENTENCES = 5;
 const MAX_OFFENDING_SENTENCE_CHARS = 240;
 
+/**
+ * The shortest run id {@link evidenceGradeValidator} will accept as an
+ * artifact (RV2501). The floor mirrors the id half of
+ * {@link DEFAULT_ARTIFACT_PATTERN}: a two character id would satisfy
+ * nearly every sentence by accident, which is the fail-open the empty
+ * pattern guard exists to prevent. The id is additionally matched as a
+ * whole identifier, so it cannot be credited from inside a longer
+ * word, and only inside the sentence making the claim.
+ */
+const MIN_RUN_ID_ARTIFACT_CHARS = 6;
+
+/**
+ * True when `value` occurs in `haystack` as a whole IDENTIFIER
+ * (RV2501). Deliberately not {@link containsToken}: that boundary
+ * class carries the dot, so an id written at the end of a sentence is
+ * followed by the sentence period and would never be credited, which
+ * is the most natural place to write one. Word characters alone bound
+ * an id, so `x<id>y` is refused while `` `<id>` `` and `<id>.` are
+ * credited. The value is matched literally (metacharacters escaped).
+ */
+function containsIdentifier(haystack: string, value: string): boolean {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  return new RegExp(`(?<!\\w)${escaped}(?!\\w)`, 'u').test(haystack);
+}
+
 function listCitations(values: string[]): string {
   return values.length <= MAX_LISTED_CITATIONS
     ? values.join(', ')
@@ -1062,7 +1096,22 @@ export const DEFAULT_ARTIFACT_PATTERN =
  * paragraphs away no longer satisfies the grade. Purely textual: what
  * the referenced artifact contains is
  * {@link citedValueValidator}'s question, and whether it exists on
- * disk is the host's. Default name 'evidence-grade'.
+ * disk is the host's.
+ *
+ * The run's OWN id is an artifact (RV2501). `DEFAULT_ARTIFACT_PATTERN`
+ * only ever matched the literal word `run` followed by a ULID, so the
+ * escape the verdict advertised was unreachable for every run whose id
+ * the engine did not mint in that exact shape: the comparison run's
+ * `comparison-rulvar-v12260-aug09-...` matched nothing, its synthesis
+ * had no artifact it could name, and a document that told the truth
+ * about the run it was part of could not be written at all. When
+ * {@link FinishValidationInput.runId} is supplied (the orchestrator
+ * runtime always supplies it), a sentence carrying that id verbatim as
+ * a whole token satisfies the grade, and the verdict names the id so
+ * the repair instruction is executable rather than aspirational. An id
+ * shorter than `MIN_RUN_ID_ARTIFACT_CHARS` (six) is ignored, and
+ * without an id the verdict is byte identical to the historical one.
+ * Default name 'evidence-grade'.
  */
 export function evidenceGradeValidator(options?: {
   /** Overrides {@link DEFAULT_EVIDENCE_GRADE_PHRASES}; matched case-insensitively. */
@@ -1101,10 +1150,20 @@ export function evidenceGradeValidator(options?: {
     validate: (input) => {
       const unsupported: string[] = [];
       const offenders: string[] = [];
+      // The run's own id, when it is long enough to be an identifier
+      // rather than a syllable (RV2501).
+      const runId =
+        typeof input.runId === 'string' && input.runId.trim().length >= MIN_RUN_ID_ARTIFACT_CHARS
+          ? input.runId.trim()
+          : undefined;
       for (const sentence of sentencesOf(input.text)) {
         const haystack = sentence.toLowerCase();
         const found = lowered.filter((phrase) => haystack.includes(phrase));
-        if (found.length === 0 || new RegExp(artifactPattern, '').test(sentence)) {
+        if (
+          found.length === 0 ||
+          new RegExp(artifactPattern, '').test(sentence) ||
+          (runId !== undefined && containsIdentifier(sentence, runId))
+        ) {
           continue;
         }
         offenders.push(sentence);
@@ -1142,14 +1201,29 @@ export function evidenceGradeValidator(options?: {
       // two contradicting verdicts, and both granted repairs burned. A
       // reason is a repair instruction, so it must be executable
       // without violating any sibling validator in the bundle.
+      // The instruction names the id it wants written (RV2501): the
+      // idless wording asked for "its run id" while the artifact
+      // pattern accepted only ULIDs behind the literal word `run`, so
+      // a run whose id was shaped otherwise had no executable repair
+      // at all. With the id in hand the remedy is one edit, and the
+      // composition warning stays: the graded sentence must carry no
+      // source citation, or cited-value judges the id against the
+      // cited window and rejects it.
       return {
         ok: false,
         reasons: [
-          `evidence-grade claims cite no run or repro artifact in their own sentence: ` +
-            `${listCitations(unsupported)}; give each such claim a file:line citation in ` +
-            `its own sentence, or state its run id in a SEPARATE sentence carrying no ` +
-            `source citation (a run id written beside a path:line citation is not in the ` +
-            `cited window and trades this failure for a cited-value one)`,
+          runId === undefined
+            ? `evidence-grade claims cite no run or repro artifact in their own sentence: ` +
+              `${listCitations(unsupported)}; give each such claim a file:line citation in ` +
+              `its own sentence, or state its run id in a SEPARATE sentence carrying no ` +
+              `source citation (a run id written beside a path:line citation is not in the ` +
+              `cited window and trades this failure for a cited-value one)`
+            : `evidence-grade claims cite no run or repro artifact in their own sentence: ` +
+              `${listCitations(unsupported)}; write this run's id ${runId} inside each such ` +
+              `sentence, or give the claim a file:line citation instead, and keep that ` +
+              `sentence free of source citations (a run id written beside a path:line ` +
+              `citation is not in the cited window and trades this failure for a ` +
+              `cited-value one)`,
           ...named,
           ...(overflow > 0 ? [`and ${String(overflow)} more offending sentences`] : []),
         ],

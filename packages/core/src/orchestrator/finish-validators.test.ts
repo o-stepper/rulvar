@@ -1058,3 +1058,96 @@ describe('the repair guidance composes across the bundle (RV2202, the RV2106 mir
     expect(verdict.reasons.join(' ')).toContain('01KZGBNQJJMPX512BTHP0F5GNZ');
   });
 });
+
+describe("the run's own id is an artifact (RV2501, the 1.226.0 comparison run)", () => {
+  // The two sentence SHAPES the comparison run died on at journal seq
+  // 122, translated (the framework is English only, fixtures
+  // included). The first quotes the engine's own RUN FACTS line, the
+  // second DENIES the grade it names; neither can carry a file:line
+  // citation honestly, and the run id the verdict told the model to
+  // write matched no artifact pattern at all.
+  const RUN_ID = 'comparison-rulvar-v12260-aug09-1786272840549';
+  const LIVE =
+    '**Live-observed in this workflow**, strictly per the RUN FACTS sheet: scope ' +
+    '`settled-children-only`; children 4; wireRequests 70.';
+  const DENIAL = '**Production-proven** evidence was not established.';
+
+  const withId = (value: string): FinishValidationInput => ({
+    result: value,
+    text: value,
+    runId: RUN_ID,
+  });
+
+  it('rejects the frozen pair when no id is supplied, the historical verdict', () => {
+    const verdict = evidenceGradeValidator().validate(text(`${LIVE} ${DENIAL}`));
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons[0]).toContain('live-observed, production-proven');
+    expect(verdict.reasons[0]).toContain('SEPARATE sentence carrying no source citation');
+    expect(verdict.reasons).toHaveLength(3);
+  });
+
+  it('accepts the same claims once each sentence carries the run id', () => {
+    const repaired =
+      `${LIVE.slice(0, -1)}, run ${RUN_ID}. ` + `${DENIAL.slice(0, -1)} in run ${RUN_ID}.`;
+    expect(evidenceGradeValidator().validate(withId(repaired)).ok).toBe(true);
+    // The repair is composition safe: the graded sentences carry no
+    // source citation, so cited-value never judges the id against a
+    // cited window (RV2202).
+    expect(
+      citedValueValidator({ resolve: () => 'const maxAttempts = 3;' }).validate(withId(repaired))
+        .ok,
+    ).toBe(true);
+  });
+
+  it('names the id it wants written, so the repair instruction is executable', () => {
+    const verdict = evidenceGradeValidator().validate(withId(DENIAL));
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons[0]).toContain(`write this run's id ${RUN_ID}`);
+    expect(verdict.reasons[0]).toContain('keep that sentence free of source citations');
+    expect(verdict.reasons[0]).toContain('trades this failure for a cited-value one');
+    expect(verdict.reasons[0]).not.toContain('beside it');
+  });
+
+  it('supplying the id changes nothing for a sentence that does not carry it', () => {
+    const bare = evidenceGradeValidator().validate(text(LIVE));
+    const withRun = evidenceGradeValidator().validate(withId(LIVE));
+    expect(bare.ok).toBe(false);
+    expect(withRun.ok).toBe(false);
+    if (bare.ok || withRun.ok) {
+      return;
+    }
+    expect(withRun.reasons.slice(1)).toEqual(bare.reasons.slice(1));
+  });
+
+  it('credits the id only in the sentence that makes the claim', () => {
+    // RV2501 rides RV1212, it does not soften it: an id in a header
+    // three paragraphs up licenses nothing.
+    const split = `Run ${RUN_ID} settled ok. The loop is live-observed to retry three times.`;
+    expect(evidenceGradeValidator().validate(withId(split)).ok).toBe(false);
+  });
+
+  it('credits the id only as a whole token', () => {
+    const glued = `The loop is live-observed in x${RUN_ID}y.`;
+    expect(evidenceGradeValidator().validate(withId(glued)).ok).toBe(false);
+    const quoted = `The loop is live-observed in \`${RUN_ID}\`.`;
+    expect(evidenceGradeValidator().validate(withId(quoted)).ok).toBe(true);
+  });
+
+  it('ignores an id too short to be an identifier, never a fail open', () => {
+    const short = { result: 'a live-observed run', text: 'a live-observed run', runId: 'a' };
+    expect(evidenceGradeValidator().validate(short).ok).toBe(false);
+    const blank = { result: 'a live-observed run', text: 'a live-observed run', runId: '   ' };
+    expect(evidenceGradeValidator().validate(blank).ok).toBe(false);
+  });
+
+  it('still accepts the historical artifact shapes when an id is supplied', () => {
+    const cited = 'The cap is live-observed at `src/retry.ts:12`.';
+    expect(evidenceGradeValidator().validate(withId(cited)).ok).toBe(true);
+  });
+});

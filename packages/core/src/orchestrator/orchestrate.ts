@@ -4276,6 +4276,7 @@ export function makeOrchestratorWorkflow(
           result,
           text: typeof result === 'string' ? result : JSON.stringify(result),
           children: validationChildren(),
+          runId: internals.runId,
         };
         const failed: { name: string; reasons: string[] }[] = [];
         for (const validator of validationSpec.validators) {
@@ -4440,6 +4441,7 @@ export function makeOrchestratorWorkflow(
           result,
           text,
           children: validationChildren(),
+          runId: internals.runId,
         };
         for (const validator of validationSpec?.validators ?? []) {
           let verdict: FinishValidationVerdict;
@@ -5896,6 +5898,7 @@ export function makeOrchestratorWorkflow(
             result: draftValue,
             text: typeof draftValue === 'string' ? draftValue : JSON.stringify(draftValue),
             children: validationChildren(),
+            runId: internals.runId,
           };
           const failed: { name: string; reasons: string[] }[] = [];
           for (const validator of validationSpec.validators) {
@@ -6278,6 +6281,16 @@ export function makeOrchestratorWorkflow(
                     // synthesis. The label makes the boundary part of
                     // the bytes the model quotes.
                     scope: 'settled-children-only',
+                    // The id these facts belong to (RV2501). The line
+                    // ends in the `live-observed` register and used to
+                    // name no artifact at all, so a model quoting it
+                    // faithfully wrote a sentence evidenceGradeValidator
+                    // rejects: the comparison run burned both repairs
+                    // and died on exactly that sentence. The id is the
+                    // artifact, it is replay stable like every other
+                    // field here, and it rides the same sentence as the
+                    // graded phrase so the quote passes the grade.
+                    runId: internals.runId,
                     children: settledEntries.length,
                     byStatus: Object.fromEntries(
                       Object.keys(byStatus)
@@ -6288,9 +6301,10 @@ export function makeOrchestratorWorkflow(
                     wireIdsMissing,
                     inputTokens,
                     outputTokens,
-                  })} (live-observed by this run's own harness; production evidence it is not; ` +
-                  'the settled children ONLY, excluding this orchestrator, judges, and ' +
-                  "synthesis; the whole run's totals are the terminal envelope and invoice)"
+                  })} (live-observed by run ${internals.runId}, this run's own harness; ` +
+                  'production evidence it is not; the settled children ONLY, excluding this ' +
+                  "orchestrator, judges, and synthesis; the whole run's totals are the " +
+                  'terminal envelope and invoice)'
                 );
               })(),
             ]

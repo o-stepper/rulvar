@@ -10,7 +10,7 @@
 type SectionMatchMode = "anywhere" | "line";
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L124)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L133)
 
 How section markers must appear in the judged text (cycle 74):
 'anywhere' is the historical substring test; 'line' demands the

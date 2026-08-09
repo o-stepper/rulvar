@@ -1798,9 +1798,8 @@ const MUTATIONS = [
     doctrine:
       'an evidence-grade claim must cite its artifact in its OWN sentence (RV1212): widened to the whole answer, one run id anywhere in the text licenses every live-observed claim in it, which is the shape the sixteenth run shipped',
     file: 'packages/core/src/orchestrator/finish-validators.ts',
-    find: "        if (found.length === 0 || new RegExp(artifactPattern, '').test(sentence)) {",
-    replace:
-      "        if (found.length === 0 || new RegExp(artifactPattern, '').test(input.text)) {",
+    find: "          new RegExp(artifactPattern, '').test(sentence) ||",
+    replace: "          new RegExp(artifactPattern, '').test(input.text) ||",
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
   {
@@ -3590,10 +3589,46 @@ const MUTATIONS = [
     doctrine:
       "a validator reason is a repair instruction and must be executable without violating any sibling in the bundle (RV2202): the RV2106 mirror run's synthesis obeyed the older 'beside it' wording literally, wove inline run ids into citation-bearing sentences, and cited-value rejected exactly those sentences, burning both repairs between two individually correct validators",
     file: 'packages/core/src/orchestrator/finish-validators.ts',
-    find: '            `${listCitations(unsupported)}; give each such claim a file:line citation in ` +\n            `its own sentence, or state its run id in a SEPARATE sentence carrying no ` +\n            `source citation (a run id written beside a path:line citation is not in the ` +\n            `cited window and trades this failure for a cited-value one)`,',
+    find: '              `${listCitations(unsupported)}; give each such claim a file:line citation in ` +\n              `its own sentence, or state its run id in a SEPARATE sentence carrying no ` +\n              `source citation (a run id written beside a path:line citation is not in the ` +\n              `cited window and trades this failure for a cited-value one)`',
     replace:
-      '            `${listCitations(unsupported)}; each such claim must name a run id or a ` +\n            `file:line citation beside it`,',
+      '              `${listCitations(unsupported)}; each such claim must name a run id or a ` +\n              `file:line citation beside it`',
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'evidence-grade-accepts-the-run-id',
+    doctrine:
+      "the run's own id is an artifact the evidence grade accepts (RV2501): the default artifact pattern only ever matched a ULID behind the literal word `run`, so the 1.226.0 comparison run, whose id was shaped otherwise, had no executable repair for a sentence telling the truth about the run it was part of and died on it with both repairs spent",
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '          (runId !== undefined && containsIdentifier(sentence, runId))',
+    replace: '          false',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'evidence-grade-run-id-sentence-scope',
+    doctrine:
+      "the run id satisfies the grade only in the claim's OWN sentence (RV2501 under RV1212): widened to the whole answer, one run id in a header licenses every graded claim below it, the same erasure the sentence scope exists to prevent",
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '          (runId !== undefined && containsIdentifier(sentence, runId))',
+    replace: '          (runId !== undefined && containsIdentifier(input.text, runId))',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'evidence-grade-verdict-names-the-run-id',
+    doctrine:
+      'the evidence-grade verdict names the run id it wants written (RV2501): an instruction that says "state its run id" without naming it is unexecutable when the composing model was never shown one, which is exactly what the comparison run faced',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: "              `${listCitations(unsupported)}; write this run's id ${runId} inside each such ` +",
+    replace: '              `${listCitations(unsupported)}; name an artifact in each such ` +',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'run-facts-carries-its-run-id',
+    doctrine:
+      'the RUN FACTS line names the run whose facts it carries (RV2501): the line ends in the live-observed register and the synthesis is told to reproduce run facts only from it, so a line naming no artifact makes every faithful quote of it an evidence-grade failure the model cannot repair',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "                  })} (live-observed by run ${internals.runId}, this run's own harness; ` +",
+    replace: "                  })} (live-observed by this run's own harness; ` +",
+    test: 'packages/core/src/orchestrator/runfacts.test.ts',
   },
   {
     id: 'exhausted-lift-reads-error-data',
