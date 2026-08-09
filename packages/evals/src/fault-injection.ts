@@ -2773,34 +2773,41 @@ const resumeSpawnFamine: FaultScenario = {
  * beside the live-observed claim, the model wove the id into a cited
  * sentence, cited-value lawfully rejected the id as a value absent from
  * the cited window, and both repairs burned without an exit. The
- * evidence-grade reason now NAMES the safe composition (the run id in
- * a sentence carrying no source citation), so the same trap converges
- * in one repair round with cited-value silent. It also names the id
- * ITSELF (RV2501): the 1.226.0 comparison run obeyed the same reason
- * with an id no artifact pattern could match, so the instruction was
- * unexecutable and both repairs burned again. The corrected finish
- * here carries THIS run's own id, the arm that needs no ULID at all.
+ * evidence-grade reason now NAMES the safe composition, so the same
+ * trap converges in one repair round with cited-value silent. It also
+ * names the id ITSELF (RV2501): the 1.226.0 comparison run obeyed the
+ * same reason with an id no artifact pattern could match, so the
+ * instruction was unexecutable and both repairs burned again. And the
+ * composition it names is now the DIRECT one (RV2502): with the id in
+ * hand cited-value reads it as identity rather than as a value asserted
+ * about the cited line, so the corrected finish here writes this run's
+ * own id in the graded sentence BESIDE the citation, the exact shape
+ * the old bundle could not accept from either side.
  */
 const validatorGuidanceConflict: FaultScenario = {
   name: 'validator-guidance-conflict',
   doctrine:
     'the evidence-grade reason names the SAFE composition against its cited-value sibling ' +
-    'and names the run id it wants written (RV2202, RV2501): the c3 trap finish repairs in ' +
-    "ONE round by carrying THIS run's own id, with cited-value never rejecting; the third " +
-    'subscription run burned both repairs between the two verdicts, and the 1.226.0 ' +
+    'and names the run id it wants written (RV2202, RV2501, RV2502): the c3 trap finish ' +
+    "repairs in ONE round by carrying THIS run's own id in the graded sentence, beside a " +
+    'source citation, with cited-value reading that id as identity and never rejecting; the ' +
+    'third subscription run burned both repairs between the two verdicts, and the 1.226.0 ' +
     'comparison run burned both again on an id no artifact pattern could match',
   async run() {
     const TRAP_FINISH =
       'The reserve fold is live-observed under sustained load. ' +
-      'The engine seals the journal at settle (README.md:3).';
+      'The engine seals the journal at settle (`README.md:3`).';
     // The safe composition the reason names: the graded claim carries
     // THIS RUN'S OWN id in the SAME sentence (RV2501, the arm that
-    // needs no ULID shaped id at all) and that sentence carries no
-    // source citation, so cited-value has nothing to judge; the
-    // citation lives in its own sentence beside it.
+    // needs no ULID shaped id at all) BESIDE the source citation. That
+    // sentence is exactly what the old bundle could not accept: the
+    // grade wanted the id there and cited-value judged it against the
+    // cited window. Under RV2502 the id is identity, not an asserted
+    // value, so one repair round satisfies both.
     const FIXED_FINISH =
       'The reserve fold is live-observed under sustained load in run ' +
-      'fault-guidance-conflict. The engine seals the journal at settle (README.md:3).';
+      '`fault-guidance-conflict`, where the engine seals the journal at settle ' +
+      '(`README.md:3`).';
     const calls: ChatRequest[] = [];
     let finishAttempts = 0;
     const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
@@ -2855,8 +2862,8 @@ const validatorGuidanceConflict: FaultScenario = {
     const repairBytes = JSON.stringify(repairRequest?.messages ?? []);
     const guidanceQuoted =
       repairBytes.includes("write this run's id fault-guidance-conflict") &&
-      repairBytes.includes('free of source citations');
-    const citedValueNamed = repairBytes.includes('cited-value one');
+      repairBytes.includes('may share a sentence with a source citation');
+    const citedValueNamed = repairBytes.includes('cited-value reads a run id as identity');
     const decisionsText = JSON.stringify(
       entries.filter((entry) => entry.kind === 'decision').map((entry) => entry.value ?? null),
     );
@@ -2877,11 +2884,11 @@ const validatorGuidanceConflict: FaultScenario = {
         matched,
         detail:
           `run '${outcome.status}' after ${String(finishAttempts)} finish attempt(s); the ` +
-          `repair exchange named the run id and the citation-free composition ` +
-          `(${String(guidanceQuoted)}) and named the cited-value trade ` +
+          `repair exchange named the run id and the shared-sentence composition ` +
+          `(${String(guidanceQuoted)}) and named the identity reading ` +
           `(${String(citedValueNamed)}); cited-value rejected=${String(citedValueRejected)}; ` +
-          `final result carries this run's own id in the graded sentence: ` +
-          `${String(outcome.value === FIXED_FINISH)}`,
+          `final result carries this run's own id beside the citation in the graded ` +
+          `sentence: ${String(outcome.value === FIXED_FINISH)}`,
       },
       artifacts: [
         jsonArtifact('outcome.json', { status: outcome.status, value: outcome.value ?? null }),

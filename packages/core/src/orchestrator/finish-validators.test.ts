@@ -828,6 +828,120 @@ describe('citedValueValidator (RV1212, the sixteenth experiment P2-2)', () => {
     expect(() => citedValueValidator({ resolve, window: -1 })).toThrow(ConfigError);
     expect(() => citedValueValidator({ resolve, window: 1.5 })).toThrow(ConfigError);
     expect(() => citedValueValidator({ resolve: 'no' as never })).toThrow(ConfigError);
+    expect(() => citedValueValidator({ resolve, notValues: 'ready' as never })).toThrow(
+      ConfigError,
+    );
+    expect(() => citedValueValidator({ resolve, notValues: [''] })).toThrow(ConfigError);
+    expect(() => citedValueValidator({ resolve, notValues: [7 as never] })).toThrow(ConfigError);
+  });
+});
+
+describe('identity spans are not asserted values (RV2502, the 1.226.0 comparison run)', () => {
+  // The run's synthesis wrote the frozen commit sha beside source
+  // citations, and the verdict demanded the sha appear in the cited
+  // source: an impossible repair, delivered in the same reason list as
+  // three real value fixes. Two granted repairs burned and the finish
+  // was rejected.
+  const SHA = 'f8d9c5131c99c843ed23da22af20651f95377dd0';
+  const RUN_ID = 'comparison-rulvar-v12260-aug09-1786272840549';
+  const LINES: Record<number, string> = {
+    239: '  readonly maxTurns: number;',
+    3451: "    case 'await_all':",
+  };
+  const resolve = (citation: { path: string; line: number }): string | undefined =>
+    citation.path === 'src/orchestrate.ts' && citation.line >= 1 && citation.line <= 4000
+      ? (LINES[citation.line] ?? '')
+      : undefined;
+
+  it("the run's frozen commit sha is identity, and a real value mismatch beside it still fails", () => {
+    const sha = citedValueValidator({ resolve }).validate(
+      text(`The review froze \`${SHA}\` and read \`src/orchestrate.ts:239\`.`),
+    );
+    expect(sha.ok).toBe(true);
+    // The vacuum contrast: the same shape with an actual asserted value
+    // the cited line does not carry is still a failure, and the verdict
+    // names only that value.
+    const mixed = citedValueValidator({ resolve }).validate(
+      text(`At \`${SHA}\` the case is \`await_all\` (\`src/orchestrate.ts:239\`).`),
+    );
+    expect(mixed.ok).toBe(false);
+    if (!mixed.ok) {
+      expect(mixed.reasons[0]).toContain('await_all');
+      expect(mixed.reasons[0]).not.toContain(SHA);
+    }
+    // And the citation that DOES carry it passes.
+    expect(
+      citedValueValidator({ resolve }).validate(
+        text(`At \`${SHA}\` the case is \`await_all\` (\`src/orchestrate.ts:3451\`).`),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it('a short hex literal stays judged: the sha shape starts at twelve characters', () => {
+    const verdict = citedValueValidator({ resolve }).validate(
+      text('The magic is `deadbeef` (`src/orchestrate.ts:239`).'),
+    );
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) {
+      expect(verdict.reasons[0]).toContain('deadbeef');
+    }
+  });
+
+  it('release versions are identity and host vocabulary is declared', () => {
+    expect(
+      citedValueValidator({ resolve }).validate(
+        text('Shipped in `v1.226.0` and `1.226.0-rc.1`, see `src/orchestrate.ts:239`.'),
+      ).ok,
+    ).toBe(true);
+    const undeclared = citedValueValidator({ resolve }).validate(
+      text('The framework is `conditionally ready` per `src/orchestrate.ts:239`.'),
+    );
+    expect(undeclared.ok).toBe(false);
+    expect(
+      citedValueValidator({ resolve, notValues: ['conditionally ready'] }).validate(
+        text('The framework is `conditionally ready` per `src/orchestrate.ts:239`.'),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it("the run's own id is identity, on the same floor the grade uses", () => {
+    const withId = (value: string): FinishValidationInput => ({
+      result: value,
+      text: value,
+      runId: RUN_ID,
+    });
+    expect(
+      citedValueValidator({ resolve }).validate(
+        withId(`Run ${RUN_ID} read \`${RUN_ID}\` at \`src/orchestrate.ts:239\`.`),
+      ).ok,
+    ).toBe(true);
+    // Without the runtime supplying the id there is nothing to excuse.
+    expect(
+      citedValueValidator({ resolve }).validate(
+        text(`Run \`${RUN_ID}\` read \`src/orchestrate.ts:239\`.`),
+      ).ok,
+    ).toBe(false);
+    // A stub id below the artifact floor excuses nothing either.
+    expect(
+      citedValueValidator({ resolve }).validate({
+        result: 'x',
+        text: 'The id is `run` at `src/orchestrate.ts:239`.',
+        runId: 'run',
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('the grade and the cited value now compose (RV2501 beside RV2202)', () => {
+    // The evidence grade instructs a failing model to write this run's
+    // id inside the offending sentence. Before RV2502 obeying that
+    // beside a citation traded one failure for the other, and the
+    // model sat between two contradicting verdicts.
+    const composed =
+      `**Live-observed in this workflow** by run ${RUN_ID}: the case is ` +
+      `\`await_all\` (\`src/orchestrate.ts:3451\`), frozen at \`${SHA}\`.`;
+    const input: FinishValidationInput = { result: composed, text: composed, runId: RUN_ID };
+    expect(evidenceGradeValidator().validate(input).ok).toBe(true);
+    expect(citedValueValidator({ resolve }).validate(input).ok).toBe(true);
   });
 });
 
@@ -1109,9 +1223,21 @@ describe("the run's own id is an artifact (RV2501, the 1.226.0 comparison run)",
       return;
     }
     expect(verdict.reasons[0]).toContain(`write this run's id ${RUN_ID}`);
-    expect(verdict.reasons[0]).toContain('keep that sentence free of source citations');
-    expect(verdict.reasons[0]).toContain('trades this failure for a cited-value one');
     expect(verdict.reasons[0]).not.toContain('beside it');
+    // The two arms carry DIFFERENT composition advice, and both are
+    // true (RV2502). With the id in hand the sibling recognises it, so
+    // the graded sentence may carry a citation too; without it the
+    // sibling would judge the id against the cited window, so the
+    // separation advice stays exactly as it was.
+    expect(verdict.reasons[0]).toContain('may share a sentence with a source citation');
+    expect(verdict.reasons[0]).not.toContain('trades this failure for a cited-value one');
+    const idless = evidenceGradeValidator().validate(text(DENIAL));
+    expect(idless.ok).toBe(false);
+    if (idless.ok) {
+      return;
+    }
+    expect(idless.reasons[0]).toContain('SEPARATE sentence carrying no source citation');
+    expect(idless.reasons[0]).toContain('trades this failure for a cited-value one');
   });
 
   it('supplying the id changes nothing for a sentence that does not carry it', () => {

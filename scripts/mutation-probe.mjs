@@ -3642,6 +3642,47 @@ const MUTATIONS = [
     test: 'packages/core/src/orchestrator/finish-validators.test.ts',
   },
   {
+    id: 'cited-value-identity-spans-excluded',
+    doctrine:
+      'a span naming the artefact under review is identity, not a value asserted about a cited line (RV2502): the comparison run wrote its frozen commit sha beside source citations and the verdict demanded the sha appear in the cited source, an impossible repair delivered beside three real ones',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '          } else if (!isIdentity(span)) {',
+    replace: '          } else if (true) {',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'cited-value-run-id-is-identity',
+    doctrine:
+      "the run's own id is identity to cited-value on the same terms the grade accepts it (RV2502 beside RV2501): without this arm the grade's instruction to write the id into the claim sentence walks the model straight into its sibling's refusal, the trap that burned both repairs of the c3 run",
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: '        span === runId ||',
+    replace: '        false ||',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'cited-value-sha-floor',
+    doctrine:
+      'the commit sha shape starts at twelve hex characters (RV2502): shorter hex words are ordinary literals a document may legitimately assert about a cited line, and excusing them would blunt the validator well past the identity class it means to exempt',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find: 'const COMMIT_SHA_SPAN = /^[0-9a-f]{12,64}$/u;',
+    replace: 'const COMMIT_SHA_SPAN = /^[0-9a-f]{4,64}$/u;',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
+    id: 'evidence-grade-guidance-shares-the-sentence',
+    doctrine:
+      'each arm of the grade names the composition that is TRUE for it (RV2502): with the id in hand the sibling reads it as identity and the graded sentence may carry a citation, while the idless arm keeps the separation advice, because there the sibling has no id to recognise',
+    file: 'packages/core/src/orchestrator/finish-validators.ts',
+    find:
+      '              `sentence, or give the claim a file:line citation instead (the id may share a ` +\n' +
+      '              `sentence with a source citation: cited-value reads a run id as identity, not ` +\n' +
+      '              `as a value asserted about the cited line)`,',
+    replace:
+      '              `sentence, or give the claim a file:line citation instead, and keep that ` +\n' +
+      '              `sentence free of source citations`,',
+    test: 'packages/core/src/orchestrator/finish-validators.test.ts',
+  },
+  {
     id: 'evidence-grade-verdict-names-the-run-id',
     doctrine:
       'the evidence-grade verdict names the run id it wants written (RV2501): an instruction that says "state its run id" without naming it is unexecutable when the composing model was never shown one, which is exactly what the comparison run faced',
