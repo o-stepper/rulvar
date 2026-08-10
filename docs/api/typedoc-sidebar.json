@@ -1159,6 +1159,10 @@
             "link": "/api/@rulvar/core/interfaces/JournaledChildRoster.md"
           },
           {
+            "text": "JournaledCriticalPath",
+            "link": "/api/@rulvar/core/interfaces/JournaledCriticalPath.md"
+          },
+          {
             "text": "JournalOperation",
             "link": "/api/@rulvar/core/interfaces/JournalOperation.md"
           },
@@ -3071,6 +3075,10 @@
           {
             "text": "createSandboxBridge",
             "link": "/api/@rulvar/core/functions/createSandboxBridge.md"
+          },
+          {
+            "text": "criticalPathFromJournal",
+            "link": "/api/@rulvar/core/functions/criticalPathFromJournal.md"
           },
           {
             "text": "currentOnlyKeyRing",
@@ -6149,6 +6157,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/JournaledChildRoster.md"
           },
           {
+            "text": "JournaledCriticalPath",
+            "link": "/api/@rulvar/rulvar/interfaces/JournaledCriticalPath.md"
+          },
+          {
             "text": "JournalOperation",
             "link": "/api/@rulvar/rulvar/interfaces/JournalOperation.md"
           },
@@ -8109,6 +8121,10 @@
           {
             "text": "createSandboxBridge",
             "link": "/api/@rulvar/rulvar/functions/createSandboxBridge.md"
+          },
+          {
+            "text": "criticalPathFromJournal",
+            "link": "/api/@rulvar/rulvar/functions/criticalPathFromJournal.md"
           },
           {
             "text": "currentOnlyKeyRing",

@@ -189,6 +189,15 @@ export interface CostAttributionFacts {
   agentType?: string;
   role?: InvocationRole;
   budgetAccount?: string;
+  /**
+   * The dispatch label, when the caller gave one (RV2803): what tells
+   * two spans of ONE role apart, which the event stream has always
+   * carried and the journal never did. Absent on every unlabelled
+   * dispatch and on every journal written before it shipped, so a
+   * reading that needs it reports absence rather than guessing. Policy,
+   * never identity.
+   */
+  label?: string;
   finalizeReserve?: boolean;
 }
 

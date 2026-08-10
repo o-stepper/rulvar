@@ -243,6 +243,7 @@ const engine = createEngine({
 | [IsolationProvider](/api/@rulvar/rulvar/interfaces/IsolationProvider.md) | - |
 | [JournaledChild](/api/@rulvar/rulvar/interfaces/JournaledChild.md) | One child of one orchestration, as the journal holds it (RV2702). |
 | [JournaledChildRoster](/api/@rulvar/rulvar/interfaces/JournaledChildRoster.md) | One orchestration's children, folded from its journal (RV2702). |
+| [JournaledCriticalPath](/api/@rulvar/rulvar/interfaces/JournaledCriticalPath.md) | The critical path of a logical run, folded from its journal (RV2803). |
 | [JournalOperation](/api/@rulvar/rulvar/interfaces/JournalOperation.md) | One logical journaled operation: its dispatch entry plus its terminal, when present. |
 | [JournalPricingSnapshot](/api/@rulvar/rulvar/interfaces/JournalPricingSnapshot.md) | What `journalPricingSnapshot` rebuilds from a pinned run settle. |
 | [JournalSerializationContext](/api/@rulvar/rulvar/interfaces/JournalSerializationContext.md) | The run identity the store knows at the append/load boundary but a bare JournalEntry does not carry (the runId lives in the store key, not the entry). Passed to the journal hook so a hook can bind stored bytes to the run they belong to (RV-217 follow-up: the envelope encryption uses it as associated data, so a ciphertext cannot be transplanted into another run). Optional in the type so a host hook written against the original single-argument shape stays valid. |
@@ -744,6 +745,7 @@ const engine = createEngine({
 | [createEngine](/api/@rulvar/rulvar/functions/createEngine.md) | - |
 | [createEnvelopeEncryption](/api/@rulvar/rulvar/functions/createEnvelopeEncryption.md) | Builds the envelope-encryption SerializationHook. All DataKeyProvider calls happen HERE (the hook itself is synchronous, on in-memory data keys): a fresh data key is minted and wrapped for this instance, and every historical wrapped key is unwrapped for the read path. |
 | [createSandboxBridge](/api/@rulvar/rulvar/functions/createSandboxBridge.md) | - |
+| [criticalPathFromJournal](/api/@rulvar/rulvar/functions/criticalPathFromJournal.md) | Fold a run's critical path out of its journal. |
 | [currentOnlyKeyRing](/api/@rulvar/rulvar/functions/currentOnlyKeyRing.md) | - |
 | [decodeCheckpoint](/api/@rulvar/rulvar/functions/decodeCheckpoint.md) | Decodes a checkpoint blob. Returns undefined for an empty blob, an unknown format byte, unparseable JSON, a top-level payload that is not an object (RV1008: `null`, a number, a string, an array), a parseable payload whose nested message structure is malformed (RV804), or one whose required counters are not non-negative finite numbers (RV1409: `turns`, `toolCallsUsed`, `schemaAttempts`, the usage fields, the compaction points): a resume never trusts a checkpoint it cannot decode, and it never throws; the dangling dispatch reruns from the top instead (at-least-once is the documented floor). |
 | [dedupeRepeatedClaims](/api/@rulvar/rulvar/functions/dedupeRepeatedClaims.md) | Removes later occurrences of repeated claim lines across the rows and indexes each repeated claim with its reporters. Deterministic: output depends only on the input order and bytes. |
