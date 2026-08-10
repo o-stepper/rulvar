@@ -16,6 +16,7 @@ import { scriptedAdapter } from '../engine/test-harness.js';
 import {
   auditRun,
   auditRuns,
+  childRostersFromJournal,
   lastRunSettle,
   logicalRunTelemetry,
   reconcileRunMeta,
@@ -369,5 +370,127 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
       (key) => TERMINAL_TELEMETRY_SCOPE[key] === undefined,
     );
     expect(undeclared).toEqual([]);
+  });
+});
+
+describe('the child roster a journal already holds (RV2702)', () => {
+  // `childrenAtFailure` (RV2602) answers this for a live consumer and
+  // dies with the process that held it. A paid run leaves a journal,
+  // and every ingredient was already written down.
+  const admission = (
+    seq: number,
+    childScope: string,
+    verdict: 'admit' | 'reject' = 'admit',
+  ): JournalEntry =>
+    ({
+      seq,
+      kind: 'decision',
+      scope: '',
+      status: 'ok',
+      value: {
+        decisionType: 'spawn-admission',
+        origin: 'spawn_agent',
+        orchestratorScope: '',
+        childScope,
+        spawnOrdinal: seq,
+        name: 'worker',
+        decision: { verdict: { kind: verdict } },
+      },
+    }) as unknown as JournalEntry;
+  const dispatch = (seq: number, scope: string, key: string): JournalEntry =>
+    ({ seq, kind: 'agent', status: 'running', scope, key }) as unknown as JournalEntry;
+  const terminal = (
+    seq: number,
+    scope: string,
+    key: string,
+    status: string,
+    extra: Record<string, unknown> = {},
+  ): JournalEntry =>
+    ({
+      seq,
+      kind: 'agent',
+      status,
+      scope,
+      key,
+      ref: seq - 1,
+      costAttribution: { agentType: 'worker', role: 'loop' },
+      ...extra,
+    }) as unknown as JournalEntry;
+
+  it('names every admitted child, its status, and its evidence verdict', () => {
+    const rosters = childRostersFromJournal([
+      admission(2, 'agent:0'),
+      dispatch(3, 'agent:0', 'k1'),
+      admission(4, 'agent:0'),
+      dispatch(5, 'agent:0', 'k2'),
+      terminal(7, 'agent:0', 'k1', 'ok', {
+        evidence: { recordedEntries: 0, minEntries: 2, met: false },
+      }),
+      terminal(10, 'agent:0', 'k2', 'error'),
+    ]);
+    expect(rosters).toHaveLength(1);
+    const roster = rosters[0];
+    if (roster === undefined) {
+      throw new Error('the fold returned no roster');
+    }
+    expect(roster.childScope).toBe('agent:0');
+    expect(roster.admitted).toBe(2);
+    expect(roster.rejected).toBe(0);
+    // Named by DISPATCH SEQ: the same number the orchestrator's own
+    // turns used as the handle, which a reader can follow into the
+    // transcript.
+    expect(roster.children.map((child) => child.handle)).toEqual([3, 5]);
+    expect(roster.children.map((child) => child.status)).toEqual(['ok', 'error']);
+    // The silent worker of the fourth parity run: settled ok under a
+    // declared contract it never met.
+    expect(roster.children[0]?.evidence).toEqual({
+      recordedEntries: 0,
+      minEntries: 2,
+      met: false,
+    });
+    expect(roster.children[0]?.agentType).toBe('worker');
+  });
+
+  it('a refused admission counts as refused and consumes no dispatch', () => {
+    const rosters = childRostersFromJournal([
+      admission(2, 'agent:0', 'reject'),
+      admission(3, 'agent:0'),
+      dispatch(4, 'agent:0', 'k1'),
+      terminal(5, 'agent:0', 'k1', 'ok'),
+    ]);
+    expect(rosters[0]?.rejected).toBe(1);
+    expect(rosters[0]?.admitted).toBe(1);
+    expect(rosters[0]?.children).toHaveLength(1);
+    expect(rosters[0]?.children[0]?.handle).toBe(4);
+  });
+
+  it('a child with no terminal reads as NOT SETTLED, never as a status', () => {
+    // The journal ends mid-flight (a killed process, a run still
+    // running). Absence is NOT RECORDED (RV1209), so the status is
+    // missing rather than invented.
+    const rosters = childRostersFromJournal([
+      admission(2, 'agent:0'),
+      dispatch(3, 'agent:0', 'k1'),
+    ]);
+    expect(rosters[0]?.children[0]?.status).toBeUndefined();
+    expect(rosters[0]?.admitted).toBe(1);
+  });
+
+  it('a journal with no spawn admission folds to nothing at all', () => {
+    // The vacuum contrast: a plain run has no roster, not an empty one.
+    expect(childRostersFromJournal([running(1), suspendedExternal(2)])).toEqual([]);
+  });
+
+  it('separates two orchestrations by the scope their children ran under', () => {
+    const rosters = childRostersFromJournal([
+      admission(2, 'agent:0'),
+      dispatch(3, 'agent:0', 'k1'),
+      admission(4, 'agent:1/agent:0'),
+      dispatch(5, 'agent:1/agent:0', 'k2'),
+      terminal(6, 'agent:0', 'k1', 'ok'),
+      terminal(7, 'agent:1/agent:0', 'k2', 'ok'),
+    ]);
+    expect(rosters.map((roster) => roster.childScope)).toEqual(['agent:0', 'agent:1/agent:0']);
+    expect(rosters.every((roster) => roster.children.length === 1)).toBe(true);
   });
 });

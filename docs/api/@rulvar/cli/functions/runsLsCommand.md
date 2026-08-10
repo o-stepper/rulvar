@@ -10,7 +10,7 @@
 function runsLsCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:615](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L615)
+Defined in: [packages/cli/src/commands.ts:616](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L616)
 
 ## Parameters
 

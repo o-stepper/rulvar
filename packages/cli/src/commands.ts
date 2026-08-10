@@ -17,6 +17,7 @@ import {
   claimExpiry,
   ConfigError,
   costReportFromJournal,
+  childRostersFromJournal,
   invoiceFromJournal,
   journalPricingSnapshot,
   createEngine,
@@ -727,6 +728,55 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
           ? ' (the last settle claims the work is complete)'
           : ' (the last settle claims the work is NOT complete)'),
     );
+  }
+  // What the children produced, folded from the journal (RV2702). The
+  // live field dies with the process that held it, and a post-mortem
+  // has only this: for a run that crossed its ceiling mid-roster, these
+  // are the only lines that account for work already paid for.
+  for (const roster of childRostersFromJournal(entries)) {
+    const statusCounts = new Map<string, number>();
+    for (const child of roster.children) {
+      if (child.status !== undefined) {
+        statusCounts.set(child.status, (statusCounts.get(child.status) ?? 0) + 1);
+      }
+    }
+    const settledChildren = roster.children.filter((child) => child.status !== undefined);
+    const statuses = [...statusCounts.entries()]
+      .map(([status, count]) => `${sanitizeTerminalText(status)} ${String(count)}`)
+      .join(', ');
+    context.io.out(
+      `children under ${sanitizeTerminalText(roster.childScope)}: ${roster.admitted} admitted, ` +
+        `${settledChildren.length} settled` +
+        (statuses === '' ? '' : ` (${statuses})`) +
+        (roster.rejected === 0 ? '' : `; ${roster.rejected} refused admission`),
+    );
+    if (roster.children.length < roster.admitted) {
+      // An admission whose dispatch never reached the journal: named,
+      // because a child that was authorised and never ran is a fact
+      // about the run, not a rounding difference.
+      context.io.out(
+        `  admitted with no dispatch entry: ${roster.admitted - roster.children.length}`,
+      );
+    }
+    const belowFloor = roster.children.filter(
+      (child) => child.status === 'ok' && child.evidence?.met === false,
+    );
+    if (belowFloor.length > 0) {
+      // The child that looks healthiest and is not (RV806).
+      context.io.out(
+        `  settled ok below their declared evidence floor: ${belowFloor.length} ` +
+          `(handle${belowFloor.length === 1 ? '' : 's'} ` +
+          `${belowFloor.map((child) => String(child.handle)).join(', ')})`,
+      );
+    }
+    const unsettled = roster.children.filter((child) => child.status === undefined);
+    if (unsettled.length > 0) {
+      context.io.out(
+        `  dispatched with no terminal in the journal: ${unsettled.length} ` +
+          `(handle${unsettled.length === 1 ? '' : 's'} ` +
+          `${unsettled.map((child) => String(child.handle)).join(', ')})`,
+      );
+    }
   }
   const rejected = settled?.rejectedFinishCandidates ?? [];
   if (rejected.length > 0) {
