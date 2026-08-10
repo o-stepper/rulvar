@@ -26,6 +26,7 @@ import {
   INBOX_PROPOSAL_TTL_DAYS,
   lastRunSettle,
   LeaseHeldError,
+  logicalRunTelemetry,
   preflightEstimate,
   proposalStatement,
   readRunMeta,
@@ -685,6 +686,50 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
     context.io.out(`  ${kind}: ${count}`);
   }
   context.io.out(`open suspensions: ${openSuspensions}`);
+  // The logical run behind the entry count (RV2605). `entries: 126` over
+  // a resumed run is one heap with no boundaries in it, and reconciling
+  // a killed-and-resumed run used to be hand work over a joined journal.
+  // logicalRunTelemetry (RV2510) partitions the SAME entries at the
+  // settle boundaries, so nothing is counted twice and no new field is
+  // read; a single-segment run prints one line that says so.
+  const logical = logicalRunTelemetry(entries);
+  if (logical.segments > 0) {
+    context.io.out(
+      `segments: ${logical.segments} (${logical.statuses
+        .map(
+          (status, index) =>
+            `${sanitizeTerminalText(status)} after ${String(logical.entriesPerSegment[index] ?? 0)}`,
+        )
+        .join(', ')})`,
+    );
+    if (logical.entriesAfterLastSettle > 0) {
+      // RV1407: the journal continued past its terminal, so the last
+      // settled status is not the run's last word.
+      context.io.out(`  entries after the last settle: ${logical.entriesAfterLastSettle}`);
+    }
+  }
+  // What the finish contract REFUSED (RV2507), read back from the settle
+  // that recorded it (RV2605): three rows sharing one hash is the model
+  // serving the same document three times, a different failure from
+  // three genuine attempts, and reading it used to take an external
+  // script over the whole agent transcript.
+  const settled = lastRunSettle(entries);
+  const rejected = settled?.rejectedFinishCandidates ?? [];
+  if (rejected.length > 0) {
+    const distinct = new Set(rejected.map((row) => row.hash)).size;
+    context.io.out(
+      `rejected finish candidates: ${rejected.length}` +
+        (distinct === rejected.length ? '' : ` (${distinct} distinct document(s))`),
+    );
+    for (const row of rejected) {
+      context.io.out(
+        `  ${sanitizeTerminalText(row.verdict)} ${sanitizeTerminalText(row.callId)}: ` +
+          `${row.chars} chars, sha256 ${row.hash.slice(0, 12)}, failed ` +
+          `${row.failed.map((entry) => sanitizeTerminalText(entry.name)).join(', ')}` +
+          (row.ref === undefined ? '' : ` (bytes at ${sanitizeTerminalText(row.ref)})`),
+      );
+    }
+  }
   // Cost view (M5-T03): the pure journal fold. Priced by the run's own
   // settle pins COMPOSED with the config's current table (RV611), the
   // engine's outcome-mirror rule: pin-covered rows at the rates their

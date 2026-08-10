@@ -12849,6 +12849,15 @@ declare function lastRunSettle(entries: readonly JournalEntry[]): {
   seq: number;
   outputHash?: string;
   completion?: "complete" | "partial" | "rejected";
+  /**
+  * The rejected finish candidates the settle recorded (RV2507),
+  * read back for offline readers (RV2605). The settle persists the
+  * whole completion lift, so this needs no re-fold and no
+  * validator re-run; it is parsed defensively, exactly like
+  * `completion`, so a foreign or older journal reads as "not
+  * recorded" rather than as a claim.
+  */
+  rejectedFinishCandidates?: RejectedFinishCandidate[];
 } | undefined;
 /**
 * Whether a terminal figure counts THIS segment's work or the whole

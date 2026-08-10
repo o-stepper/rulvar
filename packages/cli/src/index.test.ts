@@ -63,12 +63,40 @@ const echo = defineWorkflow({ name: 'echo' }, async (ctx, args) => {
   return await ctx.agent('echo ' + String(args?.value ?? 'missing'));
 });
 
+// A completion envelope carrying rejected finish candidates (RV2507),
+// reported through the documented lift so the settle persists them and
+// an offline reader finds them (RV2605). Both rows carry the SAME hash:
+// the model served one document twice.
+const refused = defineWorkflow({ name: 'refused' }, async (ctx) => {
+  await ctx.agent('compose the deliverable');
+  return {
+    completion: 'complete',
+    childStatusCounts: { ok: 1 },
+    rejectedFinishCandidates: [
+      {
+        callId: 'call-a',
+        verdict: 'repair',
+        hash: 'b'.repeat(64),
+        chars: 5207,
+        failed: [{ name: 'evidence-grade', reasons: ['two sentences'] }],
+      },
+      {
+        callId: 'call-b',
+        verdict: 'rejected',
+        hash: 'b'.repeat(64),
+        chars: 5207,
+        failed: [{ name: 'evidence-grade', reasons: ['two sentences'] }],
+      },
+    ],
+  };
+});
+
 export default {
   engineOptions: {
     adapters: [new FakeAdapter({ agents: { '*': 'analysis complete' } })],
     defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
   },
-  workflows: { review, echo },
+  workflows: { review, echo, refused },
 };
 `,
     'utf8',
@@ -237,6 +265,39 @@ export default {
     expect(text).toContain('cost: $0.0000');
     expect(text).toContain('fake:fake-model: $0.0000');
     expect(text).not.toContain('unpriced:');
+  });
+
+  it('inspect names the logical run and what the contract refused (RV2605)', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    expect(await runCli(['run', 'refused'], { cwd, io })).toBe(0);
+    const runId = runIdOf(io);
+    const inspect = scriptedIo();
+    expect(await runCli(['inspect', runId], { cwd, io: inspect })).toBe(0);
+    const text = inspect.outLines.join('\n');
+    // One segment, and the entry count that produced it: `entries: N`
+    // alone says nothing about where a resumed run's boundaries are.
+    expect(text).toMatch(/segments: 1 \(ok after \d+\)/);
+    expect(text).not.toContain('entries after the last settle');
+    // Two rows, one document: the reading that used to need an
+    // external script over the whole agent transcript.
+    expect(text).toContain('rejected finish candidates: 2 (1 distinct document(s))');
+    expect(text).toContain('repair call-a: 5207 chars, sha256 bbbbbbbbbbbb, failed evidence-grade');
+    expect(text).toContain('rejected call-b: 5207 chars, sha256 bbbbbbbbbbbb, failed');
+  });
+
+  it('inspect says nothing about refused candidates when a run had none (RV2605)', async () => {
+    // The vacuum contrast: absence is NOT RECORDED, and an ordinary run
+    // prints exactly what it printed before.
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"x"}'], { cwd, io });
+    const runId = runIdOf(io);
+    const inspect = scriptedIo();
+    expect(await runCli(['inspect', runId], { cwd, io: inspect })).toBe(0);
+    const text = inspect.outLines.join('\n');
+    expect(text).not.toContain('rejected finish candidates');
+    expect(text).toMatch(/segments: 1 \(ok after \d+\)/);
   });
 
   it('inspect shows an open suspension while the run is parked', async () => {

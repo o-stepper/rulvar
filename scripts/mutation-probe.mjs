@@ -4149,6 +4149,25 @@ export const MUTATIONS = [
     replace: '  if (false) {',
     test: 'packages/cli/src/index.test.ts',
   },
+  {
+    id: 'settled-rejections-drop-as-a-whole-list',
+    doctrine:
+      'a persisted settle whose rejected-candidate rows are malformed reads back as NOT RECORDED, never as a shorter list (RV2605, the RV2507 posture): a partial history read as complete under-reports exactly the runs that misbehaved most, and offline is where nobody can check',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '      return undefined;\n    }\n    const validators: { name: string; reasons: string[] }[] = [];',
+    replace:
+      '      continue;\n    }\n    const validators: { name: string; reasons: string[] }[] = [];',
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
+  {
+    id: 'inspect-partitions-the-logical-run',
+    doctrine:
+      'rulvar inspect reports the SEGMENTS behind its entry count (RV2605): without the partition a resumed run is one undifferentiated heap of entries, the state that made reconciling the twenty-fifth comparison run hand work over a joined journal',
+    file: 'packages/cli/src/commands.ts',
+    find: '  const logical = logicalRunTelemetry(entries);',
+    replace: '  const logical = { ...logicalRunTelemetry(entries), segments: 0 };',
+    test: 'packages/cli/src/index.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

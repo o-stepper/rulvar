@@ -21,7 +21,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import type { JournalStore, Lease, RunMeta } from '../l0/spi/store.js';
 import { ResolutionFold } from '../journal/resolution.js';
 import { readRunMeta } from './meta-lookup.js';
-import type { RunStatus } from '../engine/run-handle.js';
+import type { RejectedFinishCandidate, RunStatus } from '../engine/run-handle.js';
 
 /** The decisionType of the journaled run settle entry. */
 export const RUN_SETTLE_DECISION_TYPE = 'run_settle';
@@ -52,6 +52,15 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
       seq: number;
       outputHash?: string;
       completion?: 'complete' | 'partial' | 'rejected';
+      /**
+       * The rejected finish candidates the settle recorded (RV2507),
+       * read back for offline readers (RV2605). The settle persists the
+       * whole completion lift, so this needs no re-fold and no
+       * validator re-run; it is parsed defensively, exactly like
+       * `completion`, so a foreign or older journal reads as "not
+       * recorded" rather than as a claim.
+       */
+      rejectedFinishCandidates?: RejectedFinishCandidate[];
     }
   | undefined {
   for (let i = entries.length - 1; i >= 0; i -= 1) {
@@ -60,7 +69,13 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
       continue;
     }
     const value = entry.value as
-      | { decisionType?: unknown; runStatus?: unknown; outputHash?: unknown; completion?: unknown }
+      | {
+          decisionType?: unknown;
+          runStatus?: unknown;
+          outputHash?: unknown;
+          completion?: unknown;
+          rejectedFinishCandidates?: unknown;
+        }
       | undefined;
     if (
       value?.decisionType === RUN_SETTLE_DECISION_TYPE &&
@@ -72,6 +87,7 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
       // foreign or older journal reads as "not recorded", never as a
       // claim.
       const completion = value.completion;
+      const rejected = readRejectedFinishCandidates(value.rejectedFinishCandidates);
       return {
         runStatus: value.runStatus as RunStatus,
         seq: entry.seq,
@@ -79,10 +95,66 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
         ...(completion === 'complete' || completion === 'partial' || completion === 'rejected'
           ? { completion }
           : {}),
+        ...(rejected === undefined ? {} : { rejectedFinishCandidates: rejected }),
       };
     }
   }
   return undefined;
+}
+
+/**
+ * The rejected finish candidates of a persisted settle, or `undefined`
+ * (RV2605). The WHOLE list drops on any malformed row, the same posture
+ * the live lift takes (RV2507): a partial history read as complete
+ * would under-report exactly the runs that misbehaved most.
+ */
+function readRejectedFinishCandidates(raw: unknown): RejectedFinishCandidate[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return undefined;
+  }
+  const rows: RejectedFinishCandidate[] = [];
+  for (const row of raw) {
+    if (typeof row !== 'object' || row === null) {
+      return undefined;
+    }
+    const { callId, verdict, hash, chars, failed, ref } = row as Record<string, unknown>;
+    if (
+      typeof callId !== 'string' ||
+      (verdict !== 'repair' && verdict !== 'rejected') ||
+      typeof hash !== 'string' ||
+      typeof chars !== 'number' ||
+      !Number.isSafeInteger(chars) ||
+      chars < 0 ||
+      !Array.isArray(failed) ||
+      (ref !== undefined && typeof ref !== 'string')
+    ) {
+      return undefined;
+    }
+    const validators: { name: string; reasons: string[] }[] = [];
+    for (const entry of failed) {
+      if (typeof entry !== 'object' || entry === null) {
+        return undefined;
+      }
+      const { name, reasons } = entry as Record<string, unknown>;
+      if (
+        typeof name !== 'string' ||
+        !Array.isArray(reasons) ||
+        reasons.some((reason) => typeof reason !== 'string')
+      ) {
+        return undefined;
+      }
+      validators.push({ name, reasons: reasons as string[] });
+    }
+    rows.push({
+      callId,
+      verdict,
+      hash,
+      chars,
+      failed: validators,
+      ...(ref === undefined ? {} : { ref }),
+    });
+  }
+  return rows;
 }
 
 /**
