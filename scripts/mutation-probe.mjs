@@ -4222,6 +4222,15 @@ export const MUTATIONS = [
     replace: '    if (block.keys.has(name) && false) {',
     test: 'scripts/mutation-fragments.test.mjs',
   },
+  {
+    id: 'manifest-merge-validates-its-own-output',
+    doctrine:
+      'the manifest merge driver validates what it assembled with the same source gate that catches fused entries: a driver that trusts itself is the failure it was written to prevent, and a side that arrives already fused must never be propagated in silence',
+    file: 'scripts/merge-mutation-manifest.mjs',
+    find: '  const problems = checkSourceShape(text, merged.length);',
+    replace: '  const problems = [];',
+    test: 'scripts/merge-mutation-manifest.test.mjs',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

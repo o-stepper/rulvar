@@ -1,0 +1,8 @@
+# The mutation manifest is an append-only array of entries keyed by id,
+# and the order of those entries carries no meaning, so a conflict in
+# its tail is an artefact of reading the file as lines rather than a
+# disagreement. `scripts/merge-mutation-manifest.mjs` merges it by
+# entry; `pnpm install` registers the driver through the root `prepare`
+# script, and a clone that never ran it falls back to the ordinary text
+# merge with the RV2705 source gate still watching.
+scripts/mutation-probe.mjs merge=rulvar-mutation-manifest
