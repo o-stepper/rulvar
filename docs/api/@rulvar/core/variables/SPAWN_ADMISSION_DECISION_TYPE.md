@@ -10,7 +10,7 @@
 const SPAWN_ADMISSION_DECISION_TYPE: "spawn-admission" = 'spawn-admission';
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L34)
+Defined in: [packages/core/src/stores/reconcile.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L39)
 
 The decisionType of the journaled spawn admission (RV2702): the
 entry that names every child an orchestration judged, which is what

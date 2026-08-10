@@ -10,9 +10,11 @@ import { describe, expect, it } from 'vitest';
 import type { JournalEntry } from '../l0/entries.js';
 import type { JournalStore, Lease, RunFilter, RunMeta } from '../l0/spi/store.js';
 import { InMemoryStore } from '../stores/inmemory.js';
+import { costReportFromJournal } from '../engine/cost-report.js';
 import { createEngine, type Engine } from '../engine/engine.js';
 import { defineWorkflow } from '../engine/ctx.js';
-import { scriptedAdapter } from '../engine/test-harness.js';
+import { scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
+import { tool } from '../tools/tool.js';
 import {
   auditRun,
   auditRuns,
@@ -342,8 +344,128 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
     // to make unnecessary.
     expect('totalUsd' in total).toBe(false);
     expect('usage' in total).toBe(false);
-    expect(TERMINAL_TELEMETRY_SCOPE['cost.totalUsd']).toBe('cumulative');
-    expect(TERMINAL_TELEMETRY_SCOPE['cost.orchestrator.wakes']).toBe('segment');
+  });
+
+  it('a resumed run holds every figure to the scope the table declared (RV2801)', async () => {
+    // The half no type can decide: WHETHER a declared scope is true. A
+    // wrong scope is worse than a missing one, because a missing one is
+    // noticed and a wrong one is believed, and the two assertions that
+    // used to stand here restated the table's own literal, so they
+    // could only fail together with the table itself.
+    //
+    // So: a real run, suspended on an approval and resumed to ok, with
+    // both terminals in hand.
+    const journal = new InMemoryStore({ quiet: true });
+    const adapters = () => [
+      scriptedAdapter((): ScriptedTurn =>
+        sawApproval
+          ? { text: 'shipped' }
+          : { toolCall: { name: 'deploy', args: { site: 'prod' } } },
+      ),
+    ];
+    let sawApproval = false;
+    const deploy = tool({
+      name: 'deploy',
+      description: 'deploys the site',
+      parameters: { type: 'object' },
+      needsApproval: true,
+      execute: () => {
+        sawApproval = true;
+        return Promise.resolve('deployed');
+      },
+    });
+    const gated = defineWorkflow({ name: 'scope-resume' }, async (ctx) =>
+      ctx.agent('ship it', { tools: [deploy] }),
+    );
+    const make = (): Engine =>
+      createEngine({
+        adapters: adapters(),
+        stores: { journal },
+        defaults: { routing: { loop: 'fake:model' } },
+      });
+
+    const first = make().run(gated, undefined, { runId: 'SCOPE-RESUME' });
+    const segmentOne = await first.result;
+    expect(segmentOne.status).toBe('suspended');
+    await first.resolveExternal(segmentOne.pending[0]?.key ?? '', { decision: 'allow' });
+    const segmentTwo = await make().resume('SCOPE-RESUME', gated).result;
+    expect(segmentTwo.status).toBe('ok');
+
+    // The claim, per declared field: a cumulative figure covers every
+    // prior segment, so the later terminal can never carry LESS of it.
+    const at = (root: unknown, path: string): unknown =>
+      path
+        .split('.')
+        .reduce<unknown>(
+          (value, key) => (value as Record<string, unknown> | undefined)?.[key],
+          root,
+        );
+    // The one cumulative figure that is a RATIO of two cumulative
+    // figures: "never shrinks" is not its claim (workers spending more
+    // lowers the orchestrator's share while both totals grow), so it is
+    // held to the identity it actually is.
+    const RATIOS = new Set(['cost.orchestrator.share']);
+    let checked = 0;
+    for (const [path, scope] of Object.entries(TERMINAL_TELEMETRY_SCOPE)) {
+      if (scope !== 'cumulative' || RATIOS.has(path)) {
+        continue;
+      }
+      const after = at(segmentTwo, path);
+      const before = at(segmentOne, path);
+      if (typeof after !== 'number' || typeof before !== 'number') {
+        continue;
+      }
+      checked += 1;
+      expect([path, after >= before]).toEqual([path, true]);
+    }
+    expect(segmentTwo.cost.orchestrator.share).toBeCloseTo(
+      segmentTwo.cost.orchestrator.spentUsd / Math.max(segmentTwo.cost.totalUsd, 0.01),
+      12,
+    );
+    // Not a vacuous sweep: several figures were compared and the money
+    // is real and grew.
+    expect(checked).toBeGreaterThan(3);
+    expect(segmentTwo.cost.totalUsd).toBeGreaterThan(segmentOne.cost.totalUsd);
+
+    // And the other half of the taxonomy, which is what this gate
+    // CORRECTED: every figure the outcome carries is folded from the
+    // journal the resumed segment holds, so it covers the logical run
+    // by construction. A segment-scoped figure can only be a live
+    // counter that never reached the journal (the transport retries,
+    // the schema-exchange counters), and none of those ride an
+    // outcome. Three `cost.orchestrator.*` paths were declared
+    // 'segment' and were folded cumulatively all along.
+    for (const [path, scope] of Object.entries(TERMINAL_TELEMETRY_SCOPE)) {
+      if (scope !== 'segment') {
+        continue;
+      }
+      expect([path, at(segmentTwo, path)]).toEqual([path, undefined]);
+    }
+  });
+
+  it('the orchestrator counters are the journal fold, so they cover the logical run (RV2801)', () => {
+    // The mechanism behind the correction above, in one read: the
+    // outcome's cost IS `costReportFromJournal(replayer.snapshot())`,
+    // and a resumed segment's snapshot holds every prior segment. So a
+    // wake suspension of the FIRST segment is still counted by the
+    // terminal of the second, and 'segment' was never true of it.
+    const wake = (seq: number): JournalEntry =>
+      ({
+        seq,
+        kind: 'external',
+        scope: '',
+        key: `w${String(seq)}`,
+        status: 'suspended',
+        value: { key: 'wake:1' },
+      }) as unknown as JournalEntry;
+    const report = costReportFromJournal(
+      [wake(1), settle(2, 'suspended'), settle(4, 'ok')],
+      () => 0,
+    );
+    expect(report.orchestrator.wakes).toBe(1);
+    expect(TERMINAL_TELEMETRY_SCOPE['cost.orchestrator.wakes']).toBe('cumulative');
+    expect(TERMINAL_TELEMETRY_SCOPE['cost.orchestrator.forcedFinish']).toBe('cumulative');
+    expect(TERMINAL_TELEMETRY_SCOPE['cost.orchestrator.reserveUsedUsd']).toBe('cumulative');
   });
 
   it('folds a real run, and every terminal field declares a scope', async () => {

@@ -10,7 +10,7 @@
 function logicalRunTelemetry(entries): LogicalRunTelemetry;
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:306](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L306)
+Defined in: [packages/core/src/stores/reconcile.ts:389](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L389)
 
 Folds a run's journal into the logical run's telemetry (RV2510): how
 many segments ran, how each settled, and how much durable work each

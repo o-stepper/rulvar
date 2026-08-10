@@ -10,7 +10,7 @@
 function auditRun(store, runId): Promise<RunStateAudit>;
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:533](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L533)
+Defined in: [packages/core/src/stores/reconcile.ts:616](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L616)
 
 Audits one run: loads the meta row and the journal, derives the state
 the journal supports, and names the divergence. Read only.
