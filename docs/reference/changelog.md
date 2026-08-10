@@ -18,6 +18,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+
 ### 1.230.0
 
 #### Patch Changes
@@ -2102,6 +2111,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+
 ### 1.230.0
 
 #### Patch Changes
@@ -3989,6 +4007,25 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.231.0
+
+#### Minor Changes
+
+- ff9b8c2: The offline child roster names the children the run ABANDONED (RV2804).
+
+  `childRostersFromJournal` presented a child on a discarded branch exactly like a child whose work the run kept, so a post-mortem reading "four children settled ok" was counting branches the orchestration had thrown away. The money layer has refused that conflation since RV1904: `grossUsd` keeps abandoned spend because the provider billed it, `totalUsd` does not because the run kept none of it. The roster now says the same thing.
+
+  `JournaledChild.abandoned` is present and true exactly when the first-wins abandon projection covers that child's dispatch, subtree coverage included, and absent otherwise, never false (RV1209). It needs nothing that was not already written down: the fold reads the same projection the replayer disposes by, over the same journal, and a child's `handle` is the very seq an abandon entry targets, so journals from every prior version answer.
+
+  `rulvar inspect` prints the discarded children under the roster it already prints, named by their handles.
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
 
 ### 1.230.0
 
@@ -6421,6 +6458,41 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.231.0
+
+#### Minor Changes
+
+- 4eb4b56: The critical path is readable OFFLINE (RV2803).
+
+  `reduceCriticalPath` folds the shape of a run's wall clock out of the event stream, and a post-mortem has no event stream: the process that emitted it is gone, and what a paid run leaves behind is a journal. So `postFanInShare`, the one number the comparison series steers by (RV2210 wrote the targeting rule around it), was a live-only reading, and the archived runs it was meant to judge could not answer for themselves.
+
+  `criticalPathFromJournal(entries)` is the same reading taken from what survives. Every ingredient was already written down: a terminal agent entry carries its own span (`startedAt` copied from the running entry it closes, `endedAt` stamped at the settle, so the interval is exact rather than reconstructed) and `costAttribution.role` says whether the span was coordination, synthesis, or a worker. Nothing is re-derived and no validator runs again, so a journal from any prior version reads exactly as well as today's.
+
+  Two things it refuses to claim, both because the alternative is a confident fiction:
+
+  - The wall figures (`runWallMs`, `postFanInMs`, `postFanInShare`, `synthesisShare`) are ABSENT for a journal holding more than one segment. A killed run's first and last stamps are separated by however long the operator took to resume, and that difference is not a duration of anything. `segments` rides the reading so a consumer can see which case it is in.
+  - The `synthesize` split (RV1604's `finalCompositionMs` and `semanticJudgeMs`) needs the dispatch LABEL, which rode the event stream alone. `CostAttributionFacts.label` now carries it: policy, never identity, absent on every unlabelled dispatch, so unlabelled runs journal exactly what they did before. The split is reported only when EVERY synthesize span in the journal carries a label, because one unlabelled span makes it a guess, and this split exists because a guess here read a 54 second judge as a second final composition.
+
+  `unclassifiedSpans` counts settled spans whose entry records no role at all, so on a journal older than the attribution facts the worker count reads as a floor rather than quietly absorbing them.
+
+- bc8f09e: The telemetry scope table's promise becomes its gate, and three of its declarations turn out to have been wrong (RV2801).
+
+  `TERMINAL_TELEMETRY_SCOPE` exists so a reader of a killed-and-resumed run never has to reconcile two terminals by hand, and RV2701 made its completeness a compile error. Both halves of that promise were bigger than the gate behind them.
+
+  **The type stopped at depth one.** `TerminalTelemetryScopes` required every key of `RunOutcome` and then admitted nested paths through a string index signature, which requires nothing. So `cost.orchestrator.wakes` and its four siblings were declared by hand and by luck, `cost.usageApprox`, `cost.abandoned.usd`, `cost.abandoned.usageApprox` and `cost.orchestrator.share` were not declared at all, and the doc promised every path was required. The type now requires every counted leaf under `cost` (numbers and flags, derived from `CostReport` itself, breakdown maps excluded because their keys are data), so a new cost figure does not compile until it says what it counts. That is the RV2701 blindness one level down: a gate whose subject is nested figures cannot stop at the top level.
+
+  **Nothing checked whether a declared scope was TRUE.** The two assertions that stood for that restated the table's own literal, so they could only fail together with the table. A doctrine test now suspends a real run on an approval, resumes it to `ok`, and holds every declared figure against its own claim over the two terminals.
+
+  It found three wrong declarations immediately. An outcome's `cost` is `costReportFromJournal` over the replayer's snapshot, and a resumed segment's snapshot holds every prior segment, so `cost.orchestrator.wakes`, `cost.orchestrator.forcedFinish` and `cost.orchestrator.reserveUsedUsd` have always been folded over the whole logical run while the table called them `'segment'`. They are now `'cumulative'`, which makes the taxonomy true rather than merely complete: every figure an outcome carries covers the logical run, and the only segment-scoped counters are the live-only ones that never reach a journal (the transport retries and the schema-exchange counters on an agent result). A wrong scope is worse than a missing one, because a missing one is noticed and a wrong one is believed.
+
+- ff9b8c2: The offline child roster names the children the run ABANDONED (RV2804).
+
+  `childRostersFromJournal` presented a child on a discarded branch exactly like a child whose work the run kept, so a post-mortem reading "four children settled ok" was counting branches the orchestration had thrown away. The money layer has refused that conflation since RV1904: `grossUsd` keeps abandoned spend because the provider billed it, `totalUsd` does not because the run kept none of it. The roster now says the same thing.
+
+  `JournaledChild.abandoned` is present and true exactly when the first-wins abandon projection covers that child's dispatch, subtree coverage included, and absent otherwise, never false (RV1209). It needs nothing that was not already written down: the fold reads the same projection the replayer disposes by, over the same journal, and a child's `handle` is the very seq an abandon entry targets, so journals from every prior version answer.
+
+  `rulvar inspect` prints the discarded children under the roster it already prints, named by their handles.
 
 ### 1.230.0
 
@@ -9121,6 +9193,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.231.0
+
 ### 1.230.0
 
 ### 1.229.0
@@ -9685,6 +9759,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+  - @rulvar/anthropic@1.231.0
+  - @rulvar/openai@1.231.0
+  - @rulvar/plan@1.231.0
+  - @rulvar/testing@1.231.0
 
 ### 1.230.0
 
@@ -12310,6 +12397,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+
 ### 1.230.0
 
 #### Patch Changes
@@ -13608,6 +13704,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
 
 ### 1.230.0
 
@@ -15702,6 +15807,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+
 ### 1.230.0
 
 #### Patch Changes
@@ -17703,6 +17817,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+  - eslint-plugin-rulvar@1.231.0
 
 ### 1.230.0
 
@@ -19897,6 +20021,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+  - @rulvar/anthropic@1.231.0
+  - @rulvar/openai@1.231.0
 
 ### 1.230.0
 
@@ -22405,6 +22540,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+
 ### 1.230.0
 
 #### Patch Changes
@@ -24414,6 +24558,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
+
 ### 1.230.0
 
 #### Patch Changes
@@ -25728,6 +25881,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
 
 ### 1.230.0
 
@@ -27674,6 +27836,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.231.0
+
+#### Patch Changes
+
+- Updated dependencies [4eb4b56]
+- Updated dependencies [bc8f09e]
+- Updated dependencies [ff9b8c2]
+  - @rulvar/core@1.231.0
 
 ### 1.230.0
 
