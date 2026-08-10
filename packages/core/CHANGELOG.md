@@ -1,5 +1,67 @@
 # @rulvar/core
 
+## 1.230.0
+
+### Minor Changes
+
+- e9bf910: Every terminal field declares its telemetry scope, enforced by the type
+  (RV2701).
+
+  `TERMINAL_TELEMETRY_SCOPE` promised that a new terminal field cannot
+  ship without saying whether it counts the segment, the logical run, or
+  nothing at all, and the gate behind that promise read the keys of one
+  SUCCESSFUL outcome. A field that exists only where a run FAILED is
+  absent from every such sample by construction, so RV2602's
+  `childrenAtFailure` (present exactly when no acceptance verdict exists)
+  shipped straight through it. A table whose whole subject is killed and
+  resumed runs cannot be defended by an outcome that neither died nor
+  resumed.
+
+  The table's type is now `TerminalTelemetryScopes`: every key of
+  `RunOutcome` is required, so an undeclared field is a compile error at
+  the table itself, and a string index signature still admits the nested
+  paths a consumer reads off the same outcome (`cost.orchestrator.wakes`).
+  `childrenAtFailure` is declared `'cumulative'`, for the loss-list
+  reason: a resumed segment re-admits every recovered child into the same
+  roster before it dispatches anything new, so the fold covers the logical
+  run rather than the segment that happened to die. Two doctrine tests
+  hold the table against real terminals, one ok and one dead before
+  acceptance, because a key that reaches an outcome without reaching the
+  type would satisfy the compiler and still leave a reader guessing.
+
+- 57bfb38: The child roster of a run that died before acceptance is readable
+  OFFLINE (RV2702).
+
+  `childrenAtFailure` (RV2602) answers "what had the children produced"
+  for a consumer watching the run, and it dies with the process that held
+  it. The settle persists the completion lift and nothing else, so a
+  post-mortem over a journal, which is all a paid run leaves behind, had
+  no way to ask the question at all: not for a run that crossed its
+  ceiling mid-roster, and not for any run in an archive written before
+  the field existed.
+
+  `childRostersFromJournal(entries)` is the fold, and it reads what
+  resume reads. A `spawn-admission` decision names every child the
+  controller judged, with its ordinal, its profile, its verdict and the
+  scope its dispatch pins to; the dispatch and terminal `agent` entries
+  under that scope are the child itself, and the RV806 evidence verdict
+  rides the terminal. Nothing new is written, nothing is re-derived and
+  no validator runs again, so a journal from any prior version reads
+  exactly as well as today's.
+
+  `rulvar inspect` prints it: how many children were admitted, how many
+  settled and with what statuses, how many were refused admission, and
+  the ones that settled ok below a declared evidence floor, named by the
+  dispatch seq the orchestrator's own turns used as their handle.
+
+  Two things it does not claim. It is not the live roster: this reading
+  happens after the RV1903 exit barrier settled the stragglers, so a
+  child the live field called unsettled usually has a terminal here, and
+  an absent status means the journal truly ends mid-flight rather than a
+  child that failed. And it counts CHILDREN: the coordination loop, the
+  synthesis and the judge dispatch through the same `ctx.agent`, and only
+  a child carries the spawn admission that pins it to the child scope.
+
 ## 1.229.0
 
 ### Minor Changes
