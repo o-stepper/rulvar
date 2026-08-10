@@ -181,6 +181,29 @@ export interface RejectedFinishCandidate {
   ref?: string;
 }
 
+/**
+ * The roster facts of a run that died before any acceptance verdict
+ * (RV2602): a fold over the children's own journaled terminals, so an
+ * `exhausted` or failed orchestration still names the work it paid for.
+ */
+export interface ChildrenAtFailure {
+  /** Children admitted, whether or not they settled. */
+  spawned: number;
+  /** Of those, the ones carrying a terminal at the moment of death. */
+  settled: number;
+  /** Their statuses, counted; the same vocabulary a child terminal uses. */
+  statusCounts: Record<string, number>;
+  /**
+   * Children that settled `ok` under a declared evidence contract they
+   * did not meet. The acceptance fold names these too, but only after
+   * it runs: the fourth parity run's silent worker was `ok` with zero
+   * recorded entries and its run never reached acceptance at all.
+   */
+  belowFloorOkChildren?: string[];
+  /** Children still running when the run gave up; absent when none were. */
+  unsettled?: string[];
+}
+
 export interface AcceptanceChildSummary {
   child: string;
   status: string;
@@ -322,6 +345,27 @@ export type RunOutcome<R> = {
    * acceptance decision.
    */
   acceptanceChildren?: AcceptanceChildSummary[];
+  /**
+   * What the children had produced when the run died BEFORE its
+   * acceptance policy ever rendered a verdict (RV2602).
+   *
+   * Every other field on this envelope describes a policy's claim, and
+   * a policy that never ran claims nothing: an orchestration whose
+   * coordination loop crosses its ceiling mid-roster settles with
+   * `completion` absent, and until this shipped the terminal said
+   * nothing at all about work that was already paid for, even though
+   * every child terminal was in the journal. Deliberately NOT
+   * `childStatusCounts`: that field is the acceptance fold's number,
+   * and a fold done by no policy must not borrow its name.
+   *
+   * Present exactly when children were spawned AND no acceptance
+   * verdict exists, so the two readings never overlap and neither can
+   * be mistaken for the other. Frozen at the moment of death, before
+   * the RV1903 exit barrier settles the stragglers, which is why
+   * `unsettled` can be non-empty: those children had not landed when
+   * the run gave up.
+   */
+  childrenAtFailure?: ChildrenAtFailure;
   /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
   dropped: DroppedItem[];
   /** Suspensions open at settle time (M2). */

@@ -4104,6 +4104,34 @@ export const MUTATIONS = [
     test: 'scripts/mutation-fragments.test.mjs',
   },
   {
+    id: 'pre-acceptance-roster-stands-down',
+    doctrine:
+      'the pre-acceptance roster reports ONLY where no acceptance verdict exists (RV2602): reporting beside a verdict gives one set of children two folds under two authorities, and a consumer cannot tell which one the policy actually judged',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (acceptanceRendered) {\n        return undefined;\n      }',
+    replace: '      if (false) {\n        return undefined;\n      }',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'pre-acceptance-roster-counts-the-unsettled',
+    doctrine:
+      'the pre-acceptance roster separates settled children from the ones still running (RV2602): counting an unsettled child as settled claims a terminal that does not exist, and the fold is deliberately read BEFORE the RV1903 barrier, which is where those children still are',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        settled: roster.length - unsettled.length,',
+    replace: '        settled: roster.length,',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'pre-acceptance-roster-lifts-without-a-completion',
+    doctrine:
+      'the pre-acceptance roster is lifted on its OWN, not with the completion (RV2602): gated behind a completion literal it would vanish from precisely the terminal it exists for, the run that died before any policy claimed anything',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '  const raw = (candidate as { childrenAtFailure?: unknown }).childrenAtFailure;',
+    replace:
+      '  const raw = (candidate as { completion?: unknown }).completion === undefined ? undefined : (candidate as { childrenAtFailure?: unknown }).childrenAtFailure;',
+    test: 'packages/core/src/engine/run-completion.test.ts',
+  },
+  {
     id: 'window-entry-explains-its-reserve',
     doctrine:
       'the finalization window entry journals the deficit that widened its reserve (RV2601): dropping the pair leaves a reserve of 25 under a configured 20 unexplainable from the journal, the exact state the fourth parity run settled in, with the arithmetic living only in a notice the model read and nobody kept',

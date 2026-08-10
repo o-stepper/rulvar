@@ -28,6 +28,13 @@ type CoreEvents =
   }[];
   acceptedArtifactRef?: number;
   belowFloorOkChildren?: string[];
+  childrenAtFailure?: {
+     belowFloorOkChildren?: string[];
+     settled: number;
+     spawned: number;
+     statusCounts: Record<string, number>;
+     unsettled?: string[];
+  };
   childStatusCounts?: Record<string, number>;
   claimConsistencyMeta?: Record<string, unknown>;
   completion?: "complete" | "partial" | "rejected";
@@ -148,6 +155,13 @@ Run lifecycle and core telemetry (M1 subset).
   }[];
   acceptedArtifactRef?: number;
   belowFloorOkChildren?: string[];
+  childrenAtFailure?: {
+     belowFloorOkChildren?: string[];
+     settled: number;
+     spawned: number;
+     statusCounts: Record<string, number>;
+     unsettled?: string[];
+  };
   childStatusCounts?: Record<string, number>;
   claimConsistencyMeta?: Record<string, unknown>;
   completion?: "complete" | "partial" | "rejected";
@@ -197,6 +211,12 @@ Run lifecycle and core telemetry (M1 subset).
 | `acceptanceChildren?` | \{ `child`: `string`; `evidence?`: \{ `floorRequired?`: `true`; `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \}; `salvage?`: `"partial"` \| `"terminal-output"`; `status`: `string`; \}[] | The per-child acceptance roster (RV806): status, salvage arm, and the evidence verdict where the child declared a contract; same lift and posture as the fields above. | `packages/core/dist/index.d.ts` |
 | `acceptedArtifactRef?` | `number` | The journal seq of the decision recording that acceptance (RV2506); absent whenever `deliverableAccepted` is not true. | `packages/core/dist/index.d.ts` |
 | `belowFloorOkChildren?` | `string`[] | Children that settled 'ok' below their declared evidence floor (RV1412); same lift. Under the default their shortfall is a degradation note and the verdict is untouched; under `acceptance.requireEvidenceFloor` they also counted against the policy. | `packages/core/dist/index.d.ts` |
+| `childrenAtFailure?` | \{ `belowFloorOkChildren?`: `string`[]; `settled`: `number`; `spawned`: `number`; `statusCounts`: `Record`\&lt;`string`, `number`\&gt;; `unsettled?`: `string`[]; \} | What the children had produced when the run died BEFORE any acceptance verdict (RV2602), lifted on its own rather than with the completion, because it exists for the terminal where there is no completion to lift. Present exactly when children were spawned and no acceptance verdict exists, so it never overlaps the fields above. Frozen at the moment of death, ahead of the RV1903 exit barrier, which is why `unsettled` can be non-empty. | `packages/core/dist/index.d.ts` |
+| `childrenAtFailure.belowFloorOkChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
+| `childrenAtFailure.settled` | `number` | - | `packages/core/dist/index.d.ts` |
+| `childrenAtFailure.spawned` | `number` | - | `packages/core/dist/index.d.ts` |
+| `childrenAtFailure.statusCounts` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
+| `childrenAtFailure.unsettled?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `childStatusCounts?` | `Record`\&lt;`string`, `number`\&gt; | Settled child statuses by status name, lifted from the same envelope (or typed error data) when it carries a valid record of nonnegative integers. Absent otherwise. | `packages/core/dist/index.d.ts` |
 | `claimConsistencyMeta?` | `Record`\&lt;`string`, `unknown`\&gt; | The claim-consistency pass meta, lifted from the same envelope (or typed error data) when it carries a valid object (RV2203); `judgeDeclined` rides here on the failed terminals that used to read null while the journal held the verdict. | `packages/core/dist/index.d.ts` |
 | `completion?` | `"complete"` \| `"partial"` \| `"rejected"` | The semantic completion lift (RV-207 tail): present when the workflow reported semantic completion through the completion envelope contract: an `ok`/`exhausted` run whose result value is an object carrying a valid `completion` literal, or an `error` run whose typed error data carries one (the orchestrator acceptance path emits both). Transport status says whether the run ran; completion says whether the work is COMPLETE: an accepted degraded run is `status: 'ok'` with `completion: 'partial'`. Replay recomputes the same value from the re-executed workflow, so the field is identical live and replayed. Absent when the workflow makes no completion claim. | `packages/core/dist/index.d.ts` |

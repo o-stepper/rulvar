@@ -7090,3 +7090,254 @@ describe('the bare root ceiling folds documented (RV2205)', () => {
     expect(declined).toBeUndefined();
   });
 });
+
+describe('the pre-acceptance roster (RV2602)', () => {
+  const worker = (): AgentProfile => ({ description: 'does one task', estCost: 0.01 });
+
+  const spawnThenDie = (workerTurn: () => ScriptedTurn) =>
+    scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return workerTurn();
+      }
+      const transcript = JSON.stringify(req.messages);
+      if (!transcript.includes('"handle"')) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w1' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w2' } },
+          ],
+          usage: { inputTokens: 50_000, outputTokens: 0 },
+        };
+      }
+      if (!transcript.includes('did the work')) {
+        // The turn that collects the children also crosses the
+        // orchestrator cap, so the run dies with a settled roster and
+        // no acceptance verdict: the exact shape the terminal used to
+        // say nothing about.
+        return {
+          toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+          usage: { inputTokens: 400_000, outputTokens: 0 },
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'assembled' } } };
+    });
+
+  it('a run that dies before acceptance names what its children produced', async () => {
+    const engine = createEngine({
+      adapters: [spawnThenDie(() => ({ text: 'did the work' }))],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: worker() },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assemble the parts', { budget: { capUsd: 0.3 } }),
+      undefined,
+      { runId: 'PRE1', budgetUsd: 5 },
+    ).result;
+    expect(outcome.status).toBe('exhausted');
+    // No policy ran, so there is no completion to read: that is the
+    // whole reason this field is lifted on its own.
+    expect(outcome.completion).toBeUndefined();
+    expect(outcome.childrenAtFailure).toEqual({
+      spawned: 2,
+      settled: 2,
+      statusCounts: { ok: 2 },
+    });
+  });
+
+  it('names the ok children that never met their declared evidence floor', async () => {
+    // The fourth parity run's silent worker: sixty one successful tool
+    // calls, not one recorded evidence entry, an ok terminal under a
+    // declared contract, and a run that died before acceptance could
+    // say a word about it.
+    const engine = createEngine({
+      adapters: [spawnThenDie(() => ({ text: 'did the work' }))],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: { ...worker(), evidenceContract: { minEntries: 2 } } },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assemble the parts', { budget: { capUsd: 0.3 } }),
+      undefined,
+      { runId: 'PRE2', budgetUsd: 5 },
+    ).result;
+    expect(outcome.status).toBe('exhausted');
+    const roster = outcome.childrenAtFailure;
+    expect(roster?.spawned).toBe(2);
+    expect(roster?.settled).toBe(2);
+    expect(roster?.statusCounts).toEqual({ ok: 2 });
+    // Both settled ok and neither met the floor: the children that look
+    // healthiest and are not.
+    expect(roster?.belowFloorOkChildren).toHaveLength(2);
+  });
+
+  it('stands down entirely once an acceptance verdict exists', async () => {
+    // The vacuum contrast, and the rule the field is built on: two
+    // folds of the same children under two authorities would be one
+    // reading too many, so where a policy spoke this says nothing.
+    const engine = createEngine({
+      adapters: [
+        scriptedAdapter((req): ScriptedTurn => {
+          if (agentTypeOf(req) === 'worker') {
+            return { text: 'did the work' };
+          }
+          const transcript = JSON.stringify(req.messages);
+          if (!transcript.includes('"handle"')) {
+            return {
+              toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w1' } },
+            };
+          }
+          if (!transcript.includes('did the work')) {
+            return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+          }
+          return { toolCall: { name: 'finish', args: { result: 'assembled' } } };
+        }),
+      ],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: worker() },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assemble the parts', {
+        acceptance: { childPolicy: { minSuccessful: 1 } },
+      }),
+      undefined,
+      { runId: 'PRE3', budgetUsd: 5 },
+    ).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.completion).toBe('complete');
+    expect(outcome.childStatusCounts).toEqual({ ok: 1 });
+    expect(outcome.childrenAtFailure).toBeUndefined();
+  });
+
+  it('stands down on a FAILED terminal too, once a verdict exists', async () => {
+    // The mutation this pins: a rejected acceptance is a throw, so the
+    // catch that adds the roster fires. Where a verdict exists the
+    // acceptance snapshot is the authority and this fold must add
+    // nothing, or one set of children carries two folds under two
+    // authorities and nobody can tell which the policy judged.
+    const engine = createEngine({
+      adapters: [
+        scriptedAdapter((req): ScriptedTurn => {
+          if (agentTypeOf(req) === 'worker') {
+            return { text: 'did the work' };
+          }
+          const transcript = JSON.stringify(req.messages);
+          if (!transcript.includes('"handle"')) {
+            return {
+              toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w1' } },
+            };
+          }
+          if (!transcript.includes('did the work')) {
+            return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+          }
+          return { toolCall: { name: 'finish', args: { result: 'assembled' } } };
+        }),
+      ],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: worker() },
+      },
+    });
+    const outcome = await engine.run(
+      // One ok child against a policy demanding two: the verdict is
+      // rejected, and a rejected verdict throws.
+      makeOrchestratorWorkflow('assemble the parts', {
+        acceptance: { childPolicy: { minSuccessful: 2 } },
+      }),
+      undefined,
+      { runId: 'PRE5', budgetUsd: 5 },
+    ).result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.completion).toBe('rejected');
+    expect(outcome.childStatusCounts).toEqual({ ok: 1 });
+    expect(outcome.childrenAtFailure).toBeUndefined();
+  });
+
+  it('separates the children still running from the ones that landed', async () => {
+    // Read BEFORE the RV1903 exit barrier, on purpose: this is the
+    // roster the verdict would have frozen, not the one the stragglers
+    // land on afterwards, so a child still in flight is never counted
+    // as a terminal that exists.
+    const engine = createEngine({
+      adapters: [
+        scriptedAdapter((req): ScriptedTurn => {
+          if (agentTypeOf(req) === 'worker') {
+            const prompt = JSON.stringify(req.messages[0]?.parts);
+            return prompt.includes('w2')
+              ? { text: 'did the work', hangMs: 5_000 }
+              : { text: 'did the work' };
+          }
+          const transcript = JSON.stringify(req.messages);
+          if (!transcript.includes('"handle"')) {
+            return {
+              toolCalls: [
+                { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w1' } },
+                { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w2' } },
+              ],
+              usage: { inputTokens: 50_000, outputTokens: 0 },
+            };
+          }
+          if (!transcript.includes('did the work')) {
+            return {
+              toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+              usage: { inputTokens: 400_000, outputTokens: 0 },
+              hangMs: 120,
+            };
+          }
+          return { toolCall: { name: 'finish', args: { result: 'assembled' } } };
+        }),
+      ],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: worker() },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assemble the parts', { budget: { capUsd: 0.3 } }),
+      undefined,
+      { runId: 'PRE6', budgetUsd: 5 },
+    ).result;
+    expect(outcome.status).toBe('exhausted');
+    const roster = outcome.childrenAtFailure;
+    expect(roster?.spawned).toBe(2);
+    expect(roster?.settled).toBe(1);
+    expect(roster?.unsettled).toHaveLength(1);
+    expect(roster?.settled).toBe((roster?.spawned ?? 0) - (roster?.unsettled?.length ?? 0));
+  });
+
+  it('a run that spawned nothing adds nothing to its failure', async () => {
+    // Absence is NOT RECORDED (RV1209), and a roster of zero is not a
+    // fact worth a field: the terminal is byte-identical to before.
+    const engine = createEngine({
+      adapters: [
+        scriptedAdapter((): ScriptedTurn => ({
+          toolCall: { name: 'finish', args: { result: 'assembled' } },
+          usage: { inputTokens: 400_000, outputTokens: 0 },
+        })),
+      ],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: worker() },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assemble the parts', {}),
+      undefined,
+      // The ROOT ceiling, crossed by the orchestrator's own first turn:
+      // the run dies with an empty roster.
+      { runId: 'PRE4', budgetUsd: 0.05 },
+    ).result;
+    expect(outcome.status).toBe('exhausted');
+    expect(outcome.childrenAtFailure).toBeUndefined();
+  });
+});

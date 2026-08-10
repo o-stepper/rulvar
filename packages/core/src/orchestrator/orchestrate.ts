@@ -64,6 +64,7 @@ import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
 import type {
   AcceptanceChildSummary,
+  ChildrenAtFailure,
   RejectedFinishCandidate,
   RunHandle,
 } from '../engine/run-handle.js';
@@ -2442,7 +2443,7 @@ export function makeOrchestratorWorkflow(
   // the wrapper is the only new nesting.
   const orchestrationBody = async (
     ctx: Ctx<'strict'>,
-    barrier: { run?: () => Promise<void> },
+    barrier: { run?: () => Promise<void>; roster?: () => ChildrenAtFailure | undefined },
   ): Promise<unknown> => {
     const runtime = runtimeOf(ctx);
     const { internals } = runtime;
@@ -2722,6 +2723,61 @@ export function makeOrchestratorWorkflow(
       await Promise.allSettled(live.map((record) => record.result));
     };
     barrier.run = exitBarrier;
+    /**
+     * Whether an acceptance verdict exists (RV2602). The roster fold
+     * below reports only where no policy ever spoke: two folds of the
+     * same children under two different authorities would be one
+     * reading too many, and the acceptance decision is the authority
+     * wherever it exists.
+     */
+    let acceptanceRendered = false;
+    /**
+     * The pre-acceptance roster (RV2602): what the children had
+     * produced at the moment the run gave up. The facts are already in
+     * the journal, one child terminal at a time, and the terminal said
+     * nothing about them because every surface that names children
+     * hangs off the acceptance fold. The fourth parity run is the
+     * shape: a worker settled `ok` with zero recorded evidence entries
+     * under a declared contract, and the run died before acceptance
+     * could say so.
+     *
+     * Read BEFORE the exit barrier, so it is the roster the verdict
+     * would have frozen, not the one the stragglers land on later.
+     */
+    const rosterAtFailure = (): ChildrenAtFailure | undefined => {
+      if (acceptanceRendered) {
+        return undefined;
+      }
+      const roster = [...byOrdinal.values()];
+      if (roster.length === 0) {
+        return undefined;
+      }
+      const statusCounts: Record<string, number> = {};
+      const belowFloor: string[] = [];
+      const unsettled: string[] = [];
+      for (const record of roster) {
+        const settled = record.settled;
+        if (settled === undefined) {
+          unsettled.push(record.nodeId);
+          continue;
+        }
+        statusCounts[settled.status] = (statusCounts[settled.status] ?? 0) + 1;
+        // The same verdict the acceptance fold reads (RV806), counted
+        // here because nothing else will: an ok child under an unmet
+        // contract is the one that looks healthiest and is not.
+        if (settled.status === 'ok' && settled.evidence !== undefined && !settled.evidence.met) {
+          belowFloor.push(record.nodeId);
+        }
+      }
+      return {
+        spawned: roster.length,
+        settled: roster.length - unsettled.length,
+        statusCounts,
+        ...(belowFloor.length === 0 ? {} : { belowFloorOkChildren: belowFloor }),
+        ...(unsettled.length === 0 ? {} : { unsettled }),
+      };
+    };
+    barrier.roster = rosterAtFailure;
     /**
      * The journaled spec behind each recovered ordinal: the idempotent
      * re-execution guard compares it against the incoming call, because
@@ -7736,6 +7792,10 @@ export function makeOrchestratorWorkflow(
           entry.key === acceptanceKey,
       );
     let decision: AcceptanceDecision;
+    // From here a verdict exists, live or rolled forward from the
+    // journal, and it is the authority on the roster (RV2602): the
+    // pre-acceptance fold stands down so the two never both report.
+    acceptanceRendered = true;
     if (priorAcceptance !== undefined) {
       decision = priorAcceptance.value as unknown as AcceptanceDecision;
     } else {
@@ -8292,9 +8352,45 @@ export function makeOrchestratorWorkflow(
     };
   };
   return defineWorkflow({ name: ORCHESTRATE_WORKFLOW_NAME }, async (ctx): Promise<unknown> => {
-    const barrier: { run?: () => Promise<void> } = {};
+    const barrier: {
+      run?: () => Promise<void>;
+      roster?: () => ChildrenAtFailure | undefined;
+    } = {};
     try {
       return await orchestrationBody(ctx, barrier);
+    } catch (thrown) {
+      // The pre-acceptance roster (RV2602). A run that crosses its
+      // ceiling mid-roster throws from wherever it was, and every
+      // surface that names children hangs off an acceptance fold that
+      // never ran, so the terminal used to say nothing at all about
+      // work already paid for. The fold reports only where no verdict
+      // exists, so this can never contradict an acceptance envelope.
+      //
+      // The error CLASS is preserved exactly (it derives the outcome
+      // status) and only `data` widens; anything not carrying typed
+      // data rethrows untouched, and an existing field is never
+      // overwritten. Runs that spawned no child add nothing.
+      const roster = barrier.roster?.();
+      if (roster === undefined) {
+        throw thrown;
+      }
+      const widen = (data: Record<string, Json> | undefined): Record<string, Json> => ({
+        ...(data ?? {}),
+        ...(data?.childrenAtFailure === undefined
+          ? { childrenAtFailure: roster as unknown as Json }
+          : {}),
+      });
+      if (thrown instanceof BudgetExhaustedError) {
+        throw new BudgetExhaustedError(thrown.message, {
+          data: widen(thrown.data as Record<string, Json> | undefined),
+        });
+      }
+      if (thrown instanceof FailRunError) {
+        throw new FailRunError(thrown.message, {
+          data: widen(thrown.data as Record<string, Json> | undefined),
+        });
+      }
+      throw thrown;
     } finally {
       // RV1903: the one funnel every exit passes through; see
       // OrchestrateOptions.onUnsettledAtExit.

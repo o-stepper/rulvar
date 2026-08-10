@@ -6,7 +6,7 @@
 
 # Interface: ResumeHandle\&lt;R\&gt;
 
-Defined in: [packages/core/src/engine/engine.ts:548](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L548)
+Defined in: [packages/core/src/engine/engine.ts:549](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L549)
 
 ## Extends
 
@@ -22,10 +22,10 @@ Defined in: [packages/core/src/engine/engine.ts:548](https://github.com/o-steppe
 
 | Property | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`events`](/api/@rulvar/core/interfaces/RunHandle.md#property-events) | [packages/core/src/engine/run-handle.ts:349](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L349) |
-| <a id="property-preview"></a> `preview` | `Promise`\&lt;[`ResumePreview`](/api/@rulvar/core/interfaces/ResumePreview.md)\&gt; | Resolves at settle with the replay accounting. | - | [packages/core/src/engine/engine.ts:550](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L550) |
-| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`result`](/api/@rulvar/core/interfaces/RunHandle.md#property-result) | [packages/core/src/engine/run-handle.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L348) |
-| <a id="property-runid"></a> `runId` | `string` | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`runId`](/api/@rulvar/core/interfaces/RunHandle.md#property-runid) | [packages/core/src/engine/run-handle.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L347) |
+| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`events`](/api/@rulvar/core/interfaces/RunHandle.md#property-events) | [packages/core/src/engine/run-handle.ts:393](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L393) |
+| <a id="property-preview"></a> `preview` | `Promise`\&lt;[`ResumePreview`](/api/@rulvar/core/interfaces/ResumePreview.md)\&gt; | Resolves at settle with the replay accounting. | - | [packages/core/src/engine/engine.ts:551](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L551) |
+| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`result`](/api/@rulvar/core/interfaces/RunHandle.md#property-result) | [packages/core/src/engine/run-handle.ts:392](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L392) |
+| <a id="property-runid"></a> `runId` | `string` | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`runId`](/api/@rulvar/core/interfaces/RunHandle.md#property-runid) | [packages/core/src/engine/run-handle.ts:391](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L391) |
 
 ## Methods
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/engine/engine.ts:548](https://github.com/o-steppe
 cancel(reason?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:362](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L362)
+Defined in: [packages/core/src/engine/run-handle.ts:406](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L406)
 
 Cooperative cancellation; the run settles 'cancelled' with a complete CostReport.
 
@@ -61,7 +61,7 @@ Cooperative cancellation; the run settles 'cancelled' with a complete CostReport
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:350](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L350)
+Defined in: [packages/core/src/engine/run-handle.ts:394](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L394)
 
 #### Type Parameters
 
@@ -92,7 +92,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:350](https://github.com/o-st
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:360](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L360)
+Defined in: [packages/core/src/engine/run-handle.ts:404](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L404)
 
 Resolves an open awaitExternal suspension (DEF-4 signature): applied
 when this attempt wins the first-closing-wins fold; repeated

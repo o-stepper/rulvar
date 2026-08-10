@@ -82,6 +82,7 @@ import { EVENT_SEGMENT_STRIDE, EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
 import {
   type AcceptanceChildSummary,
+  type ChildrenAtFailure,
   type RejectedFinishCandidate,
   type SemanticPassesSummary,
   type PendingExternal,
@@ -676,6 +677,68 @@ export function workflowSourceRef(runId: string): string {
  * telemetry, never authority), and an invalid counts record drops the
  * counts while keeping a valid completion.
  */
+/**
+ * The pre-acceptance roster lift (RV2602), deliberately NOT gated on a
+ * completion.
+ *
+ * Every other lifted field rides {@link liftRunCompletion}, which bails
+ * out the moment there is no completion literal, and that is exactly
+ * right: those fields report what an acceptance policy CLAIMED. This
+ * one exists for the case where no policy ever ran, so gating it on a
+ * completion would gate it on the very thing that is missing.
+ *
+ * Same posture as its siblings otherwise: a well formed record mirrors,
+ * anything malformed drops silently rather than half-mirroring, so a
+ * consumer never reads a partial roster as a whole one.
+ */
+function liftChildrenAtFailure(candidate: unknown): ChildrenAtFailure | undefined {
+  if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
+    return undefined;
+  }
+  const raw = (candidate as { childrenAtFailure?: unknown }).childrenAtFailure;
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const { spawned, settled, statusCounts, belowFloorOkChildren, unsettled } = raw as {
+    spawned?: unknown;
+    settled?: unknown;
+    statusCounts?: unknown;
+    belowFloorOkChildren?: unknown;
+    unsettled?: unknown;
+  };
+  const count = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+  if (!count(spawned) || !count(settled)) {
+    return undefined;
+  }
+  if (typeof statusCounts !== 'object' || statusCounts === null || Array.isArray(statusCounts)) {
+    return undefined;
+  }
+  const entries = Object.entries(statusCounts as Record<string, unknown>);
+  if (!entries.every(([, value]) => count(value))) {
+    return undefined;
+  }
+  const names = (value: unknown): string[] | undefined =>
+    Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+      ? ([...value] as string[])
+      : undefined;
+  const below = belowFloorOkChildren === undefined ? undefined : names(belowFloorOkChildren);
+  const open = unsettled === undefined ? undefined : names(unsettled);
+  if (
+    (belowFloorOkChildren !== undefined && below === undefined) ||
+    (unsettled !== undefined && open === undefined)
+  ) {
+    return undefined;
+  }
+  return {
+    spawned,
+    settled,
+    statusCounts: Object.fromEntries(entries) as Record<string, number>,
+    ...(below === undefined ? {} : { belowFloorOkChildren: below }),
+    ...(open === undefined ? {} : { unsettled: open }),
+  };
+}
+
 function liftRunCompletion(candidate: unknown):
   | {
       completion: 'complete' | 'partial' | 'rejected';
@@ -2239,6 +2302,18 @@ export function createEngine(options: CreateEngineOptions): Engine {
       if (lifted === undefined && status === 'exhausted') {
         lifted = liftRunCompletion(wireError?.data);
       }
+      // The pre-acceptance roster (RV2602), lifted on its own because
+      // it exists for the terminal where the completion lift finds
+      // nothing to lift. Read from the same two sources in the same
+      // order, so a run that died mid-roster still names the work it
+      // paid for.
+      const childrenAtFailure =
+        liftChildrenAtFailure(
+          status === 'ok' || status === 'exhausted' ? outcomeFacts.value : wireError?.data,
+        ) ?? liftChildrenAtFailure(wireError?.data);
+      if (childrenAtFailure !== undefined) {
+        outcomeFacts.childrenAtFailure = childrenAtFailure;
+      }
       if (lifted !== undefined) {
         outcomeFacts.completion = lifted.completion;
         if (lifted.childStatusCounts !== undefined) {
@@ -2454,6 +2529,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
           totalUsd: outcome.cost.totalUsd,
           ...(outcome.cost.usageApprox === true ? { usageApprox: true } : {}),
           ...(lifted === undefined ? {} : lifted),
+          // The same object the outcome carries (RV2602), so the event
+          // and handle.result can never disagree about the roster.
+          ...(childrenAtFailure === undefined ? {} : { childrenAtFailure }),
           ...(settlementFailure !== undefined
             ? { settled: false as const }
             : supersededBy !== undefined
