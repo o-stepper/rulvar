@@ -4240,6 +4240,24 @@ export const MUTATIONS = [
     replace: '      ...(false as boolean ? { abandoned: true as const } : {}),',
     test: 'packages/core/src/stores/reconcile.test.ts',
   },
+  {
+    id: 'offline-critical-path-refuses-a-resumed-wall',
+    doctrine:
+      "a journal that was resumed holds the operator's gap between its stamps, so the offline critical path reports NO wall for a multi-segment journal (RV2803): reported as a duration it would make every share it feeds a fiction, and the share is the number the comparison series steers by",
+    file: 'packages/core/src/stores/critical-path.ts',
+    find: '  if (segments > 1 || runStart === undefined || runEnd === undefined) {',
+    replace: '  if (runStart === undefined || runEnd === undefined) {',
+    test: 'packages/core/src/stores/critical-path.test.ts',
+  },
+  {
+    id: 'offline-critical-path-splits-only-on-labels',
+    doctrine:
+      'the synthesize split is reported only when EVERY synthesize span carried a journaled label (RV2803): one unlabelled span makes the split a guess, and the split exists because reading the claim judge as a second final composition misled a benchmark by 54 seconds',
+    file: 'packages/core/src/stores/critical-path.ts',
+    find: '  if (labelledSynthesis && !unlabelledSynthesis) {',
+    replace: '  if (labelledSynthesis) {',
+    test: 'packages/core/src/stores/critical-path.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

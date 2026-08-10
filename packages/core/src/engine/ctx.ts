@@ -2971,6 +2971,15 @@ export function createCtx(
         agentType,
         role: primaryRole,
         budgetAccount: state.budgetScope ?? ROOT_ACCOUNT,
+        // The dispatch label (RV2803): the only thing that tells two
+        // spans of one role apart, and until now it rode the event
+        // stream alone. RV1604 split the synthesize bucket because
+        // reading the claim judge as a second final composition misled
+        // a benchmark by 54 seconds, and that split was unavailable to
+        // anyone folding the journal after the fact. Policy, never
+        // identity, and absent unless a caller labelled the dispatch,
+        // so every unlabelled run journals exactly what it did before.
+        ...(opts.label === undefined ? {} : { label: opts.label }),
         ...((opts as InternalAgentHooks)[kFinalizeReserve] === true
           ? { finalizeReserve: true }
           : {}),

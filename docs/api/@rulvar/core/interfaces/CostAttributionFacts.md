@@ -19,10 +19,11 @@ before the field shipped fold under the documented fallback buckets
 
 ## Properties
 
-| Property | Type | Defined in |
-| ------ | ------ | ------ |
-| <a id="property-agenttype"></a> `agentType?` | `string` | [packages/core/src/l0/entries.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L189) |
-| <a id="property-budgetaccount"></a> `budgetAccount?` | `string` | [packages/core/src/l0/entries.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L191) |
-| <a id="property-finalizereserve"></a> `finalizeReserve?` | `boolean` | [packages/core/src/l0/entries.ts:192](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L192) |
-| <a id="property-phase"></a> `phase?` | `string` | [packages/core/src/l0/entries.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L188) |
-| <a id="property-role"></a> `role?` | [`InvocationRole`](/api/@rulvar/core/type-aliases/InvocationRole.md) | [packages/core/src/l0/entries.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L190) |
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-agenttype"></a> `agentType?` | `string` | - | [packages/core/src/l0/entries.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L189) |
+| <a id="property-budgetaccount"></a> `budgetAccount?` | `string` | - | [packages/core/src/l0/entries.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L191) |
+| <a id="property-finalizereserve"></a> `finalizeReserve?` | `boolean` | - | [packages/core/src/l0/entries.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L201) |
+| <a id="property-label"></a> `label?` | `string` | The dispatch label, when the caller gave one (RV2803): what tells two spans of ONE role apart, which the event stream has always carried and the journal never did. Absent on every unlabelled dispatch and on every journal written before it shipped, so a reading that needs it reports absence rather than guessing. Policy, never identity. | [packages/core/src/l0/entries.ts:200](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L200) |
+| <a id="property-phase"></a> `phase?` | `string` | - | [packages/core/src/l0/entries.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L188) |
+| <a id="property-role"></a> `role?` | [`InvocationRole`](/api/@rulvar/core/type-aliases/InvocationRole.md) | - | [packages/core/src/l0/entries.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L190) |

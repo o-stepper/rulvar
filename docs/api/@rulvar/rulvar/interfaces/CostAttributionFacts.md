@@ -19,10 +19,11 @@ before the field shipped fold under the documented fallback buckets
 
 ## Properties
 
-| Property | Type | Defined in |
-| ------ | ------ | ------ |
-| <a id="property-agenttype"></a> `agentType?` | `string` | `packages/core/dist/index.d.ts` |
-| <a id="property-budgetaccount"></a> `budgetAccount?` | `string` | `packages/core/dist/index.d.ts` |
-| <a id="property-finalizereserve"></a> `finalizeReserve?` | `boolean` | `packages/core/dist/index.d.ts` |
-| <a id="property-phase"></a> `phase?` | `string` | `packages/core/dist/index.d.ts` |
-| <a id="property-role"></a> `role?` | [`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md) | `packages/core/dist/index.d.ts` |
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-agenttype"></a> `agentType?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-budgetaccount"></a> `budgetAccount?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-finalizereserve"></a> `finalizeReserve?` | `boolean` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-label"></a> `label?` | `string` | The dispatch label, when the caller gave one (RV2803): what tells two spans of ONE role apart, which the event stream has always carried and the journal never did. Absent on every unlabelled dispatch and on every journal written before it shipped, so a reading that needs it reports absence rather than guessing. Policy, never identity. | `packages/core/dist/index.d.ts` |
+| <a id="property-phase"></a> `phase?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-role"></a> `role?` | [`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md) | - | `packages/core/dist/index.d.ts` |
