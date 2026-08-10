@@ -4195,6 +4195,15 @@ export const MUTATIONS = [
     replace: "  childrenAtFailure2: 'cumulative',",
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'human-report-names-the-semantic-terminal',
+    doctrine:
+      'the CLI outcome report prints what the terminal CLAIMED beside what it transported (RV2703): without it a degraded acceptance, an artifact the declared contract refused, and a clean run all read as `status: ok` to anyone who did not pass --strict, which is the machine gate and not the human one',
+    file: 'packages/cli/src/drive.ts',
+    find: '  reportSemanticTerminal(outcome, io);',
+    replace: '  void reportSemanticTerminal;',
+    test: 'packages/cli/src/index.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

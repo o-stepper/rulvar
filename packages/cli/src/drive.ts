@@ -196,6 +196,7 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
   if (outcome.error !== undefined) {
     io.err(`error: ${sanitizeTerminalText(outcome.error.message)}`);
   }
+  reportSemanticTerminal(outcome, io);
   if (outcome.dropped.length > 0) {
     io.err(`dropped: ${outcome.dropped.length} item(s)`);
   }
@@ -228,6 +229,78 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
       return 0;
     default:
       return 1;
+  }
+}
+
+/**
+ * What the terminal CLAIMS, printed beside what it transported
+ * (RV2703).
+ *
+ * `status` answers whether the run ran. It has never answered whether
+ * the work is done, whether the artifact passed the contract it
+ * declared, or what the children produced when nothing judged them,
+ * and until this shipped a human reading `rulvar run` saw `status: ok`
+ * for an accepted-with-degradation run, for a run whose declared
+ * finish contract refused every candidate it was handed, and for a
+ * clean one, with no line between them. `--strict` has read those
+ * fields since RV2604, but strict is the MACHINE gate: a person who
+ * does not pass the flag was left with exactly the blindness two
+ * releases went into curing.
+ *
+ * Absence prints nothing, in every line below (RV1209): no contract
+ * declared means nobody judged anything, which is not a verdict and
+ * must not be rendered as one.
+ */
+function reportSemanticTerminal(outcome: RunOutcome<unknown>, io: CliIo): void {
+  if (outcome.completion !== undefined) {
+    io.err(
+      `completion: ${outcome.completion}` +
+        (outcome.completion === 'complete' ? '' : ' (the work is NOT complete)'),
+    );
+  }
+  for (const reason of outcome.degradedReasons ?? []) {
+    io.err(`  degraded: ${sanitizeTerminalText(reason)}`);
+  }
+  if (outcome.deliverableAccepted !== undefined) {
+    io.err(
+      `deliverable: ${
+        outcome.deliverableAccepted
+          ? 'accepted by the declared finish contract'
+          : 'REFUSED by the declared finish contract'
+      }` + (outcome.resultAvailable === false ? '; the terminal carries no artifact' : ''),
+    );
+  }
+  const rejected = outcome.rejectedFinishCandidates ?? [];
+  if (rejected.length > 0) {
+    // Distinct documents beside the row count (the RV2605 reading):
+    // three rows sharing one hash is the model serving the same text
+    // three times, a different failure from three genuine attempts.
+    const distinct = new Set(rejected.map((row) => row.hash)).size;
+    io.err(
+      `rejected finish candidates: ${rejected.length}` +
+        (distinct === rejected.length ? '' : ` (${distinct} distinct document(s))`),
+    );
+  }
+  const roster = outcome.childrenAtFailure;
+  if (roster !== undefined) {
+    // The run died before any policy judged its children (RV2602), so
+    // this is the only account of work that was already paid for.
+    const statuses = Object.entries(roster.statusCounts)
+      .map(([status, count]) => `${sanitizeTerminalText(status)} ${count}`)
+      .join(', ');
+    io.err(
+      `children at failure: ${roster.spawned} spawned, ${roster.settled} settled` +
+        (statuses === '' ? '' : ` (${statuses})`) +
+        '; no acceptance verdict was ever rendered',
+    );
+    if (roster.belowFloorOkChildren !== undefined) {
+      io.err(
+        `  settled ok below their declared evidence floor: ${roster.belowFloorOkChildren.length}`,
+      );
+    }
+    if (roster.unsettled !== undefined) {
+      io.err(`  still running when the run gave up: ${roster.unsettled.length}`);
+    }
   }
 }
 
