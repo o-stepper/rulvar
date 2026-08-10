@@ -121,7 +121,16 @@ merged before the deviating code lands.
   dirty tree fails; run `pnpm dts:baseline` after a public API change and
   commit the result.
 - Docs conventions (`pnpm docs:lint`) over `docs/` plus the root README
-  and this file.
+  and this file, and internal anchors (`pnpm docs:anchors`): every
+  `/guide/page#anchor` link in a hand-written page must resolve to a
+  heading the target page publishes. The slug rule is VitePress's own,
+  copied byte for byte, because an approximation reports false failures
+  on links that work (punctuation becomes a SEPARATOR, so `children's`
+  anchors as `children-s` and `@rulvar/store-postgres` as
+  `rulvar-store-postgres`). Before this gate a renamed heading turned
+  red only in the offline link check, after the whole site was built.
+  The generated `docs/api` tree is a valid link TARGET and never a
+  judged source.
 - Docs site build with the generated-docs freshness gate (committed
   `docs/api`, the aggregated changelog, and the synced contributing page
   must be regenerated in the same PR) and the offline link check.
@@ -215,7 +224,9 @@ The site sources live under `docs/` (VitePress). Conventions, enforced by
 exactly one H1 per page (home-layout pages carry their heading in
 frontmatter), and install commands that always use `@rulvar/<name>`.
 Headings use sentence case by convention; the linter does not check
-that. The TypeDoc output under `docs/api/`, the
+that. Renaming a heading breaks every link that anchors to it, so
+`pnpm docs:anchors` decides that locally in under a second rather than
+leaving it to the site build. The TypeDoc output under `docs/api/`, the
 aggregated changelog, and the synced contributing page are generated;
 regenerate them with `pnpm docs:build` and commit the result.
 
