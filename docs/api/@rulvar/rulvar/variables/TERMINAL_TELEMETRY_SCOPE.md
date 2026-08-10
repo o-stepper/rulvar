@@ -18,8 +18,22 @@ field docs.
 
 The twenty-fifth comparison run was killed and resumed, and its two
 terminals mixed both kinds with nothing marking which was which: the
-money was cumulative, the wake count and the replay figures were not,
+money was cumulative, the live-only counters were not,
 and reconciling them into one honest account of the logical run was
 hand work over a joined journal. Keys are field paths as a consumer
-reads them off `RunOutcome` (`cost.orchestrator.wakes`), and
-[TerminalTelemetryScopes](/api/@rulvar/rulvar/type-aliases/TerminalTelemetryScopes.md) requires every one of them.
+reads them off `RunOutcome` (`cost.orchestrator.wakes`): the type
+requires every field of the outcome, and the `satisfies` below
+requires every counted leaf under `cost` (RV2801), because an index
+signature admits nested paths and demands none, so the five that were
+declared were declared by hand and by luck while four
+(`cost.usageApprox`, `cost.abandoned.usd`, `cost.abandoned.usageApprox`,
+`cost.orchestrator.share`) were simply missing. That is the RV2701
+blindness one level down: a gate whose subject is nested figures
+cannot stop at the top level.
+
+What neither can decide is whether a declared scope is TRUE, and a
+wrong scope is worse than a missing one: a missing one is noticed, a
+wrong one is believed. The doctrine test suspends a real run, resumes
+it, and holds every declared figure against its own claim (RV2801),
+which is how three `cost.orchestrator.*` paths were found calling
+themselves `'segment'` while the terminal folded them cumulatively.

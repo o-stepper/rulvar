@@ -21,7 +21,12 @@ import type { EntryStatus, JournalEntry } from '../l0/entries.js';
 import type { JournalStore, Lease, RunMeta } from '../l0/spi/store.js';
 import { ResolutionFold } from '../journal/resolution.js';
 import { readRunMeta } from './meta-lookup.js';
-import type { RejectedFinishCandidate, RunOutcome, RunStatus } from '../engine/run-handle.js';
+import type {
+  CostReport,
+  RejectedFinishCandidate,
+  RunOutcome,
+  RunStatus,
+} from '../engine/run-handle.js';
 
 /** The decisionType of the journaled run settle entry. */
 export const RUN_SETTLE_DECISION_TYPE = 'run_settle';
@@ -185,6 +190,50 @@ function readRejectedFinishCandidates(raw: unknown): RejectedFinishCandidate[] |
 export type TelemetryScope = 'segment' | 'cumulative' | 'terminal';
 
 /**
+ * A figure a scope is a claim ABOUT: a count or a flag. Text is not
+ * counted by anything, so `cost.basis` (a pricing-provenance literal)
+ * needs no scope and declaring one would say nothing.
+ */
+type CountedLeaf = number | boolean;
+
+/** The counted leaves of one struct, as keys. */
+type CountedKeys<T> = {
+  [K in keyof T & string]-?: NonNullable<T[K]> extends CountedLeaf ? K : never;
+}[keyof T & string];
+
+/**
+ * The counted leaves of one struct and of every struct one level below
+ * it, as dotted paths. Arrays are not structs a consumer reads figures
+ * off, and a member with no counted leaf contributes nothing.
+ */
+type CountedPaths<T> = {
+  [K in keyof T & string]-?: NonNullable<T[K]> extends CountedLeaf
+    ? K
+    : NonNullable<T[K]> extends readonly unknown[]
+      ? never
+      : NonNullable<T[K]> extends object
+        ? `${K}.${CountedKeys<NonNullable<T[K]>>}`
+        : never;
+}[keyof T & string];
+
+/**
+ * The breakdown maps of `CostReport`. Their keys are DATA (a model ref,
+ * a phase name, a role), so a required path per key would be a required
+ * path per run; their scope is their container's.
+ */
+type CostBreakdownMap = 'byModel' | 'byPhase' | 'byAgentType' | 'byRole';
+
+/**
+ * Every nested path under `cost` that must declare a scope of its own.
+ *
+ * `cost` is the container a reader reaches INTO: the report carries a
+ * dozen separately named figures, five of which were declared by hand
+ * and four of which were not declared at all. Where a container is read
+ * whole (`usage`), its own declaration settles it.
+ */
+type CostScopePath = `cost.${Exclude<CountedPaths<CostReport>, `${CostBreakdownMap}.${string}`>}`;
+
+/**
  * The scope table's type, and the gate that keeps it complete
  * (RV2701).
  *
@@ -192,6 +241,8 @@ export type TelemetryScope = 'segment' | 'cumulative' | 'terminal';
  * does not COMPILE until it declares what it counts; the string index
  * signature then admits the nested paths a consumer reads off the same
  * outcome (`cost.orchestrator.wakes`), which are not keys of the type.
+ * Those it admits but cannot demand, so the table itself is held to
+ * every counted leaf under `cost` where it is declared (RV2801).
  *
  * It replaces a sample: the original gate read the keys of one
  * successful run, which is structurally blind to every field that
@@ -210,11 +261,25 @@ export type TerminalTelemetryScopes = Readonly<Record<keyof RunOutcome<unknown>,
  *
  * The twenty-fifth comparison run was killed and resumed, and its two
  * terminals mixed both kinds with nothing marking which was which: the
- * money was cumulative, the wake count and the replay figures were not,
+ * money was cumulative, the live-only counters were not,
  * and reconciling them into one honest account of the logical run was
  * hand work over a joined journal. Keys are field paths as a consumer
- * reads them off `RunOutcome` (`cost.orchestrator.wakes`), and
- * {@link TerminalTelemetryScopes} requires every one of them.
+ * reads them off `RunOutcome` (`cost.orchestrator.wakes`): the type
+ * requires every field of the outcome, and the `satisfies` below
+ * requires every counted leaf under `cost` (RV2801), because an index
+ * signature admits nested paths and demands none, so the five that were
+ * declared were declared by hand and by luck while four
+ * (`cost.usageApprox`, `cost.abandoned.usd`, `cost.abandoned.usageApprox`,
+ * `cost.orchestrator.share`) were simply missing. That is the RV2701
+ * blindness one level down: a gate whose subject is nested figures
+ * cannot stop at the top level.
+ *
+ * What neither can decide is whether a declared scope is TRUE, and a
+ * wrong scope is worse than a missing one: a missing one is noticed, a
+ * wrong one is believed. The doctrine test suspends a real run, resumes
+ * it, and holds every declared figure against its own claim (RV2801),
+ * which is how three `cost.orchestrator.*` paths were found calling
+ * themselves `'segment'` while the terminal folded them cumulatively.
  */
 export const TERMINAL_TELEMETRY_SCOPE: TerminalTelemetryScopes = Object.freeze({
   status: 'terminal',
@@ -247,14 +312,32 @@ export const TERMINAL_TELEMETRY_SCOPE: TerminalTelemetryScopes = Object.freeze({
   'cost.totalUsd': 'cumulative',
   'cost.grossUsd': 'cumulative',
   'cost.wireRequests': 'cumulative',
+  // Cumulative like every other figure the journal fold produces: the
+  // fold reads the WHOLE journal, so an approximate slice in any prior
+  // segment still raises the flag in this one.
+  'cost.usageApprox': 'cumulative',
+  'cost.abandoned.usd': 'cumulative',
+  'cost.abandoned.usageApprox': 'cumulative',
   'cost.orchestrator.spentUsd': 'cumulative',
-  'cost.orchestrator.wakes': 'segment',
-  'cost.orchestrator.forcedFinish': 'segment',
-  'cost.orchestrator.reserveUsedUsd': 'segment',
+  // A ratio of two cumulative figures, which is why it is not a
+  // segment's share of anything.
+  'cost.orchestrator.share': 'cumulative',
+  // The outcome's cost IS the journal fold over the resumed segment's
+  // snapshot, which holds every prior segment, so these three cover the
+  // logical run exactly like the money above them (RV2801). Declared
+  // 'segment' since RV2510 and folded cumulatively the whole time: the
+  // taxonomy was right, three of its members were on the wrong side.
+  'cost.orchestrator.wakes': 'cumulative',
+  'cost.orchestrator.forcedFinish': 'cumulative',
+  'cost.orchestrator.reserveUsedUsd': 'cumulative',
   transportRetries: 'segment',
   schemaRejectedFinishExchanges: 'segment',
   schemaRecoveredFinishExchanges: 'segment',
-});
+  // The nested half of the gate (RV2801): the type above admits paths
+  // and can demand none, so the table is held here to every counted
+  // leaf under `cost`. The index signature keeps the outcome's own
+  // fields admissible; without it this would reject them as excess.
+} satisfies Record<CostScopePath, TelemetryScope> & Record<string, TelemetryScope>);
 
 /** One logical run's telemetry, folded across every segment (RV2510). */
 export interface LogicalRunTelemetry {

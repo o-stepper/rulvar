@@ -4086,15 +4086,6 @@ export const MUTATIONS = [
     test: 'packages/core/src/stores/reconcile.test.ts',
   },
   {
-    id: 'terminal-scope-declares-the-segment-fields',
-    doctrine:
-      "the scope table calls the per-segment counters 'segment' (RV2510): read as cumulative, a resumed run's wake count looks like the whole logical run's and the reconciliation the table exists to remove comes straight back",
-    file: 'packages/core/src/stores/reconcile.ts',
-    find: "  'cost.orchestrator.wakes': 'segment',",
-    replace: "  'cost.orchestrator.wakes': 'cumulative',",
-    test: 'packages/core/src/stores/reconcile.test.ts',
-  },
-  {
     id: 'fragment-gate-refuses-both-classes',
     doctrine:
       'the fragment gate refuses an AMBIGUOUS fragment as well as a missing one (RV2603): accepting "matches at least once" would let a duplicated line through, and the manifest would then mutate whichever occurrence came first, silently testing a line nobody chose',
@@ -4230,6 +4221,15 @@ export const MUTATIONS = [
     find: '  const problems = checkSourceShape(text, merged.length);',
     replace: '  const problems = [];',
     test: 'scripts/merge-mutation-manifest.test.mjs',
+  },
+  {
+    id: 'terminal-scope-values-are-checked-by-a-resumed-run',
+    doctrine:
+      'a declared telemetry scope is a claim about behaviour, and a wrong one is worse than a missing one (RV2801): the outcome folds its cost from the journal the resumed segment holds, so no figure it carries can count one segment alone, and the resumed-run gate refuses a segment declaration on a path the terminal actually accumulates',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: "  'cost.orchestrator.wakes': 'cumulative',",
+    replace: "  'cost.orchestrator.wakes': 'segment',",
+    test: 'packages/core/src/stores/reconcile.test.ts',
   },
 ];
 
