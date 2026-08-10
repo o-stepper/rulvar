@@ -13,7 +13,7 @@ function strictExitCode(
    io): number;
 ```
 
-Defined in: [packages/cli/src/drive.ts:317](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L317)
+Defined in: [packages/cli/src/drive.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L325)
 
 `--strict` (the v1.40.0 improvement plan's completion contract): a
 settled ok run whose orchestration acceptance envelope reports a
@@ -22,6 +22,14 @@ reasons printed. Outcomes without an acceptance envelope (a workflow
 that never opted into orchestrate acceptance) and nonzero exit codes
 pass through unchanged, so the flag never masks the ordinary status
 exit and never bites a plain workflow.
+
+Completion answers for the CHILDREN, never for the artifact, so
+strict also reads the deliverable verdict (RV2604): a
+`deliverableAccepted: false` exits nonzero even under a green
+completion, the row the twenty-fifth comparison run landed on when
+its child roster passed and its declared contract refused every
+synthesis. An ABSENT verdict is left alone, because nothing judged
+anything and a host that declares no contract is its own judge.
 
 Completion is a MECHANICAL verdict, and the eighteenth comparison
 benchmark showed how easily `completion: 'complete'` reads as

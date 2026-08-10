@@ -240,6 +240,14 @@ declare function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number;
 * pass through unchanged, so the flag never masks the ordinary status
 * exit and never bites a plain workflow.
 *
+* Completion answers for the CHILDREN, never for the artifact, so
+* strict also reads the deliverable verdict (RV2604): a
+* `deliverableAccepted: false` exits nonzero even under a green
+* completion, the row the twenty-fifth comparison run landed on when
+* its child roster passed and its declared contract refused every
+* synthesis. An ABSENT verdict is left alone, because nothing judged
+* anything and a host that declares no contract is its own judge.
+*
 * Completion is a MECHANICAL verdict, and the eighteenth comparison
 * benchmark showed how easily `completion: 'complete'` reads as
 * semantic green while the claim judge saw 40 of 144 citing sentences.
