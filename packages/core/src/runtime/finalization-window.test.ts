@@ -646,6 +646,101 @@ describe('durable window entry before the gated call (RV601)', () => {
     expect(notices[0]).toContain('3 more evidence');
   });
 
+  describe('the window entry explains a reserve it did not configure (RV2601)', () => {
+    // The fourth parity run entered finalization with reserveCalls 25
+    // under a configured 20, and nothing durable said why: the model was
+    // told the deficit in its notice, the journal got {remaining,
+    // reserveCalls, budget}, and a reader after the fact could neither
+    // explain the 25 nor see that the child owed its WHOLE floor at the
+    // moment it stopped searching. Both numbers are the loop's own.
+    const windowEntries = (): {
+      seen: { remaining: number; reserveCalls: number; budget: string }[];
+      durability: { onWindowEntry: (entry: unknown) => Promise<void> };
+    } => {
+      const seen: { remaining: number; reserveCalls: number; budget: string }[] = [];
+      return {
+        seen,
+        durability: {
+          onWindowEntry: (entry) => {
+            seen.push(entry as { remaining: number; reserveCalls: number; budget: string });
+            return Promise.resolve();
+          },
+        },
+      };
+    };
+
+    it('names the deficit and the floor that widened it', async () => {
+      const recordExecutions = { count: 0 };
+      const evidenceRecorder = tool({
+        name: 'record_evidence',
+        description: 'records one evidence entry',
+        parameters: z.strictObject({}),
+        execute: () => {
+          recordExecutions.count += 1;
+          return Promise.resolve({ recorded: true });
+        },
+      });
+      const adapter = scriptedAdapter((req) =>
+        windowNotices(req).length === 0
+          ? reads(1)
+          : { toolCall: { name: 'finish', args: { result: 'done' } } },
+      );
+      const { seen, durability } = windowEntries();
+      const result = await runAgent({
+        prompt: 'go',
+        adapter,
+        resolved,
+        limits: mergeUsageLimits({
+          maxTurns: 10,
+          maxToolCalls: 10,
+          finalizationWindow: {
+            reserveCalls: 1,
+            allow: ['record_evidence'],
+            reserveForEvidenceDeficit: true,
+          },
+        }),
+        evidenceContract: { minEntries: 3 },
+        tools: runtimeOf([readTool({ count: 0 }), evidenceRecorder, finishTool()]),
+        terminalTool: { name: 'finish' },
+        toolBudgetDurability: durability,
+      });
+      expect(result.status).toBe('ok');
+      // Nothing was recorded, so the whole floor is outstanding, and
+      // the applied reserve is exactly the arithmetic the two fields
+      // now carry: 3 outstanding plus the one summary call.
+      expect(seen).toEqual([
+        { remaining: 4, reserveCalls: 4, budget: 'tool calls', evidenceDeficit: 3, minEntries: 3 },
+      ]);
+    });
+
+    it('says nothing extra when the configured reserve is what bound', async () => {
+      // The vacuum contrast: the same run without the opt-in journals
+      // the historical three fields, byte for byte.
+      const adapter = scriptedAdapter((req) =>
+        windowNotices(req).length === 0
+          ? reads(1)
+          : { toolCall: { name: 'finish', args: { result: 'done' } } },
+      );
+      const { seen, durability } = windowEntries();
+      const result = await runAgent({
+        prompt: 'go',
+        adapter,
+        resolved,
+        limits: mergeUsageLimits({
+          maxTurns: 10,
+          maxToolCalls: 10,
+          finalizationWindow: { reserveCalls: 4, allow: ['record_evidence'] },
+        }),
+        evidenceContract: { minEntries: 3 },
+        tools: runtimeOf([readTool({ count: 0 }), finishTool()]),
+        terminalTool: { name: 'finish' },
+        toolBudgetDurability: durability,
+      });
+      expect(result.status).toBe('ok');
+      expect(seen).toEqual([{ remaining: 4, reserveCalls: 4, budget: 'tool calls' }]);
+    });
+  });
+
   it('the widened reserve shrinks as the floor closes and never narrows below the configured reserve (RV1208)', async () => {
     const readExecutions = { count: 0 };
     const evidenceRecorder = tool({

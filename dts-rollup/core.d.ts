@@ -5577,6 +5577,16 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
       remaining: number;
       reserveCalls: number;
       budget: FinalizationWindowBudget;
+      /**
+      * Present exactly when RV1208 widened the reserve past the
+      * configured one (RV2601): the outstanding evidence entries, and
+      * the floor they are outstanding against. Absent means the
+      * configured reserve is what bound, so the arithmetic behind an
+      * unexpected reserve is always in the journal and never only in
+      * the notice the model read.
+      */
+      evidenceDeficit?: number;
+      minEntries?: number;
     }) => Promise<void>;
   };
   /** Emits agent:stream deltas when true (telemetry only). */
