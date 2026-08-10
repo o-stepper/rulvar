@@ -2333,6 +2333,10 @@
             "link": "/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md"
           },
           {
+            "text": "TerminalTelemetryScopes",
+            "link": "/api/@rulvar/core/type-aliases/TerminalTelemetryScopes.md"
+          },
+          {
             "text": "TerminationDeniedWriter",
             "link": "/api/@rulvar/core/type-aliases/TerminationDeniedWriter.md"
           },
@@ -7333,6 +7337,10 @@
           {
             "text": "TerminalOutcomeFacts",
             "link": "/api/@rulvar/rulvar/type-aliases/TerminalOutcomeFacts.md"
+          },
+          {
+            "text": "TerminalTelemetryScopes",
+            "link": "/api/@rulvar/rulvar/type-aliases/TerminalTelemetryScopes.md"
           },
           {
             "text": "TerminationDeniedWriter",

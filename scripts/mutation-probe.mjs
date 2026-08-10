@@ -4186,6 +4186,15 @@ export const MUTATIONS = [
     replace: "    .replace(SPECIAL, '')",
     test: 'scripts/docs-anchors.test.mjs',
   },
+  {
+    id: 'terminal-scope-declares-the-failure-only-field',
+    doctrine:
+      'every field a terminal can carry declares its telemetry scope, the failure-only ones included (RV2701): the RV2510 table promised that a new terminal field cannot ship undeclared while the gate behind that promise read the keys of one SUCCESSFUL outcome, so childrenAtFailure (present exactly where no acceptance verdict exists) went straight through and left a resumed-run reader guessing whether a number counts the segment or the logical run',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: "  childrenAtFailure: 'cumulative',",
+    replace: "  childrenAtFailure2: 'cumulative',",
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

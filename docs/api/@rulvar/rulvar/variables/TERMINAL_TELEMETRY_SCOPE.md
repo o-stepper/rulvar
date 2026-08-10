@@ -7,7 +7,7 @@
 # Variable: TERMINAL\_TELEMETRY\_SCOPE
 
 ```ts
-const TERMINAL_TELEMETRY_SCOPE: Readonly<Record<string, TelemetryScope>>;
+const TERMINAL_TELEMETRY_SCOPE: TerminalTelemetryScopes;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -21,7 +21,5 @@ terminals mixed both kinds with nothing marking which was which: the
 money was cumulative, the wake count and the replay figures were not,
 and reconciling them into one honest account of the logical run was
 hand work over a joined journal. Keys are field paths as a consumer
-reads them off `RunOutcome` (`cost.orchestrator.wakes`); the
-doctrine test holds this table against the keys a real outcome
-carries, so a new terminal field cannot ship without declaring what
-it counts.
+reads them off `RunOutcome` (`cost.orchestrator.wakes`), and
+[TerminalTelemetryScopes](/api/@rulvar/rulvar/type-aliases/TerminalTelemetryScopes.md) requires every one of them.
