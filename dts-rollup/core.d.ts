@@ -13003,6 +13003,20 @@ interface JournaledChild {
     minEntries: number;
     met: boolean;
   };
+  /**
+  * Present and true when the orchestration ABANDONED this child's
+  * branch (RV2804): the work happened and the provider billed it, and
+  * the run threw the result away. The money layer has separated the two
+  * since RV1904 (`grossUsd` keeps abandoned spend, `totalUsd` does
+  * not), and this roster presented discarded children exactly like kept
+  * ones, so a post-mortem counting "four children settled ok" counted
+  * branches the orchestrator had discarded.
+  *
+  * Absent means NOT ABANDONED, which is decidable here: the fold reads
+  * the same first-wins abandon projection the replayer uses, over the
+  * same journal, and `handle` is the very seq an abandon entry targets.
+  */
+  abandoned?: true;
 }
 /** One orchestration's children, folded from its journal (RV2702). */
 interface JournaledChildRoster {

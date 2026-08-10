@@ -777,6 +777,16 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
           `${unsettled.map((child) => String(child.handle)).join(', ')})`,
       );
     }
+    const discarded = roster.children.filter((child) => child.abandoned === true);
+    if (discarded.length > 0) {
+      // Counted in the line above and thrown away all the same (RV2804):
+      // the provider billed this work, and the run kept none of it.
+      context.io.out(
+        `  on branches the run ABANDONED: ${discarded.length} ` +
+          `(handle${discarded.length === 1 ? '' : 's'} ` +
+          `${discarded.map((child) => String(child.handle)).join(', ')})`,
+      );
+    }
   }
   const rejected = settled?.rejectedFinishCandidates ?? [];
   if (rejected.length > 0) {

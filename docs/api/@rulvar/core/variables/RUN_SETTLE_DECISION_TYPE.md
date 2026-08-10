@@ -10,6 +10,6 @@
 const RUN_SETTLE_DECISION_TYPE: "run_settle" = 'run_settle';
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L32)
+Defined in: [packages/core/src/stores/reconcile.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L33)
 
 The decisionType of the journaled run settle entry.
