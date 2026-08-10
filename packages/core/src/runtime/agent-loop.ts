@@ -758,6 +758,16 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
       remaining: number;
       reserveCalls: number;
       budget: FinalizationWindowBudget;
+      /**
+       * Present exactly when RV1208 widened the reserve past the
+       * configured one (RV2601): the outstanding evidence entries, and
+       * the floor they are outstanding against. Absent means the
+       * configured reserve is what bound, so the arithmetic behind an
+       * unexpected reserve is always in the journal and never only in
+       * the notice the model read.
+       */
+      evidenceDeficit?: number;
+      minEntries?: number;
     }) => Promise<void>;
   };
   /** Emits agent:stream deltas when true (telemetry only). */
@@ -2243,6 +2253,13 @@ export async function runAgent<S extends SchemaSpec>(
     }
     const reserve = reserveFor(state.budget);
     const deficit = evidenceDeficit();
+    // The widening, as one predicate both the notice and the journaled
+    // decision read (RV2601). A turns entry never widened anything, and
+    // without the opt-in the reserve IS the configured one.
+    const widenedByDeficit =
+      state.budget !== 'turns' &&
+      finalizationWindow?.reserveForEvidenceDeficit === true &&
+      deficit > 0;
     const commit = (): void => {
       windowEntered = true;
       windowNoticeFired = true;
@@ -2253,11 +2270,7 @@ export async function runAgent<S extends SchemaSpec>(
           state.budget,
           // The deficit line belongs to the widened CALLS reserve
           // (RV1208); a turns entry never widened anything.
-          state.budget !== 'turns' &&
-            finalizationWindow?.reserveForEvidenceDeficit === true &&
-            deficit > 0
-            ? deficit
-            : undefined,
+          widenedByDeficit ? deficit : undefined,
         ),
       );
       events?.emit({
@@ -2285,6 +2298,17 @@ export async function runAgent<S extends SchemaSpec>(
       // (RV1208): the journaled fact must be the one the loop applied.
       reserveCalls: reserve,
       budget: state.budget,
+      // WHY that reserve, when it is not the configured one (RV2601).
+      // The model was always told; the journal was not, so a reserve of
+      // 25 under a configured 20 was unexplainable after the fact, and
+      // "this child entered finalization owing its whole evidence
+      // floor" was invisible to every reader but the transcript. Both
+      // numbers are the loop's own, carried only where they explain
+      // something: absent means the configured reserve bound, and runs
+      // that never widen stay byte-identical.
+      ...(widenedByDeficit
+        ? { evidenceDeficit: deficit, minEntries: options.evidenceContract?.minEntries ?? 0 }
+        : {}),
     }).then(commit);
   };
   const flushWindowNotices = (): void => {

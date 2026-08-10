@@ -4103,6 +4103,15 @@ export const MUTATIONS = [
     replace: '    if (occurrences !== 0) {',
     test: 'scripts/mutation-fragments.test.mjs',
   },
+  {
+    id: 'window-entry-explains-its-reserve',
+    doctrine:
+      'the finalization window entry journals the deficit that widened its reserve (RV2601): dropping the pair leaves a reserve of 25 under a configured 20 unexplainable from the journal, the exact state the fourth parity run settled in, with the arithmetic living only in a notice the model read and nobody kept',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '      ...(widenedByDeficit',
+    replace: '      ...(false',
+    test: 'packages/core/src/runtime/finalization-window.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
