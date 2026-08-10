@@ -13,7 +13,7 @@ function strictExitCode(
    io): number;
 ```
 
-Defined in: [packages/cli/src/drive.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L325)
+Defined in: [packages/cli/src/drive.ts:398](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L398)
 
 `--strict` (the v1.40.0 improvement plan's completion contract): a
 settled ok run whose orchestration acceptance envelope reports a

@@ -286,6 +286,22 @@ export default {
     expect(text).toContain('rejected call-b: 5207 chars, sha256 bbbbbbbbbbbb, failed');
   });
 
+  it('inspect prints the completion the last settle recorded (RV2703)', async () => {
+    // The offline half: `lastRunSettle` has carried the semantic claim
+    // since the persisted-terminal tail, and inspect printed the
+    // acceptance DECISION only, so a run that died before acceptance
+    // (or was resumed past it) showed a reader nothing.
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    expect(await runCli(['run', 'refused'], { cwd, io })).toBe(0);
+    const runId = runIdOf(io);
+    const inspect = scriptedIo();
+    expect(await runCli(['inspect', runId], { cwd, io: inspect })).toBe(0);
+    expect(inspect.outLines.join('\n')).toContain(
+      'completion: complete (the last settle claims the work is complete)',
+    );
+  });
+
   it('inspect says nothing about refused candidates when a run had none (RV2605)', async () => {
     // The vacuum contrast: absence is NOT RECORDED, and an ordinary run
     // prints exactly what it printed before.
@@ -298,6 +314,9 @@ export default {
     const text = inspect.outLines.join('\n');
     expect(text).not.toContain('rejected finish candidates');
     expect(text).toMatch(/segments: 1 \(ok after \d+\)/);
+    // A workflow that claims no completion prints no completion line
+    // (RV2703): absence is NOT RECORDED, never an incomplete run.
+    expect(text).not.toContain('completion:');
   });
 
   it('inspect shows an open suspension while the run is parked', async () => {
@@ -1692,6 +1711,104 @@ describe('--strict reads the deliverable verdict (RV2604)', () => {
     const err = io.errLines.join('\n');
     expect(err).toContain('the declared finish contract did not accept the artifact');
     expect(err).not.toContain('claim coverage');
+  });
+});
+
+describe('the human report says what the terminal claims (RV2703)', () => {
+  // `--strict` has read these fields since RV2604, but strict is the
+  // MACHINE gate. A person who does not pass the flag saw `status: ok`
+  // for a degraded run, for a run whose contract refused every
+  // candidate it was handed, and for a clean one, with no line between
+  // them.
+  const outcomeWith = (extra: Record<string, unknown>) =>
+    ({
+      status: 'ok',
+      dropped: [],
+      pending: [],
+      cost: { totalUsd: 0, byModel: {}, byPhase: {}, unpriced: [] },
+      ...extra,
+    }) as unknown as Parameters<typeof reportOutcome>[0];
+
+  it('names an incomplete completion and every degradation behind it', () => {
+    const io = scriptedIo();
+    expect(
+      reportOutcome(
+        outcomeWith({ completion: 'partial', degradedReasons: ['w2 settled error'] }),
+        io,
+      ),
+    ).toBe(0);
+    const err = io.errLines.join('\n');
+    expect(err).toContain('status: ok');
+    expect(err).toContain('completion: partial (the work is NOT complete)');
+    expect(err).toContain('degraded: w2 settled error');
+  });
+
+  it('names a refused deliverable, and the missing artifact beside it', () => {
+    const io = scriptedIo();
+    reportOutcome(
+      outcomeWith({ completion: 'complete', deliverableAccepted: false, resultAvailable: false }),
+      io,
+    );
+    const err = io.errLines.join('\n');
+    expect(err).toContain('deliverable: REFUSED by the declared finish contract');
+    expect(err).toContain('the terminal carries no artifact');
+  });
+
+  it('counts the refused candidates and the distinct documents among them', () => {
+    const io = scriptedIo();
+    reportOutcome(
+      outcomeWith({
+        completion: 'complete',
+        rejectedFinishCandidates: [
+          { callId: 'a', verdict: 'repair', hash: 'b'.repeat(64), chars: 10, failed: [] },
+          { callId: 'b', verdict: 'rejected', hash: 'b'.repeat(64), chars: 10, failed: [] },
+        ],
+      }),
+      io,
+    );
+    expect(io.errLines.join('\n')).toContain(
+      'rejected finish candidates: 2 (1 distinct document(s))',
+    );
+  });
+
+  it('names what the children produced when nothing ever judged them', () => {
+    // RV2602 put the roster on the envelope; this is the surface a human
+    // reads it from. The run died before acceptance, so this is the only
+    // account of work that was already paid for.
+    const io = scriptedIo();
+    expect(
+      reportOutcome(
+        outcomeWith({
+          status: 'exhausted',
+          childrenAtFailure: {
+            spawned: 4,
+            settled: 3,
+            statusCounts: { ok: 2, error: 1 },
+            belowFloorOkChildren: ['n1'],
+            unsettled: ['n4'],
+          },
+        }),
+        io,
+      ),
+    ).toBe(1);
+    const err = io.errLines.join('\n');
+    expect(err).toContain('children at failure: 4 spawned, 3 settled (ok 2, error 1)');
+    expect(err).toContain('no acceptance verdict was ever rendered');
+    expect(err).toContain('settled ok below their declared evidence floor: 1');
+    expect(err).toContain('still running when the run gave up: 1');
+  });
+
+  it('a terminal that claims nothing prints nothing: absence is NOT RECORDED', () => {
+    // The vacuum contrast (RV1209). A host that declares no finish
+    // contract is its own judge, and a workflow that makes no completion
+    // claim is not an incomplete run: the report stays byte-identical to
+    // what it printed before.
+    const io = scriptedIo();
+    expect(reportOutcome(outcomeWith({ value: { ok: true } }), io)).toBe(0);
+    const err = io.errLines.join('\n');
+    expect(err).not.toContain('completion:');
+    expect(err).not.toContain('deliverable:');
+    expect(err).not.toContain('children at failure');
   });
 });
 

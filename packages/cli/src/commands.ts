@@ -714,6 +714,20 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
   // three genuine attempts, and reading it used to take an external
   // script over the whole agent transcript.
   const settled = lastRunSettle(entries);
+  // What the last settle CLAIMED about the work, beside the status it
+  // transported (RV2703). `lastRunSettle` has returned this since the
+  // persisted-terminal tail and inspect printed the acceptance decision
+  // only, so a run that died before acceptance, or one resumed past it,
+  // showed a reader nothing at all. Absent prints nothing (RV1209): a
+  // workflow that makes no completion claim is not an incomplete run.
+  if (settled?.completion !== undefined) {
+    context.io.out(
+      `completion: ${settled.completion}` +
+        (settled.completion === 'complete'
+          ? ' (the last settle claims the work is complete)'
+          : ' (the last settle claims the work is NOT complete)'),
+    );
+  }
   const rejected = settled?.rejectedFinishCandidates ?? [];
   if (rejected.length > 0) {
     const distinct = new Set(rejected.map((row) => row.hash)).size;
