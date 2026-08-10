@@ -9,7 +9,7 @@ import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { BudgetExhaustedError, ConfigError, FailRunError } from '../l0/errors.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
-import { TERMINAL_TELEMETRY_SCOPE } from '../stores/reconcile.js';
+import { childRostersFromJournal, TERMINAL_TELEMETRY_SCOPE } from '../stores/reconcile.js';
 import { defineWorkflow, executeWorkflow } from '../engine/ctx.js';
 import {
   makeInternals,
@@ -7373,5 +7373,129 @@ describe('the pre-acceptance roster (RV2602)', () => {
     // every recovered child into the same roster, so the fold covers
     // the logical run rather than the segment that happened to die.
     expect(TERMINAL_TELEMETRY_SCOPE.childrenAtFailure).toBe('cumulative');
+  });
+});
+
+describe('the child roster a journal already holds (RV2702)', () => {
+  const worker = (): AgentProfile => ({ description: 'does one task', estCost: 0.01 });
+
+  it('folds the children of a run that died before acceptance, from the journal alone', async () => {
+    // The live field (RV2602) dies with the process that held it, and a
+    // paid run leaves a journal. This is the same roster, read from
+    // what the run already wrote down: every ingredient was there, and
+    // a post-mortem had no way to ask for it.
+    const journal = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [
+        scriptedAdapter((req): ScriptedTurn => {
+          if (agentTypeOf(req) === 'worker') {
+            return { text: 'did the work' };
+          }
+          const transcript = JSON.stringify(req.messages);
+          if (!transcript.includes('"handle"')) {
+            return {
+              toolCalls: [
+                { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w1' } },
+                { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w2' } },
+              ],
+              usage: { inputTokens: 50_000, outputTokens: 0 },
+            };
+          }
+          if (!transcript.includes('did the work')) {
+            return {
+              toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+              usage: { inputTokens: 400_000, outputTokens: 0 },
+            };
+          }
+          return { toolCall: { name: 'finish', args: { result: 'assembled' } } };
+        }),
+      ],
+      stores: { journal, transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: { ...worker(), evidenceContract: { minEntries: 2 } } },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assemble the parts', { budget: { capUsd: 0.3 } }),
+      undefined,
+      { runId: 'OFF1', budgetUsd: 5 },
+    ).result;
+    expect(outcome.status).toBe('exhausted');
+    const rosters = childRostersFromJournal(await journal.load('OFF1'));
+    expect(rosters).toHaveLength(1);
+    const roster = rosters[0];
+    if (roster === undefined) {
+      throw new Error('the fold returned no roster');
+    }
+    expect(roster.admitted).toBe(outcome.childrenAtFailure?.spawned);
+    expect(roster.rejected).toBe(0);
+    expect(roster.children).toHaveLength(2);
+    expect(roster.children.every((child) => child.status === 'ok')).toBe(true);
+    expect(roster.children.every((child) => child.agentType === 'worker')).toBe(true);
+    // The silent worker's shape, offline: ok under a declared contract
+    // it never met, which is the child that looks healthiest and is not.
+    expect(roster.children.every((child) => child.evidence?.met === false)).toBe(true);
+    // The handles are the dispatch seqs the orchestrator's own turns
+    // used, so they resolve against the journal a reader already has.
+    for (const child of roster.children) {
+      expect((await journal.load('OFF1')).some((entry) => entry.seq === child.handle)).toBe(true);
+    }
+  });
+
+  it("counts the CHILDREN and never the orchestration's own dispatches", async () => {
+    // The discriminator, against a live run rather than an assumption:
+    // the coordination loop, the synthesis, and the judge all dispatch
+    // through the same ctx.agent, and only the children carry a spawn
+    // admission that pins them to the child scope.
+    const journal = new InMemoryStore();
+    let orchTurn = 0;
+    const engine = createEngine({
+      adapters: [
+        scriptedAdapter((req): ScriptedTurn => {
+          if (agentTypeOf(req) === 'worker') {
+            return { text: 'did the work' };
+          }
+          orchTurn += 1;
+          if (orchTurn === 1) {
+            return {
+              toolCalls: [
+                { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w1' } },
+                { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w2' } },
+              ],
+            };
+          }
+          if (orchTurn === 2) {
+            return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+          }
+          if (orchTurn === 3) {
+            return { toolCall: { name: 'finish', args: { result: 'DRAFT' } } };
+          }
+          return { toolCall: { name: 'finish', args: { result: 'SYNTHESIZED' } } };
+        }),
+      ],
+      stores: { journal, transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+        profiles: { worker: worker() },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assemble the parts', {
+        acceptance: { childPolicy: { minSuccessful: 1 } },
+        synthesis: { limits: { maxTurns: 2 } },
+      }),
+      undefined,
+      { runId: 'OFF2', budgetUsd: 5 },
+    ).result;
+    expect(outcome.status).toBe('ok');
+    expect((outcome.value as { result?: unknown }).result).toBe('SYNTHESIZED');
+    const rosters = childRostersFromJournal(await journal.load('OFF2'));
+    // Two children, and neither the coordination loop nor the synthesis
+    // that produced the value above.
+    expect(rosters).toHaveLength(1);
+    expect(rosters[0]?.admitted).toBe(2);
+    expect(rosters[0]?.children).toHaveLength(2);
+    expect(outcome.childStatusCounts).toEqual({ ok: 2 });
   });
 });

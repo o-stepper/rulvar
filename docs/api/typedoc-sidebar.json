@@ -1151,6 +1151,14 @@
             "link": "/api/@rulvar/core/interfaces/IsolationProvider.md"
           },
           {
+            "text": "JournaledChild",
+            "link": "/api/@rulvar/core/interfaces/JournaledChild.md"
+          },
+          {
+            "text": "JournaledChildRoster",
+            "link": "/api/@rulvar/core/interfaces/JournaledChildRoster.md"
+          },
+          {
             "text": "JournalOperation",
             "link": "/api/@rulvar/core/interfaces/JournalOperation.md"
           },
@@ -2795,6 +2803,10 @@
             "link": "/api/@rulvar/core/variables/SANDBOX_AGENT_OPT_KEYS.md"
           },
           {
+            "text": "SPAWN_ADMISSION_DECISION_TYPE",
+            "link": "/api/@rulvar/core/variables/SPAWN_ADMISSION_DECISION_TYPE.md"
+          },
+          {
             "text": "SPAWN_AGENT_SCHEMA",
             "link": "/api/@rulvar/core/variables/SPAWN_AGENT_SCHEMA.md"
           },
@@ -2959,6 +2971,10 @@
           {
             "text": "childCoveragePrefix",
             "link": "/api/@rulvar/core/functions/childCoveragePrefix.md"
+          },
+          {
+            "text": "childRostersFromJournal",
+            "link": "/api/@rulvar/core/functions/childRostersFromJournal.md"
           },
           {
             "text": "citationTargetsValidator",
@@ -6125,6 +6141,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/IsolationProvider.md"
           },
           {
+            "text": "JournaledChild",
+            "link": "/api/@rulvar/rulvar/interfaces/JournaledChild.md"
+          },
+          {
+            "text": "JournaledChildRoster",
+            "link": "/api/@rulvar/rulvar/interfaces/JournaledChildRoster.md"
+          },
+          {
             "text": "JournalOperation",
             "link": "/api/@rulvar/rulvar/interfaces/JournalOperation.md"
           },
@@ -7813,6 +7837,10 @@
             "link": "/api/@rulvar/rulvar/variables/SANDBOX_AGENT_OPT_KEYS.md"
           },
           {
+            "text": "SPAWN_ADMISSION_DECISION_TYPE",
+            "link": "/api/@rulvar/rulvar/variables/SPAWN_ADMISSION_DECISION_TYPE.md"
+          },
+          {
             "text": "SPAWN_AGENT_SCHEMA",
             "link": "/api/@rulvar/rulvar/variables/SPAWN_AGENT_SCHEMA.md"
           },
@@ -7981,6 +8009,10 @@
           {
             "text": "childCoveragePrefix",
             "link": "/api/@rulvar/rulvar/functions/childCoveragePrefix.md"
+          },
+          {
+            "text": "childRostersFromJournal",
+            "link": "/api/@rulvar/rulvar/functions/childRostersFromJournal.md"
           },
           {
             "text": "citationTargetsValidator",

@@ -4204,6 +4204,15 @@ export const MUTATIONS = [
     replace: '  void reportSemanticTerminal;',
     test: 'packages/cli/src/index.test.ts',
   },
+  {
+    id: 'offline-roster-never-invents-a-child-status',
+    doctrine:
+      'a child the journal holds no terminal for reads as NOT SETTLED, never as a status (RV2702 under RV1209): the offline roster is what a post-mortem has after the process that knew it died, and reporting a still-in-flight child as ok turns the one surface that accounts for paid work into the one that hides it',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '      ...(terminal === undefined ? {} : { status: terminal.status }),',
+    replace: "      status: terminal?.status ?? 'ok',",
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

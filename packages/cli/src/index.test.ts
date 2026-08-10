@@ -286,6 +286,66 @@ export default {
     expect(text).toContain('rejected call-b: 5207 chars, sha256 bbbbbbbbbbbb, failed');
   });
 
+  it('inspect names the children a journal already holds (RV2702)', async () => {
+    // The post-mortem case: a run that crossed its ceiling mid-roster
+    // left the live roster in the process that died, and the journal
+    // holds every ingredient. The entries are hand-built here because
+    // the shape under test is the JOURNAL's, not this fixture's.
+    const cwd = writeFixtureProject();
+    const store = new JsonlFileStore({ dir: join(cwd, '.rulvar') });
+    const base = {
+      hashVersion: 2,
+      ordinal: 0,
+      spanId: 's',
+      startedAt: new Date(1_700_000_000_000).toISOString(),
+    } as const;
+    await store.append('ROSTER', {
+      ...base,
+      seq: 0,
+      scope: '',
+      key: '',
+      kind: 'decision',
+      status: 'ok',
+      value: {
+        decisionType: 'spawn-admission',
+        origin: 'spawn_agent',
+        orchestratorScope: '',
+        childScope: 'agent:0',
+        spawnOrdinal: 0,
+        name: 'worker',
+        decision: { verdict: { kind: 'admit' } },
+      },
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.append('ROSTER', {
+      ...base,
+      seq: 1,
+      scope: 'agent:0',
+      key: 'k1',
+      kind: 'agent',
+      status: 'running',
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.append('ROSTER', {
+      ...base,
+      seq: 2,
+      scope: 'agent:0',
+      key: 'k1',
+      kind: 'agent',
+      status: 'ok',
+      ref: 1,
+      costAttribution: { agentType: 'worker', role: 'loop' },
+      evidence: { recordedEntries: 0, minEntries: 2, met: false },
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.putMeta({ runId: 'ROSTER', status: 'exhausted', segments: 1, updatedAt: 'x' });
+
+    const inspect = scriptedIo();
+    expect(await runCli(['inspect', 'ROSTER'], { cwd, io: inspect })).toBe(0);
+    const text = inspect.outLines.join('\n');
+    expect(text).toContain('children under agent:0: 1 admitted, 1 settled (ok 1)');
+    // The child that looks healthiest and is not, named by the handle
+    // the orchestrator's own turns used.
+    expect(text).toContain('settled ok below their declared evidence floor: 1 (handle 1)');
+  });
+
   it('inspect prints the completion the last settle recorded (RV2703)', async () => {
     // The offline half: `lastRunSettle` has carried the semantic claim
     // since the persisted-terminal tail, and inspect printed the
@@ -317,6 +377,9 @@ export default {
     // A workflow that claims no completion prints no completion line
     // (RV2703): absence is NOT RECORDED, never an incomplete run.
     expect(text).not.toContain('completion:');
+    // And a run that spawned no children has no roster, not an empty
+    // one (RV2702).
+    expect(text).not.toContain('children under');
   });
 
   it('inspect shows an open suspension while the run is parked', async () => {

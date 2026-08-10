@@ -13,7 +13,7 @@ function reconcileRunMeta(
 opts?): Promise<ReconcileResult>;
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:512](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L512)
+Defined in: [packages/core/src/stores/reconcile.ts:674](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L674)
 
 Repairs a divergent meta row from the journal: 'meta-behind' and
 'stranded' audits rewrite `status` (every other meta field, unknown

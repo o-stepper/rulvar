@@ -17,7 +17,7 @@
  * unambiguous cases repair; everything else is reported as 'suspect',
  * never rewritten.
  */
-import type { JournalEntry } from '../l0/entries.js';
+import type { EntryStatus, JournalEntry } from '../l0/entries.js';
 import type { JournalStore, Lease, RunMeta } from '../l0/spi/store.js';
 import { ResolutionFold } from '../journal/resolution.js';
 import { readRunMeta } from './meta-lookup.js';
@@ -25,6 +25,13 @@ import type { RejectedFinishCandidate, RunOutcome, RunStatus } from '../engine/r
 
 /** The decisionType of the journaled run settle entry. */
 export const RUN_SETTLE_DECISION_TYPE = 'run_settle';
+
+/**
+ * The decisionType of the journaled spawn admission (RV2702): the
+ * entry that names every child an orchestration judged, which is what
+ * makes an offline roster a read rather than a guess.
+ */
+export const SPAWN_ADMISSION_DECISION_TYPE = 'spawn-admission';
 
 const RUN_STATUSES: ReadonlySet<string> = new Set([
   'ok',
@@ -324,6 +331,161 @@ export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRu
     entries: entries.length,
     entriesAfterLastSettle: sinceLastSettle,
   };
+}
+
+/** One child of one orchestration, as the journal holds it (RV2702). */
+export interface JournaledChild {
+  /**
+   * The dispatch seq: the SAME number the orchestrator's own turns used
+   * as the child's handle, so a reader can find it in the transcript
+   * without a second identifier. Handles are journal-derived and stable
+   * across resume (a replayed spawn reports its original dispatch seq),
+   * which is what makes this a name and not an index.
+   */
+  handle: number;
+  /** The profile the child ran under, when the terminal recorded it. */
+  agentType?: string;
+  /**
+   * The status the journal recorded, absent when no terminal followed:
+   * the child was still in flight when the journal ends. This is the
+   * ENTRY status vocabulary, which is where the run's own dispatch
+   * records live.
+   */
+  status?: EntryStatus;
+  /** The RV806 evidence verdict, present under a declared contract. */
+  evidence?: { recordedEntries: number; minEntries: number; met: boolean };
+}
+
+/** One orchestration's children, folded from its journal (RV2702). */
+export interface JournaledChildRoster {
+  /** The scope the children dispatched under, which identifies the orchestration. */
+  childScope: string;
+  /** Spawn admissions the controller ADMITTED. */
+  admitted: number;
+  /** Spawn admissions it refused: no child ever ran, and none is listed below. */
+  rejected: number;
+  /** Every admitted child the journal holds a dispatch for, in dispatch order. */
+  children: JournaledChild[];
+}
+
+/**
+ * Every orchestration's children, folded from a run's journal (RV2702).
+ *
+ * `childrenAtFailure` (RV2602) answers this for a LIVE consumer, and it
+ * dies with the process that held it: the settle persists the
+ * completion lift and nothing else, so a post-mortem over a journal,
+ * which is all a paid run leaves behind, had no way to ask what the
+ * children produced. Every ingredient was already written down. This
+ * is the fold.
+ *
+ * It reads what resume reads. A `spawn-admission` decision names every
+ * child the controller judged, with its ordinal, its profile, its
+ * verdict, and the scope its dispatch pins to; the dispatch and
+ * terminal `agent` entries under that scope are the child itself, and
+ * the RV806 evidence verdict rides the terminal. Nothing is
+ * re-derived and no validator runs again, so a journal written by any
+ * prior version reads exactly as well as today's, which is the point:
+ * the runs worth a post-mortem are the ones already in the archive.
+ *
+ * Two things it deliberately does NOT claim. It is not the live
+ * roster: this reading happens after the RV1903 exit barrier settled
+ * the stragglers, so a child the live field would have called
+ * unsettled usually has a terminal here, and `status` is absent only
+ * where the journal truly ends mid-flight. And it names children by
+ * their dispatch seq rather than by nodeId, because the seq is the
+ * handle the orchestrator's own turns used and the one a reader can
+ * follow into the transcript.
+ */
+export function childRostersFromJournal(entries: readonly JournalEntry[]): JournaledChildRoster[] {
+  const rosters = new Map<string, JournaledChildRoster>();
+  const ordered = [...entries].sort((a, b) => a.seq - b.seq);
+  // Indexed once, walked with a cursor per scope: a post-mortem runs
+  // over the whole journal of a long run, and scanning it again per
+  // admission would make the fold quadratic in the number of children,
+  // which is exactly the axis a big run grows along.
+  const dispatchesByScope = new Map<string, JournalEntry[]>();
+  const terminalsByScopeKey = new Map<string, JournalEntry[]>();
+  for (const entry of ordered) {
+    if (entry.kind !== 'agent') {
+      continue;
+    }
+    if (entry.status === 'running') {
+      const rows = dispatchesByScope.get(entry.scope);
+      if (rows === undefined) {
+        dispatchesByScope.set(entry.scope, [entry]);
+      } else {
+        rows.push(entry);
+      }
+      continue;
+    }
+    const key = JSON.stringify([entry.scope, entry.key]);
+    const rows = terminalsByScopeKey.get(key);
+    if (rows === undefined) {
+      terminalsByScopeKey.set(key, [entry]);
+    } else {
+      rows.push(entry);
+    }
+  }
+  const cursors = new Map<string, number>();
+  for (const entry of ordered) {
+    if (entry.kind !== 'decision') {
+      continue;
+    }
+    const value = entry.value as
+      | { decisionType?: unknown; origin?: unknown; childScope?: unknown; decision?: unknown }
+      | undefined;
+    if (
+      value?.decisionType !== SPAWN_ADMISSION_DECISION_TYPE ||
+      (value.origin !== 'spawn_agent' && value.origin !== 'parallel_agents')
+    ) {
+      continue;
+    }
+    const childScope = typeof value.childScope === 'string' ? value.childScope : entry.scope;
+    let roster = rosters.get(childScope);
+    if (roster === undefined) {
+      roster = { childScope, admitted: 0, rejected: 0, children: [] };
+      rosters.set(childScope, roster);
+    }
+    const verdict = (value.decision as { verdict?: { kind?: unknown } } | undefined)?.verdict?.kind;
+    if (verdict !== 'admit') {
+      // A refused admission never dispatched anything, so it owns no
+      // entry below and must not consume one.
+      roster.rejected += 1;
+      continue;
+    }
+    roster.admitted += 1;
+    // The dispatch this admission paid for: the next unclaimed running
+    // agent row under the pinned child scope, since the engine
+    // journals the decision immediately before the dispatch it
+    // authorises. A decision whose dispatch never reached the journal
+    // (a crash in between) takes the NEXT child's row, which is why
+    // this reports counts and statuses rather than pretending to bind
+    // each admission to a named child: `admitted` still exceeds
+    // `children.length` by exactly the dispatches that never landed,
+    // which is the fact a reader needs.
+    const rows = dispatchesByScope.get(childScope) ?? [];
+    let cursor = cursors.get(childScope) ?? 0;
+    while (cursor < rows.length && (rows[cursor]?.seq ?? 0) <= entry.seq) {
+      cursor += 1;
+    }
+    const dispatch = rows[cursor];
+    cursors.set(childScope, cursor + 1);
+    if (dispatch === undefined) {
+      continue;
+    }
+    const terminal = terminalsByScopeKey
+      .get(JSON.stringify([childScope, dispatch.key]))
+      ?.find((candidate) => candidate.seq > dispatch.seq);
+    roster.children.push({
+      handle: dispatch.seq,
+      ...(terminal?.costAttribution?.agentType === undefined
+        ? {}
+        : { agentType: terminal.costAttribution.agentType }),
+      ...(terminal === undefined ? {} : { status: terminal.status }),
+      ...(terminal?.evidence === undefined ? {} : { evidence: { ...terminal.evidence } }),
+    });
+  }
+  return [...rosters.values()];
 }
 
 export type RunAuditVerdict = 'consistent' | 'meta-behind' | 'stranded' | 'suspect';
