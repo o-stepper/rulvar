@@ -1532,6 +1532,108 @@ describe('--strict reads the claim-coverage grade (RV1702)', () => {
   });
 });
 
+describe('--strict reads the deliverable verdict (RV2604)', () => {
+  // The twenty-fifth comparison run: four ok children, a declared finish
+  // contract that refused all three syntheses, a run that settled on
+  // unvalidated output, and a harness that read `status: 'ok'` and could
+  // not tell. Completion answers for the CHILDREN; this field answers
+  // for the artifact.
+  const outcomeWith = (extra: Record<string, unknown>) =>
+    ({
+      status: 'ok',
+      value: {
+        result: 1,
+        completion: 'complete',
+        childStatusCounts: { ok: 4 },
+        degradedReasons: [],
+      },
+      dropped: [],
+      pending: [],
+      cost: { totalUsd: 0, byModel: {}, byPhase: {}, unpriced: [] },
+      ...extra,
+    }) as unknown as Parameters<typeof strictExitCode>[0];
+
+  it('a refused artifact exits 1 even under a complete completion', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      outcomeWith({ deliverableAccepted: false, resultAvailable: true }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    expect(io.errLines.join('\n')).toContain(
+      'the declared finish contract did not accept the artifact',
+    );
+  });
+
+  it('an accepted artifact keeps exit 0', () => {
+    const io = scriptedIo();
+    expect(
+      strictExitCode(
+        outcomeWith({ deliverableAccepted: true, resultAvailable: true, acceptedArtifactRef: 41 }),
+        0,
+        io,
+      ),
+    ).toBe(0);
+    expect(io.errLines).toHaveLength(0);
+  });
+
+  it('an ABSENT verdict is left alone: nothing declared a contract', () => {
+    // The vacuum contrast, and the reason the check reads `=== false`.
+    // A host that declares no `finishValidation` is its own judge, and
+    // absence means NOT RECORDED (RV1209), never a refusal.
+    const io = scriptedIo();
+    expect(strictExitCode(outcomeWith({ resultAvailable: true }), 0, io)).toBe(0);
+    expect(io.errLines).toHaveLength(0);
+  });
+
+  it('a missing artifact is named in the same refusal', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      outcomeWith({ deliverableAccepted: false, resultAvailable: false }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    expect(io.errLines.join('\n')).toContain('carries no artifact at all');
+  });
+
+  it('the verdict is read before any coverage grade', () => {
+    // A coverage grade over an artifact the contract rejected answers a
+    // question nobody should still be asking: the refusal that names the
+    // contract is the one a reader needs.
+    const io = scriptedIo();
+    const code = strictExitCode(
+      outcomeWith({
+        deliverableAccepted: false,
+        resultAvailable: true,
+        value: {
+          result: 1,
+          completion: 'complete',
+          childStatusCounts: { ok: 4 },
+          degradedReasons: [],
+          claimConsistencyMeta: {
+            contradictions: [],
+            pairsJudged: 0,
+            draftCitingSentences: 2,
+            truncated: false,
+            coveredCitingSentences: 0,
+            judgeInvoked: true,
+            judgeFailed: true,
+            coverage: 'judge-failed',
+          },
+        },
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    const err = io.errLines.join('\n');
+    expect(err).toContain('the declared finish contract did not accept the artifact');
+    expect(err).not.toContain('claim coverage');
+  });
+});
+
 describe('runs audit (fenced run state RFC, phase 3)', () => {
   const strandedEntry = {
     hashVersion: 2,

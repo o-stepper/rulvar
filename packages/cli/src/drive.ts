@@ -298,6 +298,14 @@ function coverageGradeOf(value: unknown): ClaimCoverageGrade | undefined {
  * pass through unchanged, so the flag never masks the ordinary status
  * exit and never bites a plain workflow.
  *
+ * Completion answers for the CHILDREN, never for the artifact, so
+ * strict also reads the deliverable verdict (RV2604): a
+ * `deliverableAccepted: false` exits nonzero even under a green
+ * completion, the row the twenty-fifth comparison run landed on when
+ * its child roster passed and its declared contract refused every
+ * synthesis. An ABSENT verdict is left alone, because nothing judged
+ * anything and a host that declares no contract is its own judge.
+ *
  * Completion is a MECHANICAL verdict, and the eighteenth comparison
  * benchmark showed how easily `completion: 'complete'` reads as
  * semantic green while the claim judge saw 40 of 144 citing sentences.
@@ -332,6 +340,25 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     for (const reason of reasons.filter((entry): entry is string => typeof entry === 'string')) {
       io.err(`  ${sanitizeTerminalText(reason)}`);
     }
+    return 1;
+  }
+  // The DELIVERABLE verdict, ahead of any semantic grade (RV2604).
+  // Completion is the acceptance policy's claim over CHILD statuses, and
+  // the twenty-fifth comparison run is the row it misses: the child
+  // roster passed, the declared finish contract refused the artifact,
+  // the run settled on unvalidated output, and strict exited zero. A
+  // coverage grade over an artifact the contract rejected answers a
+  // question nobody should still be asking, so this check precedes it.
+  //
+  // `=== false` and not `!== true`: ABSENT means no `finishValidation`
+  // was declared, so nothing judged anything, and that is the honest
+  // answer of a run whose host is its own judge, not a failure (the
+  // normative predicate in the observability guide draws the same line).
+  if (outcome.deliverableAccepted === false) {
+    io.err(
+      'strict: the declared finish contract did not accept the artifact this run settled on' +
+        (outcome.resultAvailable === false ? ', and the terminal carries no artifact at all' : ''),
+    );
     return 1;
   }
   const grade = coverageGradeOf(value);

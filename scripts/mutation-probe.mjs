@@ -4112,6 +4112,15 @@ export const MUTATIONS = [
     replace: '      ...(false',
     test: 'packages/core/src/runtime/finalization-window.test.ts',
   },
+  {
+    id: 'strict-reads-the-deliverable-verdict',
+    doctrine:
+      "the CLI strict gate exits nonzero on a refused deliverable (RV2604): dropping the branch returns strict to the posture where an accepted child roster reads green over an artifact the declared contract refused, the exact reading that let the twenty-fifth comparison run's harness score a run that shipped unvalidated output",
+    file: 'packages/cli/src/drive.ts',
+    find: '  if (outcome.deliverableAccepted === false) {',
+    replace: '  if (false) {',
+    test: 'packages/cli/src/index.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
