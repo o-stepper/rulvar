@@ -14,6 +14,7 @@
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "format": "prettier --write .",
+    "prepare": "node scripts/merge-mutation-manifest.mjs --install",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

@@ -40,6 +40,20 @@ this file is the authoritative contributor workflow.
   bootstrap. The `bootstrap` CI job keeps both supported paths (direct
   pnpm, enabled Corepack shim) working and keeps this trap note honest.
 - One-time setup: `pnpm install --frozen-lockfile`.
+- That install also registers the mutation manifest's merge driver in
+  this clone, because git keeps merge drivers in config and never in the
+  tree. The manifest in `scripts/mutation-probe.mjs` is an append-only
+  array of entries keyed by id whose order carries no meaning, so a
+  branch that appended an entry and a `main` that appended another are
+  not in disagreement at all; the driver merges them by entry and hands
+  back only the case where two sides changed ONE entry. Three releases
+  running were paid for by resolving that tail conflict by hand: both
+  sides are entry bodies inside a single array literal, so "keep both
+  sides" drops the `},` and the `{` between them and fuses two entries
+  into one. Installing with `--ignore-scripts` skips the registration;
+  `node scripts/merge-mutation-manifest.mjs --install` adds it on its
+  own, and a clone without it merges the manifest exactly as it always
+  did, with the source gate below still refusing a fused result.
 
 Everyday commands, all from the repository root:
 
@@ -129,7 +143,10 @@ merged before the deviating code lands.
   manifest tail leaves behind, and JS keeps the last of a duplicated key
   without a word, so the imported value is a well-formed entry, every
   fragment resolves, and the probe that silently left the manifest takes
-  its doctrine with it. An unrecognised flag is refused rather than
+  its doctrine with it. The merge driver in Toolchain above is that
+  rule's other half: this gate catches the fusion afterwards, the driver
+  stops it happening, and neither depends on the other. An unrecognised
+  flag is refused rather than
   ignored: the arms differ by three orders of magnitude in cost, so a
   typo must not silently start the long one.
 - Changeset presence, the changesets fixed-group check, and frozen-fixture
