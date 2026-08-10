@@ -15,8 +15,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { checkFragments } from './mutation-fragments.mjs';
+import { checkFragments, checkShape } from './mutation-fragments.mjs';
 import { MUTATIONS } from './mutation-probe.mjs';
+
+const entry = (extra = {}) => ({
+  id: 'one',
+  doctrine: 'a rule worth defending',
+  file: 'a.ts',
+  find: 'const answer = 42;',
+  replace: 'const answer = 43;',
+  test: 'a.test.ts',
+  ...extra,
+});
 
 const reader = (files) => (file) => {
   const source = files[file];
@@ -95,4 +105,63 @@ test('the shipped manifest addresses its own sources', () => {
     readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'),
   );
   assert.deepEqual(problems, []);
+});
+
+// Shape (RV2606): whether an entry is runnable AT ALL, decided from the
+// manifest alone. A conflict resolution once dropped one `test` field,
+// every fragment resolved, and the full manifest ran to that entry and
+// died on `mutation.test.endsWith` at minute eighteen.
+
+test('a complete entry is not a problem', () => {
+  assert.deepEqual(checkShape([entry()]), []);
+});
+
+test('a missing field is named, and named exactly', () => {
+  assert.deepEqual(checkShape([entry({ test: undefined })]), [
+    { id: 'one', kind: 'missing-fields', fields: ['test'] },
+  ]);
+  assert.deepEqual(checkShape([entry({ find: undefined, replace: undefined })]), [
+    { id: 'one', kind: 'missing-fields', fields: ['find', 'replace'] },
+  ]);
+});
+
+test('an entry with no usable id is still reported, by index', () => {
+  // The reader needs a handle on it even when the entry cannot name
+  // itself: silence here is how the eighteen minute failure happened.
+  assert.deepEqual(checkShape([entry({ id: undefined })]), [
+    { id: '#0', kind: 'missing-fields', fields: ['id'] },
+  ]);
+  assert.deepEqual(checkShape([null]), [{ id: '#0', kind: 'not-an-entry' }]);
+});
+
+test('a duplicate id is a problem, and points at the first', () => {
+  // `--only <id>` selects by id, so a duplicate makes one of the two
+  // unrunnable on its own and both indistinguishable in the log.
+  assert.deepEqual(checkShape([entry(), entry({ file: 'b.ts' })]), [
+    { id: 'one', kind: 'duplicate-id', firstAt: 0 },
+  ]);
+});
+
+test('a replace identical to its find is inert, and inert reads as a hole', () => {
+  // Such a mutation changes nothing, so it can only ever SURVIVE, and a
+  // survivor is reported as a gap in the suite: the manifest would
+  // accuse its own tests of not defending a rule nobody attacked.
+  assert.deepEqual(checkShape([entry({ replace: 'const answer = 42;' })]), [
+    { id: 'one', kind: 'inert' },
+  ]);
+});
+
+test('every shape problem is reported, not just the first', () => {
+  const problems = checkShape([entry({ test: undefined }), entry({ id: 'two' }), entry()]);
+  assert.deepEqual(
+    problems.map((problem) => [problem.id, problem.kind]),
+    [
+      ['one', 'missing-fields'],
+      ['one', 'duplicate-id'],
+    ],
+  );
+});
+
+test('the shipped manifest is runnable', () => {
+  assert.deepEqual(checkShape(MUTATIONS), []);
 });
