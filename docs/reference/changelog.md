@@ -18,6 +18,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+
 ### 1.228.0
 
 #### Patch Changes
@@ -2085,6 +2094,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+
 ### 1.228.0
 
 #### Patch Changes
@@ -3955,6 +3973,29 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.229.0
+
+#### Minor Changes
+
+- 7ce0be2: `--strict` reads the deliverable verdict (RV2604). The flag has always refused a partial acceptance and, since RV1702, a coverage grade that verified nothing. It never asked the one question RV2506 shipped a field for: did the declared finish contract accept the artifact this run settled on. Completion answers for the CHILDREN, and the twenty-fifth comparison run is the row that gap leaves open, with four accepted children, three syntheses the contract refused, a run that settled on unvalidated output, and a scoring harness reading `status: 'ok'`.
+
+  `deliverableAccepted: false` now exits nonzero even under `completion: 'complete'`, naming the contract and, when the terminal carries no artifact at all, saying so in the same line. The check precedes every coverage grade deliberately: a semantic grade over an artifact the contract rejected answers a question nobody should still be asking, and the refusal that names the contract is what a reader needs.
+
+  An ABSENT verdict is left alone. The check is `=== false`, not `!== true`, because absence means no `finishValidation` was declared, nothing judged anything, and a host that declares no contract is its own judge. That is the same line the normative consumer predicate draws in the observability guide.
+
+- edce170: `rulvar inspect` reports the logical run and what the contract refused (RV2605). Two surfaces shipped in v1.228.0 had no consumer in the tool people actually read a run with: `inspect` printed `entries: N`, which over a resumed run is one undifferentiated heap with no boundaries in it, and said nothing at all about finish candidates the declared contract rejected.
+
+  `segments:` is `logicalRunTelemetry` (RV2510) printed: how many segments ran, how each settled, how many entries each appended, and the count of entries that continued PAST the last settle (RV1407) when there are any, because the last settled status is then not the run's last word. `rejected finish candidates:` lists the RV2507 rows with verdict, size, hash prefix, failing validators, and the blob ref when the bytes were retained, and counts DISTINCT documents beside the row count, so three rows sharing one hash reads as the model serving one text three times rather than as three genuine attempts.
+
+  `lastRunSettle` gains `rejectedFinishCandidates`. The settle already persists the whole completion lift, so this is a read of what is recorded, not a re-fold and not a validator re-run, and every row is parsed defensively: any malformed row drops the WHOLE list, the same posture the live lift takes, because a partial history read as complete under-reports exactly the runs that misbehaved most, and offline is where nobody can check. A journal that records nothing of the kind reads as NOT RECORDED and both lines stay absent.
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
 
 ### 1.228.0
 
@@ -6290,6 +6331,30 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.229.0
+
+#### Minor Changes
+
+- 3370342: The finalization window entry explains a reserve it did not configure (RV2601). With `reserveForEvidenceDeficit` the effective reserve is widened by the outstanding evidence floor (RV1208), and the journaled `finalization_window_entry` decision carried only `{remaining, reserveCalls, budget}`: a reader after the fact could neither explain a reserve of 25 under a configured 20, nor see that the agent stopped searching owing its ENTIRE floor. The fourth parity run settled exactly there, and reconstructing it took the transcript.
+
+  The decision now carries `evidenceDeficit` and `minEntries`, exactly when the widening happened. Both numbers are the loop's own, and the same predicate feeds the notice the model reads and the fact the journal keeps, so the two can no longer disagree. Absence is the honest answer that the configured reserve is what bound: a run without the opt-in, without a declared contract, or with the floor already met journals what it always did, byte for byte.
+
+  The doctrine is the one RV2203, RV2205 and RV2207 already ship under: a number the loop APPLIED belongs in the journal with the arithmetic that produced it, not only in prose addressed to a model nobody kept.
+
+- 2fb6656: A run that dies before acceptance names what its children produced (RV2602). Every child-naming field on the envelope hangs off the acceptance fold: `childStatusCounts`, `belowFloorOkChildren`, `acceptanceChildren`, all of them assembled inside the acceptance decision and enriched onto a failure only when that decision exists. A run that crosses its ceiling mid-roster therefore settled with `completion` absent and said NOTHING about work already paid for, even though every child terminal was in the journal one entry at a time. That is the last row of the deliverable truth table, and the only one where the terminal was silent about spend.
+
+  `RunOutcome` and the `run:end` event gain `childrenAtFailure`: `spawned`, `settled`, `statusCounts`, the `belowFloorOkChildren` that settled `ok` under a declared evidence contract they never met (the fourth parity run's silent worker, sixty one successful tool calls and not one recorded entry), and the `unsettled` children still running when the run gave up. Nothing new is written; it folds the children's own journaled terminals.
+
+  Three lines draw its boundaries. It reports ONLY where no acceptance verdict exists, live or rolled forward from the journal, so one set of children never carries two folds under two authorities. It is deliberately not called `childStatusCounts`, because that name belongs to the policy's number and a fold done by no policy must not borrow it. And it is lifted independently of the completion lift, because that lift bails out the moment there is no completion literal, which is exactly the terminal this field exists for.
+
+  The roster is frozen at the moment of death, ahead of the RV1903 exit barrier, so it is the roster a verdict would have frozen rather than the one the stragglers land on afterwards; that is why `unsettled` can be non-empty. The error class is preserved exactly and only its data widens, an already-present field is never overwritten, and a run that spawned no child adds nothing.
+
+- edce170: `rulvar inspect` reports the logical run and what the contract refused (RV2605). Two surfaces shipped in v1.228.0 had no consumer in the tool people actually read a run with: `inspect` printed `entries: N`, which over a resumed run is one undifferentiated heap with no boundaries in it, and said nothing at all about finish candidates the declared contract rejected.
+
+  `segments:` is `logicalRunTelemetry` (RV2510) printed: how many segments ran, how each settled, how many entries each appended, and the count of entries that continued PAST the last settle (RV1407) when there are any, because the last settled status is then not the run's last word. `rejected finish candidates:` lists the RV2507 rows with verdict, size, hash prefix, failing validators, and the blob ref when the bytes were retained, and counts DISTINCT documents beside the row count, so three rows sharing one hash reads as the model serving one text three times rather than as three genuine attempts.
+
+  `lastRunSettle` gains `rejectedFinishCandidates`. The settle already persists the whole completion lift, so this is a read of what is recorded, not a re-fold and not a validator re-run, and every row is parsed defensively: any malformed row drops the WHOLE list, the same posture the live lift takes, because a partial history read as complete under-reports exactly the runs that misbehaved most, and offline is where nobody can check. A journal that records nothing of the kind reads as NOT RECORDED and both lines stay absent.
 
 ### 1.228.0
 
@@ -8904,6 +8969,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.229.0
+
 ### 1.228.0
 
 ### 1.227.0
@@ -9464,6 +9531,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+  - @rulvar/anthropic@1.229.0
+  - @rulvar/openai@1.229.0
+  - @rulvar/plan@1.229.0
+  - @rulvar/testing@1.229.0
 
 ### 1.228.0
 
@@ -12064,6 +12144,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+
 ### 1.228.0
 
 #### Patch Changes
@@ -13345,6 +13434,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
 
 ### 1.228.0
 
@@ -15422,6 +15520,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+
 ### 1.228.0
 
 #### Patch Changes
@@ -17406,6 +17513,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+  - eslint-plugin-rulvar@1.229.0
 
 ### 1.228.0
 
@@ -19581,6 +19698,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+  - @rulvar/anthropic@1.229.0
+  - @rulvar/openai@1.229.0
 
 ### 1.228.0
 
@@ -22068,6 +22196,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+
 ### 1.228.0
 
 #### Patch Changes
@@ -24060,6 +24197,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+
 ### 1.228.0
 
 #### Patch Changes
@@ -25357,6 +25503,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
 
 ### 1.228.0
 
@@ -27286,6 +27441,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.229.0
+
+#### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
 
 ### 1.228.0
 
