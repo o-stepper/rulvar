@@ -205,6 +205,77 @@ describe('auditRun and reconcileRunMeta', () => {
   });
 });
 
+describe('the settle reads back what the finish contract refused (RV2605)', () => {
+  // The settle persists the WHOLE completion lift (RV2507 included), so
+  // an offline reader recovers the rejected candidates without a
+  // re-fold and without re-running a validator.
+  const settleWith = (rejectedFinishCandidates: unknown): JournalEntry[] =>
+    [
+      {
+        seq: 1,
+        kind: 'decision',
+        scope: '',
+        status: 'ok',
+        site: 'run-settle',
+        value: { decisionType: 'run_settle', runStatus: 'error', rejectedFinishCandidates },
+      },
+    ] as unknown as JournalEntry[];
+  const row = (extra: Record<string, unknown> = {}) => ({
+    callId: 'call-1',
+    verdict: 'rejected',
+    hash: 'a'.repeat(64),
+    chars: 5207,
+    failed: [{ name: 'evidence-grade', reasons: ['two sentences'] }],
+    ...extra,
+  });
+
+  it('reads the rows back off a persisted settle', () => {
+    const settle = lastRunSettle(settleWith([row({ verdict: 'repair' }), row({ ref: 'r/f/1' })]));
+    expect(settle?.rejectedFinishCandidates).toEqual([
+      {
+        callId: 'call-1',
+        verdict: 'repair',
+        hash: 'a'.repeat(64),
+        chars: 5207,
+        failed: [{ name: 'evidence-grade', reasons: ['two sentences'] }],
+      },
+      {
+        callId: 'call-1',
+        verdict: 'rejected',
+        hash: 'a'.repeat(64),
+        chars: 5207,
+        failed: [{ name: 'evidence-grade', reasons: ['two sentences'] }],
+        ref: 'r/f/1',
+      },
+    ]);
+  });
+
+  it('drops the WHOLE list on a malformed row, never a subset', () => {
+    // The RV2507 posture: a partial history read as complete would
+    // under-report exactly the runs that misbehaved most.
+    expect(
+      lastRunSettle(settleWith([row(), row({ verdict: 'maybe' })]))?.rejectedFinishCandidates,
+    ).toBeUndefined();
+    expect(
+      lastRunSettle(settleWith([row({ chars: -1 })]))?.rejectedFinishCandidates,
+    ).toBeUndefined();
+    expect(
+      lastRunSettle(settleWith([row({ failed: [{ name: 'x', reasons: [7] }] })]))
+        ?.rejectedFinishCandidates,
+    ).toBeUndefined();
+  });
+
+  it('a settle that recorded none says nothing, and still settles', () => {
+    // Absence is NOT RECORDED (RV1209): a finish that passed first try,
+    // a run with no contract, and a journal written before RV2507 all
+    // read the same, and none of them is a claim that nothing was
+    // refused.
+    expect(lastRunSettle(settleWith(undefined))?.rejectedFinishCandidates).toBeUndefined();
+    expect(lastRunSettle(settleWith([]))?.rejectedFinishCandidates).toBeUndefined();
+    expect(lastRunSettle(settleWith(undefined))?.runStatus).toBe('error');
+  });
+});
+
 describe('the logical run telemetry over every segment (RV2510)', () => {
   // The twenty-fifth comparison run was killed and resumed, and its two
   // terminals mixed cumulative money with segment-scoped counters,

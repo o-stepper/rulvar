@@ -11,6 +11,7 @@ function lastRunSettle(entries):
   | {
   completion?: "complete" | "partial" | "rejected";
   outputHash?: string;
+  rejectedFinishCandidates?: RejectedFinishCandidate[];
   runStatus: RunStatus;
   seq: number;
 }
@@ -32,10 +33,26 @@ none).
 
 ## Returns
 
-  \| \{
-  `completion?`: `"complete"` \| `"partial"` \| `"rejected"`;
-  `outputHash?`: `string`;
-  `runStatus`: [`RunStatus`](/api/@rulvar/core/type-aliases/RunStatus.md);
-  `seq`: `number`;
-\}
-  \| `undefined`
+### Type Literal
+
+```ts
+{
+  completion?: "complete" | "partial" | "rejected";
+  outputHash?: string;
+  rejectedFinishCandidates?: RejectedFinishCandidate[];
+  runStatus: RunStatus;
+  seq: number;
+}
+```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `completion?` | `"complete"` \| `"partial"` \| `"rejected"` | - | [packages/core/src/stores/reconcile.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L54) |
+| `outputHash?` | `string` | - | [packages/core/src/stores/reconcile.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L53) |
+| `rejectedFinishCandidates?` | [`RejectedFinishCandidate`](/api/@rulvar/core/interfaces/RejectedFinishCandidate.md)[] | The rejected finish candidates the settle recorded (RV2507), read back for offline readers (RV2605). The settle persists the whole completion lift, so this needs no re-fold and no validator re-run; it is parsed defensively, exactly like `completion`, so a foreign or older journal reads as "not recorded" rather than as a claim. | [packages/core/src/stores/reconcile.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L63) |
+| `runStatus` | [`RunStatus`](/api/@rulvar/core/type-aliases/RunStatus.md) | - | [packages/core/src/stores/reconcile.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L51) |
+| `seq` | `number` | - | [packages/core/src/stores/reconcile.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L52) |
+
+***
+
+`undefined`

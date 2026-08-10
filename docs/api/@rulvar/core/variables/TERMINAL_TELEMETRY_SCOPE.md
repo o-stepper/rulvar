@@ -10,7 +10,7 @@
 const TERMINAL_TELEMETRY_SCOPE: Readonly<Record<string, TelemetryScope>>;
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L123)
+Defined in: [packages/core/src/stores/reconcile.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L195)
 
 The scope of every field the engine writes onto a terminal (RV2510),
 as one exported table rather than as sentences scattered through
