@@ -615,4 +615,48 @@ describe('the child roster a journal already holds (RV2702)', () => {
     expect(rosters.map((roster) => roster.childScope)).toEqual(['agent:0', 'agent:1/agent:0']);
     expect(rosters.every((roster) => roster.children.length === 1)).toBe(true);
   });
+
+  it('marks the children the run ABANDONED, which it counted as kept work (RV2804)', () => {
+    // The money layer has separated the two since RV1904: grossUsd keeps
+    // abandoned spend, totalUsd does not. The roster presented a
+    // discarded branch exactly like a kept one, so "two children settled
+    // ok" counted work the orchestration threw away.
+    const abandon = (seq: number, target: number): JournalEntry =>
+      ({
+        seq,
+        kind: 'abandon',
+        scope: '',
+        status: 'ok',
+        ref: target,
+        abandon: { target, authorizedBy: seq - 1, reason: 'a better branch won' },
+      }) as unknown as JournalEntry;
+    const rosters = childRostersFromJournal([
+      admission(2, 'agent:0'),
+      dispatch(3, 'agent:0', 'k1'),
+      admission(4, 'agent:0'),
+      dispatch(5, 'agent:0', 'k2'),
+      terminal(6, 'agent:0', 'k1', 'ok'),
+      terminal(7, 'agent:0', 'k2', 'ok'),
+      abandon(8, 3),
+    ]);
+    const children = rosters[0]?.children ?? [];
+    expect(children.map((child) => [child.handle, child.status, child.abandoned])).toEqual([
+      [3, 'ok', true],
+      [5, 'ok', undefined],
+    ]);
+    // Still admitted, still settled: abandonment is what the run did
+    // with the result, not a claim the child never ran.
+    expect(rosters[0]?.admitted).toBe(2);
+  });
+
+  it('says nothing about abandonment when nothing was abandoned', () => {
+    // The vacuum contrast, and the RV1209 posture: absence is a fact
+    // here, so it must never be spelled as `abandoned: false`.
+    const rosters = childRostersFromJournal([
+      admission(2, 'agent:0'),
+      dispatch(3, 'agent:0', 'k1'),
+      terminal(6, 'agent:0', 'k1', 'ok'),
+    ]);
+    expect(rosters[0]?.children[0] && 'abandoned' in rosters[0].children[0]).toBe(false);
+  });
 });

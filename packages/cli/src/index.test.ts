@@ -344,6 +344,25 @@ export default {
     // The child that looks healthiest and is not, named by the handle
     // the orchestrator's own turns used.
     expect(text).toContain('settled ok below their declared evidence floor: 1 (handle 1)');
+    // Nothing was abandoned here, and the report says nothing (RV2804).
+    expect(text).not.toContain('ABANDONED');
+
+    // The same roster with the branch discarded: the provider billed
+    // this child and the run kept none of it, so a reader counting
+    // settled children is counting work that was thrown away.
+    await store.append('ROSTER', {
+      ...base,
+      seq: 3,
+      scope: '',
+      key: '',
+      kind: 'abandon',
+      status: 'ok',
+      ref: 1,
+      abandon: { target: 1, authorizedBy: 0, reason: 'a better branch won' },
+    } as unknown as Parameters<typeof store.append>[1]);
+    const after = scriptedIo();
+    expect(await runCli(['inspect', 'ROSTER'], { cwd, io: after })).toBe(0);
+    expect(after.outLines.join('\n')).toContain('on branches the run ABANDONED: 1 (handle 1)');
   });
 
   it('inspect prints the completion the last settle recorded (RV2703)', async () => {

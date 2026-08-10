@@ -4231,6 +4231,15 @@ export const MUTATIONS = [
     replace: "  'cost.orchestrator.wakes': 'segment',",
     test: 'packages/core/src/stores/reconcile.test.ts',
   },
+  {
+    id: 'offline-roster-names-abandoned-children',
+    doctrine:
+      'the offline child roster marks the children whose branch the run ABANDONED (RV2804): the provider billed that work and the orchestration kept none of it, so a roster that presents a discarded child exactly like a kept one lets a post-mortem count thrown-away branches as delivered work, which the money layer has refused to do since RV1904',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '      ...(abandoned.isAbandoned(dispatch.seq) ? { abandoned: true as const } : {}),',
+    replace: '      ...(false as boolean ? { abandoned: true as const } : {}),',
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

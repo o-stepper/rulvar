@@ -19,6 +19,7 @@
  */
 import type { EntryStatus, JournalEntry } from '../l0/entries.js';
 import type { JournalStore, Lease, RunMeta } from '../l0/spi/store.js';
+import { buildAbandonFold } from '../journal/disposition.js';
 import { ResolutionFold } from '../journal/resolution.js';
 import { readRunMeta } from './meta-lookup.js';
 import type {
@@ -437,6 +438,20 @@ export interface JournaledChild {
   status?: EntryStatus;
   /** The RV806 evidence verdict, present under a declared contract. */
   evidence?: { recordedEntries: number; minEntries: number; met: boolean };
+  /**
+   * Present and true when the orchestration ABANDONED this child's
+   * branch (RV2804): the work happened and the provider billed it, and
+   * the run threw the result away. The money layer has separated the two
+   * since RV1904 (`grossUsd` keeps abandoned spend, `totalUsd` does
+   * not), and this roster presented discarded children exactly like kept
+   * ones, so a post-mortem counting "four children settled ok" counted
+   * branches the orchestrator had discarded.
+   *
+   * Absent means NOT ABANDONED, which is decidable here: the fold reads
+   * the same first-wins abandon projection the replayer uses, over the
+   * same journal, and `handle` is the very seq an abandon entry targets.
+   */
+  abandoned?: true;
 }
 
 /** One orchestration's children, folded from its journal (RV2702). */
@@ -482,6 +497,10 @@ export interface JournaledChildRoster {
 export function childRostersFromJournal(entries: readonly JournalEntry[]): JournaledChildRoster[] {
   const rosters = new Map<string, JournaledChildRoster>();
   const ordered = [...entries].sort((a, b) => a.seq - b.seq);
+  // The same first-wins projection the replayer disposes by (DEF-4), so
+  // a discarded branch reads here exactly as it reads there, subtree
+  // coverage included (RV2804).
+  const abandoned = buildAbandonFold(ordered);
   // Indexed once, walked with a cursor per scope: a post-mortem runs
   // over the whole journal of a long run, and scanning it again per
   // admission would make the fold quadratic in the number of children,
@@ -561,6 +580,7 @@ export function childRostersFromJournal(entries: readonly JournalEntry[]): Journ
       ?.find((candidate) => candidate.seq > dispatch.seq);
     roster.children.push({
       handle: dispatch.seq,
+      ...(abandoned.isAbandoned(dispatch.seq) ? { abandoned: true as const } : {}),
       ...(terminal?.costAttribution?.agentType === undefined
         ? {}
         : { agentType: terminal.costAttribution.agentType }),
