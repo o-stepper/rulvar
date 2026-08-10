@@ -9,6 +9,7 @@ import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { BudgetExhaustedError, ConfigError, FailRunError } from '../l0/errors.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
+import { TERMINAL_TELEMETRY_SCOPE } from '../stores/reconcile.js';
 import { defineWorkflow, executeWorkflow } from '../engine/ctx.js';
 import {
   makeInternals,
@@ -7339,5 +7340,38 @@ describe('the pre-acceptance roster (RV2602)', () => {
     ).result;
     expect(outcome.status).toBe('exhausted');
     expect(outcome.childrenAtFailure).toBeUndefined();
+  });
+
+  it('every field of a FAILED terminal declares its telemetry scope (RV2701)', async () => {
+    // The other half of the RV2510 doctrine gate, which reads the keys
+    // of one SUCCESSFUL run (stores/reconcile.test.ts) and is therefore
+    // blind to every field that exists only where a run died. This
+    // field is exactly that, and it shipped straight through: a table
+    // about killed and resumed runs cannot be defended by an outcome
+    // that neither died nor resumed.
+    const engine = createEngine({
+      adapters: [spawnThenDie(() => ({ text: 'did the work' }))],
+      stores: { journal: new InMemoryStore(), transcripts: new InMemoryTranscriptStore() },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: worker() },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assemble the parts', { budget: { capUsd: 0.3 } }),
+      undefined,
+      { runId: 'PRE7', budgetUsd: 5 },
+    ).result;
+    expect(outcome.status).toBe('exhausted');
+    // The failure path really does carry a key the ok path never has.
+    expect(outcome.childrenAtFailure).toBeDefined();
+    const undeclared = Object.keys(outcome).filter(
+      (key) => TERMINAL_TELEMETRY_SCOPE[key] === undefined,
+    );
+    expect(undeclared).toEqual([]);
+    // Cumulative, for the loss-list reason: a resumed segment re-admits
+    // every recovered child into the same roster, so the fold covers
+    // the logical run rather than the segment that happened to die.
+    expect(TERMINAL_TELEMETRY_SCOPE.childrenAtFailure).toBe('cumulative');
   });
 });

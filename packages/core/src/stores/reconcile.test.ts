@@ -356,8 +356,15 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
     expect(total.statuses).toEqual(['ok']);
     expect(total.entriesPerSegment).toEqual([loaded.length]);
     expect(total.entriesAfterLastSettle).toBe(0);
-    // The gate: a new terminal field cannot ship without declaring what
-    // it counts, because this reads the keys a real outcome carries.
+    // Half the gate: the keys a SUCCESSFUL outcome carries. The other
+    // half is the type (RV2701): `TerminalTelemetryScopes` requires
+    // every key of RunOutcome, so a new field does not compile until it
+    // declares what it counts. This sample alone could not do that job,
+    // because a field present only where a run DIED is absent from
+    // every ok outcome by construction, which is how RV2602's
+    // childrenAtFailure shipped undeclared; the failure-path half lives
+    // in orchestrator/orchestrate.test.ts, beside the run that produces
+    // it.
     const undeclared = Object.keys(outcome).filter(
       (key) => TERMINAL_TELEMETRY_SCOPE[key] === undefined,
     );

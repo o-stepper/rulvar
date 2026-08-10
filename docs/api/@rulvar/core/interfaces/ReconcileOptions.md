@@ -6,10 +6,10 @@
 
 # Interface: ReconcileOptions
 
-Defined in: [packages/core/src/stores/reconcile.ts:467](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L467)
+Defined in: [packages/core/src/stores/reconcile.ts:489](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L489)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-lease"></a> `lease?` | [`Lease`](/api/@rulvar/core/type-aliases/Lease.md) | A live lease for the run, passed through to the meta write. Over a `fencedWrites` store this makes the repair itself takeover safe: a successor acquiring mid-repair fences the stale rewrite out. | [packages/core/src/stores/reconcile.ts:473](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L473) |
+| <a id="property-lease"></a> `lease?` | [`Lease`](/api/@rulvar/core/type-aliases/Lease.md) | A live lease for the run, passed through to the meta write. Over a `fencedWrites` store this makes the repair itself takeover safe: a successor acquiring mid-repair fences the stale rewrite out. | [packages/core/src/stores/reconcile.ts:495](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L495) |

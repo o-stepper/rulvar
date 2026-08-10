@@ -21,7 +21,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import type { JournalStore, Lease, RunMeta } from '../l0/spi/store.js';
 import { ResolutionFold } from '../journal/resolution.js';
 import { readRunMeta } from './meta-lookup.js';
-import type { RejectedFinishCandidate, RunStatus } from '../engine/run-handle.js';
+import type { RejectedFinishCandidate, RunOutcome, RunStatus } from '../engine/run-handle.js';
 
 /** The decisionType of the journaled run settle entry. */
 export const RUN_SETTLE_DECISION_TYPE = 'run_settle';
@@ -178,6 +178,25 @@ function readRejectedFinishCandidates(raw: unknown): RejectedFinishCandidate[] |
 export type TelemetryScope = 'segment' | 'cumulative' | 'terminal';
 
 /**
+ * The scope table's type, and the gate that keeps it complete
+ * (RV2701).
+ *
+ * Every field of `RunOutcome` is required, so a new terminal field
+ * does not COMPILE until it declares what it counts; the string index
+ * signature then admits the nested paths a consumer reads off the same
+ * outcome (`cost.orchestrator.wakes`), which are not keys of the type.
+ *
+ * It replaces a sample: the original gate read the keys of one
+ * successful run, which is structurally blind to every field that
+ * exists only on a FAILED terminal, and RV2602's `childrenAtFailure`
+ * (present exactly when no acceptance verdict exists) shipped straight
+ * through it. A table about resumed and killed runs cannot be
+ * defended by an outcome that neither died nor resumed.
+ */
+export type TerminalTelemetryScopes = Readonly<Record<keyof RunOutcome<unknown>, TelemetryScope>> &
+  Readonly<Record<string, TelemetryScope>>;
+
+/**
  * The scope of every field the engine writes onto a terminal (RV2510),
  * as one exported table rather than as sentences scattered through
  * field docs.
@@ -187,12 +206,10 @@ export type TelemetryScope = 'segment' | 'cumulative' | 'terminal';
  * money was cumulative, the wake count and the replay figures were not,
  * and reconciling them into one honest account of the logical run was
  * hand work over a joined journal. Keys are field paths as a consumer
- * reads them off `RunOutcome` (`cost.orchestrator.wakes`); the
- * doctrine test holds this table against the keys a real outcome
- * carries, so a new terminal field cannot ship without declaring what
- * it counts.
+ * reads them off `RunOutcome` (`cost.orchestrator.wakes`), and
+ * {@link TerminalTelemetryScopes} requires every one of them.
  */
-export const TERMINAL_TELEMETRY_SCOPE: Readonly<Record<string, TelemetryScope>> = Object.freeze({
+export const TERMINAL_TELEMETRY_SCOPE: TerminalTelemetryScopes = Object.freeze({
   status: 'terminal',
   value: 'terminal',
   error: 'terminal',
@@ -204,6 +221,11 @@ export const TERMINAL_TELEMETRY_SCOPE: Readonly<Record<string, TelemetryScope>> 
   salvagedTerminalOutputChildren: 'cumulative',
   belowFloorOkChildren: 'cumulative',
   acceptanceChildren: 'cumulative',
+  // Cumulative for the loss-list reason (RV2602 read under RV2510): a
+  // resumed segment re-admits every recovered child into the same
+  // roster before it dispatches anything new, so the fold re-derives
+  // the whole logical run's children rather than this segment's.
+  childrenAtFailure: 'cumulative',
   semanticPasses: 'terminal',
   claimConsistencyMeta: 'terminal',
   synthesisSkipped: 'terminal',

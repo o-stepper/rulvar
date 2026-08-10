@@ -527,6 +527,7 @@ exactly the pieces you need, for example
 | [TaskSpec](/api/@rulvar/core/type-aliases/TaskSpec.md) | Minimal TaskSpec stand-in: the full typed TaskSpec is owned by the PlanRunner surface and ships with M7; script modes carry proposals opaquely until then. |
 | [TelemetryScope](/api/@rulvar/core/type-aliases/TelemetryScope.md) | Whether a terminal figure counts THIS segment's work or the whole logical run (RV2510). |
 | [TerminalOutcomeFacts](/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md) | The outcome facts the assembler reads; a structural subset of RunOutcome. |
+| [TerminalTelemetryScopes](/api/@rulvar/core/type-aliases/TerminalTelemetryScopes.md) | The scope table's type, and the gate that keeps it complete (RV2701). |
 | [TerminationDeniedWriter](/api/@rulvar/core/type-aliases/TerminationDeniedWriter.md) | Injected appender for termination.denied entries (engine-owned I/O). |
 | [TerminationResource](/api/@rulvar/core/type-aliases/TerminationResource.md) | The countable resource vocabulary. |
 | [ToolChoice](/api/@rulvar/core/type-aliases/ToolChoice.md) | - |
