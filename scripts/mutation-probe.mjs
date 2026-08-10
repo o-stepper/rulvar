@@ -15,11 +15,13 @@
 // instead of hours. Adding an entry when a cycle ships a new fail-closed
 // rule is the intended maintenance.
 //
-// Usage: node scripts/mutation-probe.mjs [--only <id>] [--list]
+// Usage: node scripts/mutation-probe.mjs [--only <id>] [--list] [--fragments]
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { checkFragments } from './mutation-fragments.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -30,7 +32,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
  * the line makes the probe fail loudly with 'fragment not found' instead
  * of silently testing nothing.
  */
-const MUTATIONS = [
+export const MUTATIONS = [
   {
     id: 'usage-invariant',
     doctrine: 'the Usage invariant: inputTokens is the FULL prompt, cache included',
@@ -4092,104 +4094,173 @@ const MUTATIONS = [
     replace: "  'cost.orchestrator.wakes': 'cumulative',",
     test: 'packages/core/src/stores/reconcile.test.ts',
   },
+  {
+    id: 'fragment-gate-refuses-both-classes',
+    doctrine:
+      'the fragment gate refuses an AMBIGUOUS fragment as well as a missing one (RV2603): accepting "matches at least once" would let a duplicated line through, and the manifest would then mutate whichever occurrence came first, silently testing a line nobody chose',
+    file: 'scripts/mutation-fragments.mjs',
+    find: '    if (occurrences === 1) {',
+    replace: '    if (occurrences !== 0) {',
+    test: 'scripts/mutation-fragments.test.mjs',
+  },
 ];
 
-const args = process.argv.slice(2);
-if (args.includes('--list')) {
-  for (const mutation of MUTATIONS) {
-    console.log(`${mutation.id}\t${mutation.doctrine}`);
-  }
-  process.exit(0);
-}
-const onlyIndex = args.indexOf('--only');
-const only = onlyIndex === -1 ? undefined : args[onlyIndex + 1];
-const selected = only === undefined ? MUTATIONS : MUTATIONS.filter((m) => m.id === only);
-if (selected.length === 0) {
-  console.error(`no mutation with id '${String(only)}'; run with --list`);
-  process.exit(2);
+// Importing this module must not run the manifest (RV2603). Every arm
+// below is executable, and an import that spent eighteen minutes
+// rewriting the working tree is not a thing a test can hold the pure
+// check against; the guard is what makes `checkFragments` testable at
+// all, and it retires a trap this repository has carried since the
+// probe shipped.
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) {
+  main(process.argv.slice(2));
 }
 
-// A mutant can hang the suite outright: RV1602's cycle mutant spins the
-// pagination sweep entirely in the microtask queue, so even the vitest
-// test timeout never gets a tick. The wall clock is the backstop: a run
-// that outlives it is killed by definition and the manifest keeps
-// moving instead of wedging on one probe.
-const PROBE_WALL_CLOCK_MS = 600_000;
-
-function run(command, commandArgs) {
-  return spawnSync(command, commandArgs, {
-    cwd: root,
-    encoding: 'utf8',
-    env: { ...process.env, ANTHROPIC_API_KEY: '', OPENAI_API_KEY: '' },
-    timeout: PROBE_WALL_CLOCK_MS,
-    killSignal: 'SIGKILL',
-  });
+function main(args) {
+  const FLAGS = new Set(['--list', '--fragments', '--only']);
+  // An unrecognised flag used to be IGNORED, which meant a typo (or a
+  // flag from a newer revision of this script) silently ran the whole
+  // eighteen minute manifest against the working tree instead of the
+  // seconds-long arm the author asked for. Refuse it: the arms differ
+  // by three orders of magnitude in cost, so guessing is not a
+  // courtesy.
+  const unknown = args.filter(
+    (arg, index) => arg.startsWith('--') && !FLAGS.has(arg) && args[index - 1] !== '--only',
+  );
+  if (unknown.length > 0) {
+    console.error(
+      `[mutation-probe] unknown flag(s): ${unknown.join(', ')}. ` +
+        'Usage: node scripts/mutation-probe.mjs [--only <id>] [--list] [--fragments]',
+    );
+    process.exit(2);
+  }
+  if (args.includes('--list')) {
+    for (const mutation of MUTATIONS) {
+      console.log(`${mutation.id}\t${mutation.doctrine}`);
+    }
+    process.exit(0);
+  }
+  // The fast arm (RV2603): fragment integrity for the WHOLE manifest
+  // with zero mutations applied and zero tests run, so a moved line is
+  // a seconds-long gate instead of a discovery buried in the long job.
+  if (args.includes('--fragments')) {
+    const problems = checkFragments(MUTATIONS, (file) => readFileSync(join(root, file), 'utf8'));
+    for (const problem of problems) {
+      console.error(
+        `[mutation-probe] ${problem.id}: ${
+          problem.kind === 'missing'
+            ? `FRAGMENT NOT FOUND in ${problem.file} (the source moved)`
+            : `fragment matches ${String(problem.occurrences)} times in ${problem.file}`
+        }`,
+      );
+    }
+    if (problems.length > 0) {
+      console.error(
+        `[mutation-probe] ${String(problems.length)} of ${String(MUTATIONS.length)} fragments no ` +
+          'longer address their source. Update the manifest to the current source.',
+      );
+      process.exit(1);
+    }
+    console.log(
+      `[mutation-probe] all ${String(MUTATIONS.length)} fragments address their source exactly once`,
+    );
+    process.exit(0);
+  }
+  runManifest(args);
 }
 
-const survivors = [];
-const missing = [];
-for (const mutation of selected) {
-  const path = join(root, mutation.file);
-  const original = readFileSync(path, 'utf8');
-  if (!original.includes(mutation.find)) {
-    missing.push(mutation.id);
-    console.log(`[mutation-probe] ${mutation.id}: FRAGMENT NOT FOUND (the source moved)`);
-    continue;
+function runManifest(args) {
+  const onlyIndex = args.indexOf('--only');
+  const only = onlyIndex === -1 ? undefined : args[onlyIndex + 1];
+  const selected = only === undefined ? MUTATIONS : MUTATIONS.filter((m) => m.id === only);
+  if (selected.length === 0) {
+    console.error(`no mutation with id '${String(only)}'; run with --list`);
+    process.exit(2);
   }
-  if (original.split(mutation.find).length !== 2) {
-    missing.push(mutation.id);
-    console.log(`[mutation-probe] ${mutation.id}: fragment is not unique in ${mutation.file}`);
-    continue;
-  }
-  writeFileSync(path, original.replace(mutation.find, mutation.replace), 'utf8');
-  try {
-    if (mutation.build !== undefined) {
-      const built = run('npx', ['turbo', 'build', '--filter', mutation.build, '--force']);
-      if (built.status !== 0) {
-        // A mutation that does not even compile is killed by the build,
-        // which is a legitimate kill: the suite never had to run.
-        console.log(`[mutation-probe] ${mutation.id}: killed by the build`);
-        continue;
+
+  // A mutant can hang the suite outright: RV1602's cycle mutant spins
+  // the pagination sweep entirely in the microtask queue, so even the
+  // vitest test timeout never gets a tick. The wall clock is the
+  // backstop: a run that outlives it is killed by definition and the
+  // manifest keeps moving instead of wedging on one probe.
+  const PROBE_WALL_CLOCK_MS = 600_000;
+
+  const run = (command, commandArgs) =>
+    spawnSync(command, commandArgs, {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, ANTHROPIC_API_KEY: '', OPENAI_API_KEY: '' },
+      timeout: PROBE_WALL_CLOCK_MS,
+      killSignal: 'SIGKILL',
+    });
+
+  const survivors = [];
+  const missing = [];
+  for (const mutation of selected) {
+    const path = join(root, mutation.file);
+    const original = readFileSync(path, 'utf8');
+    if (!original.includes(mutation.find)) {
+      missing.push(mutation.id);
+      console.log(`[mutation-probe] ${mutation.id}: FRAGMENT NOT FOUND (the source moved)`);
+      continue;
+    }
+    if (original.split(mutation.find).length !== 2) {
+      missing.push(mutation.id);
+      console.log(`[mutation-probe] ${mutation.id}: fragment is not unique in ${mutation.file}`);
+      continue;
+    }
+    writeFileSync(path, original.replace(mutation.find, mutation.replace), 'utf8');
+    try {
+      if (mutation.build !== undefined) {
+        const built = run('npx', ['turbo', 'build', '--filter', mutation.build, '--force']);
+        if (built.status !== 0) {
+          // A mutation that does not even compile is killed by the
+          // build, which is a legitimate kill: the suite never had to
+          // run.
+          console.log(`[mutation-probe] ${mutation.id}: killed by the build`);
+          continue;
+        }
+      }
+      // scripts/ doctrine lives outside the vitest projects: its tests
+      // run under the same node:test runner the docs-lint CI job uses.
+      const result = mutation.test.endsWith('.test.mjs')
+        ? run('node', ['--test', mutation.test])
+        : run('npx', ['vitest', 'run', mutation.test]);
+      if (result.error !== undefined && result.error.code === 'ETIMEDOUT') {
+        console.log(
+          `[mutation-probe] ${mutation.id}: killed by the wall clock (the mutant outlived ${String(PROBE_WALL_CLOCK_MS / 1000)}s)`,
+        );
+      } else if (result.status === 0) {
+        survivors.push(mutation);
+        console.log(`[mutation-probe] ${mutation.id}: SURVIVED (${mutation.test} stayed green)`);
+      } else {
+        console.log(`[mutation-probe] ${mutation.id}: killed`);
+      }
+    } finally {
+      writeFileSync(path, original, 'utf8');
+      if (mutation.build !== undefined) {
+        run('npx', ['turbo', 'build', '--filter', mutation.build, '--force']);
       }
     }
-    // scripts/ doctrine lives outside the vitest projects: its tests
-    // run under the same node:test runner the docs-lint CI job uses.
-    const result = mutation.test.endsWith('.test.mjs')
-      ? run('node', ['--test', mutation.test])
-      : run('npx', ['vitest', 'run', mutation.test]);
-    if (result.error !== undefined && result.error.code === 'ETIMEDOUT') {
-      console.log(
-        `[mutation-probe] ${mutation.id}: killed by the wall clock (the mutant outlived ${String(PROBE_WALL_CLOCK_MS / 1000)}s)`,
-      );
-    } else if (result.status === 0) {
-      survivors.push(mutation);
-      console.log(`[mutation-probe] ${mutation.id}: SURVIVED (${mutation.test} stayed green)`);
-    } else {
-      console.log(`[mutation-probe] ${mutation.id}: killed`);
-    }
-  } finally {
-    writeFileSync(path, original, 'utf8');
-    if (mutation.build !== undefined) {
-      run('npx', ['turbo', 'build', '--filter', mutation.build, '--force']);
+  }
+
+  if (missing.length > 0) {
+    console.error(
+      `[mutation-probe] ${String(missing.length)} mutation(s) could not be applied: ` +
+        `${missing.join(', ')}. Update the manifest to the current source.`,
+    );
+  }
+  if (survivors.length > 0) {
+    console.error('[mutation-probe] SURVIVING MUTATIONS (the suite does not defend these):');
+    for (const survivor of survivors) {
+      console.error(`  - ${survivor.id}: ${survivor.doctrine} (expected kill in ${survivor.test})`);
     }
   }
-}
-
-if (missing.length > 0) {
-  console.error(
-    `[mutation-probe] ${String(missing.length)} mutation(s) could not be applied: ` +
-      `${missing.join(', ')}. Update the manifest to the current source.`,
+  if (survivors.length > 0 || missing.length > 0) {
+    process.exit(1);
+  }
+  console.log(
+    `[mutation-probe] all ${String(selected.length)} doctrine mutations were killed by their tests`,
   );
 }
-if (survivors.length > 0) {
-  console.error('[mutation-probe] SURVIVING MUTATIONS (the suite does not defend these):');
-  for (const survivor of survivors) {
-    console.error(`  - ${survivor.id}: ${survivor.doctrine} (expected kill in ${survivor.test})`);
-  }
-}
-if (survivors.length > 0 || missing.length > 0) {
-  process.exit(1);
-}
-console.log(
-  `[mutation-probe] all ${String(selected.length)} doctrine mutations were killed by their tests`,
-);

@@ -349,6 +349,15 @@ jobs:
       # prose that also ships inside llms-full.txt. The gate makes the
       # union the only author of that count and that list.
       - run: node scripts/docs-role-truth.mjs
+      # Mutation-manifest fragment integrity (RV2603): every `find` must
+      # still address its source exactly once. The full manifest below
+      # refuses the same thing, but only after minutes of mutating and
+      # re-running tests, one entry at a time: RV2509 rewrote the
+      # claim-consistency meta assembly and orphaned one probe, and the
+      # eighteen minute work-budget job was the only surface that said
+      # so, red long after every other check had gone green. Reading
+      # each file and counting a substring answers it in a second.
+      - run: node scripts/mutation-probe.mjs --fragments
       # The linter's own regression tests (sentence sentinels, negation
       # handling). The glob is expanded by the Node test runner itself,
       # so every scripts/**/*.test.mjs joins CI by construction instead

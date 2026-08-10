@@ -29,6 +29,7 @@
     "check:fixed-group": "node scripts/check-fixed-group.mjs",
     "perf:budget": "node scripts/perf-budget.mjs",
     "mutation:probe": "node scripts/mutation-probe.mjs",
+    "mutation:fragments": "node scripts/mutation-probe.mjs --fragments",
     "dts:baseline": "node scripts/dts-baseline.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/sync-pointer.mjs && pnpm --filter @rulvar/docs run build:sync",
