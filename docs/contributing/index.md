@@ -119,10 +119,13 @@ merged before the deviating code lands.
   an exact literal, so a refactor can leave one aiming at nothing;
   `pnpm mutation:fragments` (a Docs conventions step, seconds, no
   mutations applied and no tests run) answers that ahead of the long job,
-  and refuses an ambiguous fragment as well as a missing one. An
-  unrecognised flag is refused rather than ignored: the arms differ by
-  three orders of magnitude in cost, so a typo must not silently start
-  the long one.
+  and refuses an ambiguous fragment as well as a missing one. It checks
+  the entries' SHAPE first: a missing field, a duplicate id, or a
+  `replace` identical to its `find` makes an entry unrunnable before any
+  file is read, and one dropped `test` field once ran the full manifest
+  to minute eighteen before dying on it. An unrecognised flag is refused
+  rather than ignored: the arms differ by three orders of magnitude in
+  cost, so a typo must not silently start the long one.
 - Changeset presence, the changesets fixed-group check, and frozen-fixture
   write protection.
 - Rolled-up `.d.ts` drift gate: `dts-rollup/` is regenerated in CI and a

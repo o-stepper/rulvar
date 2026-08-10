@@ -21,7 +21,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { checkFragments } from './mutation-fragments.mjs';
+import { checkFragments, checkShape } from './mutation-fragments.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -4104,6 +4104,15 @@ export const MUTATIONS = [
     test: 'scripts/mutation-fragments.test.mjs',
   },
   {
+    id: 'shape-gate-sees-a-duplicate-behind-a-broken-entry',
+    doctrine:
+      'the shape gate registers an id even for an entry it already reported (RV2606): skipping the registration lets a duplicate hide behind a malformed sibling, so fixing the named problem uncovers a second one and the eighteen minute job becomes the queue this gate exists to skip',
+    file: 'scripts/mutation-fragments.mjs',
+    find: "    if (typeof mutation.id === 'string') {",
+    replace: "    if (typeof mutation.id === 'string' && missing.length === 0) {",
+    test: 'scripts/mutation-fragments.test.mjs',
+  },
+  {
     id: 'pre-acceptance-roster-stands-down',
     doctrine:
       'the pre-acceptance roster reports ONLY where no acceptance verdict exists (RV2602): reporting beside a verdict gives one set of children two folds under two authorities, and a consumer cannot tell which one the policy actually judged',
@@ -4210,6 +4219,32 @@ function main(args) {
   // with zero mutations applied and zero tests run, so a moved line is
   // a seconds-long gate instead of a discovery buried in the long job.
   if (args.includes('--fragments')) {
+    // Shape first (RV2606): an entry missing a field is not addressing
+    // anything, so asking whether its fragment resolves is the wrong
+    // question in the wrong order. A dropped `test` field once ran the
+    // full manifest to minute eighteen and died there on
+    // `mutation.test.endsWith`, with every fragment resolving fine.
+    const shape = checkShape(MUTATIONS);
+    for (const problem of shape) {
+      console.error(
+        `[mutation-probe] ${problem.id}: ${
+          problem.kind === 'missing-fields'
+            ? `entry is missing ${problem.fields.join(', ')}`
+            : problem.kind === 'duplicate-id'
+              ? `duplicate id (first defined at index ${String(problem.firstAt)})`
+              : problem.kind === 'inert'
+                ? 'replace is identical to find: this mutation changes nothing and can only survive'
+                : 'not a manifest entry'
+        }`,
+      );
+    }
+    if (shape.length > 0) {
+      console.error(
+        `[mutation-probe] ${String(shape.length)} of ${String(MUTATIONS.length)} entries are not ` +
+          'runnable. Fix the manifest before the fragments are worth checking.',
+      );
+      process.exit(1);
+    }
     const problems = checkFragments(MUTATIONS, (file) => readFileSync(join(root, file), 'utf8'));
     for (const problem of problems) {
       console.error(
@@ -4228,7 +4263,8 @@ function main(args) {
       process.exit(1);
     }
     console.log(
-      `[mutation-probe] all ${String(MUTATIONS.length)} fragments address their source exactly once`,
+      `[mutation-probe] all ${String(MUTATIONS.length)} entries are runnable and address their ` +
+        'source exactly once',
     );
     process.exit(0);
   }
