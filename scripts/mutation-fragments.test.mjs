@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { checkFragments, checkShape } from './mutation-fragments.mjs';
+import { checkFragments, checkShape, checkSourceShape } from './mutation-fragments.mjs';
 import { MUTATIONS } from './mutation-probe.mjs';
 
 const entry = (extra = {}) => ({
@@ -164,4 +164,66 @@ test('every shape problem is reported, not just the first', () => {
 
 test('the shipped manifest is runnable', () => {
   assert.deepEqual(checkShape(MUTATIONS), []);
+});
+
+test('two entries fused into one are caught in the SOURCE (RV2705)', () => {
+  // The exact wreck a rebase resolution leaves: the `},` and `{`
+  // between two entries vanish, the second entry's fields overwrite the
+  // first's, and JS keeps the last of each duplicated key without a
+  // word. The value that reaches checkShape is a perfectly formed
+  // entry; only the text remembers there were two.
+  const fused = [
+    'export const MUTATIONS = [',
+    '  {',
+    "    id: 'first',",
+    "    file: 'a.ts',",
+    "    id: 'second',",
+    "    file: 'b.ts',",
+    '  },',
+    '];',
+  ].join('\n');
+  const problems = checkSourceShape(fused, 1);
+  assert.deepEqual(
+    problems.map((problem) => problem.key),
+    ['id', 'file'],
+  );
+  assert.ok(problems.every((problem) => problem.kind === 'duplicate-key'));
+  // The surviving id names it: that is the entry the manifest now
+  // holds, and the other one is gone.
+  assert.ok(problems.every((problem) => problem.id === 'second'));
+});
+
+test('a healthy manifest source reports nothing', () => {
+  const clean = [
+    'export const MUTATIONS = [',
+    '  {',
+    "    id: 'first',",
+    '    doctrine:',
+    "      'a long doctrine prettier wrapped onto its own line, indented six spaces',",
+    "    file: 'a.ts',",
+    '  },',
+    '  {',
+    "    id: 'second',",
+    "    file: 'b.ts',",
+    '  },',
+    '];',
+  ].join('\n');
+  assert.deepEqual(checkSourceShape(clean, 2), []);
+});
+
+test('a scan that can no longer see the entries says so, loudly', () => {
+  // The check leans on the committed formatting, which is a CI gate of
+  // its own. If that shape ever drifts, a blind gate that passes is
+  // worse than one that fails, so the count disagreement is the alarm.
+  const reformatted = 'export const MUTATIONS = [{ id: "first" }, { id: "second" }];';
+  const problems = checkSourceShape(reformatted, 2);
+  assert.equal(problems.length, 1);
+  assert.equal(problems[0].kind, 'block-count-mismatch');
+  assert.equal(problems[0].found, 0);
+  assert.equal(problems[0].expected, 2);
+});
+
+test('the shipped manifest source is intact', () => {
+  const source = readFileSync(new URL('./mutation-probe.mjs', import.meta.url), 'utf8');
+  assert.deepEqual(checkSourceShape(source, MUTATIONS.length), []);
 });

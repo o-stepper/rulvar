@@ -22,6 +22,80 @@
 const REQUIRED = ['id', 'doctrine', 'file', 'find', 'replace', 'test'];
 
 /**
+ * Every way the manifest SOURCE can be broken while the value it
+ * evaluates to looks perfect (RV2705).
+ *
+ * Two entries fused into one is the shape that got here: resolving a
+ * rebase conflict in the manifest tail lost the `},` and `{` between
+ * two entries, the second entry's fields overwrote the first's inside
+ * one object literal, and one probe silently left the manifest. JS
+ * keeps the LAST of a duplicated key without a word, so by the time
+ * anything imports this file the loss is unrecoverable: the shape
+ * check above sees a well-formed entry, every fragment resolves, and
+ * the count is one lower than it should be with nobody to say what the
+ * right count was.
+ *
+ * The signal survives only in the text: one object literal declaring
+ * `id` twice. So this reads the file rather than the value.
+ *
+ * It leans on the committed formatting, which is itself a CI gate:
+ * entries open at `  {` and close at `  },`, their keys sit at four
+ * spaces, and a wrapped string continues at six or more. A drift in
+ * that shape would make the scan blind, so it also reports when the
+ * number of entry blocks it found disagrees with the number of entries
+ * the module exports, and a gate that cannot see is louder than a gate
+ * that passes.
+ *
+ * @param {string} source the manifest module's text
+ * @param {number} entryCount how many entries the module exports
+ * @returns {{ id: string, kind: string, key?: string, found?: number, expected?: number }[]}
+ */
+export function checkSourceShape(source, entryCount) {
+  const problems = [];
+  const lines = source.split('\n');
+  let blocks = 0;
+  /** @type {{ id: string, keys: Set<string> } | undefined} */
+  let block;
+  for (const line of lines) {
+    if (line === '  {') {
+      blocks += 1;
+      block = { id: `#${String(blocks - 1)}`, keys: new Set() };
+      continue;
+    }
+    if (block === undefined) {
+      continue;
+    }
+    if (line === '  },') {
+      block = undefined;
+      continue;
+    }
+    const key = /^ {4}([A-Za-z_$][\w$]*):/u.exec(line);
+    if (key?.[1] === undefined) {
+      continue;
+    }
+    const name = key[1];
+    const id = /^ {4}id: '([^']*)'/u.exec(line);
+    if (id?.[1] !== undefined) {
+      block.id = id[1];
+    }
+    if (block.keys.has(name)) {
+      problems.push({ id: block.id, kind: 'duplicate-key', key: name });
+      continue;
+    }
+    block.keys.add(name);
+  }
+  if (blocks !== entryCount) {
+    problems.push({
+      id: 'manifest',
+      kind: 'block-count-mismatch',
+      found: blocks,
+      expected: entryCount,
+    });
+  }
+  return problems;
+}
+
+/**
  * Every way a manifest entry is unrunnable BEFORE any file is read
  * (RV2606).
  *
