@@ -51,6 +51,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import ts from 'typescript';
 
+import { headingText, vitepressSlug } from './docs-anchors.mjs';
+
 // fileURLToPath, not URL.pathname: pathname keeps percent-escapes (a
 // checkout under a path with a space reads "rulvar%20test") and is not a
 // Windows filesystem path.
@@ -248,14 +250,18 @@ const EXACTLY_ONCE_ALLOWLIST = new Map([
 ]);
 const COMMENT_LINE = /^\s*(?:\/\/|\/?\*)/u;
 
-/** The vitepress heading slug: lowercase, punctuation dropped, spaces to hyphens. */
-/** @param {string} heading @returns {string} */
+/**
+ * The heading slug, from the ONE slug rule in this repository
+ * (RV2704). This file used to carry its own approximation (lowercase,
+ * punctuation dropped, spaces to hyphens), which differs from
+ * VitePress on any heading with punctuation: `children's` anchors as
+ * `children-s`, not `childrens`. The allowlist below binds (file,
+ * anchor) pairs, so an approximate slug would silently stop matching
+ * its vetted section and turn an exemption into a failure.
+ * @param {string} heading @returns {string}
+ */
 function headingSlug(heading) {
-  return heading
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .trim()
-    .replace(/\s+/gu, '-');
+  return vitepressSlug(headingText(heading));
 }
 
 /**

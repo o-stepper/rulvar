@@ -338,6 +338,12 @@ jobs:
           (cd "$RUNNER_TEMP/docs-lint-deps" && npm install --no-save --ignore-scripts "typescript@$pin")
           ln -s "$RUNNER_TEMP/docs-lint-deps/node_modules" node_modules
       - run: node scripts/docs-lint.mjs
+      # Internal anchors (RV2704): a link to a heading that was renamed
+      # used to turn red only in the offline link check, after the whole
+      # site was built. The slug rule is VitePress's own, byte for byte,
+      # because an approximation reports four false failures on links
+      # that work today.
+      - run: node scripts/docs-anchors.mjs
       # README release-table SHA reachability (RV807): every squash SHA
       # the Build Week table cites must be an ancestor of HEAD. The
       # v1.109.0 row cited an abbreviation contained by no branch for
@@ -373,4 +379,5 @@ jobs:
           cp -R . "$dest"
           cd "$dest"
           node scripts/docs-lint.mjs
+          node scripts/docs-anchors.mjs
           node scripts/check-fixed-group.mjs

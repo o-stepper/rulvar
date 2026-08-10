@@ -21,6 +21,7 @@
     "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
     "pack-check": "turbo pack-check",
     "docs:lint": "node scripts/docs-lint.mjs",
+    "docs:anchors": "node scripts/docs-anchors.mjs",
     "docs:fence-syntax": "node scripts/docs-fence-syntax.mjs",
     "docs:metadata": "node scripts/docs-metadata.mjs",
     "docs:roles": "node scripts/docs-role-truth.mjs",

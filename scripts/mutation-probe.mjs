@@ -4177,6 +4177,15 @@ export const MUTATIONS = [
     replace: '  const logical = { ...logicalRunTelemetry(entries), segments: 0 };',
     test: 'packages/cli/src/index.test.ts',
   },
+  {
+    id: 'anchor-slug-is-vitepress-exactly',
+    doctrine:
+      "the internal-anchor gate slugs a heading the way VitePress does, so punctuation becomes a SEPARATOR rather than being dropped (RV2704): an approximate slugger reports four false failures on links that work today (children's anchors as children-s, @rulvar/store-postgres as rulvar-store-postgres), and a gate that cries wolf on correct links is worse than no gate",
+    file: 'scripts/docs-anchors.mjs',
+    find: "    .replace(SPECIAL, '-')",
+    replace: "    .replace(SPECIAL, '')",
+    test: 'scripts/docs-anchors.test.mjs',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
