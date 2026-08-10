@@ -21,7 +21,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { checkFragments, checkShape } from './mutation-fragments.mjs';
+import { checkFragments, checkShape, checkSourceShape } from './mutation-fragments.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -4213,6 +4213,15 @@ export const MUTATIONS = [
     replace: "      status: terminal?.status ?? 'ok',",
     test: 'packages/core/src/stores/reconcile.test.ts',
   },
+  {
+    id: 'manifest-source-catches-fused-entries',
+    doctrine:
+      'a manifest entry that declares one key twice is two entries fused into one (RV2705): JS keeps the last of a duplicated key without a word, so the imported value is a perfectly formed entry, every fragment resolves, the count is one lower than it should be, and the probe that left the manifest took its doctrine with it',
+    file: 'scripts/mutation-fragments.mjs',
+    find: '    if (block.keys.has(name)) {',
+    replace: '    if (block.keys.has(name) && false) {',
+    test: 'scripts/mutation-fragments.test.mjs',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
@@ -4260,6 +4269,31 @@ function main(args) {
     // question in the wrong order. A dropped `test` field once ran the
     // full manifest to minute eighteen and died there on
     // `mutation.test.endsWith`, with every fragment resolving fine.
+    // The SOURCE first of all (RV2705): a value that evaluates cleanly
+    // can still be the wreck of two entries fused into one, because JS
+    // keeps the last of a duplicated key without a word and the loss is
+    // unrecoverable by the time anything imports this file. Resolving
+    // one rebase conflict in the manifest tail did exactly that and a
+    // probe left the manifest in silence.
+    const source = checkSourceShape(
+      readFileSync(fileURLToPath(import.meta.url), 'utf8'),
+      MUTATIONS.length,
+    );
+    for (const problem of source) {
+      console.error(
+        `[mutation-probe] ${problem.id}: ${
+          problem.kind === 'duplicate-key'
+            ? `declares '${problem.key}' twice in one entry: two entries fused into one, and the ` +
+              'second silently overwrote the first'
+            : `the manifest text holds ${String(problem.found)} entry blocks while the module ` +
+              `exports ${String(problem.expected)}: the committed formatting changed and this ` +
+              'check can no longer see the entries it judges'
+        }`,
+      );
+    }
+    if (source.length > 0) {
+      process.exit(1);
+    }
     const shape = checkShape(MUTATIONS);
     for (const problem of shape) {
       console.error(

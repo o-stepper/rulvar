@@ -112,9 +112,15 @@ merged before the deviating code lands.
   the entries' SHAPE first: a missing field, a duplicate id, or a
   `replace` identical to its `find` makes an entry unrunnable before any
   file is read, and one dropped `test` field once ran the full manifest
-  to minute eighteen before dying on it. An unrecognised flag is refused
-  rather than ignored: the arms differ by three orders of magnitude in
-  cost, so a typo must not silently start the long one.
+  to minute eighteen before dying on it. Ahead of both it reads the
+  manifest SOURCE: an entry that declares one key twice is two entries
+  fused into one, which is what a botched conflict resolution in the
+  manifest tail leaves behind, and JS keeps the last of a duplicated key
+  without a word, so the imported value is a well-formed entry, every
+  fragment resolves, and the probe that silently left the manifest takes
+  its doctrine with it. An unrecognised flag is refused rather than
+  ignored: the arms differ by three orders of magnitude in cost, so a
+  typo must not silently start the long one.
 - Changeset presence, the changesets fixed-group check, and frozen-fixture
   write protection.
 - Rolled-up `.d.ts` drift gate: `dts-rollup/` is regenerated in CI and a
