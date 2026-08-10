@@ -123,6 +123,22 @@ export type CoreEvents =
        */
       belowFloorOkChildren?: string[];
       /**
+       * What the children had produced when the run died BEFORE any
+       * acceptance verdict (RV2602), lifted on its own rather than with
+       * the completion, because it exists for the terminal where there
+       * is no completion to lift. Present exactly when children were
+       * spawned and no acceptance verdict exists, so it never overlaps
+       * the fields above. Frozen at the moment of death, ahead of the
+       * RV1903 exit barrier, which is why `unsettled` can be non-empty.
+       */
+      childrenAtFailure?: {
+        spawned: number;
+        settled: number;
+        statusCounts: Record<string, number>;
+        belowFloorOkChildren?: string[];
+        unsettled?: string[];
+      };
+      /**
        * Present and false ONLY when nothing durable records this
        * terminal: a settlement write failed (the run_settle journal
        * append or the terminal RunMeta projection, RV907), or the

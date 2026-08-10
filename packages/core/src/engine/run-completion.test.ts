@@ -525,3 +525,70 @@ describe('the failure envelope carries the pass truth (RV2203)', () => {
     expect((outcome as { synthesisSkipped?: unknown }).synthesisSkipped).toBeUndefined();
   });
 });
+
+describe('the pre-acceptance roster lift (RV2602)', () => {
+  const roster = {
+    spawned: 3,
+    settled: 2,
+    statusCounts: { ok: 1, error: 1 },
+    belowFloorOkChildren: ['agent:1'],
+    unsettled: ['agent:3'],
+  };
+
+  it('lifts from typed error data with NO completion beside it', async () => {
+    // The point of a separate lift: the completion lift bails out the
+    // moment there is no completion literal, and this field exists for
+    // exactly that terminal.
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'died-early' }, async () => {
+      await Promise.resolve();
+      throw new FailRunError('gave up', { data: { childrenAtFailure: roster } });
+    });
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.completion).toBeUndefined();
+    expect((outcome as { childrenAtFailure?: unknown }).childrenAtFailure).toEqual(roster);
+    // The event carries the same object; the two can never disagree.
+    expect((runEnd as unknown as { childrenAtFailure?: unknown }).childrenAtFailure).toEqual(
+      roster,
+    );
+  });
+
+  it('rides an ok result envelope too, when a workflow reports one', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'reports-roster' }, () =>
+      Promise.resolve({ childrenAtFailure: roster }),
+    );
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    expect((outcome as { childrenAtFailure?: unknown }).childrenAtFailure).toEqual(roster);
+  });
+
+  it('a malformed roster drops WHOLE, never half-mirrored', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const cases: unknown[] = [
+      { spawned: 2 },
+      { spawned: -1, settled: 0, statusCounts: {} },
+      { spawned: 2, settled: 1, statusCounts: { ok: 'two' } },
+      { spawned: 2, settled: 1, statusCounts: { ok: 1 }, unsettled: [7] },
+      { spawned: 2, settled: 1, statusCounts: [] },
+      'nonsense',
+    ];
+    for (const [index, childrenAtFailure] of cases.entries()) {
+      const wf = defineWorkflow({ name: `malformed-${String(index)}` }, async () => {
+        await Promise.resolve();
+        throw new FailRunError('gave up', { data: { childrenAtFailure } as never });
+      });
+      const { outcome } = await runAndCaptureEnd(engine, wf, `MALFORMED${String(index)}`);
+      expect((outcome as { childrenAtFailure?: unknown }).childrenAtFailure).toBeUndefined();
+    }
+  });
+
+  it('a run reporting none carries none', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const wf = defineWorkflow({ name: 'plain' }, () => Promise.resolve({ answer: 42 }));
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect((outcome as { childrenAtFailure?: unknown }).childrenAtFailure).toBeUndefined();
+    expect(
+      (runEnd as unknown as { childrenAtFailure?: unknown }).childrenAtFailure,
+    ).toBeUndefined();
+  });
+});

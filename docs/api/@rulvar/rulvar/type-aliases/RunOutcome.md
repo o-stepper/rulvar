@@ -11,6 +11,7 @@ type RunOutcome<R> = {
   acceptanceChildren?: AcceptanceChildSummary[];
   acceptedArtifactRef?: number;
   belowFloorOkChildren?: string[];
+  childrenAtFailure?: ChildrenAtFailure;
   childStatusCounts?: Record<string, number>;
   claimConsistencyMeta?: Record<string, unknown>;
   completion?: "complete" | "partial" | "rejected";
@@ -99,6 +100,35 @@ Children that settled 'ok' below their declared evidence floor
 the default their shortfall is a degradation note and the verdict
 is untouched; under `acceptance.requireEvidenceFloor` they also
 counted against the policy.
+
+***
+
+### childrenAtFailure?
+
+```ts
+optional childrenAtFailure?: ChildrenAtFailure;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+What the children had produced when the run died BEFORE its
+acceptance policy ever rendered a verdict (RV2602).
+
+Every other field on this envelope describes a policy's claim, and
+a policy that never ran claims nothing: an orchestration whose
+coordination loop crosses its ceiling mid-roster settles with
+`completion` absent, and until this shipped the terminal said
+nothing at all about work that was already paid for, even though
+every child terminal was in the journal. Deliberately NOT
+`childStatusCounts`: that field is the acceptance fold's number,
+and a fold done by no policy must not borrow its name.
+
+Present exactly when children were spawned AND no acceptance
+verdict exists, so the two readings never overlap and neither can
+be mistaken for the other. Frozen at the moment of death, before
+the RV1903 exit barrier settles the stragglers, which is why
+`unsettled` can be non-empty: those children had not landed when
+the run gave up.
 
 ***
 

@@ -819,6 +819,10 @@
             "link": "/api/@rulvar/core/interfaces/ChildIdentityInput.md"
           },
           {
+            "text": "ChildrenAtFailure",
+            "link": "/api/@rulvar/core/interfaces/ChildrenAtFailure.md"
+          },
+          {
             "text": "ChildResultPage",
             "link": "/api/@rulvar/core/interfaces/ChildResultPage.md"
           },
@@ -5783,6 +5787,10 @@
           {
             "text": "ChildIdentityInput",
             "link": "/api/@rulvar/rulvar/interfaces/ChildIdentityInput.md"
+          },
+          {
+            "text": "ChildrenAtFailure",
+            "link": "/api/@rulvar/rulvar/interfaces/ChildrenAtFailure.md"
           },
           {
             "text": "ChildResultPage",
