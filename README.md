@@ -203,7 +203,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The two hundred nine rounds, verbatim in this repository's history:
+The two hundred ten rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -427,6 +427,7 @@ The two hundred nine rounds, verbatim in this repository's history:
 | v1.225.0      | bef8621 (#869): three parity crash shapes become fault-kit gates: the reserve-line redemption on both arms (DEF-7 parity), the spawn-famine resume, the one-round guidance repair         | v1.226.0   |
 | v1.226.0      | f262e9f (#873): the paid comparison round: the grade names the run id it wants, identity spans are not asserted values, a lone dispatch clamps, a failing synthesis keeps the valid draft | v1.227.0   |
 | v1.227.0      | 4034fac (#882): the terminal answers for the deliverable: the contract verdict with its artifact ref, the refused candidates by hash, the judged document named, every figure scoped      | v1.228.0   |
+| v1.228.0      | 22a07fa (#888): the terminal surfaces reach the tools that read a run, and a run that dies before its acceptance policy names the children it already paid for                            | v1.229.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
