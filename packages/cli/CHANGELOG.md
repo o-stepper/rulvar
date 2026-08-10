@@ -1,5 +1,28 @@
 # @rulvar/cli
 
+## 1.229.0
+
+### Minor Changes
+
+- 7ce0be2: `--strict` reads the deliverable verdict (RV2604). The flag has always refused a partial acceptance and, since RV1702, a coverage grade that verified nothing. It never asked the one question RV2506 shipped a field for: did the declared finish contract accept the artifact this run settled on. Completion answers for the CHILDREN, and the twenty-fifth comparison run is the row that gap leaves open, with four accepted children, three syntheses the contract refused, a run that settled on unvalidated output, and a scoring harness reading `status: 'ok'`.
+
+  `deliverableAccepted: false` now exits nonzero even under `completion: 'complete'`, naming the contract and, when the terminal carries no artifact at all, saying so in the same line. The check precedes every coverage grade deliberately: a semantic grade over an artifact the contract rejected answers a question nobody should still be asking, and the refusal that names the contract is what a reader needs.
+
+  An ABSENT verdict is left alone. The check is `=== false`, not `!== true`, because absence means no `finishValidation` was declared, nothing judged anything, and a host that declares no contract is its own judge. That is the same line the normative consumer predicate draws in the observability guide.
+
+- edce170: `rulvar inspect` reports the logical run and what the contract refused (RV2605). Two surfaces shipped in v1.228.0 had no consumer in the tool people actually read a run with: `inspect` printed `entries: N`, which over a resumed run is one undifferentiated heap with no boundaries in it, and said nothing at all about finish candidates the declared contract rejected.
+
+  `segments:` is `logicalRunTelemetry` (RV2510) printed: how many segments ran, how each settled, how many entries each appended, and the count of entries that continued PAST the last settle (RV1407) when there are any, because the last settled status is then not the run's last word. `rejected finish candidates:` lists the RV2507 rows with verdict, size, hash prefix, failing validators, and the blob ref when the bytes were retained, and counts DISTINCT documents beside the row count, so three rows sharing one hash reads as the model serving one text three times rather than as three genuine attempts.
+
+  `lastRunSettle` gains `rejectedFinishCandidates`. The settle already persists the whole completion lift, so this is a read of what is recorded, not a re-fold and not a validator re-run, and every row is parsed defensively: any malformed row drops the WHOLE list, the same posture the live lift takes, because a partial history read as complete under-reports exactly the runs that misbehaved most, and offline is where nobody can check. A journal that records nothing of the kind reads as NOT RECORDED and both lines stay absent.
+
+### Patch Changes
+
+- Updated dependencies [3370342]
+- Updated dependencies [2fb6656]
+- Updated dependencies [edce170]
+  - @rulvar/core@1.229.0
+
 ## 1.228.0
 
 ### Patch Changes
