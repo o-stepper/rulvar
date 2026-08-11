@@ -26,6 +26,7 @@ import {
   type StatementRequestRow,
   type StatementCategoryRow,
   statementFromRows,
+  statementRowsFromDelimited,
 } from './reconcile-statement.js';
 
 const SOL: Pricing = {
@@ -1066,5 +1067,76 @@ describe('statementFromRows (RV1703)', () => {
       responseId: 'r1',
       componentsUsd: { input: 0.4, output: 0.2 },
     });
+  });
+});
+
+describe('statementRowsFromDelimited (RV2908)', () => {
+  it('parses a quoted CSV export and feeds statementFromRows verbatim', () => {
+    const text =
+      'id,model,usd,in,out\r\n' +
+      'resp_1,"gpt-5.6-sol","0.25",1200,340\r\n' +
+      'resp_2,"has, comma",0.10,50,"6"\r\n' +
+      'resp_3,"quote "" and\nnewline",0.05,7,8\n';
+    const rows = statementRowsFromDelimited(text);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual({
+      id: 'resp_1',
+      model: 'gpt-5.6-sol',
+      usd: '0.25',
+      in: '1200',
+      out: '340',
+    });
+    expect(rows[1]?.model).toBe('has, comma');
+    expect(rows[2]?.model).toBe('quote " and\nnewline');
+    const statement = statementFromRows({
+      kind: 'requests',
+      rows,
+      map: { responseId: 'id', model: 'model', usd: 'usd', inputTokens: 'in', outputTokens: 'out' },
+    });
+    expect(statement.kind).toBe('requests');
+    expect(statement.rows).toHaveLength(3);
+    expect((statement.rows[0] as StatementRequestRow).usd).toBe(0.25);
+    expect((statement.rows[0] as StatementRequestRow).usage?.inputTokens).toBe(1200);
+  });
+
+  it('an empty cell means the export does not carry the figure, exactly the absence contract', () => {
+    const rows = statementRowsFromDelimited('id,usd,in\nresp_1,,900\n');
+    expect(rows[0]).toEqual({ id: 'resp_1', usd: '', in: '900' });
+    const statement = statementFromRows({
+      kind: 'requests',
+      rows,
+      map: { responseId: 'id', usd: 'usd', inputTokens: 'in' },
+    });
+    expect('usd' in (statement.rows[0] as StatementRequestRow)).toBe(false);
+    expect((statement.rows[0] as StatementRequestRow).usage?.inputTokens).toBe(900);
+  });
+
+  it('refuses a ragged record by index: a shifted column prices the wrong figure', () => {
+    expect(() => statementRowsFromDelimited('id,usd\nresp_1,0.25,extra\n')).toThrow(
+      /data record 0 carries 3 cell\(s\) against 2 header column\(s\)/,
+    );
+    // A blank line mid-export is a one-cell record, not an artifact.
+    expect(() => statementRowsFromDelimited('id,usd\n\nresp_1,0.25\n')).toThrow(/data record 0/);
+  });
+
+  it('refuses a torn or misquoted export instead of guessing', () => {
+    expect(() => statementRowsFromDelimited('id,usd\nresp_1,"0.25\n')).toThrow(
+      /never closes; the export is torn/,
+    );
+    expect(() => statementRowsFromDelimited('id,usd\nresp_1,0."25\n')).toThrow(
+      /quote inside an unquoted cell/,
+    );
+  });
+
+  it('refuses an empty or duplicated header name, the addresses a map needs', () => {
+    expect(() => statementRowsFromDelimited('id,,usd\n')).toThrow(/header column 1 is empty/);
+    expect(() => statementRowsFromDelimited('id,usd,usd\n')).toThrow(/names column 'usd' twice/);
+    expect(() => statementRowsFromDelimited('')).toThrow(/no header record/);
+  });
+
+  it('splits on the declared delimiter and ignores the one trailing newline', () => {
+    const rows = statementRowsFromDelimited('id\tusd\nresp_1\t0.25\n', { delimiter: '\t' });
+    expect(rows).toEqual([{ id: 'resp_1', usd: '0.25' }]);
+    expect(statementRowsFromDelimited('id,usd\nresp_1,0.25')).toHaveLength(1);
   });
 });

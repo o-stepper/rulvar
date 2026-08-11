@@ -943,6 +943,10 @@
             "link": "/api/@rulvar/core/interfaces/DedupNote.md"
           },
           {
+            "text": "DelimitedStatementOptions",
+            "link": "/api/@rulvar/core/interfaces/DelimitedStatementOptions.md"
+          },
+          {
             "text": "DeterminismConfig",
             "link": "/api/@rulvar/core/interfaces/DeterminismConfig.md"
           },
@@ -3713,6 +3717,10 @@
             "link": "/api/@rulvar/core/functions/statementFromRows.md"
           },
           {
+            "text": "statementRowsFromDelimited",
+            "link": "/api/@rulvar/core/functions/statementRowsFromDelimited.md"
+          },
+          {
             "text": "stripFencedBlocks",
             "link": "/api/@rulvar/core/functions/stripFencedBlocks.md"
           },
@@ -5963,6 +5971,10 @@
           {
             "text": "DedupNote",
             "link": "/api/@rulvar/rulvar/interfaces/DedupNote.md"
+          },
+          {
+            "text": "DelimitedStatementOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/DelimitedStatementOptions.md"
           },
           {
             "text": "DeterminismConfig",
@@ -8793,6 +8805,10 @@
           {
             "text": "statementFromRows",
             "link": "/api/@rulvar/rulvar/functions/statementFromRows.md"
+          },
+          {
+            "text": "statementRowsFromDelimited",
+            "link": "/api/@rulvar/rulvar/functions/statementRowsFromDelimited.md"
           },
           {
             "text": "stripFencedBlocks",
