@@ -547,6 +547,7 @@ describe('the child roster a journal already holds (RV2702)', () => {
       dispatch(5, 'agent:0', 'k2'),
       terminal(7, 'agent:0', 'k1', 'ok', {
         evidence: { recordedEntries: 0, minEntries: 2, met: false },
+        toolBudget: { used: 9, cap: 12 },
       }),
       terminal(10, 'agent:0', 'k2', 'error'),
     ]);
@@ -570,6 +571,10 @@ describe('the child roster a journal already holds (RV2702)', () => {
       minEntries: 2,
       met: false,
     });
+    // The RV3002 durable counter rides into the roster beside the
+    // verdict; a terminal without it leaves the field absent.
+    expect(roster.children[0]?.toolBudget).toEqual({ used: 9, cap: 12 });
+    expect(roster.children[1]?.toolBudget).toBeUndefined();
     expect(roster.children[0]?.agentType).toBe('worker');
   });
 
