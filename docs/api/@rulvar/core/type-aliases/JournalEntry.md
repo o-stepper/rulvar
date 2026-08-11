@@ -39,6 +39,10 @@ type JournalEntry = {
   spanId: string;
   startedAt: string;
   status: EntryStatus;
+  toolBudget?: {
+     cap?: number;
+     used: number;
+  };
   transcriptRef?: string;
   usage?: Usage;
   usageApprox?: boolean;
@@ -63,7 +67,7 @@ by a per-run queue.
 optional abandon?: AbandonPayload;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:598](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L598)
+Defined in: [packages/core/src/l0/entries.ts:613](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L613)
 
 Only when kind === 'abandon'.
 
@@ -114,7 +118,7 @@ like usageByModel.
 optional deadlineAt?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:607](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L607)
+Defined in: [packages/core/src/l0/entries.ts:622](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L622)
 
 On suspended entries: the journaled deadline.
 
@@ -126,7 +130,7 @@ On suspended entries: the journaled deadline.
 optional endedAt?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:610](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L610)
+Defined in: [packages/core/src/l0/entries.ts:625](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L625)
 
 ***
 
@@ -146,7 +150,7 @@ Defined in: [packages/core/src/l0/entries.ts:509](https://github.com/o-stepper/r
 optional escalation?: Json;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:594](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L594)
+Defined in: [packages/core/src/l0/entries.ts:609](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L609)
 
 Terminal escalated entries ONLY: the schema-validated
 EscalationReport with runtime-filled costToDate and salvage; replay
@@ -265,7 +269,7 @@ Defined in: [packages/core/src/l0/entries.ts:506](https://github.com/o-stepper/r
 optional memoizeOutcome?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:605](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L605)
+Defined in: [packages/core/src/l0/entries.ts:620](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L620)
 
 Policy field on agent entries, fixed in the payload at dispatch
 time: the M2 predicate reads
@@ -324,7 +328,7 @@ the seq of the running entry.
 optional resolution?: ResolutionPayload;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L596)
+Defined in: [packages/core/src/l0/entries.ts:611](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L611)
 
 Only when kind === 'resolution'.
 
@@ -370,7 +374,7 @@ Who actually served (failover changes only this, never the key).
 spanId: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:608](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L608)
+Defined in: [packages/core/src/l0/entries.ts:623](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L623)
 
 ***
 
@@ -380,7 +384,7 @@ Defined in: [packages/core/src/l0/entries.ts:608](https://github.com/o-stepper/r
 startedAt: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:609](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L609)
+Defined in: [packages/core/src/l0/entries.ts:624](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L624)
 
 ***
 
@@ -391,6 +395,44 @@ status: EntryStatus;
 ```
 
 Defined in: [packages/core/src/l0/entries.ts:507](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L507)
+
+***
+
+### toolBudget?
+
+```ts
+optional toolBudget?: {
+  cap?: number;
+  used: number;
+};
+```
+
+Defined in: [packages/core/src/l0/entries.ts:603](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L603)
+
+Terminal agent entries: the durable subset of the tool-budget
+summary (RV3002): the loop's executed-call counter and the
+effective cap at the end, journaled at settle whenever the live
+result carried a summary. The counter has always been durable in
+the terminal checkpoint, but checkpoints are blobs and journal
+folds read entries only, so without this field observed
+calls-per-evidence-entry calibration cannot be a pure fold. Replay
+restores AgentResult.toolBudget from here unconditionally; entries
+without the field (every pre-existing journal) keep the RV509
+decision-conditional path byte for byte. Live-only summary fields
+(unitsUsed, noticesFired, limiter, and the rest) never journal.
+Policy, never identity, exactly like evidence.
+
+#### cap?
+
+```ts
+optional cap?: number;
+```
+
+#### used
+
+```ts
+used: number;
+```
 
 ***
 
