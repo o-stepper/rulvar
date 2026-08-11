@@ -306,6 +306,60 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
     }
   });
 
+  it("bodyHash 'refuse' turns the mismatch into a typed refusal before any append (RV3001)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+      await ctx.agent('a');
+      return 'done';
+    });
+    await engine.run(simpleWf, undefined, { runId: 'RUN3R' }).result;
+    const before = (await store.load('RUN3R')).length;
+
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      const editedWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+        await ctx.agent('a-edited');
+        return 'done-edited';
+      });
+      const { engine: second, adapter } = makeEngine(store, 'MUST NOT RUN');
+      await expect(second.resume('RUN3R', editedWf, { bodyHash: 'refuse' }).result).rejects.toThrow(
+        /bodyHash is 'refuse'/,
+      );
+      // Refused before ownership, meta, and appends: zero live calls,
+      // zero new journal entries, and the loud warning never fired
+      // (the refusal REPLACES it; two signals for one fact would be
+      // noise).
+      expect(adapter.calls).toHaveLength(0);
+      expect((await store.load('RUN3R')).length).toBe(before);
+      expect(warnings).toEqual([]);
+
+      // The same option over a MATCHING body is inert: the resume
+      // replays to completion exactly like a bare one.
+      const { engine: third, adapter: thirdAdapter } = makeEngine(store, 'MUST NOT RUN');
+      const outcome = await third.resume('RUN3R', simpleWf, { bodyHash: 'refuse' }).result;
+      expect(outcome.status).toBe('ok');
+      expect(thirdAdapter.calls).toHaveLength(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("rejects a bodyHash value outside 'warn' | 'refuse' before any store read", async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    await expect(
+      engine.resume('NEVER-RAN', approvalWf, { bodyHash: 'gate' as unknown as 'warn' }).result,
+    ).rejects.toThrow(/ResumeOptions\.bodyHash must be 'warn' or 'refuse'/);
+  });
+
   it('dry-run performs zero live calls and stops at the exact divergence', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });

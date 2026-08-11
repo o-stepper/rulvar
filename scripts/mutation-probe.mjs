@@ -4367,6 +4367,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
+    id: 'resume-body-hash-refuse-is-armed',
+    doctrine:
+      "ResumeOptions.bodyHash 'refuse' turns the in-process body-hash mismatch into a typed refusal before any durable mutation (RV3001): disarmed, the pin degrades to the loud warning and the host that opted out of edited-body resumes gets one anyway",
+    file: 'packages/core/src/engine/engine.ts',
+    find: "            if (resumeOptions?.bodyHash === 'refuse') {",
+    replace: '            if (false) {',
+    test: 'packages/core/src/engine/resume.test.ts',
+  },
+  {
     id: 'the-executor-claim-tombstone-is-armed',
     doctrine:
       'the in-process-only executor claim is tombstoned (RV2905): it was fixed once on the architecture page and returned on two others, where the ninth comparison audit found it contradicting EngineOptions.executors and the shipped @rulvar/executor references; a disarmed sentinel lets the class ship a third time',

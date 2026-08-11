@@ -182,7 +182,9 @@ Defined in: `packages/core/dist/index.d.ts`
 Rebinds a journal to a workflow definition and resumes. Requires wf
 for in-process workflows;
 a name mismatch is a typed ConfigError; a body-hash mismatch warns
-loudly and proceeds (the journal decides replay per content keys).
+loudly and proceeds (the journal decides replay per content keys),
+unless [ResumeOptions.bodyHash](/api/@rulvar/rulvar/interfaces/ResumeOptions.md#property-bodyhash) is 'refuse', which makes it
+a typed ConfigError before any durable mutation (RV3001).
 A compiled run resumes WITHOUT wf: the engine rehydrates the
 persisted source pinned by workflowHash; supplying a compiled wf
 whose source hash differs from the recorded one is a typed

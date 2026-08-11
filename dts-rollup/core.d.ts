@@ -7854,6 +7854,19 @@ interface ResumeOptions {
   */
   args?: unknown;
   /**
+  * What an in-process body-hash mismatch does (RV3001). The default
+  * 'warn' keeps the historical design: the mismatch emits the loud
+  * `RULVAR_RESUME_HASH_MISMATCH` warning and the resume proceeds,
+  * because the journal decides replay versus live per content keys
+  * and reports orphans honestly. 'refuse' turns the same mismatch
+  * into a typed ConfigError BEFORE ownership, meta writes, or any
+  * append: the pin for hosts that treat an edited body as a
+  * different workflow. The vocabulary is
+  * {@link EvidenceContract.enforce}'s. Name mismatches and compiled
+  * source mismatches are hard errors regardless, exactly as before.
+  */
+  bodyHash?: "warn" | "refuse";
+  /**
   * Dry-run: replay-strict matching; the first would-be-live call throws
   * JournalMissError and the run settles with that typed error, zero live
   * calls performed.
@@ -7905,7 +7918,9 @@ interface Engine {
   * Rebinds a journal to a workflow definition and resumes. Requires wf
   * for in-process workflows;
   * a name mismatch is a typed ConfigError; a body-hash mismatch warns
-  * loudly and proceeds (the journal decides replay per content keys).
+  * loudly and proceeds (the journal decides replay per content keys),
+  * unless {@link ResumeOptions.bodyHash} is 'refuse', which makes it
+  * a typed ConfigError before any durable mutation (RV3001).
   * A compiled run resumes WITHOUT wf: the engine rehydrates the
   * persisted source pinned by workflowHash; supplying a compiled wf
   * whose source hash differs from the recorded one is a typed
