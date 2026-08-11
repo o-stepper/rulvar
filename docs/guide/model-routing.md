@@ -48,7 +48,7 @@ Every adapter answers `caps(model)` with a `ModelCaps` record, the capability fa
 
 `refreshCaps()` is an optional member of the adapter SPI. Of the first-party v1 adapters, only `@rulvar/anthropic` implements it (a live model-list refresh); `@rulvar/openai` ships a verified static seed table plus the versioned `OPENAI_PRICING` export and has no live refresh. Price updates are deliberately not a side effect of a caps refresh: they are registry updates with a `pricingVersion` bump.
 
-Nothing calls `refreshCaps()` for you. Where an adapter implements it, call it before `createEngine` when routing, compaction, and the output clamp should see the provider's current window and output figures instead of the seeded ones. See [Providers](/guide/providers#rulvar-anthropic) for the pattern.
+Nothing calls `refreshCaps()` for you. Where an adapter implements it, call it before `createEngine` when routing, compaction, and the output clamp should see the provider's current window and output figures instead of the seeded ones. See [Providers](/guide/providers#rulvar-anthropic) for the pattern. The Anthropic refresh paginates under the same discipline as an MCP `tools/list` sweep (RV2904): a cursor echoed back or re-used is refused unconditionally as a cycle, and the opt-in `capsMaxPages` fails the refresh typed when more pages are still reported past the bound, because a silently partial caps table would clamp output bounds against limits that are not the model's.
 
 ## The resolution chain
 
