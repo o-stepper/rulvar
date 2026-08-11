@@ -1,5 +1,22 @@
 # @rulvar/plan
 
+## 1.235.0
+
+### Minor Changes
+
+- e30687f: The resume config identity (RV3203). The profile registry hash frozen in `termination.init` (profile names mapped to ladder lengths) is now recomputed on every PlanRunner resume: a mismatch refuses the resumed run typed BEFORE any model call, because ladders are live values the journal cannot rebuild and "the journal wins" is not honorable for them; `PlanRunnerOptions.profileDrift: 'warn'` downgrades the refusal to the `termination:config-drift` event for a deliberate registry change. The frozen dollar vector (`runBudgetUsdCeiling`, `orchestratorCapUsd`, `finalizeReserveUsd`) rides the same drift report; journals from before v1.8 stored zeros there and skip the comparison, journals from before the registry hash shipped skip the identity check entirely, and a resume under the original profiles is byte identical.
+- 2ecd787: The extension finish gate (RV3202). `OrchestratorExtension` gains `finishGate?()`, consulted FIRST on every ordinary coordination finish: a refusal returns as the finish tool's typed error result (nothing journals, no repair spent), so the model resolves the named blockers and finishes again; the forced-finalization and synthesis finishes are never gated. PlanRunner implements it: `finish` is now refused while any plan node is ready or running, with the stragglers named, because quiescence participation alone gated only wakes and a root could settle a bare ok while the exit barrier cancelled a running node. `allowEarlyFinish: true` restores the old behavior deliberately. Runs without an extension finish gate are byte identical. journal-shape-revision: the oscillation-freeze cassette re-recorded for the gate's live path (the scripted finish over the still-running frozen-signature node is now refused typed, and the scenario closes the straggler deliberately before finishing); already-journaled entries replay verbatim, so existing journals stay valid.
+
+### Patch Changes
+
+- Updated dependencies [ba4e10d]
+- Updated dependencies [172402b]
+- Updated dependencies [2ecd787]
+- Updated dependencies [e20a5e9]
+- Updated dependencies [98c8691]
+- Updated dependencies [c70def0]
+  - @rulvar/core@1.235.0
+
 ## 1.234.0
 
 ### Patch Changes
