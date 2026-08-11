@@ -539,7 +539,10 @@ export class RunBudget {
    * hold, whenever `strictPricing` is armed. Refusals, each a typed
    * ConfigError naming the model and the defect: no price row resolves
    * (an unpriced model debits nothing, so every ceiling silently fails
-   * to bound it); a malformed row (a non-finite or negative rate, a
+   * to bound it); a row missing its required input or output rate
+   * (RV3204: the type requires both, and an untyped `{}` row used to
+   * satisfy every conditional check and debit zero); a malformed row
+   * (a non-finite or negative rate, a
    * malformed long-context tier), because arithmetic over it disarms
    * the very comparisons the mode exists to keep honest; and, only
    * when `maxRatesAgeDays` is declared, a row whose `ratesVerifiedAt`
@@ -566,6 +569,24 @@ export class RunBudget {
           'it would debit nothing against every ceiling; add the model to the price table ' +
           'or declare it in strictPricing.allowUnpriced',
       );
+    }
+    // The presence floor (RV3204, the 2026-08-11 experiment's pricing
+    // blocker): the Pricing TYPE requires the input and output rates,
+    // but a JSON-loaded or untyped-host row satisfied the gate with
+    // `{}` because every check below was conditional on the field
+    // being present, and the downstream fold then priced the empty row
+    // at a zero debit. The runtime now enforces what the type
+    // promises: the two required rates must BE there. Cache rates and
+    // tiers stay optional exactly as the type declares them.
+    for (const name of ['inputUsdPerMTok', 'outputUsdPerMTok'] as const) {
+      if (typeof row[name] !== 'number') {
+        throw new ConfigError(
+          `strict pricing refused the dispatch: the price row for '${servedBy}' is missing ` +
+            `its ${name} rate, so the row would debit nothing against every ceiling; carry ` +
+            'both required rates on the row, or declare the model in ' +
+            'strictPricing.allowUnpriced',
+        );
+      }
     }
     const rates: Array<[string, number | undefined]> = [
       ['inputUsdPerMTok', row.inputUsdPerMTok],

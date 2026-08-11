@@ -29,6 +29,52 @@ describe('the strict pre-egress pricing gate end to end (RV1508)', () => {
     expect(adapter.calls).toHaveLength(0);
   });
 
+  it('refuses an empty price row typed: presence is enforced, not just well-formedness (RV3204)', async () => {
+    // The type requires both rates; a JSON-loaded or untyped host row
+    // used to satisfy the gate with `{}` because every check was
+    // conditional on the field being present, and the downstream fold
+    // then priced 1000/1000 tokens at a zero debit (the 2026-08-11
+    // experiment probe kept its whole dollar).
+    const adapter = scriptedAdapter(() => ({ text: 'free?' }), {
+      caps: testCaps({ pricing: {} as never }),
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(single, undefined, { strictPricing: true }).result;
+    expect(outcome.status).toBe('error');
+    expect(JSON.stringify(outcome)).toContain('missing its inputUsdPerMTok rate');
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('refuses a row missing only its output rate, naming the field (RV3204)', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'half priced' }), {
+      caps: testCaps({ pricing: { inputUsdPerMTok: 1 } as never }),
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(single, undefined, { strictPricing: true }).result;
+    expect(outcome.status).toBe('error');
+    expect(JSON.stringify(outcome)).toContain('missing its outputUsdPerMTok rate');
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('a row carrying exactly the two required rates passes the gate (RV3204 control)', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'priced' }), {
+      caps: testCaps({ pricing: { inputUsdPerMTok: 1, outputUsdPerMTok: 10 } }),
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(single, undefined, { strictPricing: true }).result;
+    expect(outcome.status).toBe('ok');
+    expect(adapter.calls).toHaveLength(1);
+  });
+
   it('allowUnpriced is the explicit exception, and a priced model needs none', async () => {
     const adapter = scriptedAdapter(() => ({ text: 'ok' }), {
       caps: testCaps({ pricing: undefined }),

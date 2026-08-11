@@ -440,7 +440,10 @@ runs that must not tolerate it. Armed (`true`, or the object form), every paid
 dispatch must resolve a well-formed price row for its serving model BEFORE the
 wire call, at the same dispatch chokepoint the exposure admission holds, or
 the dispatch refuses with a typed `ConfigError` naming the model and the
-defect: no row resolves, a rate is non-finite or negative, or a long-context
+defect: no row resolves, the row is missing its required `inputUsdPerMTok` or
+`outputUsdPerMTok` rate (RV3204: the type requires both, and an untyped or
+JSON-loaded `{}` row used to satisfy every conditional check and debit zero),
+a rate is non-finite or negative, or a long-context
 tier is malformed. `maxRatesAgeDays` additionally demands a fresh
 `ratesVerifiedAt` on the row (absent, unparsable, or older than the bound
 refuses), because a stale price bounds the ceiling with yesterday's truth; the

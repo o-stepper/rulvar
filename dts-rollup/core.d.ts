@@ -6550,7 +6550,10 @@ declare class RunBudget {
   * hold, whenever `strictPricing` is armed. Refusals, each a typed
   * ConfigError naming the model and the defect: no price row resolves
   * (an unpriced model debits nothing, so every ceiling silently fails
-  * to bound it); a malformed row (a non-finite or negative rate, a
+  * to bound it); a row missing its required input or output rate
+  * (RV3204: the type requires both, and an untyped `{}` row used to
+  * satisfy every conditional check and debit zero); a malformed row
+  * (a non-finite or negative rate, a
   * malformed long-context tier), because arithmetic over it disarms
   * the very comparisons the mode exists to keep honest; and, only
   * when `maxRatesAgeDays` is declared, a row whose `ratesVerifiedAt`
