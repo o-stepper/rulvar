@@ -274,11 +274,64 @@ function headingSlug(heading) {
  * @returns {Array<{ line: number, message: string }>}
  */
 export function exactlyOnceHits(content, relPath) {
+  return sentinelHits(content, relPath, {
+    claimIn,
+    message: EXACTLY_ONCE_MESSAGE,
+    allowlist: EXACTLY_ONCE_ALLOWLIST,
+  });
+}
+
+/**
+ * The in-process-only executor claim sentinel (RV2905, the ninth
+ * comparison experiment's independent audit). The claim "the current
+ * release enforces only the in-process tool executor" was fixed once
+ * on the architecture page and survived on two other pages, where the
+ * audit found it contradicting `EngineOptions.executors` and the
+ * shipped `@rulvar/executor` references. A claim class that returned
+ * after its fix gets a tombstone: the phrase is forbidden everywhere
+ * this lint reads, because the true statement names the seam (a
+ * non-inprocess tag is a typed ConfigError until a provider is
+ * registered) instead of denying the packages that fill it.
+ */
+const IN_PROCESS_ONLY = /\bonly the in[ -]?process (?:tool )?executor\b/iu;
+const IN_PROCESS_ONLY_MESSAGE =
+  'in-process-only executor claim (RV2905): the release ships subprocess and container ' +
+  'references in @rulvar/executor behind the EngineOptions.executors seam, and this claim ' +
+  'already returned once after being fixed on the architecture page. State the seam instead: ' +
+  'the core alone refuses a non-inprocess executor tag as a typed ConfigError at spawn time ' +
+  'until a matching ToolExecutorProvider is registered';
+
+/**
+ * Scans one file for the revived in-process-only executor claim; the
+ * same walk and block-joining as {@link exactlyOnceHits}, with no
+ * allowlist, because no section is vetted to make this claim.
+ * @param {string} content
+ * @param {string} relPath POSIX-style path relative to docs/ (markdown) or the repo root (sources)
+ * @returns {Array<{ line: number, message: string }>}
+ */
+export function inProcessExecutorHits(content, relPath) {
+  return sentinelHits(content, relPath, {
+    claimIn: (text) => IN_PROCESS_ONLY.test(text),
+    message: IN_PROCESS_ONLY_MESSAGE,
+  });
+}
+
+/**
+ * The shared sentinel scanner behind the claim tombstones above:
+ * per-line hits first, then the block pass that joins wrapped prose
+ * (markdown paragraphs, comment blocks) so a claim split across lines
+ * is still one published claim.
+ * @param {string} content
+ * @param {string} relPath POSIX-style path relative to docs/ (markdown) or the repo root (sources)
+ * @param {{ claimIn: (text: string) => boolean, message: string, allowlist?: Map<string, Set<string>> }} sentinel
+ * @returns {Array<{ line: number, message: string }>}
+ */
+function sentinelHits(content, relPath, sentinel) {
   /** @type {Array<{ line: number, message: string }>} */
   const hits = [];
   const lines = content.split('\n');
   const isSource = relPath.endsWith('.ts');
-  const allowedAnchors = EXACTLY_ONCE_ALLOWLIST.get(relPath);
+  const allowedAnchors = sentinel.allowlist?.get(relPath);
   let currentAnchor = '';
   /** Lines that already produced a per-line hit, so the block pass
    * never double-reports the same occurrence. */
@@ -290,7 +343,7 @@ export function exactlyOnceHits(content, relPath) {
         currentAnchor = headingSlug(heading[1]);
       }
     }
-    if (!claimIn(text.replace(/\s+/gu, ' '))) {
+    if (!sentinel.claimIn(text.replace(/\s+/gu, ' '))) {
       return;
     }
     if (isSource && !COMMENT_LINE.test(text)) {
@@ -300,7 +353,7 @@ export function exactlyOnceHits(content, relPath) {
       return;
     }
     lineHits.add(index);
-    hits.push({ line: index + 1, message: EXACTLY_ONCE_MESSAGE });
+    hits.push({ line: index + 1, message: sentinel.message });
   });
   // The block pass (RV612): markdown renders an ordinary newline as
   // whitespace, so a claim wrapped between two lines of one paragraph
@@ -326,8 +379,8 @@ export function exactlyOnceHits(content, relPath) {
     if (!isSource && allowedAnchors?.has(anchor) === true) {
       return;
     }
-    if (claimIn(parts.join(' ').replace(/\s+/gu, ' '))) {
-      hits.push({ line: start + 1, message: EXACTLY_ONCE_MESSAGE });
+    if (sentinel.claimIn(parts.join(' ').replace(/\s+/gu, ' '))) {
+      hits.push({ line: start + 1, message: sentinel.message });
     }
   };
   lines.forEach((text, index) => {
@@ -1340,7 +1393,11 @@ function main() {
     const docsRoot = join(ROOT, 'docs');
     for (const file of collectFiles()) {
       const rel = relative(docsRoot, file).split(sep).join('/');
-      for (const hit of exactlyOnceHits(readFileSync(file, 'utf8'), rel)) {
+      const content = readFileSync(file, 'utf8');
+      for (const hit of exactlyOnceHits(content, rel)) {
+        fail(file, hit.line, hit.message);
+      }
+      for (const hit of inProcessExecutorHits(content, rel)) {
         fail(file, hit.line, hit.message);
       }
     }
@@ -1376,7 +1433,11 @@ function main() {
           continue;
         }
         const rel = relative(ROOT, file).split(sep).join('/');
-        for (const hit of exactlyOnceHits(readFileSync(file, 'utf8'), rel)) {
+        const content = readFileSync(file, 'utf8');
+        for (const hit of exactlyOnceHits(content, rel)) {
+          fail(file, hit.line, hit.message);
+        }
+        for (const hit of inProcessExecutorHits(content, rel)) {
           fail(file, hit.line, hit.message);
         }
       }

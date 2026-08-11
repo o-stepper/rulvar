@@ -4348,6 +4348,15 @@ export const MUTATIONS = [
     replace: '        if (false) {',
     test: 'packages/anthropic/src/caps.test.ts',
   },
+  {
+    id: 'the-executor-claim-tombstone-is-armed',
+    doctrine:
+      'the in-process-only executor claim is tombstoned (RV2905): it was fixed once on the architecture page and returned on two others, where the ninth comparison audit found it contradicting EngineOptions.executors and the shipped @rulvar/executor references; a disarmed sentinel lets the class ship a third time',
+    file: 'scripts/docs-lint.mjs',
+    find: String.raw`const IN_PROCESS_ONLY = /\bonly the in[ -]?process (?:tool )?executor\b/iu;`,
+    replace: 'const IN_PROCESS_ONLY = /$^/u;',
+    test: 'scripts/docs-lint.test.mjs',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

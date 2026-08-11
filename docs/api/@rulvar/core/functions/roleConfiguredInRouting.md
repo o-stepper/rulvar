@@ -10,7 +10,7 @@
 function roleConfiguredInRouting(role, layers): boolean;
 ```
 
-Defined in: [packages/core/src/model/roles.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L84)
+Defined in: [packages/core/src/model/roles.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L87)
 
 True when any resolution layer configures the given role in its routing
 map. This is the finalize TRIGGER: firing is decided by the presence of

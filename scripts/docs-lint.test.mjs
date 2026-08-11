@@ -17,6 +17,7 @@ import {
   check8Violations,
   checkOrchestrateFence,
   exactlyOnceHits,
+  inProcessExecutorHits,
   fenceImportBindings,
   hasArgsHashOverclaim,
   hasAuthRetryOverclaim,
@@ -666,4 +667,53 @@ test('check 12: the REAL universe keeps plan and planner distinct (RV1701)', () 
   assert.ok(umbrella?.symbols?.has('anthropic'));
   const pointer = universe.get('rulvar');
   assert.ok(pointer?.symbols?.has('createEngine'), 'the pointer resolves the umbrella symbols');
+});
+
+test('the in-process-only executor claim is tombstoned everywhere (RV2905)', () => {
+  // The claim was fixed once on the architecture page and returned on
+  // two others, where the ninth comparison audit found it contradicting
+  // EngineOptions.executors and the shipped @rulvar/executor references.
+  assert.equal(
+    inProcessExecutorHits(
+      'The current release enforces only the in-process tool executor; more prose.',
+      'guide/planner.md',
+    ).length,
+    1,
+  );
+  assert.equal(
+    inProcessExecutorHits('Only the in process executor exists here.', 'guide/x.md').length,
+    1,
+  );
+  // A claim wrapped across a paragraph is the same published claim.
+  assert.equal(
+    inProcessExecutorHits(
+      'The release enforces only the\nin-process tool executor today.',
+      'guide/x.md',
+    ).length,
+    1,
+  );
+  // The true statement names the seam and passes.
+  assert.equal(
+    inProcessExecutorHits(
+      'The core alone refuses a non-inprocess executor tag as a typed ConfigError at spawn ' +
+        'time until a matching ToolExecutorProvider is registered.',
+      'guide/x.md',
+    ).length,
+    0,
+  );
+  // Source comments are judged; source strings are runtime text.
+  assert.equal(
+    inProcessExecutorHits(
+      '// only the in-process tool executor\nconst x = 1;',
+      'packages/core/src/x.ts',
+    ).length,
+    1,
+  );
+  assert.equal(
+    inProcessExecutorHits(
+      "const s = 'only the in-process tool executor';",
+      'packages/core/src/x.ts',
+    ).length,
+    0,
+  );
 });
