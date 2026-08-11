@@ -1,5 +1,12 @@
 # @rulvar/core
 
+## 1.236.0
+
+### Minor Changes
+
+- 26306ea: The config fingerprint (RV3210), the honest answer to `hashWorkflowBody`'s closure blindness the 2026-08-11 experiment confirmed: the body-text hash cannot see captured values, so two byte-identical bodies over different closures pin identically. `RunOptions.configFingerprint` (an opaque host string, at most 512 characters) records in RunMeta at genesis; `ResumeOptions.configFingerprint` asserts it back, and a mismatch refuses the resume typed BEFORE ownership, meta writes, or any append, with no posture knob, because supplying the fingerprint IS the assertion. One-sided states warn instead of failing (`RULVAR_RESUME_FINGERPRINT_UNCHECKED` for a recorded pin the resume ignores, `RULVAR_RESUME_FINGERPRINT_UNRECORDED` for an assertion the run never declared): absence means NOT RECORDED. Runs that declare nothing are byte identical, and the preferred pattern remains closing over nothing and passing config through args.
+- 709b942: The admission cliff becomes a one-field read (RV3208). Preflight already named the whole-wave `requiredMinimumCeilingUsd`, but the DISTANCE to the declared ceiling was left to the operator's subtraction: the 2026-08-11 experiment ran its whole workflow on a $0.20 remainder of a $7.00 ceiling (2.86 percent) that a small pricing or context drift would have refused at admission. The admission block now carries `ceilingHeadroomUsd` and `ceilingHeadroomShare` (present exactly when both sides are recorded, absence means NOT RECORDED), and the opt-in `orchestrator.minCeilingHeadroomShare` threshold turns a thin share into the `ceiling-headroom-thin` warning finding. The default threshold is 0, so existing preflight reports gain the two fields and change nothing else.
+
 ## 1.235.0
 
 ### Minor Changes
