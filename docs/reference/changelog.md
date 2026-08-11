@@ -18,6 +18,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+
 ### 1.235.0
 
 #### Patch Changes
@@ -2155,6 +2163,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+
 ### 1.235.0
 
 #### Patch Changes
@@ -4091,6 +4107,18 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.236.0
+
+#### Minor Changes
+
+- 4701bfe: `--strict` binds the semantic verdict to the shipped document (RV3207). A claim-coverage grade rendered over `judgedStage: 'draft'` while the envelope's `draftToFinal.rewritten` reports the synthesis replaced that draft now exits nonzero, naming the remedy (`claimConsistency.stage: 'final'` or `'both'`), because nothing semantically judged the artifact the run settled on: the 2026-08-11 experiment run shipped a repaired composition under a draft-stage `partial` grade and read green. An unchanged draft, a final-stage verdict, an absent claim meta, or an absent bridge all keep their existing exits byte for byte.
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
 
 ### 1.235.0
 
@@ -6586,6 +6614,13 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.236.0
+
+#### Minor Changes
+
+- 26306ea: The config fingerprint (RV3210), the honest answer to `hashWorkflowBody`'s closure blindness the 2026-08-11 experiment confirmed: the body-text hash cannot see captured values, so two byte-identical bodies over different closures pin identically. `RunOptions.configFingerprint` (an opaque host string, at most 512 characters) records in RunMeta at genesis; `ResumeOptions.configFingerprint` asserts it back, and a mismatch refuses the resume typed BEFORE ownership, meta writes, or any append, with no posture knob, because supplying the fingerprint IS the assertion. One-sided states warn instead of failing (`RULVAR_RESUME_FINGERPRINT_UNCHECKED` for a recorded pin the resume ignores, `RULVAR_RESUME_FINGERPRINT_UNRECORDED` for an assertion the run never declared): absence means NOT RECORDED. Runs that declare nothing are byte identical, and the preferred pattern remains closing over nothing and passing config through args.
+- 709b942: The admission cliff becomes a one-field read (RV3208). Preflight already named the whole-wave `requiredMinimumCeilingUsd`, but the DISTANCE to the declared ceiling was left to the operator's subtraction: the 2026-08-11 experiment ran its whole workflow on a $0.20 remainder of a $7.00 ceiling (2.86 percent) that a small pricing or context drift would have refused at admission. The admission block now carries `ceilingHeadroomUsd` and `ceilingHeadroomShare` (present exactly when both sides are recorded, absence means NOT RECORDED), and the opt-in `orchestrator.minCeilingHeadroomShare` threshold turns a thin share into the `ceiling-headroom-thin` warning finding. The default threshold is 0, so existing preflight reports gain the two fields and change nothing else.
 
 ### 1.235.0
 
@@ -9363,6 +9398,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.236.0
+
 ### 1.235.0
 
 ### 1.234.0
@@ -9937,6 +9974,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+  - @rulvar/anthropic@1.236.0
+  - @rulvar/openai@1.236.0
+  - @rulvar/plan@1.236.0
+  - @rulvar/testing@1.236.0
 
 ### 1.235.0
 
@@ -12633,6 +12682,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+
 ### 1.235.0
 
 #### Patch Changes
@@ -13980,6 +14037,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
 
 ### 1.235.0
 
@@ -16123,6 +16188,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+
 ### 1.235.0
 
 #### Minor Changes
@@ -18178,6 +18251,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+  - eslint-plugin-rulvar@1.236.0
 
 ### 1.235.0
 
@@ -20426,6 +20508,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+  - @rulvar/anthropic@1.236.0
+  - @rulvar/openai@1.236.0
 
 ### 1.235.0
 
@@ -22994,6 +23086,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+
 ### 1.235.0
 
 #### Patch Changes
@@ -25052,6 +25152,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
+
 ### 1.235.0
 
 #### Patch Changes
@@ -26415,6 +26523,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
 
 ### 1.235.0
 
@@ -28410,6 +28526,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.236.0
+
+#### Patch Changes
+
+- Updated dependencies [26306ea]
+- Updated dependencies [709b942]
+  - @rulvar/core@1.236.0
 
 ### 1.235.0
 
