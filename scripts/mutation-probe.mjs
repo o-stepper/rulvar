@@ -4276,6 +4276,33 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/stores/critical-path.test.ts',
   },
+  {
+    id: 'synthesis-candidates-partition-by-the-verdict-boundaries',
+    doctrine:
+      'a candidate owns exactly the wires between its boundaries (RV2902): the repair window is its own wires and wall, never the whole span, because the whole span priced as one number is precisely what the ninth comparison run could not decompose',
+    file: 'packages/core/src/stores/synthesis-candidates.ts',
+    find: '      const window = span.wires.filter((wire) => wire.seq > boundary.seq && wire.seq < verdict.seq);',
+    replace: '      const window = span.wires.filter((wire) => wire.seq < verdict.seq);',
+    test: 'packages/core/src/stores/synthesis-candidates.test.ts',
+  },
+  {
+    id: 'synthesis-candidates-refuse-a-partial-wire-set',
+    doctrine:
+      'candidate money attributes only when the incremental rows cover the terminal call records exactly (RV2902): the rows append asynchronously by design, and a partial set cannot price a window, only misprice it',
+    file: 'packages/core/src/stores/synthesis-candidates.ts',
+    find: '    const covered =\n      span.records !== undefined &&\n      recorded.length === rows.length &&\n      recorded.every((ordinal, index) => ordinal === rows[index]);',
+    replace: '    const covered = true;',
+    test: 'packages/core/src/stores/synthesis-candidates.test.ts',
+  },
+  {
+    id: 'synthesis-candidates-drop-money-never-shrink-it',
+    doctrine:
+      'an unpriceable wire drops the window cost instead of shrinking it (RV1209 via RV2902): a smaller number would be believed, an absent one gets asked about',
+    file: 'packages/core/src/stores/synthesis-candidates.ts',
+    find: '            complete = false;\n            break;',
+    replace: '            continue;',
+    test: 'packages/core/src/stores/synthesis-candidates.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
