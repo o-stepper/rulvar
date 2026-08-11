@@ -8709,6 +8709,22 @@ interface ClaimPairOptions {
   * 40).
   */
   critical?: readonly string[];
+  /**
+  * The declared coverage target (RV2903), in (0, 1]: size the
+  * reported pairs to COVER at least this share of the citing
+  * sentences instead of taking the first `max` pairs blind. The
+  * ninth comparison run judged 43 of 115 citing sentences because
+  * its host guessed `max: 56`, and nothing sized the pass to a goal.
+  * Under a target the selection is coverage-first: every critical
+  * candidate, then ONE candidate per still-uncovered sentence in
+  * draft order until the target is met; pairs that only deepen an
+  * already covered sentence are skipped, because under a declared
+  * target the bounded budget buys coverage, not depth. `max` stays a
+  * hard ceiling, and `truncated` then means exactly that the ceiling
+  * cut selection the target still wanted. Unset = the exact
+  * historical first-`max` selection, byte for byte.
+  */
+  targetCoverageShare?: number;
 }
 /** What the fold produced, beside the pairs themselves. */
 interface ClaimPairsFold {
@@ -8726,6 +8742,13 @@ interface ClaimPairsFold {
   * cap cut it; all three mean the judge never saw it.
   */
   coveredCitingSentences: number;
+  /**
+  * Present when `targetCoverageShare` was declared (RV2903): the
+  * sentence count the target resolved to against THIS draft, so a
+  * consumer holds `coveredCitingSentences` against the goal the
+  * selection was sized for, not against a share it must re-derive.
+  */
+  targetCoveredSentences?: number;
   /**
   * Present only when `critical` was given: the critical draft anchors
   * (verbatim, draft order, deduplicated) with no reported pair, capped
@@ -10252,6 +10275,22 @@ interface OrchestrateClaimConsistency {
   /** Bound on each excerpt; default {@link DEFAULT_MAX_PAIR_EXCERPT_CHARS}. */
   maxExcerptChars?: number;
   /**
+  * The declared coverage target (RV2903), in (0, 1]: the pass sizes
+  * itself to COVER this share of the draft's citing sentences instead
+  * of judging the first `max` pairs blind. The ninth comparison run
+  * covered 43 of 115 citing sentences because its host guessed
+  * `max: 56` plus the default run-fact bound, and the honest
+  * 'partial' grade was the constant's echo, not a policy. Under a
+  * target the pairing selects coverage-first (criticals, then one
+  * pair per uncovered sentence until the target is met; `max` stays a
+  * hard ceiling), the run-fact pass judges EVERY matched candidate
+  * instead of the default bound, and an undeclared
+  * `minimumCoverageRatio` defaults to the target, so the RV1809
+  * floor machinery (the `lowCoverage` block, `onLowCoverage`, the
+  * strict CLI exit) enforces the same number that sized the pass.
+  */
+  coverageTarget?: number;
+  /**
   * Critical anchor declarations (RV1603): paths (a file, or a
   * directory matched as a prefix) or span anchors
   * (`src/exec.ts:250-300`). Pairs whose draft anchor matches sort
@@ -10352,6 +10391,12 @@ interface OrchestrateClaimConsistencyMeta {
   * over 40 of 144 sentences can never read as "fully verified".
   */
   coveredCitingSentences: number;
+  /**
+  * Present when `coverageTarget` was declared (RV2903): the share the
+  * pass sized itself for, echoed so a persisted outcome says WHAT the
+  * coverage was held against, not only what it reached.
+  */
+  coverageTarget?: number;
   /**
   * Present when `critical` was declared: the critical draft anchors
   * with no judged pair (capped at {@link MAX_CRITICAL_UNCOVERED});

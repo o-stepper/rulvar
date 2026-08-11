@@ -10,4 +10,4 @@
 const DEFAULT_MAX_POOL_PER_PAIR: 3 = 3;
 ```
 
-Defined in: [packages/core/src/orchestrator/consistency.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L118)
+Defined in: [packages/core/src/orchestrator/consistency.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L141)

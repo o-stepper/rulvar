@@ -19,4 +19,5 @@ What the fold produced, beside the pairs themselves.
 | <a id="property-criticaluncoveredtotal"></a> `criticalUncoveredTotal?` | `number` | The uncapped count behind `criticalUncovered`; present with it. | `packages/core/dist/index.d.ts` |
 | <a id="property-draftcitingsentences"></a> `draftCitingSentences` | `number` | Draft sentences carrying at least one parsable anchor. | `packages/core/dist/index.d.ts` |
 | <a id="property-pairs"></a> `pairs` | [`ClaimPair`](/api/@rulvar/rulvar/interfaces/ClaimPair.md)[] | The pairs, in draft first-seen order, capped at `max`. | `packages/core/dist/index.d.ts` |
+| <a id="property-targetcoveredsentences"></a> `targetCoveredSentences?` | `number` | Present when `targetCoverageShare` was declared (RV2903): the sentence count the target resolved to against THIS draft, so a consumer holds `coveredCitingSentences` against the goal the selection was sized for, not against a share it must re-derive. | `packages/core/dist/index.d.ts` |
 | <a id="property-truncated"></a> `truncated` | `boolean` | True when more pairs existed than `max` allowed to report. | `packages/core/dist/index.d.ts` |
