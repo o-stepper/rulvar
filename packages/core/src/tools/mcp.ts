@@ -429,19 +429,24 @@ export function mcp(cfg: McpConfig): McpToolSource {
       try {
         page = await client.listTools(cursor === undefined ? {} : { cursor }, listOptions);
       } catch (thrown) {
-        // A page that timed out under the REMAINING discovery budget is
-        // the discovery deadline firing, reported in its vocabulary; a
-        // timeout under a tighter listMs (or any other failure) flows
-        // unchanged.
+        // A page that TIMED OUT while the remaining discovery budget
+        // was the binding bound is the discovery deadline firing,
+        // reported in its vocabulary. The classification reads the
+        // SDK's request-timeout code, never a wall-clock re-check: the
+        // v1.235.0 VP run leaked the raw 'MCP error -32001' on a slow
+        // runner because a re-check of Date.now() raced the SDK's own
+        // timer by a millisecond. A timeout under a tighter listMs, and
+        // every non-timeout failure, flow unchanged.
+        const timedOut = (thrown as { code?: unknown }).code === -32001;
         if (
+          timedOut &&
           discoveryMs !== undefined &&
           remainingMs !== undefined &&
-          pageTimeoutMs === remainingMs &&
-          Date.now() - startedAt >= discoveryMs
+          pageTimeoutMs === remainingMs
         ) {
           throw new ConfigError(
             `mcp: tools/list of '${sourceIdOf(cfg)}' exceeded the discovery deadline ` +
-              `(timeouts.discoveryMs ${discoveryMs ?? 0}) after ${pages} page(s): the ` +
+              `(timeouts.discoveryMs ${discoveryMs}) after ${pages} page(s): the ` +
               'current page call was cut at the remaining budget',
             { cause: thrown },
           );
