@@ -13,7 +13,7 @@ function pairRunFactClaims(
    options?): RunFactPairsFold;
 ```
 
-Defined in: [packages/core/src/orchestrator/consistency.ts:444](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L444)
+Defined in: [packages/core/src/orchestrator/consistency.ts:515](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L515)
 
 Pairs draft sentences that speak about the RUN with the run's own
 recorded fact sheet (RV1603), so the same judge invocation that rules

@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+The claim-consistency pass sizes itself from a declared coverage target (RV2903). The ninth comparison run judged 43 of 115 citing sentences because its host guessed `max: 56` and the run-fact pass cut 30 candidates to an unraisable default of 8: the honest 'partial' grade was a constant's echo, not a policy. `claimConsistency.coverageTarget` (a share in (0, 1]) makes the goal the input: the pairing selects coverage-first (every critical candidate, then one pair per still-uncovered sentence in draft order until the target is met, with `max` kept as a hard ceiling and `truncated` meaning exactly that the ceiling cut wanted selection), the run-fact pass judges every matched candidate instead of the default bound, an undeclared `minimumCoverageRatio` defaults to the target so the RV1809 floor machinery (`lowCoverage`, `onLowCoverage`, the strict CLI exit) enforces the same number that sized the pass, and the meta echoes `coverageTarget` so a persisted outcome says what its coverage was held against. Unset, every selection reproduces byte for byte.

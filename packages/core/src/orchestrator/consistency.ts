@@ -86,6 +86,22 @@ export interface ClaimPairOptions {
    * 40).
    */
   critical?: readonly string[];
+  /**
+   * The declared coverage target (RV2903), in (0, 1]: size the
+   * reported pairs to COVER at least this share of the citing
+   * sentences instead of taking the first `max` pairs blind. The
+   * ninth comparison run judged 43 of 115 citing sentences because
+   * its host guessed `max: 56`, and nothing sized the pass to a goal.
+   * Under a target the selection is coverage-first: every critical
+   * candidate, then ONE candidate per still-uncovered sentence in
+   * draft order until the target is met; pairs that only deepen an
+   * already covered sentence are skipped, because under a declared
+   * target the bounded budget buys coverage, not depth. `max` stays a
+   * hard ceiling, and `truncated` then means exactly that the ceiling
+   * cut selection the target still wanted. Unset = the exact
+   * historical first-`max` selection, byte for byte.
+   */
+  targetCoverageShare?: number;
 }
 
 /** What the fold produced, beside the pairs themselves. */
@@ -104,6 +120,13 @@ export interface ClaimPairsFold {
    * cap cut it; all three mean the judge never saw it.
    */
   coveredCitingSentences: number;
+  /**
+   * Present when `targetCoverageShare` was declared (RV2903): the
+   * sentence count the target resolved to against THIS draft, so a
+   * consumer holds `coveredCitingSentences` against the goal the
+   * selection was sized for, not against a share it must re-derive.
+   */
+  targetCoveredSentences?: number;
   /**
    * Present only when `critical` was given: the critical draft anchors
    * (verbatim, draft order, deduplicated) with no reported pair, capped
@@ -216,6 +239,19 @@ export function pairDraftClaims(
     options?.maxExcerptChars ?? DEFAULT_MAX_PAIR_EXCERPT_CHARS,
     'pairDraftClaims maxExcerptChars',
   );
+  const targetShare = options?.targetCoverageShare;
+  if (
+    targetShare !== undefined &&
+    (typeof targetShare !== 'number' ||
+      !Number.isFinite(targetShare) ||
+      targetShare <= 0 ||
+      targetShare > 1)
+  ) {
+    throw new ConfigError(
+      `pairDraftClaims targetCoverageShare must be a number in (0, 1]; got ` +
+        JSON.stringify(targetShare),
+    );
+  }
 
   // The pool index: path -> readings in row (spawn) order, then
   // sentence order, each carrying its FULL collapsed sentence for the
@@ -363,13 +399,48 @@ export function pairDraftClaims(
           ...candidates.filter((candidate) => candidate.critical),
           ...candidates.filter((candidate) => !candidate.critical),
         ];
-  const reported = ordered.slice(0, max);
+  let reported: Candidate[];
+  let maxCut: boolean;
+  let targetSentences: number | undefined;
+  if (targetShare === undefined) {
+    reported = ordered.slice(0, max);
+    maxCut = candidates.length > reported.length;
+  } else {
+    // Coverage-first under a declared target (RV2903): every critical
+    // candidate, then ONE candidate per still-uncovered sentence in
+    // draft order until the target number of covered sentences is
+    // reached. A pair that only deepens an already covered sentence
+    // is skipped: under a declared target the bounded budget buys
+    // coverage, not depth.
+    targetSentences = Math.min(draftCitingSentences, Math.ceil(targetShare * draftCitingSentences));
+    const covering = new Set<string>();
+    const wanted: Candidate[] = [];
+    for (const candidate of ordered) {
+      if (candidate.critical) {
+        wanted.push(candidate);
+        covering.add(candidate.sentence);
+        continue;
+      }
+      if (covering.size >= targetSentences || covering.has(candidate.sentence)) {
+        continue;
+      }
+      wanted.push(candidate);
+      covering.add(candidate.sentence);
+    }
+    reported = wanted.slice(0, max);
+    // Under a target, truncation means exactly that the hard ceiling
+    // cut selection the target still wanted; candidates the selection
+    // chose to skip are visible as coverage below the target, never
+    // as a truncation they were not.
+    maxCut = wanted.length > reported.length;
+  }
   const coveredSentences = new Set(reported.map((candidate) => candidate.sentence));
   const fold: ClaimPairsFold = {
     pairs: reported.map((candidate) => candidate.pair),
-    truncated: candidates.length > reported.length,
+    truncated: maxCut,
     draftCitingSentences,
     coveredCitingSentences: coveredSentences.size,
+    ...(targetSentences === undefined ? {} : { targetCoveredSentences: targetSentences }),
   };
   if (critical !== undefined) {
     const reportedAnchors = new Set(reported.map((candidate) => candidate.pair.anchor));

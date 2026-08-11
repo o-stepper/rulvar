@@ -872,6 +872,22 @@ export interface OrchestrateClaimConsistency {
   /** Bound on each excerpt; default {@link DEFAULT_MAX_PAIR_EXCERPT_CHARS}. */
   maxExcerptChars?: number;
   /**
+   * The declared coverage target (RV2903), in (0, 1]: the pass sizes
+   * itself to COVER this share of the draft's citing sentences instead
+   * of judging the first `max` pairs blind. The ninth comparison run
+   * covered 43 of 115 citing sentences because its host guessed
+   * `max: 56` plus the default run-fact bound, and the honest
+   * 'partial' grade was the constant's echo, not a policy. Under a
+   * target the pairing selects coverage-first (criticals, then one
+   * pair per uncovered sentence until the target is met; `max` stays a
+   * hard ceiling), the run-fact pass judges EVERY matched candidate
+   * instead of the default bound, and an undeclared
+   * `minimumCoverageRatio` defaults to the target, so the RV1809
+   * floor machinery (the `lowCoverage` block, `onLowCoverage`, the
+   * strict CLI exit) enforces the same number that sized the pass.
+   */
+  coverageTarget?: number;
+  /**
    * Critical anchor declarations (RV1603): paths (a file, or a
    * directory matched as a prefix) or span anchors
    * (`src/exec.ts:250-300`). Pairs whose draft anchor matches sort
@@ -974,6 +990,12 @@ export interface OrchestrateClaimConsistencyMeta {
    * over 40 of 144 sentences can never read as "fully verified".
    */
   coveredCitingSentences: number;
+  /**
+   * Present when `coverageTarget` was declared (RV2903): the share the
+   * pass sized itself for, echoed so a persisted outcome says WHAT the
+   * coverage was held against, not only what it reached.
+   */
+  coverageTarget?: number;
   /**
    * Present when `critical` was declared: the critical draft anchors
    * with no judged pair (capped at {@link MAX_CRITICAL_UNCOVERED});
@@ -1957,6 +1979,7 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       minimumCoverageRatio?: unknown;
       runFactCoverageRatio?: unknown;
       onLowCoverage?: unknown;
+      coverageTarget?: unknown;
     };
     if (typeof consistency !== 'object' || Array.isArray(consistency)) {
       throw new ConfigError(
@@ -2096,6 +2119,7 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     for (const [label, ratio] of [
       ['minimumCoverageRatio', consistency.minimumCoverageRatio],
       ['runFactCoverageRatio', consistency.runFactCoverageRatio],
+      ['coverageTarget', consistency.coverageTarget],
     ] as const) {
       if (
         ratio !== undefined &&
@@ -2126,11 +2150,12 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     if (
       consistency.onLowCoverage !== undefined &&
       consistency.minimumCoverageRatio === undefined &&
-      consistency.runFactCoverageRatio === undefined
+      consistency.runFactCoverageRatio === undefined &&
+      consistency.coverageTarget === undefined
     ) {
       throw new ConfigError(
         'orchestrate claimConsistency.onLowCoverage needs a declared floor; set ' +
-          'minimumCoverageRatio or runFactCoverageRatio',
+          'minimumCoverageRatio, runFactCoverageRatio, or coverageTarget',
       );
     }
     if (consistency.judge !== undefined) {
@@ -5666,6 +5691,10 @@ export function makeOrchestratorWorkflow(
         ...(spec.maxPoolPerPair === undefined ? {} : { maxPoolPerPair: spec.maxPoolPerPair }),
         ...(spec.maxExcerptChars === undefined ? {} : { maxExcerptChars: spec.maxExcerptChars }),
         ...(spec.critical === undefined ? {} : { critical: spec.critical }),
+        // The declared coverage target (RV2903) sizes the selection
+        // coverage-first; without it the historical first-max pairing
+        // reproduces byte for byte.
+        ...(spec.coverageTarget === undefined ? {} : { targetCoverageShare: spec.coverageTarget }),
       });
       const runFold =
         spec.runFacts === true
@@ -5686,6 +5715,11 @@ export function makeOrchestratorWorkflow(
                 ...(spec.maxExcerptChars === undefined
                   ? {}
                   : { maxExcerptChars: spec.maxExcerptChars }),
+                // Under a declared coverage target (RV2903) the
+                // run-fact pass judges EVERY matched candidate: the
+                // ninth comparison run cut 30 candidates to the
+                // default 8 with no way to raise the bound.
+                ...(spec.coverageTarget === undefined ? {} : { max: Number.MAX_SAFE_INTEGER }),
               },
             )
           : undefined;
@@ -5699,6 +5733,7 @@ export function makeOrchestratorWorkflow(
         pairs: allPairs.length,
         truncated: fold.truncated,
         coveredCitingSentences: fold.coveredCitingSentences,
+        ...(spec.coverageTarget === undefined ? {} : { coverageTarget: spec.coverageTarget }),
         ...(fold.criticalUncovered === undefined
           ? {}
           : {
@@ -5719,6 +5754,12 @@ export function makeOrchestratorWorkflow(
           // FOLD alone (covered sentences are a pairing fact, not a
           // judge verdict), so the gate below can fire before the
           // judge pays. A zero denominator is vacuous and never trips.
+          // A declared coverage target IS a floor when none is set
+          // explicitly (RV2903): the same number that sized the pass
+          // judges what it reached, so an unreachable target under
+          // the hard `max` ceiling surfaces here instead of passing
+          // as an honest-but-unenforced 'partial'.
+          const coverageFloor = spec.minimumCoverageRatio ?? spec.coverageTarget;
           const coverageRatio =
             fold.draftCitingSentences === 0
               ? 1
@@ -5728,9 +5769,9 @@ export function makeOrchestratorWorkflow(
               ? undefined
               : runFold.pairs.length / runFold.candidates;
           const belowCoverage =
-            spec.minimumCoverageRatio !== undefined &&
+            coverageFloor !== undefined &&
             fold.draftCitingSentences > 0 &&
-            coverageRatio < spec.minimumCoverageRatio;
+            coverageRatio < coverageFloor;
           const belowRunFacts =
             spec.runFactCoverageRatio !== undefined &&
             runFactRatio !== undefined &&
@@ -5741,9 +5782,7 @@ export function makeOrchestratorWorkflow(
           return {
             lowCoverage: {
               coverageRatio,
-              ...(spec.minimumCoverageRatio === undefined
-                ? {}
-                : { coverageFloor: spec.minimumCoverageRatio }),
+              ...(coverageFloor === undefined ? {} : { coverageFloor }),
               ...(runFactRatio === undefined ? {} : { runFactRatio }),
               ...(spec.runFactCoverageRatio === undefined
                 ? {}

@@ -2780,7 +2780,7 @@ export const MUTATIONS = [
     doctrine:
       'the declared coverage floor trips on the fold ratio (RV1809): disarming the comparison lets a run that verified half its declared minimum stamp no block, fail no gate, and read green under strict, the exact externalized arithmetic the floors exist to internalize',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '          const belowCoverage =\n            spec.minimumCoverageRatio !== undefined &&\n            fold.draftCitingSentences > 0 &&\n            coverageRatio < spec.minimumCoverageRatio;',
+    find: '          const belowCoverage =\n            coverageFloor !== undefined &&\n            fold.draftCitingSentences > 0 &&\n            coverageRatio < coverageFloor;',
     replace: '          const belowCoverage = false;',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
@@ -4302,6 +4302,33 @@ export const MUTATIONS = [
     find: '            complete = false;\n            break;',
     replace: '            continue;',
     test: 'packages/core/src/stores/synthesis-candidates.test.ts',
+  },
+  {
+    id: 'coverage-target-sizes-the-selection',
+    doctrine:
+      'a declared coverage target sizes the pairing coverage-first (RV2903): the ninth comparison run judged 43 of 115 citing sentences because a blind max spent its budget on depth while later sentences went unjudged',
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: '  if (targetShare === undefined) {',
+    replace: '  if (true) {',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'coverage-target-implies-the-floor',
+    doctrine:
+      'an undeclared minimumCoverageRatio defaults to the coverage target (RV2903): the number that sized the pass judges what it reached, so an unreachable target surfaces through the RV1809 floor machinery instead of passing as an honest-but-unenforced partial',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          const coverageFloor = spec.minimumCoverageRatio ?? spec.coverageTarget;',
+    replace: '          const coverageFloor = spec.minimumCoverageRatio;',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'coverage-target-uncaps-the-run-fact-pass',
+    doctrine:
+      'under a declared coverage target the run-fact pass judges EVERY matched candidate (RV2903): the ninth comparison run cut 30 candidates to the default 8 with no configuration surface to raise the bound',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '                ...(spec.coverageTarget === undefined ? {} : { max: Number.MAX_SAFE_INTEGER }),',
+    replace: '',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
 ];
 

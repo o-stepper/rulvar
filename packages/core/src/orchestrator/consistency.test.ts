@@ -1196,3 +1196,182 @@ describe('the semantic gate reaches the FINAL artifact (RV2509)', () => {
     ).toThrow(/stage 'final' requires synthesis/);
   });
 });
+
+describe('the declared coverage target sizes the pass (RV2903)', () => {
+  // Four citing sentences, two anchors each: eight candidates against a
+  // pool that reads every anchor differently. The ninth comparison run
+  // covered 43 of 115 citing sentences because nothing sized the
+  // selection to a goal: the first-max pairs spent depth on early
+  // sentences while later ones went unjudged.
+  const WIDE_DRAFT = [1, 2, 3, 4]
+    .map(
+      (index) =>
+        `Claim ${String(index)} holds on both layers ` +
+        `[src/a.ts:${String(index)}] [src/b.ts:${String(index)}].`,
+    )
+    .join(' ');
+  const WIDE_POOL = [
+    {
+      nodeId: 'reader',
+      text: [1, 2, 3, 4]
+        .map(
+          (index) =>
+            `Layer a disagrees at line ${String(index)} (src/a.ts:${String(index)}). ` +
+            `Layer b disagrees at line ${String(index)} (src/b.ts:${String(index)}).`,
+        )
+        .join(' '),
+    },
+  ];
+
+  it('selects coverage-first: one pair per uncovered sentence until the target', () => {
+    const blind = pairDraftClaims(WIDE_DRAFT, WIDE_POOL, { max: 4 });
+    expect(blind.pairs).toHaveLength(4);
+    expect(blind.coveredCitingSentences).toBe(2);
+    expect(blind.truncated).toBe(true);
+
+    const sized = pairDraftClaims(WIDE_DRAFT, WIDE_POOL, { max: 4, targetCoverageShare: 1 });
+    expect(sized.pairs).toHaveLength(4);
+    expect(sized.coveredCitingSentences).toBe(4);
+    expect(sized.targetCoveredSentences).toBe(4);
+    // The same budget bought double the coverage, and nothing was cut:
+    // the leftover depth pairs were skipped, not truncated.
+    expect(sized.truncated).toBe(false);
+  });
+
+  it('a met target stops the selection instead of spending the whole ceiling', () => {
+    const fold = pairDraftClaims(WIDE_DRAFT, WIDE_POOL, { max: 8, targetCoverageShare: 0.5 });
+    expect(fold.targetCoveredSentences).toBe(2);
+    expect(fold.pairs).toHaveLength(2);
+    expect(fold.coveredCitingSentences).toBe(2);
+    expect(fold.truncated).toBe(false);
+  });
+
+  it('the hard ceiling still cuts, and THAT is what truncated means under a target', () => {
+    const fold = pairDraftClaims(WIDE_DRAFT, WIDE_POOL, { max: 3, targetCoverageShare: 1 });
+    expect(fold.pairs).toHaveLength(3);
+    expect(fold.coveredCitingSentences).toBe(3);
+    expect(fold.truncated).toBe(true);
+  });
+
+  it('critical candidates ride ahead of the target arithmetic', () => {
+    const fold = pairDraftClaims(WIDE_DRAFT, WIDE_POOL, {
+      max: 8,
+      targetCoverageShare: 0.5,
+      critical: ['src/b.ts:3'],
+    });
+    expect(fold.pairs[0]?.anchor).toBe('src/b.ts:3');
+    expect(fold.coveredCitingSentences).toBe(2);
+    expect(fold.criticalUncoveredTotal).toBe(0);
+  });
+
+  it('refuses a target outside (0, 1], fail closed', () => {
+    expect(() => pairDraftClaims('x', [], { targetCoverageShare: 0 })).toThrow(ConfigError);
+    expect(() => pairDraftClaims('x', [], { targetCoverageShare: 1.5 })).toThrow(ConfigError);
+    expect(() => pairDraftClaims('x', [], { targetCoverageShare: Number.NaN })).toThrow(
+      ConfigError,
+    );
+  });
+
+  it('sizes the wired pass and echoes the target on the meta', async () => {
+    const { internals } = passHarness({
+      children: WIDE_POOL.map((row) => row.text),
+      draft: WIDE_DRAFT,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the layers', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { max: 4, coverageTarget: 1, ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    const meta = outcome.claimConsistencyMeta;
+    expect(meta).toMatchObject({
+      pairs: 4,
+      coveredCitingSentences: 4,
+      coverageTarget: 1,
+      truncated: false,
+      coverage: 'full',
+    });
+    expect(meta !== undefined && 'lowCoverage' in meta).toBe(false);
+  });
+
+  it('an unreachable target trips the IMPLIED floor through the RV1809 machinery', async () => {
+    const { internals } = passHarness({
+      children: WIDE_POOL.map((row) => row.text),
+      draft: WIDE_DRAFT,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the layers', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { max: 2, coverageTarget: 1, ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    const meta = outcome.claimConsistencyMeta;
+    // The same number that sized the pass judges what it reached: no
+    // separate minimumCoverageRatio was declared anywhere.
+    expect(meta?.lowCoverage).toEqual({ coverageRatio: 0.5, coverageFloor: 1 });
+    expect(meta).toMatchObject({ coverageTarget: 1, truncated: true, coverage: 'partial' });
+  });
+
+  it('under a target the run-fact pass judges every matched candidate', async () => {
+    const runClaims = Array.from(
+      { length: 9 },
+      (_, index) => `Scenario ${String(index + 1)} says real models were not run.`,
+    ).join(' ');
+    const wf = (consistency: Record<string, unknown>) =>
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: {
+          runFacts: true,
+          runFactTerms: ['not run'],
+          ...consistency,
+          ...JUDGE_MODEL,
+        },
+      });
+    const blind = passHarness({
+      children: [POOL_READING],
+      draft: `${DRAFT_INVERTED} ${runClaims}`,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const blindOutcome = (await executeWorkflow(blind.internals, wf({}), undefined)) as {
+      claimConsistencyMeta?: Record<string, unknown>;
+    };
+    expect(blindOutcome.claimConsistencyMeta).toMatchObject({
+      runFactPairs: 8,
+      runFactPairsTruncated: true,
+      runFactCandidates: 9,
+    });
+
+    const sized = passHarness({
+      children: [POOL_READING],
+      draft: `${DRAFT_INVERTED} ${runClaims}`,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const sizedOutcome = (await executeWorkflow(
+      sized.internals,
+      wf({ coverageTarget: 1 }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    const meta = sizedOutcome.claimConsistencyMeta;
+    expect(meta).toMatchObject({ runFactPairs: 9, runFactCandidates: 9 });
+    expect(meta !== undefined && 'runFactPairsTruncated' in meta).toBe(false);
+  });
+
+  it('onLowCoverage accepts the target as its declared floor', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { coverageTarget: 0.9, onLowCoverage: 'fail' },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        claimConsistency: { coverageTarget: 1.5 },
+      }),
+    ).toThrow(ConfigError);
+  });
+});
