@@ -2807,8 +2807,8 @@ export const MUTATIONS = [
     doctrine:
       'the MCP discovery deadline bounds the whole sweep as a unit (RV1808): per-page listMs cannot stop a crawl of promptly answered pages, and maxPages binds only when declared, so dropping the wall clock reopens the unbounded discovery',
     file: 'packages/core/src/tools/mcp.ts',
-    find: '      if (discoveryMs !== undefined && Date.now() - startedAt > discoveryMs) {',
-    replace: '      if (false) {',
+    find: '      const remainingMs =\n        discoveryMs === undefined ? undefined : discoveryMs - (Date.now() - startedAt);',
+    replace: '      const remainingMs = undefined;',
     test: 'packages/core/src/tools/mcp-bounds.test.ts',
   },
   {
@@ -4514,6 +4514,15 @@ export const MUTATIONS = [
     find: "      if (typeof row[name] !== 'number') {",
     replace: '      if (false) {',
     test: 'packages/core/src/engine/pricinggate.test.ts',
+  },
+  {
+    id: 'the-discovery-deadline-binds-the-page-call',
+    doctrine:
+      'the discovery deadline rides every tools/list call as its wire timeout (RV3205): reverted to the between-pages check, a hung or slow current page is unbounded and the last (or only) page never pays the deadline, the 2026-08-11 experiment probe where an 86 ms single page sailed under a 10 ms cap',
+    file: 'packages/core/src/tools/mcp.ts',
+    find: '      const pageTimeoutMs =\n        remainingMs === undefined\n          ? listMs\n          : listMs === undefined\n            ? remainingMs\n            : Math.min(listMs, remainingMs);',
+    replace: '      const pageTimeoutMs = listMs;',
+    test: 'packages/core/src/tools/mcp-bounds.test.ts',
   },
   {
     id: 'the-flush-barrier-rethrows-the-lost-append',
