@@ -18,6 +18,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+
 ### 1.232.0
 
 #### Minor Changes
@@ -2126,6 +2136,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+
 ### 1.232.0
 
 #### Patch Changes
@@ -4033,6 +4053,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
 
 ### 1.232.0
 
@@ -6495,6 +6525,15 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.233.0
+
+#### Minor Changes
+
+- 48b5200: `ResumeOptions.bodyHash: 'warn' | 'refuse'` (RV3001): the opt-in pin for hosts that treat an edited workflow body as a different workflow. Under the default `'warn'` an in-process body-hash mismatch keeps the historical design byte for byte: the loud `RULVAR_RESUME_HASH_MISMATCH` warning fires and the resume proceeds, because the journal decides replay versus live per content keys and reports orphans honestly. Under `'refuse'` the same mismatch is a typed `ConfigError` raised before ownership, meta writes, or any append, so a refused resume mutates nothing durable. Name mismatches and compiled-source mismatches remain hard errors under either value, and any other value refuses typed before any store read.
+- 73bc32b: Terminal agent entries journal the durable tool-budget subset (RV3002): `toolBudget: { used, cap? }`, the loop's executed-call counter and the effective cap at settle, written whenever the live result carried the pressure snapshot. The counter has always been durable in the terminal checkpoint, but checkpoints are blobs and journal folds read entries only, so observed calls-per-evidence-entry calibration could not be a pure fold. Replay now restores `AgentResult.toolBudget` unconditionally from the entry on new journals, grant-free runs included, with the RV509 decision-backed fields (`extensionsGranted`, `finalizationWindowEntered`) merged on top; journals written before the field shipped keep the RV509 decision-conditional restoration byte for byte. Live-only summary fields (`unitsUsed`, `noticesFired`, `limiter`, and the rest) never journal, exactly as before.
+- e63b743: `synthesis.runFacts` widens to `boolean | { workflowSoFar?: boolean }` (RV3004). `runFacts: true` keeps today's child-only RUN FACTS line byte for byte. The object form keeps that line and, under `workflowSoFar: true`, appends one `RUN FACTS SO FAR:` sibling scoped `run-so-far-at-this-dispatch`: the same counters folded over the settled children PLUS the orchestration's own settled internal spans as of the composing dispatch (the coordination dispatch, claim judges, synthesis notes, and any earlier settled composition), with `children` and `internalSpans` counted separately. The nineteenth benchmark quoted child-only totals beside the whole-run invoice and invited a false drift reading; the sibling closes most of that gap from inside the prompt while its suffix names what stays outside (the composing dispatch itself and anything still running), so the terminal envelope and invoice remain the only whole-run truth. Folded from replay-stable settled material in deterministic settle order (a resumed composition re-derives identical bytes, zero live calls); dollars stay absent for the same replay reason; unknown keys and non-boolean values refuse typed.
+- ef45da7: `toolCalibrationFromJournal(entries)` (RV3003): the observed calls-per-evidence-entry calibration as a pure fold over the journal. The ninth comparison run declared the stock `estCallsPerEntry` of 3 behind its preflight call floor and its workers actually spent 5.5 executed calls per recorded evidence entry, a number that had to be recomputed by hand from worker transcripts. The fold pairs the RV806 evidence verdict with the RV3002 executed-call counter on each terminal agent dispatch: `observed` rows carry both sides and their per-dispatch rate, the `aggregate` divides summed calls by summed entries across observed rows only (unproductive calls included; a paired row with zero recorded entries keeps its calls visible and carries no ratio), and the unpaired sides are named per RV1209 (`evidenceOnly` for pre-RV3002 journals, `budgetOnly` for counters with no declared contract, `unobserved` for neither), never counted as zero. `childRostersFromJournal` children additionally carry the `toolBudget` subset beside their evidence verdict, so a post-mortem reads spend beside the verdict without a second fold.
 
 ### 1.232.0
 
@@ -9243,6 +9282,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.233.0
+
 ### 1.232.0
 
 ### 1.231.0
@@ -9811,6 +9852,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+  - @rulvar/anthropic@1.233.0
+  - @rulvar/openai@1.233.0
+  - @rulvar/plan@1.233.0
+  - @rulvar/testing@1.233.0
 
 ### 1.232.0
 
@@ -12465,6 +12520,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+
 ### 1.232.0
 
 #### Patch Changes
@@ -13783,6 +13848,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
 
 ### 1.232.0
 
@@ -15897,6 +15972,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+
 ### 1.232.0
 
 #### Patch Changes
@@ -17918,6 +18003,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+  - eslint-plugin-rulvar@1.233.0
 
 ### 1.232.0
 
@@ -20134,6 +20230,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+  - @rulvar/anthropic@1.233.0
+  - @rulvar/openai@1.233.0
 
 ### 1.232.0
 
@@ -22667,6 +22775,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+
 ### 1.232.0
 
 #### Patch Changes
@@ -24696,6 +24814,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
+
 ### 1.232.0
 
 #### Patch Changes
@@ -26030,6 +26158,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
 
 ### 1.232.0
 
@@ -27996,6 +28134,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.233.0
+
+#### Patch Changes
+
+- Updated dependencies [48b5200]
+- Updated dependencies [73bc32b]
+- Updated dependencies [e63b743]
+- Updated dependencies [ef45da7]
+  - @rulvar/core@1.233.0
 
 ### 1.232.0
 
