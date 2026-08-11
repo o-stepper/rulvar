@@ -350,6 +350,25 @@ export interface PostFanInBreakdown {
  */
 export const CLAIM_JUDGE_LABEL = 'claim-consistency-judge';
 
+/**
+ * The label the final synthesis (composition) invocation dispatches
+ * under (RV2901). The engine labelling its OWN dispatches is what lets
+ * `criticalPathFromJournal` split the synthesize bucket offline: the
+ * split demands a label on EVERY synthesize span, and the comparison
+ * run that shipped the journal fold still refused it because this one
+ * dispatch stayed anonymous while the claim judge was labelled.
+ */
+export const FINAL_COMPOSITION_LABEL = 'final-composition';
+
+/**
+ * The label an incremental synthesis note dispatches under (RV2901).
+ * Notes ride role 'synthesize' and are composition-side work, so both
+ * reducers count them toward the composition half of the split; the
+ * label exists so a journal reader can tell WHICH composition spans
+ * were notes without guessing from their size.
+ */
+export const SYNTHESIS_NOTE_LABEL = 'synthesis-note';
+
 interface Interval {
   from: number;
   to: number;

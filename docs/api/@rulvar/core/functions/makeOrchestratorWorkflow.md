@@ -10,7 +10,7 @@
 function makeOrchestratorWorkflow(goal, opts?): Workflow<undefined, unknown>;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:2433](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L2433)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:2437](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L2437)
 
 Builds the orchestrator workflow: ONE implementation behind both
 surfaces. The body wires the spawn tools over the per-call runtime,

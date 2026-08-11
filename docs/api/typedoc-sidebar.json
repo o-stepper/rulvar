@@ -2643,6 +2643,10 @@
             "link": "/api/@rulvar/core/variables/EXPOSURE_WAIT_SWEEP_MS.md"
           },
           {
+            "text": "FINAL_COMPOSITION_LABEL",
+            "link": "/api/@rulvar/core/variables/FINAL_COMPOSITION_LABEL.md"
+          },
+          {
             "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
             "link": "/api/@rulvar/core/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
           },
@@ -2813,6 +2817,10 @@
           {
             "text": "SPAWN_AGENT_SCHEMA",
             "link": "/api/@rulvar/core/variables/SPAWN_AGENT_SCHEMA.md"
+          },
+          {
+            "text": "SYNTHESIS_NOTE_LABEL",
+            "link": "/api/@rulvar/core/variables/SYNTHESIS_NOTE_LABEL.md"
           },
           {
             "text": "TERMINAL_TELEMETRY_SCOPE",
@@ -7677,6 +7685,10 @@
             "link": "/api/@rulvar/rulvar/variables/EXPOSURE_WAIT_SWEEP_MS.md"
           },
           {
+            "text": "FINAL_COMPOSITION_LABEL",
+            "link": "/api/@rulvar/rulvar/variables/FINAL_COMPOSITION_LABEL.md"
+          },
+          {
             "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
             "link": "/api/@rulvar/rulvar/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
           },
@@ -7855,6 +7867,10 @@
           {
             "text": "SPAWN_AGENT_SCHEMA",
             "link": "/api/@rulvar/rulvar/variables/SPAWN_AGENT_SCHEMA.md"
+          },
+          {
+            "text": "SYNTHESIS_NOTE_LABEL",
+            "link": "/api/@rulvar/rulvar/variables/SYNTHESIS_NOTE_LABEL.md"
           },
           {
             "text": "TERMINAL_TELEMETRY_SCOPE",
