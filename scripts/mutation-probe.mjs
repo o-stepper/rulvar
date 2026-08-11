@@ -4507,6 +4507,15 @@ export const MUTATIONS = [
     test: 'packages/plan/src/resume-profile-drift.test.ts',
   },
   {
+    id: 'strict-pricing-requires-present-rates',
+    doctrine:
+      'strictPricing enforces the presence the Pricing type promises (RV3204): disarmed, an untyped `{}` row satisfies every conditional well-formedness check, the downstream fold prices it at a zero debit, and the ceiling the mode exists to keep honest bounds nothing, the 2026-08-11 experiment probe that kept its whole dollar after 1000/1000 tokens',
+    file: 'packages/core/src/engine/budget.ts',
+    find: "      if (typeof row[name] !== 'number') {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/pricinggate.test.ts',
+  },
+  {
     id: 'the-flush-barrier-rethrows-the-lost-append',
     doctrine:
       'flush() is the barrier that turns the latched loss into a typed rejection (RV3201): silenced, the latch records the loss and nothing downstream ever reads it, so the settle converts nothing and ok/complete ships over a journal missing a record the run believes it wrote',
