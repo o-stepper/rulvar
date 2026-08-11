@@ -64,6 +64,7 @@ export * from './stores/fenced.js';
 export * from './stores/reconcile.js';
 export * from './stores/critical-path.js';
 export * from './stores/synthesis-candidates.js';
+export * from './stores/tool-calibration.js';
 export * from './stores/jsonl.js';
 export * from './engine/cost-report.js';
 export * from './engine/invoice.js';

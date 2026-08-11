@@ -438,6 +438,8 @@ export interface JournaledChild {
   status?: EntryStatus;
   /** The RV806 evidence verdict, present under a declared contract. */
   evidence?: { recordedEntries: number; minEntries: number; met: boolean };
+  /** The RV3002 durable tool-budget subset, when the terminal journaled it. */
+  toolBudget?: { used: number; cap?: number };
   /**
    * Present and true when the orchestration ABANDONED this child's
    * branch (RV2804): the work happened and the provider billed it, and
@@ -586,6 +588,7 @@ export function childRostersFromJournal(entries: readonly JournalEntry[]): Journ
         : { agentType: terminal.costAttribution.agentType }),
       ...(terminal === undefined ? {} : { status: terminal.status }),
       ...(terminal?.evidence === undefined ? {} : { evidence: { ...terminal.evidence } }),
+      ...(terminal?.toolBudget === undefined ? {} : { toolBudget: { ...terminal.toolBudget } }),
     });
   }
   return [...rosters.values()];

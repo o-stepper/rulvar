@@ -22,3 +22,6 @@ One child of one orchestration, as the journal holds it (RV2702).
 | `evidence.recordedEntries` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-handle"></a> `handle` | `number` | The dispatch seq: the SAME number the orchestrator's own turns used as the child's handle, so a reader can find it in the transcript without a second identifier. Handles are journal-derived and stable across resume (a replayed spawn reports its original dispatch seq), which is what makes this a name and not an index. | `packages/core/dist/index.d.ts` |
 | <a id="property-status"></a> `status?` | [`EntryStatus`](/api/@rulvar/rulvar/type-aliases/EntryStatus.md) | The status the journal recorded, absent when no terminal followed: the child was still in flight when the journal ends. This is the ENTRY status vocabulary, which is where the run's own dispatch records live. | `packages/core/dist/index.d.ts` |
+| <a id="property-toolbudget"></a> `toolBudget?` | \{ `cap?`: `number`; `used`: `number`; \} | The RV3002 durable tool-budget subset, when the terminal journaled it. | `packages/core/dist/index.d.ts` |
+| `toolBudget.cap?` | `number` | - | `packages/core/dist/index.d.ts` |
+| `toolBudget.used` | `number` | - | `packages/core/dist/index.d.ts` |

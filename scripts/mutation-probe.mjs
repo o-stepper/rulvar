@@ -4402,6 +4402,24 @@ export const MUTATIONS = [
     replace: 'const IN_PROCESS_ONLY = /$^/u;',
     test: 'scripts/docs-lint.test.mjs',
   },
+  {
+    id: 'calibration-absence-never-becomes-zero',
+    doctrine:
+      'the calibration aggregate exists only when at least one dispatch paired both sides (RV3003, RV1209): forced unconditional, a pre-RV3002 journal reads 0 calls over 0 entries and the host recalibrates its evidence floor from a number nobody recorded',
+    file: 'packages/core/src/stores/tool-calibration.ts',
+    find: '  if (observed.length > 0) {',
+    replace: '  if (true) {',
+    test: 'packages/core/src/stores/tool-calibration.test.ts',
+  },
+  {
+    id: 'the-roster-carries-the-tool-budget',
+    doctrine:
+      'the journaled child roster carries the RV3002 counter beside the RV806 verdict (RV3003): dropped, a post-mortem pairs evidence with spend through a second hand-built fold, which is exactly the recomputation the ninth comparison run had to do',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '      ...(terminal?.toolBudget === undefined ? {} : { toolBudget: { ...terminal.toolBudget } }),',
+    replace: '      ...{},',
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+`toolCalibrationFromJournal(entries)` (RV3003): the observed calls-per-evidence-entry calibration as a pure fold over the journal. The ninth comparison run declared the stock `estCallsPerEntry` of 3 behind its preflight call floor and its workers actually spent 5.5 executed calls per recorded evidence entry, a number that had to be recomputed by hand from worker transcripts. The fold pairs the RV806 evidence verdict with the RV3002 executed-call counter on each terminal agent dispatch: `observed` rows carry both sides and their per-dispatch rate, the `aggregate` divides summed calls by summed entries across observed rows only (unproductive calls included; a paired row with zero recorded entries keeps its calls visible and carries no ratio), and the unpaired sides are named per RV1209 (`evidenceOnly` for pre-RV3002 journals, `budgetOnly` for counters with no declared contract, `unobserved` for neither), never counted as zero. `childRostersFromJournal` children additionally carry the `toolBudget` subset beside their evidence verdict, so a post-mortem reads spend beside the verdict without a second fold.

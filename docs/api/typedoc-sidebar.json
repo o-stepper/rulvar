@@ -1759,6 +1759,18 @@
             "link": "/api/@rulvar/core/interfaces/ToolBudgetSummary.md"
           },
           {
+            "text": "ToolCalibrationExclusion",
+            "link": "/api/@rulvar/core/interfaces/ToolCalibrationExclusion.md"
+          },
+          {
+            "text": "ToolCalibrationReport",
+            "link": "/api/@rulvar/core/interfaces/ToolCalibrationReport.md"
+          },
+          {
+            "text": "ToolCalibrationRow",
+            "link": "/api/@rulvar/core/interfaces/ToolCalibrationRow.md"
+          },
+          {
             "text": "ToolCallRequest",
             "link": "/api/@rulvar/core/interfaces/ToolCallRequest.md"
           },
@@ -3767,6 +3779,10 @@
           {
             "text": "toolAuthority",
             "link": "/api/@rulvar/core/functions/toolAuthority.md"
+          },
+          {
+            "text": "toolCalibrationFromJournal",
+            "link": "/api/@rulvar/core/functions/toolCalibrationFromJournal.md"
           },
           {
             "text": "toolContract",
@@ -6813,6 +6829,18 @@
             "link": "/api/@rulvar/rulvar/interfaces/ToolBudgetSummary.md"
           },
           {
+            "text": "ToolCalibrationExclusion",
+            "link": "/api/@rulvar/rulvar/interfaces/ToolCalibrationExclusion.md"
+          },
+          {
+            "text": "ToolCalibrationReport",
+            "link": "/api/@rulvar/rulvar/interfaces/ToolCalibrationReport.md"
+          },
+          {
+            "text": "ToolCalibrationRow",
+            "link": "/api/@rulvar/rulvar/interfaces/ToolCalibrationRow.md"
+          },
+          {
             "text": "ToolCallRequest",
             "link": "/api/@rulvar/rulvar/interfaces/ToolCallRequest.md"
           },
@@ -8857,6 +8885,10 @@
           {
             "text": "toolAuthority",
             "link": "/api/@rulvar/rulvar/functions/toolAuthority.md"
+          },
+          {
+            "text": "toolCalibrationFromJournal",
+            "link": "/api/@rulvar/rulvar/functions/toolCalibrationFromJournal.md"
           },
           {
             "text": "toolContract",
