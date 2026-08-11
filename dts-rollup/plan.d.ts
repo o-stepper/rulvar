@@ -984,6 +984,16 @@ interface PlanRunnerOptions {
   * enabling it changes toolsetHash by design. Default false.
   */
   kbPropose?: boolean;
+  /**
+  * Disarms the finish gate (RV3202). By default the coordination
+  * finish REFUSES while any plan node is ready or running, naming the
+  * stragglers, because the plan is the extension's authority: a root
+  * that finishes over a running node used to settle a bare ok while
+  * the exit barrier cancelled the node (the 2026-08-11 experiment's
+  * blocker). Opting out restores that pre-RV3202 behavior for hosts
+  * whose acceptance policy already owns the boundary. Default false.
+  */
+  allowEarlyFinish?: boolean;
 }
 /**
 * Builds the PlanRunner orchestrator extension.

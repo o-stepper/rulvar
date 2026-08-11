@@ -593,6 +593,8 @@ const same = orchestratePlanned(
 
 Everything PlanRunner adds obeys the same rule as the rest of the engine: nondeterminism is eliminated not by forbidding dynamism but by recording it. The full machinery, wake digests, escalation, admission, model ladders, and termination accounting, is covered in [Adaptive orchestration](/guide/adaptive-orchestration).
 
+The plan is also the extension's authority over finishing (RV3202): the coordination `finish` is **refused typed** while any plan node is `ready` or `running`, with the stragglers named, so the model waits (`wait_for_events`) or closes them deliberately (`cancel_task`, `park_task`) instead of settling a bare ok while the exit barrier cancels live work. The refusal is mechanics, not a repair: nothing journals, no `finishValidation` repair is spent, and a re-executed turn re-renders the same verdict from the rebuilt plan fold. `allowEarlyFinish: true` disarms the gate for hosts whose acceptance policy already owns that boundary. Extensions in general get the same lever through `OrchestratorExtension.finishGate`, which must stay pure over journal-derived state and never binds the forced-finalization or synthesis finishes.
+
 ## Choosing a mode
 
 Default to the phase chain. A human script (or a planner-written one) with `ctx.phase` boundaries, nested workflows, and replanning only between phases over compact artifacts covers most workloads with the least machinery, the least orchestrator spend, and the most readable journals.

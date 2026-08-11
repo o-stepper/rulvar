@@ -4902,6 +4902,57 @@ export function makeOrchestratorWorkflow(
       });
     };
     /**
+     * The extension finish gate (RV3202, the 2026-08-11 experiment's
+     * second confirmed blocker): the extension's quiescence answer used
+     * to gate WAKES only, so a coordination model could call finish
+     * over a still-running plan node and, without an acceptance policy,
+     * settle a bare ok while the exit barrier cancelled the node. The
+     * gate runs FIRST inside the coordination finish channel: a refusal
+     * is the mechanics posture of the sectional resolve above (typed
+     * feedback as the tool error result, nothing journals, no repair
+     * spent, bounded by the turn budget), so the model cancels or waits
+     * and calls finish again. Replay stays deterministic because the
+     * contract requires the gate to be pure over journal-derived state:
+     * a re-executed turn re-evaluates it over the rebuilt fold and
+     * renders the same verdict. The forced-finalization and synthesis
+     * invocations are NOT gated: forced finalization is the budget
+     * emergency lane where refusing the reserved finish would strand
+     * the reserve, and by the synthesis dispatch the coordination loop
+     * has already settled.
+     */
+    const withFinishGate = (
+      inner:
+        | ((call: {
+            id: string;
+            result: unknown;
+            args?: unknown;
+          }) => Promise<
+            | { ok: true; resolved?: { result: unknown } }
+            | { ok: false; feedback: Record<string, unknown> }
+          >)
+        | undefined,
+    ):
+      | ((call: {
+          id: string;
+          result: unknown;
+          args?: unknown;
+        }) => Promise<
+          | { ok: true; resolved?: { result: unknown } }
+          | { ok: false; feedback: Record<string, unknown> }
+        >)
+      | undefined => {
+      if (extension?.finishGate === undefined) {
+        return inner;
+      }
+      return async (call) => {
+        const verdict = extension.finishGate?.() ?? ({ ok: true } as const);
+        if (!verdict.ok) {
+          return { ok: false, feedback: { error: verdict.reason } };
+        }
+        return inner === undefined ? { ok: true } : inner(call);
+      };
+    };
+    /**
      * The frozen bundle descriptor (the v1.71 experiment review,
      * P0.2): with a contract configured, the run durably records WHAT
      * validates it. One decision entry per distinct contract hash, in
@@ -4999,22 +5050,25 @@ export function makeOrchestratorWorkflow(
         // never spend it. With a draftPolicy declared (the v1.74
         // experiment review, P0.3), the DRAFT gate rides here instead,
         // and the same repair reserve grants coordination its own
-        // per-rejected-exchange headroom.
-        ...(validationSpec === undefined || opts?.synthesis !== undefined
-          ? validationSpec?.draftPolicy !== undefined && opts?.synthesis !== undefined
-            ? {
-                validate: validateDraft,
-                ...(validationSpec.repairTurnReserve === undefined
-                  ? {}
-                  : { repairTurnReserve: validationSpec.repairTurnReserve }),
-              }
-            : {}
-          : {
-              validate: validateFinish,
-              ...(validationSpec.repairTurnReserve === undefined
-                ? {}
-                : { repairTurnReserve: validationSpec.repairTurnReserve }),
-            }),
+        // per-rejected-exchange headroom. The extension finish gate
+        // (RV3202) wraps whichever arm applies, gate first, and rides
+        // alone when no validator arm does; the reserve still binds to
+        // the validator arms only, because a gate refusal is mechanics
+        // (a normal turn), never a repair.
+        ...((): Record<string, unknown> => {
+          const inner =
+            validationSpec === undefined || opts?.synthesis !== undefined
+              ? validationSpec?.draftPolicy !== undefined && opts?.synthesis !== undefined
+                ? validateDraft
+                : undefined
+              : validateFinish;
+          const reserve =
+            inner === undefined || validationSpec?.repairTurnReserve === undefined
+              ? {}
+              : { repairTurnReserve: validationSpec.repairTurnReserve };
+          const gated = withFinishGate(inner);
+          return gated === undefined ? {} : { validate: gated, ...reserve };
+        })(),
       },
       // Checkpoint lineage across root attempts (the v1.6.0 follow-up
       // review's mode (c) contract): a rerun after a cancelled root

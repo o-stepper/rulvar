@@ -48,7 +48,9 @@ const SCENARIOS = [
   [
     'oscillation-freeze',
     'Round-2: cancel/re-add of one coarse signature repeatedly; the oscillation detector ' +
-      'freezes the signature under hysteresis and further re-adds drop (docs/07, 3.8).',
+      'freezes the signature under hysteresis and further re-adds drop (docs/07, 3.8). ' +
+      'The finish over the still-running node is refused typed (RV3202); the model closes ' +
+      'the straggler deliberately and finishes over a quiescent plan.',
     plan.runOscillationFreeze,
   ],
   [

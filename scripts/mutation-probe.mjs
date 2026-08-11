@@ -4477,6 +4477,27 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/journal-integrity.test.ts',
   },
   {
+    id: 'the-plan-finish-gate-is-armed',
+    doctrine:
+      'the PlanRunner finish gate refuses over ready/running nodes by default (RV3202): disarmed, a coordination model finishes over a running plan node and, without an acceptance policy, settles a bare ok while the exit barrier cancels the node, the 2026-08-11 experiment blocker verbatim',
+    file: 'packages/plan/src/plan-runner.ts',
+    find: '      if (options?.allowEarlyFinish === true) {\n        return { ok: true };\n      }',
+    replace: '      if (true) {\n        return { ok: true };\n      }',
+    test: 'packages/plan/src/finish-gate.test.ts',
+  },
+  {
+    id: 'the-finish-gate-wraps-the-coordination-channel',
+    doctrine:
+      'an extension finish gate binds the ordinary coordination finish FIRST (RV3202): unwrapped, the gate exists in the contract and gates nothing, the documented-no-op class the synthesis mode gates retired a release ago returning on the extension surface',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          const gated = withFinishGate(inner);\n          return gated === undefined ? {} : { validate: gated, ...reserve };',
+    replace:
+      '          const gated = inner;\n          return gated === undefined ? {} : { validate: gated, ...reserve };',
+    test: 'packages/plan/src/finish-gate.test.ts',
+    // The plan test resolves @rulvar/core through dist: rebuild it.
+    build: '@rulvar/core',
+  },
+  {
     id: 'the-flush-barrier-rethrows-the-lost-append',
     doctrine:
       'flush() is the barrier that turns the latched loss into a typed rejection (RV3201): silenced, the latch records the loss and nothing downstream ever reads it, so the settle converts nothing and ok/complete ships over a journal missing a record the run believes it wrote',

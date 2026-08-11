@@ -150,6 +150,16 @@ export interface PlanRunnerOptions {
    * enabling it changes toolsetHash by design. Default false.
    */
   kbPropose?: boolean;
+  /**
+   * Disarms the finish gate (RV3202). By default the coordination
+   * finish REFUSES while any plan node is ready or running, naming the
+   * stragglers, because the plan is the extension's authority: a root
+   * that finishes over a running node used to settle a bare ok while
+   * the exit barrier cancelled the node (the 2026-08-11 experiment's
+   * blocker). Opting out restores that pre-RV3202 behavior for hosts
+   * whose acceptance policy already owns the boundary. Default false.
+   */
+  allowEarlyFinish?: boolean;
 }
 
 /** AgentResult terminal statuses mapped onto plan node statuses. */
@@ -2672,6 +2682,13 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       'plan_revise (add_task, amend_task, park_task, unpark_task, cancel_task,',
       'reprioritize, rewire_deps, waive_dep), inspect it with plan_view, and sleep',
       'with wait_for_events; the ENGINE schedules ready plan nodes for you.',
+      ...(options?.allowEarlyFinish === true
+        ? []
+        : [
+            'finish is refused while any plan node is ready or running: wait for them',
+            'with wait_for_events, or close them deliberately with plan_revise',
+            '(cancel_task or park_task) before finishing.',
+          ]),
       ...(options?.kbPropose === true
         ? [
             'kb_propose records ONE quarantined model observation about a ladder tier of a',
@@ -2811,6 +2828,36 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       return !Object.values(fold.plan.nodes).some(
         (node) => node.status === 'ready' || node.status === 'running',
       );
+    },
+    finishGate: (): { ok: true } | { ok: false; reason: string } => {
+      // The same predicate as quiescent (ready or running blocks;
+      // parked, done, failed, cancelled, escalated do not), but with
+      // the stragglers NAMED so the model can cancel_task, park_task,
+      // or wait_for_events deliberately instead of guessing. Pure over
+      // the fold by construction (RV3202): a re-executed turn absorbs
+      // the same journaled plan and renders the same verdict.
+      if (options?.allowEarlyFinish === true) {
+        return { ok: true };
+      }
+      absorbPlan();
+      const live = Object.values(fold.plan.nodes)
+        .filter((node) => node.status === 'ready' || node.status === 'running')
+        .sort((a, b) => a.nodeId.localeCompare(b.nodeId));
+      if (live.length === 0) {
+        return { ok: true };
+      }
+      const named = live
+        .slice(0, 8)
+        .map((node) => `${node.nodeId} (${node.logicalTaskId}, ${node.status})`)
+        .join(', ');
+      return {
+        ok: false,
+        reason:
+          `finish refused: the plan still has ${String(live.length)} node(s) ready or ` +
+          `running: ${named}${live.length > 8 ? ', ...' : ''}. Wait for them with ` +
+          'wait_for_events, or close them deliberately with plan_revise (cancel_task or ' +
+          'park_task), then call finish again',
+      };
     },
     digestExtras: (): Record<string, Json> => {
       absorbPlan();
