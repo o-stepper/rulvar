@@ -80,6 +80,20 @@ overrides:
   fast-uri: '^3.1.4'
   dompurify: '^3.4.12'
   '@hono/node-server': '^2.0.5'
+  # Dependabot floor bumps (2026-08-11). js-yaml's !!omap quadratic-CPU
+  # fix (CVE-2026-59870) landed separately on both major lines, and both
+  # patched versions sit INSIDE their dependents' declared ranges
+  # (read-yaml-file's ^3.6.1 under changesets; ^4 under @changesets/parse
+  # and eslint's espree config). Both consumers are devDependencies; the
+  # scoped floors only keep the vulnerable versions out of the tree.
+  'js-yaml@^3.0.0': '^3.15.1'
+  'js-yaml@^4.0.0': '^4.3.1'
+  # Same sweep, from `pnpm audit` rather than the dependabot feed:
+  # brace-expansion (both lines) moved by a plain in-range update, and
+  # nanoid needs the floor because `pnpm update -r` does not reach a
+  # transitive-only dependent (postcss declares ^3.3.16 and nothing in
+  # the workspace depends on nanoid directly). All devDependency chains.
+  'nanoid@^3.0.0': '^3.3.17'
   # tsdown is the .d.ts GENERATOR, and two artifacts are frozen against
   # the exact one that produced them: the committed dts-rollup baseline
   # and, hard, the published @rulvar/compat tarball (a published compat
