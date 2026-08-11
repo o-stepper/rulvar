@@ -159,3 +159,89 @@ describe('caps snapshot (v1.16.1 review P2)', () => {
     30_000,
   );
 });
+
+describe('refreshCaps pagination bounds (RV2904)', () => {
+  // The ninth comparison run's adversarial audit found models.list the
+  // one pagination in the tree the MCP cycle doctrine (RV1602/RV1808)
+  // had not reached: a server echoing or recycling last_id spun the
+  // sweep forever, comfortably inside every timeout.
+  const noMessages = {
+    create: (): Promise<unknown> => Promise.reject(new Error('not a messages test')),
+    countTokens: (): Promise<{ input_tokens: number }> => Promise.resolve({ input_tokens: 0 }),
+  };
+  const pagedClient = (
+    pages: Array<{ data?: unknown[]; has_more?: boolean; last_id?: string }>,
+    calls: Array<string | undefined> = [],
+  ): AnthropicClientLike =>
+    ({
+      messages: noMessages,
+      models: {
+        list: (params?: { after_id?: string }): Promise<unknown> => {
+          calls.push(params?.after_id);
+          const page = pages[Math.min(calls.length - 1, pages.length - 1)];
+          return Promise.resolve({ data: [], has_more: false, ...page });
+        },
+      },
+    }) as unknown as AnthropicClientLike;
+
+  it('refuses a cursor echoed back, unconditionally', async () => {
+    const adapter = anthropic({ client: pagedClient([{ has_more: true, last_id: 'A' }]) });
+    await expect(adapter.refreshCaps?.()).rejects.toThrow(
+      /returned the cursor it was queried with \('A'\)/,
+    );
+  });
+
+  it('refuses a revisited cursor however long the period', async () => {
+    const adapter = anthropic({
+      client: pagedClient([
+        { has_more: true, last_id: 'A' },
+        { has_more: true, last_id: 'B' },
+        { has_more: true, last_id: 'A' },
+      ]),
+    });
+    await expect(adapter.refreshCaps?.()).rejects.toThrow(/already visited \('A'\)/);
+  });
+
+  it('fails closed past the declared capsMaxPages instead of truncating', async () => {
+    const endless = Array.from({ length: 8 }, (_, index) => ({
+      has_more: true,
+      last_id: `c${String(index + 1)}`,
+    }));
+    const adapter = anthropic({ client: pagedClient(endless), capsMaxPages: 3 });
+    await expect(adapter.refreshCaps?.()).rejects.toThrow(/over the declared capsMaxPages 3/);
+  });
+
+  it('a finite sweep inside the cap merges every page', async () => {
+    const calls: Array<string | undefined> = [];
+    const adapter = anthropic({
+      client: pagedClient(
+        [
+          {
+            data: [{ id: 'claude-sonnet-5', max_input_tokens: 900_000, max_tokens: 90_000 }],
+            has_more: true,
+            last_id: 'p1',
+          },
+          {
+            data: [{ id: 'claude-opus-5', max_input_tokens: 800_000, max_tokens: 64_000 }],
+            has_more: false,
+          },
+        ],
+        calls,
+      ),
+      capsMaxPages: 2,
+    });
+    await adapter.refreshCaps?.();
+    expect(calls).toEqual([undefined, 'p1']);
+    expect(adapter.caps('claude-sonnet-5').maxOutputTokens).toBe(90_000);
+    expect(adapter.caps('claude-opus-5').maxOutputTokens).toBe(64_000);
+  });
+
+  it('refuses a non-positive capsMaxPages at construction, fail closed', () => {
+    expect(() => anthropic({ client: pagedClient([]), capsMaxPages: 0 })).toThrow(
+      /capsMaxPages must be a positive integer/,
+    );
+    expect(() => anthropic({ client: pagedClient([]), capsMaxPages: 1.5 })).toThrow(
+      /capsMaxPages must be a positive integer/,
+    );
+  });
+});

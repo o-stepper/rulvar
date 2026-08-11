@@ -75,6 +75,19 @@ export interface AnthropicAdapterOptions {
    * structural `AnthropicClientLike` mock (tests).
    */
   client?: Anthropic | AnthropicClientLike;
+  /**
+   * The `refreshCaps()` pagination bound (RV2904), the MCP `maxPages`
+   * doctrine applied to the provider's own metadata surface: past this
+   * many pages with more still reported, the refresh fails typed
+   * instead of truncating, because a silently partial caps table would
+   * clamp output bounds against limits that are not the model's.
+   * Cursor cycles (a page answering the cursor it was queried with, or
+   * one this sweep already used) are refused UNCONDITIONALLY, bound or
+   * none: a cycle is never a legitimate pagination step. Unset keeps
+   * pagination unbounded exactly like MCP without a declared cap, with
+   * only the cycle guards armed.
+   */
+  capsMaxPages?: number;
 }
 
 function resolveAnthropicClient(options: AnthropicAdapterOptions): AnthropicClientLike {
@@ -169,6 +182,12 @@ function resolveAnthropicClient(options: AnthropicAdapterOptions): AnthropicClie
  */
 export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapter {
   const client = resolveAnthropicClient(options);
+  const capsMaxPages = options.capsMaxPages;
+  if (capsMaxPages !== undefined && (!Number.isInteger(capsMaxPages) || capsMaxPages < 1)) {
+    throw new ConfigError(
+      `anthropic(): capsMaxPages must be a positive integer; got ${JSON.stringify(capsMaxPages)}`,
+    );
+  }
   const ids = new IdMap(createCanonicalIdMinter());
   const refreshed = new Map<string, Partial<ModelCaps>>();
 
@@ -198,10 +217,17 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
 
     async refreshCaps(): Promise<void> {
       // Capabilities-bearing GET /v1/models, paginated via after_id; the
-      // wire has max_input_tokens/max_tokens, never context_window.
+      // wire has max_input_tokens/max_tokens, never context_window. The
+      // loop is bounded exactly like an MCP tools/list sweep (RV2904):
+      // the ninth comparison run's adversarial audit found this the one
+      // pagination in the tree the RV1602/RV1808 cycle doctrine had not
+      // reached, so a server echoing or recycling last_id spun forever.
       let afterId: string | undefined;
+      const visited = new Set<string>();
+      let pages = 0;
       do {
         const page = await client.models.list(afterId === undefined ? {} : { after_id: afterId });
+        pages += 1;
         for (const model of page.data) {
           const id = model.id;
           if (typeof id !== 'string') {
@@ -218,8 +244,42 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
             refreshed.set(id, patch);
           }
         }
-        afterId =
+        if (afterId !== undefined) {
+          visited.add(afterId);
+        }
+        const next =
           page.has_more === true && typeof page.last_id === 'string' ? page.last_id : undefined;
+        if (next !== undefined && next === afterId) {
+          // The cursor-echo cycle (RV1602's shape): a page answering
+          // the cursor it was queried with makes no progress, so the
+          // next fetch would be THIS page again, forever. Never a
+          // legitimate pagination step, so the refusal is
+          // unconditional.
+          throw new ConfigError(
+            `anthropic: models.list returned the cursor it was queried with ('${next}') on ` +
+              `page ${String(pages)}: the pagination makes no progress`,
+          );
+        }
+        if (next !== undefined && visited.has(next)) {
+          // The revisit cycle (RV1808's shape), the echo guard's
+          // general form: however long its period, a re-used cursor is
+          // a loop.
+          throw new ConfigError(
+            `anthropic: models.list returned a cursor this sweep already visited ('${next}') ` +
+              `on page ${String(pages)}: the pagination cycles`,
+          );
+        }
+        if (capsMaxPages !== undefined && pages >= capsMaxPages && next !== undefined) {
+          // Fail closed, the maxTools direction (RV1602): truncating
+          // here would clamp output bounds against a silently partial
+          // caps table.
+          throw new ConfigError(
+            `anthropic: models.list still reports another page after ${String(pages)} page(s), ` +
+              `over the declared capsMaxPages ${String(capsMaxPages)}; raise the cap or trim ` +
+              'the account',
+          );
+        }
+        afterId = next;
       } while (afterId !== undefined);
     },
 

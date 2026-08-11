@@ -4330,6 +4330,24 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
+  {
+    id: 'anthropic-caps-pagination-refuses-cycles',
+    doctrine:
+      'refreshCaps refuses a re-used pagination cursor unconditionally (RV2904): the ninth comparison audit found models.list the one pagination the MCP cycle doctrine had not reached, and a recycling last_id spun the sweep forever inside every timeout',
+    file: 'packages/anthropic/src/adapter.ts',
+    find: '        if (next !== undefined && visited.has(next)) {',
+    replace: '        if (false) {',
+    test: 'packages/anthropic/src/caps.test.ts',
+  },
+  {
+    id: 'anthropic-caps-pagination-fails-closed-at-the-cap',
+    doctrine:
+      'past the declared capsMaxPages with more still reported, refreshCaps fails typed instead of truncating (RV2904): a silently partial caps table clamps output bounds against limits that are not the model own',
+    file: 'packages/anthropic/src/adapter.ts',
+    find: '        if (capsMaxPages !== undefined && pages >= capsMaxPages && next !== undefined) {',
+    replace: '        if (false) {',
+    test: 'packages/anthropic/src/caps.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

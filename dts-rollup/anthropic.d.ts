@@ -87,6 +87,19 @@ interface AnthropicAdapterOptions {
   * structural `AnthropicClientLike` mock (tests).
   */
   client?: Anthropic | AnthropicClientLike;
+  /**
+  * The `refreshCaps()` pagination bound (RV2904), the MCP `maxPages`
+  * doctrine applied to the provider's own metadata surface: past this
+  * many pages with more still reported, the refresh fails typed
+  * instead of truncating, because a silently partial caps table would
+  * clamp output bounds against limits that are not the model's.
+  * Cursor cycles (a page answering the cursor it was queried with, or
+  * one this sweep already used) are refused UNCONDITIONALLY, bound or
+  * none: a cycle is never a legitimate pagination step. Unset keeps
+  * pagination unbounded exactly like MCP without a declared cap, with
+  * only the cycle guards armed.
+  */
+  capsMaxPages?: number;
 }
 /**
 * Creates the first-class Anthropic adapter (id 'anthropic'). SDK
