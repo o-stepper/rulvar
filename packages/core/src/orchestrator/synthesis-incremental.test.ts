@@ -318,6 +318,66 @@ describe('incremental synthesis (RV-211 remainder)', () => {
     ).toThrow(ConfigError);
   });
 
+  it('refuses armed single-prompt surfaces under incremental, and the mirror (RV3102)', () => {
+    // Each of these rendered only into the single-mode dispatch, so an
+    // armed opt-in under 'incremental' was a silent no-op: a promised
+    // surface nobody renders, the evidenceIndex class.
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { mode: 'incremental', policyFacts: true },
+      }),
+    ).toThrow(/policyFacts is meaningless in mode 'incremental'/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { mode: 'incremental', runFacts: true },
+      }),
+    ).toThrow(/runFacts is meaningless in mode 'incremental'/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { mode: 'incremental', runFacts: { workflowSoFar: true } },
+      }),
+    ).toThrow(/runFacts is meaningless in mode 'incremental'/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { mode: 'incremental', exposeChildResultTools: true },
+      }),
+    ).toThrow(/exposeChildResultTools is meaningless in mode 'incremental'/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { mode: 'incremental', context: 'full' },
+      }),
+    ).toThrow(/context 'full' is meaningless in mode 'incremental'/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { mode: 'incremental', limits: { maxTurns: 4 } },
+      }),
+    ).toThrow(/limits is meaningless in mode 'incremental'/);
+    // The mirror: noteLimits bounds note invocations 'single' never
+    // dispatches, explicit or defaulted mode alike.
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { mode: 'single', noteLimits: { maxTurns: 2 } },
+      }),
+    ).toThrow(/noteLimits is meaningless in mode 'single'/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { noteLimits: { maxTurns: 2 } },
+      }),
+    ).toThrow(/noteLimits is meaningless in mode 'single'/);
+    // Inert forms promise nothing and stay valid in both modes.
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: {
+          mode: 'incremental',
+          policyFacts: false,
+          runFacts: false,
+          exposeChildResultTools: false,
+          context: 'digests',
+        },
+      }),
+    ).not.toThrow();
+  });
+
   it('wraps the reconciliation in the acceptance envelope after the verdict', async () => {
     const coordination = coordinationAdapter();
     const notes = noteAdapter();

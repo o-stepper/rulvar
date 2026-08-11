@@ -10633,7 +10633,9 @@ interface OrchestrateSynthesis {
   dedupeClaims?: boolean;
   /**
   * UsageLimits of ONE incremental note invocation; default
-  * { maxTurns: 2 }. Ignored in 'single' mode.
+  * { maxTurns: 2 }. In mode 'single' the declaration is a typed
+  * ConfigError (RV3102): no note invocation exists for the limits to
+  * bound, and until the gate it was silently ignored.
   */
   noteLimits?: UsageLimits;
   /**

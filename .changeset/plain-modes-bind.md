@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+The synthesis mode gates (RV3102, the evidenceIndex precedent): every single-prompt surface now refuses typed at intake under `mode: 'incremental'` instead of silently rendering nowhere, and the mirror holds. An armed `synthesis.policyFacts`, `synthesis.runFacts` (either form), `synthesis.exposeChildResultTools`, `synthesis.context: 'full'`, or a declared `synthesis.limits` under the deterministic incremental reconciliation is a `ConfigError`, because that mode dispatches no synthesis model at all; `synthesis.noteLimits` under mode `'single'` (explicit or defaulted) refuses the same way, because that mode dispatches no note invocations, and until now the field was documented as ignored. Inert forms (an explicit `false`, the `'digests'` default) stay valid in both modes: they promise nothing. The draft-gate family (`skipWhenDraftValid`, `carryDraftGaps`, `fallbackToValidDraft`) was already gated transitively through its `finishValidation` requirement. A config that used to no-op silently now fails loudly at intake; that is the change, and it is deliberate.

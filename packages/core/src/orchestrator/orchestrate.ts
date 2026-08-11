@@ -1191,7 +1191,9 @@ export interface OrchestrateSynthesis {
   dedupeClaims?: boolean;
   /**
    * UsageLimits of ONE incremental note invocation; default
-   * { maxTurns: 2 }. Ignored in 'single' mode.
+   * { maxTurns: 2 }. In mode 'single' the declaration is a typed
+   * ConfigError (RV3102): no note invocation exists for the limits to
+   * bound, and until the gate it was silently ignored.
    */
   noteLimits?: UsageLimits;
   /**
@@ -1823,6 +1825,35 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
           JSON.stringify(symmetry.context),
       );
     }
+    // The mode gates for the single-prompt surfaces (RV3102, the
+    // evidenceIndex precedent): each renders only into the 'single'
+    // synthesis dispatch, and the deterministic 'incremental'
+    // reconciliation dispatches no model, so an armed opt-in was a
+    // silent no-op. Inert forms (explicit false, the 'digests'
+    // default) stay valid: they promise nothing. The draft-gate family
+    // (skipWhenDraftValid, carryDraftGaps, fallbackToValidDraft) is
+    // gated transitively through its finishValidation requirement.
+    if (synthesis.mode === 'incremental') {
+      if (symmetry.exposeChildResultTools === true) {
+        throw new ConfigError(
+          "orchestrate synthesis.exposeChildResultTools is meaningless in mode 'incremental': " +
+            'the deterministic reconciliation dispatches no synthesis to hold the tools',
+        );
+      }
+      if (symmetry.context === 'full') {
+        throw new ConfigError(
+          "orchestrate synthesis.context 'full' is meaningless in mode 'incremental': " +
+            'the deterministic reconciliation composes no prompt to embed the outputs in',
+        );
+      }
+      if (synthesis.limits !== undefined) {
+        throw new ConfigError(
+          "orchestrate synthesis.limits is meaningless in mode 'incremental': " +
+            'no single synthesis invocation exists for the limits to bound; declare ' +
+            'noteLimits for the note invocations instead',
+        );
+      }
+    }
     const index = (synthesis as { evidenceIndex?: unknown }).evidenceIndex;
     if (index !== undefined) {
       if (index !== true && (typeof index !== 'object' || index === null)) {
@@ -1875,6 +1906,16 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     if (synthesis.noteLimits !== undefined) {
       validateUsageLimits(synthesis.noteLimits as UsageLimits, 'orchestrate synthesis.noteLimits');
+      // The mode gate (RV3102, the evidenceIndex precedent): noteLimits
+      // bounds the incremental note invocation, and mode 'single'
+      // dispatches none, so the declaration silently bound nothing. A
+      // promised surface nobody renders is drift.
+      if (synthesis.mode !== 'incremental') {
+        throw new ConfigError(
+          "orchestrate synthesis.noteLimits is meaningless in mode 'single': " +
+            "only 'incremental' dispatches note invocations for the limits to bound",
+        );
+      }
     }
     if (
       synthesis.effort !== undefined &&
@@ -1897,6 +1938,27 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     if (facts.policyFacts !== undefined && typeof facts.policyFacts !== 'boolean') {
       throw new ConfigError(
         `orchestrate synthesis.policyFacts must be a boolean; got ${typeof facts.policyFacts}`,
+      );
+    }
+    // The mode gates (RV3102, the evidenceIndex precedent): both facts
+    // surfaces render only into the single-mode synthesis prompt, and
+    // the deterministic 'incremental' reconciliation dispatches no
+    // model at all, so an armed opt-in was a silent no-op. An explicit
+    // `false` stays valid in both modes: it promises nothing.
+    if (facts.policyFacts === true && synthesis.mode === 'incremental') {
+      throw new ConfigError(
+        "orchestrate synthesis.policyFacts is meaningless in mode 'incremental': " +
+          'the deterministic reconciliation dispatches no synthesis for the facts to ride',
+      );
+    }
+    if (
+      (facts.runFacts === true ||
+        (typeof facts.runFacts === 'object' && facts.runFacts !== null)) &&
+      synthesis.mode === 'incremental'
+    ) {
+      throw new ConfigError(
+        "orchestrate synthesis.runFacts is meaningless in mode 'incremental': " +
+          'the deterministic reconciliation dispatches no synthesis for the facts to ride',
       );
     }
     if (facts.runFacts !== undefined && typeof facts.runFacts !== 'boolean') {
