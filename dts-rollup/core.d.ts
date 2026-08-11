@@ -14304,6 +14304,17 @@ interface PreflightOrchestratorSpec {
   * the finding entirely. Default 2.
   */
   headroomTurns?: number;
+  /**
+  * The `ceiling-headroom-thin` threshold as a fraction of the ceiling
+  * (RV3208, the 2026-08-11 experiment's admission cliff: a $7.00
+  * ceiling over a $6.80 required minimum left 2.86 percent headroom,
+  * and a small pricing or context drift would have refused the whole
+  * workflow at admission). The finding warns when
+  * `ceilingHeadroomShare` sits below this fraction. A number in
+  * [0, 1]; 0 (the default) keeps the finding silent, so declared
+  * configs are byte identical until a host opts in.
+  */
+  minCeilingHeadroomShare?: number;
 }
 /** The full input: engine surface, run surface, and the declared wave. */
 interface PreflightInput {
@@ -14530,6 +14541,20 @@ interface PreflightReport {
     * fourth workers. Present whenever the wave has rows.
     */
     requiredMinimumCeilingUsd?: number;
+    /**
+    * The ceiling minus the required minimum (RV3208): the absolute
+    * dollars of drift the admission survives before the wave stops
+    * seating. Present beside requiredMinimumCeilingUsd whenever a
+    * ceiling is declared.
+    */
+    ceilingHeadroomUsd?: number;
+    /**
+    * The same headroom as a fraction of the ceiling (RV3208): the
+    * one-field read of the admission cliff (the 2026-08-11 experiment
+    * ran at 0.0286). Present beside ceilingHeadroomUsd on positive
+    * ceilings.
+    */
+    ceilingHeadroomShare?: number;
     /**
     * The live-root-exposure term of the wave projection (RV2004): the
     * orchestrator's own worst-case turn floor, the money coordination

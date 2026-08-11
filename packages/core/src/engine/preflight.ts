@@ -201,6 +201,17 @@ export interface PreflightOrchestratorSpec {
    * the finding entirely. Default 2.
    */
   headroomTurns?: number;
+  /**
+   * The `ceiling-headroom-thin` threshold as a fraction of the ceiling
+   * (RV3208, the 2026-08-11 experiment's admission cliff: a $7.00
+   * ceiling over a $6.80 required minimum left 2.86 percent headroom,
+   * and a small pricing or context drift would have refused the whole
+   * workflow at admission). The finding warns when
+   * `ceilingHeadroomShare` sits below this fraction. A number in
+   * [0, 1]; 0 (the default) keeps the finding silent, so declared
+   * configs are byte identical until a host opts in.
+   */
+  minCeilingHeadroomShare?: number;
 }
 
 /** The full input: engine surface, run surface, and the declared wave. */
@@ -437,6 +448,20 @@ export interface PreflightReport {
      * fourth workers. Present whenever the wave has rows.
      */
     requiredMinimumCeilingUsd?: number;
+    /**
+     * The ceiling minus the required minimum (RV3208): the absolute
+     * dollars of drift the admission survives before the wave stops
+     * seating. Present beside requiredMinimumCeilingUsd whenever a
+     * ceiling is declared.
+     */
+    ceilingHeadroomUsd?: number;
+    /**
+     * The same headroom as a fraction of the ceiling (RV3208): the
+     * one-field read of the admission cliff (the 2026-08-11 experiment
+     * ran at 0.0286). Present beside ceilingHeadroomUsd on positive
+     * ceilings.
+     */
+    ceilingHeadroomShare?: number;
     /**
      * The live-root-exposure term of the wave projection (RV2004): the
      * orchestrator's own worst-case turn floor, the money coordination
@@ -2093,6 +2118,39 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         'the wave below the line or raise the ceiling to keep coordinating past it',
     });
   }
+  // The ceiling headroom, a first-class field (RV3208): the whole-wave
+  // fill already names the smallest viable ceiling, but the DISTANCE
+  // between it and the declared ceiling was left to the operator's
+  // subtraction, and the 2026-08-11 experiment ran the whole workflow
+  // on a $0.20 remainder of a $7.00 ceiling (2.86 percent) that a
+  // small pricing or context drift would have refused at admission.
+  // The share is the one-field read; the opt-in threshold turns it
+  // into a finding without changing any declared config by default.
+  const ceilingHeadroomUsd =
+    ceilingUsd === undefined || requiredMinimumCeilingUsd === undefined
+      ? undefined
+      : ceilingUsd - requiredMinimumCeilingUsd;
+  const ceilingHeadroomShare =
+    ceilingHeadroomUsd === undefined || ceilingUsd === undefined || ceilingUsd <= 0
+      ? undefined
+      : ceilingHeadroomUsd / ceilingUsd;
+  const minCeilingHeadroomShare = input.orchestrator?.minCeilingHeadroomShare ?? 0;
+  if (
+    ceilingHeadroomShare !== undefined &&
+    minCeilingHeadroomShare > 0 &&
+    ceilingHeadroomShare < minCeilingHeadroomShare
+  ) {
+    say({
+      severity: 'warning',
+      code: 'ceiling-headroom-thin',
+      message:
+        `the ceiling headroom is ${(ceilingHeadroomShare * 100).toFixed(2)} percent of the ` +
+        `ceiling (${(ceilingHeadroomUsd ?? 0).toFixed(4)} USD over the required minimum ` +
+        `${(requiredMinimumCeilingUsd ?? 0).toFixed(4)} USD), below the declared ` +
+        `${(minCeilingHeadroomShare * 100).toFixed(2)} percent floor: a small pricing or ` +
+        'context drift refuses the whole wave at admission; raise the ceiling or slim the wave',
+    });
+  }
   // The orchestrator working room (RV2106): the post-fan-in judge
   // admits against the ORCHESTRATOR account, whose room past the held
   // synthesis reserve the coordination loop's own turns spend from
@@ -2627,6 +2685,8 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       reservedForFinalizationUsd,
       synthesisReserveUsd: synthesisHoldUsd,
       ...(requiredMinimumCeilingUsd === undefined ? {} : { requiredMinimumCeilingUsd }),
+      ...(ceilingHeadroomUsd === undefined ? {} : { ceilingHeadroomUsd }),
+      ...(ceilingHeadroomShare === undefined ? {} : { ceilingHeadroomShare }),
       ...(liveRootExposureTermUsd > 0 ? { liveRootExposureTermUsd } : {}),
       ...(reserveLineUsd === undefined ? {} : { reserveLineUsd }),
       ...(reserveLineHeadroomUsd === undefined ? {} : { reserveLineHeadroomUsd }),

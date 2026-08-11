@@ -1676,6 +1676,76 @@ describe('the synthesis hold in the admission wave (RV1901, the four-role benchm
   });
 });
 
+describe('the ceiling headroom fields (RV3208, the admission cliff)', () => {
+  function cliffInput(options: {
+    budgetUsd?: number;
+    minCeilingHeadroomShare?: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: options.budgetUsd === undefined ? {} : { budgetUsd: options.budgetUsd },
+      orchestrator: {
+        budget: { capUsd: 4.5, capFraction: 1.0, synthesisReserveUsd: 1.0 },
+        synthesis: { limits: { maxTurns: 2 } },
+        limits: { maxOutputTokensPerTurn: 4000 },
+        ...(options.minCeilingHeadroomShare === undefined
+          ? {}
+          : { minCeilingHeadroomShare: options.minCeilingHeadroomShare }),
+      },
+      spawns: ['product', 'finops', 'durability', 'adversarial'].map((label) => ({
+        label,
+        estCost: 0.62,
+        limits: { maxOutputTokensPerTurn: 2500 },
+      })),
+    };
+  }
+
+  it('names the headroom in dollars and as a share of the ceiling', () => {
+    // The wave's required minimum is 7.02 (the RV1907/RV2004 figure);
+    // a 7.20 ceiling leaves 0.18, exactly the one-field read the
+    // 2026-08-11 experiment's operator had to subtract by hand (its
+    // live run sat at 0.20 of 7.00 = 2.86 percent).
+    const report = preflightEstimate(cliffInput({ budgetUsd: 7.2 }));
+    expect(report.admission.ceilingHeadroomUsd).toBeCloseTo(0.18, 10);
+    expect(report.admission.ceilingHeadroomShare).toBeCloseTo(0.18 / 7.2, 10);
+    // Silent by default: no declared floor, no finding.
+    expect(report.findings.some((entry) => entry.code === 'ceiling-headroom-thin')).toBe(false);
+  });
+
+  it('warns under the declared share floor, and only under it', () => {
+    const thin = preflightEstimate(cliffInput({ budgetUsd: 7.2, minCeilingHeadroomShare: 0.1 }));
+    const finding = thin.findings.find((entry) => entry.code === 'ceiling-headroom-thin');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('percent floor');
+    const roomy = preflightEstimate(cliffInput({ budgetUsd: 20, minCeilingHeadroomShare: 0.1 }));
+    expect(roomy.findings.some((entry) => entry.code === 'ceiling-headroom-thin')).toBe(false);
+  });
+
+  it('absence means not recorded: no ceiling, no headroom fields (RV1209)', () => {
+    const report = preflightEstimate(cliffInput({}));
+    expect(report.admission.ceilingHeadroomUsd).toBeUndefined();
+    expect(report.admission.ceilingHeadroomShare).toBeUndefined();
+    // The other side: a ceiling with NO required minimum (a plain
+    // input whose wave is empty; an orchestrate wave always carries
+    // the coordination row) also stays silent, never a headroom equal
+    // to the whole ceiling that nobody computed against anything.
+    const noWave = preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: { routing: { loop: SERVED } },
+      },
+      run: { budgetUsd: 7.2 },
+      spawns: [],
+    });
+    expect(noWave.admission.requiredMinimumCeilingUsd).toBeUndefined();
+    expect(noWave.admission.ceilingHeadroomUsd).toBeUndefined();
+    expect(noWave.admission.ceilingHeadroomShare).toBeUndefined();
+  });
+});
+
 describe('the exposure floor over time (RV1907, the recovery arm stall)', () => {
   const WORKERS_1907 = ['product', 'finops', 'durability', 'adversarial'];
   function shapedInput(options?: {
