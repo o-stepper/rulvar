@@ -4349,6 +4349,24 @@ export const MUTATIONS = [
     test: 'packages/anthropic/src/caps.test.ts',
   },
   {
+    id: 'delimited-statement-refuses-ragged-records',
+    doctrine:
+      'a data record whose cell count differs from the header refuses typed (RV2908): a column shifted one to the left prices outputTokens as dollars and calls it evidence, and half-swallowed exports are how manual joins died',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
+    find: '    if (record.length !== header.length) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
+  },
+  {
+    id: 'delimited-statement-refuses-a-torn-quote',
+    doctrine:
+      'a quoted cell that never closes refuses as a torn export (RV2908): silently consuming the rest of the file into one cell is the parse that reads as coverage',
+    file: 'packages/core/src/engine/reconcile-statement.ts',
+    find: '  if (quoted) {\n    throw new ConfigError(',
+    replace: '  if (false) {\n    throw new ConfigError(',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
+  },
+  {
     id: 'the-executor-claim-tombstone-is-armed',
     doctrine:
       'the in-process-only executor claim is tombstoned (RV2905): it was fixed once on the architecture page and returned on two others, where the ninth comparison audit found it contradicting EngineOptions.executors and the shipped @rulvar/executor references; a disarmed sentinel lets the class ship a third time',

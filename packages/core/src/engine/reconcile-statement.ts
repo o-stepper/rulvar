@@ -935,3 +935,137 @@ export function statementFromRows(input: {
   });
   return { kind: 'requests', rows: out };
 }
+
+/** How {@link statementRowsFromDelimited} splits cells; default ','. */
+export interface DelimitedStatementOptions {
+  delimiter?: ',' | ';' | '\t' | '|';
+}
+
+/**
+ * Parses a delimited billing export (the CSV/TSV a provider console
+ * hands a host) into the header-keyed rows {@link statementFromRows}
+ * consumes (RV2908). The library deliberately hard-codes NO provider's
+ * export format: the host owns the column map, this owns only the
+ * delimited grammar, and the pair closes the last manual step between
+ * a downloaded export and {@link reconcileStatement}.
+ *
+ * Fail-closed at the record, like the rest of this module: a data row
+ * whose cell count differs from the header, a quote opened and never
+ * closed, a stray quote inside an unquoted cell, an empty or duplicate
+ * header name, all refuse typed with the line instead of flowing a
+ * shifted column into a reconciliation, because a column shifted one
+ * to the left prices `outputTokens` as dollars and calls it evidence.
+ * RFC 4180 quoting is honored (quoted cells may carry the delimiter,
+ * doubled quotes, and line breaks); CRLF and lone LF both delimit
+ * records; one trailing empty line is an artifact of every exporter
+ * and is ignored. Cells come back as raw strings, so an empty cell
+ * reads as "the export does not carry this figure" downstream, exactly
+ * the absence contract `statementFromRows` documents.
+ */
+export function statementRowsFromDelimited(
+  text: string,
+  options?: DelimitedStatementOptions,
+): Record<string, string>[] {
+  const delimiter = options?.delimiter ?? ',';
+  const records: string[][] = [];
+  let cells: string[] = [];
+  let cell = '';
+  let quoted = false;
+  let cellHadQuote = false;
+  let line = 1;
+  const endCell = (): void => {
+    cells.push(cell);
+    cell = '';
+    cellHadQuote = false;
+  };
+  const endRecord = (): void => {
+    endCell();
+    records.push(cells);
+    cells = [];
+  };
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (quoted) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          cell += '"';
+          index += 1;
+          continue;
+        }
+        quoted = false;
+        continue;
+      }
+      if (char === '\n') {
+        line += 1;
+      }
+      cell += char;
+      continue;
+    }
+    if (char === '"') {
+      if (cell.length > 0 || cellHadQuote) {
+        throw new ConfigError(
+          `statementRowsFromDelimited: line ${String(line)} carries a quote inside an ` +
+            'unquoted cell; quote the whole cell (RFC 4180) or fix the export',
+        );
+      }
+      quoted = true;
+      cellHadQuote = true;
+      continue;
+    }
+    if (char === delimiter) {
+      endCell();
+      continue;
+    }
+    if (char === '\r' && text[index + 1] === '\n') {
+      continue;
+    }
+    if (char === '\n') {
+      endRecord();
+      line += 1;
+      continue;
+    }
+    cell += char;
+  }
+  if (quoted) {
+    throw new ConfigError(
+      `statementRowsFromDelimited: a quoted cell opened on line ${String(line)} never closes; ` +
+        'the export is torn',
+    );
+  }
+  if (cell.length > 0 || cellHadQuote || cells.length > 0) {
+    endRecord();
+  }
+  // One trailing empty record is every exporter's newline artifact; a
+  // BLANK LINE between records is not, and refusing it as a ragged row
+  // below beats silently swallowing half an export.
+  if (records.length === 0) {
+    throw new ConfigError('statementRowsFromDelimited: the export carries no header record');
+  }
+  const header = records[0];
+  const seen = new Set<string>();
+  header.forEach((name, index) => {
+    if (name.length === 0) {
+      throw new ConfigError(
+        `statementRowsFromDelimited: header column ${String(index)} is empty; every column ` +
+          'needs a name for the map to address',
+      );
+    }
+    if (seen.has(name)) {
+      throw new ConfigError(
+        `statementRowsFromDelimited: header names column '${name}' twice; an ambiguous ` +
+          'address cannot be mapped',
+      );
+    }
+    seen.add(name);
+  });
+  return records.slice(1).map((record, index) => {
+    if (record.length !== header.length) {
+      throw new ConfigError(
+        `statementRowsFromDelimited: data record ${String(index)} carries ` +
+          `${String(record.length)} cell(s) against ${String(header.length)} header column(s); ` +
+          'a shifted column prices the wrong figure, so a ragged export refuses instead',
+      );
+    }
+    return Object.fromEntries(header.map((name, column) => [name, record[column]]));
+  });
+}
