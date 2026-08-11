@@ -4525,6 +4525,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/tools/mcp-bounds.test.ts',
   },
   {
+    id: 'the-quote-binds-to-the-cited-lines',
+    doctrine:
+      'a quote given WITH lines must appear inside those lines (RV3206): reverted to the whole-file search, a quote from the next line over supports a citation it never belonged to, the 2026-08-11 experiment probe that cited line 1 with the bytes of line 2 and recorded success, and every evidence floor built on record_evidence counts the misbound entry',
+    file: 'packages/core/src/tools/research.ts',
+    find: "        const searched =\n          citedRange === undefined\n            ? loaded.text\n            : lines.slice(citedRange.from - 1, citedRange.to).join('\\n');",
+    replace: '        const searched = loaded.text;',
+    test: 'packages/core/src/tools/research.test.ts',
+  },
+  {
     id: 'the-flush-barrier-rethrows-the-lost-append',
     doctrine:
       'flush() is the barrier that turns the latched loss into a typed rejection (RV3201): silenced, the latch records the loss and nothing downstream ever reads it, so the settle converts nothing and ok/complete ships over a journal missing a record the run believes it wrote',

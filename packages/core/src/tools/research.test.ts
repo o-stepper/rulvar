@@ -195,6 +195,48 @@ describe('repositoryResearchToolset (RV-210 remainder)', () => {
     expect(kit.evidence()).toHaveLength(1);
   });
 
+  it('binds the quote to the cited lines when both are given (RV3206)', async () => {
+    // The 2026-08-11 experiment's relevance probe: the whole-file check
+    // verified existence but not location, so a quote from line 2
+    // supported a citation of line 1 and the evidence floor counted it.
+    const kit = repositoryResearchToolset({ root });
+    const record = toolByName(kit.tools, 'record_evidence');
+    const misbound = await call(record, {
+      claim: 'line 1 says the needle',
+      file: 'alpha.md',
+      lines: '1',
+      quote: 'needle here',
+    });
+    expect(misbound.error).toMatch(/quote not found verbatim inside lines '1'/);
+    expect(misbound.error).toMatch(/widen the range/);
+    // A range that actually covers the quote records, multi-line
+    // quotes included, and one crossing the range edge refuses.
+    expect(
+      await call(record, {
+        claim: 'the tail says the needle',
+        file: 'alpha.md',
+        lines: '2-3',
+        quote: 'alpha two\nneedle here',
+      }),
+    ).toEqual({ recorded: true, duplicate: false, totalEvidence: 1 });
+    expect(
+      (
+        await call(record, {
+          claim: 'c',
+          file: 'alpha.md',
+          lines: '1-2',
+          quote: 'alpha two\nneedle here',
+        })
+      ).error,
+    ).toMatch(/quote not found verbatim inside lines '1-2'/);
+    // A quote-only entry still verifies against the whole file: with
+    // no lines claimed there is no location to bind.
+    expect(
+      await call(record, { claim: 'somewhere in alpha', file: 'alpha.md', quote: 'alpha one' }),
+    ).toEqual({ recorded: true, duplicate: false, totalEvidence: 2 });
+    expect(kit.evidence()).toHaveLength(2);
+  });
+
   it('dedupes identical evidence entries and pages list_evidence', async () => {
     const kit = repositoryResearchToolset({ root, pageSize: 1 });
     const record = toolByName(kit.tools, 'record_evidence');
