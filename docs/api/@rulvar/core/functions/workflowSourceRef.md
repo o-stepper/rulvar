@@ -10,7 +10,7 @@
 function workflowSourceRef(runId): string;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:680](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L680)
+Defined in: [packages/core/src/engine/engine.ts:720](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L720)
 
 TranscriptStore ref of the persisted CompiledWorkflow source blob.
 

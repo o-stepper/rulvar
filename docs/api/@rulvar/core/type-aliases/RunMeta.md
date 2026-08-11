@@ -11,6 +11,7 @@ type RunMeta = {
   argsHash?: string;
   argsProvided?: boolean;
   budgetUsd?: number;
+  configFingerprint?: string;
   execKeyDerivation?: number;
   genesis?: string;
   hashVersionHigh?: number;
@@ -46,7 +47,7 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L115)
+Defined in: [packages/core/src/l0/spi/store.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L124)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
@@ -73,7 +74,7 @@ checks).
 optional argsProvided?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L96)
+Defined in: [packages/core/src/l0/spi/store.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L105)
 
 Whether the run started with defined args. Engine-recorded at
 genesis and preserved verbatim by every later segment (a resume
@@ -103,13 +104,30 @@ resumed run to uncapped.
 
 ***
 
+### configFingerprint?
+
+```ts
+optional configFingerprint?: string;
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L81)
+
+The host-declared config identity (RunOptions.configFingerprint,
+RV3210): an opaque pin over what the workflow body closes over,
+recorded at genesis and compared on every resume that asserts one.
+Absent when the run declared none. A store that drops the field
+degrades the check to the UNRECORDED warning, never a false pass
+or a false refusal (absence means NOT RECORDED).
+
+***
+
 ### execKeyDerivation?
 
 ```ts
 optional execKeyDerivation?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L145)
+Defined in: [packages/core/src/l0/spi/store.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L154)
 
 Which isolated-executor idempotency key derivation this run uses
 (RV403), for its WHOLE life: stamped at the fresh start by the
@@ -135,7 +153,7 @@ at-least-once fold of a redispatched call for a version 2 run.
 optional genesis?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L127)
+Defined in: [packages/core/src/l0/spi/store.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L136)
 
 Unique token minted at the run's fresh start (genesis) and preserved
 verbatim by every later segment, so two runs that reuse the same
@@ -215,7 +233,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/
 optional segments?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L84)
+Defined in: [packages/core/src/l0/spi/store.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L93)
 
 Count of execution segments this run has STARTED (a fresh start
 writes 1; every resume writes prior + 1, durably, BEFORE the

@@ -4553,6 +4553,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
+    id: 'the-fingerprint-handshake-is-armed',
+    doctrine:
+      'a supplied configFingerprint compares against the recorded one before ownership (RV3210): disarmed, the host-declared closure identity is recorded and never read, the bodyHash closure blindness the 2026-08-11 experiment confirmed stays open under the very option that claims to close it',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '        if (supplied !== undefined && recorded !== undefined && supplied !== recorded) {',
+    replace: '        if (false) {',
+    test: 'packages/core/src/engine/resume.test.ts',
+  },
+  {
     id: 'the-flush-barrier-rethrows-the-lost-append',
     doctrine:
       'flush() is the barrier that turns the latched loss into a typed rejection (RV3201): silenced, the latch records the loss and nothing downstream ever reads it, so the settle converts nothing and ok/complete ships over a journal missing a record the run believes it wrote',
