@@ -4395,6 +4395,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/ctx-tool-budget.test.ts',
   },
   {
+    id: 'note-limits-refuse-under-single-mode',
+    doctrine:
+      "synthesis.noteLimits under mode 'single' refuses typed (RV3102): the field bounds note invocations that mode never dispatches, it was DOCUMENTED as ignored, and a documented no-op is still a promised surface nobody renders, the class the evidenceIndex gate retired",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (synthesis.mode !== 'incremental') {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/synthesis-incremental.test.ts',
+  },
+  {
+    id: 'single-prompt-surfaces-refuse-under-incremental',
+    doctrine:
+      "the armed single-prompt surfaces refuse under mode 'incremental' (RV3102): the deterministic reconciliation dispatches no model, so exposeChildResultTools, context 'full', and synthesis.limits silently rendered nowhere; disarmed, the config drift class returns with a green intake",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "    if (synthesis.mode === 'incremental') {\n      if (symmetry.exposeChildResultTools === true) {",
+    replace: '    if (false) {\n      if (symmetry.exposeChildResultTools === true) {',
+    test: 'packages/core/src/orchestrator/synthesis-incremental.test.ts',
+  },
+  {
     id: 'the-executor-claim-tombstone-is-armed',
     doctrine:
       'the in-process-only executor claim is tombstoned (RV2905): it was fixed once on the architecture page and returned on two others, where the ninth comparison audit found it contradicting EngineOptions.executors and the shipped @rulvar/executor references; a disarmed sentinel lets the class ship a third time',
