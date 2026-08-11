@@ -351,6 +351,20 @@ function slowEndlessServer(delayMs: number): Server & { listCalls: () => number 
   return Object.assign(lowLevel, { listCalls: () => calls });
 }
 
+function slowSinglePageServer(delayMs: number): Server & { listCalls: () => number } {
+  let calls = 0;
+  const lowLevel = new Server(
+    { name: 'slow-single', version: '1.0.0' },
+    { capabilities: { tools: {} } },
+  );
+  lowLevel.setRequestHandler(ListToolsRequestSchema, async () => {
+    calls += 1;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return { tools: [] };
+  });
+  return Object.assign(lowLevel, { listCalls: () => calls });
+}
+
 describe('the discovery bounds (RV1808)', () => {
   it('an alternating cursor pair refuses typed with no bound configured', async () => {
     const server = alternatingCursorServer();
@@ -372,6 +386,36 @@ describe('the discovery bounds (RV1808)', () => {
     // Every page answered promptly (well inside any per-page bound);
     // only the whole-sweep wall clock stopped the crawl.
     expect(server.listCalls()).toBeLessThan(25);
+  });
+
+  it('a hung or slow SINGLE page pays the deadline too (RV3205)', async () => {
+    // The 2026-08-11 experiment probe: the old deadline ran only
+    // between pages, so an 86 ms single page sailed under a 10 ms cap
+    // (the last page never re-entered the loop head). The page call
+    // itself now carries the remaining discovery budget as its wire
+    // timeout, so the sweep fails closed while the server still hangs.
+    const server = slowSinglePageServer(2_000);
+    const source = mcp({
+      transport: 'inprocess',
+      server,
+      timeouts: { discoveryMs: 25 },
+    });
+    const startedAt = Date.now();
+    await expect(source.tools(SESSION)).rejects.toThrow(/discovery deadline/u);
+    // Cut at the remaining budget, not after the server deigned to
+    // answer: two full seconds of hang never elapse.
+    expect(Date.now() - startedAt).toBeLessThan(1_500);
+  });
+
+  it('a fast single page under a generous deadline is untouched (RV3205 control)', async () => {
+    const server = slowSinglePageServer(5);
+    const source = mcp({
+      transport: 'inprocess',
+      server,
+      timeouts: { discoveryMs: 5_000 },
+    });
+    await expect(source.tools(SESSION)).resolves.toBeDefined();
+    expect(server.listCalls()).toBe(1);
   });
 
   it('requireBounds refuses at construction naming every missing bound', () => {

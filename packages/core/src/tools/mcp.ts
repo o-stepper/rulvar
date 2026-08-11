@@ -393,22 +393,61 @@ export function mcp(cfg: McpConfig): McpToolSource {
     const visited = new Set<string>();
     const startedAt = Date.now();
     const discoveryMs = cfg.timeouts?.discoveryMs;
-    const listOptions =
-      cfg.timeouts?.listMs === undefined ? undefined : { timeout: cfg.timeouts.listMs };
+    const listMs = cfg.timeouts?.listMs;
     do {
-      if (discoveryMs !== undefined && Date.now() - startedAt > discoveryMs) {
+      // The remaining whole-sweep budget, priced BEFORE the page call
+      // (RV3205, the 2026-08-11 experiment's MCP probe): the old check
+      // ran only between pages, so a hung or slow CURRENT list call
+      // was unbounded by discoveryMs and the last (or only) page never
+      // paid the deadline at all (an 86 ms single page sailed under a
+      // 10 ms cap). Every page call now carries a wire timeout equal
+      // to the smaller of listMs and the remaining discovery budget,
+      // so the deadline binds the call itself, not just the gap
+      // between calls.
+      const remainingMs =
+        discoveryMs === undefined ? undefined : discoveryMs - (Date.now() - startedAt);
+      if (remainingMs !== undefined && remainingMs <= 0) {
         // The whole-sweep wall clock (RV1808): per-page listMs cannot
         // bound a crawl of prompt pages, and maxPages binds only when
         // declared; the deadline fails the sweep closed either way.
         throw new ConfigError(
           `mcp: tools/list of '${sourceIdOf(cfg)}' exceeded the discovery deadline ` +
-            `(timeouts.discoveryMs ${discoveryMs}) after ${pages} page(s)`,
+            `(timeouts.discoveryMs ${discoveryMs ?? 0}) after ${pages} page(s)`,
         );
       }
+      const pageTimeoutMs =
+        remainingMs === undefined
+          ? listMs
+          : listMs === undefined
+            ? remainingMs
+            : Math.min(listMs, remainingMs);
+      const listOptions = pageTimeoutMs === undefined ? undefined : { timeout: pageTimeoutMs };
       if (cursor !== undefined) {
         visited.add(cursor);
       }
-      const page = await client.listTools(cursor === undefined ? {} : { cursor }, listOptions);
+      let page: Awaited<ReturnType<typeof client.listTools>>;
+      try {
+        page = await client.listTools(cursor === undefined ? {} : { cursor }, listOptions);
+      } catch (thrown) {
+        // A page that timed out under the REMAINING discovery budget is
+        // the discovery deadline firing, reported in its vocabulary; a
+        // timeout under a tighter listMs (or any other failure) flows
+        // unchanged.
+        if (
+          discoveryMs !== undefined &&
+          remainingMs !== undefined &&
+          pageTimeoutMs === remainingMs &&
+          Date.now() - startedAt >= discoveryMs
+        ) {
+          throw new ConfigError(
+            `mcp: tools/list of '${sourceIdOf(cfg)}' exceeded the discovery deadline ` +
+              `(timeouts.discoveryMs ${discoveryMs ?? 0}) after ${pages} page(s): the ` +
+              'current page call was cut at the remaining budget',
+            { cause: thrown },
+          );
+        }
+        throw thrown;
+      }
       pages += 1;
       tools.push(...(page.tools as unknown as WireTool[]));
       if (cfg.maxTools !== undefined && tools.length > cfg.maxTools) {
