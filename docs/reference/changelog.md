@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+
 ### 1.233.0
 
 #### Patch Changes
@@ -2136,6 +2143,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+
 ### 1.233.0
 
 #### Patch Changes
@@ -4053,6 +4067,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.234.0
+
+#### Minor Changes
+
+- 04c86d6: `rulvar inspect` prints the observed tool-budget calibration beside the child roster (RV3103): the RV3003 fold in operator output. The aggregate line (`observed tool calls per recorded evidence entry:` with the rate, the executed-call and entry sums, and the paired-dispatch count) exists only when at least one terminal carries both the RV806 evidence verdict and the RV3002 executed-call counter; unpaired sides are named instead of zeroed (declared contracts with no journaled counter, the pre-RV3002 journal shape, and counters with no declared contract); a journal carrying neither side prints nothing at all, so absence stays NOT RECORDED in operator output too.
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
 
 ### 1.233.0
 
@@ -6525,6 +6550,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.234.0
+
+#### Minor Changes
+
+- 8420c04: The synthesis mode gates (RV3102, the evidenceIndex precedent): every single-prompt surface now refuses typed at intake under `mode: 'incremental'` instead of silently rendering nowhere, and the mirror holds. An armed `synthesis.policyFacts`, `synthesis.runFacts` (either form), `synthesis.exposeChildResultTools`, `synthesis.context: 'full'`, or a declared `synthesis.limits` under the deterministic incremental reconciliation is a `ConfigError`, because that mode dispatches no synthesis model at all; `synthesis.noteLimits` under mode `'single'` (explicit or defaulted) refuses the same way, because that mode dispatches no note invocations, and until now the field was documented as ignored. Inert forms (an explicit `false`, the `'digests'` default) stay valid in both modes: they promise nothing. The draft-gate family (`skipWhenDraftValid`, `carryDraftGaps`, `fallbackToValidDraft`) was already gated transitively through its `finishValidation` requirement. A config that used to no-op silently now fails loudly at intake; that is the change, and it is deliberate.
 
 ### 1.233.0
 
@@ -9282,6 +9313,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.234.0
+
 ### 1.233.0
 
 ### 1.232.0
@@ -9852,6 +9885,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+  - @rulvar/anthropic@1.234.0
+  - @rulvar/openai@1.234.0
+  - @rulvar/plan@1.234.0
+  - @rulvar/testing@1.234.0
 
 ### 1.233.0
 
@@ -12520,6 +12564,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+
 ### 1.233.0
 
 #### Patch Changes
@@ -13848,6 +13899,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
 
 ### 1.233.0
 
@@ -15972,6 +16030,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+
 ### 1.233.0
 
 #### Patch Changes
@@ -18003,6 +18068,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+  - eslint-plugin-rulvar@1.234.0
 
 ### 1.233.0
 
@@ -20230,6 +20303,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+  - @rulvar/anthropic@1.234.0
+  - @rulvar/openai@1.234.0
 
 ### 1.233.0
 
@@ -22775,6 +22857,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+
 ### 1.233.0
 
 #### Patch Changes
@@ -24814,6 +24903,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
+
 ### 1.233.0
 
 #### Patch Changes
@@ -26158,6 +26254,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
 
 ### 1.233.0
 
@@ -28134,6 +28237,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.234.0
+
+#### Patch Changes
+
+- Updated dependencies [8420c04]
+  - @rulvar/core@1.234.0
 
 ### 1.233.0
 
