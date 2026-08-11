@@ -6,7 +6,7 @@
 
 # Interface: BaseAppend
 
-Defined in: [packages/core/src/journal/replayer.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L135)
+Defined in: [packages/core/src/journal/replayer.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L140)
 
 Fields common to every append through the kernel.
 
@@ -19,8 +19,8 @@ Fields common to every append through the kernel.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-key"></a> `key` | `string` | - | [packages/core/src/journal/replayer.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L137) |
-| <a id="property-kind"></a> `kind` | [`EntryKind`](/api/@rulvar/core/type-aliases/EntryKind.md) | - | [packages/core/src/journal/replayer.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L138) |
-| <a id="property-scope"></a> `scope` | `string` | - | [packages/core/src/journal/replayer.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L136) |
-| <a id="property-site"></a> `site?` | `string` | Call-site label used in NonSerializableValueError messages. | [packages/core/src/journal/replayer.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L141) |
-| <a id="property-spanid"></a> `spanId` | `string` | - | [packages/core/src/journal/replayer.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L139) |
+| <a id="property-key"></a> `key` | `string` | - | [packages/core/src/journal/replayer.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L142) |
+| <a id="property-kind"></a> `kind` | [`EntryKind`](/api/@rulvar/core/type-aliases/EntryKind.md) | - | [packages/core/src/journal/replayer.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L143) |
+| <a id="property-scope"></a> `scope` | `string` | - | [packages/core/src/journal/replayer.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L141) |
+| <a id="property-site"></a> `site?` | `string` | Call-site label used in NonSerializableValueError messages. | [packages/core/src/journal/replayer.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L146) |
+| <a id="property-spanid"></a> `spanId` | `string` | - | [packages/core/src/journal/replayer.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L144) |

@@ -231,9 +231,18 @@ flush(): Promise<void>;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Resolves when every append enqueued so far has persisted. Deterministic
-shims journal fire-and-forget; the engine awaits this before settling a
-run.
+Resolves when every append enqueued so far has persisted, and
+REJECTS typed when any append was lost (RV3201). Deterministic
+shims journal fire-and-forget through the serialized queue, whose
+chain swallows rejections to keep later appends flowing; without
+this rethrow a failed persist was visible to nobody (the shim
+dropped its promise, the chain caught the error, and this barrier
+awaited the already-caught chain), so a run could settle ok over a
+journal missing a record it believes it wrote. The first failure
+latches permanently for the segment: every flush from that moment
+rethrows it, the engine settle path converts a would-be ok into an
+error terminal, and mid-run flush callers fail fast instead of
+proceeding over a torn journal.
 
 #### Returns
 

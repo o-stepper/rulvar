@@ -6,7 +6,7 @@
 
 # Class: NonSerializableValueError
 
-Defined in: [packages/core/src/l0/errors.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L103)
+Defined in: [packages/core/src/l0/errors.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L104)
 
 A value failed the journal append JSON-serializability check. Never
 journaled; thrown at the call site whose value failed the check.
@@ -23,7 +23,7 @@ journaled; thrown at the call site whose value failed the check.
 new NonSerializableValueError(message, opts?): NonSerializableValueError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L106)
+Defined in: [packages/core/src/l0/errors.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L107)
 
 #### Parameters
 
@@ -46,9 +46,9 @@ Defined in: [packages/core/src/l0/errors.ts:106](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"non_serializable_value"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L104) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
+| <a id="property-code"></a> `code` | `readonly` | `"non_serializable_value"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L105) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
 
 ## Methods
 
@@ -58,7 +58,7 @@ Defined in: [packages/core/src/l0/errors.ts:106](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L73)
+Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
 
 #### Returns
 

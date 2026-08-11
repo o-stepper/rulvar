@@ -6,7 +6,7 @@
 
 # Class: AdmissionRejectedError
 
-Defined in: [packages/core/src/l0/errors.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L304)
+Defined in: [packages/core/src/l0/errors.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L325)
 
 A structural admission rejection (maxDepth, maxChildrenPerNode,
 maxTotalSpawns) from the AdmissionController (M6-T06). The rejection verdict is embedded in
@@ -28,7 +28,7 @@ keeping the budget exhaustion semantics (https://docs.rulvar.com/guide/budgets).
 new AdmissionRejectedError(message, opts?): AdmissionRejectedError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:307](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L307)
+Defined in: [packages/core/src/l0/errors.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L328)
 
 #### Parameters
 
@@ -51,9 +51,9 @@ Defined in: [packages/core/src/l0/errors.ts:307](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"admission_rejected"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:305](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L305) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
+| <a id="property-code"></a> `code` | `readonly` | `"admission_rejected"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:326](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L326) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
 
 ## Methods
 
@@ -63,7 +63,7 @@ Defined in: [packages/core/src/l0/errors.ts:307](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L73)
+Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
 
 #### Returns
 

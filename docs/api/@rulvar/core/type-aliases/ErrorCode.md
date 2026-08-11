@@ -28,7 +28,8 @@ type ErrorCode =
   | "determinism"
   | "settlement"
   | "superseded"
-  | "journal_sealed";
+  | "journal_sealed"
+  | "journal_integrity";
 ```
 
 Defined in: [packages/core/src/l0/errors.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L28)

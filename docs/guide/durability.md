@@ -258,6 +258,8 @@ Dispatched operations (`agent`, `step`, and child workflow entries) are **two-ph
 
 Orphaned `running` entries you did not cause (for example, a call deleted from the code between resumes left its pair unconsumed) are reported in `preview.orphaned` and are never redispatched and never charged.
 
+Deterministic shims (`ctx.random`, `ctx.now`, `ctx.uuid`) journal their single-phase records **fire-and-forget** through a serialized append queue, and the engine awaits the queue's `flush()` barrier before settling the run. A persist that fails inside that queue latches as the segment's first lost append: `flush()` rethrows it as a typed `JournalIntegrityError`, and the settle converts a would-be `ok` (or `suspended`) outcome into an `error` terminal, because an `ok` settle over a journal missing a deterministic record would replay differently than the run executed. The latch is permanent for the segment; a resume constructs a fresh queue against whatever the store actually holds, so a healed store resumes normally and re-executes from the last durable truth.
+
 ## Moving a run between machines
 
 Because the journal and the transcript blobs are the entire run state, a run moves by moving its store:

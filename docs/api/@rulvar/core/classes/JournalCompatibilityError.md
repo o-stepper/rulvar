@@ -6,7 +6,7 @@
 
 # Class: JournalCompatibilityError
 
-Defined in: [packages/core/src/l0/errors.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L133)
+Defined in: [packages/core/src/l0/errors.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L134)
 
 Refusal to open a journal whose hashVersion falls outside the engine's
 support window (producers ship in M2).
@@ -25,7 +25,7 @@ The registry code is 'journal_compat'; the sub-codes live on
 new JournalCompatibilityError(message, detail): JournalCompatibilityError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L144)
+Defined in: [packages/core/src/l0/errors.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L145)
 
 #### Parameters
 
@@ -54,17 +54,17 @@ Defined in: [packages/core/src/l0/errors.ts:144](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"journal_compat"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L134) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
-| <a id="property-entryhashversion"></a> `entryHashVersion` | `readonly` | `number` | - | - | - | [packages/core/src/l0/errors.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L139) |
-| <a id="property-entryseq"></a> `entrySeq` | `readonly` | `number` | Seq of the first violating entry. | - | - | [packages/core/src/l0/errors.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L138) |
-| <a id="property-hint"></a> `hint` | `readonly` | `string` | 'enable deriverV1 from @rulvar/compat' or 'upgrade rulvar'. | - | - | [packages/core/src/l0/errors.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L142) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
-| <a id="property-runid"></a> `runId` | `readonly` | `string` | - | - | - | [packages/core/src/l0/errors.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L136) |
-| <a id="property-subcode"></a> `subCode` | `readonly` | [`JournalCompatSubCode`](/api/@rulvar/core/type-aliases/JournalCompatSubCode.md) | - | - | - | [packages/core/src/l0/errors.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L135) |
-| <a id="property-supportedrange"></a> `supportedRange` | `readonly` | \{ `max`: `number`; `min`: `number`; \} | - | - | - | [packages/core/src/l0/errors.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L140) |
-| `supportedRange.max` | `public` | `number` | - | - | - | [packages/core/src/l0/errors.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L140) |
-| `supportedRange.min` | `public` | `number` | - | - | - | [packages/core/src/l0/errors.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L140) |
+| <a id="property-code"></a> `code` | `readonly` | `"journal_compat"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L135) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
+| <a id="property-entryhashversion"></a> `entryHashVersion` | `readonly` | `number` | - | - | - | [packages/core/src/l0/errors.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L140) |
+| <a id="property-entryseq"></a> `entrySeq` | `readonly` | `number` | Seq of the first violating entry. | - | - | [packages/core/src/l0/errors.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L139) |
+| <a id="property-hint"></a> `hint` | `readonly` | `string` | 'enable deriverV1 from @rulvar/compat' or 'upgrade rulvar'. | - | - | [packages/core/src/l0/errors.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L143) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
+| <a id="property-runid"></a> `runId` | `readonly` | `string` | - | - | - | [packages/core/src/l0/errors.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L137) |
+| <a id="property-subcode"></a> `subCode` | `readonly` | [`JournalCompatSubCode`](/api/@rulvar/core/type-aliases/JournalCompatSubCode.md) | - | - | - | [packages/core/src/l0/errors.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L136) |
+| <a id="property-supportedrange"></a> `supportedRange` | `readonly` | \{ `max`: `number`; `min`: `number`; \} | - | - | - | [packages/core/src/l0/errors.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L141) |
+| `supportedRange.max` | `public` | `number` | - | - | - | [packages/core/src/l0/errors.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L141) |
+| `supportedRange.min` | `public` | `number` | - | - | - | [packages/core/src/l0/errors.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L141) |
 
 ## Methods
 
@@ -74,7 +74,7 @@ Defined in: [packages/core/src/l0/errors.ts:144](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L73)
+Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
 
 #### Returns
 

@@ -22,7 +22,7 @@
  *   exactly like an in-process one (the token is re-acquired BEFORE any
  *   response is posted, closing the wake latency gap).
  */
-import { ConfigError, RulvarError, type WireError } from '../l0/errors.js';
+import { ConfigError, JournalSealedError, RulvarError, type WireError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
 import { deriveContentKey } from '../journal/identity.js';
 import { toJournalValue } from '../journal/serializable.js';
@@ -346,14 +346,23 @@ export function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptio
     if (message.key !== undefined) {
       payload.key = message.key;
     }
-    void internals.replayer.appendSinglePhase({
-      scope: state.scope,
-      key: deriveContentKey(identity),
-      kind: 'rand',
-      status: 'ok',
-      spanId: state.spanId,
-      value: payload,
-    });
+    // The catch mirrors the in-process rand shim (RV3201): a lost
+    // persist latches in the Replayer and fails the settle barrier;
+    // only the sealed lane rethrows to keep its RV1904 loudness.
+    void internals.replayer
+      .appendSinglePhase({
+        scope: state.scope,
+        key: deriveContentKey(identity),
+        kind: 'rand',
+        status: 'ok',
+        spanId: state.spanId,
+        value: payload,
+      })
+      .catch((thrown: unknown) => {
+        if (thrown instanceof JournalSealedError) {
+          throw thrown;
+        }
+      });
   };
 
   return {

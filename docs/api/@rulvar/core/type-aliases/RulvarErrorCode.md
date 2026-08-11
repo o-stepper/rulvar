@@ -10,6 +10,6 @@
 type RulvarErrorCode = ErrorCode;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L52)
+Defined in: [packages/core/src/l0/errors.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L53)
 
 An alias for the registry type; both names are public.

@@ -9,6 +9,7 @@ import { createHash, createHmac } from 'node:crypto';
 import {
   BudgetExhaustedError,
   ConfigError,
+  JournalIntegrityError,
   LeaseHeldError,
   RulvarError,
   SettlementError,
@@ -2018,6 +2019,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
       let value: R | undefined;
       let wireError: WireError | undefined;
       let pending: PendingExternal[] = [];
+      /** The settle-barrier flush verdict (RV3201); set in the finally below. */
+      let journalIntegrityFailure: JournalIntegrityError | undefined;
       if (compiled !== undefined && resumeCtx?.strict !== true) {
         // The binding contract: the compiled source and
         // its content hash persist AT START so planned runs are
@@ -2246,7 +2249,46 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // Every settle closes the segment (idempotent): waiters a body
         // raced away from must never wake after the outcome is out.
         external.close();
-        await replayer.flush().catch(() => undefined);
+        // The settle barrier reads the flush verdict (RV3201): a lost
+        // append latched in the Replayer surfaces exactly here, where
+        // the outcome is still mutable. Non-integrity rejections cannot
+        // occur (flush awaits the swallowed chain and rethrows only the
+        // latch), so the capture is total.
+        await replayer.flush().catch((thrown: unknown) => {
+          journalIntegrityFailure =
+            thrown instanceof JournalIntegrityError
+              ? thrown
+              : new JournalIntegrityError(
+                  `journal flush failed at settle for run '${internals.runId}': ` +
+                    (thrown instanceof Error ? thrown.message : String(thrown)),
+                  { cause: thrown },
+                );
+        });
+      }
+      if (journalIntegrityFailure !== undefined) {
+        // A lost append converts a would-be ok (or suspended) outcome
+        // into an error terminal (RV3201): an ok settle over a journal
+        // missing a deterministic record would replay differently than
+        // this segment executed, and a suspension would park waiters on
+        // the same torn truth. Already-failing statuses keep their own
+        // error (the loss is logged loudly either way), and the
+        // run_settle append below records the converted status through
+        // the still-working queue when the store recovered.
+        bus.emit(
+          {
+            type: 'log',
+            level: 'error',
+            msg: journalIntegrityFailure.message,
+            data: { code: journalIntegrityFailure.code },
+          },
+          rootSpanId,
+        );
+        if (status === 'ok' || status === 'suspended') {
+          status = 'error';
+          value = undefined;
+          pending = [];
+          wireError = journalIntegrityFailure.toWire();
+        }
       }
       // The COMPLETE report is the journal fold at settle, not the live
       // buckets: the journal is the truth cost reconciles against, and

@@ -6,7 +6,7 @@
 
 # Class: SupersededError
 
-Defined in: [packages/core/src/l0/errors.ts:400](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L400)
+Defined in: [packages/core/src/l0/errors.ts:421](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L421)
 
 The segment computed its outcome but its run_settle append bounced
 off the store's fence (LeaseHeldError): a successor segment holds
@@ -35,7 +35,7 @@ only the projection belongs to the current holder. `data` records
 new SupersededError(message, opts): SupersededError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:406](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L406)
+Defined in: [packages/core/src/l0/errors.ts:427](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L427)
 
 #### Parameters
 
@@ -59,11 +59,11 @@ Defined in: [packages/core/src/l0/errors.ts:406](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"superseded"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:401](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L401) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
-| <a id="property-runid"></a> `runId` | `readonly` | `string` | - | - | - | [packages/core/src/l0/errors.ts:402](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L402) |
-| <a id="property-runstatus"></a> `runStatus` | `readonly` | `string` | The outcome status the stale segment computed and must not act on. | - | - | [packages/core/src/l0/errors.ts:404](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L404) |
+| <a id="property-code"></a> `code` | `readonly` | `"superseded"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:422](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L422) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
+| <a id="property-runid"></a> `runId` | `readonly` | `string` | - | - | - | [packages/core/src/l0/errors.ts:423](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L423) |
+| <a id="property-runstatus"></a> `runStatus` | `readonly` | `string` | The outcome status the stale segment computed and must not act on. | - | - | [packages/core/src/l0/errors.ts:425](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L425) |
 
 ## Methods
 
@@ -73,7 +73,7 @@ Defined in: [packages/core/src/l0/errors.ts:406](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L73)
+Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
 
 #### Returns
 

@@ -553,6 +553,10 @@
             "link": "/api/@rulvar/core/classes/JournalCompatibilityError.md"
           },
           {
+            "text": "JournalIntegrityError",
+            "link": "/api/@rulvar/core/classes/JournalIntegrityError.md"
+          },
+          {
             "text": "JournalMatcher",
             "link": "/api/@rulvar/core/classes/JournalMatcher.md"
           },
@@ -5593,6 +5597,10 @@
           {
             "text": "JournalCompatibilityError",
             "link": "/api/@rulvar/rulvar/classes/JournalCompatibilityError.md"
+          },
+          {
+            "text": "JournalIntegrityError",
+            "link": "/api/@rulvar/rulvar/classes/JournalIntegrityError.md"
           },
           {
             "text": "JournalMatcher",

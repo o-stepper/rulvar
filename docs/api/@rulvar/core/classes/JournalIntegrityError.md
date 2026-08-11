@@ -2,22 +2,22 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / DeterminismError
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / JournalIntegrityError
 
-# Class: DeterminismError
+# Class: JournalIntegrityError
 
-Defined in: [packages/core/src/l0/errors.ts:463](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L463)
+Defined in: [packages/core/src/l0/errors.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L287)
 
-A workflow-origin bare-nondeterminism violation under
-`determinism.mode: 'error'` (RV-209): bare `Date.now()` or
-`Math.random()` called from workflow code inside a run. Thrown at the
-offending call site (and re-thrown at settle if the workflow swallowed
-it), so the run rejects instead of recording a value replay cannot
-reproduce. `data` carries the structured localization: `category`,
-`frame`, and the parsed `file`/`line`/`column` when the frame names
-one. Never journaled as its own entry; the run settles 'error' with
-this wire error. Exempt provenances (installed dependencies, Node
-runtime frames, allowlisted patterns) never raise it.
+A journal append was lost before the settle (RV3201): a persist
+inside the serialized append queue rejected, and the queue swallowed
+the rejection to keep later appends flowing, so the journal is now
+missing an entry the run believes it wrote. The first such failure
+latches inside the Replayer: every `flush()` from that moment
+rethrows it, and the engine settle path converts a would-be ok (or
+suspended) outcome into an error terminal, because an ok settle over
+a lost deterministic record would replay differently than the run
+executed. The latch is permanent for the segment; a resume constructs
+a fresh Replayer against whatever the store actually holds.
 
 ## Extends
 
@@ -28,10 +28,10 @@ runtime frames, allowlisted patterns) never raise it.
 ### Constructor
 
 ```ts
-new DeterminismError(message, opts?): DeterminismError;
+new JournalIntegrityError(message, opts?): JournalIntegrityError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:466](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L466)
+Defined in: [packages/core/src/l0/errors.ts:290](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L290)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/l0/errors.ts:466](https://github.com/o-stepper/ru
 
 #### Returns
 
-`DeterminismError`
+`JournalIntegrityError`
 
 #### Overrides
 
@@ -54,7 +54,7 @@ Defined in: [packages/core/src/l0/errors.ts:466](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"determinism"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:464](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L464) |
+| <a id="property-code"></a> `code` | `readonly` | `"journal_integrity"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L288) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
 | <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
 
