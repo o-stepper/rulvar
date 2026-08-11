@@ -565,7 +565,8 @@ export function repositoryResearchToolset(
       'Record one evidence entry supporting a claim. The citation is VERIFIED at record ' +
       'time: the file must exist under the research root, lines must be a valid 1-based ' +
       "line or range inside it ('12' or '12-40'), and quote (when given) must appear " +
-      'verbatim in the file. Returns { recorded, duplicate, totalEvidence }.',
+      'verbatim inside the cited lines (or anywhere in the file when no lines are ' +
+      'given). Returns { recorded, duplicate, totalEvidence }.',
     parameters: RECORD_EVIDENCE_SCHEMA,
     risk: 'read',
     execute: async (input) => {
@@ -582,6 +583,7 @@ export function repositoryResearchToolset(
         return loaded;
       }
       const lines = splitLines(loaded.text);
+      let citedRange: { from: number; to: number } | undefined;
       if (params.lines !== undefined) {
         const match = /^(\d+)(?:-(\d+))?$/u.exec(params.lines);
         if (match === null) {
@@ -596,11 +598,30 @@ export function repositoryResearchToolset(
               `(${String(lines.length)} lines)`,
           };
         }
+        citedRange = { from, to };
       }
-      if (params.quote !== undefined && !loaded.text.includes(params.quote)) {
-        return {
-          error: `quote not found verbatim in '${resolved.rel}'; cite what the file actually says`,
-        };
+      if (params.quote !== undefined) {
+        // The quote binds to the CITED lines when both are given
+        // (RV3206, the 2026-08-11 experiment's relevance probe): the
+        // whole-file check verified existence but not location, so a
+        // quote from line 2 supported a citation of line 1 and the
+        // evidence floor counted it. A quote-only entry still verifies
+        // against the whole file: with no lines claimed there is no
+        // location to bind.
+        const searched =
+          citedRange === undefined
+            ? loaded.text
+            : lines.slice(citedRange.from - 1, citedRange.to).join('\n');
+        if (!searched.includes(params.quote)) {
+          return {
+            error:
+              citedRange === undefined
+                ? `quote not found verbatim in '${resolved.rel}'; cite what the file actually says`
+                : `quote not found verbatim inside lines '${params.lines ?? ''}' of ` +
+                  `'${resolved.rel}'; widen the range to cover the quote, or fix the ` +
+                  'citation to the lines that actually say it',
+          };
+        }
       }
       const entry: ResearchEvidenceEntry = {
         claim: params.claim,
