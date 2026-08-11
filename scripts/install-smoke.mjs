@@ -1,7 +1,12 @@
-// Umbrella install smoke test on packed tarballs (M1-T15 acceptance):
-// pack @rulvar/core, both adapters, @rulvar/testing, the umbrella, and
-// the bare `rulvar` pointer; install the tarballs into a scratch
+// Umbrella install smoke test on packed tarballs (M1-T15 acceptance,
+// widened to the WHOLE publishable universe by RV2907: the ninth
+// comparison audit found the smoke packing six artifacts of seventeen
+// names, so ten published packages had never been installed from their
+// own tarballs by any gate): pack every fixed-group package plus the
+// bare `rulvar` pointer; install the tarballs into a scratch
 // project; import the umbrella and check the single-install surface;
+// import EVERY packed package by its published name and demand a
+// non-empty export surface;
 // check the pointer re-exports the identical surface and ships its type
 // declarations; exercise the published live-smoke helpers at runtime;
 // and typecheck the production auth contract (official SDK clients
@@ -19,14 +24,42 @@ const pnpmCmd = process.env.PNPM_CMD ?? 'pnpm';
 const [pnpmBin, ...pnpmPre] = pnpmCmd.split(' ');
 const scratch = mkdtempSync(join(tmpdir(), 'rulvar-install-smoke-'));
 
+// Every member of the versioning fixed group plus the pointer: the
+// published universe minus the registry-pinned @rulvar/compat, which
+// rides its own stage below. Kept in set equality with
+// .changeset/config.json by the check right after the pack.
 const packDirs = [
-  'packages/core',
   'packages/anthropic',
+  'packages/bridge-ai-sdk',
+  'packages/cli',
+  'packages/core',
+  'packages/eslint-plugin-rulvar',
+  'packages/evals',
+  'packages/executor',
   'packages/openai',
-  'packages/testing',
+  'packages/plan',
+  'packages/planner',
   'packages/rulvar',
+  'packages/store-conformance',
+  'packages/store-postgres',
+  'packages/store-sqlite',
+  'packages/testing',
   'pointer',
 ];
+// The fixed group is the truth of what this repository publishes in
+// lockstep; a smoke that packs a hand-kept subset rots the moment a
+// package is added, which is exactly how ten packages went unsmoked.
+const fixedGroup = JSON.parse(
+  readFileSync(join(process.cwd(), '.changeset', 'config.json'), 'utf8'),
+).fixed[0];
+const packedNames = packDirs.map(
+  (dir) => JSON.parse(readFileSync(join(process.cwd(), dir, 'package.json'), 'utf8')).name,
+);
+const missingFromPack = fixedGroup.filter((name) => !packedNames.includes(name));
+if (missingFromPack.length > 0) {
+  console.error('install-smoke packs a subset of the fixed group; missing:', missingFromPack);
+  process.exit(1);
+}
 for (const dir of packDirs) {
   execFileSync(pnpmBin, [...pnpmPre, 'pack', '--pack-destination', scratch], {
     cwd: join(process.cwd(), dir),
@@ -101,6 +134,29 @@ writeFileSync(
   ].join('\n'),
 );
 execFileSync('node', ['smoke.mjs'], { cwd: scratch, stdio: 'inherit' });
+
+// The whole-universe import smoke (RV2907): every packed package,
+// imported by its published name from its own tarball, must serve a
+// non-empty export surface. This is deliberately the weakest useful
+// assertion: deep behavior lives in the workspace suite, while THIS
+// proves each published artifact resolves and loads as installed,
+// which ten of them had never had proven anywhere.
+writeFileSync(
+  join(scratch, 'universe-smoke.mjs'),
+  [
+    `const names = ${JSON.stringify(packedNames.filter((name) => name !== 'rulvar'))};`,
+    'for (const name of names) {',
+    '  const ns = await import(name);',
+    '  const keys = Object.keys(ns);',
+    '  if (keys.length === 0) {',
+    '    console.error(`published package ${name} imports with an empty export surface`);',
+    '    process.exit(1);',
+    '  }',
+    '}',
+    'console.log(`universe install smoke: ${names.length} packages import from their tarballs`);',
+  ].join('\n'),
+);
+execFileSync('node', ['universe-smoke.mjs'], { cwd: scratch, stdio: 'inherit' });
 
 // The CommonJS consumer path (RV1701), exactly as the installation
 // guide claims it: CommonJS code on Node 22.12+ plain require()s the
