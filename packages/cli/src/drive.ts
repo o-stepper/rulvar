@@ -469,6 +469,24 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     );
     return 1;
   }
+  // The judged-document binding (RV3207, the 2026-08-11 experiment's
+  // semantic-strictness gap): a coverage grade rendered over the DRAFT
+  // describes the shipped artifact only when the synthesis returned it
+  // unchanged. RV2509 put both facts on the envelope (`judgedStage`,
+  // `draftToFinal.rewritten`); strict now reads them together, because
+  // the experiment run shipped a repaired composition under a
+  // draft-stage `partial` grade and the operator had to notice by hand.
+  // Absent fields stay untouched: no meta means nothing judged
+  // anything, no draftToFinal means no synthesis rewrote anything.
+  if (draftRewrittenUnjudged(value)) {
+    io.err(
+      "strict: the claim-coverage verdict was rendered over judgedStage 'draft', and " +
+        'draftToFinal.rewritten reports the synthesis rewrote that draft: nothing ' +
+        'semantically judged the artifact this run settled on. Configure ' +
+        "claimConsistency.stage 'final' (or 'both') to grade the shipped document",
+    );
+    return 1;
+  }
   if (grade === 'partial') {
     io.err(
       "strict: claim coverage 'partial': the judge saw a bounded subset of the citing " +
@@ -488,6 +506,28 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     );
   }
   return base;
+}
+
+/**
+ * True exactly when the semantic verdict describes a draft the
+ * synthesis then replaced (RV3207): `claimConsistencyMeta.judgedStage`
+ * is 'draft' AND `draftToFinal.rewritten` is true. Either field absent
+ * answers false: no meta means nothing judged anything, no bridge
+ * means no synthesis was configured, and both are honest non-failures.
+ */
+function draftRewrittenUnjudged(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const meta = (value as { claimConsistencyMeta?: unknown }).claimConsistencyMeta;
+  const bridge = (value as { draftToFinal?: unknown }).draftToFinal;
+  if (typeof meta !== 'object' || meta === null || typeof bridge !== 'object' || bridge === null) {
+    return false;
+  }
+  return (
+    (meta as { judgedStage?: unknown }).judgedStage === 'draft' &&
+    (bridge as { rewritten?: unknown }).rewritten === true
+  );
 }
 
 /** The stamped below-floor block of an outcome's claim meta, when present (RV1809). */
