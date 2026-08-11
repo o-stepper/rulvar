@@ -28,7 +28,8 @@ type ErrorCode =
   | "determinism"
   | "settlement"
   | "superseded"
-  | "journal_sealed";
+  | "journal_sealed"
+  | "journal_integrity";
 ```
 
 Defined in: `packages/core/dist/index.d.ts`

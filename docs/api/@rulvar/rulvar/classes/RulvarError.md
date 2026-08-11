@@ -25,6 +25,7 @@ it never means a provider SDK autoretry, which is disabled.
 - [`FailRunError`](/api/@rulvar/rulvar/classes/FailRunError.md)
 - [`InvalidResolutionError`](/api/@rulvar/rulvar/classes/InvalidResolutionError.md)
 - [`JournalCompatibilityError`](/api/@rulvar/rulvar/classes/JournalCompatibilityError.md)
+- [`JournalIntegrityError`](/api/@rulvar/rulvar/classes/JournalIntegrityError.md)
 - [`JournalMissError`](/api/@rulvar/rulvar/classes/JournalMissError.md)
 - [`JournalOrderViolation`](/api/@rulvar/rulvar/classes/JournalOrderViolation.md)
 - [`JournalSealedError`](/api/@rulvar/rulvar/classes/JournalSealedError.md)

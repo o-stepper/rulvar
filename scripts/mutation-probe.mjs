@@ -4467,6 +4467,24 @@ export const MUTATIONS = [
     replace: '      void result;',
     test: 'packages/core/src/orchestrator/runfacts.test.ts',
   },
+  {
+    id: 'the-append-loss-latch-is-armed',
+    doctrine:
+      'the first lost append latches in persist (RV3201): disarmed, a failed rand persist is visible to nobody (the shim dropped its promise, the queue chain swallowed the rejection, flush awaits the swallowed chain), the run settles ok/complete over the torn journal and a resume regenerates a different random without one provider call, the 2026-08-11 experiment blocker verbatim',
+    file: 'packages/core/src/journal/replayer.ts',
+    find: '      this.appendFailure ??= { thrown };',
+    replace: '      void thrown;',
+    test: 'packages/core/src/engine/journal-integrity.test.ts',
+  },
+  {
+    id: 'the-flush-barrier-rethrows-the-lost-append',
+    doctrine:
+      'flush() is the barrier that turns the latched loss into a typed rejection (RV3201): silenced, the latch records the loss and nothing downstream ever reads it, so the settle converts nothing and ok/complete ships over a journal missing a record the run believes it wrote',
+    file: 'packages/core/src/journal/replayer.ts',
+    find: '    if (this.appendFailure !== undefined) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/journal-integrity.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

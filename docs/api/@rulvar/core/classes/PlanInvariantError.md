@@ -6,7 +6,7 @@
 
 # Class: PlanInvariantError
 
-Defined in: [packages/core/src/l0/errors.ts:200](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L200)
+Defined in: [packages/core/src/l0/errors.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L201)
 
 PlanRunner plan-invariant rejection (producers ship in M7).
 
@@ -22,7 +22,7 @@ PlanRunner plan-invariant rejection (producers ship in M7).
 new PlanInvariantError(message, opts?): PlanInvariantError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:203](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L203)
+Defined in: [packages/core/src/l0/errors.ts:204](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L204)
 
 #### Parameters
 
@@ -45,9 +45,9 @@ Defined in: [packages/core/src/l0/errors.ts:203](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"plan_invariant"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L201) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L61) |
+| <a id="property-code"></a> `code` | `readonly` | `"plan_invariant"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L202) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
 
 ## Methods
 
@@ -57,7 +57,7 @@ Defined in: [packages/core/src/l0/errors.ts:203](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L73)
+Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
 
 #### Returns
 

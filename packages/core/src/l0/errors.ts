@@ -46,7 +46,8 @@ export type ErrorCode =
   | 'determinism'
   | 'settlement'
   | 'superseded'
-  | 'journal_sealed';
+  | 'journal_sealed'
+  | 'journal_integrity';
 
 /** An alias for the registry type; both names are public. */
 export type RulvarErrorCode = ErrorCode;
@@ -265,6 +266,26 @@ export class BudgetExhaustedError extends RulvarError {
  */
 export class JournalSealedError extends RulvarError {
   readonly code = 'journal_sealed' as const;
+
+  constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
+    super(message, { retryable: false, ...opts });
+  }
+}
+
+/**
+ * A journal append was lost before the settle (RV3201): a persist
+ * inside the serialized append queue rejected, and the queue swallowed
+ * the rejection to keep later appends flowing, so the journal is now
+ * missing an entry the run believes it wrote. The first such failure
+ * latches inside the Replayer: every `flush()` from that moment
+ * rethrows it, and the engine settle path converts a would-be ok (or
+ * suspended) outcome into an error terminal, because an ok settle over
+ * a lost deterministic record would replay differently than the run
+ * executed. The latch is permanent for the segment; a resume constructs
+ * a fresh Replayer against whatever the store actually holds.
+ */
+export class JournalIntegrityError extends RulvarError {
+  readonly code = 'journal_integrity' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: false, ...opts });

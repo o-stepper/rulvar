@@ -16,6 +16,7 @@ import {
   agentErrorToWire,
   BudgetExhaustedError,
   ConfigError,
+  JournalSealedError,
   RulvarError,
   type AgentError,
   type Issue,
@@ -995,15 +996,27 @@ export function createCtx(
       payload.key = key;
     }
     // Fire-and-forget through the serialized queue; the engine awaits
-    // Replayer.flush() before settling the run.
-    void internals.replayer.appendSinglePhase({
-      scope: state.scope,
-      key: deriveContentKey(identity),
-      kind: 'rand',
-      status: 'ok',
-      spanId: state.spanId,
-      value: payload,
-    });
+    // Replayer.flush() before settling the run, and a lost persist
+    // latches there (RV3201) so the settle converts ok into error
+    // instead of sealing a journal missing this record. The catch
+    // exists because a dropped rejection would otherwise crash the
+    // process as an unhandled rejection BEFORE the latch could surface
+    // it at the barrier; the sealed lane is rethrown on purpose so the
+    // RV1904 lifecycle-bug loudness survives unchanged.
+    void internals.replayer
+      .appendSinglePhase({
+        scope: state.scope,
+        key: deriveContentKey(identity),
+        kind: 'rand',
+        status: 'ok',
+        spanId: state.spanId,
+        value: payload,
+      })
+      .catch((thrown: unknown) => {
+        if (thrown instanceof JournalSealedError) {
+          throw thrown;
+        }
+      });
     return value;
   }
 

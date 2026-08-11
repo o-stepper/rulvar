@@ -13,7 +13,7 @@ function foldLedger(
    priceUsd?): Ledger;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L84)
+Defined in: [packages/core/src/journal/replayer.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L89)
 
 The budget ledger fold as a PURE function over entries (extracted in
 RV1209 so an offline reader folds the identical arithmetic instead

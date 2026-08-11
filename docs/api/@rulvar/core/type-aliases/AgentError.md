@@ -21,7 +21,7 @@ type AgentError = {
 };
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:464](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L464)
+Defined in: [packages/core/src/l0/errors.ts:485](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L485)
 
 The structured error value carried on AgentResult.error and journaled
 inside the agent terminal entry. Deliberately NOT a RulvarError subclass.
@@ -34,7 +34,7 @@ inside the agent terminal entry. Deliberately NOT a RulvarError subclass.
 optional issues?: Issue[];
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:468](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L468)
+Defined in: [packages/core/src/l0/errors.ts:489](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L489)
 
 ***
 
@@ -50,7 +50,7 @@ kind:
   | "terminal";
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:465](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L465)
+Defined in: [packages/core/src/l0/errors.ts:486](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L486)
 
 ***
 
@@ -60,7 +60,7 @@ Defined in: [packages/core/src/l0/errors.ts:465](https://github.com/o-stepper/ru
 optional reason?: "exposure-drained" | "output-floor";
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:481](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L481)
+Defined in: [packages/core/src/l0/errors.ts:502](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L502)
 
 The typed refusal marker (RV2002, widened by RV2101):
 'exposure-drained' names a spawned child refused pre-wire by the
@@ -81,7 +81,7 @@ synthesis promise is redeemed, never a crash.
 retryable: boolean;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:466](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L466)
+Defined in: [packages/core/src/l0/errors.ts:487](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L487)
 
 ***
 
@@ -91,4 +91,4 @@ Defined in: [packages/core/src/l0/errors.ts:466](https://github.com/o-stepper/ru
 optional retryAfterMs?: number;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:467](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L467)
+Defined in: [packages/core/src/l0/errors.ts:488](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L488)

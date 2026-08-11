@@ -8,7 +8,12 @@
  * Full contract: https://docs.rulvar.com/guide/journal; architecture
  * overview: https://docs.rulvar.com/guide/architecture.
  */
-import { ConfigError, JournalMissError, JournalSealedError } from '../l0/errors.js';
+import {
+  ConfigError,
+  JournalIntegrityError,
+  JournalMissError,
+  JournalSealedError,
+} from '../l0/errors.js';
 import { realNow } from '../l0/real-clock.js';
 import type { WireError } from '../l0/errors.js';
 import {
@@ -211,6 +216,13 @@ export class Replayer {
   private readonly strict: boolean;
   private readonly invalidated = new Set<number>();
   private queue: Promise<unknown> = Promise.resolve();
+  /**
+   * The first lost append of this segment (RV3201), latched by persist
+   * so flush() can rethrow what the serialized queue swallowed. The
+   * wrapper object keeps a rejection whose reason is literally
+   * `undefined` distinguishable from "no failure".
+   */
+  private appendFailure: { thrown: unknown } | undefined;
   /** True after the run's durable settle sealed the segment (RV1904). */
   private sealedInternal = false;
   private seq = 0;
@@ -644,12 +656,30 @@ export class Replayer {
   }
 
   /**
-   * Resolves when every append enqueued so far has persisted. Deterministic
-   * shims journal fire-and-forget; the engine awaits this before settling a
-   * run.
+   * Resolves when every append enqueued so far has persisted, and
+   * REJECTS typed when any append was lost (RV3201). Deterministic
+   * shims journal fire-and-forget through the serialized queue, whose
+   * chain swallows rejections to keep later appends flowing; without
+   * this rethrow a failed persist was visible to nobody (the shim
+   * dropped its promise, the chain caught the error, and this barrier
+   * awaited the already-caught chain), so a run could settle ok over a
+   * journal missing a record it believes it wrote. The first failure
+   * latches permanently for the segment: every flush from that moment
+   * rethrows it, the engine settle path converts a would-be ok into an
+   * error terminal, and mid-run flush callers fail fast instead of
+   * proceeding over a torn journal.
    */
   async flush(): Promise<void> {
     await this.queue;
+    if (this.appendFailure !== undefined) {
+      const thrown = this.appendFailure.thrown;
+      throw new JournalIntegrityError(
+        `journal append lost: run '${this.runId}' failed to persist at least one entry ` +
+          `(first failure: ${thrown instanceof Error ? thrown.message : String(thrown)}); ` +
+          'the journal no longer matches what this segment executed, so it must not settle ok',
+        { cause: thrown },
+      );
+    }
   }
 
   private mint(scope: string, key: string, kind: EntryKind, status: EntryStatus): JournalEntry {
@@ -676,25 +706,36 @@ export class Replayer {
       // Replay-strict is a preview: zero journal mutations by invariant.
       // Guarding the single append site (not each caller) keeps every
       // path honest, including extension seams and resolution refs.
+      // Thrown BEFORE the RV3201 latch on purpose: a preview refusal is
+      // the designed signal, never a lost append.
       throw new JournalMissError(
         `replay-strict: refusing to append a '${entry.kind}' entry during a dry-run preview; ` +
           'a preview performs zero journal mutations',
         { data: { scope: entry.scope, kind: entry.kind, miss: 'append' } },
       );
     }
-    const shapeIssues = validateEntryShape(entry);
-    if (shapeIssues.length > 0) {
-      throw new ConfigError(
-        `journal entry shape violation (kind '${entry.kind}'): ` +
-          shapeIssues.map((i) => i.message).join('; '),
-      );
+    try {
+      const shapeIssues = validateEntryShape(entry);
+      if (shapeIssues.length > 0) {
+        throw new ConfigError(
+          `journal entry shape violation (kind '${entry.kind}'): ` +
+            shapeIssues.map((i) => i.message).join('; '),
+        );
+      }
+      // The single append site: queue-mode fencing rides here: a stale
+      // lease makes the store reject and nothing becomes
+      // visible. The late-bound lookup wins so an engine-acquired
+      // genesis lease (P0.2) covers appends even though it exists only
+      // after this Replayer was constructed.
+      await this.store.append(this.runId, entry, this.leaseOf?.() ?? this.lease);
+    } catch (thrown) {
+      // The RV3201 latch: the queue chain swallows this rejection to
+      // keep later appends flowing, and a fire-and-forget caller
+      // dropped its promise, so this is the one place the loss is
+      // still visible. First failure wins; flush() rethrows it.
+      this.appendFailure ??= { thrown };
+      throw thrown;
     }
-    // The single append site: queue-mode fencing rides here: a stale
-    // lease makes the store reject and nothing becomes
-    // visible. The late-bound lookup wins so an engine-acquired
-    // genesis lease (P0.2) covers appends even though it exists only
-    // after this Replayer was constructed.
-    await this.store.append(this.runId, entry, this.leaseOf?.() ?? this.lease);
     this.entries.push(entry);
     if (entry.status === 'suspended') {
       this.foldInternal.registerSuspended(entry);

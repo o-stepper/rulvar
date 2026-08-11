@@ -10,7 +10,7 @@
 function createEngine(options): Engine;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:1122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L1122)
+Defined in: [packages/core/src/engine/engine.ts:1123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L1123)
 
 ## Parameters
 
