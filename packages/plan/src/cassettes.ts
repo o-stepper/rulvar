@@ -406,6 +406,21 @@ export async function runOscillationFreeze(options?: PlanRunnerOptions): Promise
         `oscillation ${String(phase)}`,
       );
     }
+    if (phase === 7) {
+      // The finish gate refuses this call typed (RV3202): the last
+      // re-add before the freeze left its node running, and a bare ok
+      // over a live node is exactly the shape the gate retired. The
+      // refusal turn is part of the committed fixture on purpose.
+      return { toolCall: { name: 'finish', args: { result: 'frozen' } } };
+    }
+    if (phase === 8) {
+      // The new honest shape: close the straggler deliberately, then
+      // finish over a quiescent plan.
+      return revise(
+        [{ op: 'cancel_task', nodeId: liveNode ?? 'MISSING', reason: 'frozen: close out' }],
+        'close the straggler',
+      );
+    }
     return { toolCall: { name: 'finish', args: { result: 'frozen' } } };
   });
   const store = new InMemoryStore();

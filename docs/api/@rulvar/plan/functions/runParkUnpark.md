@@ -10,7 +10,7 @@
 function runParkUnpark(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:428](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L428)
+Defined in: [packages/plan/src/cassettes.ts:443](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L443)
 
 park-unpark: park of a running node with checkpoint retention, later
 unpark and continuation. The worker

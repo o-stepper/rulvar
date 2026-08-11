@@ -52,7 +52,7 @@ optional digestExtras(io):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L216)
+Defined in: [packages/core/src/orchestrator/extension.ts:233](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L233)
 
 Extra fields merged into every WakeDigest (the hash-v2 coordinated
 schema lands in M7-T13; the substrate merges extras verbatim).
@@ -67,6 +67,48 @@ schema lands in M7-T13; the substrate merges extras verbatim).
 
   \| `Record`\&lt;`string`, [`Json`](/api/@rulvar/core/type-aliases/Json.md)\&gt;
   \| `undefined`
+
+***
+
+### finishGate()?
+
+```ts
+optional finishGate(): 
+  | {
+  ok: true;
+}
+  | {
+  ok: false;
+  reason: string;
+};
+```
+
+Defined in: [packages/core/src/orchestrator/extension.ts:228](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L228)
+
+The finish gate (RV3202): consulted FIRST on every ordinary
+coordination finish call, before any configured finish/draft
+validator. A refusal returns as the finish tool's typed error
+result (nothing journals, no repair spent, bounded by the turn
+budget), so the model resolves the named blockers and calls finish
+again. Quiescence participation alone gates only WAKES; without
+this hook a root could finish over the extension's still-running
+work and, absent an acceptance policy, settle a bare ok while the
+exit barrier cancelled it (the 2026-08-11 experiment's PlanRunner
+early-finish blocker). MUST be pure over journal-derived state: a
+re-executed turn re-evaluates the gate over the rebuilt fold and
+must render the same verdict. A throwing gate is a host defect and
+fails the run. The forced-finalization and synthesis finishes are
+never gated.
+
+#### Returns
+
+  \| \{
+  `ok`: `true`;
+\}
+  \| \{
+  `ok`: `false`;
+  `reason`: `string`;
+\}
 
 ***
 
@@ -100,7 +142,7 @@ dispatch here, terminal transitions journal here).
 optional onWake(digest): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:218](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L218)
+Defined in: [packages/core/src/orchestrator/extension.ts:235](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L235)
 
 Observes every delivered digest, including recovered pinned ones.
 

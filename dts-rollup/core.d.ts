@@ -9644,6 +9644,28 @@ interface OrchestratorExtension {
   */
   quiescent?(): boolean;
   /**
+  * The finish gate (RV3202): consulted FIRST on every ordinary
+  * coordination finish call, before any configured finish/draft
+  * validator. A refusal returns as the finish tool's typed error
+  * result (nothing journals, no repair spent, bounded by the turn
+  * budget), so the model resolves the named blockers and calls finish
+  * again. Quiescence participation alone gates only WAKES; without
+  * this hook a root could finish over the extension's still-running
+  * work and, absent an acceptance policy, settle a bare ok while the
+  * exit barrier cancelled it (the 2026-08-11 experiment's PlanRunner
+  * early-finish blocker). MUST be pure over journal-derived state: a
+  * re-executed turn re-evaluates the gate over the rebuilt fold and
+  * must render the same verdict. A throwing gate is a host defect and
+  * fails the run. The forced-finalization and synthesis finishes are
+  * never gated.
+  */
+  finishGate?(): {
+    ok: true;
+  } | {
+    ok: false;
+    reason: string;
+  };
+  /**
   * Extra fields merged into every WakeDigest (the hash-v2 coordinated
   * schema lands in M7-T13; the substrate merges extras verbatim).
   */

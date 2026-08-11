@@ -6,7 +6,7 @@
 
 # Interface: QueueFailoverDeps
 
-Defined in: [packages/plan/src/cassettes.ts:940](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L940)
+Defined in: [packages/plan/src/cassettes.ts:955](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L955)
 
 queue-failover-during-forced-finish (the DEF-7 final cassette;
 M8-T03): worker A loses its lease strictly
@@ -23,4 +23,4 @@ One deterministic clock drives lease expiry.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-makestore"></a> `makeStore` | (`now`) => [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md) & [`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md) | A fresh LeasableStore over the injected clock (SqliteStore ':memory:' in the suite). | [packages/plan/src/cassettes.ts:942](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L942) |
+| <a id="property-makestore"></a> `makeStore` | (`now`) => [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md) & [`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md) | A fresh LeasableStore over the injected clock (SqliteStore ':memory:' in the suite). | [packages/plan/src/cassettes.ts:957](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L957) |

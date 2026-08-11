@@ -10,7 +10,7 @@
 function runFinalizeFallbackSynthesized(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:730](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L730)
+Defined in: [packages/plan/src/cassettes.ts:745](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L745)
 
 finalize-fallback-synthesized (DEF-7): the final finish fails inside
 its turn limit; the engine journals orchestrator_finalize_fallback and
