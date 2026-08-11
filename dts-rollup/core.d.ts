@@ -10573,8 +10573,23 @@ interface OrchestrateSynthesis {
   * (harness-observed, not production evidence). Folded ONLY from
   * journal-replayed material; off by default, and the prompt stays
   * byte identical when unset.
+  *
+  * The object form (RV3004) keeps the child line and adds opt-ins.
+  * `workflowSoFar: true` appends a RUN FACTS SO FAR line: the same
+  * counters folded over the settled children PLUS this
+  * orchestration's own settled internal spans as of this dispatch's
+  * composition (coordination turns, draft claim judges, judged
+  * contradiction passes, synthesis notes), so the number the model
+  * quotes sits next to the invoice instead of a third of it. The
+  * composing dispatch itself and anything still running are excluded
+  * by construction, the line says so, and dollars stay absent for
+  * the same replay reason as the child line. `runFacts: true` keeps
+  * today's prompt bytes exactly; the SO FAR line exists only under
+  * the object opt-in.
   */
-  runFacts?: boolean;
+  runFacts?: boolean | {
+    workflowSoFar?: boolean;
+  };
   /**
   * Admission estimate for the synthesize invocation, like
   * AgentOpts.estCost: under a tight orchestrator cap the default

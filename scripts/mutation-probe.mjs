@@ -3752,8 +3752,9 @@ export const MUTATIONS = [
     doctrine:
       'the RUN FACTS line names the run whose facts it carries (RV2501): the line ends in the live-observed register and the synthesis is told to reproduce run facts only from it, so a line naming no artifact makes every faithful quote of it an evidence-grade failure the model cannot repair',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "                  })} (live-observed by run ${internals.runId}, this run's own harness; ` +",
-    replace: "                  })} (live-observed by this run's own harness; ` +",
+    find: "                  })} (live-observed by run ${internals.runId}, this run's own harness; ` +\n                  'production evidence it is not; the settled children ONLY, excluding this ' +",
+    replace:
+      "                  })} (live-observed by this run's own harness; ` +\n                  'production evidence it is not; the settled children ONLY, excluding this ' +",
     test: 'packages/core/src/orchestrator/runfacts.test.ts',
   },
   {
@@ -4419,6 +4420,25 @@ export const MUTATIONS = [
     find: '      ...(terminal?.toolBudget === undefined ? {} : { toolBudget: { ...terminal.toolBudget } }),',
     replace: '      ...{},',
     test: 'packages/core/src/stores/reconcile.test.ts',
+  },
+  {
+    id: 'run-facts-so-far-names-its-exclusions',
+    doctrine:
+      "the SO FAR line's boundary rides its own bytes (RV3004, the RV1807 rule): stripped, the model quotes near-whole-run totals AS the whole run and the false-drift reading against the invoice returns with better numbers",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "                  'production evidence it is not; the settled children PLUS this ' +\n                  \"orchestration's settled coordination, judge, note, and composition spans \" +\n                  'as of THIS dispatch; it excludes this dispatch itself and anything still ' +",
+    replace:
+      "                  'production evidence it is not; the settled children PLUS this ' +\n                  \"orchestration's settled coordination, judge, note, and composition spans \" +\n                  'as of THIS dispatch and anything still ' +",
+    test: 'packages/core/src/orchestrator/runfacts.test.ts',
+  },
+  {
+    id: 'run-facts-so-far-folds-the-coordination-span',
+    doctrine:
+      'the settled coordination dispatch enters the SO FAR fold the moment it settles (RV3004): dropped, the sibling degrades to the child line with a grander scope string, which is exactly the overclaim the scope vocabulary exists to prevent',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      noteInternalSettle(result);',
+    replace: '      void result;',
+    test: 'packages/core/src/orchestrator/runfacts.test.ts',
   },
 ];
 

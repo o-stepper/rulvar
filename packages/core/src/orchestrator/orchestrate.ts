@@ -1133,8 +1133,21 @@ export interface OrchestrateSynthesis {
    * (harness-observed, not production evidence). Folded ONLY from
    * journal-replayed material; off by default, and the prompt stays
    * byte identical when unset.
+   *
+   * The object form (RV3004) keeps the child line and adds opt-ins.
+   * `workflowSoFar: true` appends a RUN FACTS SO FAR line: the same
+   * counters folded over the settled children PLUS this
+   * orchestration's own settled internal spans as of this dispatch's
+   * composition (coordination turns, draft claim judges, judged
+   * contradiction passes, synthesis notes), so the number the model
+   * quotes sits next to the invoice instead of a third of it. The
+   * composing dispatch itself and anything still running are excluded
+   * by construction, the line says so, and dollars stay absent for
+   * the same replay reason as the child line. `runFacts: true` keeps
+   * today's prompt bytes exactly; the SO FAR line exists only under
+   * the object opt-in.
    */
-  runFacts?: boolean;
+  runFacts?: boolean | { workflowSoFar?: boolean };
   /**
    * Admission estimate for the synthesize invocation, like
    * AgentOpts.estCost: under a tight orchestrator cap the default
@@ -1887,9 +1900,34 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       );
     }
     if (facts.runFacts !== undefined && typeof facts.runFacts !== 'boolean') {
-      throw new ConfigError(
-        `orchestrate synthesis.runFacts must be a boolean; got ${typeof facts.runFacts}`,
-      );
+      if (
+        typeof facts.runFacts !== 'object' ||
+        facts.runFacts === null ||
+        Array.isArray(facts.runFacts)
+      ) {
+        throw new ConfigError(
+          `orchestrate synthesis.runFacts must be a boolean or ` +
+            `{ workflowSoFar?: boolean }; got ${typeof facts.runFacts}`,
+        );
+      }
+      const runFactsSpec = facts.runFacts as Record<string, unknown>;
+      for (const key of Object.keys(runFactsSpec)) {
+        if (key !== 'workflowSoFar') {
+          throw new ConfigError(
+            `orchestrate synthesis.runFacts carries unknown key '${key}'; ` +
+              `the object form takes only workflowSoFar`,
+          );
+        }
+      }
+      if (
+        runFactsSpec['workflowSoFar'] !== undefined &&
+        typeof runFactsSpec['workflowSoFar'] !== 'boolean'
+      ) {
+        throw new ConfigError(
+          `orchestrate synthesis.runFacts.workflowSoFar must be a boolean; ` +
+            `got ${typeof runFactsSpec['workflowSoFar']}`,
+        );
+      }
     }
     if (synthesis.estCost !== undefined) {
       requireNonNegativeNumber(synthesis.estCost as number, 'orchestrate synthesis.estCost');
@@ -5222,12 +5260,20 @@ export function makeOrchestratorWorkflow(
         ...(spec.estCost === undefined ? {} : { estCost: spec.estCost }),
         [kTerminalTool]: { name: FINISH_TOOL_NAME },
       };
-      return runtime.runInScope(noteState, () =>
-        (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
-          prompt,
-          noteOpts,
-        ),
-      );
+      return runtime
+        .runInScope(noteState, () =>
+          (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+            prompt,
+            noteOpts,
+          ),
+        )
+        .then((settled) => {
+          // Settled spans only (RV3004): the ensureSynthesisNote catch
+          // arm synthesizes an unjournaled error result, which must
+          // never enter the SO FAR fold.
+          noteInternalSettle(settled);
+          return settled;
+        });
     };
 
     /**
@@ -5422,6 +5468,33 @@ export function makeOrchestratorWorkflow(
      */
     let synthesisSkipDecisionRef: number | undefined;
 
+    /**
+     * The orchestration's own settled internal spans so far (RV3004):
+     * the coordination dispatch, claim judges, synthesis notes, and
+     * settled compositions, folded through
+     * {@link executionFactsOf} in dispatch order the moment each
+     * settles. Replay-stable by the same argument as the RUN FACTS
+     * child line: every ingredient restores verbatim from the journal
+     * and the settle order is deterministic, so a resumed composition
+     * re-derives identical SO FAR bytes. A dispatch that never settled
+     * (a declined judge admission, a crash) contributes nothing, which
+     * is RV1209, not an undercount.
+     */
+    const internalSpansSoFar = {
+      spans: 0,
+      wireRequests: 0,
+      wireIdsMissing: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+    };
+    const noteInternalSettle = (settled: AgentResult<unknown>): void => {
+      const facts = executionFactsOf(settled);
+      internalSpansSoFar.spans += 1;
+      internalSpansSoFar.wireRequests += facts.wireRequests;
+      internalSpansSoFar.wireIdsMissing += facts.wireIdsMissing;
+      internalSpansSoFar.inputTokens += facts.inputTokens;
+      internalSpansSoFar.outputTokens += facts.outputTokens;
+    };
     /**
      * The bounded contradiction pass's findings (RV1302), set exactly
      * when the pass is configured: an EMPTY array is a fact (the pass
@@ -5948,6 +6021,7 @@ export function makeOrchestratorWorkflow(
             judgeOpts,
           ),
         );
+        noteInternalSettle(judged);
       } catch (declined) {
         // The declined judge admission degrades typed (RV2106): the
         // ninth parity run's judge estimate did not fit the
@@ -6507,6 +6581,16 @@ export function makeOrchestratorWorkflow(
                 };
               });
             })();
+      // The RV3004 widening: `true` keeps the historical child line and
+      // its exact bytes; the object form keeps that line and arms the
+      // SO FAR sibling. Prompt bytes are journal identity, so each form
+      // is its own stable shape.
+      const runFactsEnabled =
+        spec.runFacts === true || (typeof spec.runFacts === 'object' && spec.runFacts !== null);
+      const runFactsSoFar =
+        typeof spec.runFacts === 'object' &&
+        spec.runFacts !== null &&
+        spec.runFacts.workflowSoFar === true;
       const promptLines = [
         'You are the synthesis invocation of an orchestrated run. Compose the FINAL ' +
           'result of the run from the goal, the coordination draft, and the settled child ' +
@@ -6627,7 +6711,7 @@ export function makeOrchestratorWorkflow(
         // deliberately absent because replay re-prices from the
         // current table), so a resumed synthesis re-derives identical
         // prompt bytes; the line exists exactly under the opt-in.
-        ...(spec.runFacts === true
+        ...(runFactsEnabled
           ? [
               ((): string => {
                 const byStatus: Record<string, number> = {};
@@ -6678,6 +6762,50 @@ export function makeOrchestratorWorkflow(
                   'production evidence it is not; the settled children ONLY, excluding this ' +
                   "orchestrator, judges, and synthesis; the whole run's totals are the " +
                   'terminal envelope and invoice)'
+                );
+              })(),
+            ]
+          : []),
+        // The SO FAR sibling (RV3004): the child totals PLUS this
+        // orchestration's own settled internal spans at this dispatch's
+        // composition, so the number the composing model quotes sits
+        // next to the invoice instead of a third of it (the nineteenth
+        // benchmark's false-drift reading, now closable from inside the
+        // prompt). Folded from the same replay-stable material as the
+        // child line plus the internalSpansSoFar accumulator, whose
+        // settle order is deterministic, so a resumed composition
+        // re-derives identical bytes. Dollars stay absent for the same
+        // replay reason.
+        ...(runFactsSoFar
+          ? [
+              ((): string => {
+                let wireRequests = internalSpansSoFar.wireRequests;
+                let wireIdsMissing = internalSpansSoFar.wireIdsMissing;
+                let inputTokens = internalSpansSoFar.inputTokens;
+                let outputTokens = internalSpansSoFar.outputTokens;
+                for (const [, record] of settledEntries) {
+                  const facts = executionFactsOf(record.settled as AgentResult<unknown>);
+                  wireRequests += facts.wireRequests;
+                  wireIdsMissing += facts.wireIdsMissing;
+                  inputTokens += facts.inputTokens;
+                  outputTokens += facts.outputTokens;
+                }
+                return (
+                  `RUN FACTS SO FAR: ${JSON.stringify({
+                    scope: 'run-so-far-at-this-dispatch',
+                    runId: internals.runId,
+                    children: settledEntries.length,
+                    internalSpans: internalSpansSoFar.spans,
+                    wireRequests,
+                    wireIdsMissing,
+                    inputTokens,
+                    outputTokens,
+                  })} (live-observed by run ${internals.runId}, this run's own harness; ` +
+                  'production evidence it is not; the settled children PLUS this ' +
+                  "orchestration's settled coordination, judge, note, and composition spans " +
+                  'as of THIS dispatch; it excludes this dispatch itself and anything still ' +
+                  "running, so the whole run's totals remain the terminal envelope and " +
+                  'invoice)'
                 );
               })(),
             ]
@@ -6792,6 +6920,7 @@ export function makeOrchestratorWorkflow(
           synthesisOpts,
         ),
       );
+      noteInternalSettle(synthesized);
       synthesisSchemaRejectedExchanges = synthesized.schemaRejectedTerminalExchanges ?? 0;
       synthesisSchemaRecoveredExchanges = synthesized.schemaRecoveredTerminalExchanges ?? 0;
       if (configuredReserveUsd > 0) {
@@ -7057,6 +7186,7 @@ export function makeOrchestratorWorkflow(
           agentOpts,
         ),
       );
+      noteInternalSettle(result);
     } catch (thrown) {
       // The unfunded repair grant declines typed (RV2207): the seventh
       // parity run's synthesis died between a granted repair verdict
