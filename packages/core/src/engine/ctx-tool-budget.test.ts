@@ -6,8 +6,12 @@
  * grant and the finalization-window entry journal as decision entries of
  * the existing vocabulary, a crash-resume restores them from the journal
  * (the counts alone cannot always prove them), and a replay rebuilds the
- * journal-backed fields with zero adapter calls. The snapshot itself
- * still never journals; grant-free runs stay byte-identical.
+ * journal-backed fields with zero adapter calls. Since RV3002 the
+ * TERMINAL entry additionally journals the durable subset itself (the
+ * executed count and the effective cap, never the live-only fields), so
+ * grant-free NEW journals replay their summary too; entries without the
+ * field (every pre-existing journal) keep the RV509 behavior byte for
+ * byte.
  */
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -90,12 +94,19 @@ describe('the tool budget pressure snapshot through the engine (RV304)', () => {
     const table = reduceInvocationTable(events.all as unknown as WorkflowEvent[]);
     expect(table.agents[0]?.toolBudget).toEqual(expected);
 
-    // The snapshot never journals; the GRANT does (RV509), as one
-    // decision entry of the existing vocabulary bound to the dispatch.
+    // The TERMINAL entry journals exactly the durable subset (RV3002:
+    // executed count and effective cap, never the live-only fields);
+    // the GRANT journals too (RV509), as one decision entry of the
+    // existing vocabulary bound to the dispatch. No other entry carries
+    // the summary.
     await internals.replayer.flush();
     const entries = internals.replayer.snapshot();
     for (const entry of entries) {
-      expect(JSON.stringify(entry)).not.toContain('toolBudget');
+      if (entry.kind === 'agent' && entry.ref !== undefined) {
+        expect(entry.toolBudget).toEqual({ used: 3, cap: 4 });
+      } else {
+        expect(JSON.stringify(entry)).not.toContain('toolBudget');
+      }
     }
     const dispatch = entries.find((entry) => entry.kind === 'agent' && entry.status === 'running');
     expect(decisionsOf(entries, 'tool_budget_extension')).toEqual([
@@ -336,9 +347,10 @@ describe('the durable tool budget summary (RV509)', () => {
       await createCtx(resumed).agent('wrap up', { ...opts, tools: [pager([])] }),
     );
     expect(replayAdapter.calls).toHaveLength(0);
-    // The journal-backed fields restore; the cap is configuration
-    // derived and stays live-only fidelity when no grant journaled it.
-    expect(replayed.toolBudget).toEqual({ used: 1, finalizationWindowEntered: true });
+    // The entry restores the executed count and the settle-time
+    // effective cap (RV3002); the window entry rides in from its RV509
+    // decision.
+    expect(replayed.toolBudget).toEqual({ used: 1, cap: 3, finalizationWindowEntered: true });
   });
 
   it('a rejected grant append fails the dispatch instead of running under an unrecorded grant', async () => {
@@ -498,6 +510,86 @@ describe('the durable tool budget summary (RV509)', () => {
     // The convergence obligation: one journal, two recovery paths, the
     // same observable budget.
     expect(pure.toolBudget).toEqual(resumed.toolBudget);
+  });
+
+  it('the terminal entry journals the durable subset and a grant-free replay restores it (RV3002)', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const executions: unknown[] = [];
+    const liveAdapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCall: { name: 'read', args: { page: 1 } } } : { text: 'done' },
+    );
+    const { internals, store } = makeInternals({
+      adapters: [liveAdapter],
+      routing: { loop: 'fake:model' },
+      transcripts,
+    });
+    const opts = { limits: { maxToolCalls: 5 }, memoizeOutcome: true, result: 'full' } as const;
+    const live = fullResult(
+      await createCtx(internals).agent('read one page', { ...opts, tools: [pager(executions)] }),
+    );
+    expect(live.toolBudget).toEqual({ used: 1, cap: 5 });
+    await internals.replayer.flush();
+    const prior = await store.load('test-run');
+    // The entry carries EXACTLY the durable subset: the executed count
+    // and the effective cap; live-only summary fields never journal.
+    const terminal = prior.find((entry) => entry.kind === 'agent' && entry.ref !== undefined);
+    expect(terminal?.toolBudget).toEqual({ used: 1, cap: 5 });
+
+    // The grant-free replay: no decision entries exist (the RV509 path
+    // has nothing to rebuild from), yet the summary restores from the
+    // entry with zero adapter calls. This is the field's whole point.
+    const replayAdapter = scriptedAdapter(() => ({ text: 'never' }));
+    const replayExecutions: unknown[] = [];
+    const { internals: resumed, events } = makeInternals({
+      adapters: [replayAdapter],
+      routing: { loop: 'fake:model' },
+      priorEntries: prior,
+      transcripts,
+    });
+    const replayed = fullResult(
+      await createCtx(resumed).agent('read one page', {
+        ...opts,
+        tools: [pager(replayExecutions)],
+      }),
+    );
+    expect(replayAdapter.calls).toHaveLength(0);
+    expect(replayed.toolBudget).toEqual({ used: 1, cap: 5 });
+    const ends = events.ofType('agent:end');
+    expect(ends).toEqual([expect.objectContaining({ toolBudget: { used: 1, cap: 5 } })]);
+  });
+
+  it('an entry without the field keeps the historical grant-free replay byte for byte', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const executions: unknown[] = [];
+    const liveAdapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCall: { name: 'read', args: { page: 1 } } } : { text: 'done' },
+    );
+    const { internals, store } = makeInternals({
+      adapters: [liveAdapter],
+      routing: { loop: 'fake:model' },
+      transcripts,
+    });
+    const opts = { limits: { maxToolCalls: 5 }, memoizeOutcome: true, result: 'full' } as const;
+    await createCtx(internals).agent('read one page', { ...opts, tools: [pager(executions)] });
+    await internals.replayer.flush();
+    // Simulate a journal written before the field shipped.
+    const prior = (await store.load('test-run')).map((entry) => {
+      const { toolBudget: _dropped, ...rest } = entry;
+      return rest;
+    });
+    const { internals: resumed } = makeInternals({
+      adapters: [scriptedAdapter(() => ({ text: 'never' }))],
+      routing: { loop: 'fake:model' },
+      priorEntries: prior,
+      transcripts,
+    });
+    const replayed = fullResult(
+      await createCtx(resumed).agent('read one page', { ...opts, tools: [pager([])] }),
+    );
+    expect(replayed.status).toBe('ok');
+    // Grant-free pre-existing journals replay with NO summary, exactly
+    // as they always have (the RV509 rule).
+    expect(replayed.toolBudget).toBeUndefined();
   });
 
   it('a grant-free capped run journals no decision entries at all', async () => {

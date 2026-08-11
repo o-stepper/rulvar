@@ -587,6 +587,21 @@ export type JournalEntry = {
    */
   evidenceEntries?: Array<{ claim: string; citation?: string }>;
   /**
+   * Terminal agent entries: the durable subset of the tool-budget
+   * summary (RV3002): the loop's executed-call counter and the
+   * effective cap at the end, journaled at settle whenever the live
+   * result carried a summary. The counter has always been durable in
+   * the terminal checkpoint, but checkpoints are blobs and journal
+   * folds read entries only, so without this field observed
+   * calls-per-evidence-entry calibration cannot be a pure fold. Replay
+   * restores AgentResult.toolBudget from here unconditionally; entries
+   * without the field (every pre-existing journal) keep the RV509
+   * decision-conditional path byte for byte. Live-only summary fields
+   * (unitsUsed, noticesFired, limiter, and the rest) never journal.
+   * Policy, never identity, exactly like evidence.
+   */
+  toolBudget?: { used: number; cap?: number };
+  /**
    * Terminal escalated entries ONLY: the schema-validated
    * EscalationReport with runtime-filled costToDate and salvage; replay
    * synthesizes the byte-identical report from here (DEF-1).

@@ -27,6 +27,9 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-servedby"></a> `servedBy?` | `` `${string}:${string}` `` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-site"></a> `site?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-status"></a> `status` | `"ok"` \| `"error"` \| `"limit"` \| `"cancelled"` \| `"escalated"` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-toolbudget"></a> `toolBudget?` | \{ `cap?`: `number`; `used`: `number`; \} | Terminal agent entries: the durable tool-budget subset; see JournalEntry. | `packages/core/dist/index.d.ts` |
+| `toolBudget.cap?` | `number` | - | `packages/core/dist/index.d.ts` |
+| `toolBudget.used` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-transcriptref"></a> `transcriptRef?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage?` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usageapprox"></a> `usageApprox?` | `boolean` | - | `packages/core/dist/index.d.ts` |
