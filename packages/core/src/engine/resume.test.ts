@@ -360,6 +360,104 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
     ).rejects.toThrow(/ResumeOptions\.bodyHash must be 'warn' or 'refuse'/);
   });
 
+  it('the config fingerprint records at genesis and a matching assertion resumes silently (RV3210)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+      await ctx.agent('a');
+      return 'done';
+    });
+    await engine.run(simpleWf, undefined, { runId: 'FPR1', configFingerprint: 'cfg-v1' }).result;
+    const meta = (await store.listRuns()).find((row) => row.runId === 'FPR1');
+    expect(meta?.configFingerprint).toBe('cfg-v1');
+
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      const { engine: second } = makeEngine(store, 'MUST NOT RUN');
+      const outcome = await second.resume('FPR1', simpleWf, { configFingerprint: 'cfg-v1' }).result;
+      expect(outcome.status).toBe('ok');
+      expect(warnings).toEqual([]);
+      // The resumed segment wrote the RECORDED value back verbatim.
+      const after = (await store.listRuns()).find((row) => row.runId === 'FPR1');
+      expect(after?.configFingerprint).toBe('cfg-v1');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('a mismatched fingerprint refuses the resume typed before any append (RV3210)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+      await ctx.agent('a');
+      return 'done';
+    });
+    await engine.run(simpleWf, undefined, { runId: 'FPR2', configFingerprint: 'cfg-v1' }).result;
+    const before = (await store.load('FPR2')).length;
+    const { engine: second, adapter } = makeEngine(store, 'MUST NOT RUN');
+    await expect(
+      second.resume('FPR2', simpleWf, { configFingerprint: 'cfg-v2' }).result,
+    ).rejects.toThrow(/configFingerprint does not match/);
+    expect(adapter.calls).toHaveLength(0);
+    expect((await store.load('FPR2')).length).toBe(before);
+  });
+
+  it('one-sided fingerprints warn instead of failing: absence means NOT RECORDED (RV3210)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+      await ctx.agent('a');
+      return 'done';
+    });
+    await engine.run(simpleWf, undefined, { runId: 'FPR3', configFingerprint: 'cfg-v1' }).result;
+    await engine.run(simpleWf, undefined, { runId: 'FPR4' }).result;
+
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      // Recorded, not supplied: the identity goes unchecked, loudly.
+      const { engine: second } = makeEngine(store, 'MUST NOT RUN');
+      expect((await second.resume('FPR3', simpleWf).result).status).toBe('ok');
+      expect(warnings).toContain('RULVAR_RESUME_FINGERPRINT_UNCHECKED');
+      // Supplied, never recorded: the assertion cannot be verified.
+      warnings.length = 0;
+      const { engine: third } = makeEngine(store, 'MUST NOT RUN');
+      expect(
+        (await third.resume('FPR4', simpleWf, { configFingerprint: 'cfg-v1' }).result).status,
+      ).toBe('ok');
+      expect(warnings).toContain('RULVAR_RESUME_FINGERPRINT_UNRECORDED');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('rejects a malformed configFingerprint at intake on both surfaces (RV3210)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async () => Promise.resolve('x'));
+    // Run options validate synchronously, before any store read.
+    expect(() => engine.run(simpleWf, undefined, { runId: 'FPR5', configFingerprint: '' })).toThrow(
+      /RunOptions\.configFingerprint/,
+    );
+    await engine.run(simpleWf, undefined, { runId: 'FPR6' }).result;
+    await expect(
+      engine.resume('FPR6', simpleWf, { configFingerprint: 'x'.repeat(513) }).result,
+    ).rejects.toThrow(/ResumeOptions\.configFingerprint/);
+  });
+
   it('dry-run performs zero live calls and stops at the exact divergence', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });

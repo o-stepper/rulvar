@@ -1217,6 +1217,15 @@ type RunMeta = {
     allowUnpriced?: string[];
   };
   /**
+  * The host-declared config identity (RunOptions.configFingerprint,
+  * RV3210): an opaque pin over what the workflow body closes over,
+  * recorded at genesis and compared on every resume that asserts one.
+  * Absent when the run declared none. A store that drops the field
+  * degrades the check to the UNRECORDED warning, never a false pass
+  * or a false refusal (absence means NOT RECORDED).
+  */
+  configFingerprint?: string;
+  /**
   * Count of execution segments this run has STARTED (a fresh start
   * writes 1; every resume writes prior + 1, durably, BEFORE the
   * segment emits its first event). The engine derives each segment's
@@ -7784,6 +7793,24 @@ interface RunOptions {
   /** Explicit id; otherwise the engine mints a ULID. */
   runId?: string;
   /**
+  * An opaque host-declared identity over the config the workflow body
+  * CLOSES OVER (RV3210, the honest answer to `hashWorkflowBody`'s
+  * closure blindness: the body-text hash cannot see captured values,
+  * so two byte-identical bodies over different closures pin
+  * identically). Recorded in RunMeta at genesis and compared on every
+  * resume that supplies one: a mismatch refuses the resume typed
+  * BEFORE ownership, meta writes, and appends, because the host
+  * itself asserted the identity; a recorded fingerprint the resume
+  * does not supply warns (`RULVAR_RESUME_FINGERPRINT_UNCHECKED`), and
+  * a supplied fingerprint the run never recorded warns
+  * (`RULVAR_RESUME_FINGERPRINT_UNRECORDED`) instead of failing,
+  * because absence means NOT RECORDED. The preferred pattern is still
+  * to close over nothing and pass config through args; the
+  * fingerprint is the pin for what must stay closed over. A non-empty
+  * string of at most 512 characters.
+  */
+  configFingerprint?: string;
+  /**
   * Run ceiling B0; immutable after start. Enforced by projected
   * admission (a spawn whose reserve does not fit is denied before any
   * dispatch), the per-turn guard with a budget-derived maxOutputTokens
@@ -7930,6 +7957,18 @@ interface ResumeOptions {
   * source mismatches are hard errors regardless, exactly as before.
   */
   bodyHash?: "warn" | "refuse";
+  /**
+  * The host's asserted config identity for this resume (RV3210),
+  * compared against the RunMeta-recorded
+  * {@link RunOptions.configFingerprint} BEFORE ownership, meta
+  * writes, or any append. Both present and unequal is a typed
+  * ConfigError always, no posture knob: supplying the fingerprint IS
+  * the assertion. A recorded fingerprint the resume does not supply
+  * warns (`RULVAR_RESUME_FINGERPRINT_UNCHECKED`); a supplied one the
+  * run never recorded warns (`RULVAR_RESUME_FINGERPRINT_UNRECORDED`),
+  * because absence means NOT RECORDED, never a verdict.
+  */
+  configFingerprint?: string;
   /**
   * Dry-run: replay-strict matching; the first would-be-live call throws
   * JournalMissError and the run settles with that typed error, zero live

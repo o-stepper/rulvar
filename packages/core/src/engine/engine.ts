@@ -335,6 +335,24 @@ export interface RunOptions {
   /** Explicit id; otherwise the engine mints a ULID. */
   runId?: string;
   /**
+   * An opaque host-declared identity over the config the workflow body
+   * CLOSES OVER (RV3210, the honest answer to `hashWorkflowBody`'s
+   * closure blindness: the body-text hash cannot see captured values,
+   * so two byte-identical bodies over different closures pin
+   * identically). Recorded in RunMeta at genesis and compared on every
+   * resume that supplies one: a mismatch refuses the resume typed
+   * BEFORE ownership, meta writes, and appends, because the host
+   * itself asserted the identity; a recorded fingerprint the resume
+   * does not supply warns (`RULVAR_RESUME_FINGERPRINT_UNCHECKED`), and
+   * a supplied fingerprint the run never recorded warns
+   * (`RULVAR_RESUME_FINGERPRINT_UNRECORDED`) instead of failing,
+   * because absence means NOT RECORDED. The preferred pattern is still
+   * to close over nothing and pass config through args; the
+   * fingerprint is the pin for what must stay closed over. A non-empty
+   * string of at most 512 characters.
+   */
+  configFingerprint?: string;
+  /**
    * Run ceiling B0; immutable after start. Enforced by projected
    * admission (a spawn whose reserve does not fit is denied before any
    * dispatch), the per-turn guard with a budget-derived maxOutputTokens
@@ -521,6 +539,18 @@ export interface ResumeOptions {
    */
   bodyHash?: 'warn' | 'refuse';
   /**
+   * The host's asserted config identity for this resume (RV3210),
+   * compared against the RunMeta-recorded
+   * {@link RunOptions.configFingerprint} BEFORE ownership, meta
+   * writes, or any append. Both present and unequal is a typed
+   * ConfigError always, no posture knob: supplying the fingerprint IS
+   * the assertion. A recorded fingerprint the resume does not supply
+   * warns (`RULVAR_RESUME_FINGERPRINT_UNCHECKED`); a supplied one the
+   * run never recorded warns (`RULVAR_RESUME_FINGERPRINT_UNRECORDED`),
+   * because absence means NOT RECORDED, never a verdict.
+   */
+  configFingerprint?: string;
+  /**
    * Dry-run: replay-strict matching; the first would-be-live call throws
    * JournalMissError and the run settles with that typed error, zero live
    * calls performed.
@@ -662,6 +692,16 @@ export interface RunExport {
   meta?: RunMeta;
   entries: JournalEntry[];
   blobs: Array<{ ref: string; data: Bytes }>;
+}
+
+/** Validates a declared config fingerprint (RV3210): a non-empty string of at most 512 chars. */
+function requireConfigFingerprint(value: unknown, site: string): void {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 512) {
+    throw new ConfigError(
+      `${site} must be a non-empty string of at most 512 characters; got ` +
+        (typeof value === 'string' ? `${String(value.length)} characters` : JSON.stringify(value)),
+    );
+  }
 }
 
 /** Content hash of an in-process workflow body (run-to-definition binding). */
@@ -1413,6 +1453,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
      * mid-run upgrade never flips keys inside one incarnation.
      */
     execKeyDerivation?: number;
+    /**
+     * The RunMeta-recorded config fingerprint carried through verbatim
+     * (RV3210): a resume segment writes back the RECORDED value, never
+     * one from its own options, and absence stays absent.
+     */
+    configFingerprint?: string;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -1436,6 +1482,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
     }
     if (opts?.maxInFlightExposureUsd !== undefined) {
       requireNonNegativeNumber(opts.maxInFlightExposureUsd, 'RunOptions.maxInFlightExposureUsd');
+    }
+    if (opts?.configFingerprint !== undefined) {
+      requireConfigFingerprint(opts.configFingerprint, 'RunOptions.configFingerprint');
     }
     // Fail closed on intake (RV2503): a truthy string would arm a
     // dispatch posture the host never asked for, and a typo'd flag
@@ -1571,6 +1620,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
                   ? {}
                   : { allowUnpriced: [...opts.strictPricing.allowUnpriced] }),
               };
+    // The config fingerprint follows the recording rule (RV3210): a
+    // fresh run records the declared RunOptions value, a resumed run
+    // writes back the RECORDED one verbatim (the compare against a
+    // supplied fingerprint already happened in engine.resume, before
+    // ownership), and absence stays absent.
+    const configFingerprint = opts?.configFingerprint ?? resumeCtx?.configFingerprint;
     const makeBudget = (): RunBudget =>
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
@@ -1895,6 +1950,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
               ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
               ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
               ...(strictPricing === undefined ? {} : { strictPricing }),
+              ...(configFingerprint === undefined ? {} : { configFingerprint }),
               ...(argsBinding.argsProvided === undefined
                 ? {}
                 : { argsProvided: argsBinding.argsProvided }),
@@ -2807,6 +2863,43 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         bound = supplied;
       }
+      // The config-identity handshake (RV3210), strictly before
+      // ownership, meta writes, and appends, the RV3001 pin's row: the
+      // body-text hash above cannot see closure values, so this is the
+      // host-declared pin over what the body closes over. Supplying a
+      // fingerprint IS the assertion: a recorded mismatch refuses
+      // typed with no posture knob. One-sided states warn instead of
+      // failing, because absence means NOT RECORDED.
+      {
+        const supplied = resumeOptions?.configFingerprint;
+        if (supplied !== undefined) {
+          requireConfigFingerprint(supplied, 'ResumeOptions.configFingerprint');
+        }
+        const recorded =
+          typeof meta?.configFingerprint === 'string' ? meta.configFingerprint : undefined;
+        if (supplied !== undefined && recorded !== undefined && supplied !== recorded) {
+          throw new ConfigError(
+            `resume: the supplied configFingerprint does not match the one run '${runId}' ` +
+              'recorded at genesis; the config the workflow closes over changed, and the host ' +
+              'declared exactly this check. Resume under the original config, or drop the ' +
+              'option to proceed under the loud warning',
+          );
+        }
+        if (supplied !== undefined && recorded === undefined) {
+          process.emitWarning(
+            `resume: a configFingerprint was supplied but run '${runId}' never recorded one; ` +
+              'the assertion cannot be verified (absence means NOT RECORDED)',
+            { code: 'RULVAR_RESUME_FINGERPRINT_UNRECORDED', type: 'RulvarWarning' },
+          );
+        }
+        if (supplied === undefined && recorded !== undefined) {
+          process.emitWarning(
+            `resume: run '${runId}' recorded a configFingerprint at genesis and this resume ` +
+              'did not supply one; the declared config identity goes unchecked',
+            { code: 'RULVAR_RESUME_FINGERPRINT_UNCHECKED', type: 'RulvarWarning' },
+          );
+        }
+      }
       const raw = await journal.load(runId);
       const priorEntries = raw.map((entry) => normalizeEntry(entry));
       // One scan, strictly before any live call, append, or reserve.
@@ -2888,6 +2981,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // version 1 keys for its whole life.
         ...(typeof meta?.execKeyDerivation === 'number'
           ? { execKeyDerivation: meta.execKeyDerivation }
+          : {}),
+        // The recorded config fingerprint travels back in verbatim
+        // (RV3210); absence stays absent.
+        ...(typeof meta?.configFingerprint === 'string'
+          ? { configFingerprint: meta.configFingerprint }
           : {}),
         previewResolve,
       });

@@ -71,6 +71,15 @@ export type RunMeta = {
    */
   strictPricing?: { maxRatesAgeDays?: number; allowUnpriced?: string[] };
   /**
+   * The host-declared config identity (RunOptions.configFingerprint,
+   * RV3210): an opaque pin over what the workflow body closes over,
+   * recorded at genesis and compared on every resume that asserts one.
+   * Absent when the run declared none. A store that drops the field
+   * degrades the check to the UNRECORDED warning, never a false pass
+   * or a false refusal (absence means NOT RECORDED).
+   */
+  configFingerprint?: string;
+  /**
    * Count of execution segments this run has STARTED (a fresh start
    * writes 1; every resume writes prior + 1, durably, BEFORE the
    * segment emits its first event). The engine derives each segment's

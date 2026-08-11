@@ -11,6 +11,7 @@ type RunMeta = {
   argsHash?: string;
   argsProvided?: boolean;
   budgetUsd?: number;
+  configFingerprint?: string;
   execKeyDerivation?: number;
   genesis?: string;
   hashVersionHigh?: number;
@@ -100,6 +101,23 @@ resume restores the original invocation's bound. Absent when the
 run started without a ceiling. Stores must round-trip the field
 (the conformance kit checks); a store that drops it degrades a
 resumed run to uncapped.
+
+***
+
+### configFingerprint?
+
+```ts
+optional configFingerprint?: string;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The host-declared config identity (RunOptions.configFingerprint,
+RV3210): an opaque pin over what the workflow body closes over,
+recorded at genesis and compared on every resume that asserts one.
+Absent when the run declared none. A store that drops the field
+degrades the check to the UNRECORDED warning, never a false pass
+or a false refusal (absence means NOT RECORDED).
 
 ***
 
