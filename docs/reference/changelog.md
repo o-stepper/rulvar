@@ -18,6 +18,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.232.0
+
+#### Minor Changes
+
+- 6a58120: Bounded `refreshCaps()` pagination (RV2904). The ninth comparison run's adversarial audit found `models.list` the one pagination in the tree the MCP cycle doctrine (RV1602/RV1808) had not reached: a server echoing or recycling `last_id` spun the sweep forever, comfortably inside every timeout. A cursor echoed back or re-used by the sweep is now refused unconditionally as a typed cycle, and the new opt-in `capsMaxPages` fails the refresh typed when more pages are still reported past the bound, in the fail-closed maxTools direction: truncating would clamp output bounds against a silently partial caps table.
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+
 ### 1.231.0
 
 #### Patch Changes
@@ -2111,6 +2126,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+
 ### 1.231.0
 
 #### Patch Changes
@@ -4007,6 +4033,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
 
 ### 1.231.0
 
@@ -6458,6 +6495,19 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.232.0
+
+#### Minor Changes
+
+- 1440410: The synthesis candidates a journal already holds (RV2902). `synthesisCandidatesFromJournal(entries, priceUsd?)` folds each journaled finish verdict into a candidate with the window of wall, wires, usage, and per-call priced cost that produced it, so the cost of a repair is separable from the cost of the candidate it repaired: the one question the ninth comparison run's frozen telemetry could not answer, with both candidates inside a single 177 second synthesize span priced as one number. Sequence numbers partition a settled span's incremental billing rows between its verdicts exactly; the fold refuses to price a window when the rows do not cover the terminal's own call records (they append asynchronously by design), counts verdicts outside every settled synthesize span instead of inventing candidates for them, and reports wires after the last verdict as an attributed-to-nobody tail. No new journal fields.
+- 6e467f4: The downloaded billing export parses fail-closed (RV2908). `statementRowsFromDelimited(text, { delimiter? })` turns the CSV/TSV a provider console hands a host into the header-keyed rows `statementFromRows` consumes, closing the last manual step between a downloaded export and `reconcileStatement`. The library still hard-codes no provider's format: the host owns the column map, this owns only the strict delimited grammar (RFC 4180 quoting, CRLF or LF records, one trailing newline ignored). A ragged record, a torn quote, a stray quote in an unquoted cell, and an empty or duplicated header name each refuse typed with their line, because a column shifted one to the left prices outputTokens as dollars and calls it evidence.
+- e3bcab2: The engine labels its own synthesize dispatches (RV2901). `criticalPathFromJournal` splits the synthesize bucket into final composition and claim judge only when EVERY synthesize span carries a journaled label, and the comparison run's journal refused that split because the final composition dispatch stayed anonymous while the claim judge was labelled. The final composition now dispatches under the new exported `FINAL_COMPOSITION_LABEL` and incremental synthesis notes under `SYNTHESIS_NOTE_LABEL`, both policy on the attribution facts and never identity, so the journal of a fresh run reports the split by construction while journals written before the labels keep refusing it honestly.
+- b55a0f7: The claim-consistency pass sizes itself from a declared coverage target (RV2903). The ninth comparison run judged 43 of 115 citing sentences because its host guessed `max: 56` and the run-fact pass cut 30 candidates to an unraisable default of 8: the honest 'partial' grade was a constant's echo, not a policy. `claimConsistency.coverageTarget` (a share in (0, 1]) makes the goal the input: the pairing selects coverage-first (every critical candidate, then one pair per still-uncovered sentence in draft order until the target is met, with `max` kept as a hard ceiling and `truncated` meaning exactly that the ceiling cut wanted selection), the run-fact pass judges every matched candidate instead of the default bound, an undeclared `minimumCoverageRatio` defaults to the target so the RV1809 floor machinery (`lowCoverage`, `onLowCoverage`, the strict CLI exit) enforces the same number that sized the pass, and the meta echoes `coverageTarget` so a persisted outcome says what its coverage was held against. Unset, every selection reproduces byte for byte.
+
+#### Patch Changes
+
+- 0b14293: Three truths the ninth comparison audit caught, fixed with a tombstone (RV2905). Two guide pages still claimed "the current release enforces only the in-process tool executor" (one adding that subprocess and container "fail at registration") after that class was fixed on the architecture page: both now state the seam, a non-inprocess executor tag is a typed ConfigError at spawn time until a matching ToolExecutorProvider is registered under `EngineOptions.executors`, and `@rulvar/executor` ships both references. The roles.ts header now says its firing predicates cover six OF THE SEVEN invocation roles ('synthesize' is dispatched explicitly by the orchestrator, never by the trigger protocol). And because the executor claim already returned once after being fixed, the docs lint gains a tombstone sentinel forbidding it everywhere the lint reads, docs prose and source comments alike.
 
 ### 1.231.0
 
@@ -9193,6 +9243,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.232.0
+
 ### 1.231.0
 
 ### 1.230.0
@@ -9759,6 +9811,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [6a58120]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+  - @rulvar/anthropic@1.232.0
+  - @rulvar/openai@1.232.0
+  - @rulvar/plan@1.232.0
+  - @rulvar/testing@1.232.0
 
 ### 1.231.0
 
@@ -12397,6 +12465,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+
 ### 1.231.0
 
 #### Patch Changes
@@ -13704,6 +13783,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
 
 ### 1.231.0
 
@@ -15807,6 +15897,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+
 ### 1.231.0
 
 #### Patch Changes
@@ -17817,6 +17918,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+  - eslint-plugin-rulvar@1.232.0
 
 ### 1.231.0
 
@@ -20021,6 +20134,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [6a58120]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+  - @rulvar/anthropic@1.232.0
+  - @rulvar/openai@1.232.0
 
 ### 1.231.0
 
@@ -22540,6 +22667,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+
 ### 1.231.0
 
 #### Patch Changes
@@ -24558,6 +24696,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
+
 ### 1.231.0
 
 #### Patch Changes
@@ -25881,6 +26030,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
 
 ### 1.231.0
 
@@ -27836,6 +27996,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.232.0
+
+#### Patch Changes
+
+- Updated dependencies [1440410]
+- Updated dependencies [6e467f4]
+- Updated dependencies [0b14293]
+- Updated dependencies [e3bcab2]
+- Updated dependencies [b55a0f7]
+  - @rulvar/core@1.232.0
 
 ### 1.231.0
 
