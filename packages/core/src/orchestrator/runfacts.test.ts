@@ -255,4 +255,134 @@ describe('execution self-facts (RV1503)', () => {
       }),
     ).toThrow(ConfigError);
   });
+
+  it('the SO FAR sibling rides only the object opt-in and carries the whole so-far fold (RV3004)', async () => {
+    const { internals, synthesis } = factsHarness();
+    await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('read the span', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { runFacts: { workflowSoFar: true } },
+      }),
+      undefined,
+    );
+    expect(synthesis.calls).toHaveLength(1);
+    const prompt = synthesis.calls[0] === undefined ? '' : textOf(synthesis.calls[0]);
+    // The child line is preserved beside the sibling, bytes unchanged.
+    const childLine = prompt.split('\n').find((row) => row.startsWith('RUN FACTS: ')) ?? '';
+    expect(childLine).toContain('"scope":"settled-children-only"');
+    const line = prompt.split('\n').find((row) => row.startsWith('RUN FACTS SO FAR: ')) ?? '';
+    expect(line).not.toBe('');
+    const parsed = JSON.parse(
+      line.slice('RUN FACTS SO FAR: '.length, line.indexOf('} (') + 1),
+    ) as Record<string, unknown>;
+    // The coordination dispatch (three scripted turns at the default
+    // 10/5 usage, no response ids) is the one settled internal span at
+    // composition time; the child contributes its 100/7 named wire.
+    expect(parsed).toEqual({
+      scope: 'run-so-far-at-this-dispatch',
+      runId: internals.runId,
+      children: 1,
+      internalSpans: 1,
+      wireRequests: 4,
+      wireIdsMissing: 3,
+      inputTokens: 130,
+      outputTokens: 22,
+    });
+    // The boundary is part of the quoted bytes, exactly like the child
+    // line's (RV1807): what it adds, what it excludes, and where the
+    // whole run's totals live.
+    expect(line).toContain("this orchestration's settled coordination, judge, note, and");
+    expect(line).toContain('it excludes this dispatch itself and anything still running');
+    expect(line).toContain("the whole run's totals remain the terminal envelope and invoice");
+  });
+
+  it("runFacts: true and runFacts: {} keep today's bytes: no SO FAR line", async () => {
+    const plain = factsHarness();
+    await executeWorkflow(
+      plain.internals,
+      makeOrchestratorWorkflow('read the span', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { runFacts: true },
+      }),
+      undefined,
+    );
+    const truePrompt =
+      plain.synthesis.calls[0] === undefined ? '' : textOf(plain.synthesis.calls[0]);
+    expect(truePrompt).toContain('RUN FACTS: ');
+    expect(truePrompt).not.toContain('RUN FACTS SO FAR:');
+
+    const empty = factsHarness();
+    await executeWorkflow(
+      empty.internals,
+      makeOrchestratorWorkflow('read the span', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { runFacts: {} },
+      }),
+      undefined,
+    );
+    const emptyPrompt =
+      empty.synthesis.calls[0] === undefined ? '' : textOf(empty.synthesis.calls[0]);
+    // The empty object arms the child line exactly like `true`.
+    const childLine = emptyPrompt.split('\n').find((row) => row.startsWith('RUN FACTS: ')) ?? '';
+    const trueLine = truePrompt.split('\n').find((row) => row.startsWith('RUN FACTS: ')) ?? '';
+    expect(childLine).toBe(trueLine);
+    expect(emptyPrompt).not.toContain('RUN FACTS SO FAR:');
+  });
+
+  it('a resumed composition re-derives the SO FAR bytes: zero live synthesis calls', async () => {
+    const first = factsHarness();
+    const outcome = await executeWorkflow(
+      first.internals,
+      makeOrchestratorWorkflow('read the span', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { runFacts: { workflowSoFar: true } },
+      }),
+      undefined,
+    );
+    expect(outcome).toBeDefined();
+    expect(first.synthesis.calls).toHaveLength(1);
+    await first.internals.replayer.flush();
+    const prior = first.internals.replayer.snapshot();
+
+    const second = factsHarness();
+    const { internals: resumed, events } = makeInternals({
+      adapters: [second.coordination, second.synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+      priorEntries: [...prior],
+    });
+    const replayedOutcome = await executeWorkflow(
+      resumed,
+      makeOrchestratorWorkflow('read the span', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { runFacts: { workflowSoFar: true } },
+      }),
+      undefined,
+    );
+    expect(replayedOutcome).toBeDefined();
+    // A byte drift in the SO FAR fold would miss the journal and go
+    // live; the replay must serve every dispatch, synthesis included.
+    expect(second.synthesis.calls).toHaveLength(0);
+    expect(second.coordination.calls).toHaveLength(0);
+    expect(events.ofType('agent:end').length).toBeGreaterThan(0);
+  });
+
+  it('the object form refuses unknown keys and non-boolean workflowSoFar, fail closed', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        synthesis: { runFacts: { soFar: true } as unknown as boolean },
+      }),
+    ).toThrow(/unknown key 'soFar'/);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        synthesis: { runFacts: { workflowSoFar: 1 } as unknown as boolean },
+      }),
+    ).toThrow(/workflowSoFar must be a boolean/);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        synthesis: { runFacts: [true] as unknown as boolean },
+      }),
+    ).toThrow(ConfigError);
+  });
 });
