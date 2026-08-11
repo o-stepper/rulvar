@@ -1583,16 +1583,33 @@ export function createCtx(
         }
       }
       {
-        // The durable tool-budget subset (RV509): the summary fields the
-        // dispatch's decision entries back rebuild on replay, with the
-        // executed count restored from the terminal checkpoint. Present
-        // exactly when the invocation journaled a decision, so grant-free
-        // replays (and every pre-existing journal) stay byte-identical.
-        // Configuration-derived fields (unitsUsed/unitsMax, the cap when
-        // no grant fired, noticesFired, finalizationReserveUsed, limiter)
-        // are live-only fidelity, exactly like phase durations.
+        // The durable tool-budget subset. An entry carrying the RV3002
+        // field restores UNCONDITIONALLY from the entry (the settle-time
+        // executed count and effective cap), with the RV509
+        // decision-derived extras merged on top when the dispatch
+        // journaled any; grant-free NEW journals now replay their
+        // summary too. An entry WITHOUT the field (every pre-existing
+        // journal) keeps the RV509 path byte for byte: the summary
+        // fields the dispatch's decision entries back rebuild, with the
+        // executed count restored from the terminal checkpoint, present
+        // exactly when the invocation journaled a decision.
+        // Configuration-derived fields (unitsUsed/unitsMax,
+        // noticesFired, finalizationReserveUsed, limiter) are live-only
+        // fidelity, exactly like phase durations.
         const durable = readToolBudgetDecisions(internals.replayer.snapshot(), matched.running.seq);
-        if (durable !== undefined && replayedToolCallsUsed !== undefined) {
+        if (terminal?.toolBudget !== undefined) {
+          const restoredSummary: ToolBudgetSummary = { used: terminal.toolBudget.used };
+          if (terminal.toolBudget.cap !== undefined) {
+            restoredSummary.cap = terminal.toolBudget.cap;
+          }
+          if (durable !== undefined && durable.extensionsGranted > 0) {
+            restoredSummary.extensionsGranted = durable.extensionsGranted;
+          }
+          if (durable !== undefined && durable.finalizationWindowEntered) {
+            restoredSummary.finalizationWindowEntered = true;
+          }
+          result.toolBudget = restoredSummary;
+        } else if (durable !== undefined && replayedToolCallsUsed !== undefined) {
           const restoredSummary: ToolBudgetSummary = { used: replayedToolCallsUsed };
           if (durable.cap !== undefined) {
             restoredSummary.cap = durable.cap;
@@ -1691,8 +1708,9 @@ export function createCtx(
           ...(terminal?.usageApprox === true ? { usageApprox: true } : {}),
           // Present only when the guard abort journaled it (RV-210).
           ...(result.exploration === undefined ? {} : { exploration: result.exploration }),
-          // The durable tool-budget subset, when the dispatch journaled
-          // decision entries (RV509); absent exactly as before otherwise.
+          // The durable tool-budget subset: restored from the terminal
+          // entry when it carries the RV3002 field, else from the RV509
+          // decision path; absent exactly as before otherwise.
           ...(result.toolBudget === undefined ? {} : { toolBudget: result.toolBudget }),
         },
         spanId,
@@ -3018,6 +3036,17 @@ export function createCtx(
     }
     if (result.evidenceEntries !== undefined) {
       terminalPatch.evidenceEntries = [...result.evidenceEntries];
+    }
+    // The durable tool-budget subset (RV3002): executed calls and the
+    // effective cap, never the live-only fields. The counter was
+    // already durable in the terminal checkpoint; journaling it on the
+    // ENTRY is what lets calls-per-evidence-entry calibration be a
+    // pure fold over entries.
+    if (result.toolBudget !== undefined) {
+      terminalPatch.toolBudget = {
+        used: result.toolBudget.used,
+        ...(result.toolBudget.cap === undefined ? {} : { cap: result.toolBudget.cap }),
+      };
     }
     if (result.abortClass !== undefined) {
       // An engine-decided abort replays on every resume: memoizeOutcome

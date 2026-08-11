@@ -10,7 +10,7 @@
 function normalizeEntry(raw): JournalEntry;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:624](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L624)
+Defined in: [packages/core/src/l0/entries.ts:639](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L639)
 
 Round-1 normalization: hashVersion is taken from `hashVersion`, else
 from the legacy `v` field, else 1. Stores are never rewritten;

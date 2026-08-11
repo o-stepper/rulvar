@@ -176,6 +176,8 @@ export interface TerminalPatch {
   evidence?: { recordedEntries: number; minEntries: number; met: boolean };
   /** Terminal agent entries: recorded evidence entry content; see JournalEntry. */
   evidenceEntries?: Array<{ claim: string; citation?: string }>;
+  /** Terminal agent entries: the durable tool-budget subset; see JournalEntry. */
+  toolBudget?: { used: number; cap?: number };
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
   /**
@@ -585,6 +587,9 @@ export class Replayer {
       }
       if (patch.evidenceEntries !== undefined) {
         entry.evidenceEntries = patch.evidenceEntries;
+      }
+      if (patch.toolBudget !== undefined) {
+        entry.toolBudget = patch.toolBudget;
       }
       if (patch.artifacts !== undefined) {
         entry.artifacts = toJournalValue(patch.artifacts, 'terminal artifacts');

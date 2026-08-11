@@ -4376,6 +4376,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/resume.test.ts',
   },
   {
+    id: 'terminal-entry-carries-the-tool-budget',
+    doctrine:
+      'the terminal entry journals the durable tool-budget subset at settle (RV3002): dropped, the executed-call counter stays locked in checkpoint blobs, grant-free replays lose their summary again, and calls-per-evidence-entry calibration cannot be a pure fold over entries',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '    if (result.toolBudget !== undefined) {\n      terminalPatch.toolBudget = {',
+    replace: '    if (false) {\n      terminalPatch.toolBudget = {',
+    test: 'packages/core/src/engine/ctx-tool-budget.test.ts',
+  },
+  {
+    id: 'replay-restores-the-tool-budget-from-the-entry',
+    doctrine:
+      'a terminal entry carrying the RV3002 field restores the summary unconditionally on replay: disarmed, restoration falls back to the RV509 decision-conditional path and a grant-free resumed result silently drops the executed count the journal holds',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: "        if (terminal?.toolBudget !== undefined) {",
+    replace: '        if (false) {',
+    test: 'packages/core/src/engine/ctx-tool-budget.test.ts',
+  },
+  {
     id: 'the-executor-claim-tombstone-is-armed',
     doctrine:
       'the in-process-only executor claim is tombstoned (RV2905): it was fixed once on the architecture page and returned on two others, where the ninth comparison audit found it contradicting EngineOptions.executors and the shipped @rulvar/executor references; a disarmed sentinel lets the class ship a third time',
