@@ -4413,6 +4413,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/synthesis-incremental.test.ts',
   },
   {
+    id: 'inspect-calibration-refuses-the-empty-rate',
+    doctrine:
+      'the inspect aggregate line exists only when at least one dispatch paired the verdict with the counter (RV3103, RV1209 in operator output): forced unconditional, a pre-RV3002 journal prints a rate over nothing and the operator recalibrates the evidence floor from a number nobody recorded',
+    file: 'packages/cli/src/commands.ts',
+    find: '    if (calibration.aggregate !== undefined) {\n      const rate =',
+    replace: '    if (true) {\n      const rate =',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
     id: 'the-executor-claim-tombstone-is-armed',
     doctrine:
       'the in-process-only executor claim is tombstoned (RV2905): it was fixed once on the architecture page and returned on two others, where the ninth comparison audit found it contradicting EngineOptions.executors and the shipped @rulvar/executor references; a disarmed sentinel lets the class ship a third time',

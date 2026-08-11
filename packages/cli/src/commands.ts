@@ -19,6 +19,7 @@ import {
   costReportFromJournal,
   childRostersFromJournal,
   invoiceFromJournal,
+  toolCalibrationFromJournal,
   journalPricingSnapshot,
   createEngine,
   FileModelKnowledgeStore,
@@ -785,6 +786,41 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
         `  on branches the run ABANDONED: ${discarded.length} ` +
           `(handle${discarded.length === 1 ? '' : 's'} ` +
           `${discarded.map((child) => String(child.handle)).join(', ')})`,
+      );
+    }
+  }
+  // The observed tool-budget calibration (RV3103): the RV3003 fold
+  // beside the roster it reads, so a parity post-mortem gets the
+  // observed calls-per-evidence-entry without a hand-built script.
+  // RV1209 in operator output: the aggregate line exists only when at
+  // least one dispatch paired both sides, unpaired sides are named
+  // instead of zeroed, and a journal carrying neither side prints
+  // nothing at all.
+  {
+    const calibration = toolCalibrationFromJournal(entries);
+    if (calibration.aggregate !== undefined) {
+      const rate =
+        calibration.aggregate.callsPerEntry === undefined
+          ? 'no ratio (0 recorded entries)'
+          : calibration.aggregate.callsPerEntry.toFixed(2);
+      context.io.out(
+        `observed tool calls per recorded evidence entry: ${rate} ` +
+          `(${calibration.aggregate.toolCallsUsed} executed calls over ` +
+          `${calibration.aggregate.recordedEntries} entries across ` +
+          `${calibration.observed.length} paired dispatch` +
+          `${calibration.observed.length === 1 ? '' : 'es'})`,
+      );
+    }
+    if (calibration.evidenceOnly.length > 0) {
+      context.io.out(
+        `  declared evidence contracts with no journaled call counter: ` +
+          `${calibration.evidenceOnly.length} (a journal written before the counter ` +
+          `shipped records no rate)`,
+      );
+    }
+    if (calibration.aggregate !== undefined && calibration.budgetOnly.length > 0) {
+      context.io.out(
+        `  journaled counters with no declared contract: ${calibration.budgetOnly.length}`,
       );
     }
   }

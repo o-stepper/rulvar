@@ -365,6 +365,82 @@ export default {
     expect(after.outLines.join('\n')).toContain('on branches the run ABANDONED: 1 (handle 1)');
   });
 
+  it('inspect prints the observed calibration and names the unpaired sides (RV3103)', async () => {
+    // The RV3003 fold in operator output: one dispatch carrying both
+    // the RV806 verdict and the RV3002 counter, one carrying the
+    // verdict only (a journal written before the counter shipped).
+    const cwd = writeFixtureProject();
+    const store = new JsonlFileStore({ dir: join(cwd, '.rulvar') });
+    const base = {
+      hashVersion: 2,
+      ordinal: 0,
+      spanId: 's',
+      startedAt: new Date(1_700_000_000_000).toISOString(),
+    } as const;
+    await store.append('CAL', {
+      ...base,
+      seq: 0,
+      scope: 'agent:0',
+      key: 'k1',
+      kind: 'agent',
+      status: 'running',
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.append('CAL', {
+      ...base,
+      seq: 1,
+      scope: 'agent:0',
+      key: 'k1',
+      kind: 'agent',
+      status: 'ok',
+      ref: 0,
+      costAttribution: { agentType: 'worker', role: 'loop' },
+      evidence: { recordedEntries: 4, minEntries: 2, met: true },
+      toolBudget: { used: 6, cap: 20 },
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.append('CAL', {
+      ...base,
+      seq: 2,
+      scope: 'agent:1',
+      key: 'k2',
+      kind: 'agent',
+      status: 'running',
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.append('CAL', {
+      ...base,
+      seq: 3,
+      scope: 'agent:1',
+      key: 'k2',
+      kind: 'agent',
+      status: 'ok',
+      ref: 2,
+      costAttribution: { agentType: 'worker', role: 'loop' },
+      evidence: { recordedEntries: 1, minEntries: 1, met: true },
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.putMeta({ runId: 'CAL', status: 'ok', segments: 1, updatedAt: 'x' });
+
+    const inspect = scriptedIo();
+    expect(await runCli(['inspect', 'CAL'], { cwd, io: inspect })).toBe(0);
+    const text = inspect.outLines.join('\n');
+    expect(text).toContain(
+      'observed tool calls per recorded evidence entry: 1.50 ' +
+        '(6 executed calls over 4 entries across 1 paired dispatch)',
+    );
+    expect(text).toContain(
+      'declared evidence contracts with no journaled call counter: 1 ' +
+        '(a journal written before the counter shipped records no rate)',
+    );
+
+    // The vacuum contrast (RV1209 in operator output): a journal
+    // carrying neither side prints no calibration lines at all.
+    const io = scriptedIo();
+    expect(await runCli(['run', 'refused'], { cwd, io })).toBe(0);
+    const bare = scriptedIo();
+    expect(await runCli(['inspect', runIdOf(io)], { cwd, io: bare })).toBe(0);
+    const bareText = bare.outLines.join('\n');
+    expect(bareText).not.toContain('observed tool calls per recorded evidence entry');
+    expect(bareText).not.toContain('declared evidence contracts with no journaled call counter');
+  });
+
   it('inspect prints the completion the last settle recorded (RV2703)', async () => {
     // The offline half: `lastRunSettle` has carried the semantic claim
     // since the persisted-terminal tail, and inspect printed the
