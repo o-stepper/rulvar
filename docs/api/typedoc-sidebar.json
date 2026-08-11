@@ -1163,6 +1163,14 @@
             "link": "/api/@rulvar/core/interfaces/JournaledCriticalPath.md"
           },
           {
+            "text": "JournaledSynthesisCandidate",
+            "link": "/api/@rulvar/core/interfaces/JournaledSynthesisCandidate.md"
+          },
+          {
+            "text": "JournaledSynthesisCandidateReport",
+            "link": "/api/@rulvar/core/interfaces/JournaledSynthesisCandidateReport.md"
+          },
+          {
             "text": "JournalOperation",
             "link": "/api/@rulvar/core/interfaces/JournalOperation.md"
           },
@@ -1705,6 +1713,10 @@
           {
             "text": "SuspendedAppend",
             "link": "/api/@rulvar/core/interfaces/SuspendedAppend.md"
+          },
+          {
+            "text": "SynthesisCandidateFailure",
+            "link": "/api/@rulvar/core/interfaces/SynthesisCandidateFailure.md"
           },
           {
             "text": "TaskDigest",
@@ -3715,6 +3727,10 @@
           {
             "text": "sumUsage",
             "link": "/api/@rulvar/core/functions/sumUsage.md"
+          },
+          {
+            "text": "synthesisCandidatesFromJournal",
+            "link": "/api/@rulvar/core/functions/synthesisCandidatesFromJournal.md"
           },
           {
             "text": "terminalEnvelopeOf",
@@ -6169,6 +6185,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/JournaledCriticalPath.md"
           },
           {
+            "text": "JournaledSynthesisCandidate",
+            "link": "/api/@rulvar/rulvar/interfaces/JournaledSynthesisCandidate.md"
+          },
+          {
+            "text": "JournaledSynthesisCandidateReport",
+            "link": "/api/@rulvar/rulvar/interfaces/JournaledSynthesisCandidateReport.md"
+          },
+          {
             "text": "JournalOperation",
             "link": "/api/@rulvar/rulvar/interfaces/JournalOperation.md"
           },
@@ -6735,6 +6759,10 @@
           {
             "text": "SuspendedAppend",
             "link": "/api/@rulvar/rulvar/interfaces/SuspendedAppend.md"
+          },
+          {
+            "text": "SynthesisCandidateFailure",
+            "link": "/api/@rulvar/rulvar/interfaces/SynthesisCandidateFailure.md"
           },
           {
             "text": "TaskDigest",
@@ -8781,6 +8809,10 @@
           {
             "text": "sumUsage",
             "link": "/api/@rulvar/rulvar/functions/sumUsage.md"
+          },
+          {
+            "text": "synthesisCandidatesFromJournal",
+            "link": "/api/@rulvar/rulvar/functions/synthesisCandidatesFromJournal.md"
           },
           {
             "text": "terminalEnvelopeOf",
