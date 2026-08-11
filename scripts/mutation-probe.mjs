@@ -4543,6 +4543,16 @@ export const MUTATIONS = [
     test: 'packages/cli/src/index.test.ts',
   },
   {
+    id: 'the-ceiling-headroom-is-a-pair-not-a-guess',
+    doctrine:
+      'the ceiling headroom exists only when BOTH the ceiling and the whole-wave minimum are recorded (RV3208, RV1209): forced onto a bare ceiling, an empty wave reads a headroom equal to the whole ceiling, a number nobody computed against anything, and the operator sizes the next run from it',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '    ceilingUsd === undefined || requiredMinimumCeilingUsd === undefined\n      ? undefined\n      : ceilingUsd - requiredMinimumCeilingUsd;',
+    replace:
+      '    ceilingUsd === undefined ? undefined : ceilingUsd - (requiredMinimumCeilingUsd ?? 0);',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'the-flush-barrier-rethrows-the-lost-append',
     doctrine:
       'flush() is the barrier that turns the latched loss into a typed rejection (RV3201): silenced, the latch records the loss and nothing downstream ever reads it, so the settle converts nothing and ok/complete ships over a journal missing a record the run believes it wrote',
