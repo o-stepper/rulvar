@@ -1584,6 +1584,69 @@ describe('--strict refuses a partial acceptance envelope (v1.40.0 improvement pl
   });
 });
 
+describe('--strict binds the verdict to the shipped document (RV3207)', () => {
+  const okOutcome = (value: unknown) =>
+    ({
+      status: 'ok',
+      value,
+      dropped: [],
+      pending: [],
+      cost: { totalUsd: 0, byModel: {}, byPhase: {}, unpriced: [] },
+    }) as unknown as Parameters<typeof strictExitCode>[0];
+  const fullMeta = {
+    draftCitingSentences: 3,
+    truncated: false,
+    coveredCitingSentences: 3,
+    judgeInvoked: true,
+    coverage: 'full',
+  };
+  const envelope = (judgedStage: string, rewritten: boolean) =>
+    okOutcome({
+      result: 1,
+      completion: 'complete',
+      childStatusCounts: { ok: 2 },
+      degradedReasons: [],
+      claimConsistencyMeta: { ...fullMeta, judgedStage },
+      draftToFinal: { draftHash: 'a'.repeat(64), finalHash: 'b'.repeat(64), rewritten },
+    });
+
+  it('a draft-stage verdict over a rewritten draft exits 1 naming the remedy', () => {
+    // The 2026-08-11 experiment run verbatim: judgedStage 'draft',
+    // repair rewrote the composition, strict read green.
+    const io = scriptedIo();
+    const code = strictExitCode(envelope('draft', true), 0, io);
+    expect(code).toBe(1);
+    const err = io.errLines.join('\n');
+    expect(err).toContain('the synthesis rewrote that draft');
+    expect(err).toContain("claimConsistency.stage 'final'");
+  });
+
+  it('an unchanged draft or a final-stage verdict keeps exit 0', () => {
+    const io = scriptedIo();
+    expect(strictExitCode(envelope('draft', false), 0, io)).toBe(0);
+    expect(strictExitCode(envelope('final', true), 0, io)).toBe(0);
+    expect(io.errLines).toHaveLength(0);
+  });
+
+  it('an envelope with no draftToFinal bridge stays out of scope', () => {
+    const io = scriptedIo();
+    expect(
+      strictExitCode(
+        okOutcome({
+          result: 1,
+          completion: 'complete',
+          childStatusCounts: { ok: 2 },
+          degradedReasons: [],
+          claimConsistencyMeta: { ...fullMeta, judgedStage: 'draft' },
+        }),
+        0,
+        io,
+      ),
+    ).toBe(0);
+    expect(io.errLines).toHaveLength(0);
+  });
+});
+
 describe('--strict reads the claim-coverage grade (RV1702)', () => {
   const okOutcome = (value: unknown) =>
     ({

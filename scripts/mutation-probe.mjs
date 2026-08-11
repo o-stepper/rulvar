@@ -4534,6 +4534,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/tools/research.test.ts',
   },
   {
+    id: 'strict-binds-the-verdict-to-the-shipped-document',
+    doctrine:
+      "strict reads judgedStage and draftToFinal.rewritten together (RV3207): disarmed, a draft-stage coverage grade over a rewritten draft reads green, the 2026-08-11 experiment run verbatim (repair rewrote the composition, judgedStage stayed 'draft', the operator had to notice by hand)",
+    file: 'packages/cli/src/drive.ts',
+    find: '  if (draftRewrittenUnjudged(value)) {',
+    replace: '  if (false) {',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
     id: 'the-flush-barrier-rethrows-the-lost-append',
     doctrine:
       'flush() is the barrier that turns the latched loss into a typed rejection (RV3201): silenced, the latch records the loss and nothing downstream ever reads it, so the settle converts nothing and ok/complete ships over a journal missing a record the run believes it wrote',
