@@ -160,6 +160,22 @@ export interface PlanRunnerOptions {
    * whose acceptance policy already owns the boundary. Default false.
    */
   allowEarlyFinish?: boolean;
+  /**
+   * The resume posture toward a drifted profile registry (RV3203, the
+   * 2026-08-11 experiment's resume blocker). The registry identity
+   * frozen in `termination.init` (profile names mapped to ladder
+   * lengths) is recomputed from the LIVE profiles on every resume:
+   * under `'refuse'` (the default) a mismatch terminates the resumed
+   * run typed BEFORE any model call, because ladders are live values
+   * the journal cannot rebuild and "the journal wins" is not honorable
+   * for them; `'warn'` downgrades the mismatch to the
+   * `termination:config-drift` event and proceeds under the live
+   * registry. Either way the mismatch is reported; a journal recorded
+   * before the hash shipped skips the check (absence means NOT
+   * RECORDED). The projection covers profile names and ladder lengths,
+   * not the models inside same-length rungs.
+   */
+  profileDrift?: 'refuse' | 'warn';
 }
 
 /** AgentResult terminal statuses mapped onto plan node statuses. */
@@ -188,6 +204,16 @@ const TERMINATION_DENIED_KEY_KIND = 'termination.denied';
  * the `orchestratePlanned` convenience surface.
  */
 export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
+  if (
+    options?.profileDrift !== undefined &&
+    options.profileDrift !== 'refuse' &&
+    options.profileDrift !== 'warn'
+  ) {
+    throw new ConfigError(
+      `PlanRunnerOptions.profileDrift must be 'refuse' or 'warn'; got ` +
+        JSON.stringify(options.profileDrift),
+    );
+  }
   // Closure state: every piece is either a pure fold of the journal
   // (rebuilt on resume) or process-lifetime bookkeeping whose loss a
   // resume tolerates (dispatch handles re-established via forward
@@ -2724,6 +2750,62 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               frozenValue,
               liveValue,
             });
+          }
+        }
+        // The dollar vector rides the same drift report (RV3203): the
+        // three USD fields froze in termination.init beside the
+        // counters, but the resume never compared them. Journals from
+        // before v1.8 stored zeros here ("not yet resolved"), so a
+        // frozen zero skips the row instead of reporting false drift.
+        const liveUsd: Record<string, number> = {
+          runBudgetUsdCeiling: io.runCeilingUsd ?? 0,
+          orchestratorCapUsd: io.orchestratorCapUsd ?? 0,
+          finalizeReserveUsd: io.finalizeReserveUsd ?? 0,
+        };
+        for (const [field, liveValue] of Object.entries(liveUsd)) {
+          const frozenValue = frozen[field];
+          if (typeof frozenValue === 'number' && frozenValue !== 0 && frozenValue !== liveValue) {
+            io.emit({
+              type: 'termination:config-drift',
+              field,
+              frozenValue,
+              liveValue,
+            });
+          }
+        }
+        // The profile registry identity (RV3203, the 2026-08-11
+        // experiment's resume blocker): the hash froze at init and was
+        // never recomputed on resume, so a swapped registry proceeded
+        // to live calls with no drift event. "The journal wins" is not
+        // honorable for ladders (live values the fold cannot rebuild),
+        // so the default posture refuses typed BEFORE any model call;
+        // 'warn' keeps the event and proceeds under the live registry.
+        // A journal recorded before the hash shipped skips the check:
+        // absence means NOT RECORDED (RV1209).
+        const frozenRegistryHash = (folded.init as { profileRegistrySnapshotHash?: unknown })
+          .profileRegistrySnapshotHash;
+        if (typeof frozenRegistryHash === 'string') {
+          const liveRegistryHash = profileRegistrySnapshotHash(io.profiles);
+          if (frozenRegistryHash !== liveRegistryHash) {
+            io.emit({
+              type: 'termination:config-drift',
+              field: 'profileRegistrySnapshotHash',
+              frozenValue: frozenRegistryHash,
+              liveValue: liveRegistryHash,
+            });
+            if (options?.profileDrift !== 'warn') {
+              io.terminate?.(
+                new ConfigError(
+                  `resume: the profile registry drifted since run '${io.runId}' started ` +
+                    `(frozen ${frozenRegistryHash.slice(0, 12)}, live ` +
+                    `${liveRegistryHash.slice(0, 12)}): profile names or ladder lengths ` +
+                    'changed, and the journaled plan cannot be honored under a different ' +
+                    'registry. Resume with the original profiles, or pass PlanRunnerOptions' +
+                    ".profileDrift: 'warn' to proceed under the live registry deliberately",
+                ),
+              );
+              return;
+            }
           }
         }
       } else {

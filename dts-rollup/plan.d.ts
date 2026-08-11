@@ -994,6 +994,22 @@ interface PlanRunnerOptions {
   * whose acceptance policy already owns the boundary. Default false.
   */
   allowEarlyFinish?: boolean;
+  /**
+  * The resume posture toward a drifted profile registry (RV3203, the
+  * 2026-08-11 experiment's resume blocker). The registry identity
+  * frozen in `termination.init` (profile names mapped to ladder
+  * lengths) is recomputed from the LIVE profiles on every resume:
+  * under `'refuse'` (the default) a mismatch terminates the resumed
+  * run typed BEFORE any model call, because ladders are live values
+  * the journal cannot rebuild and "the journal wins" is not honorable
+  * for them; `'warn'` downgrades the mismatch to the
+  * `termination:config-drift` event and proceeds under the live
+  * registry. Either way the mismatch is reported; a journal recorded
+  * before the hash shipped skips the check (absence means NOT
+  * RECORDED). The projection covers profile names and ladder lengths,
+  * not the models inside same-length rungs.
+  */
+  profileDrift?: "refuse" | "warn";
 }
 /**
 * Builds the PlanRunner orchestrator extension.
