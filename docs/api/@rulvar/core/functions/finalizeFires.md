@@ -10,7 +10,7 @@
 function finalizeFires(options): boolean;
 ```
 
-Defined in: [packages/core/src/model/roles.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L99)
+Defined in: [packages/core/src/model/roles.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L102)
 
 The finalize firing rule: only if configured in routing, and only after
 tools stop, which presupposes a non-empty toolset. A no-tools agent's

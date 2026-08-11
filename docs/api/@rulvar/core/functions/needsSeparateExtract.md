@@ -10,7 +10,7 @@
 function needsSeparateExtract(input): boolean;
 ```
 
-Defined in: [packages/core/src/model/roles.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L66)
+Defined in: [packages/core/src/model/roles.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L69)
 
 The completed extract-necessity rule: a separate final structured-output
 invocation fires only when a schema is set AND (routing directs extract

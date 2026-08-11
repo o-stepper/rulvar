@@ -1,9 +1,12 @@
 /**
- * Role trigger protocol (M4-T01): the pure firing predicates behind the
- * six invocation roles. The resolution chain itself lives in router.ts;
- * this module decides WHEN a role produces its own invocation.
+ * Role trigger protocol (M4-T01): the pure firing predicates behind six
+ * of the seven invocation roles. The resolution chain itself lives in
+ * router.ts; this module decides WHEN a role produces its own
+ * invocation. The seventh role, 'synthesize', never fires from this
+ * protocol: the orchestrator dispatches it explicitly post fan-in
+ * (RV-211), and only its model resolution rides the shared chain.
  *
- * The six roles:
+ * The six trigger-protocol roles:
  *
  * - loop:        every turn while tools are available to the model (the
  *                agent loop in runtime/agent-loop.ts).
