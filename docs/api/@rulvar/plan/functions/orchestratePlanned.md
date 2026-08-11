@@ -14,7 +14,7 @@ function orchestratePlanned(
 runOptions?): RunHandle<unknown>;
 ```
 
-Defined in: [packages/plan/src/plan-runner.ts:2899](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-runner.ts#L2899)
+Defined in: [packages/plan/src/plan-runner.ts:2981](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-runner.ts#L2981)
 
 The PlanRunner entry surface: mode (c) plus the extension in one call.
 `runOptions` are the ordinary engine RunOptions of the created run:

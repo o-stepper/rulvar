@@ -4498,6 +4498,15 @@ export const MUTATIONS = [
     build: '@rulvar/core',
   },
   {
+    id: 'the-resume-recomputes-the-registry-identity',
+    doctrine:
+      'the profile registry hash frozen in termination.init is recomputed and compared on every resume (RV3203): disarmed, a swapped registry proceeds to live calls with no drift event, the 2026-08-11 experiment probe verbatim (three paid calls under a different registry, zero events)',
+    file: 'packages/plan/src/plan-runner.ts',
+    find: "        if (typeof frozenRegistryHash === 'string') {",
+    replace: '        if (false) {',
+    test: 'packages/plan/src/resume-profile-drift.test.ts',
+  },
+  {
     id: 'the-flush-barrier-rethrows-the-lost-append',
     doctrine:
       'flush() is the barrier that turns the latched loss into a typed rejection (RV3201): silenced, the latch records the loss and nothing downstream ever reads it, so the settle converts nothing and ok/complete ships over a journal missing a record the run believes it wrote',
