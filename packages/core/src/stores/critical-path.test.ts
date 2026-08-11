@@ -6,14 +6,41 @@
 import { describe, expect, it } from 'vitest';
 
 import type { JournalEntry } from '../l0/entries.js';
-import { CLAIM_JUDGE_LABEL } from '../l0/telemetry-reduce.js';
+import type { ChatRequest } from '../l0/messages.js';
+import {
+  CLAIM_JUDGE_LABEL,
+  FINAL_COMPOSITION_LABEL,
+  SYNTHESIS_NOTE_LABEL,
+} from '../l0/telemetry-reduce.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from '../engine/engine.js';
 import { defineWorkflow } from '../engine/ctx.js';
-import { scriptedAdapter } from '../engine/test-harness.js';
+import { scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
+import { makeOrchestratorWorkflow } from '../orchestrator/orchestrate.js';
 import { criticalPathFromJournal } from './critical-path.js';
 
 const stamp = (ms: number): string => new Date(1_700_000_000_000 + ms).toISOString();
+
+const agentTypeOf = (req: ChatRequest): string =>
+  (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar?.agentType ?? '';
+
+const handlesIn = (req: ChatRequest): number[] => {
+  const handles: number[] = [];
+  for (const msg of req.messages) {
+    for (const part of msg.parts) {
+      if (part.type === 'tool-result') {
+        const result = part.result as { handle?: number; handles?: number[] };
+        if (typeof result?.handle === 'number') {
+          handles.push(result.handle);
+        }
+        if (Array.isArray(result?.handles)) {
+          handles.push(...result.handles.filter((h): h is number => typeof h === 'number'));
+        }
+      }
+    }
+  }
+  return handles;
+};
 
 const span = (
   seq: number,
@@ -172,5 +199,117 @@ describe('criticalPathFromJournal (RV2803)', () => {
     expect(path.workerSpans).toBe(0);
     expect('postFanInMs' in path).toBe(false);
     expect('postFanInShare' in path).toBe(false);
+  });
+
+  it('a real orchestrate run yields the split with NO host labelling (RV2901)', async () => {
+    // The comparison run's journal refused the split because the final
+    // composition dispatch stayed anonymous while the claim judge was
+    // labelled. The engine now labels its own dispatch, so the journal
+    // of a plain synthesis run answers by itself.
+    const journal = new InMemoryStore({ quiet: true });
+    let orchTurn = 0;
+    const coordination = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'evidence' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'study' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'draft: the study holds' } } };
+    });
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: 'final: it holds' } } }),
+      { id: 'strong' },
+    );
+    const engine = createEngine({
+      adapters: [coordination, synthesis],
+      stores: { journal },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+        profiles: { worker: { description: 'does one task' } },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('hold the study', { synthesis: {} });
+    const outcome = await engine.run(wf, undefined, { runId: 'CP-RV2901' }).result;
+    expect([outcome.status, outcome.error?.message]).toEqual(['ok', undefined]);
+    const entries = await journal.load('CP-RV2901');
+    const path = criticalPathFromJournal(entries);
+    // Present, not refused: every synthesize span carried the engine's
+    // own label, so the whole bucket is attributable composition.
+    expect(path.finalCompositionMs).toBe(path.synthesisMs);
+    expect(path.semanticJudgeMs).toBe(0);
+    const synthSpans = entries.filter(
+      (entry) =>
+        entry.kind === 'agent' &&
+        entry.status === 'ok' &&
+        entry.costAttribution?.role === 'synthesize',
+    );
+    expect(synthSpans.length).toBeGreaterThan(0);
+    for (const entry of synthSpans) {
+      expect(entry.costAttribution?.label).toBe(FINAL_COMPOSITION_LABEL);
+    }
+  });
+
+  it('incremental synthesis notes journal their own label (RV2901)', async () => {
+    const journal = new InMemoryStore({ quiet: true });
+    let orchTurn = 0;
+    const coordination = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'evidence' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'study A' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'study B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'draft: both hold' } } };
+    });
+    const notes = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: 'note: holds' } } }),
+      { id: 'strong' },
+    );
+    const engine = createEngine({
+      adapters: [coordination, notes],
+      stores: { journal },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+        profiles: { worker: { description: 'does one task' } },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('hold both studies', {
+      synthesis: { mode: 'incremental' },
+    });
+    const outcome = await engine.run(wf, undefined, { runId: 'CP-RV2901-NOTES' }).result;
+    expect([outcome.status, outcome.error?.message]).toEqual(['ok', undefined]);
+    const entries = await journal.load('CP-RV2901-NOTES');
+    const noteSpans = entries.filter(
+      (entry) =>
+        entry.kind === 'agent' &&
+        entry.status === 'ok' &&
+        entry.costAttribution?.role === 'synthesize',
+    );
+    // One note per settled child, each carrying the note label, so the
+    // offline split still holds and a reader can tell notes from a
+    // final composition without guessing from their size.
+    expect(noteSpans).toHaveLength(2);
+    for (const entry of noteSpans) {
+      expect(entry.costAttribution?.label).toBe(SYNTHESIS_NOTE_LABEL);
+    }
+    const path = criticalPathFromJournal(entries);
+    expect(path.finalCompositionMs).toBe(path.synthesisMs);
+    expect(path.semanticJudgeMs).toBe(0);
   });
 });

@@ -115,6 +115,8 @@ export type * from './l0/events.js';
 export * from './engine/events.js';
 export {
   CLAIM_JUDGE_LABEL,
+  FINAL_COMPOSITION_LABEL,
+  SYNTHESIS_NOTE_LABEL,
   reduceCriticalPath,
   reduceInvocationTable,
   type AgentInvocationRow,

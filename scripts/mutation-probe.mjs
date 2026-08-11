@@ -4258,6 +4258,24 @@ export const MUTATIONS = [
     replace: '  if (labelledSynthesis) {',
     test: 'packages/core/src/stores/critical-path.test.ts',
   },
+  {
+    id: 'engine-labels-the-final-composition-dispatch',
+    doctrine:
+      'the engine labels its own final composition dispatch (RV2901): the offline split demands a label on EVERY synthesize span, and the ninth comparison run journal refused the split because this one dispatch stayed anonymous while the claim judge was labelled',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        label: FINAL_COMPOSITION_LABEL,',
+    replace: '',
+    test: 'packages/core/src/stores/critical-path.test.ts',
+  },
+  {
+    id: 'engine-labels-the-synthesis-note-dispatch',
+    doctrine:
+      'incremental synthesis notes journal their own label (RV2901): notes ride role synthesize, and an anonymous note span would refuse the offline split for the whole journal it sits in',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        label: SYNTHESIS_NOTE_LABEL,',
+    replace: '',
+    test: 'packages/core/src/stores/critical-path.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

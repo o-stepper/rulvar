@@ -23,7 +23,11 @@ import {
   ConfigError,
   FailRunError,
 } from '../l0/errors.js';
-import { CLAIM_JUDGE_LABEL } from '../l0/telemetry-reduce.js';
+import {
+  CLAIM_JUDGE_LABEL,
+  FINAL_COMPOSITION_LABEL,
+  SYNTHESIS_NOTE_LABEL,
+} from '../l0/telemetry-reduce.js';
 import { jcsSerialize } from '../l0/jcs.js';
 import {
   requireFraction,
@@ -5182,6 +5186,10 @@ export function makeOrchestratorWorkflow(
       const noteOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
         role: 'synthesize',
         result: 'full',
+        // The engine labels its own dispatch (RV2901): policy, never
+        // identity, and what keeps the offline split honest instead of
+        // refused on every journal this engine writes.
+        label: SYNTHESIS_NOTE_LABEL,
         tools: finishOnly,
         limits: spec.noteLimits ?? { maxTurns: DEFAULT_SYNTHESIS_NOTE_MAX_TURNS },
         ...(spec.model === undefined ? {} : { model: spec.model }),
@@ -6717,6 +6725,10 @@ export function makeOrchestratorWorkflow(
       const synthesisOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
         role: 'synthesize',
         result: 'full',
+        // The engine labels its own dispatch (RV2901). The comparison
+        // run's journal refused the RV1604 split because this one span
+        // stayed anonymous while the claim judge carried its label.
+        label: FINAL_COMPOSITION_LABEL,
         tools: synthesisTools,
         [kExposureWait]: true,
         limits: spec.limits ?? { maxTurns: DEFAULT_SYNTHESIS_MAX_TURNS },
