@@ -431,6 +431,7 @@ The two hundred eleven rounds, verbatim in this repository's history:
 | v1.229.0      | 87e6d6d (#896): the run nobody watched becomes readable: the child roster folds from the journal, the human report says what the terminal claims, every terminal field declares its scope | v1.230.0   |
 | v1.230.0      | bc8f09e (#904): the scope doctrine is held to its own claims: nested cost paths required, a resumed run checks every declared scope, and the critical path folds from the journal         | v1.231.0   |
 | v1.231.0      | e3bcab2 (#909): the benchmark reads itself: the engine labels its own synthesis, each repair candidate priced from the journal, coverage sized to a declared target, the audit fixed      | v1.232.0   |
+| v1.232.0      | 48b5200 (#918): the run reads its own spend: the executed-call counter joins the journal, calls per evidence entry fold to a rate, the composer sees the run so far, resume grows a pin   | v1.233.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
