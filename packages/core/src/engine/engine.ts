@@ -507,6 +507,19 @@ export interface ResumeOptions {
    */
   args?: unknown;
   /**
+   * What an in-process body-hash mismatch does (RV3001). The default
+   * 'warn' keeps the historical design: the mismatch emits the loud
+   * `RULVAR_RESUME_HASH_MISMATCH` warning and the resume proceeds,
+   * because the journal decides replay versus live per content keys
+   * and reports orphans honestly. 'refuse' turns the same mismatch
+   * into a typed ConfigError BEFORE ownership, meta writes, or any
+   * append: the pin for hosts that treat an edited body as a
+   * different workflow. The vocabulary is
+   * {@link EvidenceContract.enforce}'s. Name mismatches and compiled
+   * source mismatches are hard errors regardless, exactly as before.
+   */
+  bodyHash?: 'warn' | 'refuse';
+  /**
    * Dry-run: replay-strict matching; the first would-be-live call throws
    * JournalMissError and the run settles with that typed error, zero live
    * calls performed.
@@ -557,7 +570,9 @@ export interface Engine {
    * Rebinds a journal to a workflow definition and resumes. Requires wf
    * for in-process workflows;
    * a name mismatch is a typed ConfigError; a body-hash mismatch warns
-   * loudly and proceeds (the journal decides replay per content keys).
+   * loudly and proceeds (the journal decides replay per content keys),
+   * unless {@link ResumeOptions.bodyHash} is 'refuse', which makes it
+   * a typed ConfigError before any durable mutation (RV3001).
    * A compiled run resumes WITHOUT wf: the engine rehydrates the
    * persisted source pinned by workflowHash; supplying a compiled wf
    * whose source hash differs from the recorded one is a typed
@@ -2644,6 +2659,16 @@ export function createEngine(options: CreateEngineOptions): Engine {
           'ResumeOptions.run.maxInFlightExposureUsd',
         );
       }
+      if (
+        resumeOptions?.bodyHash !== undefined &&
+        resumeOptions.bodyHash !== 'warn' &&
+        resumeOptions.bodyHash !== 'refuse'
+      ) {
+        throw new ConfigError(
+          `ResumeOptions.bodyHash must be 'warn' or 'refuse'; got ` +
+            JSON.stringify(resumeOptions.bodyHash),
+        );
+      }
       // Exact lookup through the optional store capability; stores
       // without it fall back to the historical full listRuns scan.
       const meta = await readRunMeta(journal, runId);
@@ -2720,6 +2745,16 @@ export function createEngine(options: CreateEngineOptions): Engine {
         } else {
           const expectedHash = hashWorkflowBody(supplied);
           if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
+            if (resumeOptions?.bodyHash === 'refuse') {
+              // The opt-in pin (RV3001): this throw sits before
+              // ownership, meta writes, and every append, so a refused
+              // resume mutates nothing durable.
+              throw new ConfigError(
+                `resume: the body of workflow '${supplied.name}' changed since run '${runId}' ` +
+                  `started and ResumeOptions.bodyHash is 'refuse'; resume with the original ` +
+                  `body, or drop the option to proceed under the loud warning`,
+              );
+            }
             // The journal itself decides replay versus live per content keys.
             process.emitWarning(
               `resume: the body of workflow '${supplied.name}' changed since run '${runId}' ` +
