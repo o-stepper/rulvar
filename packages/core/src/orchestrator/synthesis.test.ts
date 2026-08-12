@@ -524,6 +524,33 @@ describe('reduceCriticalPath (RV-211)', () => {
     expect(path.postFanIn?.finalCompositionMs).toBe(20);
   });
 
+  it('counts the final pass label into the judge half on the live surface (RV3302)', () => {
+    // The 2026-08-12 comparison run reported semanticJudgeMs 0 live
+    // while the journal fold split the same 272923 ms window into
+    // 224864 against 48059: the live fold compared the label exactly,
+    // and the final pass dispatches under a suffixed label (RV2509).
+    const events = [
+      ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
+      ev({ type: 'agent:start', ts: at(0), spanId: 'w1', role: 'loop' }),
+      ev({ type: 'agent:end', ts: at(40), spanId: 'w1' }),
+      ev({ type: 'agent:start', ts: at(40), spanId: 'synth', role: 'synthesize' }),
+      ev({ type: 'agent:end', ts: at(60), spanId: 'synth' }),
+      ev({
+        type: 'agent:start',
+        ts: at(60),
+        spanId: 'judge',
+        role: 'synthesize',
+        label: `${CLAIM_JUDGE_LABEL}-final`,
+      }),
+      ev({ type: 'agent:end', ts: at(90), spanId: 'judge' }),
+      ev({ type: 'run:end', ts: at(100), spanId: 'run' }),
+    ];
+    const path = reduceCriticalPath(events);
+    expect(path.synthesisMs).toBe(50);
+    expect(path.semanticJudgeMs).toBe(30);
+    expect(path.finalCompositionMs).toBe(20);
+  });
+
   it('computes the post-fan-in and synthesis shares from the vocabulary alone', () => {
     const events = [
       ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
