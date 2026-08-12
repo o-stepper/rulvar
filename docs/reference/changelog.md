@@ -18,6 +18,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+
 ### 1.237.0
 
 #### Minor Changes
@@ -2177,6 +2188,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+
 ### 1.237.0
 
 #### Patch Changes
@@ -4131,6 +4153,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
 
 ### 1.237.0
 
@@ -6648,6 +6681,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.238.0
+
+#### Minor Changes
+
+- cf00947: The bounded post judge repair (RV3307), the honest carry for the final stage. RV3301 made `stage: 'final'` with `onFound: 'carry'` refuse, because the final pass has no prompt left to ride; `onFound: 'repair'` is what that host actually wanted: when the final claim consistency judge names findings, they ride ONE more synthesis invocation (the same CLAIM CONTRADICTIONS block, over a prompt that now lies ahead again), the repaired document is judged again, and only a clean second verdict settles. Findings that survive the round fail the run typed (`source: 'orchestrator_claim_consistency'`, with `repairsUsed`, the pre repair and repaired hashes, and the acceptance snapshot), a repair round that cannot dispatch fails the same way, and a dead or declined judge under the armed posture fails like it does under 'fail', because a gate armed to repair must not pass silently. 'repair' needs `stage: 'final'` or `'both'` and a 'single' synthesis (ConfigError otherwise); the draft pass keeps 'carry'. The headline `claimConsistencyMeta` describes the last judged document, `judgedHash` equal to the shipped `draftToFinal.finalHash`, and the first verdict stays readable in the journal as an ordinary judge entry.
+- c7b9382: One declaration for the shape a host prompts for and gates on (RV3308). The 2026-08-12 comparison run drifted exactly at this seam: the harness prompt named one heading while its finish contract named an older one, the host accepted its own contract, and the common audit refused the answer; separately, the answer's "all publishable packages" table dropped four of seventeen names under a passing shape contract, because no validator could see an enumerable universe. `requiredMentionsValidator({ terms })` holds every declared literal against the finish text and names the missing ones with the universe size. `OutputContractManifest` plus `manifestValidators()` and `renderContractRequirements()` derive the gate and the prompt block from the same object, headings, word bounds, citation floor and mention universe byte for byte, so the two surfaces cannot disagree by construction.
+- 88aea96: The ceiling headroom floor can block (RV3310). RV3208's `ceiling-headroom-thin` finding was always a warning, and the 2026-08-12 comparison harness threw on error findings only: its declared 2 percent floor held against a 2.857 percent plan and the class nobody gated on never spoke. `orchestrator.ceilingHeadroomSeverity: 'error'` makes a breached floor blocking for exactly such hosts; the default 'warning' keeps RV3208 byte for byte, and the literal fails closed at intake. The orchestration guide gains the assurance posture section: the polarity flip (`stage: 'final'`, `onFound: 'fail'`, `coverageTarget` with `onLowCoverage: 'fail'`, declared criticals, run facts, a 10 percent headroom floor at error severity) for runs whose output a consumer acts on, beside what the terminal then proves.
+- 6da8d05: The evidence call floor accepts a journal observed prior (RV3309). `EvidenceContract.calibration` carries the `callsPerEntry` figure `toolCalibrationFromJournal` folds from a prior run of the same profile (fractional on purpose) plus a `source` label; `preflightEstimate` computes the evidence call floor from the HIGHER of the declared estimate and the prior, never the lower, and names a raise in an `evidence-estimate-below-observed` info finding. The 2026-08-12 comparison run observed 4.211 calls per entry where the default estimate says 3: a floor computed from the wish is how an evidence contract meets a cap it cannot actually fit. Contracts without a calibration are byte identical, integer floors included.
+- eae5c4c: Every invoice row carries the same usage envelope, and the CLI names its billing basis (RV3311). The 2026-08-12 comparison run's invoice had 77 rows with `reasoningTokens` and one (the judge verdict extraction) without, so a FinOps consumer folding the column had to know that absence meant zero on exactly one row shape: rows now always carry the field (0 when the provider reported none) and the usage object is detached from the journal entry it was read from. The run summary and the inspect cost view print `billing basis: locally-estimated (a local estimate, never a provider statement)` beside the dollars, the audit's ask said out loud on the surface an operator actually reads.
 
 ### 1.237.0
 
@@ -9441,6 +9484,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.238.0
+
 ### 1.237.0
 
 ### 1.236.0
@@ -10019,6 +10064,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+  - @rulvar/anthropic@1.238.0
+  - @rulvar/openai@1.238.0
+  - @rulvar/plan@1.238.0
+  - @rulvar/testing@1.238.0
 
 ### 1.237.0
 
@@ -12742,6 +12802,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+
 ### 1.237.0
 
 #### Patch Changes
@@ -14107,6 +14178,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
 
 ### 1.237.0
 
@@ -16268,6 +16350,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+
 ### 1.237.0
 
 #### Patch Changes
@@ -18341,6 +18434,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+  - eslint-plugin-rulvar@1.238.0
 
 ### 1.237.0
 
@@ -20609,6 +20714,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+  - @rulvar/anthropic@1.238.0
+  - @rulvar/openai@1.238.0
 
 ### 1.237.0
 
@@ -23200,6 +23318,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+
 ### 1.237.0
 
 #### Patch Changes
@@ -25276,6 +25405,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
+
 ### 1.237.0
 
 #### Patch Changes
@@ -26657,6 +26797,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
 
 ### 1.237.0
 
@@ -28670,6 +28821,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.238.0
+
+#### Patch Changes
+
+- Updated dependencies [cf00947]
+- Updated dependencies [c7b9382]
+- Updated dependencies [88aea96]
+- Updated dependencies [6da8d05]
+- Updated dependencies [eae5c4c]
+  - @rulvar/core@1.238.0
 
 ### 1.237.0
 
