@@ -435,6 +435,7 @@ The two hundred eleven rounds, verbatim in this repository's history:
 | v1.233.0      | a605291 (#926): nothing means nothing quietly: six mode gates refuse armed no-op synthesis configs, inspect reads the observed evidence-call rate, dependency floors swept to zero alerts | v1.234.0   |
 | v1.234.0      | ba4e10d (#931): the experiment closes fail closed: a lost append fails the settle, the finish gate refuses over live nodes, resume rechecks identity, pricing, deadlines and quotes bind  | v1.235.0   |
 | v1.235.0      | 4701bfe (#937): the P1 tail: strict refuses a rewritten document graded at draft, preflight reads the ceiling headroom as a recorded pair, the config fingerprint pins the resume closure | v1.236.0   |
+| v1.236.0      | 49a98f6 (#945): P0 of the second loss: final+carry refuses at intake, one judge label for both folds, dated anthropic pricing, envelope and statement carry verdict and dollars           | v1.237.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
