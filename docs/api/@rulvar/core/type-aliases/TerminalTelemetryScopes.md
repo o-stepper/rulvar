@@ -10,7 +10,7 @@
 type TerminalTelemetryScopes = Readonly<Record<keyof RunOutcome<unknown>, TelemetryScope>> & Readonly<Record<string, TelemetryScope>>;
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:255](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L255)
+Defined in: [packages/core/src/stores/reconcile.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L313)
 
 The scope table's type, and the gate that keeps it complete
 (RV2701).

@@ -27,13 +27,40 @@ function detachedError(error: WireError): WireError {
 }
 
 /** The outcome facts the assembler reads; a structural subset of RunOutcome. */
-export type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, 'status' | 'error' | 'completion'> & {
+export type TerminalOutcomeFacts = Pick<
+  RunOutcome<unknown>,
+  | 'status'
+  | 'error'
+  | 'completion'
+  // The semantic outcome (RV3304): the acceptance verdict, the
+  // deliverable presence, the acceptance ref and the judge meta join
+  // the picks so the one producer can mirror them onto the envelope.
+  | 'deliverableAccepted'
+  | 'resultAvailable'
+  | 'acceptedArtifactRef'
+  | 'claimConsistencyMeta'
+> & {
   usage: RunOutcome<unknown>['usage'];
   cost: Pick<RunOutcome<unknown>['cost'], 'totalUsd' | 'grossUsd' | 'byModel'> & {
     usageApprox?: boolean;
     wireRequests?: number;
   };
 };
+
+/**
+ * A detached copy of the judge meta (RV3304), the `detachedError`
+ * posture: Json shaped by construction, so a structured clone
+ * reproduces it exactly, and a host that smuggled something exotic
+ * past the type falls back to a shallow copy rather than throwing at
+ * the settlement chokepoint.
+ */
+function detachedMeta(meta: Record<string, unknown>): Record<string, unknown> {
+  try {
+    return structuredClone(meta);
+  } catch {
+    return { ...meta };
+  }
+}
 
 /**
  * Assembles one terminal envelope (RV1105). `settlement` present means
@@ -55,6 +82,8 @@ export function terminalEnvelopeOf(input: {
   agentsSpawned: number;
   settlement?: { settledReason?: 'superseded' };
   provenance?: 'journal';
+  /** The run's declared config identity (RV3210), echoed onto the envelope (RV3304). */
+  configFingerprint?: string;
 }): TerminalEnvelope {
   const { outcome } = input;
   const envelope: TerminalEnvelope = {
@@ -85,6 +114,24 @@ export function terminalEnvelopeOf(input: {
   }
   if (outcome.completion !== undefined) {
     envelope.completion = outcome.completion;
+  }
+  // The semantic outcome joins the terminal (RV3304): mirrored only
+  // when the outcome carries it, so absence keeps meaning NOT
+  // RECORDED on every surface, live and journal derived alike.
+  if (outcome.deliverableAccepted !== undefined) {
+    envelope.deliverableAccepted = outcome.deliverableAccepted;
+  }
+  if (outcome.resultAvailable !== undefined) {
+    envelope.resultAvailable = outcome.resultAvailable;
+  }
+  if (outcome.acceptedArtifactRef !== undefined) {
+    envelope.acceptedArtifactRef = outcome.acceptedArtifactRef;
+  }
+  if (outcome.claimConsistencyMeta !== undefined) {
+    envelope.claimConsistencyMeta = detachedMeta(outcome.claimConsistencyMeta);
+  }
+  if (input.configFingerprint !== undefined) {
+    envelope.configFingerprint = input.configFingerprint;
   }
   if (outcome.cost.wireRequests !== undefined) {
     // The wire denominator (RV1904): lifted from the same cost fold as

@@ -1679,6 +1679,46 @@ interface TerminalEnvelope {
   /** Agents admitted over the run's lifetime, resume seed included. */
   agentsSpawned: number;
   /**
+  * Whether the artifact this terminal carries passed the declared
+  * finish contract (RV2506), mirrored onto the envelope since RV3304:
+  * the 2026-08-12 comparison run settled ok/complete over a retained
+  * contradiction, and neither the HTTP response nor the persisted
+  * rebuild could say whether anything ever judged the deliverable.
+  * Absent when no contract judged anything; absence means NOT
+  * RECORDED, never "accepted".
+  */
+  deliverableAccepted?: boolean;
+  /**
+  * Whether this terminal carries a deliverable to read at all
+  * (RV2506); same mirror and posture. Distinct from
+  * `deliverableAccepted`: an unjudged artifact still EXISTS, and a
+  * run with no artifact still has a completion claim.
+  */
+  resultAvailable?: boolean;
+  /**
+  * The journal seq of the decision entry recording the acceptance of
+  * the artifact this terminal carries (RV2506); same mirror, absent
+  * unless the acceptance actually rendered. Read it with
+  * `rulvar inspect` to see WHICH validators accepted WHICH hash.
+  */
+  acceptedArtifactRef?: number;
+  /**
+  * The claim consistency pass meta, detached (RV3304): `judgedStage`,
+  * `judgedHash`, the coverage grade and the `findings` count, so the
+  * surface a consumer gates on says WHAT was semantically verified,
+  * over WHICH document, and what the judge found, without reaching
+  * into the workflow value. Mutating this copy never touches the
+  * outcome the engine owns.
+  */
+  claimConsistencyMeta?: Record<string, unknown>;
+  /**
+  * The host declared config identity the run was started under
+  * (RV3210), echoed here since RV3304 so a decision consumer binds
+  * the verdict above to the configuration that produced it without a
+  * second read of the run record. Absent when the run declared none.
+  */
+  configFingerprint?: string;
+  /**
   * Where THIS copy of the envelope was assembled (RV1209). Absent, the
   * historical byte contract, means the settlement chokepoint built it
   * from the live outcome, so every field above is the run's own
@@ -10590,6 +10630,18 @@ interface OrchestrateClaimConsistencyMeta {
   */
   judgeDeclined?: true;
   /**
+  * How many judged contradictions the pass FOUND on the judged
+  * document, present exactly when the judge settled ok (RV3304): `0`
+  * is a clean verdict, a positive count is a disagreement that stayed
+  * wherever the posture did not stop the run. The findings themselves
+  * ride `claimContradictions` beside this meta on the acceptance
+  * envelope, but the meta travels ALONE onto RunOutcome, the
+  * journaled run settle, and the terminal envelope, and the
+  * 2026-08-12 comparison run settled ok/complete over a retained
+  * finding no terminal surface could count.
+  */
+  findings?: number;
+  /**
   * The one field a consumer reads INSTEAD of inferring semantic
   * health from an empty findings array (RV1702):
   * {@link claimCoverageOf} over this meta, so `completion:
@@ -12160,7 +12212,7 @@ interface RunHandle<R> {
 //#endregion
 //#region src/engine/terminal-envelope.d.ts
 /** The outcome facts the assembler reads; a structural subset of RunOutcome. */
-type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, "status" | "error" | "completion"> & {
+type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, "status" | "error" | "completion" | "deliverableAccepted" | "resultAvailable" | "acceptedArtifactRef" | "claimConsistencyMeta"> & {
   usage: RunOutcome<unknown>["usage"];
   cost: Pick<RunOutcome<unknown>["cost"], "totalUsd" | "grossUsd" | "byModel"> & {
     usageApprox?: boolean;
@@ -12188,7 +12240,8 @@ declare function terminalEnvelopeOf(input: {
   settlement?: {
     settledReason?: "superseded";
   };
-  provenance?: "journal";
+  provenance?: "journal"; /** The run's declared config identity (RV3210), echoed onto the envelope (RV3304). */
+  configFingerprint?: string;
 }): TerminalEnvelope;
 //#endregion
 //#region src/l0/decision-chain.d.ts
@@ -13080,6 +13133,18 @@ declare function lastRunSettle(entries: readonly JournalEntry[]): {
   * recorded" rather than as a claim.
   */
   rejectedFinishCandidates?: RejectedFinishCandidate[];
+  /**
+  * The semantic outcome the settle recorded (RV3304), read back
+  * the same defensive way: the acceptance verdict, the
+  * deliverable presence, the acceptance ref and the judge meta,
+  * so a restarted reader recovers the facts a live consumer
+  * gated on. Absent on journals written before the lift carried
+  * them; absence means NOT RECORDED, never a verdict.
+  */
+  deliverableAccepted?: boolean;
+  resultAvailable?: boolean;
+  acceptedArtifactRef?: number;
+  claimConsistencyMeta?: Record<string, unknown>;
 } | undefined;
 /**
 * Whether a terminal figure counts THIS segment's work or the whole

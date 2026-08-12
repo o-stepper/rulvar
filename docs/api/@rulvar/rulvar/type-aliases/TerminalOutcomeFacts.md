@@ -7,7 +7,14 @@
 # Type Alias: TerminalOutcomeFacts
 
 ```ts
-type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, "status" | "error" | "completion"> & {
+type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, 
+  | "status"
+  | "error"
+  | "completion"
+  | "deliverableAccepted"
+  | "resultAvailable"
+  | "acceptedArtifactRef"
+  | "claimConsistencyMeta"> & {
   cost: Pick<RunOutcome<unknown>["cost"], "totalUsd" | "grossUsd" | "byModel"> & {
      usageApprox?: boolean;
      wireRequests?: number;

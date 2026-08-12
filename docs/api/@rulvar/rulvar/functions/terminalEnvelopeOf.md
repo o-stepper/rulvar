@@ -28,8 +28,9 @@ different shape, which is the whole point of the arc.
 
 | Parameter | Type |
 | ------ | ------ |
-| `input` | \{ `agentsSpawned`: `number`; `outcome`: [`TerminalOutcomeFacts`](/api/@rulvar/rulvar/type-aliases/TerminalOutcomeFacts.md); `provenance?`: `"journal"`; `runId`: `string`; `settlement?`: \{ `settledReason?`: `"superseded"`; \}; `workflow`: `string`; \} |
+| `input` | \{ `agentsSpawned`: `number`; `configFingerprint?`: `string`; `outcome`: [`TerminalOutcomeFacts`](/api/@rulvar/rulvar/type-aliases/TerminalOutcomeFacts.md); `provenance?`: `"journal"`; `runId`: `string`; `settlement?`: \{ `settledReason?`: `"superseded"`; \}; `workflow`: `string`; \} |
 | `input.agentsSpawned` | `number` |
+| `input.configFingerprint?` | `string` |
 | `input.outcome` | [`TerminalOutcomeFacts`](/api/@rulvar/rulvar/type-aliases/TerminalOutcomeFacts.md) |
 | `input.provenance?` | `"journal"` |
 | `input.runId` | `string` |
