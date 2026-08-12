@@ -1335,6 +1335,10 @@
             "link": "/api/@rulvar/core/interfaces/OrchestratorRuntime.md"
           },
           {
+            "text": "OutputContractManifest",
+            "link": "/api/@rulvar/core/interfaces/OutputContractManifest.md"
+          },
+          {
             "text": "PendingExternal",
             "link": "/api/@rulvar/core/interfaces/PendingExternal.md"
           },
@@ -3361,6 +3365,10 @@
             "link": "/api/@rulvar/core/functions/makeOrchestratorWorkflow.md"
           },
           {
+            "text": "manifestValidators",
+            "link": "/api/@rulvar/core/functions/manifestValidators.md"
+          },
+          {
             "text": "maskSecrets",
             "link": "/api/@rulvar/core/functions/maskSecrets.md"
           },
@@ -3605,6 +3613,10 @@
             "link": "/api/@rulvar/core/functions/remeasureQueue.md"
           },
           {
+            "text": "renderContractRequirements",
+            "link": "/api/@rulvar/core/functions/renderContractRequirements.md"
+          },
+          {
             "text": "replayDisposition",
             "link": "/api/@rulvar/core/functions/replayDisposition.md"
           },
@@ -3615,6 +3627,10 @@
           {
             "text": "requiredFieldsValidator",
             "link": "/api/@rulvar/core/functions/requiredFieldsValidator.md"
+          },
+          {
+            "text": "requiredMentionsValidator",
+            "link": "/api/@rulvar/core/functions/requiredMentionsValidator.md"
           },
           {
             "text": "requiredSectionsValidator",
@@ -6389,6 +6405,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/OrchestratorRuntime.md"
           },
           {
+            "text": "OutputContractManifest",
+            "link": "/api/@rulvar/rulvar/interfaces/OutputContractManifest.md"
+          },
+          {
             "text": "PendingExternal",
             "link": "/api/@rulvar/rulvar/interfaces/PendingExternal.md"
           },
@@ -8459,6 +8479,10 @@
             "link": "/api/@rulvar/rulvar/functions/makeOrchestratorWorkflow.md"
           },
           {
+            "text": "manifestValidators",
+            "link": "/api/@rulvar/rulvar/functions/manifestValidators.md"
+          },
+          {
             "text": "maskSecrets",
             "link": "/api/@rulvar/rulvar/functions/maskSecrets.md"
           },
@@ -8711,6 +8735,10 @@
             "link": "/api/@rulvar/rulvar/functions/remeasureQueue.md"
           },
           {
+            "text": "renderContractRequirements",
+            "link": "/api/@rulvar/rulvar/functions/renderContractRequirements.md"
+          },
+          {
             "text": "renderProgress",
             "link": "/api/@rulvar/rulvar/functions/renderProgress.md"
           },
@@ -8725,6 +8753,10 @@
           {
             "text": "requiredFieldsValidator",
             "link": "/api/@rulvar/rulvar/functions/requiredFieldsValidator.md"
+          },
+          {
+            "text": "requiredMentionsValidator",
+            "link": "/api/@rulvar/rulvar/functions/requiredMentionsValidator.md"
           },
           {
             "text": "requiredSectionsValidator",

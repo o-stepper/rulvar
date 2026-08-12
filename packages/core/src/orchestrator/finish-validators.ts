@@ -1648,3 +1648,178 @@ export function formatCharacterValidator(options?: {
     },
   };
 }
+
+/**
+ * Every declared literal must appear in the finish result at least
+ * once (RV3308). The 2026-08-12 comparison run passed an exact twelve
+ * heading contract and a citation floor while its "all publishable
+ * packages" table silently dropped four of the seventeen names: shape
+ * validators cannot see an enumerable universe, so the universe is
+ * declared as literals and each one is held. Purely textual and
+ * deterministic; fenced code counts, because tables and inline code
+ * are legitimate places to name a package. Default name
+ * 'required-mentions'.
+ */
+export function requiredMentionsValidator(options: {
+  terms: readonly string[];
+  name?: string;
+}): FinishValidator {
+  const terms = requireNonEmptyStrings(options.terms, 'requiredMentionsValidator terms');
+  const declared = new Set<string>();
+  for (const term of terms) {
+    if (declared.has(term)) {
+      throw new ConfigError(`requiredMentionsValidator terms carry a duplicate: '${term}'`);
+    }
+    declared.add(term);
+  }
+  return {
+    name: options.name ?? 'required-mentions',
+    validate: (input) => {
+      const missing = terms.filter((term) => !input.text.includes(term));
+      if (missing.length === 0) {
+        return { ok: true };
+      }
+      const listed = missing
+        .slice(0, MAX_LISTED_CITATIONS)
+        .map((term) => `'${term}'`)
+        .join(', ');
+      const more =
+        missing.length > MAX_LISTED_CITATIONS
+          ? ` and ${String(missing.length - MAX_LISTED_CITATIONS)} more`
+          : '';
+      return {
+        ok: false,
+        reasons: [
+          `required mentions missing from the result: ${listed}${more} ` +
+            `(${String(missing.length)} of ${String(terms.length)} declared literals)`,
+        ],
+      };
+    },
+  };
+}
+
+/**
+ * One declaration for the shape a host both PROMPTS for and GATES on
+ * (RV3308). The 2026-08-12 comparison run drifted exactly here: the
+ * harness prompt named one heading while its finish contract named an
+ * older one, the host accepted its own contract, and the common audit
+ * refused the answer. A manifest is read twice, by
+ * {@link manifestValidators} to build the gate and by
+ * {@link renderContractRequirements} to build the prompt block, so
+ * the two surfaces cannot disagree by construction.
+ */
+export interface OutputContractManifest {
+  /** The exact heading lines, ordered and exclusive when present. */
+  sections?: readonly string[];
+  /** Literal strings the result must contain, each at least once. */
+  requiredMentions?: readonly string[];
+  /** Whitespace word bounds, either side optional. */
+  words?: { min?: number; max?: number };
+  /** Minimum citation occurrences over {@link DEFAULT_CITATION_PATTERN} or `citationPattern`. */
+  minCitations?: number;
+  /** Overrides the citation shape; only meaningful beside `minCitations`. */
+  citationPattern?: string;
+}
+
+function requireManifest(manifest: OutputContractManifest): void {
+  if (
+    manifest.sections === undefined &&
+    manifest.requiredMentions === undefined &&
+    manifest.words === undefined &&
+    manifest.minCitations === undefined
+  ) {
+    throw new ConfigError(
+      'an OutputContractManifest must declare at least one of sections, requiredMentions, ' +
+        'words, or minCitations: an empty manifest gates nothing and prompts for nothing',
+    );
+  }
+  if (manifest.citationPattern !== undefined && manifest.minCitations === undefined) {
+    throw new ConfigError(
+      'OutputContractManifest.citationPattern is only meaningful beside minCitations',
+    );
+  }
+}
+
+/**
+ * The manifest's gate half (RV3308): heading structure (ordered,
+ * exclusive), word bounds, the citation floor, and the mention
+ * universe, in that stable order, each through the existing named
+ * validator. Everything is derived from the SAME object the prompt
+ * block renders from.
+ */
+export function manifestValidators(manifest: OutputContractManifest): FinishValidator[] {
+  requireManifest(manifest);
+  const validators: FinishValidator[] = [];
+  if (manifest.sections !== undefined) {
+    validators.push(
+      headingStructureValidator({ sections: manifest.sections, ordered: true, exclusive: true }),
+    );
+  }
+  if (manifest.words !== undefined) {
+    validators.push(wordCountValidator(manifest.words));
+  }
+  if (manifest.minCitations !== undefined) {
+    validators.push(
+      minMatchesValidator({
+        pattern: manifest.citationPattern ?? DEFAULT_CITATION_PATTERN,
+        min: manifest.minCitations,
+        name: 'citation-count',
+      }),
+    );
+  }
+  if (manifest.requiredMentions !== undefined) {
+    validators.push(requiredMentionsValidator({ terms: manifest.requiredMentions }));
+  }
+  return validators;
+}
+
+/**
+ * The manifest's prompt half (RV3308): a deterministic requirements
+ * block enumerating the SAME headings, bounds, citation floor and
+ * literals the validators hold, byte for byte, for the host to embed
+ * in its question. Rendering is pure string assembly; nothing here
+ * consults the result.
+ */
+export function renderContractRequirements(manifest: OutputContractManifest): string {
+  requireManifest(manifest);
+  const lines: string[] = ['The final document must satisfy every requirement below, verbatim.'];
+  if (manifest.sections !== undefined) {
+    const sections = requireNonEmptyStrings(
+      manifest.sections,
+      'renderContractRequirements sections',
+    );
+    lines.push(
+      `Exactly ${String(sections.length)} section headings, in this order and none besides:`,
+    );
+    for (const section of sections) {
+      lines.push(section);
+    }
+  }
+  if (manifest.words !== undefined) {
+    const { min, max } = manifest.words;
+    if (min !== undefined && max !== undefined) {
+      lines.push(`Whitespace word count between ${String(min)} and ${String(max)}.`);
+    } else if (min !== undefined) {
+      lines.push(`Whitespace word count at least ${String(min)}.`);
+    } else if (max !== undefined) {
+      lines.push(`Whitespace word count at most ${String(max)}.`);
+    }
+  }
+  if (manifest.minCitations !== undefined) {
+    lines.push(
+      `At least ${String(manifest.minCitations)} citations matching ` +
+        `/${manifest.citationPattern ?? DEFAULT_CITATION_PATTERN}/.`,
+    );
+  }
+  if (manifest.requiredMentions !== undefined) {
+    const terms = requireNonEmptyStrings(
+      manifest.requiredMentions,
+      'renderContractRequirements requiredMentions',
+    );
+    lines.push('Each of these literal strings must appear at least once:');
+    for (const term of terms) {
+      lines.push(term);
+    }
+  }
+  return lines.join('\n');
+}

@@ -8,8 +8,11 @@ import {
   evidencePreservedValidator,
   formatCharacterValidator,
   headingStructureValidator,
+  manifestValidators,
   minMatchesValidator,
+  renderContractRequirements,
   requiredFieldsValidator,
+  requiredMentionsValidator,
   requiredSectionsValidator,
   sectionCitationsValidator,
   spliceSections,
@@ -1275,5 +1278,87 @@ describe("the run's own id is an artifact (RV2501, the 1.226.0 comparison run)",
   it('still accepts the historical artifact shapes when an id is supplied', () => {
     const cited = 'The cap is live-observed at `src/retry.ts:12`.';
     expect(evidenceGradeValidator().validate(withId(cited)).ok).toBe(true);
+  });
+});
+
+describe('requiredMentionsValidator (RV3308)', () => {
+  const PKGS = ['@rulvar/core', '@rulvar/store-conformance', 'eslint-plugin-rulvar'];
+  const inputOf = (text: string): FinishValidationInput => ({ result: text, text });
+
+  it('fails closed at intake on empty, blank, and duplicate terms', () => {
+    expect(() => requiredMentionsValidator({ terms: [] })).toThrow(ConfigError);
+    expect(() => requiredMentionsValidator({ terms: [''] })).toThrow(ConfigError);
+    expect(() => requiredMentionsValidator({ terms: ['a', 'a'] })).toThrow(/duplicate/);
+  });
+
+  it('names every missing literal with the declared universe size', () => {
+    // The 2026-08-12 comparison run: exact headings and a citation
+    // floor passed while the package table dropped four of seventeen
+    // names. Shape checks cannot see an enumerable universe.
+    const verdict = requiredMentionsValidator({ terms: PKGS }).validate(
+      inputOf('Only `@rulvar/core` appears in this document.'),
+    );
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reasons[0]).toContain("'@rulvar/store-conformance'");
+    expect(verdict.reasons[0]).toContain("'eslint-plugin-rulvar'");
+    expect(verdict.reasons[0]).toContain('2 of 3 declared literals');
+  });
+
+  it('passes when every literal appears, fenced code included', () => {
+    const text =
+      'Table: `@rulvar/core` | eslint-plugin-rulvar\n```\n@rulvar/store-conformance\n```';
+    expect(requiredMentionsValidator({ terms: PKGS }).validate(inputOf(text)).ok).toBe(true);
+  });
+});
+
+describe('the output contract manifest (RV3308)', () => {
+  const MANIFEST = {
+    sections: ['## 1. Verdict', '## 2. Risks'],
+    requiredMentions: ['@rulvar/core', '@rulvar/evals'],
+    words: { min: 5, max: 500 },
+    minCitations: 1,
+  };
+
+  it('refuses an empty manifest and a citation pattern without a floor', () => {
+    expect(() => manifestValidators({})).toThrow(ConfigError);
+    expect(() => renderContractRequirements({})).toThrow(ConfigError);
+    expect(() => manifestValidators({ citationPattern: 'x:\\d+' })).toThrow(/minCitations/);
+  });
+
+  it('derives the gate and the prompt block from the same declaration', () => {
+    // The drift class this closes: the harness prompt named one
+    // heading while the finish contract named an older one, and the
+    // host accepted its own contract against the common audit.
+    const rendered = renderContractRequirements(MANIFEST);
+    for (const section of MANIFEST.sections) {
+      expect(rendered).toContain(section);
+    }
+    for (const term of MANIFEST.requiredMentions) {
+      expect(rendered).toContain(term);
+    }
+    expect(rendered).toContain('between 5 and 500');
+    expect(rendered).toContain('At least 1 citations');
+
+    const validators = manifestValidators(MANIFEST);
+    expect(validators.map((v) => v.name)).toEqual([
+      'heading-structure',
+      'word-count',
+      'citation-count',
+      'required-mentions',
+    ]);
+    const good =
+      '## 1. Verdict\nGrounded in `@rulvar/core` (src/a.ts:1) and @rulvar/evals both.\n' +
+      '## 2. Risks\nNone worth naming here.';
+    const goodInput: FinishValidationInput = { result: good, text: good };
+    expect(validators.every((v) => v.validate(goodInput).ok)).toBe(true);
+
+    const missingMention = good.replace('@rulvar/evals', 'the eval package');
+    const failing = validators
+      .map((v) => v.validate({ result: missingMention, text: missingMention }))
+      .filter((verdict) => !verdict.ok);
+    expect(failing).toHaveLength(1);
   });
 });
