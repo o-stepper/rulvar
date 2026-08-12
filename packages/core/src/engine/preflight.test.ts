@@ -2422,6 +2422,63 @@ describe('the evidence floor finding (RV303, the seventh comparison experiment)'
     );
   });
 
+  it('a journal observed prior raises the floor and is named, never lowers (RV3309)', () => {
+    // The 2026-08-12 comparison run observed 4.211 calls per entry
+    // where the default estimate says 3: 14 entries at 4.211 plus 8
+    // overhead is a floor of 67 against the same 48 call cap, and the
+    // wish based floor of 50 already read too generous.
+    const raised = reportOf({
+      label: 'worker',
+      limits: { maxTurns: 24, maxToolCalls: 48, toolBudgetNotices: true },
+      evidenceContract: {
+        minEntries: 14,
+        calibration: { callsPerEntry: 4.211, source: 'comparison-rulvar-v12360-aug12' },
+      },
+    });
+    const named = raised.findings.find(
+      (entry) => entry.code === 'evidence-estimate-below-observed',
+    );
+    expect(named?.severity).toBe('info');
+    expect(named?.message).toContain('4.211');
+    expect(named?.message).toContain('comparison-rulvar-v12360-aug12');
+    const floor = raised.findings.find((entry) => entry.code === 'tool-cap-below-evidence-floor');
+    expect(floor?.message).toContain('67');
+
+    // A prior BELOW the declared estimate changes nothing: the higher
+    // figure holds and nothing is named.
+    const generous = reportOf({
+      label: 'worker',
+      limits: { maxTurns: 24, maxToolCalls: 48, toolBudgetNotices: true },
+      evidenceContract: {
+        minEntries: 13,
+        estCallsPerEntry: 3,
+        calibration: { callsPerEntry: 2.1 },
+      },
+    });
+    expect(
+      generous.findings.some((entry) => entry.code === 'evidence-estimate-below-observed'),
+    ).toBe(false);
+    expect(generous.findings.some((entry) => entry.code === 'tool-cap-below-evidence-floor')).toBe(
+      false,
+    );
+
+    // Intake refuses shapes that cannot be evidence.
+    expect(() =>
+      reportOf({
+        label: 'worker',
+        limits: { maxTurns: 4 },
+        evidenceContract: { minEntries: 3, calibration: { callsPerEntry: 0 } },
+      }),
+    ).toThrow(/calibration\.callsPerEntry/);
+    expect(() =>
+      reportOf({
+        label: 'worker',
+        limits: { maxTurns: 4 },
+        evidenceContract: { minEntries: 3, calibration: { callsPerEntry: 3, source: '' } },
+      }),
+    ).toThrow(/calibration\.source/);
+  });
+
   it('compares against the binding ceiling: weighted units and the extension both count', () => {
     const unitsBound = reportOf({
       label: 'worker',

@@ -1411,9 +1411,36 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     // here: the spawn declaration wins over the registered profile's.
     const evidenceContract = spec.evidenceContract ?? profile?.evidenceContract;
     if (evidenceContract !== undefined && executedToolCallCeiling !== null) {
-      const perEntry = evidenceContract.estCallsPerEntry ?? DEFAULT_EVIDENCE_CALLS_PER_ENTRY;
+      const declaredPerEntry =
+        evidenceContract.estCallsPerEntry ?? DEFAULT_EVIDENCE_CALLS_PER_ENTRY;
+      // The journal observed prior (RV3309): the HIGHER of the
+      // declared estimate and the supplied calibration, never the
+      // lower, so a generous declaration still holds while an
+      // optimistic one stops hiding the observed reality. The
+      // 2026-08-12 comparison run observed 4.211 calls per entry
+      // against the default estimate of 3; a floor computed from the
+      // wish instead of the observation is how an evidence contract
+      // meets a cap it cannot actually fit.
+      const observed = evidenceContract.calibration?.callsPerEntry;
+      const perEntry =
+        observed === undefined ? declaredPerEntry : Math.max(declaredPerEntry, observed);
+      if (observed !== undefined && observed > declaredPerEntry) {
+        const source =
+          evidenceContract.calibration?.source === undefined
+            ? ''
+            : ` (source: ${evidenceContract.calibration.source})`;
+        say({
+          severity: 'info',
+          code: 'evidence-estimate-below-observed',
+          message:
+            `spawn '${label}' declares ${String(declaredPerEntry)} estimated calls per ` +
+            `evidence entry, but the supplied calibration observed ` +
+            `${String(observed)}${source}: the evidence call floor uses the observed figure`,
+          spawn: label,
+        });
+      }
       const overhead = evidenceContract.overheadCalls ?? DEFAULT_EVIDENCE_OVERHEAD_CALLS;
-      const floor = evidenceContract.minEntries * perEntry + overhead;
+      const floor = Math.ceil(evidenceContract.minEntries * perEntry) + overhead;
       if (executedToolCallCeiling < floor) {
         say({
           severity: 'warning',

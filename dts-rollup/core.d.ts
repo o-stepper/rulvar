@@ -11330,6 +11330,24 @@ interface EvidenceContract {
   /** Estimated non-evidence overhead calls; default 8. */
   overheadCalls?: number;
   /**
+  * A journal observed prior for the per-entry call estimate
+  * (RV3309): the figure `toolCalibrationFromJournal` folds from a
+  * prior run of the same profile (aggregate or a p90 over several),
+  * fractional on purpose. Preflight uses the HIGHER of the declared
+  * estimate and this prior when it computes the evidence call floor,
+  * never the lower, so a stale generous declaration still holds and
+  * an optimistic one stops hiding the observed reality: the
+  * 2026-08-12 comparison run observed 4.211 calls per entry where
+  * the default estimate says 3. When the prior raises the floor,
+  * preflight names it in an `evidence-estimate-below-observed`
+  * finding beside the usual floor arithmetic. `source` is echoed in
+  * that finding so a reader knows which journal spoke.
+  */
+  calibration?: {
+    callsPerEntry: number;
+    source?: string;
+  };
+  /**
   * What the floor does at the child's terminal settle (RV507). The
   * default 'warn' keeps the historical behavior: the contract is a
   * preflight signal only. 'refuse' turns an ok finish whose message
