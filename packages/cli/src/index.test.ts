@@ -1493,6 +1493,10 @@ describe('CLI diagnostics withhold --args and sanitize terminal text (v1.24.1 re
     expect(err).toContain('pending: external:red (entry 3)');
     expect(err).toContain('by model fake:model');
     expect(err).toContain('unpriced models: mystery');
+    // The provenance line rides every summary (RV3311): local
+    // accounting must never read as a bill.
+    expect(err).toContain('billing basis:');
+    expect(err).toContain('never a provider statement');
     expect(cleanLines(io.errLines)).toBe(true);
   });
 

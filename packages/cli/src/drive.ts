@@ -210,6 +210,15 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
         : ''
     }`,
   );
+  // The money's provenance said out loud (RV3311): the dollars above
+  // are journaled usage priced at the caller's table, and the reader
+  // of a terminal must never mistake them for a bill. The 2026-08-12
+  // audit's phrasing: a local estimate is deterministic accounting,
+  // not a provider statement.
+  io.err(
+    `billing basis: ${outcome.cost.basis} (a local estimate, never a provider statement; ` +
+      'money closes only against a reconciled statement, see reconcileStatement)',
+  );
   for (const [model, usd] of Object.entries(outcome.cost.byModel)) {
     io.err(`  by model ${sanitizeTerminalText(model)}: $${usd.toFixed(4)}`);
   }

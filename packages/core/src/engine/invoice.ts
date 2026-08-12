@@ -367,6 +367,18 @@ function sliceRemainder(
   return any ? remainder : undefined;
 }
 
+/**
+ * One export row's usage envelope (RV3311): every row carries the SAME
+ * field set, `reasoningTokens` included (0 when the provider reported
+ * none), and the object is detached from the journal entry it was read
+ * from. The 2026-08-12 comparison run's invoice had 77 rows with the
+ * field and one without, and a FinOps consumer folding the column had
+ * to know that absence meant zero on exactly one row shape.
+ */
+function rowUsage(usage: Usage): Usage {
+  return { ...usage, reasoningTokens: usage.reasoningTokens ?? 0 };
+}
+
 /** One allocation pool per (entry, serving model) slice of the gross fold. */
 function allocationKey(entrySeq: number, servedBy: ModelRef): string {
   return `${String(entrySeq)} ${servedBy}`;
@@ -552,7 +564,7 @@ export function invoiceFromJournal(
           ? {}
           : { wireResponseIds: record.wireResponseIds }),
         ...(record.wireRequests === undefined ? {} : { wireRequests: record.wireRequests }),
-        usage: record.usage,
+        usage: rowUsage(record.usage),
         ...(record.usageApprox === true ? { usageApprox: true } : {}),
         ...(usageUnknown ? { usageUnknown: true } : {}),
         ...(usd === undefined ? {} : { usd }),
@@ -573,7 +585,7 @@ export function invoiceFromJournal(
           servedBy: slice.servedBy,
           ...(slice.role === undefined ? {} : { role: slice.role }),
           outcome: 'unattributed',
-          usage: slice.usage,
+          usage: rowUsage(slice.usage),
           ...(entry.usageApprox === true ? { usageApprox: true } : {}),
           ...(usd === undefined ? {} : { usd }),
           allocatedUsd: 0,
@@ -607,7 +619,7 @@ export function invoiceFromJournal(
         servedBy: slice.servedBy,
         ...(slice.role === undefined ? {} : { role: slice.role }),
         outcome: 'unattributed',
-        usage: remainder,
+        usage: rowUsage(remainder),
         ...(entry.usageApprox === true ? { usageApprox: true } : {}),
         ...(usd === undefined ? {} : { usd }),
         allocatedUsd: 0,
@@ -678,7 +690,7 @@ export function invoiceFromJournal(
       role: typeof record.role === 'string' ? record.role : 'loop',
       attempt: typeof record.attempt === 'number' ? record.attempt : 1,
       outcome: typeof record.outcome === 'string' ? record.outcome : 'ok',
-      usage: record.usage,
+      usage: rowUsage(record.usage),
       ...(usd === undefined ? {} : { usd }),
       ...(typeof record.responseId === 'string' ? { responseId: record.responseId } : {}),
     });
