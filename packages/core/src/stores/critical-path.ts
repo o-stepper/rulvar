@@ -27,7 +27,7 @@
 // attribution facts), so the split is absent on every journal written
 // before that and on every unlabelled dispatch, never zero.
 import type { JournalEntry } from '../l0/entries.js';
-import { CLAIM_JUDGE_LABEL } from '../l0/telemetry-reduce.js';
+import { isClaimJudgeLabel } from '../l0/telemetry-reduce.js';
 import { logicalRunTelemetry } from './reconcile.js';
 
 /**
@@ -146,7 +146,10 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
       continue;
     }
     labelledSynthesis = true;
-    if (label === CLAIM_JUDGE_LABEL || label.startsWith(`${CLAIM_JUDGE_LABEL}-`)) {
+    // One predicate for both surfaces (RV3302): this fold and the live
+    // reduceCriticalPath must never disagree on what counts as the
+    // judge, or a benchmark reads the same run two different ways.
+    if (isClaimJudgeLabel(label)) {
       semanticJudgeMs += wall;
     } else {
       finalCompositionMs += wall;

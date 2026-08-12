@@ -4571,6 +4571,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/journal-integrity.test.ts',
   },
   {
+    id: 'both-surfaces-share-the-judge-label-predicate',
+    doctrine:
+      'the live and journal critical path folds classify the claim judge through one predicate (RV3302): narrowed to exact equality, the suffixed final pass label reads as composition and the live surface reports semanticJudgeMs 0 over a 48059 ms judge, the 2026-08-12 comparison run verbatim',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '  return label === CLAIM_JUDGE_LABEL || (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false);',
+    replace: '  return label === CLAIM_JUDGE_LABEL;',
+    test: 'packages/core/src/orchestrator/synthesis.test.ts',
+  },
+  {
     id: 'the-final-stage-refuses-a-carry-it-cannot-deliver',
     doctrine:
       "claimConsistency stage 'final' with onFound 'carry' is a ConfigError at intake (RV3301): disarmed, the pair reads as a gate and behaves as 'report', which is how the 2026-08-12 comparison run settled ok/complete over a contradiction its own final judge had already named",

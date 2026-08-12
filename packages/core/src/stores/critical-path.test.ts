@@ -7,10 +7,13 @@ import { describe, expect, it } from 'vitest';
 
 import type { JournalEntry } from '../l0/entries.js';
 import type { ChatRequest } from '../l0/messages.js';
+import type { WorkflowEvent } from '../l0/events.js';
 import {
   CLAIM_JUDGE_LABEL,
   FINAL_COMPOSITION_LABEL,
   SYNTHESIS_NOTE_LABEL,
+  isClaimJudgeLabel,
+  reduceCriticalPath,
 } from '../l0/telemetry-reduce.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from '../engine/engine.js';
@@ -116,6 +119,56 @@ describe('criticalPathFromJournal (RV2803)', () => {
     expect(mixed.synthesisMs).toBe(300);
     expect('finalCompositionMs' in mixed).toBe(false);
     expect('semanticJudgeMs' in mixed).toBe(false);
+  });
+
+  it('classifies the judge identically to the live reducer (RV3302)', () => {
+    // The 2026-08-12 comparison run: the final pass dispatched under
+    // `claim-consistency-judge-final`, the journal fold split 224864
+    // against 48059, and the live fold read the same 272923 ms window
+    // as composition with semanticJudgeMs 0, because one surface
+    // compared the label exactly while the other accepted the suffix.
+    // Both folds now classify through one predicate, and this pins
+    // that run's shape to the same split on both surfaces.
+    expect(isClaimJudgeLabel(CLAIM_JUDGE_LABEL)).toBe(true);
+    expect(isClaimJudgeLabel(`${CLAIM_JUDGE_LABEL}-final`)).toBe(true);
+    expect(isClaimJudgeLabel('claim-consistency-judgement')).toBe(false);
+    expect(isClaimJudgeLabel(FINAL_COMPOSITION_LABEL)).toBe(false);
+    expect(isClaimJudgeLabel(undefined)).toBe(false);
+
+    const journal = criticalPathFromJournal([
+      span(1, 0, 201_042, { role: 'loop' }),
+      span(2, 201_042, 425_906, { role: 'synthesize', label: FINAL_COMPOSITION_LABEL }),
+      span(3, 425_906, 473_965, { role: 'synthesize', label: `${CLAIM_JUDGE_LABEL}-final` }),
+      settle(4, 757_437),
+    ]);
+    const live = (body: Record<string, unknown>): WorkflowEvent => body as unknown as WorkflowEvent;
+    const stream = reduceCriticalPath([
+      live({ type: 'run:start', ts: stamp(0), spanId: 'run' }),
+      live({ type: 'agent:start', ts: stamp(0), spanId: 'w', role: 'loop' }),
+      live({ type: 'agent:end', ts: stamp(201_042), spanId: 'w' }),
+      live({
+        type: 'agent:start',
+        ts: stamp(201_042),
+        spanId: 's',
+        role: 'synthesize',
+        label: FINAL_COMPOSITION_LABEL,
+      }),
+      live({ type: 'agent:end', ts: stamp(425_906), spanId: 's' }),
+      live({
+        type: 'agent:start',
+        ts: stamp(425_906),
+        spanId: 'j',
+        role: 'synthesize',
+        label: `${CLAIM_JUDGE_LABEL}-final`,
+      }),
+      live({ type: 'agent:end', ts: stamp(473_965), spanId: 'j' }),
+      live({ type: 'run:end', ts: stamp(757_437), spanId: 'run' }),
+    ]);
+    for (const path of [journal, stream] as const) {
+      expect(path.synthesisMs).toBe(272_923);
+      expect(path.finalCompositionMs).toBe(224_864);
+      expect(path.semanticJudgeMs).toBe(48_059);
+    }
   });
 
   it('refuses the wall figures for a journal that was resumed', () => {
