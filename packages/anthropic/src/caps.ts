@@ -199,21 +199,34 @@ export const ANTHROPIC_PRICING: PriceTable = {
   })(),
 };
 
+/**
+ * The documented snapshot grammar: `<exact model>-YYYYMMDD`. Nothing
+ * else inherits a table row (RV3303, the posture openai adopted in the
+ * v1.17.0 review P1-1): the general prefix matcher let ANY suffix of a
+ * known name inherit the full row, so a preview or sibling variant the
+ * table has never seen, `claude-sonnet-5-preview` say, silently took
+ * the known model's caps AND its promotional pricing, which is exactly
+ * the fabricated row the unknown model contract above forbids. The
+ * 2026-08-12 comparison run named this counterexample: a suffix
+ * inheriting a promotion that ends on 2026-08-31. An unknown suffix
+ * now falls through to the conservative unpriced caps, and a dated
+ * snapshot resolves only through its EXACT base name, which also keeps
+ * the old guarantee that a snapshot of a longer name never lands on a
+ * shorter sibling entry.
+ */
+const DATED_SNAPSHOT = /^(?<base>.+)-\d{8}$/u;
+
 export function anthropicModelInfo(model: string): AnthropicModelInfo {
   const exact = ANTHROPIC_MODELS[model];
   if (exact !== undefined) {
     return exact;
   }
-  // Longest matching prefix wins, so a dated snapshot of a longer name
-  // never resolves to a shorter sibling entry.
-  let best: { name: string; info: AnthropicModelInfo } | undefined;
-  for (const [name, info] of Object.entries(ANTHROPIC_MODELS)) {
-    if (model.startsWith(`${name}-`) && (best === undefined || name.length > best.name.length)) {
-      best = { name, info };
+  const snapshot = DATED_SNAPSHOT.exec(model)?.groups?.base;
+  if (snapshot !== undefined) {
+    const base = ANTHROPIC_MODELS[snapshot];
+    if (base !== undefined) {
+      return base;
     }
-  }
-  if (best !== undefined) {
-    return best.info;
   }
   return current(400_000, 64_000, undefined, 4_096);
 }
