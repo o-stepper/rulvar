@@ -523,6 +523,34 @@ A bounded pass must say what it did NOT look at. The eighteenth comparison bench
 
 **The declared coverage target.** Floors judge what a pass reached; `coverageTarget` (RV2903) sizes the pass so the floor is reachable in the first place. The ninth comparison run judged 43 of 115 citing sentences because its host guessed `max: 56` and the run-fact pass cut 30 matched candidates to an unraisable default of 8: the `'partial'` grade was honest, but it was the echo of a constant, not of a policy. With a target declared (a share of the citing sentences, in `(0, 1]`) the pairing selects coverage-first: every critical candidate, then ONE pair per still-uncovered sentence in draft order until the target is met, skipping pairs that only deepen an already covered sentence, because under a declared target the bounded budget buys coverage, not depth. `max` stays a hard ceiling and `truncated` then means exactly that the ceiling cut selection the target still wanted. The run-fact pass judges EVERY matched candidate. And an undeclared `minimumCoverageRatio` defaults to the target, so the same number that sized the pass judges what it reached through the floor machinery above; a target the pool cannot support (nothing read those files, or every reading agreed verbatim) surfaces as a stamped `lowCoverage` block rather than passing as an honest-but-unenforced `'partial'`. The meta echoes `coverageTarget`, so a persisted outcome says what its coverage was held against, not only what it reached. Unset, every selection reproduces byte for byte.
 
+### The assurance posture {#assurance-posture}
+
+Every knob above defaults soft on purpose: `onFound: 'report'`, `onLowCoverage: 'report'`, a silent headroom floor, so an exploratory run pays for verdicts without being stopped by them. A run whose OUTPUT someone will act on wants the opposite polarity, and the 2026-08-12 comparison run is the standing argument: its host chose `stage: 'final'` with a carry that had no prompt left to ride (now a `ConfigError`, RV3301), a 0.65 coverage target met by 0.38 of a point, and a 2 percent headroom floor over a 2.857 percent plan, then settled `ok/complete` over a contradiction its own final judge had named. Nothing malfunctioned; every gate was simply armed to observe.
+
+For a deliverable a consumer gates on, arm the pass and the admission together (RV3310):
+
+```ts
+const assurance = {
+  claimConsistency: {
+    stage: 'final', // judge the artifact that ships, not the draft
+    onFound: 'fail', // a named contradiction stops the run typed
+    coverageTarget: 0.9, // and the floor machinery inherits it
+    onLowCoverage: 'fail',
+    critical: ['src/engine', 'src/journal/matching.ts'], // what MUST be judged
+    onUncoveredCritical: 'fail',
+    runFacts: true, // hold run claims against the recorded facts
+  },
+} as const;
+
+const admission = {
+  // a plan too thin to survive drift refuses before wire one
+  minCeilingHeadroomShare: 0.1,
+  ceilingHeadroomSeverity: 'error',
+} as const;
+```
+
+The terminal then says what was enforced: the envelope carries `deliverableAccepted`, the judge meta with its `findings` count, `judgedStage`, `judgedHash` and the coverage grade (RV3304), and [`--strict`](/guide/cli) exits nonzero on a draft-stage verdict over a rewritten document, a stamped `lowCoverage` block, or a `partial` grade. For money, gate on `monetarySettleable`, never `settleable` alone (see [providers](/guide/providers)). Soften deliberately, per knob, when a run is genuinely exploratory; the preset exists so the soft polarity is a choice a reader can see, not a default nobody revisited.
+
 ### Reading a child's full evidence
 
 The digest an await returns is a wake signal truncated to 400 characters, so an evidence heavy child (a research agent whose report carries dozens of `file:line` citations, say) settles with its findings intact in the journal but only a snippet in the digest. `exposeChildResultTools: true` adds two pure read tools the orchestrator can call AFTER a child settles.

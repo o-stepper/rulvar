@@ -1680,6 +1680,7 @@ describe('the ceiling headroom fields (RV3208, the admission cliff)', () => {
   function cliffInput(options: {
     budgetUsd?: number;
     minCeilingHeadroomShare?: number;
+    ceilingHeadroomSeverity?: 'warning' | 'error';
   }): Parameters<typeof preflightEstimate>[0] {
     return {
       engine: {
@@ -1694,6 +1695,9 @@ describe('the ceiling headroom fields (RV3208, the admission cliff)', () => {
         ...(options.minCeilingHeadroomShare === undefined
           ? {}
           : { minCeilingHeadroomShare: options.minCeilingHeadroomShare }),
+        ...(options.ceilingHeadroomSeverity === undefined
+          ? {}
+          : { ceilingHeadroomSeverity: options.ceilingHeadroomSeverity }),
       },
       spawns: ['product', 'finops', 'durability', 'adversarial'].map((label) => ({
         label,
@@ -1722,6 +1726,37 @@ describe('the ceiling headroom fields (RV3208, the admission cliff)', () => {
     expect(finding?.message).toContain('percent floor');
     const roomy = preflightEstimate(cliffInput({ budgetUsd: 20, minCeilingHeadroomShare: 0.1 }));
     expect(roomy.findings.some((entry) => entry.code === 'ceiling-headroom-thin')).toBe(false);
+  });
+
+  it('the declared severity makes the breach blocking for hosts that gate on errors (RV3310)', () => {
+    // The 2026-08-12 comparison harness threw on error findings only:
+    // its 2 percent floor held against a 2.857 percent plan, and the
+    // warning class was a report nobody gated on. Under 'error' the
+    // same breach blocks before the first wire.
+    const blocking = preflightEstimate(
+      cliffInput({
+        budgetUsd: 7.2,
+        minCeilingHeadroomShare: 0.1,
+        ceilingHeadroomSeverity: 'error',
+      }),
+    );
+    const finding = blocking.findings.find((entry) => entry.code === 'ceiling-headroom-thin');
+    expect(finding?.severity).toBe('error');
+    // A roomy plan emits nothing regardless of the declared severity.
+    const roomy = preflightEstimate(
+      cliffInput({ budgetUsd: 20, minCeilingHeadroomShare: 0.1, ceilingHeadroomSeverity: 'error' }),
+    );
+    expect(roomy.findings.some((entry) => entry.code === 'ceiling-headroom-thin')).toBe(false);
+    // The literal fails closed at intake.
+    expect(() =>
+      preflightEstimate(
+        cliffInput({
+          budgetUsd: 7.2,
+          minCeilingHeadroomShare: 0.1,
+          ceilingHeadroomSeverity: 'block' as unknown as 'error',
+        }),
+      ),
+    ).toThrow(/ceilingHeadroomSeverity/);
   });
 
   it('absence means not recorded: no ceiling, no headroom fields (RV1209)', () => {

@@ -14522,6 +14522,18 @@ interface PreflightOrchestratorSpec {
   * configs are byte identical until a host opts in.
   */
   minCeilingHeadroomShare?: number;
+  /**
+  * What a breached headroom floor emits (RV3310). The default
+  * 'warning' keeps RV3208's behavior byte for byte: advisory, and a
+  * host that only throws on errors sails past it. 'error' makes the
+  * breach blocking for exactly such hosts: the 2026-08-12 comparison
+  * harness threw on error findings only, its 2 percent floor held
+  * against a 2.857 percent headroom, and the assurance answer to
+  * "this plan is too thin to survive drift" must be refusal before
+  * the first wire, not a line in a report nobody gates on.
+  * Meaningful only beside a positive `minCeilingHeadroomShare`.
+  */
+  ceilingHeadroomSeverity?: "warning" | "error";
 }
 /** The full input: engine surface, run surface, and the declared wave. */
 interface PreflightInput {

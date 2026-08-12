@@ -4589,6 +4589,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
+    id: 'the-headroom-breach-blocks-when-armed',
+    doctrine:
+      'a breached ceiling headroom floor emits at the declared severity (RV3310): pinned to warning, a host that gates on error findings sails past its own thin plan, the 2026-08-12 harness posture verbatim (it threw on errors and its 2 percent floor never spoke)',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '      severity: ceilingHeadroomSeverity,',
+    replace: "      severity: 'warning',",
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'anthropic-suffixes-price-only-through-the-dated-grammar',
     doctrine:
       'an unknown anthropic suffix never inherits a known row (RV3303): widened past the YYYYMMDD grammar, claude-sonnet-5-preview takes the known caps and the promotional pricing, the fabricated row the table contract forbids and the 2026-08-12 comparison run named as a counterexample',
