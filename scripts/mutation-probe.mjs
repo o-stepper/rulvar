@@ -4588,6 +4588,15 @@ export const MUTATIONS = [
     replace: '    if (false) {',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
+  {
+    id: 'anthropic-suffixes-price-only-through-the-dated-grammar',
+    doctrine:
+      'an unknown anthropic suffix never inherits a known row (RV3303): widened past the YYYYMMDD grammar, claude-sonnet-5-preview takes the known caps and the promotional pricing, the fabricated row the table contract forbids and the 2026-08-12 comparison run named as a counterexample',
+    file: 'packages/anthropic/src/caps.ts',
+    find: 'const DATED_SNAPSHOT = /^(?<base>.+)-\\d{8}$/u;',
+    replace: 'const DATED_SNAPSHOT = /^(?<base>.+)-[^-]+$/u;',
+    test: 'packages/anthropic/src/caps.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
