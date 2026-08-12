@@ -4571,6 +4571,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/journal-integrity.test.ts',
   },
   {
+    id: 'every-invoice-row-carries-the-same-usage-envelope',
+    doctrine:
+      'invoice rows normalize their usage envelope (RV3311): reduced to a pass through, one row shape omits reasoningTokens while the rest carry it, the 2026-08-12 invoice quirk verbatim, and the export hands a journal owned object to a consumer that may annotate it',
+    file: 'packages/core/src/engine/invoice.ts',
+    find: '  return { ...usage, reasoningTokens: usage.reasoningTokens ?? 0 };',
+    replace: '  return usage;',
+    test: 'packages/core/src/engine/invoice.test.ts',
+  },
+  {
     id: 'both-surfaces-share-the-judge-label-predicate',
     doctrine:
       'the live and journal critical path folds classify the claim judge through one predicate (RV3302): narrowed to exact equality, the suffixed final pass label reads as composition and the live surface reports semanticJudgeMs 0 over a 48059 ms judge, the 2026-08-12 comparison run verbatim',

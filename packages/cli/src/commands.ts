@@ -853,6 +853,10 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
       : inspectSnapshot.composedPriceUsd(assembled.priceUsd),
   );
   context.io.out(`cost: $${cost.totalUsd.toFixed(4)}`);
+  // The provenance line (RV3311): a journal fold is deterministic
+  // local accounting, and the inspect surface must say so before a
+  // reader treats it as a bill.
+  context.io.out(`billing basis: ${cost.basis} (a local estimate, never a provider statement)`);
   if (inspectSnapshot !== undefined) {
     context.io.out(
       'pricing: run-settle pins composed with the current table' +

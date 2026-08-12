@@ -389,7 +389,7 @@ describe('the ledger across kill-and-resume (P1.3)', () => {
       ['unattributed', 'unattributed'],
     ]);
     // The remainder is exactly the restored usage: nothing vanished.
-    expect(rows[1]?.usage).toEqual(usageOf(20, 10));
+    expect(rows[1]?.usage).toEqual({ ...usageOf(20, 10), reasoningTokens: 0 });
     const report = costReportFromJournal(entries, capsPriceUsd);
     expect(invoice.totalUsd).toBe(report.grossUsd);
   });
@@ -564,7 +564,7 @@ describe('the invoice export (P1.3)', () => {
       // The kept pre-ledger invocation: one slice row.
       [5, 1, 'unattributed', 'unattributed', false],
     ]);
-    expect(invoice.rows[3]?.usage).toEqual(usageOf(300_000, 0));
+    expect(invoice.rows[3]?.usage).toEqual({ ...usageOf(300_000, 0), reasoningTokens: 0 });
     const report = costReportFromJournal(entries, capsPriceUsd);
     expect(invoice.totalUsd).toBe(report.grossUsd);
     expect(invoice.netUsd).toBe(report.totalUsd);

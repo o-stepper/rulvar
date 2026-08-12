@@ -146,7 +146,7 @@ describe('the honest invoice (P1.2/P1.3/P1.4)', () => {
     expect(invoice.totalUsd).toBe(0.021);
     expect(invoice.rowUsdNonAdditive).toBe(true);
     const remainder = invoice.rows.find((row) => row.reconciliation === 'unattributed');
-    expect(remainder?.usage).toEqual(usageOf(300, 20));
+    expect(remainder?.usage).toEqual({ ...usageOf(300, 20), reasoningTokens: 0 });
     const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
     expect(allocated).toBe(invoice.totalUsd);
   });
@@ -313,7 +313,7 @@ describe('the per-slice residual (RV605, the round-52 accounting P1)', () => {
     expect(orphan).toBeDefined();
     expect(orphan?.reconciliation).toBe('unattributed');
     expect(orphan?.role).toBe('extract');
-    expect(orphan?.usage).toEqual(usageOf(2000, 0));
+    expect(orphan?.usage).toEqual({ ...usageOf(2000, 0), reasoningTokens: 0 });
     expect(orphan?.allocatedUsd).toBeCloseTo(0.02, 12);
     // No A row carries more than A's own dollars.
     for (const row of invoice.rows.filter((candidate) => candidate.servedBy === 'fake:model')) {
@@ -345,7 +345,7 @@ describe('the per-slice residual (RV605, the round-52 accounting P1)', () => {
     const remainders = invoice.rows.filter((row) => row.reconciliation === 'unattributed');
     expect(remainders).toHaveLength(1);
     expect(remainders[0]?.role).toBe('extract');
-    expect(remainders[0]?.usage).toEqual(usageOf(100, 0));
+    expect(remainders[0]?.usage).toEqual({ ...usageOf(100, 0), reasoningTokens: 0 });
     const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
     expect(allocated).toBe(invoice.totalUsd);
   });
@@ -360,7 +360,7 @@ describe('the per-slice residual (RV605, the round-52 accounting P1)', () => {
     const invoice = invoiceFromJournal(entries, linearPrice);
     const remainder = invoice.rows.find((row) => row.reconciliation === 'unattributed');
     expect(remainder?.servedBy).toBe('fake:model');
-    expect(remainder?.usage).toEqual(usageOf(300, 20));
+    expect(remainder?.usage).toEqual({ ...usageOf(300, 20), reasoningTokens: 0 });
     expect(remainder?.ordinal).toBe(2);
     const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
     expect(allocated).toBe(invoice.totalUsd);
@@ -496,7 +496,7 @@ describe("a covered model's rows are exactly its calls (RV703, the eleventh-expe
       (row) => row.servedBy === 'exec:model' && row.reconciliation === 'unattributed',
     );
     expect(execRemainders).toHaveLength(1);
-    expect(execRemainders[0]?.usage).toEqual(usageOf(1500, 0));
+    expect(execRemainders[0]?.usage).toEqual({ ...usageOf(1500, 0), reasoningTokens: 0 });
     expect(invoice.rowUsdNonAdditive).toBe(true);
     const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
     expect(allocated).toBe(invoice.totalUsd);
@@ -580,5 +580,35 @@ describe('non-finite accounting is refused typed (RV610)', () => {
     expect(() => invoiceFromJournal(entries, () => Number.MAX_VALUE)).toThrow(/finite/);
     // A single huge but finite total stays representable and allowed.
     expect(() => invoiceFromJournal([entries[0]], () => Number.MAX_VALUE)).not.toThrow();
+  });
+});
+
+describe('the uniform row usage envelope (RV3311)', () => {
+  it('every row carries reasoningTokens, detached from the journal object', () => {
+    // The 2026-08-12 comparison run's invoice had 77 rows with the
+    // field and one (the judge verdict extraction) without: a FinOps
+    // consumer folding the column had to know that absence meant zero
+    // on exactly one row shape.
+    const entry = terminalEntry(1, {
+      usage: usageOf(300, 30),
+      providerCalls: [
+        record(1, { ...usageOf(100, 10), reasoningTokens: 7 }, { responseId: 'resp_R' }),
+        record(2, usageOf(200, 20), { responseId: 'resp_NO_REASONING' }),
+      ],
+    });
+    const invoice = invoiceFromJournal([entry], linearPrice);
+    expect(invoice.rows).toHaveLength(2);
+    for (const row of invoice.rows) {
+      expect(row.usage.reasoningTokens).toBeDefined();
+    }
+    expect(invoice.rows[0]?.usage.reasoningTokens).toBe(7);
+    expect(invoice.rows[1]?.usage.reasoningTokens).toBe(0);
+    // Detached: annotating the export never reaches the journal entry.
+    const journalUsage = (entry.providerCalls ?? [])[1]?.usage;
+    const exported = invoice.rows[1]?.usage;
+    if (exported !== undefined) {
+      exported.inputTokens = 999_999;
+    }
+    expect(journalUsage?.inputTokens).toBe(200);
   });
 });
