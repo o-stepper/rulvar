@@ -1169,9 +1169,9 @@ export const MUTATIONS = [
     doctrine:
       'settleable is the full settlement-grade composite (RV1006): with the usage-unknown condition dropped, a match over a ledger still holding unattributed money reads settleable true and the predicate stops naming exactly the money a match cannot vouch for',
     file: 'packages/core/src/engine/reconcile-statement.ts',
-    find: "    settleable:\n      verdict === 'match' &&\n      coverageComplete &&\n      usageUnknownRows === 0 &&\n      unpricedModels.size === 0,",
+    find: "  const settleable =\n    verdict === 'match' && coverageComplete && usageUnknownRows === 0 && unpricedModels.size === 0;",
     replace:
-      "    settleable:\n      verdict === 'match' &&\n      coverageComplete &&\n      unpricedModels.size === 0,",
+      "  const settleable =\n    verdict === 'match' && coverageComplete && unpricedModels.size === 0;",
     test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
   {
@@ -4605,6 +4605,15 @@ export const MUTATIONS = [
     find: "        ...(typeof value.deliverableAccepted === 'boolean'\n          ? { deliverableAccepted: value.deliverableAccepted }\n          : {}),",
     replace: '        ...{},',
     test: 'packages/core/src/engine/persisted-terminal.test.ts',
+  },
+  {
+    id: 'money-closes-only-on-dollar-evidence',
+    doctrine:
+      "monetarySettleable demands complete dollar coverage on top of settleable (RV3306): collapsed to settleable alone, a usage-only export that matched on identity and tokens closes money without one dollar of provider evidence, the 2026-08-12 audit's counterexample verbatim",
+    file: 'packages/core/src/engine/reconcile-statement.ts',
+    find: "    monetarySettleable: settleable && dollarCoverage === 'complete',",
+    replace: '    monetarySettleable: settleable,',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
 ];
 

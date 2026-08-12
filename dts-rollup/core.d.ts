@@ -14125,6 +14125,17 @@ interface StatementReconciliation {
   componentToleranceUsd: number;
   verdict: "match" | "divergence" | "partial-coverage" | "no-overlap";
   /**
+  * How much of the MATCHED statement claims money (RV3306):
+  * 'complete' when every matched export row (requests mode) or every
+  * component line (categories mode) carries a dollar claim, a row
+  * total or a component split; 'partial' when some do; 'none' when
+  * the statement matched on identity and usage alone, or matched
+  * nothing. Kept apart from row coverage on purpose: coverage says
+  * the records line up, this says whether the provider actually
+  * stated dollars over them.
+  */
+  dollarCoverage: "complete" | "partial" | "none";
+  /**
   * The settlement-grade composite, first class (RV1006): true exactly
   * when the verdict is 'match' AND coverage is complete AND no row's
   * usage is unknown AND no model went unpriced. A 'match' alone is
@@ -14133,9 +14144,22 @@ interface StatementReconciliation {
   * consumer must not assemble this predicate by hand. The last two
   * conditions overlap today's verdict semantics deliberately: the
   * predicate states the full contract so it cannot drift apart from
-  * a future verdict refinement.
+  * a future verdict refinement. Note what it does NOT require: a
+  * dollar claim. A usage-only export that matches on identity and
+  * tokens reads `settleable: true`; gate MONETARY closure on
+  * `monetarySettleable` below.
   */
   settleable: boolean;
+  /**
+  * The MONETARY settlement predicate (RV3306): `settleable` AND
+  * complete dollar coverage. `settleable` answers "do the records
+  * agree"; this answers "may money close against this statement".
+  * The 2026-08-12 audit named the difference on this exact module: a
+  * usage-only request export settled 'match' without one dollar of
+  * provider evidence, and a finance pipeline gating on `settleable`
+  * alone would have closed money against it.
+  */
+  monetarySettleable: boolean;
 }
 /**
 * Reconciles the invoice against a normalized provider export. Pure and
