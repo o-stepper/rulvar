@@ -351,6 +351,22 @@ export interface PostFanInBreakdown {
 export const CLAIM_JUDGE_LABEL = 'claim-consistency-judge';
 
 /**
+ * Whether a synthesize span's label names a claim-consistency judge
+ * invocation: the exact {@link CLAIM_JUDGE_LABEL}, or a suffixed
+ * variant of it (the final pass dispatches under
+ * `claim-consistency-judge-final` since RV2509 so the two passes of
+ * `stage: 'both'` stay separable). BOTH reducers must classify through
+ * this one predicate (RV3302): the live fold compared the label for
+ * exact equality while the journal fold accepted the suffix, and the
+ * 2026-08-12 comparison run reported semanticJudgeMs 0 with the whole
+ * 272923 ms window read as final composition on the live surface
+ * while the journal fold correctly split 224864 against 48059.
+ */
+export function isClaimJudgeLabel(label: string | undefined): boolean {
+  return label === CLAIM_JUDGE_LABEL || (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false);
+}
+
+/**
  * The label the final synthesis (composition) invocation dispatches
  * under (RV2901). The engine labelling its OWN dispatches is what lets
  * `criticalPathFromJournal` split the synthesize bucket offline: the
@@ -464,7 +480,7 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         }
         if (started.role === 'synthesize') {
           const wall = Math.max(0, at - started.at);
-          const judge = started.label === CLAIM_JUDGE_LABEL;
+          const judge = isClaimJudgeLabel(started.label);
           synthesisMs += wall;
           if (judge) {
             semanticJudgeMs += wall;

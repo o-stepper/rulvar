@@ -2707,7 +2707,7 @@ export const MUTATIONS = [
     doctrine:
       'the synthesize wall splits by the claim judge label (RV1604): erasing the label check folds the judge wall back into finalCompositionMs and the benchmark misread of a slow composer returns',
     file: 'packages/core/src/l0/telemetry-reduce.ts',
-    find: '          const judge = started.label === CLAIM_JUDGE_LABEL;',
+    find: '          const judge = isClaimJudgeLabel(started.label);',
     replace: '          const judge = false;',
     test: 'packages/core/src/orchestrator/synthesis.test.ts',
   },
@@ -4569,6 +4569,15 @@ export const MUTATIONS = [
     find: '    if (this.appendFailure !== undefined) {',
     replace: '    if (false) {',
     test: 'packages/core/src/engine/journal-integrity.test.ts',
+  },
+  {
+    id: 'both-surfaces-share-the-judge-label-predicate',
+    doctrine:
+      'the live and journal critical path folds classify the claim judge through one predicate (RV3302): narrowed to exact equality, the suffixed final pass label reads as composition and the live surface reports semanticJudgeMs 0 over a 48059 ms judge, the 2026-08-12 comparison run verbatim',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '  return label === CLAIM_JUDGE_LABEL || (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false);',
+    replace: '  return label === CLAIM_JUDGE_LABEL;',
+    test: 'packages/core/src/orchestrator/synthesis.test.ts',
   },
   {
     id: 'the-final-stage-refuses-a-carry-it-cannot-deliver',
