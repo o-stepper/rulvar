@@ -4571,6 +4571,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/journal-integrity.test.ts',
   },
   {
+    id: 'anthropic-suffixes-price-only-through-the-dated-grammar',
+    doctrine:
+      'an unknown anthropic suffix never inherits a known row (RV3303): widened past the YYYYMMDD grammar, claude-sonnet-5-preview takes the known caps and the promotional pricing, the fabricated row the table contract forbids and the 2026-08-12 comparison run named as a counterexample',
+    file: 'packages/anthropic/src/caps.ts',
+    find: 'const DATED_SNAPSHOT = /^(?<base>.+)-\\d{8}$/u;',
+    replace: 'const DATED_SNAPSHOT = /^(?<base>.+)-[^-]+$/u;',
+    test: 'packages/anthropic/src/caps.test.ts',
+  },
+  {
     id: 'both-surfaces-share-the-judge-label-predicate',
     doctrine:
       'the live and journal critical path folds classify the claim judge through one predicate (RV3302): narrowed to exact equality, the suffixed final pass label reads as composition and the live surface reports semanticJudgeMs 0 over a 48059 ms judge, the 2026-08-12 comparison run verbatim',

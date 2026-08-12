@@ -82,6 +82,25 @@ describe('caps snapshot (v1.16.1 review P2)', () => {
     expect(anthropicModelInfo('claude-nova-9').caps.contextWindow).toBe(400_000);
   });
 
+  it('prices only exact names and dated snapshots, never other suffixes (RV3303)', () => {
+    // The 2026-08-12 comparison run's counterexample: under the old
+    // prefix matcher a preview suffix of a known name inherited the
+    // known row, promotional pricing included, while this table's own
+    // contract says pricing stays ABSENT for an unknown model. The
+    // openai grammar (v1.17.0 review P1-1) already refuses this class.
+    const preview = anthropicModelInfo('claude-sonnet-5-preview');
+    expect(preview.caps.pricing).toBeUndefined();
+    expect(preview.caps.contextWindow).toBe(400_000);
+    // A dated snapshot of a name the table does NOT carry is a sibling,
+    // not a snapshot: it must not land on the shorter known base.
+    const sibling = anthropicModelInfo('claude-sonnet-5-mini-20270101');
+    expect(sibling.caps.pricing).toBeUndefined();
+    // The documented grammar keeps resolving: exact base plus YYYYMMDD.
+    const dated = anthropicModelInfo('claude-sonnet-5-20270101');
+    expect(dated.caps.pricing).toBeDefined();
+    expect(dated.caps.pricing).toEqual(anthropicModelInfo('claude-sonnet-5').caps.pricing);
+  });
+
   it('keeps the seed table and pricing intact when refreshCaps fails', async () => {
     const client: AnthropicClientLike = {
       messages: {
