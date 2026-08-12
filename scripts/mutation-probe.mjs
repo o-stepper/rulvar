@@ -4570,6 +4570,15 @@ export const MUTATIONS = [
     replace: '    if (false) {',
     test: 'packages/core/src/engine/journal-integrity.test.ts',
   },
+  {
+    id: 'the-final-stage-refuses-a-carry-it-cannot-deliver',
+    doctrine:
+      "claimConsistency stage 'final' with onFound 'carry' is a ConfigError at intake (RV3301): disarmed, the pair reads as a gate and behaves as 'report', which is how the 2026-08-12 comparison run settled ok/complete over a contradiction its own final judge had already named",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "    if (stage === 'final' && onFound === 'carry') {",
+    replace: '    if (false) {',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

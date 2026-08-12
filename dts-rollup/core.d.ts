@@ -10361,7 +10361,12 @@ interface OrchestrateClaimConsistency {
   * explicitly (a ConfigError without that synthesis, the
   * contradictions precedent), and non-empty findings block the
   * `skipWhenDraftValid` gate: a draft contradicting its own pool
-  * never earns the skip. 'fail' fails the run typed with
+  * never earns the skip. The carry can only ride a prompt that still
+  * lies ahead, so it binds the pass that runs BEFORE the synthesis:
+  * under `stage: 'both'` the draft pass carries and the final pass
+  * reports, and `stage: 'final'` with 'carry' is a ConfigError at
+  * intake, because a posture that reads as a gate must not quietly
+  * behave as 'report'. 'fail' fails the run typed with
   * `data.source` 'orchestrator_claim_consistency' BEFORE any
   * synthesis dispatch; the judge itself has already been paid, which
   * is the honest minimum for a semantic verdict. A judge that does
