@@ -2622,6 +2622,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
         workflow: wf.name,
         outcome: outcomeFacts,
         agentsSpawned: budget.spent().agentsSpawned,
+        // The declared config identity rides the terminal (RV3304), so
+        // the decision surface binds the verdict to the configuration
+        // without a second read of the run record.
+        ...(configFingerprint === undefined ? {} : { configFingerprint }),
         ...(settlementFailure !== undefined
           ? { settlement: {} }
           : supersededBy !== undefined

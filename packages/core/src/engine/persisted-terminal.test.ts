@@ -97,6 +97,100 @@ describe('the persisted terminal envelope (RV1209)', () => {
     expect('error' in derived.envelope).toBe(false);
   });
 
+  it('the semantic outcome survives the restart, and a stripped lift stays absent (RV3304)', async () => {
+    // The 2026-08-12 comparison run settled ok/complete over a
+    // contradiction its own final judge had named, and the restarted
+    // reader could not see the acceptance verdict, the judge meta, or
+    // the config identity a live consumer gated on. The settle has
+    // recorded the whole lift all along; the fold now reads it back.
+    const meta = {
+      poolChildren: 4,
+      draftCitingSentences: 130,
+      pairs: 135,
+      truncated: false,
+      coveredCitingSentences: 85,
+      judgeInvoked: true,
+      findings: 1,
+      coverage: 'partial',
+      judgedStage: 'final',
+      judgedHash: 'df5f624c',
+    };
+    const semantic = defineWorkflow({ name: 'semantic' }, async (ctx) => {
+      await ctx.agent('hi');
+      return {
+        result: 'done',
+        completion: 'complete' as const,
+        deliverableAccepted: true,
+        resultAvailable: true,
+        acceptedArtifactRef: 2,
+        claimConsistencyMeta: meta,
+      };
+    });
+    const store = new InMemoryStore();
+    const outcome = await engineOver(store).run(semantic, undefined, {
+      runId: 'PT-SEM',
+      configFingerprint: 'exp:sol-terra:4',
+    }).result;
+    expect(outcome.envelope.deliverableAccepted).toBe(true);
+    expect(outcome.envelope.resultAvailable).toBe(true);
+    expect(outcome.envelope.acceptedArtifactRef).toBe(2);
+    expect(outcome.envelope.claimConsistencyMeta).toEqual(meta);
+    expect(outcome.envelope.configFingerprint).toBe('exp:sol-terra:4');
+
+    const { entries, meta: runMeta, priceUsd } = await reload(store, 'PT-SEM');
+    const derived = persistedTerminalEnvelope({
+      runId: 'PT-SEM',
+      meta: runMeta,
+      entries,
+      priceUsd,
+    });
+    expect(derived.available).toBe(true);
+    if (!derived.available) {
+      return;
+    }
+    expect(derived.envelope.deliverableAccepted).toBe(true);
+    expect(derived.envelope.resultAvailable).toBe(true);
+    expect(derived.envelope.acceptedArtifactRef).toBe(2);
+    expect(derived.envelope.claimConsistencyMeta).toEqual(meta);
+    expect(derived.envelope.configFingerprint).toBe('exp:sol-terra:4');
+    expect(derived.envelope.provenance).toBe('journal');
+
+    // A journal whose settle never carried the semantic lift, or
+    // carried a malformed meta, reads as NOT RECORDED, never as a
+    // verdict.
+    const stripped = entries.map((entry) => {
+      const value = entry.value as { decisionType?: string } | undefined;
+      if (value?.decisionType !== 'run_settle') {
+        return entry;
+      }
+      const {
+        deliverableAccepted: _a,
+        resultAvailable: _r,
+        acceptedArtifactRef: _ref,
+        claimConsistencyMeta: _m,
+        ...rest
+      } = entry.value as Record<string, unknown>;
+      return {
+        ...entry,
+        value: { ...rest, claimConsistencyMeta: { judgeInvoked: 'yes' } },
+      };
+    });
+    const legacy = persistedTerminalEnvelope({
+      runId: 'PT-SEM',
+      meta: runMeta,
+      entries: stripped,
+      priceUsd,
+    });
+    expect(legacy.available).toBe(true);
+    if (!legacy.available) {
+      return;
+    }
+    expect('deliverableAccepted' in legacy.envelope).toBe(false);
+    expect('resultAvailable' in legacy.envelope).toBe(false);
+    expect('acceptedArtifactRef' in legacy.envelope).toBe(false);
+    expect('claimConsistencyMeta' in legacy.envelope).toBe(false);
+  });
+
   it('a settle written before the lift rode it stays honestly absent', async () => {
     const store = new InMemoryStore();
     await engineOver(store).run(claiming, undefined, { runId: 'PT-LEGACY' }).result;

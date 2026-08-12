@@ -135,10 +135,31 @@ export function persistedTerminalEnvelope(input: {
       // before the lift rode it stays absent, which still honestly
       // reads "not recorded" under provenance 'journal'.
       ...(settle.completion === undefined ? {} : { completion: settle.completion }),
+      // The semantic outcome (RV3304), read back from the same lift:
+      // the 2026-08-12 comparison run settled ok/complete over a
+      // retained contradiction, and a restarted reader could not see
+      // the acceptance verdict or the judge meta a live consumer
+      // gated on. Absent fields stay absent: NOT RECORDED, never a
+      // verdict.
+      ...(settle.deliverableAccepted === undefined
+        ? {}
+        : { deliverableAccepted: settle.deliverableAccepted }),
+      ...(settle.resultAvailable === undefined ? {} : { resultAvailable: settle.resultAvailable }),
+      ...(settle.acceptedArtifactRef === undefined
+        ? {}
+        : { acceptedArtifactRef: settle.acceptedArtifactRef }),
+      ...(settle.claimConsistencyMeta === undefined
+        ? {}
+        : { claimConsistencyMeta: settle.claimConsistencyMeta }),
       usage: ledger.usage,
       cost: costReportFromJournal(input.entries, input.priceUsd),
     },
     agentsSpawned: ledger.agentsSpawned,
+    // The recorded config identity (RV3210) rides the rebuilt envelope
+    // too (RV3304), from the same meta row that names the workflow.
+    ...(input.meta?.configFingerprint === undefined
+      ? {}
+      : { configFingerprint: input.meta.configFingerprint }),
     // A journaled settle IS the durable record of the terminal, so the
     // envelope reads `settled: true` by construction: the settlement
     // failures that produce `settled: false` never reach the journal

@@ -10,7 +10,7 @@
 function childRostersFromJournal(entries): JournaledChildRoster[];
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:499](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L499)
+Defined in: [packages/core/src/stores/reconcile.ts:557](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L557)
 
 Every orchestration's children, folded from a run's journal (RV2702).
 

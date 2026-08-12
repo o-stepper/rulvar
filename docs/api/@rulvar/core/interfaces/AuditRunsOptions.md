@@ -6,10 +6,10 @@
 
 # Interface: AuditRunsOptions
 
-Defined in: [packages/core/src/stores/reconcile.ts:733](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L733)
+Defined in: [packages/core/src/stores/reconcile.ts:791](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L791)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-includeconsistent"></a> `includeConsistent?` | `boolean` | Also return runs whose audit found nothing wrong. Default false. | [packages/core/src/stores/reconcile.ts:735](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L735) |
+| <a id="property-includeconsistent"></a> `includeConsistent?` | `boolean` | Also return runs whose audit found nothing wrong. Default false. | [packages/core/src/stores/reconcile.ts:793](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L793) |

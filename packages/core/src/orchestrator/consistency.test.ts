@@ -444,6 +444,9 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       truncated: false,
       coveredCitingSentences: 1,
       judgeInvoked: true,
+      // The count rides the meta (RV3304): surfaces the findings array
+      // never reaches still say what the judge found.
+      findings: 1,
       coverage: 'full',
       judgedStage: 'draft',
       judgedHash,

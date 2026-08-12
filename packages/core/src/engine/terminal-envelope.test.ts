@@ -341,4 +341,59 @@ describe('terminalEnvelopeOf (RV1105)', () => {
     expect(envelope.completion).toBe('rejected');
     expect(envelope.usageApprox).toBe(false);
   });
+
+  it('mirrors the semantic outcome and detaches the judge meta (RV3304)', () => {
+    // The 2026-08-12 comparison run settled ok/complete over a
+    // retained contradiction, and no terminal surface could say
+    // whether anything judged the deliverable or what the judge
+    // found. The envelope now carries the verdict, the judge meta and
+    // the config identity, mirrored only when present.
+    const meta = {
+      judgeInvoked: true,
+      findings: 1,
+      coverage: 'partial',
+      judgedStage: 'final',
+      judgedHash: 'h1',
+      criticalUncovered: ['src/a.ts'],
+    };
+    const envelope = terminalEnvelopeOf({
+      runId: 'r-5',
+      workflow: 'wf',
+      outcome: {
+        ...outcomeFacts,
+        completion: 'complete',
+        deliverableAccepted: true,
+        resultAvailable: true,
+        acceptedArtifactRef: 7,
+        claimConsistencyMeta: meta,
+      },
+      agentsSpawned: 1,
+      configFingerprint: 'exp:sol-terra:4',
+    });
+    expect(envelope.deliverableAccepted).toBe(true);
+    expect(envelope.resultAvailable).toBe(true);
+    expect(envelope.acceptedArtifactRef).toBe(7);
+    expect(envelope.configFingerprint).toBe('exp:sol-terra:4');
+    expect(envelope.claimConsistencyMeta).toEqual(meta);
+    expect(envelope.claimConsistencyMeta).not.toBe(meta);
+    // Detached like costByModel and the error: annotating the copy
+    // never reaches the outcome the engine owns, nesting included.
+    (envelope.claimConsistencyMeta as { findings: number }).findings = 99;
+    ((envelope.claimConsistencyMeta as { criticalUncovered: string[] }).criticalUncovered ??
+      [])[0] = 'rewritten';
+    expect(meta.findings).toBe(1);
+    expect(meta.criticalUncovered[0]).toBe('src/a.ts');
+
+    const bare = terminalEnvelopeOf({
+      runId: 'r-6',
+      workflow: 'wf',
+      outcome: outcomeFacts,
+      agentsSpawned: 0,
+    });
+    expect('deliverableAccepted' in bare).toBe(false);
+    expect('resultAvailable' in bare).toBe(false);
+    expect('acceptedArtifactRef' in bare).toBe(false);
+    expect('claimConsistencyMeta' in bare).toBe(false);
+    expect('configFingerprint' in bare).toBe(false);
+  });
 });

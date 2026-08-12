@@ -74,6 +74,18 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
        * recorded" rather than as a claim.
        */
       rejectedFinishCandidates?: RejectedFinishCandidate[];
+      /**
+       * The semantic outcome the settle recorded (RV3304), read back
+       * the same defensive way: the acceptance verdict, the
+       * deliverable presence, the acceptance ref and the judge meta,
+       * so a restarted reader recovers the facts a live consumer
+       * gated on. Absent on journals written before the lift carried
+       * them; absence means NOT RECORDED, never a verdict.
+       */
+      deliverableAccepted?: boolean;
+      resultAvailable?: boolean;
+      acceptedArtifactRef?: number;
+      claimConsistencyMeta?: Record<string, unknown>;
     }
   | undefined {
   for (let i = entries.length - 1; i >= 0; i -= 1) {
@@ -88,6 +100,10 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
           outputHash?: unknown;
           completion?: unknown;
           rejectedFinishCandidates?: unknown;
+          deliverableAccepted?: unknown;
+          resultAvailable?: unknown;
+          acceptedArtifactRef?: unknown;
+          claimConsistencyMeta?: unknown;
         }
       | undefined;
     if (
@@ -101,6 +117,7 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
       // claim.
       const completion = value.completion;
       const rejected = readRejectedFinishCandidates(value.rejectedFinishCandidates);
+      const judgeMeta = readClaimConsistencyMeta(value.claimConsistencyMeta);
       return {
         runStatus: value.runStatus as RunStatus,
         seq: entry.seq,
@@ -109,10 +126,51 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
           ? { completion }
           : {}),
         ...(rejected === undefined ? {} : { rejectedFinishCandidates: rejected }),
+        ...(typeof value.deliverableAccepted === 'boolean'
+          ? { deliverableAccepted: value.deliverableAccepted }
+          : {}),
+        ...(typeof value.resultAvailable === 'boolean'
+          ? { resultAvailable: value.resultAvailable }
+          : {}),
+        ...(typeof value.acceptedArtifactRef === 'number' &&
+        Number.isSafeInteger(value.acceptedArtifactRef) &&
+        value.acceptedArtifactRef >= 0
+          ? { acceptedArtifactRef: value.acceptedArtifactRef }
+          : {}),
+        ...(judgeMeta === undefined ? {} : { claimConsistencyMeta: judgeMeta }),
       };
     }
   }
   return undefined;
+}
+
+/**
+ * The judge meta of a persisted settle, or `undefined` (RV3304). The
+ * whole object drops unless its load bearing fields are shaped as the
+ * live producer writes them (`judgeInvoked`, the coverage grade, the
+ * judged stage and hash): a partially shaped meta read as a verdict
+ * would claim semantic ground the journal does not hold, the same
+ * posture as `readRejectedFinishCandidates`.
+ */
+function readClaimConsistencyMeta(raw: unknown): Record<string, unknown> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const meta = raw as {
+    judgeInvoked?: unknown;
+    coverage?: unknown;
+    judgedStage?: unknown;
+    judgedHash?: unknown;
+  };
+  if (
+    typeof meta.judgeInvoked !== 'boolean' ||
+    typeof meta.coverage !== 'string' ||
+    (meta.judgedStage !== 'draft' && meta.judgedStage !== 'final') ||
+    typeof meta.judgedHash !== 'string'
+  ) {
+    return undefined;
+  }
+  return { ...(raw as Record<string, unknown>) };
 }
 
 /**

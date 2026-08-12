@@ -4597,6 +4597,15 @@ export const MUTATIONS = [
     replace: 'const DATED_SNAPSHOT = /^(?<base>.+)-[^-]+$/u;',
     test: 'packages/anthropic/src/caps.test.ts',
   },
+  {
+    id: 'the-persisted-terminal-recovers-the-semantic-verdict',
+    doctrine:
+      'the persisted terminal reads the acceptance verdict back from the settle lift (RV3304): dropped, a restarted reader sees ok/complete with no way to tell whether anything ever judged the deliverable, the 2026-08-12 comparison run blind spot verbatim',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: "        ...(typeof value.deliverableAccepted === 'boolean'\n          ? { deliverableAccepted: value.deliverableAccepted }\n          : {}),",
+    replace: '        ...{},',
+    test: 'packages/core/src/engine/persisted-terminal.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

@@ -10,7 +10,7 @@
 function terminalEnvelopeOf(input): TerminalEnvelope;
 ```
 
-Defined in: [packages/core/src/engine/terminal-envelope.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L51)
+Defined in: [packages/core/src/engine/terminal-envelope.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L78)
 
 Assembles one terminal envelope (RV1105). `settlement` present means
 nothing durable records the terminal: `settled` reads false, and the
@@ -26,16 +26,17 @@ different shape, which is the whole point of the arc.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `input` | \{ `agentsSpawned`: `number`; `outcome`: [`TerminalOutcomeFacts`](/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md); `provenance?`: `"journal"`; `runId`: `string`; `settlement?`: \{ `settledReason?`: `"superseded"`; \}; `workflow`: `string`; \} |
-| `input.agentsSpawned` | `number` |
-| `input.outcome` | [`TerminalOutcomeFacts`](/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md) |
-| `input.provenance?` | `"journal"` |
-| `input.runId` | `string` |
-| `input.settlement?` | \{ `settledReason?`: `"superseded"`; \} |
-| `input.settlement.settledReason?` | `"superseded"` |
-| `input.workflow` | `string` |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `input` | \{ `agentsSpawned`: `number`; `configFingerprint?`: `string`; `outcome`: [`TerminalOutcomeFacts`](/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md); `provenance?`: `"journal"`; `runId`: `string`; `settlement?`: \{ `settledReason?`: `"superseded"`; \}; `workflow`: `string`; \} | - |
+| `input.agentsSpawned` | `number` | - |
+| `input.configFingerprint?` | `string` | The run's declared config identity (RV3210), echoed onto the envelope (RV3304). |
+| `input.outcome` | [`TerminalOutcomeFacts`](/api/@rulvar/core/type-aliases/TerminalOutcomeFacts.md) | - |
+| `input.provenance?` | `"journal"` | - |
+| `input.runId` | `string` | - |
+| `input.settlement?` | \{ `settledReason?`: `"superseded"`; \} | - |
+| `input.settlement.settledReason?` | `"superseded"` | - |
+| `input.workflow` | `string` | - |
 
 ## Returns
 

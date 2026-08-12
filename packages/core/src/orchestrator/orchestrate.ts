@@ -1049,6 +1049,18 @@ export interface OrchestrateClaimConsistencyMeta {
    */
   judgeDeclined?: true;
   /**
+   * How many judged contradictions the pass FOUND on the judged
+   * document, present exactly when the judge settled ok (RV3304): `0`
+   * is a clean verdict, a positive count is a disagreement that stayed
+   * wherever the posture did not stop the run. The findings themselves
+   * ride `claimContradictions` beside this meta on the acceptance
+   * envelope, but the meta travels ALONE onto RunOutcome, the
+   * journaled run settle, and the terminal envelope, and the
+   * 2026-08-12 comparison run settled ok/complete over a retained
+   * finding no terminal surface could count.
+   */
+  findings?: number;
+  /**
    * The one field a consumer reads INSTEAD of inferring semantic
    * health from an empty findings array (RV1702):
    * {@link claimCoverageOf} over this meta, so `completion:
@@ -6008,6 +6020,7 @@ export function makeOrchestratorWorkflow(
         judgeInvoked: boolean;
         judgeFailed?: true;
         judgeDeclined?: true;
+        findings?: number;
       }): OrchestrateClaimConsistencyMeta => {
         const bare = { ...metaBase, ...flags };
         // The provenance of the verdict (RV2509), stamped at the one
@@ -6294,7 +6307,10 @@ export function makeOrchestratorWorkflow(
         .sort((a, b) => a[0] - b[0])
         .map(([index, reason]) => ({ ...allPairs[index], reason }));
       claimFindingsFound = findings;
-      claimConsistencyMeta = finishMeta({ judgeInvoked: true });
+      // The count rides the meta (RV3304): the meta travels alone onto
+      // surfaces the findings array never reaches, and a retained
+      // finding must stay countable there.
+      claimConsistencyMeta = finishMeta({ judgeInvoked: true, findings: findings.length });
       announce();
       if (onFound !== 'fail' || findings.length === 0) {
         return;

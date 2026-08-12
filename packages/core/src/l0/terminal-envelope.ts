@@ -83,6 +83,46 @@ export interface TerminalEnvelope {
   /** Agents admitted over the run's lifetime, resume seed included. */
   agentsSpawned: number;
   /**
+   * Whether the artifact this terminal carries passed the declared
+   * finish contract (RV2506), mirrored onto the envelope since RV3304:
+   * the 2026-08-12 comparison run settled ok/complete over a retained
+   * contradiction, and neither the HTTP response nor the persisted
+   * rebuild could say whether anything ever judged the deliverable.
+   * Absent when no contract judged anything; absence means NOT
+   * RECORDED, never "accepted".
+   */
+  deliverableAccepted?: boolean;
+  /**
+   * Whether this terminal carries a deliverable to read at all
+   * (RV2506); same mirror and posture. Distinct from
+   * `deliverableAccepted`: an unjudged artifact still EXISTS, and a
+   * run with no artifact still has a completion claim.
+   */
+  resultAvailable?: boolean;
+  /**
+   * The journal seq of the decision entry recording the acceptance of
+   * the artifact this terminal carries (RV2506); same mirror, absent
+   * unless the acceptance actually rendered. Read it with
+   * `rulvar inspect` to see WHICH validators accepted WHICH hash.
+   */
+  acceptedArtifactRef?: number;
+  /**
+   * The claim consistency pass meta, detached (RV3304): `judgedStage`,
+   * `judgedHash`, the coverage grade and the `findings` count, so the
+   * surface a consumer gates on says WHAT was semantically verified,
+   * over WHICH document, and what the judge found, without reaching
+   * into the workflow value. Mutating this copy never touches the
+   * outcome the engine owns.
+   */
+  claimConsistencyMeta?: Record<string, unknown>;
+  /**
+   * The host declared config identity the run was started under
+   * (RV3210), echoed here since RV3304 so a decision consumer binds
+   * the verdict above to the configuration that produced it without a
+   * second read of the run record. Absent when the run declared none.
+   */
+  configFingerprint?: string;
+  /**
    * Where THIS copy of the envelope was assembled (RV1209). Absent, the
    * historical byte contract, means the settlement chokepoint built it
    * from the live outcome, so every field above is the run's own
