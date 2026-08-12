@@ -814,7 +814,12 @@ export interface OrchestrateClaimConsistency {
    * explicitly (a ConfigError without that synthesis, the
    * contradictions precedent), and non-empty findings block the
    * `skipWhenDraftValid` gate: a draft contradicting its own pool
-   * never earns the skip. 'fail' fails the run typed with
+   * never earns the skip. The carry can only ride a prompt that still
+   * lies ahead, so it binds the pass that runs BEFORE the synthesis:
+   * under `stage: 'both'` the draft pass carries and the final pass
+   * reports, and `stage: 'final'` with 'carry' is a ConfigError at
+   * intake, because a posture that reads as a gate must not quietly
+   * behave as 'report'. 'fail' fails the run typed with
    * `data.source` 'orchestrator_claim_consistency' BEFORE any
    * synthesis dispatch; the judge itself has already been paid, which
    * is the honest minimum for a semantic verdict. A judge that does
@@ -2126,6 +2131,22 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         `orchestrate claimConsistency.stage '${stage}' requires synthesis: without the ` +
           'post-fan-in invocation the coordination draft IS the final artifact, and the ' +
           "default 'draft' already judges it",
+      );
+    }
+    // The carry posture rides the 'single' synthesis prompt, and the
+    // 'final' pass runs strictly AFTER that prompt was built and
+    // consumed: under `stage: 'final'` a judged finding has no prompt
+    // left to ride, so the pair would silently behave as 'report'
+    // while reading as a gate. The 2026-08-12 comparison run settled
+    // ok/complete with a contradiction its own final judge had
+    // already named, under exactly this pair. Under 'both' the carry
+    // binds the DRAFT pass, whose findings the synthesis prompt still
+    // lies ahead of, and the final pass reports.
+    if (stage === 'final' && onFound === 'carry') {
+      throw new ConfigError(
+        "orchestrate claimConsistency.onFound 'carry' cannot pair with stage 'final': the " +
+          'final pass runs after the synthesis, so there is no prompt left to carry the ' +
+          "findings into; use 'report' or 'fail', or keep a carried draft pass with stage 'both'",
       );
     }
     if (consistency.pattern !== undefined) {

@@ -1195,6 +1195,27 @@ describe('the semantic gate reaches the FINAL artifact (RV2509)', () => {
       }),
     ).toThrow(/stage 'final' requires synthesis/);
   });
+
+  it("rejects 'carry' on the final stage and keeps it on 'both' (RV3301)", () => {
+    // The 2026-08-12 comparison run: `stage: 'final'` with
+    // `onFound: 'carry'` passed intake, the final judge named a real
+    // contradiction, and the run still settled ok/complete, because
+    // the carry's prompt had already been built and consumed. The
+    // pair now refuses before any wire instead of reading as a gate
+    // while behaving as 'report'.
+    expect(() =>
+      makeOrchestratorWorkflow('audit', {
+        synthesis: { limits: { maxTurns: 3 } },
+        claimConsistency: { stage: 'final', onFound: 'carry' },
+      }),
+    ).toThrow(/'carry' cannot pair with stage 'final'/);
+    expect(() =>
+      makeOrchestratorWorkflow('audit', {
+        synthesis: { limits: { maxTurns: 3 } },
+        claimConsistency: { stage: 'both', onFound: 'carry' },
+      }),
+    ).not.toThrow();
+  });
 });
 
 describe('the declared coverage target sizes the pass (RV2903)', () => {
