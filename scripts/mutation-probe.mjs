@@ -4598,6 +4598,15 @@ export const MUTATIONS = [
     test: 'packages/anthropic/src/caps.test.ts',
   },
   {
+    id: 'the-floor-prefers-the-observed-calls-per-entry',
+    doctrine:
+      'the evidence call floor uses the higher of the declared estimate and the journal observed prior (RV3309): collapsed to the declaration, a 4.211 observed reality hides behind a wish of 3 and the contract meets a cap it cannot actually fit, the 2026-08-12 calibration verbatim',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '        observed === undefined ? declaredPerEntry : Math.max(declaredPerEntry, observed);',
+    replace: '        declaredPerEntry;',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'the-persisted-terminal-recovers-the-semantic-verdict',
     doctrine:
       'the persisted terminal reads the acceptance verdict back from the settle lift (RV3304): dropped, a restarted reader sees ok/complete with no way to tell whether anything ever judged the deliverable, the 2026-08-12 comparison run blind spot verbatim',

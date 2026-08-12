@@ -105,13 +105,15 @@ export function requireTimerDelayMs(value: number, site: string): void {
 export function validateEvidenceContract(value: unknown, site: string): void {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new ConfigError(
-      `${site} must be { minEntries, estCallsPerEntry?, overheadCalls?, enforce? }; got ${typeof value}`,
+      `${site} must be { minEntries, estCallsPerEntry?, overheadCalls?, calibration?, ` +
+        `enforce? }; got ${typeof value}`,
     );
   }
-  const { minEntries, estCallsPerEntry, overheadCalls, enforce } = value as {
+  const { minEntries, estCallsPerEntry, overheadCalls, calibration, enforce } = value as {
     minEntries?: unknown;
     estCallsPerEntry?: unknown;
     overheadCalls?: unknown;
+    calibration?: unknown;
     enforce?: unknown;
   };
   requirePositiveInteger(minEntries as number, `${site}.minEntries`);
@@ -120,6 +122,36 @@ export function validateEvidenceContract(value: unknown, site: string): void {
   }
   if (overheadCalls !== undefined) {
     requireNonNegativeInteger(overheadCalls as number, `${site}.overheadCalls`);
+  }
+  if (calibration !== undefined) {
+    // The journal observed prior (RV3309): fractional by nature
+    // (calls over entries), so a positive FINITE number rather than
+    // the integer rule the declared estimate keeps.
+    if (typeof calibration !== 'object' || calibration === null || Array.isArray(calibration)) {
+      throw new ConfigError(
+        `${site}.calibration must be { callsPerEntry, source? }; got ${typeof calibration}`,
+      );
+    }
+    const { callsPerEntry, source } = calibration as {
+      callsPerEntry?: unknown;
+      source?: unknown;
+    };
+    if (
+      typeof callsPerEntry !== 'number' ||
+      !Number.isFinite(callsPerEntry) ||
+      callsPerEntry <= 0
+    ) {
+      throw new ConfigError(
+        `${site}.calibration.callsPerEntry must be a positive finite number; got ` +
+          JSON.stringify(callsPerEntry),
+      );
+    }
+    if (source !== undefined && (typeof source !== 'string' || source.length === 0)) {
+      throw new ConfigError(
+        `${site}.calibration.source must be a non empty string when present; got ` +
+          JSON.stringify(source),
+      );
+    }
   }
   if (enforce !== undefined && enforce !== 'warn' && enforce !== 'refuse') {
     throw new ConfigError(
