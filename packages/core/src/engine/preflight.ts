@@ -212,6 +212,18 @@ export interface PreflightOrchestratorSpec {
    * configs are byte identical until a host opts in.
    */
   minCeilingHeadroomShare?: number;
+  /**
+   * What a breached headroom floor emits (RV3310). The default
+   * 'warning' keeps RV3208's behavior byte for byte: advisory, and a
+   * host that only throws on errors sails past it. 'error' makes the
+   * breach blocking for exactly such hosts: the 2026-08-12 comparison
+   * harness threw on error findings only, its 2 percent floor held
+   * against a 2.857 percent headroom, and the assurance answer to
+   * "this plan is too thin to survive drift" must be refusal before
+   * the first wire, not a line in a report nobody gates on.
+   * Meaningful only beside a positive `minCeilingHeadroomShare`.
+   */
+  ceilingHeadroomSeverity?: 'warning' | 'error';
 }
 
 /** The full input: engine surface, run surface, and the declared wave. */
@@ -2135,13 +2147,25 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       ? undefined
       : ceilingHeadroomUsd / ceilingUsd;
   const minCeilingHeadroomShare = input.orchestrator?.minCeilingHeadroomShare ?? 0;
+  // The breach posture (RV3310): 'warning' keeps RV3208 byte for
+  // byte; 'error' makes the thin plan blocking for hosts that gate on
+  // error findings, which is the assurance posture the 2026-08-12
+  // harness already practiced (it threw on errors and sailed past its
+  // own warning class).
+  const ceilingHeadroomSeverity = input.orchestrator?.ceilingHeadroomSeverity ?? 'warning';
+  if (ceilingHeadroomSeverity !== 'warning' && ceilingHeadroomSeverity !== 'error') {
+    throw new ConfigError(
+      "preflight orchestrator.ceilingHeadroomSeverity must be 'warning' or 'error'; got " +
+        JSON.stringify(input.orchestrator?.ceilingHeadroomSeverity),
+    );
+  }
   if (
     ceilingHeadroomShare !== undefined &&
     minCeilingHeadroomShare > 0 &&
     ceilingHeadroomShare < minCeilingHeadroomShare
   ) {
     say({
-      severity: 'warning',
+      severity: ceilingHeadroomSeverity,
       code: 'ceiling-headroom-thin',
       message:
         `the ceiling headroom is ${(ceilingHeadroomShare * 100).toFixed(2)} percent of the ` +
