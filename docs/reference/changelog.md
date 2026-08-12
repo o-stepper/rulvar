@@ -18,6 +18,20 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.237.0
+
+#### Minor Changes
+
+- 3b987a1: Anthropic model resolution adopts the dated snapshot grammar (RV3303), the posture openai took in the v1.17.0 review P1-1. The old matcher let ANY suffix of a known name inherit the full table row, so an unseen variant like `claude-sonnet-5-preview` silently took the known model's caps and its promotional pricing, exactly the fabricated row the table's unknown model contract forbids; the 2026-08-12 comparison run named this counterexample. Now only the exact name or `<exact model>-YYYYMMDD` resolves a row; every other suffix falls through to the conservative unpriced caps, surfaces in `CostReport.unpriced`, and trips the ceiling warning instead of pricing as its neighbor. Dated snapshots of known names (`claude-haiku-4-5-20251001`) resolve byte identically to before.
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
+
 ### 1.236.0
 
 #### Patch Changes
@@ -2163,6 +2177,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
+
 ### 1.236.0
 
 #### Patch Changes
@@ -4107,6 +4131,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
 
 ### 1.236.0
 
@@ -6614,6 +6648,15 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.237.0
+
+#### Minor Changes
+
+- 9d6a279: The statement reconciliation names its dollar ground (RV3305, RV3306). `settleable` deliberately never required a dollar claim, so a usage-only request export that matched on response ids and token counts read `settleable: true` while carrying not one dollar of provider evidence, the 2026-08-12 audit's counterexample. `StatementReconciliation` now carries `dollarCoverage` ('complete' when every matched export row or component line claims money, a row total or a component split; 'partial'; 'none') and `monetarySettleable`, which is `settleable` AND complete dollar coverage, the predicate to gate monetary closure on; `settleable` itself is byte identical and its docs now say out loud what it does not require. The docs honesty pair rides along: agents.md no longer states an unqualified never-pay-twice (dispatch is at-least-once and one partial turn is the documented worst case, matching durability.md), and providers.md documents the new fields.
+- 49a98f6: `claimConsistency.stage 'final'` with `onFound: 'carry'` is now a ConfigError at intake (RV3301). The carry posture rides the 'single' synthesis prompt, and the final pass runs strictly after that prompt was built and consumed, so the pair read as a gate while behaving as 'report': the 2026-08-12 comparison run settled ok/complete with a contradiction its own final judge had already named. Under `stage: 'both'` the carry keeps binding the draft pass, whose findings the synthesis prompt still lies ahead of, and the final pass reports; `stage: 'draft'` with 'carry' stays byte identical. Hosts that armed the refused pair should pick 'report' (the previous effective behavior, now named), 'fail', or a carried draft pass via 'both'.
+- a734ca0: One judge label predicate for both critical path surfaces (RV3302). The final claim consistency pass dispatches under `claim-consistency-judge-final` (RV2509); the live `reduceCriticalPath` compared the span label for exact equality while the journal fold accepted the suffix, so the 2026-08-12 comparison run reported `semanticJudgeMs` 0 on the live surface, with the whole 272923 ms window read as final composition, while the journal fold correctly split 224864 against 48059. Both folds now classify through the exported `isClaimJudgeLabel()`, and a parity test pins that run's shape to the same split on both surfaces.
+- deb406f: The terminal envelope carries the semantic outcome (RV3304). The 2026-08-12 comparison run settled ok/complete over a contradiction its own final judge had named, and neither the HTTP response nor a restarted reader could see the acceptance verdict a live SDK consumer held: `TerminalEnvelope` now mirrors `deliverableAccepted`, `resultAvailable`, `acceptedArtifactRef` and a detached `claimConsistencyMeta` from the outcome, plus the run's declared `configFingerprint` (RV3210), so the surface a consumer gates on says what was verified, over which document, what the judge found, and under which configuration. `OrchestrateClaimConsistencyMeta` gains `findings`, the judged contradiction count, present exactly when the judge settled ok, because the meta travels alone onto surfaces the findings array never reaches. The journaled run settle has recorded the whole lift all along; `lastRunSettle` now reads the semantic fields back defensively (a malformed meta drops whole, absence means NOT RECORDED), and `persistedTerminalEnvelope` rebuilds the same envelope a live consumer held, `GET /runs/:id` included, with zero server changes. Everything is additive: envelopes from runs that declared or judged nothing are byte identical.
 
 ### 1.236.0
 
@@ -9398,6 +9441,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.237.0
+
 ### 1.236.0
 
 ### 1.235.0
@@ -9974,6 +10019,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [3b987a1]
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/anthropic@1.237.0
+  - @rulvar/core@1.237.0
+  - @rulvar/openai@1.237.0
+  - @rulvar/plan@1.237.0
+  - @rulvar/testing@1.237.0
 
 ### 1.236.0
 
@@ -12682,6 +12742,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
+
 ### 1.236.0
 
 #### Patch Changes
@@ -14037,6 +14107,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
 
 ### 1.236.0
 
@@ -16188,6 +16268,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
+
 ### 1.236.0
 
 #### Patch Changes
@@ -18251,6 +18341,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
+  - eslint-plugin-rulvar@1.237.0
 
 ### 1.236.0
 
@@ -20508,6 +20609,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [3b987a1]
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/anthropic@1.237.0
+  - @rulvar/core@1.237.0
+  - @rulvar/openai@1.237.0
 
 ### 1.236.0
 
@@ -23086,6 +23200,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
+
 ### 1.236.0
 
 #### Patch Changes
@@ -25152,6 +25276,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
+
 ### 1.236.0
 
 #### Patch Changes
@@ -26523,6 +26657,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
 
 ### 1.236.0
 
@@ -28526,6 +28670,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.237.0
+
+#### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
 
 ### 1.236.0
 

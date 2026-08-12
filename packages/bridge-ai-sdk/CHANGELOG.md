@@ -1,5 +1,15 @@
 # @rulvar/bridge-ai-sdk
 
+## 1.237.0
+
+### Patch Changes
+
+- Updated dependencies [9d6a279]
+- Updated dependencies [49a98f6]
+- Updated dependencies [a734ca0]
+- Updated dependencies [deb406f]
+  - @rulvar/core@1.237.0
+
 ## 1.236.0
 
 ### Patch Changes
