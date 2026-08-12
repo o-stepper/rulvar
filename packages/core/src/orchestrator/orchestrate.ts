@@ -819,7 +819,16 @@ export interface OrchestrateClaimConsistency {
    * under `stage: 'both'` the draft pass carries and the final pass
    * reports, and `stage: 'final'` with 'carry' is a ConfigError at
    * intake, because a posture that reads as a gate must not quietly
-   * behave as 'report'. 'fail' fails the run typed with
+   * behave as 'report'. 'repair' (RV3307) is the honest carry for the
+   * final pass: judged findings ride ONE more synthesis invocation
+   * (the same CLAIM CONTRADICTIONS block, over a prompt that now lies
+   * ahead again), the repaired document is judged again, and findings
+   * that survive the round fail the run typed, exactly like a dead or
+   * declined judge under this posture, because a gate armed to repair
+   * must not pass silently. It needs a pass that runs AFTER a
+   * synthesis, so `stage` must be 'final' or 'both' (a ConfigError
+   * beside the default 'draft', whose findings the ordinary carry
+   * already consumes). 'fail' fails the run typed with
    * `data.source` 'orchestrator_claim_consistency' BEFORE any
    * synthesis dispatch; the judge itself has already been paid, which
    * is the honest minimum for a semantic verdict. A judge that does
@@ -827,7 +836,7 @@ export interface OrchestrateClaimConsistency {
    * run only under 'fail': a gate armed to stop the run must not pass
    * silently when its judge dies.
    */
-  onFound?: 'report' | 'carry' | 'fail';
+  onFound?: 'report' | 'carry' | 'fail' | 'repair';
   /**
    * WHICH document the pass judges (RV2509), default `'draft'`, the
    * historical behavior byte for byte. The pass has always read the
@@ -2106,11 +2115,28 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       );
     }
     const onFound = consistency.onFound ?? 'report';
-    if (onFound !== 'report' && onFound !== 'carry' && onFound !== 'fail') {
+    if (onFound !== 'report' && onFound !== 'carry' && onFound !== 'fail' && onFound !== 'repair') {
       throw new ConfigError(
-        "orchestrate claimConsistency.onFound must be 'report', 'carry' or 'fail'; got " +
-          JSON.stringify(consistency.onFound),
+        "orchestrate claimConsistency.onFound must be 'report', 'carry', 'fail' or 'repair'; " +
+          `got ${JSON.stringify(consistency.onFound)}`,
       );
+    }
+    if (onFound === 'repair') {
+      // The repair rides a synthesis prompt exactly like the carry
+      // (RV3307): without a 'single' synthesis there is nothing to
+      // re-dispatch with the findings on board.
+      if (opts.synthesis === undefined) {
+        throw new ConfigError(
+          "orchestrate claimConsistency.onFound 'repair' requires synthesis: the bounded " +
+            'repair round re-dispatches it with the judged findings carried',
+        );
+      }
+      if (opts.synthesis.mode === 'incremental') {
+        throw new ConfigError(
+          "orchestrate claimConsistency.onFound 'repair' needs a 'single' synthesis: the " +
+            "deterministic 'incremental' reconciliation has no prompt for the findings to ride",
+        );
+      }
     }
     if (onFound === 'carry') {
       if (opts.synthesis === undefined) {
@@ -2159,6 +2185,17 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         "orchestrate claimConsistency.onFound 'carry' cannot pair with stage 'final': the " +
           'final pass runs after the synthesis, so there is no prompt left to carry the ' +
           "findings into; use 'report' or 'fail', or keep a carried draft pass with stage 'both'",
+      );
+    }
+    // The mirror rule (RV3307): 'repair' is the carry for a pass that
+    // runs AFTER the synthesis, so it demands such a pass; under the
+    // default 'draft' the ordinary carry already consumes the findings
+    // and a repair round would re-dispatch a synthesis that never saw
+    // a verdict about its own output.
+    if (stage === 'draft' && onFound === 'repair') {
+      throw new ConfigError(
+        "orchestrate claimConsistency.onFound 'repair' needs stage 'final' or 'both': the " +
+          "repair consumes the FINAL pass's findings, and the draft pass already has 'carry'",
       );
     }
     if (consistency.pattern !== undefined) {
@@ -6229,10 +6266,13 @@ export function makeOrchestratorWorkflow(
           },
           callingState.spanId,
         );
-        if (onFound === 'fail') {
+        if (onFound === 'fail' || onFound === 'repair') {
+          // 'repair' joins 'fail' here (RV3307): both postures are
+          // ARMED, and a gate that promised to consume or stop on
+          // findings must not pass silently when nothing could rule.
           throw new FailRunError(
             'the claim-consistency judge could not be admitted within the orchestrator ' +
-              'account, so the armed fail posture cannot pass the draft: ' +
+              `account, so the armed ${onFound} posture cannot pass the draft: ` +
               declined.message.slice(0, 300),
             {
               data: {
@@ -6264,10 +6304,10 @@ export function makeOrchestratorWorkflow(
           },
           callingState.spanId,
         );
-        if (onFound === 'fail') {
+        if (onFound === 'fail' || onFound === 'repair') {
           throw new FailRunError(
             'the claim-consistency judge did not settle ok ' +
-              `(status '${judged.status}'), so the armed fail posture cannot pass the draft`,
+              `(status '${judged.status}'), so the armed ${onFound} posture cannot pass the draft`,
             {
               data: {
                 source: 'orchestrator_claim_consistency',
@@ -6562,7 +6602,8 @@ export function makeOrchestratorWorkflow(
           // (RV1502): judged findings the synthesis was never asked
           // to resolve must not be skipped over either.
           const claimCarryBlocked =
-            opts?.claimConsistency?.onFound === 'carry' &&
+            (opts?.claimConsistency?.onFound === 'carry' ||
+              opts?.claimConsistency?.onFound === 'repair') &&
             claimFindingsFound !== undefined &&
             claimFindingsFound.length > 0;
           if (failed.length === 0 && (carryBlocked || claimCarryBlocked)) {
@@ -6807,7 +6848,8 @@ export function makeOrchestratorWorkflow(
         // 'carry' only and only when the judge actually found
         // something: the prompt stays byte identical for a clean
         // verdict, exactly like the CHILD CONTRADICTIONS line above.
-        ...(opts?.claimConsistency?.onFound !== 'carry' ||
+        ...((opts?.claimConsistency?.onFound !== 'carry' &&
+          opts?.claimConsistency?.onFound !== 'repair') ||
         claimFindingsFound === undefined ||
         claimFindingsFound.length === 0
           ? []
@@ -8541,6 +8583,67 @@ export function makeOrchestratorWorkflow(
     if (claimStage !== 'draft') {
       claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;
       await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+      // The bounded post judge repair (RV3307), the honest carry for
+      // the final stage: the 2026-08-12 comparison run settled
+      // ok/complete over a finding its own final judge had named,
+      // because nothing after the final pass could consume it. Under
+      // 'repair' the findings ride ONE more synthesis invocation (the
+      // same CLAIM CONTRADICTIONS block, over a prompt that now lies
+      // ahead again), the repaired document is judged again, and
+      // findings that survive the round fail the run typed: a gate
+      // armed to repair must not pass silently when the repair did
+      // not take. One round exactly, the evidence grade precedent.
+      if (
+        (opts?.claimConsistency?.onFound ?? 'report') === 'repair' &&
+        claimFindingsFound !== undefined &&
+        claimFindingsFound.length > 0
+      ) {
+        const hashOfDocument = (value: unknown): string =>
+          createHash('sha256')
+            .update(jcsSerialize(value ?? null), 'utf8')
+            .digest('hex');
+        const preRepairHash = hashOfDocument(synthesizedFinal);
+        const carried = claimFindingsFound;
+        try {
+          synthesizedFinal = await runSynthesis(result.output);
+        } catch (thrown) {
+          await journalSynthesisAdmissionDecline(thrown);
+          throw new FailRunError(
+            'the claim-consistency repair round could not dispatch ' +
+              `(${thrown instanceof Error ? thrown.message.slice(0, 300) : String(thrown)}); ` +
+              `${String(carried.length)} judged contradiction${carried.length === 1 ? '' : 's'} ` +
+              'stand unconsumed and a gate armed to repair must not pass silently',
+            {
+              data: {
+                source: 'orchestrator_claim_consistency',
+                claimContradictions: carried as unknown as Json,
+                repairsUsed: 0,
+                preRepairHash,
+                ...(acceptanceSnapshot as unknown as Record<string, Json>),
+              },
+            },
+          );
+        }
+        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+        if (claimFindingsFound !== undefined && claimFindingsFound.length > 0) {
+          throw new FailRunError(
+            `the claim-consistency judge still found ${String(claimFindingsFound.length)} ` +
+              `contradiction${claimFindingsFound.length === 1 ? '' : 's'} after the bounded ` +
+              'repair round: the repaired composition keeps contradicting the settled pool',
+            {
+              data: {
+                source: 'orchestrator_claim_consistency',
+                claimContradictions: claimFindingsFound as unknown as Json,
+                claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+                repairsUsed: 1,
+                preRepairHash,
+                repairedHash: hashOfDocument(synthesizedFinal),
+                ...(acceptanceSnapshot as unknown as Record<string, Json>),
+              },
+            },
+          );
+        }
+      }
     }
     const envelopeSchemaRecovered =
       (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;

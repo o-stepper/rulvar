@@ -2266,9 +2266,9 @@ export const MUTATIONS = [
     doctrine:
       "non-empty claim findings under 'carry' disable the valid-draft skip (RV1502, the RV1404 invariant): the draft was composed without the CLAIM CONTRADICTIONS line, so skipping the synthesis means nothing was ever asked to resolve the inversion",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "          const claimCarryBlocked =\n            opts?.claimConsistency?.onFound === 'carry' &&\n            claimFindingsFound !== undefined &&\n            claimFindingsFound.length > 0;",
+    find: "          const claimCarryBlocked =\n            (opts?.claimConsistency?.onFound === 'carry' ||\n              opts?.claimConsistency?.onFound === 'repair') &&\n            claimFindingsFound !== undefined &&\n            claimFindingsFound.length > 0;",
     replace:
-      "          const claimCarryBlocked =\n            opts?.claimConsistency?.onFound === 'carry' &&\n            claimFindingsFound !== undefined &&\n            claimFindingsFound.length > 9999;",
+      "          const claimCarryBlocked =\n            (opts?.claimConsistency?.onFound === 'carry' ||\n              opts?.claimConsistency?.onFound === 'repair') &&\n            claimFindingsFound !== undefined &&\n            claimFindingsFound.length > 9999;",
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
@@ -4046,8 +4046,9 @@ export const MUTATIONS = [
     doctrine:
       "claimConsistency.stage 'final' and 'both' judge the artifact the run SETTLES on (RV2509): re-judging the draft after the synthesis would spend a second judge to re-confirm the verdict the run already had",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "      await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');",
-    replace: "      await runClaimConsistencyPass(result.output, acceptanceSnapshot, 'final');",
+    find: "      claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;\n      await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');",
+    replace:
+      "      claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;\n      await runClaimConsistencyPass(result.output, acceptanceSnapshot, 'final');",
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
@@ -4587,6 +4588,16 @@ export const MUTATIONS = [
     find: '  return label === CLAIM_JUDGE_LABEL || (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false);',
     replace: '  return label === CLAIM_JUDGE_LABEL;',
     test: 'packages/core/src/orchestrator/synthesis.test.ts',
+  },
+  {
+    id: 'surviving-findings-refuse-the-repaired-settle',
+    doctrine:
+      "findings that survive the bounded repair round fail the run typed (RV3307): disarmed, the repaired composition ships over the contradictions the judge just re-confirmed and 'repair' becomes a paid detour back to the 2026-08-12 silent ok/complete",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');\n        if (claimFindingsFound !== undefined && claimFindingsFound.length > 0) {",
+    replace:
+      "        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');\n        if (false) {",
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
     id: 'the-final-stage-refuses-a-carry-it-cannot-deliver',

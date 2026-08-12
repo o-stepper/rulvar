@@ -10462,7 +10462,16 @@ interface OrchestrateClaimConsistency {
   * under `stage: 'both'` the draft pass carries and the final pass
   * reports, and `stage: 'final'` with 'carry' is a ConfigError at
   * intake, because a posture that reads as a gate must not quietly
-  * behave as 'report'. 'fail' fails the run typed with
+  * behave as 'report'. 'repair' (RV3307) is the honest carry for the
+  * final pass: judged findings ride ONE more synthesis invocation
+  * (the same CLAIM CONTRADICTIONS block, over a prompt that now lies
+  * ahead again), the repaired document is judged again, and findings
+  * that survive the round fail the run typed, exactly like a dead or
+  * declined judge under this posture, because a gate armed to repair
+  * must not pass silently. It needs a pass that runs AFTER a
+  * synthesis, so `stage` must be 'final' or 'both' (a ConfigError
+  * beside the default 'draft', whose findings the ordinary carry
+  * already consumes). 'fail' fails the run typed with
   * `data.source` 'orchestrator_claim_consistency' BEFORE any
   * synthesis dispatch; the judge itself has already been paid, which
   * is the honest minimum for a semantic verdict. A judge that does
@@ -10470,7 +10479,7 @@ interface OrchestrateClaimConsistency {
   * run only under 'fail': a gate armed to stop the run must not pass
   * silently when its judge dies.
   */
-  onFound?: "report" | "carry" | "fail";
+  onFound?: "report" | "carry" | "fail" | "repair";
   /**
   * WHICH document the pass judges (RV2509), default `'draft'`, the
   * historical behavior byte for byte. The pass has always read the

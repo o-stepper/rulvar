@@ -1399,3 +1399,132 @@ describe('the declared coverage target sizes the pass (RV2903)', () => {
     ).toThrow(ConfigError);
   });
 });
+
+describe('the bounded post judge repair (RV3307)', () => {
+  const FINAL_INVERTED =
+    'final: an audit-write failure does not turn success into failure [src/exec.ts:256-296].';
+  const FINAL_CLEAN = 'final: a failed audit write does not mask success [src/exec.ts:256-296].';
+
+  function repairHarness(options: { judgeTurns: ScriptedTurn[]; finals: string[] }) {
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    let judgeCall = 0;
+    const judge = scriptedAdapter(
+      (): ScriptedTurn => options.judgeTurns[Math.min(judgeCall++, options.judgeTurns.length - 1)],
+      { id: 'judge' },
+    );
+    let synthCall = 0;
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({
+        toolCall: {
+          name: 'finish',
+          args: {
+            result: options.finals[Math.min(synthCall++, options.finals.length - 1)],
+          },
+        },
+      }),
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    return { internals, judge, synthesis };
+  }
+
+  const REPAIR_OPTS = {
+    acceptance: { childPolicy: 'all-ok' as const },
+    synthesis: { limits: { maxTurns: 3 } },
+    claimConsistency: { stage: 'final' as const, onFound: 'repair' as const, ...JUDGE_MODEL },
+  };
+
+  it("intake refuses 'repair' without a final pass or a synthesis", () => {
+    expect(() =>
+      makeOrchestratorWorkflow('audit', {
+        synthesis: { limits: { maxTurns: 3 } },
+        claimConsistency: { onFound: 'repair' },
+      }),
+    ).toThrow(/'repair' needs stage 'final' or 'both'/);
+    expect(() =>
+      makeOrchestratorWorkflow('audit', {
+        claimConsistency: { onFound: 'repair', stage: 'final' },
+      }),
+    ).toThrow(/'repair' requires synthesis/);
+    expect(() =>
+      makeOrchestratorWorkflow('audit', {
+        synthesis: { limits: { maxTurns: 3 } },
+        claimConsistency: { onFound: 'repair', stage: 'final' },
+      }),
+    ).not.toThrow();
+  });
+
+  it('one repair round consumes the finding: carried prompt, re-judged clean, settled ok', async () => {
+    // The 2026-08-12 comparison run verbatim, with the posture the
+    // experiment lacked: the final judge names the contradiction, the
+    // findings ride one more synthesis, and the repaired document is
+    // judged again before anything settles.
+    const { internals, judge, synthesis } = repairHarness({
+      judgeTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      finals: [FINAL_INVERTED, FINAL_CLEAN],
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', REPAIR_OPTS),
+      undefined,
+    )) as {
+      result: unknown;
+      claimContradictions?: unknown[];
+      claimConsistencyMeta?: Record<string, unknown>;
+      draftToFinal?: { finalHash: string };
+    };
+    expect(synthesis.calls).toHaveLength(2);
+    expect(judge.calls).toHaveLength(2);
+    // The first synthesis prompt carries no findings (the judge has
+    // not run yet); the repair round carries them verbatim.
+    expect(textOf(synthesis.calls[0])).not.toContain('CLAIM CONTRADICTIONS');
+    expect(textOf(synthesis.calls[1])).toContain('CLAIM CONTRADICTIONS');
+    expect(outcome.result).toBe(FINAL_CLEAN);
+    expect(outcome.claimContradictions).toEqual([]);
+    expect(outcome.claimConsistencyMeta?.judgedStage).toBe('final');
+    expect(outcome.claimConsistencyMeta?.findings).toBe(0);
+    // The headline verdict describes the REPAIRED document.
+    expect(outcome.claimConsistencyMeta?.judgedHash).toBe(outcome.draftToFinal?.finalHash);
+  });
+
+  it('findings that survive the round fail the run typed, never a silent ok', async () => {
+    const { internals, synthesis } = repairHarness({
+      judgeTurns: [JUDGE_FINDS, JUDGE_FINDS],
+      finals: [FINAL_INVERTED, FINAL_INVERTED],
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', REPAIR_OPTS),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.source).toBe('orchestrator_claim_consistency');
+    expect(data.repairsUsed).toBe(1);
+    expect(typeof data.preRepairHash).toBe('string');
+    expect(typeof data.repairedHash).toBe('string');
+    expect(synthesis.calls).toHaveLength(2);
+  });
+
+  it('a dead judge under the armed repair posture fails the run typed', async () => {
+    const { internals } = repairHarness({
+      judgeTurns: [
+        {
+          error: { code: 'agent', message: 'judge died', retryable: false, data: {} },
+        },
+      ],
+      finals: [FINAL_INVERTED],
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', REPAIR_OPTS),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain('armed repair posture');
+  });
+});
