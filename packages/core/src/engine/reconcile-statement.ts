@@ -171,6 +171,17 @@ export interface StatementReconciliation {
   componentToleranceUsd: number;
   verdict: 'match' | 'divergence' | 'partial-coverage' | 'no-overlap';
   /**
+   * How much of the MATCHED statement claims money (RV3306):
+   * 'complete' when every matched export row (requests mode) or every
+   * component line (categories mode) carries a dollar claim, a row
+   * total or a component split; 'partial' when some do; 'none' when
+   * the statement matched on identity and usage alone, or matched
+   * nothing. Kept apart from row coverage on purpose: coverage says
+   * the records line up, this says whether the provider actually
+   * stated dollars over them.
+   */
+  dollarCoverage: 'complete' | 'partial' | 'none';
+  /**
    * The settlement-grade composite, first class (RV1006): true exactly
    * when the verdict is 'match' AND coverage is complete AND no row's
    * usage is unknown AND no model went unpriced. A 'match' alone is
@@ -179,9 +190,22 @@ export interface StatementReconciliation {
    * consumer must not assemble this predicate by hand. The last two
    * conditions overlap today's verdict semantics deliberately: the
    * predicate states the full contract so it cannot drift apart from
-   * a future verdict refinement.
+   * a future verdict refinement. Note what it does NOT require: a
+   * dollar claim. A usage-only export that matches on identity and
+   * tokens reads `settleable: true`; gate MONETARY closure on
+   * `monetarySettleable` below.
    */
   settleable: boolean;
+  /**
+   * The MONETARY settlement predicate (RV3306): `settleable` AND
+   * complete dollar coverage. `settleable` answers "do the records
+   * agree"; this answers "may money close against this statement".
+   * The 2026-08-12 audit named the difference on this exact module: a
+   * usage-only request export settled 'match' without one dollar of
+   * provider evidence, and a finance pipeline gating on `settleable`
+   * alone would have closed money against it.
+   */
+  monetarySettleable: boolean;
 }
 
 const SAMPLE_CAP = 20;
@@ -334,6 +358,11 @@ export function reconcileStatement(
   // the same set our dollars fold over (RV1005).
   let matchedStatementRows = 0;
   let matchedUsdRows = 0;
+  // How many matched export rows carried ANY dollar claim, a row total
+  // or a component split (RV3306): the numerator of `dollarCoverage`,
+  // counted apart from `matchedUsdRows` because a split is money
+  // evidence even when the row omits its total.
+  let matchedDollarRows = 0;
   let tokenMismatches = 0;
   // True when a partially delivered multi-wire segment set touched our
   // data (RV905): the export overlaps, so the verdict is
@@ -535,6 +564,9 @@ export function reconcileStatement(
         continue;
       }
       matchedStatementRows += 1;
+      if (row.usd !== undefined || row.componentsUsd !== undefined) {
+        matchedDollarRows += 1;
+      }
       if (row.usd !== undefined) {
         matchedUsdRows += 1;
         totalSeen = true;
@@ -714,6 +746,27 @@ export function reconcileStatement(
     verdict = 'match';
   }
 
+  // The dollar ground of the statement (RV3306): how much of the
+  // MATCHED statement actually claims money, kept apart from row
+  // coverage on purpose. A usage-only request export reconciles
+  // 'match' with complete coverage and `settleable: true` while
+  // carrying not one dollar of provider evidence, which is exactly
+  // what the 2026-08-12 audit named: agreement of records read as
+  // ground to move money.
+  const dollarClaims =
+    statement.kind === 'requests'
+      ? matchedDollarRows
+      : components.filter((line) => line.statementUsd !== undefined).length;
+  const dollarSlots = statement.kind === 'requests' ? matchedStatementRows : components.length;
+  const dollarCoverage: StatementReconciliation['dollarCoverage'] =
+    dollarSlots > 0 && dollarClaims === dollarSlots
+      ? 'complete'
+      : dollarClaims > 0
+        ? 'partial'
+        : 'none';
+  const settleable =
+    verdict === 'match' && coverageComplete && usageUnknownRows === 0 && unpricedModels.size === 0;
+
   return {
     mode: statement.kind,
     coverage: {
@@ -739,11 +792,12 @@ export function reconcileStatement(
     usageUnknownRows,
     componentToleranceUsd,
     verdict,
-    settleable:
-      verdict === 'match' &&
-      coverageComplete &&
-      usageUnknownRows === 0 &&
-      unpricedModels.size === 0,
+    dollarCoverage,
+    settleable,
+    // The monetary gate (RV3306): agreement of records is not ground
+    // to move money. Gate monetary closure here, never on `settleable`
+    // alone.
+    monetarySettleable: settleable && dollarCoverage === 'complete',
   };
 }
 

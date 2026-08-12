@@ -870,6 +870,61 @@ describe('reconcileStatement: the settleable predicate (RV1006)', () => {
   });
 });
 
+describe('reconcileStatement: the dollar ground (RV3306)', () => {
+  const usageRowOf = (spec: RowSpec) => ({
+    responseId: spec.responseId ?? '',
+    usage: {
+      inputTokens: spec.usage.inputTokens,
+      outputTokens: spec.usage.outputTokens,
+      cachedInputTokens: spec.usage.cacheReadTokens,
+      cacheWriteTokens: spec.usage.cacheWriteTokens,
+    },
+  });
+  const dollarRowOf = (spec: RowSpec) => ({
+    responseId: spec.responseId ?? '',
+    usd: priceUsdOf(PRICING_OF(spec.servedBy) ?? SOL, spec.usage),
+  });
+
+  it('a usage-only export settles match, and the money never closes on it', () => {
+    // The 2026-08-12 audit named this exact hole: identity and token
+    // agreement read `settleable: true` while the export claimed not
+    // one dollar. Agreement of records is not ground to move money.
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows: SPECS.map(usageRowOf) },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('match');
+    expect(report.settleable).toBe(true);
+    expect(report.dollarCoverage).toBe('none');
+    expect(report.monetarySettleable).toBe(false);
+  });
+
+  it('complete dollar claims read complete and unlock monetary settlement', () => {
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows: SPECS.map(dollarRowOf) },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('match');
+    expect(report.settleable).toBe(true);
+    expect(report.dollarCoverage).toBe('complete');
+    expect(report.monetarySettleable).toBe(true);
+  });
+
+  it('a mixed export reads partial and stays monetarily closed', () => {
+    const rows = SPECS.map((spec, index) => (index === 0 ? usageRowOf(spec) : dollarRowOf(spec)));
+    const report = reconcileStatement(
+      INVOICE,
+      { kind: 'requests', rows },
+      { pricingOf: PRICING_OF },
+    );
+    expect(report.verdict).toBe('match');
+    expect(report.dollarCoverage).toBe('partial');
+    expect(report.monetarySettleable).toBe(false);
+  });
+});
+
 describe('reconcileStatement: an empty declared object is not evidence (RV1201)', () => {
   it("refuses a row declaring usage with no token counts: the sixteenth experiment's judge repro R1", () => {
     // Before RV1201 this read verdict 'match' with complete coverage and

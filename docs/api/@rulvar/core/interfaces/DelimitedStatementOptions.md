@@ -6,7 +6,7 @@
 
 # Interface: DelimitedStatementOptions
 
-Defined in: [packages/core/src/engine/reconcile-statement.ts:940](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L940)
+Defined in: [packages/core/src/engine/reconcile-statement.ts:994](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L994)
 
 How [statementRowsFromDelimited](/api/@rulvar/core/functions/statementRowsFromDelimited.md) splits cells; default ','.
 
@@ -14,4 +14,4 @@ How [statementRowsFromDelimited](/api/@rulvar/core/functions/statementRowsFromDe
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-delimiter"></a> `delimiter?` | `","` \| `";"` \| "\t" \| "\|" | [packages/core/src/engine/reconcile-statement.ts:941](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L941) |
+| <a id="property-delimiter"></a> `delimiter?` | `","` \| `";"` \| "\t" \| "\|" | [packages/core/src/engine/reconcile-statement.ts:995](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L995) |

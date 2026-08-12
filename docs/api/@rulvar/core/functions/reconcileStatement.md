@@ -13,7 +13,7 @@ function reconcileStatement(
    options): StatementReconciliation;
 ```
 
-Defined in: [packages/core/src/engine/reconcile-statement.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L254)
+Defined in: [packages/core/src/engine/reconcile-statement.ts:278](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L278)
 
 Reconciles the invoice against a normalized provider export. Pure and
 journal-free; see the module doc for the contract. Throws a typed

@@ -5,7 +5,7 @@ description: How Rulvar runs agents, covering profiles, the tool loop and turns,
 
 # Agents
 
-An agent in Rulvar is a journaled model-plus-tools loop. You spawn one with `ctx.agent(prompt, opts)` inside a [workflow](/guide/workflows), or the dynamic orchestrator spawns one for you through its `spawn_agent` tool. Either way the same Agent Runtime runs the loop: it resolves the model per invocation role, projects the conversation into the target provider's wire view, executes tool calls through the permission chain, checkpoints every turn boundary, and lands a typed result. Every model turn is paid at most once; that is the never-pay-twice invariant, enforced by the [journal](/guide/journal), not by your code.
+An agent in Rulvar is a journaled model-plus-tools loop. You spawn one with `ctx.agent(prompt, opts)` inside a [workflow](/guide/workflows), or the dynamic orchestrator spawns one for you through its `spawn_agent` tool. Either way the same Agent Runtime runs the loop: it resolves the model per invocation role, projects the conversation into the target provider's wire view, executes tool calls through the permission chain, checkpoints every turn boundary, and lands a typed result. Every checkpointed turn is paid at most once; that is the never-pay-twice invariant, enforced by the [journal](/guide/journal), not by your code. The bound is exact rather than absolute: dispatch is at-least-once, and a crash inside a turn repays that one partial turn on resume, the worst case [durability](/guide/durability) documents.
 
 ## Defining agents
 
