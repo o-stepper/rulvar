@@ -1017,6 +1017,15 @@ export const MUTATIONS = [
     test: 'packages/evals/src/fault-injection.test.ts',
   },
   {
+    id: 'the-kit-actually-drives-the-repair-round',
+    doctrine:
+      'the repair-round-honesty scenario drives the round it vouches for (RV3403): a judge that never finds leaves one composition and no repair, and the scenario must report matched false instead of the kit certifying an arc it never entered, the RV811 self honesty doctrine on the 2026-08-12 tail',
+    file: 'packages/evals/src/fault-injection.ts',
+    find: '      judge: (call) => (call === 1 ? TAIL_FINDS : TAIL_AGREES),',
+    replace: '      judge: () => TAIL_AGREES,',
+    test: 'packages/evals/src/fault-injection.test.ts',
+  },
+  {
     id: 'fault-kit-token-mismatch-drive',
     doctrine:
       'the token-mismatch scenario actually DISAGREES with the wire (RV909): with the statement echoing our recorded count, no mismatch exists, the default verdict reads match, and the scenario must fail closed',
