@@ -438,6 +438,7 @@ The two hundred eleven rounds, verbatim in this repository's history:
 | v1.236.0      | 49a98f6 (#945): P0 of the second loss: final+carry refuses at intake, one judge label for both folds, dated anthropic pricing, envelope and statement carry verdict and dollars           | v1.237.0   |
 | v1.237.0      | c7b9382 (#953): the follow through wave: one manifest for prompt and gate, the floor prefers observed calls, armed headroom blocks, uniform invoice rows, the bounded post judge repair   | v1.238.0   |
 | v1.238.0      | 0c5ce21 (#960): the tail hangover wave: the repair round documented and priced in passes, the kit drives the arc, one classifier splits both folds, the wire receipt survives the crash   | v1.239.0   |
+| v1.239.0      | b2cf668 (#967): the plan 35 solo train: the orphaned receipt lane reaches every audit output form, the verdict and exit code stay put, journals without the lane render byte for byte     | v1.240.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
