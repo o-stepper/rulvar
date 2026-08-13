@@ -27,7 +27,7 @@
 // attribution facts), so the split is absent on every journal written
 // before that and on every unlabelled dispatch, never zero.
 import type { JournalEntry } from '../l0/entries.js';
-import { isClaimJudgeLabel } from '../l0/telemetry-reduce.js';
+import { claimJudgeStageOf, unionOfIntervalsMs } from '../l0/telemetry-reduce.js';
 import { logicalRunTelemetry } from './reconcile.js';
 
 /**
@@ -72,6 +72,61 @@ export interface JournaledCriticalPath {
   finalCompositionMs?: number;
   /** Synthesis that IS the claim judge; same all-or-nothing condition. */
   semanticJudgeMs?: number;
+  /**
+   * The stage split of `semanticJudgeMs` (RV3404), same all-or-nothing
+   * condition: the draft pass is the exact judge label and every
+   * suffixed variant is a post draft pass over the composed document
+   * (the final pass and the repair round's re-judge both dispatch
+   * `-final`, RV2509/RV3307). One classifier decides on both surfaces:
+   * {@link claimJudgeStageOf}.
+   */
+  draftJudgeMs?: number;
+  /** The post draft half of the split; same condition. */
+  finalJudgeMs?: number;
+  /**
+   * Settled synthesize spans counted by side, same condition (RV3404):
+   * `compositionSpans: 2` in an archived journal is the legible
+   * signature of the bounded repair round (RV3307), readable years
+   * after the process that paid for it exited.
+   */
+  compositionSpans?: number;
+  /** Settled judge-side synthesize spans, counted; same condition. */
+  judgeSpans?: number;
+  /**
+   * The window itemization a journal CAN answer (RV3404); present
+   * exactly when `postFanInMs` is.
+   */
+  postFanIn?: JournaledPostFanIn;
+}
+
+/**
+ * The synthesis half of the RV710 decomposition, asked of a journal
+ * (RV3404). The live breakdown also itemizes the coordinator's model
+ * and tool time inside the window; a journal cannot: a terminal agent
+ * entry spans the WHOLE invocation, and the coordinator's per turn
+ * stamps died with the process that emitted them. So this block claims
+ * exactly what the stamps prove: how much of the window settled
+ * synthesize spans cover, the split of that cover when every span is
+ * labelled, and how much of the window NO settled synthesize span
+ * accounts for. `unaccountedMs` is a superset of the live `residueMs`
+ * by construction (the coordinator's own tail time lives in it here),
+ * which is why it refuses to share the name.
+ */
+export interface JournaledPostFanIn {
+  /** Union of settled synthesize spans clipped to the window. */
+  synthesisCoveredMs: number;
+  /**
+   * The composition half of the covered spans, clipped; present under
+   * the same all-or-nothing labelling condition as the top level
+   * split, and equal to the live breakdown's reading of the same run.
+   */
+  finalCompositionMs?: number;
+  /** The judge half, clipped; same condition. */
+  semanticJudgeMs?: number;
+  /** `postFanInMs` minus `synthesisCoveredMs`, floored at zero. */
+  unaccountedMs: number;
+  /** `unaccountedMs / postFanInMs` when the window is positive. */
+  unaccountedShare?: number;
 }
 
 const parse = (at: string | undefined): number | undefined => {
@@ -100,8 +155,16 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
   let synthesisMs = 0;
   let finalCompositionMs = 0;
   let semanticJudgeMs = 0;
+  let draftJudgeMs = 0;
+  let finalJudgeMs = 0;
+  let compositionSpans = 0;
+  let judgeSpans = 0;
   let labelledSynthesis = false;
   let unlabelledSynthesis = false;
+  // Settled synthesize spans, kept for the window clip below; `judge`
+  // is undefined on an unlabelled span (it still covers the window, it
+  // just cannot pick a side).
+  const synthSpans: Array<{ from: number; to: number; judge?: boolean }> = [];
   for (const entry of ordered) {
     const startedAt = parse(entry.startedAt);
     const endedAt = parse(entry.endedAt);
@@ -143,23 +206,39 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
       // and the split exists because a guess here misread a benchmark
       // by 54 seconds. All or nothing.
       unlabelledSynthesis = true;
+      synthSpans.push({ from: startedAt, to: endedAt });
       continue;
     }
     labelledSynthesis = true;
-    // One predicate for both surfaces (RV3302): this fold and the live
-    // reduceCriticalPath must never disagree on what counts as the
-    // judge, or a benchmark reads the same run two different ways.
-    if (isClaimJudgeLabel(label)) {
+    // One classifier for both surfaces (RV3302, extended to the stage
+    // by RV3404): this fold and the live reduceCriticalPath must never
+    // disagree on what counts as the judge, or on which pass it was,
+    // or a benchmark reads the same run two different ways.
+    const stage = claimJudgeStageOf(label);
+    if (stage !== undefined) {
       semanticJudgeMs += wall;
+      judgeSpans += 1;
+      if (stage === 'draft') {
+        draftJudgeMs += wall;
+      } else {
+        finalJudgeMs += wall;
+      }
     } else {
       finalCompositionMs += wall;
+      compositionSpans += 1;
     }
+    synthSpans.push({ from: startedAt, to: endedAt, judge: stage !== undefined });
   }
   const segments = logicalRunTelemetry(ordered).segments;
   const path: JournaledCriticalPath = { workerSpans, synthesisMs, unclassifiedSpans, segments };
-  if (labelledSynthesis && !unlabelledSynthesis) {
+  const splitLegible = labelledSynthesis && !unlabelledSynthesis;
+  if (splitLegible) {
     path.finalCompositionMs = finalCompositionMs;
     path.semanticJudgeMs = semanticJudgeMs;
+    path.draftJudgeMs = draftJudgeMs;
+    path.finalJudgeMs = finalJudgeMs;
+    path.compositionSpans = compositionSpans;
+    path.judgeSpans = judgeSpans;
   }
   // One segment, or no wall: a journal that was resumed holds the
   // operator's coffee break between its stamps, and reporting that as
@@ -170,6 +249,46 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
   path.runWallMs = Math.max(0, runEnd - runStart);
   if (lastWorkerEnd !== undefined) {
     path.postFanInMs = Math.max(0, runEnd - lastWorkerEnd);
+    // The window itemization (RV3404): the same clip-then-union
+    // arithmetic the live RV710 decomposition runs, over the spans a
+    // journal actually holds. An interval participates when it touches
+    // the window at all, exactly like the live clip.
+    const windowFrom = Math.min(lastWorkerEnd, runEnd);
+    const windowTo = runEnd;
+    const clipped: Array<{ from: number; to: number; judge?: boolean }> = [];
+    for (const span of synthSpans) {
+      if (span.to < windowFrom || span.from > windowTo) {
+        continue;
+      }
+      clipped.push({
+        from: Math.max(span.from, windowFrom),
+        to: Math.min(span.to, windowTo),
+        ...(span.judge === undefined ? {} : { judge: span.judge }),
+      });
+    }
+    const synthesisCoveredMs = unionOfIntervalsMs(clipped);
+    const block: JournaledPostFanIn = {
+      synthesisCoveredMs,
+      unaccountedMs: Math.max(0, path.postFanInMs - synthesisCoveredMs),
+    };
+    if (splitLegible) {
+      let judgeClippedMs = 0;
+      let compositionClippedMs = 0;
+      for (const span of clipped) {
+        const wall = span.to - span.from;
+        if (span.judge === true) {
+          judgeClippedMs += wall;
+        } else {
+          compositionClippedMs += wall;
+        }
+      }
+      block.finalCompositionMs = compositionClippedMs;
+      block.semanticJudgeMs = judgeClippedMs;
+    }
+    if (path.postFanInMs > 0) {
+      block.unaccountedShare = block.unaccountedMs / path.postFanInMs;
+    }
+    path.postFanIn = block;
   }
   if (path.runWallMs > 0) {
     if (path.postFanInMs !== undefined) {

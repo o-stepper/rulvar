@@ -171,6 +171,102 @@ describe('criticalPathFromJournal (RV2803)', () => {
     }
   });
 
+  it('makes the repair round legible on both surfaces (RV3404)', () => {
+    // One worker, one composition, a final judge that found, the repair
+    // composition, and the re-judge: the RV3307 arc. Both folds must
+    // read the same stage split, the same span counts, and the same
+    // clipped halves of the window, or a benchmark explains one run
+    // two different ways depending on which surface survived.
+    const journal = criticalPathFromJournal([
+      span(1, 0, 400, { role: 'loop', agentType: 'worker' }),
+      span(2, 600, 800, { role: 'synthesize', label: FINAL_COMPOSITION_LABEL }),
+      span(3, 800, 850, { role: 'synthesize', label: `${CLAIM_JUDGE_LABEL}-final` }),
+      span(4, 850, 950, { role: 'synthesize', label: FINAL_COMPOSITION_LABEL }),
+      span(5, 950, 980, { role: 'synthesize', label: `${CLAIM_JUDGE_LABEL}-final` }),
+      settle(6, 1000),
+    ]);
+    const live = (body: Record<string, unknown>): WorkflowEvent => body as unknown as WorkflowEvent;
+    const stream = reduceCriticalPath([
+      live({ type: 'run:start', ts: stamp(0), spanId: 'run' }),
+      live({ type: 'agent:start', ts: stamp(0), spanId: 'w', role: 'loop' }),
+      live({ type: 'agent:end', ts: stamp(400), spanId: 'w' }),
+      live({
+        type: 'agent:start',
+        ts: stamp(600),
+        spanId: 'c1',
+        role: 'synthesize',
+        label: FINAL_COMPOSITION_LABEL,
+      }),
+      live({ type: 'agent:end', ts: stamp(800), spanId: 'c1' }),
+      live({
+        type: 'agent:start',
+        ts: stamp(800),
+        spanId: 'j1',
+        role: 'synthesize',
+        label: `${CLAIM_JUDGE_LABEL}-final`,
+      }),
+      live({ type: 'agent:end', ts: stamp(850), spanId: 'j1' }),
+      live({
+        type: 'agent:start',
+        ts: stamp(850),
+        spanId: 'c2',
+        role: 'synthesize',
+        label: FINAL_COMPOSITION_LABEL,
+      }),
+      live({ type: 'agent:end', ts: stamp(950), spanId: 'c2' }),
+      live({
+        type: 'agent:start',
+        ts: stamp(950),
+        spanId: 'j2',
+        role: 'synthesize',
+        label: `${CLAIM_JUDGE_LABEL}-final`,
+      }),
+      live({ type: 'agent:end', ts: stamp(980), spanId: 'j2' }),
+      live({ type: 'run:end', ts: stamp(1000), spanId: 'run' }),
+    ]);
+    for (const path of [journal, stream] as const) {
+      expect(path.finalCompositionMs).toBe(300);
+      expect(path.semanticJudgeMs).toBe(80);
+      expect(path.draftJudgeMs).toBe(0);
+      expect(path.finalJudgeMs).toBe(80);
+      expect(path.compositionSpans).toBe(2);
+      expect(path.judgeSpans).toBe(2);
+    }
+    // The window itemization the journal CAN answer: clipped halves
+    // equal the live breakdown's reading of the same run, and the
+    // unaccounted remainder is named instead of implied.
+    expect(journal.postFanInMs).toBe(600);
+    expect(journal.postFanIn?.synthesisCoveredMs).toBe(380);
+    expect(journal.postFanIn?.finalCompositionMs).toBe(300);
+    expect(journal.postFanIn?.semanticJudgeMs).toBe(80);
+    expect(journal.postFanIn?.unaccountedMs).toBe(220);
+    expect(journal.postFanIn?.unaccountedShare).toBeCloseTo(220 / 600, 12);
+    expect(stream.postFanIn?.finalCompositionMs).toBe(journal.postFanIn?.finalCompositionMs);
+    expect(stream.postFanIn?.semanticJudgeMs).toBe(journal.postFanIn?.semanticJudgeMs);
+    // A draft pass splits to the other half through the same classifier.
+    const drafted = criticalPathFromJournal([
+      span(1, 0, 100, { role: 'loop', agentType: 'worker' }),
+      span(2, 100, 140, { role: 'synthesize', label: CLAIM_JUDGE_LABEL }),
+      span(3, 140, 200, { role: 'synthesize', label: FINAL_COMPOSITION_LABEL }),
+      settle(4, 220),
+    ]);
+    expect(drafted.draftJudgeMs).toBe(40);
+    expect(drafted.finalJudgeMs).toBe(0);
+    expect(drafted.judgeSpans).toBe(1);
+    // One unlabelled span: the union still answers, the split refuses.
+    const mixed = criticalPathFromJournal([
+      span(1, 0, 100, { role: 'loop', agentType: 'worker' }),
+      span(2, 100, 160, { role: 'synthesize' }),
+      span(3, 160, 200, { role: 'synthesize', label: `${CLAIM_JUDGE_LABEL}-final` }),
+      settle(4, 220),
+    ]);
+    expect(mixed.postFanIn?.synthesisCoveredMs).toBe(100);
+    expect(mixed.postFanIn?.unaccountedMs).toBe(20);
+    expect('finalCompositionMs' in (mixed.postFanIn ?? {})).toBe(false);
+    expect('draftJudgeMs' in mixed).toBe(false);
+    expect('compositionSpans' in mixed).toBe(false);
+  });
+
   it('refuses the wall figures for a journal that was resumed', () => {
     // A killed run's journal holds the operator's coffee break between
     // its stamps. Reporting that as the run's duration would make every

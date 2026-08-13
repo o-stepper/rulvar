@@ -18,7 +18,12 @@ the journal cannot answer, never zero.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-compositionspans"></a> `compositionSpans?` | `number` | Settled synthesize spans counted by side, same condition (RV3404): `compositionSpans: 2` in an archived journal is the legible signature of the bounded repair round (RV3307), readable years after the process that paid for it exited. | `packages/core/dist/index.d.ts` |
+| <a id="property-draftjudgems"></a> `draftJudgeMs?` | `number` | The stage split of `semanticJudgeMs` (RV3404), same all-or-nothing condition: the draft pass is the exact judge label and every suffixed variant is a post draft pass over the composed document (the final pass and the repair round's re-judge both dispatch `-final`, RV2509/RV3307). One classifier decides on both surfaces: [claimJudgeStageOf](/api/@rulvar/rulvar/functions/claimJudgeStageOf.md). | `packages/core/dist/index.d.ts` |
 | <a id="property-finalcompositionms"></a> `finalCompositionMs?` | `number` | Synthesis that is NOT the claim judge (RV1604). Present only when EVERY synthesize span in the journal carried a label: one unlabelled span would make the split a guess, and the split exists because a guess here read a 54 second judge as a second final composition. | `packages/core/dist/index.d.ts` |
+| <a id="property-finaljudgems"></a> `finalJudgeMs?` | `number` | The post draft half of the split; same condition. | `packages/core/dist/index.d.ts` |
+| <a id="property-judgespans"></a> `judgeSpans?` | `number` | Settled judge-side synthesize spans, counted; same condition. | `packages/core/dist/index.d.ts` |
+| <a id="property-postfanin"></a> `postFanIn?` | [`JournaledPostFanIn`](/api/@rulvar/rulvar/interfaces/JournaledPostFanIn.md) | The window itemization a journal CAN answer (RV3404); present exactly when `postFanInMs` is. | `packages/core/dist/index.d.ts` |
 | <a id="property-postfaninms"></a> `postFanInMs?` | `number` | Last worker settle to the end of the run; same condition. | `packages/core/dist/index.d.ts` |
 | <a id="property-postfaninshare"></a> `postFanInShare?` | `number` | `postFanInMs / runWallMs`, the RV2210 target's own quantity. | `packages/core/dist/index.d.ts` |
 | <a id="property-runwallms"></a> `runWallMs?` | `number` | First stamp to last, absent unless the journal holds ONE segment. | `packages/core/dist/index.d.ts` |

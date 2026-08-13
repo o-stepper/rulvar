@@ -2716,9 +2716,18 @@ export const MUTATIONS = [
     doctrine:
       'the synthesize wall splits by the claim judge label (RV1604): erasing the label check folds the judge wall back into finalCompositionMs and the benchmark misread of a slow composer returns',
     file: 'packages/core/src/l0/telemetry-reduce.ts',
-    find: '          const judge = isClaimJudgeLabel(started.label);',
+    find: '          const judge = stage !== undefined;',
     replace: '          const judge = false;',
     test: 'packages/core/src/orchestrator/synthesis.test.ts',
+  },
+  {
+    id: 'the-stage-classifier-holds-the-split',
+    doctrine:
+      'one classifier decides which pass a judge label names on both surfaces (RV3404): collapsing the exact label into the final side moves every draft judge wall into finalJudgeMs, and a benchmark reads a draft gated run as a post composition verdict, the same class of misread RV3302 closed for the judge predicate',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: "  if (label === CLAIM_JUDGE_LABEL) {\n    return 'draft';\n  }",
+    replace: "  if (label === CLAIM_JUDGE_LABEL) {\n    return 'final';\n  }",
+    test: 'packages/core/src/stores/critical-path.test.ts',
   },
   {
     id: 'spawn-spec-adoption',
@@ -4265,8 +4274,8 @@ export const MUTATIONS = [
     doctrine:
       'the synthesize split is reported only when EVERY synthesize span carried a journaled label (RV2803): one unlabelled span makes the split a guess, and the split exists because reading the claim judge as a second final composition misled a benchmark by 54 seconds',
     file: 'packages/core/src/stores/critical-path.ts',
-    find: '  if (labelledSynthesis && !unlabelledSynthesis) {',
-    replace: '  if (labelledSynthesis) {',
+    find: '  const splitLegible = labelledSynthesis && !unlabelledSynthesis;',
+    replace: '  const splitLegible = labelledSynthesis;',
     test: 'packages/core/src/stores/critical-path.test.ts',
   },
   {
@@ -4594,8 +4603,8 @@ export const MUTATIONS = [
     doctrine:
       'the live and journal critical path folds classify the claim judge through one predicate (RV3302): narrowed to exact equality, the suffixed final pass label reads as composition and the live surface reports semanticJudgeMs 0 over a 48059 ms judge, the 2026-08-12 comparison run verbatim',
     file: 'packages/core/src/l0/telemetry-reduce.ts',
-    find: '  return label === CLAIM_JUDGE_LABEL || (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false);',
-    replace: '  return label === CLAIM_JUDGE_LABEL;',
+    find: "  return (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false) ? 'final' : undefined;",
+    replace: '  return undefined;',
     test: 'packages/core/src/orchestrator/synthesis.test.ts',
   },
   {

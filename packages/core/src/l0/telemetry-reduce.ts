@@ -252,6 +252,26 @@ export interface CriticalPath {
    * included, summed (RV1604).
    */
   semanticJudgeMs: number;
+  /**
+   * The stage split of `semanticJudgeMs` (RV3404): the draft pass
+   * dispatches under the exact {@link CLAIM_JUDGE_LABEL} and every
+   * suffixed variant is a post draft pass (today the final pass and
+   * the repair round's re-judge, both `-final`, RV2509/RV3307). Always
+   * the exact partition: `draftJudgeMs + finalJudgeMs` equals
+   * `semanticJudgeMs`.
+   */
+  draftJudgeMs: number;
+  /** The post draft half of the split; see `draftJudgeMs`. */
+  finalJudgeMs: number;
+  /**
+   * Completed composition-side synthesize spans, counted (RV3404): two
+   * compositions on one run is the legible signature of the bounded
+   * repair round (RV3307), and a count survives where milliseconds
+   * invite guessing.
+   */
+  compositionSpans: number;
+  /** Completed judge-side synthesize spans, counted (RV3404). */
+  judgeSpans: number;
   /** postFanInMs / runWallMs when both are defined and the wall is > 0. */
   postFanInShare?: number;
   /** synthesisMs / runWallMs under the same conditions. */
@@ -363,7 +383,34 @@ export const CLAIM_JUDGE_LABEL = 'claim-consistency-judge';
  * while the journal fold correctly split 224864 against 48059.
  */
 export function isClaimJudgeLabel(label: string | undefined): boolean {
-  return label === CLAIM_JUDGE_LABEL || (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false);
+  return claimJudgeStageOf(label) !== undefined;
+}
+
+/**
+ * Which pass a claim-consistency judge label names (RV3404): the exact
+ * {@link CLAIM_JUDGE_LABEL} is the draft pass, and every suffixed
+ * variant is a post draft pass over the composed document (today the
+ * final pass and the repair round's re-judge, both dispatching under
+ * `-final`, RV2509/RV3307). `undefined` for every other label. One
+ * classifier for both reducers, the RV3302 doctrine extended from the
+ * judge predicate to the stage: the split must never read differently
+ * off the live stream and off the journal of one run.
+ */
+export function claimJudgeStageOf(label: string | undefined): 'draft' | 'final' | undefined {
+  if (label === CLAIM_JUDGE_LABEL) {
+    return 'draft';
+  }
+  return (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false) ? 'final' : undefined;
+}
+
+/**
+ * Total length of the union of possibly overlapping intervals, exported
+ * (RV3404) so the journal fold computes its window coverage through the
+ * SAME arithmetic the live RV710 decomposition uses, never a sibling
+ * implementation that can drift.
+ */
+export function unionOfIntervalsMs(intervals: ReadonlyArray<{ from: number; to: number }>): number {
+  return unionLength([...intervals]);
 }
 
 /**
@@ -421,6 +468,10 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   let synthesisMs = 0;
   let finalCompositionMs = 0;
   let semanticJudgeMs = 0;
+  let draftJudgeMs = 0;
+  let finalJudgeMs = 0;
+  let compositionSpans = 0;
+  let judgeSpans = 0;
   // Raw material of the RV710 decomposition, folded after the pass
   // (the window is known only once run:end and the last worker settle
   // are). An end event's interval is reconstructed as
@@ -480,12 +531,20 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         }
         if (started.role === 'synthesize') {
           const wall = Math.max(0, at - started.at);
-          const judge = isClaimJudgeLabel(started.label);
+          const stage = claimJudgeStageOf(started.label);
+          const judge = stage !== undefined;
           synthesisMs += wall;
           if (judge) {
             semanticJudgeMs += wall;
+            judgeSpans += 1;
+            if (stage === 'draft') {
+              draftJudgeMs += wall;
+            } else {
+              finalJudgeMs += wall;
+            }
           } else {
             finalCompositionMs += wall;
+            compositionSpans += 1;
           }
           synthesisSpans.push({ from: started.at, to: at, judge });
         } else if (started.role !== 'orchestrate') {
@@ -498,7 +557,16 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         break;
     }
   }
-  const path: CriticalPath = { synthesisMs, finalCompositionMs, semanticJudgeMs, workerSpans };
+  const path: CriticalPath = {
+    synthesisMs,
+    finalCompositionMs,
+    semanticJudgeMs,
+    draftJudgeMs,
+    finalJudgeMs,
+    compositionSpans,
+    judgeSpans,
+    workerSpans,
+  };
   if (runStart !== undefined && runEnd !== undefined) {
     path.runWallMs = Math.max(0, runEnd - runStart);
   }
