@@ -51,7 +51,10 @@ what the provider bills); --json emits the machine-readable form.
 cost-audit verifies the one-denominator contract on a stored run: the
 roster is closed, the settle is the billing boundary, and the settled
 fold, the invoice totals and the wire cardinality agree; exit 1 with
-the failing checks named when any diverge.
+the failing checks named when any diverge. When the invoice carries
+orphaned receipts (paid wires the settled terminal does not cover),
+every output form surfaces the lane; it never moves the verdict or
+the exit code.
 preflight is the effective-config linter and dry-run estimator: it
 assembles the SAME options rulvar run would (config, module exports,
 --profile, --budget-usd) but constructs no engine and dispatches

@@ -62,6 +62,19 @@ declare function invoiceCommand(argv: string[], context: CommandContext): Promis
 * one summary row each, exit 1 when any run diverges: the parity
 * sessions audited seven journals one invocation at a time, and a
 * catalog posture check should cost one command.
+*
+* The orphaned receipt lane (RV3501): when the invoice carries
+* `orphanedReceipts` (RV3405, paid wires the settled terminal's record
+* set does not cover), every output form surfaces it: the single run
+* text prints the lane totals plus one line per receipt, the JSON
+* shapes carry the lane verbatim under `invoice`, and the catalog
+* sweep appends an orphaned suffix to the run's row and a carrying
+* count to its header. The lane never moves the verdict or the exit
+* code: an orphaned receipt is the honest double payment window of a
+* resume, not a divergence, and before this surface a journal in that
+* shape passed all six checks while the money stayed invisible in
+* every printed figure. Journals without the lane render byte for
+* byte as before.
 */
 declare function costAuditCommand(argv: string[], context: CommandContext): Promise<number>;
 /**

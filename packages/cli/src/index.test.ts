@@ -649,6 +649,141 @@ export default {
     expect(neither.errLines.join('\n')).toContain('name a runId, or audit the whole store');
   });
 
+  it('cost-audit surfaces the orphaned receipt lane on every form (RV3501)', async () => {
+    const cwd = writeFixtureProject();
+    const first = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"a"}', '--store', '.rulvar'], {
+      cwd,
+      io: first,
+    });
+    const orphanedRun = runIdOf(first);
+    const second = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"b"}', '--store', '.rulvar'], {
+      cwd,
+      io: second,
+    });
+    const green = runIdOf(second);
+
+    // The vacuum contrast first: a journal without the lane prints
+    // nothing about it, in text and JSON alike.
+    const before = scriptedIo();
+    expect(
+      await runCli(['cost-audit', orphanedRun, '--store', '.rulvar'], { cwd, io: before }),
+    ).toBe(0);
+    expect(before.outLines.join('\n')).not.toContain('orphaned receipts');
+    const beforeJson = scriptedIo();
+    expect(
+      await runCli(['cost-audit', orphanedRun, '--store', '.rulvar', '--json'], {
+        cwd,
+        io: beforeJson,
+      }),
+    ).toBe(0);
+    expect(beforeJson.outLines.join('\n')).not.toContain('orphanedReceipts');
+
+    // Poison the journal into the RV3405 crash shape: a receipt row
+    // whose response id no terminal record covers, beside the covered
+    // row of the SAME ordinal and usage (a resume redispatch reuses the
+    // ordinal, so the incremental lane still matches the terminal set
+    // and all six checks stay green).
+    const journalPath = join(cwd, '.rulvar', `${orphanedRun}.jsonl`);
+    const lines = readFileSync(journalPath, 'utf8').trim().split('\n');
+    const parsedLines = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    const receiptTemplate = parsedLines.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'provider-call',
+    );
+    expect(receiptTemplate).toBeDefined();
+    const maxSeq = Math.max(...parsedLines.map((entry) => entry.seq as number));
+    const templateValue = receiptTemplate!.value as Record<string, unknown> & {
+      record?: Record<string, unknown>;
+    };
+    const orphan = {
+      ...receiptTemplate,
+      seq: maxSeq + 1,
+      key: 'e'.repeat(typeof receiptTemplate!.key === 'string' ? receiptTemplate!.key.length : 8),
+      value: {
+        ...templateValue,
+        record: { ...(templateValue.record ?? {}), responseId: 'resp-orphaned-rv3501' },
+      },
+    };
+    writeFileSync(journalPath, `${lines.join('\n')}\n${JSON.stringify(orphan)}\n`, 'utf8');
+
+    // The single run text: still one denominator, all checks green,
+    // exit 0 (the lane never moves the verdict), and the lane printed
+    // with one line per receipt.
+    const text = scriptedIo();
+    expect(await runCli(['cost-audit', orphanedRun, '--store', '.rulvar'], { cwd, io: text })).toBe(
+      0,
+    );
+    const textOut = text.outLines.join('\n');
+    expect(textOut).toContain('cost audit (one denominator)');
+    expect(textOut).not.toContain('[FAIL]');
+    expect(textOut).toContain('orphaned receipts: $');
+    expect(textOut).toContain(
+      '| wires 1 | paid wires the settled terminal does not cover (RV3405), outside the settled totals',
+    );
+    expect(textOut).toContain('id resp-orphaned-rv3501');
+
+    // The JSON form carries the lane verbatim under invoice.
+    const jsonIo = scriptedIo();
+    expect(
+      await runCli(['cost-audit', orphanedRun, '--store', '.rulvar', '--json'], {
+        cwd,
+        io: jsonIo,
+      }),
+    ).toBe(0);
+    const parsedAudit = JSON.parse(jsonIo.outLines.join('\n')) as {
+      verdict: string;
+      invoice: {
+        orphanedReceipts?: {
+          usd: number;
+          wireRequests: number;
+          rows: Array<{ responseId?: string }>;
+        };
+      };
+    };
+    expect(parsedAudit.verdict).toBe('one-denominator');
+    expect(parsedAudit.invoice.orphanedReceipts?.wireRequests).toBe(1);
+    expect(typeof parsedAudit.invoice.orphanedReceipts?.usd).toBe('number');
+    expect(parsedAudit.invoice.orphanedReceipts?.rows[0]?.responseId).toBe('resp-orphaned-rv3501');
+
+    // The sweep: exit 0 (an orphan is not a divergence), the carrying
+    // count on the header, the suffix on the carrying row only.
+    const swept = scriptedIo();
+    expect(await runCli(['cost-audit', '--all', '--store', '.rulvar'], { cwd, io: swept })).toBe(0);
+    expect(swept.outLines.join('\n')).toContain(
+      'cost audit: 2 runs, 0 divergent, 1 carrying orphaned receipts',
+    );
+    const orphanRow = swept.outLines.find((line) => line.includes(`${orphanedRun}:`));
+    expect(orphanRow).toBeDefined();
+    expect(orphanRow).toContain(' | orphaned $');
+    expect(orphanRow).toContain('(1)');
+    const greenRow = swept.outLines.find((line) => line.includes(`${green}:`));
+    expect(greenRow).toBeDefined();
+    expect(greenRow).not.toContain('orphaned');
+
+    // The sweep JSON reuses the per run shape, lane included on the
+    // carrying run and absent on the green one.
+    const sweepJson = scriptedIo();
+    expect(
+      await runCli(['cost-audit', '--all', '--store', '.rulvar', '--json'], {
+        cwd,
+        io: sweepJson,
+      }),
+    ).toBe(0);
+    const parsedSweep = JSON.parse(sweepJson.outLines.join('\n')) as {
+      runs: Array<{ runId: string; invoice: { orphanedReceipts?: { wireRequests: number } } }>;
+    };
+    expect(
+      parsedSweep.runs.find((run) => run.runId === orphanedRun)?.invoice.orphanedReceipts
+        ?.wireRequests,
+    ).toBe(1);
+    expect(
+      parsedSweep.runs.find((run) => run.runId === green)?.invoice.orphanedReceipts,
+    ).toBeUndefined();
+  });
+
   it('invoice exports the reconciliation rows and totals for a stored run (P1.3)', async () => {
     const cwd = writeFixtureProject();
     const io = scriptedIo(['{"approved":true}']);
