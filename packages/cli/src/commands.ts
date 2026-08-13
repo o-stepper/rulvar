@@ -1245,6 +1245,9 @@ function costAuditRunJson(runId: string, audit: RunCostAudit): Record<string, un
       totalUsd: audit.invoice.totalUsd,
       rows: audit.invoice.rows.length,
       wireRequests: audit.invoice.cardinality.wireRequests,
+      ...(audit.invoice.orphanedReceipts === undefined
+        ? {}
+        : { orphanedReceipts: audit.invoice.orphanedReceipts }),
     },
     checks: audit.checks,
   };
@@ -1264,6 +1267,19 @@ function costAuditRunJson(runId: string, audit: RunCostAudit): Record<string, un
  * one summary row each, exit 1 when any run diverges: the parity
  * sessions audited seven journals one invocation at a time, and a
  * catalog posture check should cost one command.
+ *
+ * The orphaned receipt lane (RV3501): when the invoice carries
+ * `orphanedReceipts` (RV3405, paid wires the settled terminal's record
+ * set does not cover), every output form surfaces it: the single run
+ * text prints the lane totals plus one line per receipt, the JSON
+ * shapes carry the lane verbatim under `invoice`, and the catalog
+ * sweep appends an orphaned suffix to the run's row and a carrying
+ * count to its header. The lane never moves the verdict or the exit
+ * code: an orphaned receipt is the honest double payment window of a
+ * resume, not a divergence, and before this surface a journal in that
+ * shape passed all six checks while the money stayed invisible in
+ * every printed figure. Journals without the lane render byte for
+ * byte as before.
  */
 export async function costAuditCommand(argv: string[], context: CommandContext): Promise<number> {
   const parsed = parseCommand(GRAMMAR['cost-audit'], argv);
@@ -1308,6 +1324,18 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
     context.io.out(
       `invoice: total $${audit.invoice.totalUsd.toFixed(4)} | rows ${String(audit.invoice.rows.length)} | wires ${String(audit.invoice.cardinality.wireRequests)}`,
     );
+    const orphaned = audit.invoice.orphanedReceipts;
+    if (orphaned !== undefined) {
+      context.io.out(
+        `orphaned receipts: $${orphaned.usd.toFixed(4)} | wires ${String(orphaned.wireRequests)} | ` +
+          'paid wires the settled terminal does not cover (RV3405), outside the settled totals',
+      );
+      for (const row of orphaned.rows) {
+        context.io.out(
+          `  agent ${String(row.agentRef)} (${row.scope}) | ordinal ${String(row.ordinal)} attempt ${String(row.attempt)} ${row.outcome} | role ${row.role} | ${row.servedBy} | ${usdOf(row.usd)} | ${row.responseId === undefined ? 'no response id' : `id ${row.responseId}`}`,
+        );
+      }
+    }
     for (const check of audit.checks) {
       context.io.out(`  [${check.pass ? 'pass' : 'FAIL'}] ${check.name}: ${check.detail}`);
     }
@@ -1337,18 +1365,24 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
     );
     return divergent.length === 0 ? 0 : 1;
   }
+  const carryingOrphans = rows.filter(
+    (row) => row.audit.invoice.orphanedReceipts !== undefined,
+  ).length;
   context.io.out(
     `cost audit: ${String(rows.length)} run${rows.length === 1 ? '' : 's'}, ` +
-      `${String(divergent.length)} divergent`,
+      `${String(divergent.length)} divergent` +
+      `${carryingOrphans === 0 ? '' : `, ${String(carryingOrphans)} carrying orphaned receipts`}`,
   );
   for (const row of rows) {
     const failedNames = row.audit.failed.map((check) => check.name).join(', ');
+    const orphanedLane = row.audit.invoice.orphanedReceipts;
     context.io.out(
       `  ${row.runId}: ${row.audit.failed.length === 0 ? 'one denominator' : 'DIVERGENT'} | ` +
         `checks ${String(row.audit.checks.length - row.audit.failed.length)}/${String(row.audit.checks.length)}` +
         `${failedNames === '' ? '' : ` (failed ${failedNames})`} | ` +
         `gross $${row.audit.report.grossUsd.toFixed(4)} | ` +
-        `wires ${String(row.audit.report.wireRequests ?? 'absent')}`,
+        `wires ${String(row.audit.report.wireRequests ?? 'absent')}` +
+        `${orphanedLane === undefined ? '' : ` | orphaned $${orphanedLane.usd.toFixed(4)} (${String(orphanedLane.wireRequests)})`}`,
     );
   }
   return divergent.length === 0 ? 0 : 1;

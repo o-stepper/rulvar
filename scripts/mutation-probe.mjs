@@ -447,6 +447,32 @@ export const MUTATIONS = [
     test: 'packages/cli/src/index.test.ts',
   },
   {
+    id: 'cost-audit-orphaned-lane-json',
+    doctrine:
+      'the audit JSON carries the orphaned receipt lane instead of letting a six check green run hide paid wires (RV3501)',
+    file: 'packages/cli/src/commands.ts',
+    find: '      ...(audit.invoice.orphanedReceipts === undefined\n        ? {}\n        : { orphanedReceipts: audit.invoice.orphanedReceipts }),\n',
+    replace: '',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'cost-audit-orphaned-lane-text',
+    doctrine:
+      'the single run audit text prints the orphaned receipt lane with one line per receipt (RV3501)',
+    file: 'packages/cli/src/commands.ts',
+    find: '    const orphaned = audit.invoice.orphanedReceipts;',
+    replace: '    const orphaned = undefined;',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'cost-audit-orphaned-lane-sweep',
+    doctrine: 'the catalog sweep names the carrying runs with an orphaned suffix (RV3501)',
+    file: 'packages/cli/src/commands.ts',
+    find: '    const orphanedLane = row.audit.invoice.orphanedReceipts;',
+    replace: '    const orphanedLane = undefined;',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
     id: 'jsonl-valid-tail-terminate',
     doctrine:
       'append terminates a parseable unterminated tail before writing, so it never glues two accepted records into one disposable line (RV701)',
