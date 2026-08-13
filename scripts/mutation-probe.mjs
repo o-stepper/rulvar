@@ -268,6 +268,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/invoice.test.ts',
   },
   {
+    id: 'the-orphan-is-decided-by-id-evidence',
+    doctrine:
+      'a receipt and a terminal record match by response id whenever either side carries one (RV3405): collapsed to coordinates, the redispatch that reuses the ordinal after a resume reads as the orphan and silently absorbs the double payment the resume honestly made',
+    file: 'packages/core/src/engine/invoice.ts',
+    find: "        if (typeof record.responseId === 'string' || call.responseId !== undefined) {",
+    replace: '        if (false) {',
+    test: 'packages/core/src/engine/invoice.test.ts',
+  },
+  {
+    id: 'the-receipt-join-explains-the-statement-row',
+    doctrine:
+      "a statement row matching a receipt lane id is explained by name, never counted foreign (RV3405): with the join severed, the crashed wire's provider billing reads statementOnly again and the drift between the settled invoice and the provider's money is inexplicable by exactly the crashed turn",
+    file: 'packages/core/src/engine/reconcile-statement.ts',
+    find: '        if (receiptIds.has(row.responseId)) {',
+    replace: '        if (false) {',
+    test: 'packages/core/src/engine/reconcile-statement.test.ts',
+  },
+  {
     id: 'pricing-pin-segment-composition',
     doctrine:
       'a seq-aware fold prices each row under the pin of its OWN segment, so a table rotation never re-prices settled history (RV505)',
@@ -286,6 +304,15 @@ export const MUTATIONS = [
     replace:
       '    void durable({\n      grant,\n      maxExtensions: extension.maxExtensions,\n      toolCallsUsed,\n      cap,\n      ...(trigger === undefined ? {} : { trigger }),\n    });\n    return commit();',
     test: 'packages/core/src/runtime/tool-budget-extension.test.ts',
+  },
+  {
+    id: 'the-awaited-receipt-blocks-the-next-wire',
+    doctrine:
+      'under the awaited posture the loop awaits each receipt append before the turn proceeds (RV3405, the RV601 intent before effect precedent): dropped to fire and forget, the receipt of the wire being paid at the moment of death is exactly the one that loses the race, the RV2008 window reopened under a posture that promised to close it',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '            if (receipt !== undefined) {\n              await receipt;\n            }',
+    replace: '            if (receipt !== undefined) {\n              void receipt;\n            }',
+    test: 'packages/core/src/engine/billing-rows.test.ts',
   },
   {
     id: 'restored-cap-anchor',
@@ -3396,8 +3423,8 @@ export const MUTATIONS = [
     doctrine:
       "every ProviderCallRecord journals the moment its wire call settles (RV2008): dropping the seam returns the parity crash window, an invocation's whole dispatch history living only in process memory until a terminal that may never come",
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: '          options.billing?.onProviderCall(record);',
-    replace: '          void record;',
+    find: '            const receipt = options.billing?.onProviderCall(record);',
+    replace: '            const receipt = undefined;',
     test: 'packages/core/src/engine/billing-rows.test.ts',
   },
   {
@@ -3405,7 +3432,7 @@ export const MUTATIONS = [
     doctrine:
       'the invoice prices the unsettled lane from the incremental rows (RV2008): dropping it makes a crash journal fold to the settled money alone, hiding exactly the preserved dispatches the lane exists to recover',
     file: 'packages/core/src/engine/invoice.ts',
-    find: "    if (\n      value?.decisionType !== 'provider-call' ||\n      typeof value.agentRef !== 'number' ||\n      terminalRefs.has(value.agentRef)\n    ) {",
+    find: "    if (value?.decisionType !== 'provider-call' || typeof value.agentRef !== 'number') {",
     replace: '    if (true) {',
     test: 'packages/core/src/engine/billing-rows.test.ts',
   },

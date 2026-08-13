@@ -5764,10 +5764,13 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   * before one existed; with the seam the crash window shrinks to the
   * single in-flight turn. Restored records (a checkpoint reboot)
   * never re-emit: they were journaled by the segment that minted
-  * them.
+  * them. A returned promise is AWAITED before the loop proceeds
+  * (RV3405, the awaited receipt posture): the caller decides the
+  * durability, the loop honors it; a void return keeps the RV2008
+  * fire and forget byte for byte.
   */
   billing?: {
-    onProviderCall: (record: ProviderCallRecord) => void;
+    onProviderCall: (record: ProviderCallRecord) => void | Promise<void>;
   };
   events?: RuntimeEventSink;
   transcript?: {
@@ -7663,6 +7666,20 @@ interface EngineDefaults {
   * identity, journals, or cassette keys.
   */
   cache?: CachePolicy;
+  /**
+  * The receipt posture of the incremental billing seam (RV3405).
+  * RV2008 journals every ProviderCallRecord the moment its wire call
+  * settles, but the append is fire and forget: the loop never blocks
+  * its dispatch path on journal IO, so the receipt most likely to
+  * lose the race with a crash is exactly the wire being paid for at
+  * the moment of death. `'awaited'` makes the loop await each receipt
+  * append before the turn proceeds (the RV601 intent before effect
+  * precedent), buying durable payment evidence for one journal IO
+  * await per wire call; a failed append still degrades loudly to the
+  * terminal lane (the RV2008 warning), never fails the run. Default
+  * `'async'`: byte identical to RV2008.
+  */
+  billingReceipts?: "async" | "awaited";
 }
 interface BudgetDefaults {
   /** Last resort of the admission reserve formula; default 0.50. */
@@ -11773,7 +11790,8 @@ interface RunInternals {
     toolsets?: Record<string, ToolsOption>; /** Registered mechanical gate profiles (M7-T10). */
     gates?: Record<string, MechanicalGateProfile>; /** Engine-wide admission countTokens policy (RV1804); default 'allow'. */
     countTokens?: "allow" | "deny"; /** The engine-wide prompt-cache policy (RV2006); profile and call opts win. */
-    cache?: CachePolicy;
+    cache?: CachePolicy; /** The receipt posture of the billing seam (RV3405); default 'async'. */
+    billingReceipts?: "async" | "awaited";
   };
   /** Telemetry compat posture (RV1810). */
   telemetry?: {
@@ -14061,6 +14079,41 @@ interface InvoiceExport {
       responseId?: string;
     }>;
   };
+  /**
+  * The orphaned receipt lane (RV3405): incremental provider-call rows
+  * of agents whose TERMINAL entry does not cover them. The window is
+  * real: the loop journals a receipt as each wire settles (RV2008),
+  * the turn checkpoint lands later, and a crash between the two
+  * resumes from a checkpoint that never saw the paid wire, so the
+  * settled terminal's record set forgets the payment while the
+  * receipt lane remembers it. Real money, priced and summed apart
+  * from the settled totals exactly like `unsettled` (run_settle stays
+  * the billing boundary); this lane is why a provider statement
+  * billing that wire is explainable to the cent instead of reading as
+  * a foreign row. Coverage is decided by response id when either side
+  * carries one, else by the full (ordinal, servedBy, attempt,
+  * outcome) coordinate plus byte equal usage: after a resume the
+  * redispatched wire REUSES the ordinal, and reading the replacement
+  * as the orphan would silently absorb the double payment the resume
+  * honestly made. Present only when such rows exist; a journal
+  * without a mid turn crash never carries it.
+  */
+  orphanedReceipts?: {
+    usd: number;
+    wireRequests: number;
+    rows: Array<{
+      agentRef: number;
+      scope: string;
+      ordinal: number;
+      servedBy: ModelRef;
+      role: string;
+      attempt: number;
+      outcome: string;
+      usage: Usage;
+      usd?: number;
+      responseId?: string;
+    }>;
+  };
 }
 /**
 * The pure invoice fold. Pass the same entries and price table you
@@ -14243,6 +14296,23 @@ interface StatementReconciliation {
   * alone would have closed money against it.
   */
   monetarySettleable: boolean;
+  /**
+  * Statement rows explained by the invoice's receipt lanes (RV3405):
+  * per request export rows whose response id matches an `unsettled`
+  * or `orphanedReceipts` row of the invoice, i.e. OUR paid wires that
+  * the settled rows do not carry (a crash before settle, a terminal
+  * whose record set forgot the payment). Counted APART on purpose:
+  * their dollars never enter the totals, the coverage, `settleable`
+  * or `monetarySettleable`, because money the run did not settle must
+  * not close; they exist so the statement drift is explainable to the
+  * cent instead of reading as foreign rows. Present only when the
+  * caller passed the lanes and at least one row matched.
+  */
+  receiptMatchedRows?: number;
+  /** Statement side dollars over those rows, when the export claims any. */
+  receiptMatchedUsd?: number;
+  /** First matched receipt ids (at most 20). */
+  receiptIdSample?: string[];
 }
 /**
 * Reconciles the invoice against a normalized provider export. Pure and
@@ -14261,6 +14331,24 @@ interface StatementReconciliation {
 */
 declare function reconcileStatement(invoice: {
   rows: readonly InvoiceRow[];
+  /**
+  * The invoice's receipt lanes (RV3405), passed straight off the
+  * InvoiceExport when the caller wants statement rows for crashed
+  * or terminal forgotten wires EXPLAINED instead of counted
+  * foreign. Requests mode only (the join is by response id), and
+  * strictly opt in: a bare `{ rows }` invoice reads byte for byte
+  * as before.
+  */
+  unsettled?: {
+    rows: ReadonlyArray<{
+      responseId?: string;
+    }>;
+  };
+  orphanedReceipts?: {
+    rows: ReadonlyArray<{
+      responseId?: string;
+    }>;
+  };
 }, statement: ProviderStatement, options: ReconcileStatementOptions): StatementReconciliation;
 /**
 * Column mapping for {@link statementFromRows}: each field names the

@@ -10,7 +10,7 @@
 function statementRowsFromDelimited(text, options?): Record<string, string>[];
 ```
 
-Defined in: [packages/core/src/engine/reconcile-statement.ts:1019](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L1019)
+Defined in: [packages/core/src/engine/reconcile-statement.ts:1084](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L1084)
 
 Parses a delimited billing export (the CSV/TSV a provider console
 hands a host) into the header-keyed rows [statementFromRows](/api/@rulvar/core/functions/statementFromRows.md)

@@ -612,3 +612,99 @@ describe('the uniform row usage envelope (RV3311)', () => {
     expect(journalUsage?.inputTokens).toBe(200);
   });
 });
+
+describe('the orphaned receipt lane (RV3405)', () => {
+  // A wire paid between the last checkpoint and a crash journals its
+  // receipt (RV2008) but never reaches the checkpoint, so the resumed
+  // terminal's record set forgets it, and the old fold silently
+  // dropped the payment the moment a terminal existed.
+  const pcRow = (seq: number, agentRef: number, rec: ProviderCallRecord): JournalEntry =>
+    ({
+      hashVersion: 2,
+      spanId: 's0',
+      startedAt: '2026-07-25T00:00:00.000Z',
+      seq,
+      scope: 'agent:root',
+      key: `pc:${String(agentRef)}:${String(rec.ordinal)}`,
+      ordinal: 0,
+      kind: 'decision',
+      status: 'ok',
+      value: {
+        decisionType: 'provider-call',
+        agentRef,
+        record: rec as unknown,
+      },
+    }) as unknown as JournalEntry;
+
+  it('reports receipts the settled terminal does not cover, apart from the settled totals', () => {
+    const entries: JournalEntry[] = [
+      terminalEntry(1, { status: 'running', servedBy: undefined, scope: 'agent:root' }),
+      pcRow(2, 1, record(1, usageOf(100, 50), { responseId: 'resp-A' })),
+      pcRow(3, 1, record(2, usageOf(200, 20), { responseId: 'resp-B' })),
+      terminalEntry(4, {
+        ref: 1,
+        scope: 'agent:root',
+        usage: usageOf(100, 50),
+        providerCalls: [record(1, usageOf(100, 50), { responseId: 'resp-A' })],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    expect(invoice.unsettled).toBeUndefined();
+    expect(invoice.orphanedReceipts).toBeDefined();
+    expect(invoice.orphanedReceipts?.wireRequests).toBe(1);
+    const orphan = invoice.orphanedReceipts?.rows[0];
+    expect(orphan?.responseId).toBe('resp-B');
+    expect(orphan?.ordinal).toBe(2);
+    expect(orphan?.scope).toBe('agent:root');
+    expect(invoice.orphanedReceipts?.usd).toBeCloseTo(
+      linearPrice('fake:model', usageOf(200, 20)) ?? 0,
+      12,
+    );
+    // The settled totals never absorb the orphan: run_settle stays the
+    // billing boundary.
+    expect(invoice.rows.every((row) => row.responseId !== 'resp-B')).toBe(true);
+  });
+
+  it('a terminal that covers every receipt reports no lane at all', () => {
+    const entries: JournalEntry[] = [
+      terminalEntry(1, { status: 'running', servedBy: undefined, scope: 'agent:root' }),
+      pcRow(2, 1, record(1, usageOf(100, 50), { responseId: 'resp-A' })),
+      terminalEntry(3, {
+        ref: 1,
+        scope: 'agent:root',
+        usage: usageOf(100, 50),
+        providerCalls: [record(1, usageOf(100, 50), { responseId: 'resp-A' })],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    expect(invoice.orphanedReceipts).toBeUndefined();
+    expect(invoice.unsettled).toBeUndefined();
+  });
+
+  it('response id decides when either side carries one; the id-less rest matches by coordinate and byte equal usage', () => {
+    const entries: JournalEntry[] = [
+      terminalEntry(1, { status: 'running', servedBy: undefined, scope: 'agent:root' }),
+      // The redispatch after a resume REUSES the ordinal: a coordinate
+      // match across different id evidence is the replacement wire,
+      // never the orphan, so this receipt stays orphaned.
+      pcRow(2, 1, record(1, usageOf(100, 50))),
+      // An id-less receipt whose coordinate and usage match is covered.
+      pcRow(3, 1, record(2, usageOf(300, 30))),
+      // An id-less receipt whose usage disagrees is not.
+      pcRow(4, 1, record(3, usageOf(400, 40))),
+      terminalEntry(5, {
+        ref: 1,
+        scope: 'agent:root',
+        usage: usageOf(800, 120),
+        providerCalls: [
+          record(1, usageOf(100, 50), { responseId: 'resp-REDISPATCH' }),
+          record(2, usageOf(300, 30)),
+          record(3, usageOf(400, 99)),
+        ],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    expect(invoice.orphanedReceipts?.wireRequests).toBe(2);
+    expect(invoice.orphanedReceipts?.rows.map((row) => row.ordinal)).toEqual([1, 3]);
+  });
+});

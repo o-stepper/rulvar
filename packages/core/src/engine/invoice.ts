@@ -273,6 +273,41 @@ export interface InvoiceExport {
       responseId?: string;
     }>;
   };
+  /**
+   * The orphaned receipt lane (RV3405): incremental provider-call rows
+   * of agents whose TERMINAL entry does not cover them. The window is
+   * real: the loop journals a receipt as each wire settles (RV2008),
+   * the turn checkpoint lands later, and a crash between the two
+   * resumes from a checkpoint that never saw the paid wire, so the
+   * settled terminal's record set forgets the payment while the
+   * receipt lane remembers it. Real money, priced and summed apart
+   * from the settled totals exactly like `unsettled` (run_settle stays
+   * the billing boundary); this lane is why a provider statement
+   * billing that wire is explainable to the cent instead of reading as
+   * a foreign row. Coverage is decided by response id when either side
+   * carries one, else by the full (ordinal, servedBy, attempt,
+   * outcome) coordinate plus byte equal usage: after a resume the
+   * redispatched wire REUSES the ordinal, and reading the replacement
+   * as the orphan would silently absorb the double payment the resume
+   * honestly made. Present only when such rows exist; a journal
+   * without a mid turn crash never carries it.
+   */
+  orphanedReceipts?: {
+    usd: number;
+    wireRequests: number;
+    rows: Array<{
+      agentRef: number;
+      scope: string;
+      ordinal: number;
+      servedBy: ModelRef;
+      role: string;
+      attempt: number;
+      outcome: string;
+      usage: Usage;
+      usd?: number;
+      responseId?: string;
+    }>;
+  };
 }
 
 const USAGE_FIELDS = [
@@ -633,10 +668,10 @@ export function invoiceFromJournal(
   // The unsettled lane (RV2008): incremental provider-call rows of
   // agents with no terminal yet. Priced and summed apart from the
   // settled totals, never folded into them.
-  const terminalRefs = new Set(
+  const terminalByRef = new Map(
     entries
       .filter((entry) => entry.kind === 'agent' && entry.status !== 'running')
-      .map((entry) => entry.ref),
+      .map((entry) => [entry.ref, entry] as const),
   );
   const runningBySeq = new Map(
     entries
@@ -644,6 +679,7 @@ export function invoiceFromJournal(
       .map((entry) => [entry.seq, entry] as const),
   );
   const unsettledRows: NonNullable<InvoiceExport['unsettled']>['rows'] = [];
+  const orphanedRows: NonNullable<InvoiceExport['orphanedReceipts']>['rows'] = [];
   for (const entry of entries) {
     if (entry.kind !== 'decision') {
       continue;
@@ -664,21 +700,59 @@ export function invoiceFromJournal(
           };
         }
       | undefined;
-    if (
-      value?.decisionType !== 'provider-call' ||
-      typeof value.agentRef !== 'number' ||
-      terminalRefs.has(value.agentRef)
-    ) {
+    if (value?.decisionType !== 'provider-call' || typeof value.agentRef !== 'number') {
       continue;
     }
-    const running = runningBySeq.get(value.agentRef);
     const record = value.record;
     if (
-      running === undefined ||
       record?.usage === undefined ||
       typeof record.ordinal !== 'number' ||
       typeof record.servedBy !== 'string'
     ) {
+      continue;
+    }
+    const terminal = terminalByRef.get(value.agentRef);
+    if (terminal !== undefined) {
+      // The orphan check (RV3405): a receipt the settled terminal's
+      // record set does not cover is a payment only the receipt lane
+      // witnessed. Response id decides when either side carries one
+      // (a resume redispatch REUSES the ordinal, so a coordinate match
+      // across different ids is the replacement wire, not this one);
+      // the coordinate plus byte equal usage decides the id-less rest.
+      const receiptUsage = record.usage;
+      const covered = (terminal.providerCalls ?? []).some((call) => {
+        if (typeof record.responseId === 'string' || call.responseId !== undefined) {
+          return call.responseId === record.responseId;
+        }
+        return (
+          call.ordinal === record.ordinal &&
+          call.servedBy === record.servedBy &&
+          call.attempt === (typeof record.attempt === 'number' ? record.attempt : 1) &&
+          call.outcome === (typeof record.outcome === 'string' ? record.outcome : 'ok') &&
+          USAGE_FIELDS.every((field) => (call.usage[field] ?? 0) === (receiptUsage[field] ?? 0)) &&
+          (call.usage.reasoningTokens ?? 0) === (receiptUsage.reasoningTokens ?? 0)
+        );
+      });
+      if (covered) {
+        continue;
+      }
+      const usd = rowUsd(priceUsd, record.servedBy as ModelRef, record.usage, entry.seq);
+      orphanedRows.push({
+        agentRef: value.agentRef,
+        scope: terminal.scope,
+        ordinal: record.ordinal,
+        servedBy: record.servedBy as ModelRef,
+        role: typeof record.role === 'string' ? record.role : 'loop',
+        attempt: typeof record.attempt === 'number' ? record.attempt : 1,
+        outcome: typeof record.outcome === 'string' ? record.outcome : 'ok',
+        usage: rowUsage(record.usage),
+        ...(usd === undefined ? {} : { usd }),
+        ...(typeof record.responseId === 'string' ? { responseId: record.responseId } : {}),
+      });
+      continue;
+    }
+    const running = runningBySeq.get(value.agentRef);
+    if (running === undefined) {
       continue;
     }
     const usd = rowUsd(priceUsd, record.servedBy as ModelRef, record.usage, entry.seq);
@@ -703,6 +777,14 @@ export function invoiceFromJournal(
           wireRequests: unsettledRows.length,
           rows: unsettledRows,
         };
+  const orphanedReceipts =
+    orphanedRows.length === 0
+      ? undefined
+      : {
+          usd: orphanedRows.reduce((sum, row) => sum + (row.usd ?? 0), 0),
+          wireRequests: orphanedRows.length,
+          rows: orphanedRows,
+        };
   const usageApprox = report.usageApprox === true || report.abandoned.usageApprox === true;
   // Every row EXCEPT the unattributed remainders folds one dispatch: a
   // remainder is usage no record covers, so it represents no request
@@ -720,6 +802,7 @@ export function invoiceFromJournal(
       .length,
     cardinality: cardinalityOf(rows),
     ...(unsettled === undefined ? {} : { unsettled }),
+    ...(orphanedReceipts === undefined ? {} : { orphanedReceipts }),
     ...((): { usageUnknownRows?: number } => {
       const count = rows.filter((row) => row.usageUnknown === true).length;
       return count === 0 ? {} : { usageUnknownRows: count };

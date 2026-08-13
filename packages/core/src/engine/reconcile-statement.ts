@@ -206,6 +206,23 @@ export interface StatementReconciliation {
    * alone would have closed money against it.
    */
   monetarySettleable: boolean;
+  /**
+   * Statement rows explained by the invoice's receipt lanes (RV3405):
+   * per request export rows whose response id matches an `unsettled`
+   * or `orphanedReceipts` row of the invoice, i.e. OUR paid wires that
+   * the settled rows do not carry (a crash before settle, a terminal
+   * whose record set forgot the payment). Counted APART on purpose:
+   * their dollars never enter the totals, the coverage, `settleable`
+   * or `monetarySettleable`, because money the run did not settle must
+   * not close; they exist so the statement drift is explainable to the
+   * cent instead of reading as foreign rows. Present only when the
+   * caller passed the lanes and at least one row matched.
+   */
+  receiptMatchedRows?: number;
+  /** Statement side dollars over those rows, when the export claims any. */
+  receiptMatchedUsd?: number;
+  /** First matched receipt ids (at most 20). */
+  receiptIdSample?: string[];
 }
 
 const SAMPLE_CAP = 20;
@@ -276,7 +293,19 @@ function assertTokenCount(where: string, field: string, value: number): void {
  * not evidence either).
  */
 export function reconcileStatement(
-  invoice: { rows: readonly InvoiceRow[] },
+  invoice: {
+    rows: readonly InvoiceRow[];
+    /**
+     * The invoice's receipt lanes (RV3405), passed straight off the
+     * InvoiceExport when the caller wants statement rows for crashed
+     * or terminal forgotten wires EXPLAINED instead of counted
+     * foreign. Requests mode only (the join is by response id), and
+     * strictly opt in: a bare `{ rows }` invoice reads byte for byte
+     * as before.
+     */
+    unsettled?: { rows: ReadonlyArray<{ responseId?: string }> };
+    orphanedReceipts?: { rows: ReadonlyArray<{ responseId?: string }> };
+  },
   statement: ProviderStatement,
   options: ReconcileStatementOptions,
 ): StatementReconciliation {
@@ -350,6 +379,10 @@ export function reconcileStatement(
   const unmatchedIdSample: string[] = [];
   let statementOnlyRows = 0;
   const statementOnlyIdSample: string[] = [];
+  // The receipt join counters (RV3405), requests mode only.
+  let receiptMatchedRows = 0;
+  let receiptMatchedUsd = 0;
+  const receiptIdSample: string[] = [];
   let statementTotalUsd: number | undefined;
   let statementComponents: Map<string, Partial<Record<BillingComponent, number>>> | undefined;
   // Requests mode: how many matched export rows there were, and how
@@ -546,8 +579,33 @@ export function reconcileStatement(
         }
       }
     }
+    // The receipt join (RV3405): a statement row whose id matches a
+    // receipt lane row is OUR paid wire that the settled rows do not
+    // carry (a crash before settle, or a terminal whose record set
+    // forgot the payment), so it is explained by name instead of
+    // counted foreign. Its dollars never enter the totals or the
+    // coverage: money the run did not settle must not close, it must
+    // be legible.
+    const receiptIds = new Set<string>();
+    for (const lane of [invoice.unsettled, invoice.orphanedReceipts]) {
+      for (const row of lane?.rows ?? []) {
+        if (typeof row.responseId === 'string') {
+          receiptIds.add(row.responseId);
+        }
+      }
+    }
     for (const row of statement.rows) {
       if (!matchedStatement.has(row.responseId) && !partialSegmentIds.has(row.responseId)) {
+        if (receiptIds.has(row.responseId)) {
+          receiptMatchedRows += 1;
+          if (row.usd !== undefined) {
+            receiptMatchedUsd += row.usd;
+          }
+          if (receiptIdSample.length < SAMPLE_CAP) {
+            receiptIdSample.push(row.responseId);
+          }
+          continue;
+        }
         statementOnlyRows += 1;
         if (statementOnlyIdSample.length < SAMPLE_CAP) {
           statementOnlyIdSample.push(row.responseId);
@@ -798,6 +856,13 @@ export function reconcileStatement(
     // to move money. Gate monetary closure here, never on `settleable`
     // alone.
     monetarySettleable: settleable && dollarCoverage === 'complete',
+    ...(receiptMatchedRows === 0
+      ? {}
+      : {
+          receiptMatchedRows,
+          receiptMatchedUsd,
+          receiptIdSample,
+        }),
   };
 }
 

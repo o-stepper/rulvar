@@ -167,6 +167,20 @@ export interface EngineDefaults {
    * identity, journals, or cassette keys.
    */
   cache?: CachePolicy;
+  /**
+   * The receipt posture of the incremental billing seam (RV3405).
+   * RV2008 journals every ProviderCallRecord the moment its wire call
+   * settles, but the append is fire and forget: the loop never blocks
+   * its dispatch path on journal IO, so the receipt most likely to
+   * lose the race with a crash is exactly the wire being paid for at
+   * the moment of death. `'awaited'` makes the loop await each receipt
+   * append before the turn proceeds (the RV601 intent before effect
+   * precedent), buying durable payment evidence for one journal IO
+   * await per wire call; a failed append still degrades loudly to the
+   * terminal lane (the RV2008 warning), never fails the run. Default
+   * `'async'`: byte identical to RV2008.
+   */
+  billingReceipts?: 'async' | 'awaited';
 }
 
 export interface BudgetDefaults {
@@ -1316,6 +1330,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
     throw new ConfigError("createEngine defaults.countTokens must be 'allow' or 'deny'");
   }
   if (
+    options.defaults?.billingReceipts !== undefined &&
+    !['async', 'awaited'].includes(options.defaults.billingReceipts)
+  ) {
+    throw new ConfigError("createEngine defaults.billingReceipts must be 'async' or 'awaited'");
+  }
+  if (
     options.telemetry?.quotaDeniedAgentError !== undefined &&
     typeof options.telemetry.quotaDeniedAgentError !== 'boolean'
   ) {
@@ -1873,6 +1893,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(defaults.gates === undefined ? {} : { gates: defaults.gates }),
         ...(defaults.countTokens === undefined ? {} : { countTokens: defaults.countTokens }),
         ...(defaults.cache === undefined ? {} : { cache: defaults.cache }),
+        ...(defaults.billingReceipts === undefined
+          ? {}
+          : { billingReceipts: defaults.billingReceipts }),
       },
       ...(options.telemetry === undefined ? {} : { telemetry: options.telemetry }),
       errorPolicy: wf.errorPolicy,

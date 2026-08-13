@@ -31,12 +31,16 @@ not evidence either).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `invoice` | \{ `rows`: readonly [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[]; \} |
-| `invoice.rows` | readonly [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[] |
-| `statement` | [`ProviderStatement`](/api/@rulvar/openai/type-aliases/ProviderStatement.md) |
-| `options` | [`ReconcileStatementOptions`](/api/@rulvar/openai/interfaces/ReconcileStatementOptions.md) |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `invoice` | \{ `orphanedReceipts?`: \{ `rows`: readonly \{ `responseId?`: `string`; \}[]; \}; `rows`: readonly [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[]; `unsettled?`: \{ `rows`: readonly \{ `responseId?`: `string`; \}[]; \}; \} | - |
+| `invoice.orphanedReceipts?` | \{ `rows`: readonly \{ `responseId?`: `string`; \}[]; \} | - |
+| `invoice.orphanedReceipts.rows` | readonly \{ `responseId?`: `string`; \}[] | - |
+| `invoice.rows` | readonly [`InvoiceRow`](/api/@rulvar/rulvar/interfaces/InvoiceRow.md)[] | - |
+| `invoice.unsettled?` | \{ `rows`: readonly \{ `responseId?`: `string`; \}[]; \} | The invoice's receipt lanes (RV3405), passed straight off the InvoiceExport when the caller wants statement rows for crashed or terminal forgotten wires EXPLAINED instead of counted foreign. Requests mode only (the join is by response id), and strictly opt in: a bare `{ rows }` invoice reads byte for byte as before. |
+| `invoice.unsettled.rows` | readonly \{ `responseId?`: `string`; \}[] | - |
+| `statement` | [`ProviderStatement`](/api/@rulvar/openai/type-aliases/ProviderStatement.md) | - |
+| `options` | [`ReconcileStatementOptions`](/api/@rulvar/openai/interfaces/ReconcileStatementOptions.md) | - |
 
 ## Returns
 
