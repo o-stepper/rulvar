@@ -24,7 +24,11 @@ rather than guessed at.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-compositionspans"></a> `compositionSpans` | `number` | Completed composition-side synthesize spans, counted (RV3404): two compositions on one run is the legible signature of the bounded repair round (RV3307), and a count survives where milliseconds invite guessing. | `packages/core/dist/index.d.ts` |
+| <a id="property-draftjudgems"></a> `draftJudgeMs` | `number` | The stage split of `semanticJudgeMs` (RV3404): the draft pass dispatches under the exact [CLAIM\_JUDGE\_LABEL](/api/@rulvar/rulvar/variables/CLAIM_JUDGE_LABEL.md) and every suffixed variant is a post draft pass (today the final pass and the repair round's re-judge, both `-final`, RV2509/RV3307). Always the exact partition: `draftJudgeMs + finalJudgeMs` equals `semanticJudgeMs`. | `packages/core/dist/index.d.ts` |
 | <a id="property-finalcompositionms"></a> `finalCompositionMs` | `number` | Completed 'synthesize' spans that ARE final composition (every synthesize span not labeled as the claim judge), summed (RV1604). | `packages/core/dist/index.d.ts` |
+| <a id="property-finaljudgems"></a> `finalJudgeMs` | `number` | The post draft half of the split; see `draftJudgeMs`. | `packages/core/dist/index.d.ts` |
+| <a id="property-judgespans"></a> `judgeSpans` | `number` | Completed judge-side synthesize spans, counted (RV3404). | `packages/core/dist/index.d.ts` |
 | <a id="property-postfanin"></a> `postFanIn?` | [`PostFanInBreakdown`](/api/@rulvar/rulvar/interfaces/PostFanInBreakdown.md) | The RV710 decomposition of the window; present with postFanInMs. | `packages/core/dist/index.d.ts` |
 | <a id="property-postfaninms"></a> `postFanInMs?` | `number` | Last non-coordination agent:end to run:end; absent without both. | `packages/core/dist/index.d.ts` |
 | <a id="property-postfaninshare"></a> `postFanInShare?` | `number` | postFanInMs / runWallMs when both are defined and the wall is > 0. | `packages/core/dist/index.d.ts` |

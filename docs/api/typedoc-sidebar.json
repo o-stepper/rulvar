@@ -1171,6 +1171,10 @@
             "link": "/api/@rulvar/core/interfaces/JournaledCriticalPath.md"
           },
           {
+            "text": "JournaledPostFanIn",
+            "link": "/api/@rulvar/core/interfaces/JournaledPostFanIn.md"
+          },
+          {
             "text": "JournaledSynthesisCandidate",
             "link": "/api/@rulvar/core/interfaces/JournaledSynthesisCandidate.md"
           },
@@ -3049,6 +3053,10 @@
             "link": "/api/@rulvar/core/functions/claimIssues.md"
           },
           {
+            "text": "claimJudgeStageOf",
+            "link": "/api/@rulvar/core/functions/claimJudgeStageOf.md"
+          },
+          {
             "text": "claimOpIssues",
             "link": "/api/@rulvar/core/functions/claimOpIssues.md"
           },
@@ -3295,6 +3303,10 @@
           {
             "text": "invoiceFromJournal",
             "link": "/api/@rulvar/core/functions/invoiceFromJournal.md"
+          },
+          {
+            "text": "isClaimJudgeLabel",
+            "link": "/api/@rulvar/core/functions/isClaimJudgeLabel.md"
           },
           {
             "text": "isEscalated",
@@ -3823,6 +3835,10 @@
           {
             "text": "ttlState",
             "link": "/api/@rulvar/core/functions/ttlState.md"
+          },
+          {
+            "text": "unionOfIntervalsMs",
+            "link": "/api/@rulvar/core/functions/unionOfIntervalsMs.md"
           },
           {
             "text": "usageViolations",
@@ -6237,6 +6253,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/JournaledCriticalPath.md"
           },
           {
+            "text": "JournaledPostFanIn",
+            "link": "/api/@rulvar/rulvar/interfaces/JournaledPostFanIn.md"
+          },
+          {
             "text": "JournaledSynthesisCandidate",
             "link": "/api/@rulvar/rulvar/interfaces/JournaledSynthesisCandidate.md"
           },
@@ -8163,6 +8183,10 @@
             "link": "/api/@rulvar/rulvar/functions/claimIssues.md"
           },
           {
+            "text": "claimJudgeStageOf",
+            "link": "/api/@rulvar/rulvar/functions/claimJudgeStageOf.md"
+          },
+          {
             "text": "claimOpIssues",
             "link": "/api/@rulvar/rulvar/functions/claimOpIssues.md"
           },
@@ -8409,6 +8433,10 @@
           {
             "text": "invoiceFromJournal",
             "link": "/api/@rulvar/rulvar/functions/invoiceFromJournal.md"
+          },
+          {
+            "text": "isClaimJudgeLabel",
+            "link": "/api/@rulvar/rulvar/functions/isClaimJudgeLabel.md"
           },
           {
             "text": "isEscalated",
@@ -8949,6 +8977,10 @@
           {
             "text": "ttlState",
             "link": "/api/@rulvar/rulvar/functions/ttlState.md"
+          },
+          {
+            "text": "unionOfIntervalsMs",
+            "link": "/api/@rulvar/rulvar/functions/unionOfIntervalsMs.md"
           },
           {
             "text": "usageViolations",
