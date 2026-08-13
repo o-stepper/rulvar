@@ -14510,6 +14510,29 @@ interface PreflightOrchestratorSpec {
     judge?: {
       estCost?: number;
     };
+    /**
+    * Mirrors OrchestrateClaimConsistency.onFound (RV3402). Declaring
+    * `'repair'` prices the bounded post judge round (RV3307) into the
+    * static arithmetic: the working room adds one more judge pass and
+    * one more composition (priced at the declared
+    * `budget.synthesisReserveUsd`, the host's own estimate of one
+    * composition), and the tail spawn count adds the round's two
+    * invocations. The 2026-08-12 comparison shape motivates the
+    * polarity: a ceiling sized to the exact plan converts a triggered
+    * repair into the typed decline, and preflight should say so
+    * before the first wire, not the journal after the last. Pairings
+    * orchestrate() refuses at intake (repair at the draft stage,
+    * repair without a synthesis, carry at the final stage, RV3301)
+    * surface as error findings: the run would refuse to start.
+    */
+    onFound?: "report" | "carry" | "fail" | "repair";
+    /**
+    * Mirrors OrchestrateClaimConsistency.stage (RV3402): `'both'`
+    * dispatches the judge twice at worst, and the working room and
+    * tail spawn arithmetic price passes, not declarations. Absent
+    * keeps the historical one pass reading byte for byte.
+    */
+    stage?: "draft" | "final" | "both";
   };
   /**
   * The `reserve-line-headroom` threshold in coordination turn floors

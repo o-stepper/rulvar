@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
+import { ConfigError } from '../l0/errors.js';
 import type { ModelRef } from '../l0/messages.js';
 import type { Pricing } from '../l0/spi/provider.js';
 import { dispatchProjectionReserveUsd } from '../orchestrator/admission.js';
@@ -2866,6 +2867,186 @@ describe('the lifetime spawn budget of the tail (RV2201, the seventh subscriptio
     expect(finding?.message).toContain('zero spawn headroom');
     const roomy = preflightEstimate(tailInput({ lifetimeSpawnCap: 8 }));
     expect(roomy.findings.some((entry) => entry.code === 'tail-spawn-budget')).toBe(false);
+  });
+});
+
+describe('the repair posture arithmetic (RV3402, the 2026-08-12 comparison run)', () => {
+  // RV3307 made the repair round real: when the final verdict names
+  // findings, the run pays one more composition and one more judge
+  // pass. The static arithmetic priced one pass and zero repair
+  // compositions, so a plan sized to the exact tail read green and met
+  // the typed decline live instead.
+  function postureInput(options: {
+    capUsd?: number;
+    lifetimeSpawnCap?: number;
+    claimConsistency?: {
+      judge?: { estCost?: number };
+      onFound?: 'report' | 'carry' | 'fail' | 'repair';
+      stage?: 'draft' | 'final' | 'both';
+    };
+    synthesis?: boolean;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+        ...(options.lifetimeSpawnCap === undefined
+          ? {}
+          : { budgetDefaults: { lifetimeSpawnCap: options.lifetimeSpawnCap } }),
+      },
+      run: { budgetUsd: 20 },
+      orchestrator: {
+        budget: { capUsd: options.capUsd ?? 3.2, capFraction: 1.0, synthesisReserveUsd: 1.4 },
+        ...(options.synthesis === false ? {} : { synthesis: { limits: { maxTurns: 2 } } }),
+        limits: { maxOutputTokensPerTurn: 36000 },
+        ...(options.claimConsistency === undefined
+          ? {}
+          : { claimConsistency: options.claimConsistency }),
+      },
+      spawns: [{ label: 'worker', estCost: 1, limits: { maxOutputTokensPerTurn: 14000 } }],
+    };
+  }
+
+  it('prices the armed round into the working room and names the typed stop', () => {
+    // Room past the hold is 3.2 minus 1.4 = 1.8. One final pass needs
+    // 0.36 + 0.28 = 0.64 and stays silent; the armed round needs
+    // 0.36 + 0.28 x 2 + 1.4 = 2.32 and warns.
+    const oneShot = preflightEstimate(
+      postureInput({
+        claimConsistency: { judge: { estCost: 0.28 }, onFound: 'fail', stage: 'final' },
+      }),
+    );
+    expect(oneShot.findings.some((entry) => entry.code === 'orchestrator-working-room')).toBe(
+      false,
+    );
+    const armed = preflightEstimate(
+      postureInput({
+        claimConsistency: { judge: { estCost: 0.28 }, onFound: 'repair', stage: 'final' },
+      }),
+    );
+    const finding = armed.findings.find((entry) => entry.code === 'orchestrator-working-room');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('across 2 passes at worst (RV3402)');
+    expect(finding?.message).toContain('repair round composition priced at the 1.4000');
+    expect(finding?.message).toContain("armed 'repair' posture");
+    expect(finding?.message).toContain('stops the run typed (RV3307)');
+  });
+
+  it("prices 'both' as two passes, three with the round, and keeps the RV2106 tail unarmed", () => {
+    // Room 2.1 minus 1.4 = 0.7 sits below 0.36 + 0.28 x 2 = 0.92.
+    const both = preflightEstimate(
+      postureInput({
+        capUsd: 2.1,
+        claimConsistency: { judge: { estCost: 0.28 }, stage: 'both' },
+      }),
+    );
+    const finding = both.findings.find((entry) => entry.code === 'orchestrator-working-room');
+    expect(finding?.message).toContain('across 2 passes at worst (RV3402)');
+    expect(finding?.message).toContain('declined verdict (RV2106)');
+    expect(finding?.message).not.toContain('repair round composition');
+    const round = preflightEstimate(
+      postureInput({
+        claimConsistency: { judge: { estCost: 0.28 }, onFound: 'repair', stage: 'both' },
+      }),
+    );
+    const armed = round.findings.find((entry) => entry.code === 'orchestrator-working-room');
+    expect(armed?.message).toContain('across 3 passes at worst (RV3402)');
+  });
+
+  it('counts the round and the worst case passes against the spawn counter', () => {
+    // Two wave rows (the worker and the orchestrator) plus three judge
+    // passes plus the synthesis plus the repair composition is seven.
+    const exact = preflightEstimate(
+      postureInput({
+        lifetimeSpawnCap: 7,
+        claimConsistency: { judge: { estCost: 0.28 }, onFound: 'repair', stage: 'both' },
+      }),
+    );
+    const finding = exact.findings.find((entry) => entry.code === 'tail-spawn-budget');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('plus 3 claim-consistency judge passes at worst');
+    expect(finding?.message).toContain('plus the repair round composition');
+    expect(finding?.message).toContain('7 against budgetDefaults.lifetimeSpawnCap 7');
+    const roomy = preflightEstimate(
+      postureInput({
+        lifetimeSpawnCap: 8,
+        claimConsistency: { judge: { estCost: 0.28 }, onFound: 'repair', stage: 'both' },
+      }),
+    );
+    expect(roomy.findings.some((entry) => entry.code === 'tail-spawn-budget')).toBe(false);
+  });
+
+  it('spawns the judge off the configured pass, estimate or none (RV3402)', () => {
+    // A posture only pass still dispatches its judge: two wave rows
+    // plus two 'both' passes plus the synthesis is five.
+    const exact = preflightEstimate(
+      postureInput({ lifetimeSpawnCap: 5, claimConsistency: { stage: 'both' } }),
+    );
+    const finding = exact.findings.find((entry) => entry.code === 'tail-spawn-budget');
+    expect(finding?.message).toContain('plus 2 claim-consistency judge passes at worst');
+    expect(finding?.message).toContain('5 against budgetDefaults.lifetimeSpawnCap 5');
+  });
+
+  it('mirrors the intake refusals as error findings, and clears valid pairings', () => {
+    const draftRepair = preflightEstimate(
+      postureInput({ claimConsistency: { onFound: 'repair' } }),
+    );
+    const intake = draftRepair.findings.filter(
+      (entry) => entry.code === 'claim-posture-refused-at-intake',
+    );
+    expect(intake).toHaveLength(1);
+    expect(intake[0]?.severity).toBe('error');
+    expect(intake[0]?.message).toContain("needs stage 'final' or 'both'");
+    const noSynthesis = preflightEstimate(
+      postureInput({
+        synthesis: false,
+        claimConsistency: { onFound: 'repair', stage: 'final' },
+      }),
+    );
+    expect(
+      noSynthesis.findings.find((entry) => entry.code === 'claim-posture-refused-at-intake')
+        ?.message,
+    ).toContain('requires a synthesis');
+    const finalCarry = preflightEstimate(
+      postureInput({ claimConsistency: { onFound: 'carry', stage: 'final' } }),
+    );
+    expect(
+      finalCarry.findings.find((entry) => entry.code === 'claim-posture-refused-at-intake')
+        ?.message,
+    ).toContain('RV3301');
+    const validRepair = preflightEstimate(
+      postureInput({ claimConsistency: { onFound: 'repair', stage: 'final' } }),
+    );
+    expect(
+      validRepair.findings.some((entry) => entry.code === 'claim-posture-refused-at-intake'),
+    ).toBe(false);
+    const validCarry = preflightEstimate(
+      postureInput({ claimConsistency: { onFound: 'carry', stage: 'both' } }),
+    );
+    expect(
+      validCarry.findings.some((entry) => entry.code === 'claim-posture-refused-at-intake'),
+    ).toBe(false);
+  });
+
+  it('throws typed on garbage posture values like every malformed input', () => {
+    expect(() =>
+      preflightEstimate(
+        postureInput({
+          claimConsistency: { onFound: 'mend' as unknown as 'repair' },
+        }),
+      ),
+    ).toThrow(ConfigError);
+    expect(() =>
+      preflightEstimate(
+        postureInput({
+          claimConsistency: { stage: 'shipped' as unknown as 'final' },
+        }),
+      ),
+    ).toThrow(ConfigError);
   });
 });
 
