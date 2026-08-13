@@ -4636,6 +4636,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
+    id: 'the-armed-round-is-priced-in-passes',
+    doctrine:
+      'the static tail prices the judge in worst case passes and the armed repair round adds its composition (RV3402): collapsed to one pass and no round, a plan sized to the exact tail reads green and the triggered repair meets the typed decline live instead of a preflight warning, the 2026-08-12 admission cliff one release later',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "    ((claimPosture?.stage ?? 'draft') === 'both' ? 2 : 1) + (repairArmed ? 1 : 0);",
+    replace: '    1;',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
     id: 'the-persisted-terminal-recovers-the-semantic-verdict',
     doctrine:
       'the persisted terminal reads the acceptance verdict back from the settle lift (RV3304): dropped, a restarted reader sees ok/complete with no way to tell whether anything ever judged the deliverable, the 2026-08-12 comparison run blind spot verbatim',

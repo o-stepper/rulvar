@@ -6,7 +6,7 @@
 
 # Interface: PreflightToolCeiling
 
-Defined in: [packages/core/src/engine/preflight.ts:318](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L318)
+Defined in: [packages/core/src/engine/preflight.ts:341](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L341)
 
 Per-tool executed-call ceiling and the limiter that provides it.
 
@@ -14,6 +14,6 @@ Per-tool executed-call ceiling and the limiter that provides it.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-boundby"></a> `boundBy?` | `"maxCallsPerTool"` \| `"toolUnits"` \| `"maxToolCalls"` | The limiter producing the ceiling, when one binds. | [packages/core/src/engine/preflight.ts:324](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L324) |
-| <a id="property-ceiling"></a> `ceiling` | `number` \| `null` | Executed calls possible for this tool alone; null = unlimited. | [packages/core/src/engine/preflight.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L322) |
-| <a id="property-tool"></a> `tool` | `string` | A named tool, or '(any)' for a tool no cap or cost names. | [packages/core/src/engine/preflight.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L320) |
+| <a id="property-boundby"></a> `boundBy?` | `"maxCallsPerTool"` \| `"toolUnits"` \| `"maxToolCalls"` | The limiter producing the ceiling, when one binds. | [packages/core/src/engine/preflight.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L347) |
+| <a id="property-ceiling"></a> `ceiling` | `number` \| `null` | Executed calls possible for this tool alone; null = unlimited. | [packages/core/src/engine/preflight.ts:345](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L345) |
+| <a id="property-tool"></a> `tool` | `string` | A named tool, or '(any)' for a tool no cap or cost names. | [packages/core/src/engine/preflight.ts:343](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L343) |

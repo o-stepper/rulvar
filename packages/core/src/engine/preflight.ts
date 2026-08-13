@@ -191,6 +191,29 @@ export interface PreflightOrchestratorSpec {
    */
   claimConsistency?: {
     judge?: { estCost?: number };
+    /**
+     * Mirrors OrchestrateClaimConsistency.onFound (RV3402). Declaring
+     * `'repair'` prices the bounded post judge round (RV3307) into the
+     * static arithmetic: the working room adds one more judge pass and
+     * one more composition (priced at the declared
+     * `budget.synthesisReserveUsd`, the host's own estimate of one
+     * composition), and the tail spawn count adds the round's two
+     * invocations. The 2026-08-12 comparison shape motivates the
+     * polarity: a ceiling sized to the exact plan converts a triggered
+     * repair into the typed decline, and preflight should say so
+     * before the first wire, not the journal after the last. Pairings
+     * orchestrate() refuses at intake (repair at the draft stage,
+     * repair without a synthesis, carry at the final stage, RV3301)
+     * surface as error findings: the run would refuse to start.
+     */
+    onFound?: 'report' | 'carry' | 'fail' | 'repair';
+    /**
+     * Mirrors OrchestrateClaimConsistency.stage (RV3402): `'both'`
+     * dispatches the judge twice at worst, and the working room and
+     * tail spawn arithmetic price passes, not declarations. Absent
+     * keeps the historical one pass reading byte for byte.
+     */
+    stage?: 'draft' | 'final' | 'both';
   };
   /**
    * The `reserve-line-headroom` threshold in coordination turn floors
@@ -876,6 +899,60 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         input.orchestrator.claimConsistency.judge.estCost,
         'preflight.orchestrator.claimConsistency.judge.estCost',
       );
+    }
+    {
+      // The declared pass posture (RV3402): garbage values throw like
+      // every malformed input, while well typed pairings orchestrate()
+      // refuses at intake surface as error findings below, the
+      // orchestrator-cap-below-finalize-reserve precedent: the run
+      // would refuse to start, and a planner should read that beside
+      // the budget findings instead of meeting the ConfigError live.
+      const posture = input.orchestrator.claimConsistency;
+      if (
+        posture?.onFound !== undefined &&
+        !['report', 'carry', 'fail', 'repair'].includes(posture.onFound)
+      ) {
+        throw new ConfigError(
+          "preflight.orchestrator.claimConsistency.onFound must be 'report', 'carry', 'fail' " +
+            `or 'repair'; got ${JSON.stringify(posture.onFound)}`,
+        );
+      }
+      if (posture?.stage !== undefined && !['draft', 'final', 'both'].includes(posture.stage)) {
+        throw new ConfigError(
+          "preflight.orchestrator.claimConsistency.stage must be 'draft', 'final' or 'both'; " +
+            `got ${JSON.stringify(posture.stage)}`,
+        );
+      }
+      const stage = posture?.stage ?? 'draft';
+      if (posture?.onFound === 'repair' && stage === 'draft') {
+        say({
+          severity: 'error',
+          code: 'claim-posture-refused-at-intake',
+          message:
+            "claimConsistency.onFound 'repair' needs stage 'final' or 'both' (at the draft " +
+            'stage the repair IS the carry, RV3307): the run would refuse to start',
+        });
+      }
+      if (posture?.onFound === 'repair' && input.orchestrator.synthesis === undefined) {
+        say({
+          severity: 'error',
+          code: 'claim-posture-refused-at-intake',
+          message:
+            "claimConsistency.onFound 'repair' requires a synthesis: the bounded round is one " +
+            'more composition, and without one there is nothing to repair with: the run would ' +
+            'refuse to start',
+        });
+      }
+      if (posture?.onFound === 'carry' && stage === 'final') {
+        say({
+          severity: 'error',
+          code: 'claim-posture-refused-at-intake',
+          message:
+            "claimConsistency.onFound 'carry' cannot pair with stage 'final' (RV3301): the " +
+            'final pass has no synthesis prompt left to ride, and the run would refuse to ' +
+            "start; declare onFound 'repair' for the bounded post judge round",
+        });
+      }
     }
     const spec = input.orchestrator.budget;
     const fraction = spec?.capFraction ?? 0.2;
@@ -2211,11 +2288,23 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   // complete, the draft composed, and the synthesis its reserve was
   // funding never dispatched. The static minimum is one coordination
   // turn floor plus the declared judge estimate.
+  // The pass posture the room must seat (RV3402): `'both'` dispatches
+  // the judge twice at worst, and an armed repair round adds one more
+  // judge pass AND one more composition, priced at the declared
+  // synthesis reserve because that is the host's own estimate of one
+  // composition. Absent declarations keep the historical one pass
+  // reading byte for byte.
+  const claimPosture = input.orchestrator?.claimConsistency;
+  const repairArmed = claimPosture?.onFound === 'repair';
+  const worstJudgePasses =
+    ((claimPosture?.stage ?? 'draft') === 'both' ? 2 : 1) + (repairArmed ? 1 : 0);
   {
     const judgeEstUsd = input.orchestrator?.claimConsistency?.judge?.estCost;
     if (judgeEstUsd !== undefined && effectiveCapUsd !== undefined && synthesisHoldUsd > 0) {
       const workingRoomUsd = effectiveCapUsd - synthesisHoldUsd;
-      const neededUsd = liveRootExposureTermUsd + judgeEstUsd;
+      const repairCompositionUsd = repairArmed ? synthesisHoldUsd : 0;
+      const neededUsd =
+        liveRootExposureTermUsd + judgeEstUsd * worstJudgePasses + repairCompositionUsd;
       if (workingRoomUsd < neededUsd) {
         say({
           severity: 'warning',
@@ -2225,10 +2314,21 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             `${workingRoomUsd.toFixed(4)} USD (cap ${effectiveCapUsd.toFixed(4)} minus the ` +
             `${synthesisHoldUsd.toFixed(4)} USD hold), below one coordination turn floor ` +
             `(${liveRootExposureTermUsd.toFixed(4)} USD) plus the declared ` +
-            `${judgeEstUsd.toFixed(4)} USD claim-consistency judge estimate: the judge ` +
-            'admission will be declined once the coordination loop has taken even one turn, ' +
-            'and the pass degrades to its journaled declined verdict (RV2106); raise the cap, ' +
-            'shrink the judge estimate, or shrink the synthesis reserve',
+            `${judgeEstUsd.toFixed(4)} USD claim-consistency judge estimate` +
+            (worstJudgePasses === 1
+              ? ''
+              : ` across ${String(worstJudgePasses)} passes at worst (RV3402)`) +
+            (repairArmed
+              ? ` plus one repair round composition priced at the ${synthesisHoldUsd.toFixed(4)} ` +
+                'USD reserve (RV3307)'
+              : '') +
+            ': the judge admission will be declined once the coordination loop has taken even ' +
+            'one turn, and ' +
+            (claimPosture?.onFound === 'fail' || claimPosture?.onFound === 'repair'
+              ? `under the armed '${claimPosture.onFound}' posture the declined judge stops ` +
+                'the run typed (RV3307)'
+              : 'the pass degrades to its journaled declined verdict (RV2106)') +
+            '; raise the cap, shrink the judge estimate, or shrink the synthesis reserve',
         });
       }
     }
@@ -2248,15 +2348,29 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   // through partial-admission or nothing-admitted.
   if (orchestrateWave && wave.length > 0 && admitted === wave.length) {
     const lifetimeSpawnCap = input.engine?.budgetDefaults?.lifetimeSpawnCap ?? 500;
-    const judgeDeclared = input.orchestrator?.claimConsistency?.judge !== undefined;
+    // A configured pass spawns its judge whether or not an estimate was
+    // declared, so the marker is the pass itself (RV3402); every input
+    // that existed before this field carried the judge object inside,
+    // so the reading is byte identical for them.
+    const judgeDeclared = input.orchestrator?.claimConsistency !== undefined;
     const synthesisDeclared = input.orchestrator?.synthesis !== undefined;
-    const plannedSpawns = wave.length + (judgeDeclared ? 1 : 0) + (synthesisDeclared ? 1 : 0);
+    // Passes, not declarations (RV3402): `'both'` dispatches two judge
+    // invocations at worst, and an armed repair round adds one more
+    // judge pass and one more composition against the same counter.
+    const judgeSpawns = judgeDeclared ? worstJudgePasses : 0;
+    const repairSpawns = repairArmed && synthesisDeclared ? 1 : 0;
+    const plannedSpawns = wave.length + judgeSpawns + (synthesisDeclared ? 1 : 0) + repairSpawns;
     const spawnHeadroom = lifetimeSpawnCap - plannedSpawns;
     if (spawnHeadroom <= 0) {
       const breakdown =
         `the admitted wave of ${String(wave.length)} agent invocations` +
-        (judgeDeclared ? ' plus the claim-consistency judge' : '') +
+        (judgeDeclared
+          ? judgeSpawns === 1
+            ? ' plus the claim-consistency judge'
+            : ` plus ${String(judgeSpawns)} claim-consistency judge passes at worst`
+          : '') +
         (synthesisDeclared ? ' plus the synthesis invocation' : '') +
+        (repairSpawns === 0 ? '' : ' plus the repair round composition') +
         ` is ${String(plannedSpawns)} against budgetDefaults.lifetimeSpawnCap ` +
         String(lifetimeSpawnCap);
       say({
