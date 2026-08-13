@@ -18,6 +18,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+
 ### 1.238.0
 
 #### Patch Changes
@@ -2188,6 +2198,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+
 ### 1.238.0
 
 #### Patch Changes
@@ -4153,6 +4173,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
 
 ### 1.238.0
 
@@ -6681,6 +6711,15 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.239.0
+
+#### Minor Changes
+
+- 74ce99a: The durable wire receipt (RV3405): the payment evidence of the at least once window becomes loss proof and reconciled, in three layers. The billing seam's return type widens to `void | Promise<void>` and the loop AWAITS a returned promise; `defaults.billingReceipts: 'awaited'` makes the ctx layer return each RV2008 receipt append so it lands durably before the turn proceeds (the RV601 intent before effect precedent), at the cost of one journal IO await per wire call; a failed append still degrades loudly to the terminal lane and never fails the run; the default `'async'` stays byte identical. The invoice gains the `orphanedReceipts` lane: receipts of agents whose TERMINAL record set does not cover them, the real money a crash between the receipt and the checkpoint makes the resumed terminal forget; coverage is decided by response id whenever either side carries one (a resume redispatch reuses the ordinal, and reading the replacement as the orphan would absorb the double payment the resume honestly made), else by the full coordinate plus byte equal usage; summed apart from the settled totals exactly like `unsettled`. And `reconcileStatement` accepts the invoice's receipt lanes: a per request statement row matching a receipt id reports under `receiptMatchedRows`/`receiptMatchedUsd` instead of counting foreign, its dollars never entering the totals, the coverage, `settleable` or `monetarySettleable`, because money the run did not settle must not close, it must be legible. Probes: the-awaited-receipt-blocks-the-next-wire, the-orphan-is-decided-by-id-evidence, the-receipt-join-explains-the-statement-row.
+- ccd0665: Preflight prices the claim consistency posture (RV3402). The input mirror gains `claimConsistency.onFound` and `claimConsistency.stage`, and the static tail arithmetic now counts passes, not declarations: the `orchestrator-working-room` finding seats the judge estimate across the worst case pass count (`'both'` is two, an armed `'repair'` adds one more) plus one repair round composition priced at the declared `budget.synthesisReserveUsd`, and its consequence clause names the truth of the armed posture (a declined judge under `'fail'` or `'repair'` stops the run typed, RV3307, instead of degrading to the journaled verdict). The `tail-spawn-budget` count gains the same passes and the round's composition, and spawns the judge off the configured pass itself, estimate declared or not. Pairings `orchestrate()` refuses at intake (repair at the draft stage, repair without a synthesis, carry at the final stage, RV3301) surface as `claim-posture-refused-at-intake` error findings: the run would refuse to start, and a planner should read that beside the budget findings instead of meeting the `ConfigError` live. Undeclared postures keep every reading byte for byte. Probe: the-armed-round-is-priced-in-passes.
+- 0c5ce21: The orchestration modes guide documents the bounded repair round (RV3401): a new section between the claim consistency pass and the assurance posture explains when to choose `report`, `carry`, `fail` or `repair`, the intake contract (`'single'` synthesis, stage `'final'` or `'both'`), what one round costs, the fail closed edges (an undispatchable repair round, a dead or declined judge under the armed posture), and what the envelope and the typed failure payload carry (`repairsUsed`, `preRepairHash`, `repairedHash`). The assurance posture section points at the round as the armed polarity with one bounded correction. Docs only: no runtime change.
+- 0616934: The post fan in tail becomes legible on both surfaces (RV3404). Both critical path folds gain the stage split of the judge wall (`draftJudgeMs`, `finalJudgeMs`: the exact label is the draft pass, every suffixed variant is a post draft pass, the final judge and the repair re-judge included) and span counters (`compositionSpans`, `judgeSpans`: two compositions in one run is the legible signature of the bounded repair round, RV3307), decided by ONE exported classifier, `claimJudgeStageOf`, the RV3302 doctrine extended from the judge predicate to the stage. The journal fold additionally gains the window itemization a journal CAN answer, `postFanIn`: the union of settled synthesize spans clipped to the window (`synthesisCoveredMs`, computed through the same exported `unionOfIntervalsMs` the live RV710 decomposition uses), the clipped halves under the same all or nothing labelling condition, and `unaccountedMs`, the window time no settled synthesize span accounts for, deliberately NOT named `residueMs` because the coordinator's tail time lives in it here and the live residue subtracts that. On the journal side every new field keeps the absence doctrine: absent where the stamps cannot answer, never zero. Probe: the-stage-classifier-holds-the-split.
 
 ### 1.238.0
 
@@ -9484,6 +9523,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.239.0
+
 ### 1.238.0
 
 ### 1.237.0
@@ -10064,6 +10105,24 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.239.0
+
+#### Minor Changes
+
+- d3568b6: The fault kit drives the post fan in tail arc (RV3403). The 2026-08-12 comparison run settled `ok/complete` over a finding its own final judge had named, and the fixes that followed shipped with unit suites but no kit scenario ever drove the arc end to end on the real engine. Three scenarios close that: `repair-round-honesty` (the final judge finds, the findings ride one more composition, the re-judge clears it, the settled envelope reports the repaired document as the judged one, two compositions and two final judge passes in the journal, the invoice in the same denominator), `repair-survivor-refusal` (the re-judge still finds: typed failure with `repairsUsed: 1` and two distinct document hashes, never a silent ok), and `claim-judge-dead-armed-refusal` (a judge that dies on the wire under `'fail'` and under `'repair'` fails the run typed with the armed posture named, one composition paid, no round dispatched). Probe: the-kit-actually-drives-the-repair-round.
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+  - @rulvar/anthropic@1.239.0
+  - @rulvar/openai@1.239.0
+  - @rulvar/plan@1.239.0
+  - @rulvar/testing@1.239.0
 
 ### 1.238.0
 
@@ -12802,6 +12861,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+
 ### 1.238.0
 
 #### Patch Changes
@@ -14178,6 +14247,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
 
 ### 1.238.0
 
@@ -16350,6 +16429,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+
 ### 1.238.0
 
 #### Patch Changes
@@ -18434,6 +18523,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+  - eslint-plugin-rulvar@1.239.0
 
 ### 1.238.0
 
@@ -20714,6 +20814,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+  - @rulvar/anthropic@1.239.0
+  - @rulvar/openai@1.239.0
 
 ### 1.238.0
 
@@ -23318,6 +23430,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+
 ### 1.238.0
 
 #### Patch Changes
@@ -25405,6 +25527,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+
 ### 1.238.0
 
 #### Patch Changes
@@ -26797,6 +26929,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
 
 ### 1.238.0
 
@@ -28821,6 +28963,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.239.0
+
+#### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
 
 ### 1.238.0
 

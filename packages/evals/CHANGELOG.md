@@ -1,5 +1,23 @@
 # @rulvar/evals
 
+## 1.239.0
+
+### Minor Changes
+
+- d3568b6: The fault kit drives the post fan in tail arc (RV3403). The 2026-08-12 comparison run settled `ok/complete` over a finding its own final judge had named, and the fixes that followed shipped with unit suites but no kit scenario ever drove the arc end to end on the real engine. Three scenarios close that: `repair-round-honesty` (the final judge finds, the findings ride one more composition, the re-judge clears it, the settled envelope reports the repaired document as the judged one, two compositions and two final judge passes in the journal, the invoice in the same denominator), `repair-survivor-refusal` (the re-judge still finds: typed failure with `repairsUsed: 1` and two distinct document hashes, never a silent ok), and `claim-judge-dead-armed-refusal` (a judge that dies on the wire under `'fail'` and under `'repair'` fails the run typed with the armed posture named, one composition paid, no round dispatched). Probe: the-kit-actually-drives-the-repair-round.
+
+### Patch Changes
+
+- Updated dependencies [74ce99a]
+- Updated dependencies [ccd0665]
+- Updated dependencies [0c5ce21]
+- Updated dependencies [0616934]
+  - @rulvar/core@1.239.0
+  - @rulvar/anthropic@1.239.0
+  - @rulvar/openai@1.239.0
+  - @rulvar/plan@1.239.0
+  - @rulvar/testing@1.239.0
+
 ## 1.238.0
 
 ### Patch Changes
