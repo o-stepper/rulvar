@@ -166,4 +166,68 @@ describe('incremental billing rows (RV2008)', () => {
     // call minted exactly one.
     expect(rows).toHaveLength(2);
   });
+
+  it('the awaited posture lands each receipt before the loop proceeds (RV3405)', async () => {
+    // The RV2008 append is fire and forget, so the receipt most likely
+    // to lose the race with a crash is exactly the wire being paid for
+    // at the moment of death. Under defaults.billingReceipts 'awaited'
+    // the loop awaits the settled append before the next dispatch: the
+    // order log must show the first turn's receipt durable BEFORE the
+    // second wire opens.
+    class SlowReceiptStore extends InMemoryStore {
+      readonly order: string[] = [];
+
+      override async append(runId: string, entry: Parameters<InMemoryStore['append']>[1]) {
+        const key = (entry as { key?: string }).key ?? '';
+        if (entry.kind === 'decision' && key.startsWith('pc:')) {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+          this.order.push('receipt');
+        }
+        await super.append(runId, entry);
+      }
+    }
+    const run = async (billingReceipts: 'async' | 'awaited') => {
+      const store = new SlowReceiptStore();
+      const adapter = scriptedAdapter((req: ChatRequest, call: number): ScriptedTurn => {
+        void req;
+        return call === 0
+          ? { toolCall: { name: 'echo', args: { value: 'ping' } } }
+          : { text: 'done' };
+      });
+      const logged: typeof adapter = {
+        ...adapter,
+        async *stream(req, signal) {
+          store.order.push(`wire:${String(adapter.calls.length)}`);
+          yield* adapter.stream(req, signal);
+        },
+      };
+      const engine = createEngine({
+        adapters: [logged],
+        stores: { journal: store, transcripts: new InMemoryTranscriptStore() },
+        defaults: { routing: { loop: 'fake:model' }, billingReceipts },
+      });
+      const wf = defineWorkflow({ name: `receipts-${billingReceipts}` }, async (ctx) => {
+        const result = await ctx.agent('use the echo tool once, then stop', {
+          tools: [echo],
+          result: 'full',
+        });
+        return result.status;
+      });
+      const outcome = await engine.run(wf, undefined, {
+        runId: `RECEIPTS-${billingReceipts}`,
+      }).result;
+      expect(outcome.status).toBe('ok');
+      const journalRows = providerCallDecisions(await store.load(`RECEIPTS-${billingReceipts}`));
+      expect(journalRows).toHaveLength(2);
+      return store.order;
+    };
+    const awaited = await run('awaited');
+    // Both receipts landed strictly before the NEXT wire opened.
+    expect(awaited.indexOf('receipt')).toBeGreaterThan(awaited.indexOf('wire:0'));
+    expect(awaited.indexOf('receipt')).toBeLessThan(awaited.indexOf('wire:1'));
+    // The default posture stays fire and forget: both receipts still
+    // land (the RV2008 durability), no ordering promised or asserted.
+    const async = await run('async');
+    expect(async.filter((item) => item === 'receipt')).toHaveLength(2);
+  });
 });

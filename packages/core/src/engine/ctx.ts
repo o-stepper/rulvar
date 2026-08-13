@@ -827,6 +827,8 @@ export interface RunInternals {
     countTokens?: 'allow' | 'deny';
     /** The engine-wide prompt-cache policy (RV2006); profile and call opts win. */
     cache?: CachePolicy;
+    /** The receipt posture of the billing seam (RV3405); default 'async'. */
+    billingReceipts?: 'async' | 'awaited';
   };
   /** Telemetry compat posture (RV1810). */
   telemetry?: {
@@ -2546,7 +2548,7 @@ export function createCtx(
     // exactly the pre-RV2008 durability, never worse.
     runAgentOptions.billing = {
       onProviderCall: (record) => {
-        void internals.replayer
+        const append: Promise<void> = internals.replayer
           .appendSinglePhase({
             scope: state.scope,
             key: `pc:${String(running.seq)}:${String(record.ordinal)}`,
@@ -2560,6 +2562,7 @@ export function createCtx(
               record: record as unknown as Json,
             },
           })
+          .then(() => undefined)
           .catch((thrown: unknown) => {
             internals.events.emit(
               {
@@ -2572,6 +2575,17 @@ export function createCtx(
               spanId,
             );
           });
+        // The awaited receipt posture (RV3405): under
+        // defaults.billingReceipts 'awaited' the loop awaits this
+        // settled append before the turn proceeds, so the receipt of
+        // the wire being paid for at the moment of a crash is exactly
+        // the one that survived. The catch above keeps a failed append
+        // a loud degradation to the terminal lane in BOTH postures,
+        // never a run failure.
+        if (internals.defaults.billingReceipts === 'awaited') {
+          return append;
+        }
+        void append;
       },
     };
     runAgentOptions.summarize = summarize;

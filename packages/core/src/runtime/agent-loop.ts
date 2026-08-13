@@ -810,9 +810,12 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * before one existed; with the seam the crash window shrinks to the
    * single in-flight turn. Restored records (a checkpoint reboot)
    * never re-emit: they were journaled by the segment that minted
-   * them.
+   * them. A returned promise is AWAITED before the loop proceeds
+   * (RV3405, the awaited receipt posture): the caller decides the
+   * durability, the loop honors it; a void return keeps the RV2008
+   * fire and forget byte for byte.
    */
-  billing?: { onProviderCall: (record: ProviderCallRecord) => void };
+  billing?: { onProviderCall: (record: ProviderCallRecord) => void | Promise<void> };
   events?: RuntimeEventSink;
   transcript?: { mintRef(): string; put(ref: string, blob: Uint8Array): Promise<void> };
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
@@ -3963,7 +3966,16 @@ export async function runAgent<S extends SchemaSpec>(
           providerCalls.push(record);
           // The incremental billing seam (RV2008): the record leaves
           // the process the moment it exists, not with the terminal.
-          options.billing?.onProviderCall(record);
+          // A promise back means the caller armed the awaited receipt
+          // posture (RV3405): the append lands durably before the turn
+          // proceeds, so the wire being paid for at the moment of a
+          // crash is exactly the one whose receipt survived.
+          {
+            const receipt = options.billing?.onProviderCall(record);
+            if (receipt !== undefined) {
+              await receipt;
+            }
+          }
           // The money twin of the record (RV702): this call priced
           // individually, at the same chokepoint that minted it, so the
           // phase deltas and the invocation total fold per request.

@@ -13,7 +13,7 @@ function reconcileStatement(
    options): StatementReconciliation;
 ```
 
-Defined in: [packages/core/src/engine/reconcile-statement.ts:278](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L278)
+Defined in: [packages/core/src/engine/reconcile-statement.ts:295](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/reconcile-statement.ts#L295)
 
 Reconciles the invoice against a normalized provider export. Pure and
 journal-free; see the module doc for the contract. Throws a typed
@@ -31,12 +31,16 @@ not evidence either).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `invoice` | \{ `rows`: readonly [`InvoiceRow`](/api/@rulvar/core/interfaces/InvoiceRow.md)[]; \} |
-| `invoice.rows` | readonly [`InvoiceRow`](/api/@rulvar/core/interfaces/InvoiceRow.md)[] |
-| `statement` | [`ProviderStatement`](/api/@rulvar/core/type-aliases/ProviderStatement.md) |
-| `options` | [`ReconcileStatementOptions`](/api/@rulvar/core/interfaces/ReconcileStatementOptions.md) |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `invoice` | \{ `orphanedReceipts?`: \{ `rows`: readonly \{ `responseId?`: `string`; \}[]; \}; `rows`: readonly [`InvoiceRow`](/api/@rulvar/core/interfaces/InvoiceRow.md)[]; `unsettled?`: \{ `rows`: readonly \{ `responseId?`: `string`; \}[]; \}; \} | - |
+| `invoice.orphanedReceipts?` | \{ `rows`: readonly \{ `responseId?`: `string`; \}[]; \} | - |
+| `invoice.orphanedReceipts.rows` | readonly \{ `responseId?`: `string`; \}[] | - |
+| `invoice.rows` | readonly [`InvoiceRow`](/api/@rulvar/core/interfaces/InvoiceRow.md)[] | - |
+| `invoice.unsettled?` | \{ `rows`: readonly \{ `responseId?`: `string`; \}[]; \} | The invoice's receipt lanes (RV3405), passed straight off the InvoiceExport when the caller wants statement rows for crashed or terminal forgotten wires EXPLAINED instead of counted foreign. Requests mode only (the join is by response id), and strictly opt in: a bare `{ rows }` invoice reads byte for byte as before. |
+| `invoice.unsettled.rows` | readonly \{ `responseId?`: `string`; \}[] | - |
+| `statement` | [`ProviderStatement`](/api/@rulvar/core/type-aliases/ProviderStatement.md) | - |
+| `options` | [`ReconcileStatementOptions`](/api/@rulvar/core/interfaces/ReconcileStatementOptions.md) | - |
 
 ## Returns
 

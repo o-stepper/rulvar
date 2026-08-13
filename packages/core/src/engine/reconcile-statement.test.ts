@@ -1195,3 +1195,60 @@ describe('statementRowsFromDelimited (RV2908)', () => {
     expect(statementRowsFromDelimited('id,usd\nresp_1,0.25')).toHaveLength(1);
   });
 });
+
+describe('the receipt join (RV3405)', () => {
+  // A statement WILL bill the wire a crash orphaned: without the join
+  // that row read as foreign (statementOnly), and the drift between
+  // the settled invoice and the provider's money was inexplicable by
+  // exactly the crashed turn.
+  const settledRows = () =>
+    rowsOf([
+      {
+        servedBy: 'openai:gpt-5.6-sol',
+        responseId: 'resp-settled',
+        usage: usageOf(1000, 100, 0, 0),
+      },
+    ]);
+  const statement: ProviderStatement = {
+    kind: 'requests',
+    rows: [
+      { responseId: 'resp-settled', usd: priceUsdOf(SOL, usageOf(1000, 100, 0, 0)) },
+      { responseId: 'resp-orphan', usd: 0.25 },
+    ],
+  };
+  const OPTIONS = { pricingOf: PRICING_OF };
+
+  it('explains a statement row by the receipt lane instead of counting it foreign', () => {
+    const withLane = reconcileStatement(
+      {
+        rows: settledRows(),
+        orphanedReceipts: { rows: [{ responseId: 'resp-orphan' }] },
+      },
+      statement,
+      OPTIONS,
+    );
+    expect(withLane.coverage.statementOnlyRows).toBe(0);
+    expect(withLane.receiptMatchedRows).toBe(1);
+    expect(withLane.receiptMatchedUsd).toBeCloseTo(0.25, 12);
+    expect(withLane.receiptIdSample).toEqual(['resp-orphan']);
+    // Receipt money never enters the totals: the statement side sums
+    // MATCHED rows only.
+    expect(withLane.totals.statementUsd).toBeCloseTo(priceUsdOf(SOL, usageOf(1000, 100, 0, 0)), 12);
+    // The unsettled lane joins the same way.
+    const viaUnsettled = reconcileStatement(
+      { rows: settledRows(), unsettled: { rows: [{ responseId: 'resp-orphan' }] } },
+      statement,
+      OPTIONS,
+    );
+    expect(viaUnsettled.receiptMatchedRows).toBe(1);
+  });
+
+  it('a bare rows invoice reads byte for byte as before: the row stays foreign', () => {
+    const bare = reconcileStatement({ rows: settledRows() }, statement, OPTIONS);
+    expect(bare.coverage.statementOnlyRows).toBe(1);
+    expect(bare.coverage.statementOnlyIdSample).toEqual(['resp-orphan']);
+    expect(bare.receiptMatchedRows).toBeUndefined();
+    expect(bare.receiptMatchedUsd).toBeUndefined();
+    expect('receiptIdSample' in bare).toBe(false);
+  });
+});
