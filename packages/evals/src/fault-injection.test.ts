@@ -42,6 +42,9 @@ const EXPECTED = [
   'parity-reserve-line-redemption',
   'resume-spawn-famine',
   'validator-guidance-conflict',
+  'repair-round-honesty',
+  'repair-survivor-refusal',
+  'claim-judge-dead-armed-refusal',
 ];
 
 describe('the fault-injection kit (RV811)', () => {

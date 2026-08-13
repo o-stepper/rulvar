@@ -52,7 +52,7 @@ import {
 } from '@rulvar/core';
 import { reconcileStatement, type ProviderStatement } from '@rulvar/openai';
 import { orchestratePlanned } from '@rulvar/plan';
-import { FakeAdapter, FAKE_MODEL_REF, fakeToolCalls } from '@rulvar/testing';
+import { FakeAdapter, FAKE_MODEL_REF, fakeToolCalls, fakeWireError } from '@rulvar/testing';
 
 /** One machine-checkable observation of a driven branch. */
 export interface FaultScenarioObservation {
@@ -2899,6 +2899,343 @@ const validatorGuidanceConflict: FaultScenario = {
   },
 };
 
+// ---- The post fan in tail arc (RV3403, plan 34): the 2026-08-12
+// comparison run settled ok/complete over a finding its own final
+// judge had named, and the fixes that followed (RV3301, RV3304,
+// RV3307) shipped with unit suites but no kit scenario ever drove the
+// arc end to end on the real engine. These three do: the round that
+// consumes the finding, the round that fails because the finding
+// survived, and the judge that dies under an armed posture.
+const TAIL_POOL_READING = 'A failed audit write does not mask success (`src/exec.ts:256-296`).';
+const TAIL_DRAFT_INVERTED =
+  'draft: an audit-write failure does not turn success into failure [src/exec.ts:256-296].';
+const TAIL_FINAL_INVERTED =
+  'final: an audit-write failure does not turn success into failure [src/exec.ts:256-296].';
+const TAIL_FINAL_STILL_INVERTED =
+  'final: the repaired text still flips the recorded outcome [src/exec.ts:256-296].';
+const TAIL_FINAL_CLEAN = 'final: a failed audit write does not mask success [src/exec.ts:256-296].';
+const TAIL_FINDS = {
+  contradictions: [{ pair: 0, reason: 'the draft inverts the recorded reading' }],
+};
+const TAIL_AGREES = { contradictions: [] };
+
+function tailHandles(req: ChatRequest): number[] {
+  const handles: number[] = [];
+  for (const msg of req.messages) {
+    for (const part of msg.parts) {
+      if (part.type !== 'tool-result') {
+        continue;
+      }
+      const result = part.result as { handle?: number; handles?: number[] } | undefined;
+      if (typeof result?.handle === 'number') {
+        handles.push(result.handle);
+      }
+      if (Array.isArray(result?.handles)) {
+        handles.push(...result.handles.filter((h): h is number => typeof h === 'number'));
+      }
+    }
+  }
+  return handles;
+}
+
+/**
+ * One worker reads the span, the loop finishes with the inverted
+ * draft, the composition finishes with `finals` in call order, and the
+ * final stage judge answers through `judge` (a structured verdict or a
+ * scripted wire death). Label keys ride first so the judge and the
+ * composition route exactly, never through the prompt regex.
+ */
+function tailAdapter(options: {
+  judge: (call: number) => unknown;
+  finals: readonly string[];
+}): FakeAdapter {
+  let judgeCalls = 0;
+  let synthCalls = 0;
+  let loopTurns = 0;
+  return new FakeAdapter({
+    agents: {
+      'claim-consistency-judge-final': () => options.judge((judgeCalls += 1)),
+      'final-composition': () =>
+        fakeToolCalls({
+          name: 'finish',
+          args: { result: options.finals[Math.min(synthCalls++, options.finals.length - 1)] },
+        }),
+      worker: TAIL_POOL_READING,
+      '*': (call) => {
+        loopTurns += 1;
+        if (loopTurns === 1) {
+          return fakeToolCalls({
+            name: 'spawn_agent',
+            args: { agentType: 'worker', prompt: 'read the recorded span' },
+          });
+        }
+        if (loopTurns === 2) {
+          return fakeToolCalls({ name: 'await_all', args: { handles: tailHandles(call.req) } });
+        }
+        return fakeToolCalls({ name: 'finish', args: { result: TAIL_DRAFT_INVERTED } });
+      },
+    },
+  });
+}
+
+function tailEngine(adapter: FakeAdapter): {
+  engine: ReturnType<typeof createEngine>;
+  store: InMemoryStore;
+} {
+  const store = new InMemoryStore();
+  const engine = createEngine({
+    adapters: [adapter],
+    stores: { journal: store },
+    defaults: {
+      routing: {
+        loop: FAKE_MODEL_REF,
+        orchestrate: FAKE_MODEL_REF,
+        synthesize: FAKE_MODEL_REF,
+        extract: FAKE_MODEL_REF,
+      },
+      profiles: { worker: { description: 'reads one span' } },
+    },
+  });
+  return { engine, store };
+}
+
+const TAIL_OPTS = {
+  acceptance: { childPolicy: 'all-ok' as const },
+  synthesis: { limits: { maxTurns: 3 } },
+};
+
+function tailSpans(entries: readonly JournalEntry[]): {
+  compositions: JournalEntry[];
+  judges: JournalEntry[];
+} {
+  const settled = entries.filter((entry) => entry.kind === 'agent' && entry.status !== 'running');
+  return {
+    compositions: settled.filter((entry) => entry.costAttribution?.label === 'final-composition'),
+    judges: settled.filter(
+      (entry) => entry.costAttribution?.label === 'claim-consistency-judge-final',
+    ),
+  };
+}
+
+/**
+ * RV3307 as the arc the losing config wanted: the final judge names
+ * the contradiction, the findings ride one more composition, the
+ * re-judge clears the repaired document, and the settled envelope
+ * reports THAT document as the judged one.
+ */
+const repairRoundHonesty: FaultScenario = {
+  name: 'repair-round-honesty',
+  doctrine:
+    'the bounded post judge repair consumes the named finding (RV3307): one more ' +
+    'composition carries the findings, the re-judge clears it, the run settles ok with ' +
+    "the meta describing the repaired document (judgedStage 'final', findings 0, " +
+    'judgedHash equal to the shipped finalHash), two compositions and two final judge ' +
+    'passes in the journal, and the invoice in the same denominator as the envelope',
+  async run() {
+    const adapter = tailAdapter({
+      judge: (call) => (call === 1 ? TAIL_FINDS : TAIL_AGREES),
+      finals: [TAIL_FINAL_INVERTED, TAIL_FINAL_CLEAN],
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        claimConsistency: { stage: 'final', onFound: 'repair' },
+      }),
+      undefined,
+      { runId: 'fault-repair-honesty', budgetUsd: 10 },
+    ).result;
+    const value = outcome.value as
+      | {
+          result?: unknown;
+          claimContradictions?: unknown[];
+          claimConsistencyMeta?: {
+            judgedStage?: unknown;
+            findings?: unknown;
+            judgedHash?: unknown;
+          };
+          draftToFinal?: { finalHash?: unknown };
+        }
+      | undefined;
+    const entries = await store.load('fault-repair-honesty');
+    const { compositions, judges } = tailSpans(entries);
+    const invoice = invoiceFromJournal(entries, () => 0);
+    const matched =
+      outcome.status === 'ok' &&
+      value?.result === TAIL_FINAL_CLEAN &&
+      Array.isArray(value.claimContradictions) &&
+      value.claimContradictions.length === 0 &&
+      value.claimConsistencyMeta?.judgedStage === 'final' &&
+      value.claimConsistencyMeta.findings === 0 &&
+      typeof value.claimConsistencyMeta.judgedHash === 'string' &&
+      value.claimConsistencyMeta.judgedHash === value.draftToFinal?.finalHash &&
+      compositions.length === 2 &&
+      judges.length === 2 &&
+      [...compositions, ...judges].every((entry) => entry.status === 'ok') &&
+      typeof outcome.envelope.wireRequests === 'number' &&
+      outcome.envelope.wireRequests === invoice.cardinality.wireRequests;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' shipped ${value?.result === TAIL_FINAL_CLEAN ? 'the repaired document' : 'an unexpected document'}; ` +
+          `meta judgedStage='${String(value?.claimConsistencyMeta?.judgedStage)}' findings=` +
+          `${String(value?.claimConsistencyMeta?.findings)} judgedHash==finalHash=` +
+          `${String(value?.claimConsistencyMeta?.judgedHash === value?.draftToFinal?.finalHash)}; ` +
+          `${String(compositions.length)} composition(s), ${String(judges.length)} final judge ` +
+          `pass(es); wires ${String(outcome.envelope.wireRequests)} == invoice ` +
+          String(invoice.cardinality.wireRequests),
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          envelope: outcome.envelope,
+        }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
+/**
+ * RV3307's refusal half: the repair round runs, the re-judge still
+ * finds, and the run fails typed instead of settling over the
+ * surviving contradiction, with the payload distinguishing the two
+ * documents by hash.
+ */
+const repairSurvivorRefusal: FaultScenario = {
+  name: 'repair-survivor-refusal',
+  doctrine:
+    'findings that survive the bounded repair round fail the run typed (RV3307): ' +
+    "source 'orchestrator_claim_consistency', repairsUsed 1, preRepairHash distinct " +
+    'from repairedHash (the round demonstrably produced a different document and the ' +
+    'judge still refused it), two compositions and two final judge passes paid, never ' +
+    'a silent ok over the surviving contradiction',
+  async run() {
+    const adapter = tailAdapter({
+      judge: () => TAIL_FINDS,
+      finals: [TAIL_FINAL_INVERTED, TAIL_FINAL_STILL_INVERTED],
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        claimConsistency: { stage: 'final', onFound: 'repair' },
+      }),
+      undefined,
+      { runId: 'fault-repair-survivor', budgetUsd: 10 },
+    ).result;
+    const data = (outcome.error?.data ?? {}) as {
+      source?: unknown;
+      repairsUsed?: unknown;
+      preRepairHash?: unknown;
+      repairedHash?: unknown;
+    };
+    const entries = await store.load('fault-repair-survivor');
+    const { compositions, judges } = tailSpans(entries);
+    const matched =
+      outcome.status === 'error' &&
+      (outcome.error?.message ?? '').includes('after the bounded repair round') &&
+      data.source === 'orchestrator_claim_consistency' &&
+      data.repairsUsed === 1 &&
+      typeof data.preRepairHash === 'string' &&
+      typeof data.repairedHash === 'string' &&
+      data.preRepairHash !== data.repairedHash &&
+      compositions.length === 2 &&
+      judges.length === 2;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}': ${outcome.error?.message ?? ''}; repairsUsed=` +
+          `${String(data.repairsUsed)}, hashes distinct=` +
+          `${String(data.preRepairHash !== data.repairedHash)}, ` +
+          `${String(compositions.length)} composition(s), ${String(judges.length)} final ` +
+          'judge pass(es)',
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', { status: outcome.status, error: outcome.error ?? null }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
+/**
+ * The armed posture doctrine on a dead judge (RV3307): a gate armed to
+ * stop or to repair must not pass silently when its judge cannot rule.
+ * Both armed postures refuse typed; the round never runs.
+ */
+const claimJudgeDeadArmedRefusal: FaultScenario = {
+  name: 'claim-judge-dead-armed-refusal',
+  doctrine:
+    'a final stage judge that dies on the wire under an armed posture fails the run ' +
+    "typed for both 'fail' and 'repair' (RV3307), each message naming its armed " +
+    'posture, with exactly one composition paid and no repair round dispatched, never ' +
+    'a silent settle over findings nobody ruled on',
+  async run() {
+    const judgeDeath = (): unknown =>
+      fakeWireError({
+        code: 'agent',
+        message: 'the judge died mid stream',
+        retryable: false,
+        data: {},
+      });
+    const runs: Array<{
+      posture: 'fail' | 'repair';
+      status: string;
+      message: string;
+      compositions: number;
+      judges: number;
+    }> = [];
+    const journals: Record<string, unknown> = {};
+    for (const posture of ['fail', 'repair'] as const) {
+      const adapter = tailAdapter({ judge: judgeDeath, finals: [TAIL_FINAL_INVERTED] });
+      const { engine, store } = tailEngine(adapter);
+      const runId = `fault-dead-judge-${posture}`;
+      const outcome = await engine.run(
+        makeOrchestratorWorkflow('audit the executor', {
+          ...TAIL_OPTS,
+          claimConsistency: { stage: 'final', onFound: posture },
+        }),
+        undefined,
+        { runId, budgetUsd: 10 },
+      ).result;
+      const entries = await store.load(runId);
+      const { compositions, judges } = tailSpans(entries);
+      journals[posture] = entries;
+      runs.push({
+        posture,
+        status: outcome.status,
+        message: outcome.error?.message ?? '',
+        compositions: compositions.length,
+        judges: judges.length,
+      });
+    }
+    const matched = runs.every(
+      (run) =>
+        run.status === 'error' &&
+        run.message.includes(`armed ${run.posture} posture`) &&
+        run.compositions === 1 &&
+        run.judges === 1,
+    );
+    return {
+      observation: {
+        matched,
+        detail: runs
+          .map(
+            (run) =>
+              `${run.posture}: '${run.status}' (${run.compositions} composition(s), ` +
+              `${run.judges} judge span(s)) ${run.message.slice(0, 120)}`,
+          )
+          .join(' | '),
+      },
+      artifacts: [jsonArtifact('runs.json', runs), jsonArtifact('journals.json', journals)],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -2927,6 +3264,9 @@ const SCENARIOS: readonly FaultScenario[] = [
   parityReserveLineRedemption,
   resumeSpawnFamine,
   validatorGuidanceConflict,
+  repairRoundHonesty,
+  repairSurvivorRefusal,
+  claimJudgeDeadArmedRefusal,
 ];
 
 /** The scenario names in run order. */
