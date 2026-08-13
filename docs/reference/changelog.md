@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
+
 ### 1.239.0
 
 #### Patch Changes
@@ -2198,6 +2204,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
+
 ### 1.239.0
 
 #### Patch Changes
@@ -4173,6 +4185,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.240.0
+
+#### Minor Changes
+
+- b2cf668: `cost-audit` surfaces the invoice's orphaned receipt lane on every output form (RV3501). When a journal carries the RV3405 crash shape (a receipt row the settled terminal's record set does not cover), the single run text prints the lane totals plus one line per receipt, both JSON shapes carry the lane verbatim under `invoice`, and the catalog sweep appends an orphaned suffix to the carrying run's row and a carrying count to its header. The lane never moves the verdict or the exit code: an orphaned receipt is the honest double payment window of a resume, not a divergence, and before this surface such a journal passed all six checks while the money stayed invisible in every printed figure. Journals without the lane render byte for byte as before.
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
 
 ### 1.239.0
 
@@ -6711,6 +6733,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.240.0
 
 ### 1.239.0
 
@@ -9523,6 +9547,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.240.0
+
 ### 1.239.0
 
 ### 1.238.0
@@ -10105,6 +10131,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.240.0
+- @rulvar/core@1.240.0
+- @rulvar/openai@1.240.0
+- @rulvar/plan@1.240.0
+- @rulvar/testing@1.240.0
 
 ### 1.239.0
 
@@ -12861,6 +12897,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
+
 ### 1.239.0
 
 #### Patch Changes
@@ -14247,6 +14289,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
 
 ### 1.239.0
 
@@ -16429,6 +16477,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
+
 ### 1.239.0
 
 #### Patch Changes
@@ -18523,6 +18577,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
+- eslint-plugin-rulvar@1.240.0
 
 ### 1.239.0
 
@@ -20814,6 +20875,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.240.0
+- @rulvar/core@1.240.0
+- @rulvar/openai@1.240.0
 
 ### 1.239.0
 
@@ -23430,6 +23499,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
+
 ### 1.239.0
 
 #### Patch Changes
@@ -25527,6 +25602,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
+
 ### 1.239.0
 
 #### Patch Changes
@@ -26929,6 +27010,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
 
 ### 1.239.0
 
@@ -28963,6 +29050,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.240.0
+
+#### Patch Changes
+
+- @rulvar/core@1.240.0
 
 ### 1.239.0
 
