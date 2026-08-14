@@ -10,7 +10,7 @@
 const FINAL_COMPOSITION_LABEL: "final-composition" = 'final-composition';
 ```
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:424](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L424)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:445](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L445)
 
 The label the final synthesis (composition) invocation dispatches
 under (RV2901). The engine labelling its OWN dispatches is what lets

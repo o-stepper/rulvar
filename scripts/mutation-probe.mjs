@@ -563,6 +563,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/cost-report.test.ts',
   },
   {
+    id: 'candidate-milestone-live',
+    doctrine:
+      'the live reduce anchors the first candidate milestone at the first completed composition span (RV3605)',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '            firstCompositionEnd = firstCompositionEnd === undefined ? at : firstCompositionEnd;\n',
+    replace: '            firstCompositionEnd = undefined;\n',
+    test: 'packages/core/src/stores/critical-path.test.ts',
+  },
+  {
+    id: 'candidate-milestone-journal',
+    doctrine:
+      'the journal fold reads the same candidate milestones from the settled composition stamps (RV3605)',
+    file: 'packages/core/src/stores/critical-path.ts',
+    find: '      firstCompositionEnd =\n        firstCompositionEnd === undefined ? endedAt : Math.min(firstCompositionEnd, endedAt);\n',
+    replace: '      firstCompositionEnd = undefined;\n',
+    test: 'packages/core/src/stores/critical-path.test.ts',
+  },
+  {
     id: 'jsonl-valid-tail-terminate',
     doctrine:
       'append terminates a parseable unterminated tail before writing, so it never glues two accepted records into one disposable line (RV701)',
