@@ -162,6 +162,11 @@ describe('the fault-injection kit (RV811)', () => {
     expect(byName.get('repair-round-own-pool')?.observation.detail).toContain(
       'the repaired document',
     );
+    // The RV3603 pin on the same arc: the round's prompt carried the
+    // bought lesson; the initial composition's did not.
+    expect(byName.get('repair-round-own-pool')?.observation.detail).toContain(
+      'lesson carried=true',
+    );
     // The report is self-describing (RV1014): the scenario count can
     // never quietly shrink under a consumer that pins these.
     expect(report.requested).toBe(EXPECTED.length);

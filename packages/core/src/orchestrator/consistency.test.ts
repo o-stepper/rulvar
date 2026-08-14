@@ -1674,6 +1674,42 @@ describe('the bounded post judge repair (RV3307)', () => {
     expect(synthesis.calls).toHaveLength(4);
   });
 
+  it('the round carries the bought host validation lessons beside the findings (RV3603)', async () => {
+    const { internals, synthesis } = repairHarness({
+      judgeTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      finals: [FINAL_UNGROUNDED_INITIAL, FINAL_INVERTED, FINAL_UNGROUNDED, FINAL_CLEAN],
+    });
+    await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', RV3601_OPTS),
+      undefined,
+    );
+    // The initial composition predates any findings: no lessons line.
+    expect(textOf(synthesis.calls[0])).not.toContain('HOST VALIDATION LESSONS');
+    // The round's fresh invocation carries the block beside the
+    // findings, naming the validator whose rejection the run already
+    // paid for; the round must not relearn it.
+    const roundPrompt = textOf(synthesis.calls[2]);
+    expect(roundPrompt).toContain('CLAIM CONTRADICTIONS');
+    expect(roundPrompt).toContain('HOST VALIDATION LESSONS');
+    expect(roundPrompt).toContain('provenance-anchor');
+  });
+
+  it('a clean mechanical history adds no lessons line to the round (RV3603)', async () => {
+    const { internals, synthesis } = repairHarness({
+      judgeTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      finals: [FINAL_INVERTED, FINAL_CLEAN],
+    });
+    await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', RV3601_OPTS),
+      undefined,
+    );
+    const roundPrompt = textOf(synthesis.calls[1]);
+    expect(roundPrompt).toContain('CLAIM CONTRADICTIONS');
+    expect(roundPrompt).not.toContain('HOST VALIDATION LESSONS');
+  });
+
   it('a round that truly could not dispatch keeps its frame and now carries the judge meta (RV3601)', async () => {
     // The lifetime spawn cap admits the worker, the initial synthesis
     // and the final judge, then refuses the round's composition: the

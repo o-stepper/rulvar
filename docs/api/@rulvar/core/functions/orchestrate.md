@@ -14,7 +14,7 @@ function orchestrate(
 runOptions?): RunHandle<unknown>;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:8972](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L8972)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:9041](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L9041)
 
 Top-level surface: creates a run. `runOptions` are the ordinary
 engine [RunOptions](/api/@rulvar/core/interfaces/RunOptions.md) of the created run; in particular

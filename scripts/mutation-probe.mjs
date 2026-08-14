@@ -519,6 +519,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/run-completion.test.ts',
   },
   {
+    id: 'repair-round-lesson-block',
+    doctrine:
+      'the repair round prompt folds the journaled host validation lessons beside the findings (RV3603)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          : hostValidationLessons()),\n',
+    replace: '          : []),\n',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'repair-round-lesson-clean-history',
+    doctrine:
+      'a clean mechanical history folds NO lessons line, so every existing prompt stays byte identical (RV3603)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (rows.length === 0) {\n        return [];\n      }\n',
+    replace: '',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
     id: 'jsonl-valid-tail-terminate',
     doctrine:
       'append terminates a parseable unterminated tail before writing, so it never glues two accepted records into one disposable line (RV701)',
