@@ -581,6 +581,7 @@ describe('reduceCriticalPath (RV-211)', () => {
       postFanInShare: 0.4,
       synthesisShare: 0.2,
       workerSpans: 2,
+      hostRejectedSpans: 0,
       postFanIn: {
         coordinationModelMs: 0,
         coordinationModelMsByPhase: {},
@@ -736,6 +737,35 @@ describe('reduceCriticalPath (RV-211)', () => {
     });
   });
 
+  it('counts the host rejection stamps and rides them onto the rows (RV3702)', () => {
+    const events = [
+      ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
+      ev({ type: 'agent:start', ts: at(0), spanId: 'w1', role: 'loop' }),
+      ev({ type: 'agent:end', ts: at(40), spanId: 'w1' }),
+      ev({
+        type: 'agent:start',
+        ts: at(40),
+        spanId: 'synth',
+        role: 'synthesize',
+        label: 'final-composition',
+      }),
+      ev({
+        type: 'agent:end',
+        ts: at(70),
+        spanId: 'synth',
+        status: 'cancelled',
+        hostRejected: true,
+      }),
+      ev({ type: 'run:end', ts: at(100), spanId: 'run' }),
+    ];
+    const path = reduceCriticalPath(events);
+    expect(path.hostRejectedSpans).toBe(1);
+    expect(path.compositionSpans).toBe(1);
+    const table = reduceInvocationTable(events);
+    expect(table.agents.find((agent) => agent.spanId === 'synth')?.hostRejected).toBe(true);
+    expect(table.agents.find((agent) => agent.spanId === 'w1')?.hostRejected).toBeUndefined();
+  });
+
   it('leaves absent pieces undefined instead of guessing', () => {
     const open = reduceCriticalPath([
       ev({ type: 'run:start', ts: at(0), spanId: 'run' }),
@@ -763,6 +793,7 @@ describe('reduceCriticalPath (RV-211)', () => {
       judgeSpans: 0,
       synthesisShare: 0,
       workerSpans: 0,
+      hostRejectedSpans: 0,
     });
   });
 
@@ -784,6 +815,7 @@ describe('reduceCriticalPath (RV-211)', () => {
       judgeSpans: 0,
       synthesisShare: 0,
       workerSpans: 0,
+      hostRejectedSpans: 0,
     });
   });
 });

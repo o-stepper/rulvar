@@ -15,4 +15,4 @@ type WorkflowEventBody =
   | AdaptiveEvents;
 ```
 
-Defined in: [packages/core/src/l0/events.ts:733](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L733)
+Defined in: [packages/core/src/l0/events.ts:742](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L742)

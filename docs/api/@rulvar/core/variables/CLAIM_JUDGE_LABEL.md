@@ -10,7 +10,7 @@
 const CLAIM_JUDGE_LABEL: "claim-consistency-judge" = 'claim-consistency-judge';
 ```
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:392](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L392)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:414](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L414)
 
 The label the claim-consistency judge invocation dispatches under
 (RV1502; named here since RV1604 so the critical-path reducer and the

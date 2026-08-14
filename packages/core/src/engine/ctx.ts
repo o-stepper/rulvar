@@ -93,6 +93,7 @@ import {
   type ToolRuntime,
 } from '../runtime/agent-loop.js';
 import type { CostBasis, ExplorationSummary, ToolBudgetSummary } from '../l0/events.js';
+import { FINISH_REJECTION_ABORT_REASON } from '../l0/telemetry-reduce.js';
 import type { AbortClass } from '../runtime/no-progress.js';
 import {
   countsAgainstLimit,
@@ -1736,6 +1737,9 @@ export function createCtx(
           costBasis: replayBasis,
           entryRef: terminal?.seq ?? matched.running.seq,
           ...(terminal?.usageApprox === true ? { usageApprox: true } : {}),
+          // The journaled host rejection stamp replays onto the event
+          // (RV3702), so a replayed stream reduces to the same count.
+          ...(terminal?.hostRejected === true ? { hostRejected: true } : {}),
           // Present only when the guard abort journaled it (RV-210).
           ...(result.exploration === undefined ? {} : { exploration: result.exploration }),
           // The durable tool-budget subset: restored from the terminal
@@ -3133,6 +3137,21 @@ export function createCtx(
         data: { ...dataRecord, evidenceFloor: result.evidenceFloor },
       };
     }
+    // The host rejection stamp (RV3702): the invocation this settle
+    // closes was aborted by the finish contract's FINAL rejection, not
+    // by a provider failure or a run level abort, and the span
+    // surfaces must be able to say so without a journal dig. The typed
+    // abort reason is the single source: the defective validator path
+    // aborts with its own distinct reason and never stamps, because a
+    // host defect is not a verdict on the candidate.
+    const settleSignal = state.signal ?? internals.runSignal;
+    if (
+      result.status !== 'ok' &&
+      settleSignal?.aborted === true &&
+      settleSignal.reason === FINISH_REJECTION_ABORT_REASON
+    ) {
+      terminalPatch.hostRejected = true;
+    }
     if (checkpointWritten) {
       terminalPatch.checkpointRef = ckptRef;
     }
@@ -3153,6 +3172,10 @@ export function createCtx(
         ...(result.transportRetries !== undefined && result.transportRetries > 0
           ? { retryCount: result.transportRetries }
           : {}),
+        // The host rejection stamp (RV3702): journaled on the terminal
+        // entry AND carried on the live event, so both surfaces of the
+        // cut read the same count.
+        ...(terminalPatch.hostRejected === true ? { hostRejected: true } : {}),
         // The pre-wire denial namespaces (RV1510), the retryCount rule:
         // live telemetry only, a replayed agent:end omits it.
         ...(result.quotaDenials === undefined ? {} : { quotaDenials: result.quotaDenials }),

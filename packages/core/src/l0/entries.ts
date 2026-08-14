@@ -602,6 +602,16 @@ export type JournalEntry = {
    */
   toolBudget?: { used: number; cap?: number };
   /**
+   * Terminal agent entries whose invocation was aborted by the host's
+   * finish rejection (RV3702): the declared finish contract rejected
+   * the candidate past its repair bound, so the span died by host
+   * hand with its wires fine. Stamped at settle from the typed abort
+   * reason; never on a defective (throwing) validator, whose abort
+   * carries its own reason, because a host defect is not a verdict on
+   * the candidate. Policy, never identity, exactly like usageByModel.
+   */
+  hostRejected?: boolean;
+  /**
    * Terminal escalated entries ONLY: the schema-validated
    * EscalationReport with runtime-filled costToDate and salvage; replay
    * synthesizes the byte-identical report from here (DEF-1).

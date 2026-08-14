@@ -26,6 +26,7 @@ type JournalEntry = {
      claim: string;
   }[];
   hashVersion: HashVersion;
+  hostRejected?: boolean;
   key: string;
   kind: EntryKind;
   memoizeOutcome?: boolean;
@@ -236,6 +237,24 @@ hashVersion: HashVersion;
 Defined in: `packages/core/dist/index.d.ts`
 
 Identity-derivation and replay-semantics version of THIS entry.
+
+***
+
+### hostRejected?
+
+```ts
+optional hostRejected?: boolean;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Terminal agent entries whose invocation was aborted by the host's
+finish rejection (RV3702): the declared finish contract rejected
+the candidate past its repair bound, so the span died by host
+hand with its wires fine. Stamped at settle from the typed abort
+reason; never on a defective (throwing) validator, whose abort
+carries its own reason, because a host defect is not a verdict on
+the candidate. Policy, never identity, exactly like usageByModel.
 
 ***
 

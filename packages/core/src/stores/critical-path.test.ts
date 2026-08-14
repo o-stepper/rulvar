@@ -94,6 +94,27 @@ describe('criticalPathFromJournal (RV2803)', () => {
     expect(path.unclassifiedSpans).toBe(0);
   });
 
+  it('counts the journaled host rejection stamps unconditionally (RV3702)', () => {
+    const rejected = {
+      ...span(3, 600, 900, { role: 'synthesize', label: 'final-composition' }),
+      status: 'cancelled',
+      hostRejected: true,
+    } as unknown as JournalEntry;
+    const path = criticalPathFromJournal([
+      span(1, 0, 400, { role: 'loop', agentType: 'worker' }),
+      span(2, 0, 600, { role: 'loop', agentType: 'worker' }),
+      rejected,
+      settle(4, 1000),
+    ]);
+    expect(path.hostRejectedSpans).toBe(1);
+    // An unstamped journal reads zero, never undefined: the count is
+    // stamp driven and needs no label or segment condition.
+    expect(
+      criticalPathFromJournal([span(1, 0, 400, { role: 'loop' }), settle(2, 500)])
+        .hostRejectedSpans,
+    ).toBe(0);
+  });
+
   it('splits the synthesize bucket only when every span carried a label', () => {
     // RV1604 split it because reading the claim judge as a second final
     // composition misled a benchmark by 54 seconds, and that split rode

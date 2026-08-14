@@ -22,6 +22,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | `evidence.minEntries` | `number` | - | `packages/core/dist/index.d.ts` |
 | `evidence.recordedEntries` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-evidenceentries"></a> `evidenceEntries?` | \{ `citation?`: `string`; `claim`: `string`; \}[] | Terminal agent entries: recorded evidence entry content; see JournalEntry. | `packages/core/dist/index.d.ts` |
+| <a id="property-hostrejected"></a> `hostRejected?` | `boolean` | Terminal agent entries: the host finish rejection stamp (RV3702); see JournalEntry. | `packages/core/dist/index.d.ts` |
 | <a id="property-memoizeoutcome"></a> `memoizeOutcome?` | `boolean` | Engine-decided terminal abort classes (the no-progress abort) stamp memoizeOutcome on the TERMINAL entry so the frozen memoize rules replay them on every resume; the running entry keeps the user's policy verbatim (M3 amendment). | `packages/core/dist/index.d.ts` |
 | <a id="property-providercalls"></a> `providerCalls?` | [`ProviderCallRecord`](/api/@rulvar/rulvar/interfaces/ProviderCallRecord.md)[] | The per-dispatch reconciliation ledger (P1.3); see JournalEntry. | `packages/core/dist/index.d.ts` |
 | <a id="property-servedby"></a> `servedBy?` | `` `${string}:${string}` `` | - | `packages/core/dist/index.d.ts` |

@@ -401,6 +401,15 @@ export type AgentEvents =
        */
       retryCount?: number;
       /**
+       * Present and true when the invocation was aborted by the host's
+       * finish rejection (RV3702): the declared finish contract
+       * rejected the candidate past its repair bound. Journaled on the
+       * terminal agent entry (unlike retryCount), so a replayed
+       * agent:end carries it too and both surfaces of the RV3404 cut
+       * read the same count.
+       */
+      hostRejected?: boolean;
+      /**
        * The exploration guard counters (RV-210). Present live whenever
        * any exploration guard limit was configured for the invocation;
        * on replay present only when the guard abort journaled it in the

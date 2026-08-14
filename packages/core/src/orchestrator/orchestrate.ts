@@ -26,6 +26,7 @@ import {
 import {
   CLAIM_JUDGE_LABEL,
   FINAL_COMPOSITION_LABEL,
+  FINISH_REJECTION_ABORT_REASON,
   SYNTHESIS_NOTE_LABEL,
 } from '../l0/telemetry-reduce.js';
 import { jcsSerialize } from '../l0/jcs.js';
@@ -4826,7 +4827,11 @@ export function makeOrchestratorWorkflow(
               `finish validator '${validator.name}' threw instead of returning a verdict: ` +
                 (thrown instanceof Error ? thrown.message : String(thrown)),
             );
-            validationAbort.abort('rulvar:finish-validation');
+            // The defect reason is DISTINCT from the rejection reason
+            // (RV3702): a throwing validator is a host defect, not a
+            // verdict on the candidate, so the settle layer must not
+            // stamp this span hostRejected.
+            validationAbort.abort('rulvar:finish-validation-defect');
             return {
               ok: false,
               feedback: {
@@ -4939,7 +4944,10 @@ export function makeOrchestratorWorkflow(
         // the run exactly as before.
         if (contractGenerationCurrent(decision)) {
           validationTermination = finishValidationError(decision);
-          validationAbort.abort('rulvar:finish-validation');
+          // The typed reason the settle layer stamps `hostRejected`
+          // from (RV3702): exactly the final rejection, never the
+          // defective validator path above.
+          validationAbort.abort(FINISH_REJECTION_ABORT_REASON);
         }
         return {
           ok: false,
