@@ -492,6 +492,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
+    id: 'finish-repair-pool-invocation-boundary',
+    doctrine:
+      'the mechanical repair pool restarts at each composition dispatch, so the bounded claim repair round enters with the full maxRepairs (RV3602)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      validationInvocationStart = validationDecisions().length;\n',
+    replace: '      validationInvocationStart = 0;\n',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'finish-repair-pool-invocation-filter',
+    doctrine:
+      'repairsUsed counts only the current invocation verdicts, never the whole run (RV3602)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '            index >= validationInvocationStart &&\n',
+    replace: '            index >= 0 &&\n',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
     id: 'claim-contradictions-outcome-lift',
     doctrine:
       'the engine lifts the judged findings beside the meta onto RunOutcome from the envelope or the typed error data (RV3601)',

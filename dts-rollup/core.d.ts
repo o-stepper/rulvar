@@ -10038,7 +10038,8 @@ declare const DEFAULT_CLAIM_JUDGE_MAX_TURNS = 3;
 * finish({ result }) call first passes the configured host validators;
 * a rejection returns the failure reasons to the model as the call's
 * error tool result and the turn continues (a repair turn: the model
-* fixes the result and calls finish again), bounded by maxRepairs. A
+* fixes the result and calls finish again), bounded by maxRepairs
+* within the composition invocation (RV3602). A
 * rejection past the bound fails the run with the typed FailRunError
 * (code 'fail_run', data.source 'orchestrator_finish_validation'),
 * BEFORE the acceptance settle, so acceptance never judges a finish the
@@ -10067,7 +10068,14 @@ interface FinishValidationSpec {
   * How many rejected finishes are returned to the model for repair
   * before the run fails; a nonnegative integer, default
   * {@link DEFAULT_FINISH_MAX_REPAIRS}. Zero means the first rejected
-  * finish fails the run.
+  * finish fails the run. The bound belongs to one composition
+  * invocation (RV3602): with the bounded claim repair round armed
+  * (`claimConsistency.onFound: 'repair'`), the initial composition
+  * and the round each enter with the full bound, because the third
+  * comparison run's round inherited a spent run wide pool and its
+  * first regression was final by construction. At most two
+  * invocations exist, so the worst case is `maxRepairs + 1` judged
+  * finishes per invocation, twice.
   */
   maxRepairs?: number;
   /**
@@ -14777,7 +14785,13 @@ interface PreflightInput {
     * the mandatory synthesis tail (RV2504): every granted repair can
     * write to the output allowance, so the tail
     * `synthesis-reserve-below-cap-composition` prices is one
-    * composition plus this many turns, whatever the turn reserve says.
+    * composition plus this many turns, whatever the turn reserve
+    * says. Since RV3602 the bound belongs to one composition
+    * invocation, so this tail is the price of EACH invocation: the
+    * armed claim repair round (RV3307) runs a second invocation with
+    * its own full bound, and the working room finding already prices
+    * that round at the declared synthesis reserve, the host's own
+    * estimate of exactly this tail.
     */
     maxRepairs?: number;
     /**
