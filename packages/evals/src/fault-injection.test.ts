@@ -44,6 +44,7 @@ const EXPECTED = [
   'validator-guidance-conflict',
   'repair-round-honesty',
   'repair-survivor-refusal',
+  'repair-round-host-rejection',
   'claim-judge-dead-armed-refusal',
 ];
 
@@ -138,6 +139,18 @@ describe('the fault-injection kit (RV811)', () => {
     // retroactive re-price at the crossing, $5.75 at the remainder.
     expect(byName.get('tier-crossing-live-parity')?.observation.detail).toContain(
       '1.5 -> 5 -> 5.75',
+    );
+    // The RV3601 scenario: the third comparison run's terminal lie as
+    // a permanent gate; the detail pins the FIXED branch (dispatch
+    // named, round counted spent, verdict facts carried).
+    expect(byName.get('repair-round-host-rejection')?.observation.detail).toContain(
+      'roundDispatched=true',
+    );
+    expect(byName.get('repair-round-host-rejection')?.observation.detail).toContain(
+      'repairsUsed=1',
+    );
+    expect(byName.get('repair-round-host-rejection')?.observation.detail).toContain(
+      'outcome lifts findings=true',
     );
     // The report is self-describing (RV1014): the scenario count can
     // never quietly shrink under a consumer that pins these.

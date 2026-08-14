@@ -267,6 +267,19 @@ export type RunOutcome<R> = {
    * terminal that has it, ok and failed alike.
    */
   claimConsistencyMeta?: Record<string, unknown>;
+  /**
+   * The judged contradictions themselves (RV3601), lifted from the
+   * same envelope or typed error data as the meta beside them. RV3304
+   * deliberately kept the details off this surface and let the meta's
+   * `findings` count stand in; the 2026-08-13 comparison run then
+   * failed typed with the findings buried in `error.data` while the
+   * outcome's top level read null beside a null meta, so the details
+   * now ride wherever the meta rides (this outcome, the journaled
+   * settle, `run:end`), the compact terminal envelope alone keeping
+   * the meta only. `[]` is the judge's claim of a clean document;
+   * absence means nothing was judged (RV1209).
+   */
+  claimContradictions?: Record<string, unknown>[];
   /** The synthesis-skip marker from the same envelope; same lift and posture (RV2203). */
   synthesisSkipped?: boolean | string;
   /**

@@ -1063,10 +1063,15 @@ export interface OrchestrateClaimConsistencyMeta {
    * is a clean verdict, a positive count is a disagreement that stayed
    * wherever the posture did not stop the run. The findings themselves
    * ride `claimContradictions` beside this meta on the acceptance
-   * envelope, but the meta travels ALONE onto RunOutcome, the
-   * journaled run settle, and the terminal envelope, and the
-   * 2026-08-12 comparison run settled ok/complete over a retained
-   * finding no terminal surface could count.
+   * envelope, and since RV3601 the engine lifts them onto RunOutcome,
+   * the journaled settle and `run:end` beside the meta, from the
+   * envelope or the typed error data alike: the 2026-08-12 comparison
+   * run settled ok/complete over a retained finding no terminal
+   * surface could count (this count is that fix, RV3304), then the
+   * 2026-08-13 run failed typed with the findings buried in error
+   * data while the outcome's top level read null. Only the compact
+   * terminal envelope still carries the meta alone, this count
+   * standing in for the details.
    */
   findings?: number;
   /**
@@ -4441,6 +4446,18 @@ export function makeOrchestratorWorkflow(
             failed: decision.failed as unknown as Json,
             repairsUsed: decision.repairsUsed,
             maxRepairs: decision.maxRepairs,
+            // The rejected candidate's identity and size (RV3601), the
+            // facts the decision already journals (RV2507): the third
+            // comparison run's terminal could not name WHICH document
+            // its repair round produced and lost, and the only route
+            // to the hash was a journal dig. Absent exactly when the
+            // decision carries none (a pre RV2507 journal).
+            ...(decision.candidateHash === undefined
+              ? {}
+              : { candidateHash: decision.candidateHash }),
+            ...(decision.candidateChars === undefined
+              ? {}
+              : { candidateChars: decision.candidateChars }),
           },
         },
       );
@@ -8608,6 +8625,62 @@ export function makeOrchestratorWorkflow(
           synthesizedFinal = await runSynthesis(result.output);
         } catch (thrown) {
           await journalSynthesisAdmissionDecline(thrown);
+          // The round's two deaths are different facts (RV3601). The
+          // third comparison run's round DISPATCHED, paid two wires
+          // and produced a 43k char candidate its own finish contract
+          // rejected, and this catch called it 'could not dispatch'
+          // with repairsUsed 0: the message was factually wrong on
+          // both counts. A throw carrying the finish validation source
+          // is that second death, so its class names the host
+          // rejection, mirrors the inner verdict facts verbatim, and
+          // counts the bounded round as spent. Both classes carry the
+          // judge meta beside the findings: the error terminal used to
+          // read claimConsistencyMeta null over a journal holding the
+          // verdict (the RV2203 lesson, relearned on this path).
+          const hostRejection =
+            thrown instanceof FailRunError &&
+            typeof thrown.data === 'object' &&
+            thrown.data !== null &&
+            !Array.isArray(thrown.data) &&
+            (thrown.data as { source?: unknown }).source === 'orchestrator_finish_validation'
+              ? (thrown.data as Record<string, Json | undefined>)
+              : undefined;
+          if (hostRejection !== undefined) {
+            throw new FailRunError(
+              'the claim-consistency repair round dispatched and its repaired candidate ' +
+                'failed host validation ' +
+                `(${thrown instanceof Error ? thrown.message.slice(0, 300) : String(thrown)}); ` +
+                `${String(carried.length)} judged contradiction${carried.length === 1 ? '' : 's'} ` +
+                'stand unconsumed and a gate armed to repair must not pass silently',
+              {
+                data: {
+                  source: 'orchestrator_claim_consistency',
+                  claimContradictions: carried as unknown as Json,
+                  claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+                  repairsUsed: 1,
+                  roundDispatched: true,
+                  preRepairHash,
+                  finishValidation: {
+                    ...(hostRejection.callId === undefined ? {} : { callId: hostRejection.callId }),
+                    ...(hostRejection.failed === undefined ? {} : { failed: hostRejection.failed }),
+                    ...(hostRejection.repairsUsed === undefined
+                      ? {}
+                      : { repairsUsed: hostRejection.repairsUsed }),
+                    ...(hostRejection.maxRepairs === undefined
+                      ? {}
+                      : { maxRepairs: hostRejection.maxRepairs }),
+                    ...(hostRejection.candidateHash === undefined
+                      ? {}
+                      : { candidateHash: hostRejection.candidateHash }),
+                    ...(hostRejection.candidateChars === undefined
+                      ? {}
+                      : { candidateChars: hostRejection.candidateChars }),
+                  } as unknown as Json,
+                  ...(acceptanceSnapshot as unknown as Record<string, Json>),
+                },
+              },
+            );
+          }
           throw new FailRunError(
             'the claim-consistency repair round could not dispatch ' +
               `(${thrown instanceof Error ? thrown.message.slice(0, 300) : String(thrown)}); ` +
@@ -8617,7 +8690,9 @@ export function makeOrchestratorWorkflow(
               data: {
                 source: 'orchestrator_claim_consistency',
                 claimContradictions: carried as unknown as Json,
+                claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
                 repairsUsed: 0,
+                roundDispatched: false,
                 preRepairHash,
                 ...(acceptanceSnapshot as unknown as Record<string, Json>),
               },

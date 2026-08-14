@@ -820,6 +820,7 @@ function liftRunCompletion(candidate: unknown):
       acceptanceChildren?: AcceptanceChildSummary[];
       semanticPasses?: SemanticPassesSummary;
       claimConsistencyMeta?: Record<string, unknown>;
+      claimContradictions?: Record<string, unknown>[];
       synthesisSkipped?: boolean | string;
       deliverableAccepted?: boolean;
       resultAvailable?: boolean;
@@ -844,6 +845,7 @@ function liftRunCompletion(candidate: unknown):
     acceptanceChildren?: AcceptanceChildSummary[];
     semanticPasses?: SemanticPassesSummary;
     claimConsistencyMeta?: Record<string, unknown>;
+    claimContradictions?: Record<string, unknown>[];
     synthesisSkipped?: boolean | string;
     deliverableAccepted?: boolean;
     resultAvailable?: boolean;
@@ -978,6 +980,27 @@ function liftRunCompletion(candidate: unknown):
     !Array.isArray(metaCandidate)
   ) {
     lifted.claimConsistencyMeta = { ...(metaCandidate as Record<string, unknown>) };
+  }
+  // The judged findings beside their meta (RV3601), same posture: the
+  // third comparison run failed typed with the contradictions inside
+  // error.data only, and the outcome's top level read null next to a
+  // null meta. Valid rows (each an object carrying a string reason)
+  // mirror shallowly; `[]` is the judge's claim of a clean document,
+  // and anything malformed drops silently.
+  const findingsCandidate = (candidate as { claimContradictions?: unknown }).claimContradictions;
+  if (
+    Array.isArray(findingsCandidate) &&
+    findingsCandidate.every(
+      (row) =>
+        typeof row === 'object' &&
+        row !== null &&
+        !Array.isArray(row) &&
+        typeof (row as { reason?: unknown }).reason === 'string',
+    )
+  ) {
+    lifted.claimContradictions = findingsCandidate.map((row) => ({
+      ...(row as Record<string, unknown>),
+    }));
   }
   const skippedCandidate = (candidate as { synthesisSkipped?: unknown }).synthesisSkipped;
   if (typeof skippedCandidate === 'boolean' || typeof skippedCandidate === 'string') {
@@ -2475,6 +2498,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.claimConsistencyMeta !== undefined) {
           outcomeFacts.claimConsistencyMeta = lifted.claimConsistencyMeta;
+        }
+        if (lifted.claimContradictions !== undefined) {
+          outcomeFacts.claimContradictions = lifted.claimContradictions;
         }
         if (lifted.synthesisSkipped !== undefined) {
           outcomeFacts.synthesisSkipped = lifted.synthesisSkipped;

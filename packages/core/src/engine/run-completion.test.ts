@@ -524,6 +524,56 @@ describe('the failure envelope carries the pass truth (RV2203)', () => {
     expect((outcome as { claimConsistencyMeta?: unknown }).claimConsistencyMeta).toBeUndefined();
     expect((outcome as { synthesisSkipped?: unknown }).synthesisSkipped).toBeUndefined();
   });
+
+  it('lifts the judged findings beside the meta from typed error data (RV3601)', async () => {
+    // The third comparison run failed typed with the contradictions
+    // inside error.data only; the outcome's top level read null beside
+    // a null meta, and the scoring harness had to annotate by hand.
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const finding = {
+      anchor: 'docs/guide/mcp.md:241',
+      draftExcerpt: 'the draft claims the bounds are defaults',
+      pool: [{ nodeId: 'child-a', excerpt: 'the bounds are opt in' }],
+      reason: 'the draft inverts the recorded reading',
+    };
+    const wf = defineWorkflow({ name: 'round-lost' }, async () => {
+      await Promise.resolve();
+      throw new FailRunError('the repair round dispatched and lost its candidate', {
+        data: {
+          completion: 'complete',
+          claimContradictions: [finding],
+          claimConsistencyMeta: { judgeInvoked: true, findings: 1 },
+        },
+      });
+    });
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.status).toBe('error');
+    expect((outcome as { claimContradictions?: unknown[] }).claimContradictions).toEqual([finding]);
+    expect(
+      (runEnd as { claimContradictions?: unknown[] } | undefined)?.claimContradictions,
+    ).toEqual([finding]);
+  });
+
+  it('an empty findings list mirrors as the clean claim; malformed rows drop whole (RV3601)', async () => {
+    const engine = createEngine({ adapters: [], stores: { journal: new InMemoryStore() } });
+    const clean = defineWorkflow({ name: 'clean-claims' }, async () => {
+      await Promise.resolve();
+      return { completion: 'complete', claimContradictions: [] };
+    });
+    const { outcome } = await runAndCaptureEnd(engine, clean);
+    expect((outcome as { claimContradictions?: unknown[] }).claimContradictions).toEqual([]);
+    const malformed = defineWorkflow({ name: 'malformed-claims' }, async () => {
+      await Promise.resolve();
+      return {
+        completion: 'complete',
+        claimContradictions: [{ reason: 'a valid row' }, { anchor: 'a row with no reason' }],
+      };
+    });
+    const second = await runAndCaptureEnd(engine, malformed);
+    expect(
+      (second.outcome as { claimContradictions?: unknown }).claimContradictions,
+    ).toBeUndefined();
+  });
 });
 
 describe('the pre-acceptance roster lift (RV2602)', () => {
