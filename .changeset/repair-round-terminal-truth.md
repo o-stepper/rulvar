@@ -1,6 +1,0 @@
----
-'@rulvar/core': minor
-'@rulvar/evals': minor
----
-
-The repair round's terminal names which death occurred (RV3601). The third comparison run's bounded repair round dispatched, paid two wires and produced a candidate its own finish contract rejected, and the terminal read `could not dispatch` with `repairsUsed: 0` beside a null judge meta and null findings. A throw carrying the `orchestrator_finish_validation` source is now its own class: the message names the dispatch and the host rejection, data carries `roundDispatched: true`, `repairsUsed: 1`, the judge meta beside the findings, and the finish verdict facts verbatim under `finishValidation` (the failed validators with reasons, `candidateHash`, `candidateChars`, mirrored from the decision the journal already holds; the typed finish failure itself now carries the candidate identity too). The true pre dispatch decline keeps its frame and gains the judge meta plus `roundDispatched: false`. The engine lifts `claimContradictions` onto RunOutcome, the journaled settle and `run:end` beside the meta, from the acceptance envelope or the typed error data alike, under the same defensive posture as the meta lift; the compact terminal envelope keeps the meta alone, its `findings` count standing in for the details. The fault kit gains `repair-round-host-rejection` driving the arc end to end on the real engine.

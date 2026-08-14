@@ -1,5 +1,27 @@
 # @rulvar/evals
 
+## 1.241.0
+
+### Minor Changes
+
+- 4f832c4: The mechanical repair pool belongs to one composition invocation (RV3602). `finishValidation.maxRepairs` used to count non accepted verdicts run wide, so the bounded claim repair round (RV3307) entered with zero mechanical retries whenever the initial composition had spent its own, and under the default bound of one its first regression was final by construction; that arithmetic is how the third comparison run died honest but unconverged with $1.42 of headroom left. The pool now restarts at each composition dispatch: the boundary is the journaled verdict count at dispatch (replay derives the identical index from the identical prefix, no new journal fields), the cycle 73 contract generation rule still applies on top, and validators bound to the coordination loop keep the run wide reading byte for byte, one loop being one invocation. Worst case stays bounded: at most two invocations (the initial and one repair round), each granting at most `maxRepairs` repair turns; preflight's RV3402 working room term already prices the round at the declared synthesis reserve, which is the host's estimate of exactly one invocation with its repairs, and the RV2504 reserve tail sizing needs no doubling (comments and guide now say so). The fault kit gains `repair-round-own-pool`: the frozen third comparison sequence carried to the convergence the old pool made impossible, verdicts repair/accepted twice with `repairsUsed` restarting at the boundary.
+- 7452d3d: The bounded repair round keeps the lessons the run already bought (RV3603). The third comparison run's repair round regressed provenance, the exact failure class the initial composition's mechanical loop had fixed 18 seconds and $0.16 earlier, because the round is a fresh invocation with no memory of exchanges it never saw. The round's prompt now carries a `HOST VALIDATION LESSONS:` block beside `CLAIM CONTRADICTIONS:`, folded only from the journaled finish validation failures of the current contract generation (validator names and reasons, deduplicated, journal order), so a resume re derives identical bytes. Present exactly when the prompt already carries judged findings and at least one rejected attempt exists: the initial composition predates any findings and a clean history folds nothing, so every existing prompt stays byte identical. Capped at `FINISH_LESSON_CAP_CHARS` (2000) with the dropped row count named, never silent. The `repair-round-own-pool` kit scenario now also pins the lesson riding the round's prompt and absent from the initial composition's.
+- a4e22bf: The repair round's terminal names which death occurred (RV3601). The third comparison run's bounded repair round dispatched, paid two wires and produced a candidate its own finish contract rejected, and the terminal read `could not dispatch` with `repairsUsed: 0` beside a null judge meta and null findings. A throw carrying the `orchestrator_finish_validation` source is now its own class: the message names the dispatch and the host rejection, data carries `roundDispatched: true`, `repairsUsed: 1`, the judge meta beside the findings, and the finish verdict facts verbatim under `finishValidation` (the failed validators with reasons, `candidateHash`, `candidateChars`, mirrored from the decision the journal already holds; the typed finish failure itself now carries the candidate identity too). The true pre dispatch decline keeps its frame and gains the judge meta plus `roundDispatched: false`. The engine lifts `claimContradictions` onto RunOutcome, the journaled settle and `run:end` beside the meta, from the acceptance envelope or the typed error data alike, under the same defensive posture as the meta lift; the compact terminal envelope keeps the meta alone, its `findings` count standing in for the details. The fault kit gains `repair-round-host-rejection` driving the arc end to end on the real engine.
+
+### Patch Changes
+
+- Updated dependencies [dbcdd24]
+- Updated dependencies [7ae7243]
+- Updated dependencies [4f832c4]
+- Updated dependencies [7452d3d]
+- Updated dependencies [a4e22bf]
+- Updated dependencies [82df4af]
+  - @rulvar/core@1.241.0
+  - @rulvar/anthropic@1.241.0
+  - @rulvar/openai@1.241.0
+  - @rulvar/plan@1.241.0
+  - @rulvar/testing@1.241.0
+
 ## 1.240.0
 
 ### Patch Changes
