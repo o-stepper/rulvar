@@ -574,6 +574,10 @@ describe('reduceCriticalPath (RV-211)', () => {
       finalJudgeMs: 0,
       compositionSpans: 1,
       judgeSpans: 0,
+      // The candidate milestones (RV3605): the one composition span
+      // ends at 80, so the first and last candidate coincide.
+      firstCandidateMs: 80,
+      lastCandidateMs: 80,
       postFanInShare: 0.4,
       synthesisShare: 0.2,
       workerSpans: 2,

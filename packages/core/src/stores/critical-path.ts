@@ -93,6 +93,26 @@ export interface JournaledCriticalPath {
   /** Settled judge-side synthesize spans, counted; same condition. */
   judgeSpans?: number;
   /**
+   * First stamp to the FIRST settled composition-side span's end
+   * (RV3605): when a candidate deliverable first existed, readable
+   * from the archive. The third comparison run held a mechanically
+   * accepted candidate 25 minutes before it lost typed, and the only
+   * route to that fact was a span dig. Needs everything the wall
+   * needs (one segment) plus everything the split needs (every
+   * synthesize span labelled, or the milestone would count a judge as
+   * a candidate); absent otherwise, never guessed.
+   */
+  firstCandidateMs?: number;
+  /**
+   * First stamp to the LAST settled composition-side span's end; same
+   * conditions. Time to the accepted deliverable exactly when the
+   * terminal says `deliverableAccepted: true`; on a failed run it is
+   * when the last LOSING candidate settled, so pair it with the
+   * acceptance verdict and never read it as a win on an error
+   * terminal.
+   */
+  lastCandidateMs?: number;
+  /**
    * The window itemization a journal CAN answer (RV3404); present
    * exactly when `postFanInMs` is.
    */
@@ -159,6 +179,8 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
   let finalJudgeMs = 0;
   let compositionSpans = 0;
   let judgeSpans = 0;
+  let firstCompositionEnd: number | undefined;
+  let lastCompositionEnd: number | undefined;
   let labelledSynthesis = false;
   let unlabelledSynthesis = false;
   // Settled synthesize spans, kept for the window clip below; `judge`
@@ -226,6 +248,12 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
     } else {
       finalCompositionMs += wall;
       compositionSpans += 1;
+      // The candidate milestones (RV3605): a settled composition
+      // span's end stamp is the moment a candidate existed.
+      firstCompositionEnd =
+        firstCompositionEnd === undefined ? endedAt : Math.min(firstCompositionEnd, endedAt);
+      lastCompositionEnd =
+        lastCompositionEnd === undefined ? endedAt : Math.max(lastCompositionEnd, endedAt);
     }
     synthSpans.push({ from: startedAt, to: endedAt, judge: stage !== undefined });
   }
@@ -247,6 +275,15 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
     return path;
   }
   path.runWallMs = Math.max(0, runEnd - runStart);
+  // The candidate milestones (RV3605): the wall conditions (one
+  // segment, both stamps) hold here, and the split condition keeps a
+  // judge from being counted as a candidate.
+  if (splitLegible && firstCompositionEnd !== undefined) {
+    path.firstCandidateMs = Math.max(0, firstCompositionEnd - runStart);
+  }
+  if (splitLegible && lastCompositionEnd !== undefined) {
+    path.lastCandidateMs = Math.max(0, lastCompositionEnd - runStart);
+  }
   if (lastWorkerEnd !== undefined) {
     path.postFanInMs = Math.max(0, runEnd - lastWorkerEnd);
     // The window itemization (RV3404): the same clip-then-union

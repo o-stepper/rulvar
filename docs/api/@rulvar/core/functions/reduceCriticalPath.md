@@ -10,7 +10,7 @@
 function reduceCriticalPath(events): CriticalPath;
 ```
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:462](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L462)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:483](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L483)
 
 ## Parameters
 

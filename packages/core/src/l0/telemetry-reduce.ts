@@ -272,6 +272,27 @@ export interface CriticalPath {
   compositionSpans: number;
   /** Completed judge-side synthesize spans, counted (RV3404). */
   judgeSpans: number;
+  /**
+   * run:start to the FIRST completed composition-side synthesize
+   * span's end (RV3605): when a candidate deliverable first existed.
+   * The third comparison run held a mechanically accepted candidate
+   * from its 103rd journal seq onward and lost typed 25 minutes
+   * later; nothing on any surface said when the latent document
+   * materialized, and the judge had to dig spans by hand. Absent
+   * without a run:start or a completed composition span, and live
+   * fidelity like every wall figure here.
+   */
+  firstCandidateMs?: number;
+  /**
+   * run:start to the LAST completed composition-side span's end
+   * (RV3605). On a run whose terminal carries `deliverableAccepted:
+   * true` this is when the accepted composition settled, the time to
+   * accepted deliverable; on a failed run it is when the last LOSING
+   * candidate settled, so pair it with the acceptance verdict and
+   * never read it as a win on an error terminal (the comparison rule
+   * the third experiment wrote down).
+   */
+  lastCandidateMs?: number;
   /** postFanInMs / runWallMs when both are defined and the wall is > 0. */
   postFanInShare?: number;
   /** synthesisMs / runWallMs under the same conditions. */
@@ -472,6 +493,8 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   let finalJudgeMs = 0;
   let compositionSpans = 0;
   let judgeSpans = 0;
+  let firstCompositionEnd: number | undefined;
+  let lastCompositionEnd: number | undefined;
   // Raw material of the RV710 decomposition, folded after the pass
   // (the window is known only once run:end and the last worker settle
   // are). An end event's interval is reconstructed as
@@ -545,6 +568,11 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
           } else {
             finalCompositionMs += wall;
             compositionSpans += 1;
+            // The candidate milestones (RV3605): a composition span's
+            // end is the moment a candidate deliverable existed.
+            firstCompositionEnd = firstCompositionEnd === undefined ? at : firstCompositionEnd;
+            lastCompositionEnd =
+              lastCompositionEnd === undefined ? at : Math.max(lastCompositionEnd, at);
           }
           synthesisSpans.push({ from: started.at, to: at, judge });
         } else if (started.role !== 'orchestrate') {
@@ -569,6 +597,14 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   };
   if (runStart !== undefined && runEnd !== undefined) {
     path.runWallMs = Math.max(0, runEnd - runStart);
+  }
+  // The candidate milestones (RV3605), anchored at run:start like the
+  // wall: absent without both anchors, never guessed.
+  if (runStart !== undefined && firstCompositionEnd !== undefined) {
+    path.firstCandidateMs = Math.max(0, firstCompositionEnd - runStart);
+  }
+  if (runStart !== undefined && lastCompositionEnd !== undefined) {
+    path.lastCandidateMs = Math.max(0, lastCompositionEnd - runStart);
   }
   if (runEnd !== undefined && lastWorkerEnd !== undefined) {
     path.postFanInMs = Math.max(0, runEnd - lastWorkerEnd);

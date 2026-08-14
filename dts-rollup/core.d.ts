@@ -13621,6 +13621,26 @@ interface JournaledCriticalPath {
   /** Settled judge-side synthesize spans, counted; same condition. */
   judgeSpans?: number;
   /**
+  * First stamp to the FIRST settled composition-side span's end
+  * (RV3605): when a candidate deliverable first existed, readable
+  * from the archive. The third comparison run held a mechanically
+  * accepted candidate 25 minutes before it lost typed, and the only
+  * route to that fact was a span dig. Needs everything the wall
+  * needs (one segment) plus everything the split needs (every
+  * synthesize span labelled, or the milestone would count a judge as
+  * a candidate); absent otherwise, never guessed.
+  */
+  firstCandidateMs?: number;
+  /**
+  * First stamp to the LAST settled composition-side span's end; same
+  * conditions. Time to the accepted deliverable exactly when the
+  * terminal says `deliverableAccepted: true`; on a failed run it is
+  * when the last LOSING candidate settled, so pair it with the
+  * acceptance verdict and never read it as a win on an error
+  * terminal.
+  */
+  lastCandidateMs?: number;
+  /**
   * The window itemization a journal CAN answer (RV3404); present
   * exactly when `postFanInMs` is.
   */
@@ -15622,6 +15642,27 @@ interface CriticalPath {
   compositionSpans: number;
   /** Completed judge-side synthesize spans, counted (RV3404). */
   judgeSpans: number;
+  /**
+  * run:start to the FIRST completed composition-side synthesize
+  * span's end (RV3605): when a candidate deliverable first existed.
+  * The third comparison run held a mechanically accepted candidate
+  * from its 103rd journal seq onward and lost typed 25 minutes
+  * later; nothing on any surface said when the latent document
+  * materialized, and the judge had to dig spans by hand. Absent
+  * without a run:start or a completed composition span, and live
+  * fidelity like every wall figure here.
+  */
+  firstCandidateMs?: number;
+  /**
+  * run:start to the LAST completed composition-side span's end
+  * (RV3605). On a run whose terminal carries `deliverableAccepted:
+  * true` this is when the accepted composition settled, the time to
+  * accepted deliverable; on a failed run it is when the last LOSING
+  * candidate settled, so pair it with the acceptance verdict and
+  * never read it as a win on an error terminal (the comparison rule
+  * the third experiment wrote down).
+  */
+  lastCandidateMs?: number;
   /** postFanInMs / runWallMs when both are defined and the wall is > 0. */
   postFanInShare?: number;
   /** synthesisMs / runWallMs under the same conditions. */

@@ -6,7 +6,7 @@
 
 # Interface: JournaledPostFanIn
 
-Defined in: [packages/core/src/stores/critical-path.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L115)
+Defined in: [packages/core/src/stores/critical-path.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L135)
 
 The synthesis half of the RV710 decomposition, asked of a journal
 (RV3404). The live breakdown also itemizes the coordinator's model
@@ -24,8 +24,8 @@ which is why it refuses to share the name.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-finalcompositionms"></a> `finalCompositionMs?` | `number` | The composition half of the covered spans, clipped; present under the same all-or-nothing labelling condition as the top level split, and equal to the live breakdown's reading of the same run. | [packages/core/src/stores/critical-path.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L123) |
-| <a id="property-semanticjudgems"></a> `semanticJudgeMs?` | `number` | The judge half, clipped; same condition. | [packages/core/src/stores/critical-path.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L125) |
-| <a id="property-synthesiscoveredms"></a> `synthesisCoveredMs` | `number` | Union of settled synthesize spans clipped to the window. | [packages/core/src/stores/critical-path.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L117) |
-| <a id="property-unaccountedms"></a> `unaccountedMs` | `number` | `postFanInMs` minus `synthesisCoveredMs`, floored at zero. | [packages/core/src/stores/critical-path.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L127) |
-| <a id="property-unaccountedshare"></a> `unaccountedShare?` | `number` | `unaccountedMs / postFanInMs` when the window is positive. | [packages/core/src/stores/critical-path.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L129) |
+| <a id="property-finalcompositionms"></a> `finalCompositionMs?` | `number` | The composition half of the covered spans, clipped; present under the same all-or-nothing labelling condition as the top level split, and equal to the live breakdown's reading of the same run. | [packages/core/src/stores/critical-path.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L143) |
+| <a id="property-semanticjudgems"></a> `semanticJudgeMs?` | `number` | The judge half, clipped; same condition. | [packages/core/src/stores/critical-path.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L145) |
+| <a id="property-synthesiscoveredms"></a> `synthesisCoveredMs` | `number` | Union of settled synthesize spans clipped to the window. | [packages/core/src/stores/critical-path.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L137) |
+| <a id="property-unaccountedms"></a> `unaccountedMs` | `number` | `postFanInMs` minus `synthesisCoveredMs`, floored at zero. | [packages/core/src/stores/critical-path.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L147) |
+| <a id="property-unaccountedshare"></a> `unaccountedShare?` | `number` | `unaccountedMs / postFanInMs` when the window is positive. | [packages/core/src/stores/critical-path.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L149) |

@@ -231,6 +231,11 @@ describe('criticalPathFromJournal (RV2803)', () => {
       expect(path.finalJudgeMs).toBe(80);
       expect(path.compositionSpans).toBe(2);
       expect(path.judgeSpans).toBe(2);
+      // The candidate milestones (RV3605), identical on both surfaces:
+      // the initial candidate existed at 800, the repaired one at 950,
+      // and only the acceptance verdict says which one shipped.
+      expect(path.firstCandidateMs).toBe(800);
+      expect(path.lastCandidateMs).toBe(950);
     }
     // The window itemization the journal CAN answer: clipped halves
     // equal the live breakdown's reading of the same run, and the
@@ -265,6 +270,11 @@ describe('criticalPathFromJournal (RV2803)', () => {
     expect('finalCompositionMs' in (mixed.postFanIn ?? {})).toBe(false);
     expect('draftJudgeMs' in mixed).toBe(false);
     expect('compositionSpans' in mixed).toBe(false);
+    // The milestone needs the split (RV3605): an unlabelled span could
+    // be a judge, and a judge is not a candidate. Absent, never a
+    // guess.
+    expect('firstCandidateMs' in mixed).toBe(false);
+    expect('lastCandidateMs' in mixed).toBe(false);
   });
 
   it('refuses the wall figures for a journal that was resumed', () => {
@@ -283,6 +293,23 @@ describe('criticalPathFromJournal (RV2803)', () => {
     expect('runWallMs' in path).toBe(false);
     expect('postFanInMs' in path).toBe(false);
     expect('postFanInShare' in path).toBe(false);
+  });
+
+  it('refuses the candidate milestones for a resumed journal too (RV3605)', () => {
+    // The milestones are wall figures anchored at the first stamp, so
+    // the multi segment refusal that guards runWallMs guards them: a
+    // resumed journal's stamps hold the operator's coffee break.
+    const path = criticalPathFromJournal([
+      span(1, 0, 400, { role: 'loop', agentType: 'worker' }),
+      span(2, 400, 500, { role: 'synthesize', label: FINAL_COMPOSITION_LABEL }),
+      settle(3, 600, 'suspended'),
+      span(4, 9_000_000, 9_000_400, { role: 'synthesize', label: FINAL_COMPOSITION_LABEL }),
+      settle(5, 9_000_500),
+    ]);
+    expect(path.segments).toBe(2);
+    expect(path.compositionSpans).toBe(2);
+    expect('firstCandidateMs' in path).toBe(false);
+    expect('lastCandidateMs' in path).toBe(false);
   });
 
   it('counts what it could not classify instead of guessing a role', () => {
