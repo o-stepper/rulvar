@@ -70,6 +70,14 @@ export interface AgentInvocationRow {
   replayed: boolean;
   /** True when the span's agent:end never arrived. */
   open: boolean;
+  /**
+   * Present and true when the invocation was aborted by the host's
+   * finish rejection (RV3702): the declared finish contract rejected
+   * the candidate past its repair bound, so the span died by host
+   * hand with its wires fine. From the agent:end stamp; absent
+   * everywhere else.
+   */
+  hostRejected?: boolean;
   phases: PhaseRow[];
 }
 
@@ -203,6 +211,11 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
         if (event.toolBudget !== undefined) {
           row.toolBudget = event.toolBudget;
         }
+        // The host rejection stamp (RV3702) rides the row so a span
+        // table reader sees the layer split without a journal dig.
+        if (event.hostRejected === true) {
+          row.hostRejected = true;
+        }
         totalCostUsd += event.costUsd;
         break;
       }
@@ -299,6 +312,15 @@ export interface CriticalPath {
   synthesisShare?: number;
   /** Settled non-coordination agent spans that anchored the fan-in. */
   workerSpans: number;
+  /**
+   * Settled spans whose invocation was aborted by the host's finish
+   * rejection (RV3702): the `hostRejected` stamps counted. The count
+   * is unconditional (the stamp is self contained, no labelling
+   * condition applies) and zero when none: on the third comparison
+   * run's shape it reads 1, the round's composition, telling the host
+   * rejection apart from a provider death at the cut level.
+   */
+  hostRejectedSpans: number;
   /** The RV710 decomposition of the window; present with postFanInMs. */
   postFanIn?: PostFanInBreakdown;
 }
@@ -390,6 +412,21 @@ export interface PostFanInBreakdown {
  * composition in {@link reduceCriticalPath}.
  */
 export const CLAIM_JUDGE_LABEL = 'claim-consistency-judge';
+
+/**
+ * The live abort reason of a finish rejection (RV3702): the value
+ * `orchestrate()` aborts a composition invocation's signal with when
+ * the declared finish contract rejects its candidate past the repair
+ * bound, and ONLY then; a defective (throwing) validator aborts with
+ * its own distinct reason, because a host defect is not a verdict on
+ * the candidate. The settle layer reads the reason back and stamps
+ * `hostRejected` onto the terminal agent entry and the live
+ * `agent:end` event, so both span surfaces can tell a host rejection
+ * (wires fine, document refused) from a provider failure without a
+ * journal dig; the third comparison run's reader had exactly that
+ * span (two successful wires, span cancelled) and nothing to name it.
+ */
+export const FINISH_REJECTION_ABORT_REASON = 'rulvar:finish-validation';
 
 /**
  * Whether a synthesize span's label names a claim-consistency judge
@@ -493,6 +530,7 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   let finalJudgeMs = 0;
   let compositionSpans = 0;
   let judgeSpans = 0;
+  let hostRejectedSpans = 0;
   let firstCompositionEnd: number | undefined;
   let lastCompositionEnd: number | undefined;
   // Raw material of the RV710 decomposition, folded after the pass
@@ -552,6 +590,11 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         if (started === undefined) {
           break;
         }
+        // The host rejection count (RV3702): stamp driven, so it needs
+        // no label and no window, exactly like the journal fold's.
+        if (event.hostRejected === true) {
+          hostRejectedSpans += 1;
+        }
         if (started.role === 'synthesize') {
           const wall = Math.max(0, at - started.at);
           const stage = claimJudgeStageOf(started.label);
@@ -594,6 +637,7 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
     compositionSpans,
     judgeSpans,
     workerSpans,
+    hostRejectedSpans,
   };
   if (runStart !== undefined && runEnd !== undefined) {
     path.runWallMs = Math.max(0, runEnd - runStart);

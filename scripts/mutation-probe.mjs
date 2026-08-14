@@ -4876,6 +4876,42 @@ export const MUTATIONS = [
     replace: '    monetarySettleable: settleable,',
     test: 'packages/core/src/engine/reconcile-statement.test.ts',
   },
+  {
+    id: 'settle-host-rejection-stamp',
+    doctrine:
+      'the settle layer stamps hostRejected onto the terminal agent entry from the typed finish rejection abort reason (RV3702)',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '      terminalPatch.hostRejected = true;\n',
+    replace: '',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'agent-end-host-rejection-field',
+    doctrine:
+      'the live agent:end carries the host rejection stamp beside the journaled entry, so the live cut reads the same count (RV3702)',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '        ...(terminalPatch.hostRejected === true ? { hostRejected: true } : {}),\n',
+    replace: '',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'journal-cut-host-rejection-count',
+    doctrine:
+      'the journal fold counts the hostRejected stamps unconditionally, no label or segment condition (RV3702)',
+    file: 'packages/core/src/stores/critical-path.ts',
+    find: '    if (entry.hostRejected === true) {\n      hostRejectedSpans += 1;\n    }\n',
+    replace: '',
+    test: 'packages/core/src/stores/critical-path.test.ts',
+  },
+  {
+    id: 'live-cut-host-rejection-count',
+    doctrine:
+      'the live reducer counts the hostRejected stamps off agent:end, the journal fold parity (RV3702)',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: '        if (event.hostRejected === true) {\n          hostRejectedSpans += 1;\n        }\n',
+    replace: '',
+    test: 'packages/core/src/orchestrator/synthesis.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

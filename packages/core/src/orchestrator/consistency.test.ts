@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChatRequest } from '../l0/messages.js';
 import { ConfigError, FailRunError } from '../l0/errors.js';
+import { criticalPathFromJournal } from '../stores/critical-path.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
@@ -1861,5 +1862,82 @@ describe('the bounded post judge repair (RV3307)', () => {
     expect((data.claimContradictions as unknown[]).length).toBe(1);
     const meta = data.claimConsistencyMeta as Record<string, unknown>;
     expect(meta.judgeDeclined).toBe(true);
+  });
+
+  it('the host rejection stamps the span surfaces: entry, event, and the cut (RV3702)', async () => {
+    // The third comparison run's reader saw the round's span cancelled
+    // with both wires fine and had nothing to name the layer split.
+    // The final rejection now stamps the terminal entry and the live
+    // agent:end, and both cut surfaces count the stamps.
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    const judge = scriptedAdapter((): ScriptedTurn => JUDGE_FINDS, { id: 'judge' });
+    let synthCall = 0;
+    const finals = [FINAL_INVERTED, FINAL_UNGROUNDED, FINAL_UNGROUNDED];
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({
+        toolCall: { name: 'finish', args: { result: finals[Math.min(synthCall++, 2)] } },
+      }),
+      { id: 'strong' },
+    );
+    const { internals, store, events } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', RV3601_OPTS),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const stamped = entries.filter(
+      (entry) => entry.kind === 'agent' && entry.hostRejected === true,
+    );
+    expect(stamped).toHaveLength(1);
+    expect(stamped[0]?.costAttribution?.label).toBe('final-composition');
+    expect(stamped[0]?.status).not.toBe('ok');
+    const endEvents = events
+      .ofType('agent:end')
+      .filter((event) => (event as { hostRejected?: boolean }).hostRejected === true);
+    expect(endEvents).toHaveLength(1);
+    expect(criticalPathFromJournal(entries).hostRejectedSpans).toBe(1);
+  });
+
+  it('a defective validator does not stamp the span: a defect is not a verdict (RV3702)', async () => {
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: FINAL_INVERTED } } }),
+      { id: 'strong' },
+    );
+    const { internals, store } = makeInternals({
+      adapters: [coordination, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' as const },
+        synthesis: { limits: { maxTurns: 3 } },
+        finishValidation: {
+          validators: [
+            {
+              name: 'kaput',
+              validate: (): never => {
+                throw new Error('the validator itself is broken');
+              },
+            },
+          ],
+          maxRepairs: 1,
+        },
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(ConfigError);
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    expect(entries.some((entry) => entry.hostRejected === true)).toBe(false);
   });
 });

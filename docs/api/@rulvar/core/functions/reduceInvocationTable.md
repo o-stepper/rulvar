@@ -10,7 +10,7 @@
 function reduceInvocationTable(events): InvocationTable;
 ```
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L94)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L102)
 
 Reduces one run's event stream (or any slice of it) to the invocation
 table. Feed it the events in emission order; both a live stream and a

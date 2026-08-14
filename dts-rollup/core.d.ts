@@ -1122,6 +1122,16 @@ type JournalEntry = {
     cap?: number;
   };
   /**
+  * Terminal agent entries whose invocation was aborted by the host's
+  * finish rejection (RV3702): the declared finish contract rejected
+  * the candidate past its repair bound, so the span died by host
+  * hand with its wires fine. Stamped at settle from the typed abort
+  * reason; never on a defective (throwing) validator, whose abort
+  * carries its own reason, because a host defect is not a verdict on
+  * the candidate. Policy, never identity, exactly like usageByModel.
+  */
+  hostRejected?: boolean;
+  /**
   * Terminal escalated entries ONLY: the schema-validated
   * EscalationReport with runtime-filled costToDate and salvage; replay
   * synthesizes the byte-identical report from here (DEF-1).
@@ -2599,6 +2609,15 @@ type AgentEvents = {
   */
   retryCount?: number;
   /**
+  * Present and true when the invocation was aborted by the host's
+  * finish rejection (RV3702): the declared finish contract
+  * rejected the candidate past its repair bound. Journaled on the
+  * terminal agent entry (unlike retryCount), so a replayed
+  * agent:end carries it too and both surfaces of the RV3404 cut
+  * read the same count.
+  */
+  hostRejected?: boolean;
+  /**
   * The exploration guard counters (RV-210). Present live whenever
   * any exploration guard limit was configured for the invocation;
   * on replay present only when the guard abort journaled it in the
@@ -3826,6 +3845,8 @@ interface TerminalPatch {
     used: number;
     cap?: number;
   };
+  /** Terminal agent entries: the host finish rejection stamp (RV3702); see JournalEntry. */
+  hostRejected?: boolean;
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
   /**
@@ -13665,6 +13686,15 @@ interface JournaledCriticalPath {
   */
   lastCandidateMs?: number;
   /**
+  * Settled agent spans whose invocation was aborted by the host's
+  * finish rejection (RV3702): the journaled `hostRejected` stamps
+  * counted. Unconditional (the stamp is self contained: no label, no
+  * segment condition) and zero when none, exactly the live reading
+  * of the same run: the layer split (wires fine, document refused by
+  * host) stays readable years after the process exited.
+  */
+  hostRejectedSpans: number;
+  /**
   * The window itemization a journal CAN answer (RV3404); present
   * exactly when `postFanInMs` is.
   */
@@ -15589,6 +15619,14 @@ interface AgentInvocationRow {
   replayed: boolean;
   /** True when the span's agent:end never arrived. */
   open: boolean;
+  /**
+  * Present and true when the invocation was aborted by the host's
+  * finish rejection (RV3702): the declared finish contract rejected
+  * the candidate past its repair bound, so the span died by host
+  * hand with its wires fine. From the agent:end stamp; absent
+  * everywhere else.
+  */
+  hostRejected?: boolean;
   phases: PhaseRow[];
 }
 /** The reduced table plus the per-role aggregate across every span. */
@@ -15699,6 +15737,15 @@ interface CriticalPath {
   synthesisShare?: number;
   /** Settled non-coordination agent spans that anchored the fan-in. */
   workerSpans: number;
+  /**
+  * Settled spans whose invocation was aborted by the host's finish
+  * rejection (RV3702): the `hostRejected` stamps counted. The count
+  * is unconditional (the stamp is self contained, no labelling
+  * condition applies) and zero when none: on the third comparison
+  * run's shape it reads 1, the round's composition, telling the host
+  * rejection apart from a provider death at the cut level.
+  */
+  hostRejectedSpans: number;
   /** The RV710 decomposition of the window; present with postFanInMs. */
   postFanIn?: PostFanInBreakdown;
 }

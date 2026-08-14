@@ -48,6 +48,7 @@ type AgentEvents =
   costUsd: number;
   entryRef: number;
   exploration?: ExplorationSummary;
+  hostRejected?: boolean;
   label?: string;
   retryCount?: number;
   status: string;
@@ -214,6 +215,7 @@ vocabulary.
   costUsd: number;
   entryRef: number;
   exploration?: ExplorationSummary;
+  hostRejected?: boolean;
   label?: string;
   retryCount?: number;
   status: string;
@@ -230,11 +232,12 @@ vocabulary.
 | `costBasis?` | [`CostBasis`](/api/@rulvar/core/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702): 'per-call' when every usage slice of the invocation (restored included) is covered by per-request records priced individually, the settled fold's own basis; 'aggregate-estimate' when it is not (the aggregate number is kept so restored spend is never silently dropped, and labeled so it is never mistaken for the per-request fold). Absent on streams recorded before RV702, which priced the aggregate. | [packages/core/src/l0/events.ts:386](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L386) |
 | `costUsd` | `number` | - | [packages/core/src/l0/events.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L376) |
 | `entryRef` | `number` | - | [packages/core/src/l0/events.ts:387](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L387) |
-| `exploration?` | [`ExplorationSummary`](/api/@rulvar/core/interfaces/ExplorationSummary.md) | The exploration guard counters (RV-210). Present live whenever any exploration guard limit was configured for the invocation; on replay present only when the guard abort journaled it in the terminal error payload. | [packages/core/src/l0/events.ts:409](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L409) |
+| `exploration?` | [`ExplorationSummary`](/api/@rulvar/core/interfaces/ExplorationSummary.md) | The exploration guard counters (RV-210). Present live whenever any exploration guard limit was configured for the invocation; on replay present only when the guard abort journaled it in the terminal error payload. | [packages/core/src/l0/events.ts:418](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L418) |
+| `hostRejected?` | `boolean` | Present and true when the invocation was aborted by the host's finish rejection (RV3702): the declared finish contract rejected the candidate past its repair bound. Journaled on the terminal agent entry (unlike retryCount), so a replayed agent:end carries it too and both surfaces of the RV3404 cut read the same count. | [packages/core/src/l0/events.ts:411](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L411) |
 | `label?` | `string` | - | [packages/core/src/l0/events.ts:373](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L373) |
 | `retryCount?` | `number` | Total transport retries across the span's activations. Present only when greater than zero; live telemetry only, never journaled, so a replayed agent:end omits it (absent means "zero or unknown"). | [packages/core/src/l0/events.ts:402](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L402) |
 | `status` | `string` | - | [packages/core/src/l0/events.ts:374](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L374) |
-| `toolBudget?` | [`ToolBudgetSummary`](/api/@rulvar/core/interfaces/ToolBudgetSummary.md) | The tool budget pressure snapshot (RV304). Present live whenever a tool budget limiter or the extension was configured; live telemetry only, absent on replay. | [packages/core/src/l0/events.ts:415](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L415) |
+| `toolBudget?` | [`ToolBudgetSummary`](/api/@rulvar/core/interfaces/ToolBudgetSummary.md) | The tool budget pressure snapshot (RV304). Present live whenever a tool budget limiter or the extension was configured; live telemetry only, absent on replay. | [packages/core/src/l0/events.ts:424](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L424) |
 | `type` | `"agent:end"` | - | [packages/core/src/l0/events.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L371) |
 | `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | - | [packages/core/src/l0/events.ts:375](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L375) |
 | `usageApprox?` | `boolean` | Present and true when this agent's usage is approximate rather than reported by the provider (the turn was cut by a transport failure, a ceiling that severed the stream, or an abort). Absent means the provider reported the usage exactly. Mirrors the terminal journal entry's usageApprox. | [packages/core/src/l0/events.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L395) |
@@ -281,13 +284,13 @@ restores the legacy twin for consumers keyed to the old type.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:431](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L431) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:432](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L432) |
-| `model?` | `string` | The denied model ref. | [packages/core/src/l0/events.ts:434](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L434) |
-| `reason?` | `string` | The limiter's reason ('tokensPerMinute 1800000 exhausted'). | [packages/core/src/l0/events.ts:436](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L436) |
-| `retryAfterMs?` | `number` | - | [packages/core/src/l0/events.ts:437](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L437) |
-| `type` | `"quota:denied"` | - | [packages/core/src/l0/events.ts:430](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L430) |
-| `willRetry` | `true` | - | [packages/core/src/l0/events.ts:438](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L438) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:440](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L440) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:441](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L441) |
+| `model?` | `string` | The denied model ref. | [packages/core/src/l0/events.ts:443](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L443) |
+| `reason?` | `string` | The limiter's reason ('tokensPerMinute 1800000 exhausted'). | [packages/core/src/l0/events.ts:445](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L445) |
+| `retryAfterMs?` | `number` | - | [packages/core/src/l0/events.ts:446](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L446) |
+| `type` | `"quota:denied"` | - | [packages/core/src/l0/events.ts:439](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L439) |
+| `willRetry` | `true` | - | [packages/core/src/l0/events.ts:447](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L447) |
 
 ***
 
@@ -327,16 +330,16 @@ documented settle-as-budget-error behavior.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:460](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L460) |
-| `capUsd?` | `number` | The refusal arithmetic, verbatim from the typed refusal. | [packages/core/src/l0/events.ts:467](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L467) |
-| `estimateUsd?` | `number` | - | [packages/core/src/l0/events.ts:470](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L470) |
-| `inFlightUsd?` | `number` | - | [packages/core/src/l0/events.ts:469](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L469) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:461](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L461) |
-| `model?` | `string` | The refused model ref. | [packages/core/src/l0/events.ts:465](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L465) |
-| `scope?` | `"root"` \| `"child"` | The waiting party: the orchestrate root or a spawned child. | [packages/core/src/l0/events.ts:463](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L463) |
-| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:468](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L468) |
-| `type` | `"budget:exposure-wait"` | - | [packages/core/src/l0/events.ts:459](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L459) |
-| `willWait` | `boolean` | - | [packages/core/src/l0/events.ts:471](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L471) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:469](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L469) |
+| `capUsd?` | `number` | The refusal arithmetic, verbatim from the typed refusal. | [packages/core/src/l0/events.ts:476](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L476) |
+| `estimateUsd?` | `number` | - | [packages/core/src/l0/events.ts:479](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L479) |
+| `inFlightUsd?` | `number` | - | [packages/core/src/l0/events.ts:478](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L478) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:470](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L470) |
+| `model?` | `string` | The refused model ref. | [packages/core/src/l0/events.ts:474](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L474) |
+| `scope?` | `"root"` \| `"child"` | The waiting party: the orchestrate root or a spawned child. | [packages/core/src/l0/events.ts:472](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L472) |
+| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:477](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L477) |
+| `type` | `"budget:exposure-wait"` | - | [packages/core/src/l0/events.ts:468](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L468) |
+| `willWait` | `boolean` | - | [packages/core/src/l0/events.ts:480](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L480) |
 
 ***
 

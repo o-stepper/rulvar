@@ -183,6 +183,8 @@ export interface TerminalPatch {
   evidenceEntries?: Array<{ claim: string; citation?: string }>;
   /** Terminal agent entries: the durable tool-budget subset; see JournalEntry. */
   toolBudget?: { used: number; cap?: number };
+  /** Terminal agent entries: the host finish rejection stamp (RV3702); see JournalEntry. */
+  hostRejected?: boolean;
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
   /**
@@ -602,6 +604,9 @@ export class Replayer {
       }
       if (patch.toolBudget !== undefined) {
         entry.toolBudget = patch.toolBudget;
+      }
+      if (patch.hostRejected !== undefined) {
+        entry.hostRejected = patch.hostRejected;
       }
       if (patch.artifacts !== undefined) {
         entry.artifacts = toJournalValue(patch.artifacts, 'terminal artifacts');

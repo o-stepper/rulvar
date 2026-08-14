@@ -10,4 +10,4 @@
 type ErrorPolicy = "strict" | "lenient";
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L155)
+Defined in: [packages/core/src/engine/ctx.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L156)

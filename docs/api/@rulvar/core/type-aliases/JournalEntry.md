@@ -26,6 +26,7 @@ type JournalEntry = {
      claim: string;
   }[];
   hashVersion: HashVersion;
+  hostRejected?: boolean;
   key: string;
   kind: EntryKind;
   memoizeOutcome?: boolean;
@@ -67,7 +68,7 @@ by a per-run queue.
 optional abandon?: AbandonPayload;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:613](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L613)
+Defined in: [packages/core/src/l0/entries.ts:623](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L623)
 
 Only when kind === 'abandon'.
 
@@ -118,7 +119,7 @@ like usageByModel.
 optional deadlineAt?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:622](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L622)
+Defined in: [packages/core/src/l0/entries.ts:632](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L632)
 
 On suspended entries: the journaled deadline.
 
@@ -130,7 +131,7 @@ On suspended entries: the journaled deadline.
 optional endedAt?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:625](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L625)
+Defined in: [packages/core/src/l0/entries.ts:635](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L635)
 
 ***
 
@@ -150,7 +151,7 @@ Defined in: [packages/core/src/l0/entries.ts:509](https://github.com/o-stepper/r
 optional escalation?: Json;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:609](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L609)
+Defined in: [packages/core/src/l0/entries.ts:619](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L619)
 
 Terminal escalated entries ONLY: the schema-validated
 EscalationReport with runtime-filled costToDate and salvage; replay
@@ -243,6 +244,24 @@ Identity-derivation and replay-semantics version of THIS entry.
 
 ***
 
+### hostRejected?
+
+```ts
+optional hostRejected?: boolean;
+```
+
+Defined in: [packages/core/src/l0/entries.ts:613](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L613)
+
+Terminal agent entries whose invocation was aborted by the host's
+finish rejection (RV3702): the declared finish contract rejected
+the candidate past its repair bound, so the span died by host
+hand with its wires fine. Stamped at settle from the typed abort
+reason; never on a defective (throwing) validator, whose abort
+carries its own reason, because a host defect is not a verdict on
+the candidate. Policy, never identity, exactly like usageByModel.
+
+***
+
 ### key
 
 ```ts
@@ -269,7 +288,7 @@ Defined in: [packages/core/src/l0/entries.ts:506](https://github.com/o-stepper/r
 optional memoizeOutcome?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:620](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L620)
+Defined in: [packages/core/src/l0/entries.ts:630](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L630)
 
 Policy field on agent entries, fixed in the payload at dispatch
 time: the M2 predicate reads
@@ -328,7 +347,7 @@ the seq of the running entry.
 optional resolution?: ResolutionPayload;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:611](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L611)
+Defined in: [packages/core/src/l0/entries.ts:621](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L621)
 
 Only when kind === 'resolution'.
 
@@ -374,7 +393,7 @@ Who actually served (failover changes only this, never the key).
 spanId: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:623](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L623)
+Defined in: [packages/core/src/l0/entries.ts:633](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L633)
 
 ***
 
@@ -384,7 +403,7 @@ Defined in: [packages/core/src/l0/entries.ts:623](https://github.com/o-stepper/r
 startedAt: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:624](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L624)
+Defined in: [packages/core/src/l0/entries.ts:634](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L634)
 
 ***
 

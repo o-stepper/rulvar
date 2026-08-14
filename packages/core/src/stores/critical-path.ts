@@ -113,6 +113,15 @@ export interface JournaledCriticalPath {
    */
   lastCandidateMs?: number;
   /**
+   * Settled agent spans whose invocation was aborted by the host's
+   * finish rejection (RV3702): the journaled `hostRejected` stamps
+   * counted. Unconditional (the stamp is self contained: no label, no
+   * segment condition) and zero when none, exactly the live reading
+   * of the same run: the layer split (wires fine, document refused by
+   * host) stays readable years after the process exited.
+   */
+  hostRejectedSpans: number;
+  /**
    * The window itemization a journal CAN answer (RV3404); present
    * exactly when `postFanInMs` is.
    */
@@ -172,6 +181,7 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
   let lastWorkerEnd: number | undefined;
   let workerSpans = 0;
   let unclassifiedSpans = 0;
+  let hostRejectedSpans = 0;
   let synthesisMs = 0;
   let finalCompositionMs = 0;
   let semanticJudgeMs = 0;
@@ -201,6 +211,11 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
     }
     if (entry.kind !== 'agent' || entry.status === 'running' || entry.status === 'suspended') {
       continue;
+    }
+    // The host rejection count (RV3702): stamp driven, before any
+    // role or label legibility question, exactly like the live fold.
+    if (entry.hostRejected === true) {
+      hostRejectedSpans += 1;
     }
     const role = entry.costAttribution?.role;
     if (role === undefined) {
@@ -258,7 +273,13 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
     synthSpans.push({ from: startedAt, to: endedAt, judge: stage !== undefined });
   }
   const segments = logicalRunTelemetry(ordered).segments;
-  const path: JournaledCriticalPath = { workerSpans, synthesisMs, unclassifiedSpans, segments };
+  const path: JournaledCriticalPath = {
+    workerSpans,
+    synthesisMs,
+    unclassifiedSpans,
+    segments,
+    hostRejectedSpans,
+  };
   const splitLegible = labelledSynthesis && !unlabelledSynthesis;
   if (splitLegible) {
     path.finalCompositionMs = finalCompositionMs;

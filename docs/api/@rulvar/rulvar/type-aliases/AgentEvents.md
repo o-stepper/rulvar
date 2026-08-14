@@ -48,6 +48,7 @@ type AgentEvents =
   costUsd: number;
   entryRef: number;
   exploration?: ExplorationSummary;
+  hostRejected?: boolean;
   label?: string;
   retryCount?: number;
   status: string;
@@ -214,6 +215,7 @@ vocabulary.
   costUsd: number;
   entryRef: number;
   exploration?: ExplorationSummary;
+  hostRejected?: boolean;
   label?: string;
   retryCount?: number;
   status: string;
@@ -231,6 +233,7 @@ vocabulary.
 | `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `entryRef` | `number` | - | `packages/core/dist/index.d.ts` |
 | `exploration?` | [`ExplorationSummary`](/api/@rulvar/rulvar/interfaces/ExplorationSummary.md) | The exploration guard counters (RV-210). Present live whenever any exploration guard limit was configured for the invocation; on replay present only when the guard abort journaled it in the terminal error payload. | `packages/core/dist/index.d.ts` |
+| `hostRejected?` | `boolean` | Present and true when the invocation was aborted by the host's finish rejection (RV3702): the declared finish contract rejected the candidate past its repair bound. Journaled on the terminal agent entry (unlike retryCount), so a replayed agent:end carries it too and both surfaces of the RV3404 cut read the same count. | `packages/core/dist/index.d.ts` |
 | `label?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `retryCount?` | `number` | Total transport retries across the span's activations. Present only when greater than zero; live telemetry only, never journaled, so a replayed agent:end omits it (absent means "zero or unknown"). | `packages/core/dist/index.d.ts` |
 | `status` | `string` | - | `packages/core/dist/index.d.ts` |
