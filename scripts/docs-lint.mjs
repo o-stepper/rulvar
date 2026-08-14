@@ -317,10 +317,31 @@ export function inProcessExecutorHits(content, relPath) {
 }
 
 /**
+ * Link targets are ADDRESSES, not published claims (RV3606). The
+ * durability registry's own anchor slug carries the vetted phrase
+ * (`#at-least-once-dispatch-exactly-once-pay`), so any page outside
+ * the allowlist that linked the precise fragment tripped the
+ * tombstone, and pages linked the bare page instead: the sentinel was
+ * making the one vetted claim UNADDRESSABLE. Before judging, the scan
+ * drops `[text](target)` targets, `<https://...>` autolinks, and bare
+ * absolute URLs; the link TEXT keeps being judged, because prose in
+ * brackets is still prose. Applied to markdown and source comments
+ * alike: a comment quoting the docs URL quotes an address too.
+ * @param {string} text @returns {string}
+ */
+const withoutLinkTargets = (text) =>
+  text
+    .replace(/\]\([^)]*\)/gu, '](#)')
+    .replace(/<https?:[^>]*>/gu, '<url>')
+    .replace(/https?:\/\/[^\s)\]>]+/gu, 'url');
+
+/**
  * The shared sentinel scanner behind the claim tombstones above:
  * per-line hits first, then the block pass that joins wrapped prose
  * (markdown paragraphs, comment blocks) so a claim split across lines
- * is still one published claim.
+ * is still one published claim. Link targets and bare URLs are cut
+ * before judging (RV3606): an address that quotes a vetted heading
+ * slug is not a claim.
  * @param {string} content
  * @param {string} relPath POSIX-style path relative to docs/ (markdown) or the repo root (sources)
  * @param {{ claimIn: (text: string) => boolean, message: string, allowlist?: Map<string, Set<string>> }} sentinel
@@ -343,7 +364,7 @@ function sentinelHits(content, relPath, sentinel) {
         currentAnchor = headingSlug(heading[1]);
       }
     }
-    if (!sentinel.claimIn(text.replace(/\s+/gu, ' '))) {
+    if (!sentinel.claimIn(withoutLinkTargets(text).replace(/\s+/gu, ' '))) {
       return;
     }
     if (isSource && !COMMENT_LINE.test(text)) {
@@ -379,7 +400,7 @@ function sentinelHits(content, relPath, sentinel) {
     if (!isSource && allowedAnchors?.has(anchor) === true) {
       return;
     }
-    if (sentinel.claimIn(parts.join(' ').replace(/\s+/gu, ' '))) {
+    if (sentinel.claimIn(withoutLinkTargets(parts.join(' ')).replace(/\s+/gu, ' '))) {
       hits.push({ line: start + 1, message: sentinel.message });
     }
   };
