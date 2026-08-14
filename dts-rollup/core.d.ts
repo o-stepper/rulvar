@@ -6428,6 +6428,8 @@ interface BudgetAccountView {
   finalizeReserveUsd: number;
   /** The synthesis payload hold (cycle 76); zero when none is committed. */
   synthesisReserveUsd: number;
+  /** The repair round's verdict hold (RV3701); zero when none is committed. */
+  convergenceReserveUsd: number;
   parentScope?: string;
 }
 /**
@@ -6727,6 +6729,28 @@ declare class RunBudget {
   commitSynthesisReserve(scope: string, reserveUsd: number): void;
   /** The synthesis dispatch consumes its reserve; see commitSynthesisReserve. */
   releaseSynthesisReserve(scope: string): void;
+  /**
+  * Registers the repair round's verdict reserve (RV3701, the third
+  * comparison experiment's arc): absolute dollars held on the
+  * orchestrator account AND the run root for the verdict pass (the
+  * round's second judge invocation) that must follow a DISPATCHED
+  * claim repair round. The third comparison run
+  * proved the round's two invocation tail is only as convergent as
+  * the money left when the candidate materializes; with the verdict
+  * money held from the moment the round is admitted, the round's own
+  * repair turns (the layer-2b clamp prices output from a remainder
+  * this hold shrinks) and any concurrent admission (the hold joins
+  * the projected admission sum) cannot eat it, so a round the budget
+  * can only START is refused before any wire call instead of being
+  * paid for and left unjudgeable. Exactly the synthesis reserve
+  * mechanics: released to the invocation it was held FOR (the
+  * verdict pass dispatch), never joined to the severing check.
+  * Idempotent per account: registering again adjusts the root by the
+  * delta.
+  */
+  commitConvergenceReserve(scope: string, reserveUsd: number): void;
+  /** The verdict pass dispatch consumes its reserve; see commitConvergenceReserve. */
+  releaseConvergenceReserve(scope: string): void;
   /** The reserve is replaced by real spend when the spawn settles. */
   releaseReserve(reserveUsd: number, accountScope?: string): void;
   /**
@@ -14738,7 +14762,13 @@ interface PreflightOrchestratorSpec {
     * before the first wire, not the journal after the last. Pairings
     * orchestrate() refuses at intake (repair at the draft stage,
     * repair without a synthesis, carry at the final stage, RV3301)
-    * surface as error findings: the run would refuse to start.
+    * surface as error findings: the run would refuse to start. This
+    * static arithmetic has a runtime twin (RV3701): at the moment a
+    * round actually dispatches, the engine holds the money of the round's second judge pass
+    * (this same `judge.estCost` first, else the run's own observed
+    * post draft judge price) until that pass admits, so the
+    * declared estimate is not only judged before the run but enforced
+    * inside it.
     */
     onFound?: "report" | "carry" | "fail" | "repair";
     /**

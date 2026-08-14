@@ -1741,4 +1741,125 @@ describe('the bounded post judge repair (RV3307)', () => {
     const meta = data.claimConsistencyMeta as Record<string, unknown>;
     expect(meta.findings).toBe(1);
   });
+
+  // The convergence hold (RV3701): the round is a two invocation
+  // bargain, and the verdict money is held from the moment the round
+  // is admitted until its second judge pass dispatches.
+  const RV3701_OPTS = {
+    acceptance: { childPolicy: 'all-ok' as const },
+    budget: { capUsd: 0.3, capFraction: 1.0 },
+    synthesis: { limits: { maxTurns: 3 }, estCost: 0.2 },
+    claimConsistency: {
+      stage: 'final' as const,
+      onFound: 'repair' as const,
+      judge: { model: 'judge:model' as const, estCost: 0.2 },
+    },
+  };
+
+  it('a round whose verdict cannot be funded refuses pre dispatch, hold named (RV3701)', async () => {
+    // The declared estimates fit the orchestrator cap one at a time
+    // (0.2 against 0.3) and the initial composition and first judge
+    // both seat; the round is the first moment BOTH invocations must
+    // fit together, and 0.2 held for the verdict plus 0.2 proposed for
+    // the composition does not fit 0.3: the honest pre dispatch class
+    // fires before any of the round's wires, not after its candidate.
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    const judge = scriptedAdapter((): ScriptedTurn => JUDGE_FINDS, { id: 'judge' });
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: FINAL_INVERTED } } }),
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', RV3701_OPTS),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const message = String((thrown as FailRunError).message);
+    expect(message).toContain('could not dispatch');
+    expect(message).toContain('held convergence reserve 0.2000');
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.roundDispatched).toBe(false);
+    expect(data.repairsUsed).toBe(0);
+  });
+
+  it('the hold releases to the verdict pass: a funded round converges byte for byte (RV3701)', async () => {
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    let judgeCall = 0;
+    const judgeTurns = [JUDGE_FINDS, JUDGE_AGREES];
+    const judge = scriptedAdapter(
+      (): ScriptedTurn => judgeTurns[Math.min(judgeCall++, judgeTurns.length - 1)] ?? JUDGE_FINDS,
+      { id: 'judge' },
+    );
+    let synthCall = 0;
+    const finals = [FINAL_INVERTED, FINAL_CLEAN];
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({
+        toolCall: { name: 'finish', args: { result: finals[Math.min(synthCall++, 1)] } },
+      }),
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...RV3701_OPTS,
+        budget: { capUsd: 0.5, capFraction: 1.0 },
+      }),
+      undefined,
+    )) as { result: unknown };
+    expect(outcome.result).toBe(FINAL_CLEAN);
+    expect(judge.calls).toHaveLength(2);
+    // The verdict pass consumed its hold: nothing is left committed on
+    // any account once the run settled.
+    expect(internals.budget.accountView('run')?.convergenceReserveUsd).toBe(0);
+  });
+
+  it('a verdict that still cannot rule after a dispatched round carries the round context (RV3701)', async () => {
+    // The lifetime spawn cap admits the worker, the initial synthesis,
+    // the final judge and the round's composition, then refuses the
+    // verdict pass itself: the undershot estimate shape. The typed
+    // decline used to describe a draft death; it now names the
+    // dispatched round beside the unconsumed findings.
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    const judge = scriptedAdapter((): ScriptedTurn => JUDGE_FINDS, { id: 'judge' });
+    let synthCall = 0;
+    const finals = [FINAL_INVERTED, FINAL_CLEAN];
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({
+        toolCall: { name: 'finish', args: { result: finals[Math.min(synthCall++, 1)] } },
+      }),
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+      lifetimeSpawnCap: 5,
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', REPAIR_OPTS),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain('could not be admitted');
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.roundDispatched).toBe(true);
+    expect(data.repairsUsed).toBe(1);
+    expect(typeof data.preRepairHash).toBe('string');
+    expect(Array.isArray(data.claimContradictions)).toBe(true);
+    expect((data.claimContradictions as unknown[]).length).toBe(1);
+    const meta = data.claimConsistencyMeta as Record<string, unknown>;
+    expect(meta.judgeDeclined).toBe(true);
+  });
 });

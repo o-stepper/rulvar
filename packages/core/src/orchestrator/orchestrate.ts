@@ -5813,6 +5813,15 @@ export function makeOrchestratorWorkflow(
      * not settle ok, because an empty list would claim the pool agreed.
      */
     let claimFindingsFound: ClaimContradictionFinding[] | undefined;
+    /**
+     * The observed price of this run's own latest post draft claim
+     * judge pass (RV3701): the fallback sizing of the repair round's
+     * convergence hold when the host declared no `judge.estCost`. By
+     * the time the bounded round can dispatch, a post draft pass has
+     * always settled (the round's findings came from it), so the
+     * fallback is this run's own money, never an invented constant.
+     */
+    let observedFinalJudgeCostUsd: number | undefined;
     /** Set whenever the pass ran, findings or not (the RV1404 pairing). */
     let claimConsistencyMeta: OrchestrateClaimConsistencyMeta | undefined;
     /**
@@ -6324,6 +6333,14 @@ export function makeOrchestratorWorkflow(
           ),
         );
         noteInternalSettle(judged);
+        // The convergence hold's fallback sizing (RV3701): captured on
+        // every settle (a failed judge was still paid for) and only for
+        // post draft passes, because the hold funds a second judge pass over the
+        // composed document and the draft pass prices a different
+        // prompt.
+        if (stage !== 'draft' && typeof judged.costUsd === 'number') {
+          observedFinalJudgeCostUsd = judged.costUsd;
+        }
       } catch (declined) {
         // The declined judge admission degrades typed (RV2106): the
         // ninth parity run's judge estimate did not fit the
@@ -8737,6 +8754,26 @@ export function makeOrchestratorWorkflow(
             .digest('hex');
         const preRepairHash = hashOfDocument(synthesizedFinal);
         const carried = claimFindingsFound;
+        // The convergence hold (RV3701, the third comparison
+        // experiment's arc): the round is a two invocation bargain, and
+        // admitting its composition on money that cannot also seat its
+        // verdict pass buys a candidate nobody can rule on. The verdict
+        // money is held BEFORE the round's admission runs, so the
+        // round's own synthesis admission (and every concurrent spawn)
+        // is checked against a remainder that already prices the
+        // verdict, and a round the budget can only start refuses
+        // pre dispatch through the honest 'could not dispatch' class
+        // instead of dying past the candidate. Sized from the host's
+        // declared `judge.estCost` first (exactly the figure the
+        // second judge pass will reserve at its own admission, byte
+        // for byte), else from this run's own observed post draft
+        // judge price; zero (inert) only when neither exists.
+        const convergenceHoldUsd =
+          opts?.claimConsistency?.judge?.estCost ?? observedFinalJudgeCostUsd ?? 0;
+        const convergenceScope = orchestratorAccount ?? ROOT_ACCOUNT;
+        if (convergenceHoldUsd > 0) {
+          internals.budget.commitConvergenceReserve(convergenceScope, convergenceHoldUsd);
+        }
         try {
           synthesizedFinal = await runSynthesis(result.output);
         } catch (thrown) {
@@ -8814,8 +8851,52 @@ export function makeOrchestratorWorkflow(
               },
             },
           );
+        } finally {
+          // The hold's whole purpose arrives here (the cycle 76 rule):
+          // released to the verdict pass it was held FOR, right before that
+          // dispatch admits, and released on both deaths too, so no
+          // terminal arithmetic ever carries a hold for a verdict that
+          // can no longer happen.
+          if (convergenceHoldUsd > 0) {
+            internals.budget.releaseConvergenceReserve(convergenceScope);
+          }
         }
-        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+        try {
+          await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+        } catch (thrown) {
+          // The round's THIRD death (RV3701): the candidate repaired
+          // and materialized, then the verdict pass could not rule (an
+          // admission decline the hold's estimate undershot, or a judge
+          // that did not settle ok). The typed throws below the judge
+          // already fail the run closed; what they cannot know is that
+          // they fired INSIDE the bounded round, so the terminal used
+          // to describe a draft death while a paid repaired candidate
+          // sat in the journal. The round context rides the same data,
+          // message untouched.
+          if (
+            thrown instanceof FailRunError &&
+            typeof thrown.data === 'object' &&
+            thrown.data !== null &&
+            !Array.isArray(thrown.data) &&
+            (thrown.data as { source?: unknown }).source === 'orchestrator_claim_consistency'
+          ) {
+            throw new FailRunError(thrown.message, {
+              data: {
+                ...(thrown.data as Record<string, Json | undefined>),
+                // The unconsumed findings ride every round death (the
+                // RV3601 rule); the judge side throws cannot know them.
+                ...((thrown.data as { claimContradictions?: unknown }).claimContradictions ===
+                undefined
+                  ? { claimContradictions: carried as unknown as Json }
+                  : {}),
+                roundDispatched: true,
+                repairsUsed: 1,
+                preRepairHash,
+              },
+            });
+          }
+          throw thrown;
+        }
         if (claimFindingsFound !== undefined && claimFindingsFound.length > 0) {
           throw new FailRunError(
             `the claim-consistency judge still found ${String(claimFindingsFound.length)} ` +

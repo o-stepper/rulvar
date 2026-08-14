@@ -794,3 +794,44 @@ describe('the exposure room clamps the plan it can still afford (RV2503)', () =>
     expect(budget.maxExposureOutputTokens('openai:sol', 10)).toBeLessThanOrEqual(0);
   });
 });
+
+describe('the convergence reserve (RV3701)', () => {
+  it('joins projected admission, shrinks both remainders, and releases whole', () => {
+    const budget = new RunBudget({ ceilingUsd: 1 });
+    budget.commitConvergenceReserve('run', 0.6);
+    expect(budget.accountView('run')?.convergenceReserveUsd).toBe(0.6);
+    expect(budget.remainderOf('run')).toBeCloseTo(0.4);
+    expect(budget.remainingUsd('run')).toBeCloseTo(0.4);
+    expect(() => budget.refuseSpawnIfInfeasible(0.5)).toThrow(BudgetExhaustedError);
+    expect(() => budget.refuseSpawnIfInfeasible(0.5)).toThrow(
+      /held convergence reserve 0\.6000 USD/,
+    );
+    // An exact fill beside the hold admits, the admitSpawn rule.
+    expect(() => budget.refuseSpawnIfInfeasible(0.4)).not.toThrow();
+    budget.releaseConvergenceReserve('run');
+    expect(budget.accountView('run')?.convergenceReserveUsd).toBe(0);
+    expect(budget.remainingUsd('run')).toBeCloseTo(1);
+    expect(() => budget.refuseSpawnIfInfeasible(0.5)).not.toThrow();
+  });
+
+  it('mirrors a sub account hold onto the root by the delta, registering again included', () => {
+    const budget = new RunBudget({ ceilingUsd: 2 });
+    budget.openAccount('orchestrator', {});
+    budget.commitConvergenceReserve('orchestrator', 0.5);
+    expect(budget.accountView('run')?.convergenceReserveUsd).toBe(0.5);
+    budget.commitConvergenceReserve('orchestrator', 0.3);
+    expect(budget.accountView('orchestrator')?.convergenceReserveUsd).toBe(0.3);
+    expect(budget.accountView('run')?.convergenceReserveUsd).toBeCloseTo(0.3);
+    budget.releaseConvergenceReserve('orchestrator');
+    expect(budget.accountView('orchestrator')?.convergenceReserveUsd).toBe(0);
+    // Delta arithmetic leaves float residue on the root, exactly the
+    // synthesis reserve's semantics; the residue is dust, not money.
+    expect(budget.accountView('run')?.convergenceReserveUsd).toBeCloseTo(0);
+  });
+
+  it('an unknown scope refuses typed and a released release stays a no-op', () => {
+    const budget = new RunBudget({});
+    expect(() => budget.commitConvergenceReserve('ghost', 0.1)).toThrow(ConfigError);
+    expect(() => budget.releaseConvergenceReserve('ghost')).not.toThrow();
+  });
+});

@@ -204,7 +204,13 @@ export interface PreflightOrchestratorSpec {
      * before the first wire, not the journal after the last. Pairings
      * orchestrate() refuses at intake (repair at the draft stage,
      * repair without a synthesis, carry at the final stage, RV3301)
-     * surface as error findings: the run would refuse to start.
+     * surface as error findings: the run would refuse to start. This
+     * static arithmetic has a runtime twin (RV3701): at the moment a
+     * round actually dispatches, the engine holds the money of the round's second judge pass
+     * (this same `judge.estCost` first, else the run's own observed
+     * post draft judge price) until that pass admits, so the
+     * declared estimate is not only judged before the run but enforced
+     * inside it.
      */
     onFound?: 'report' | 'carry' | 'fail' | 'repair';
     /**

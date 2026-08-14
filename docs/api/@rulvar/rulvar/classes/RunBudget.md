@@ -369,6 +369,45 @@ Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is
 
 ***
 
+### commitConvergenceReserve()
+
+```ts
+commitConvergenceReserve(scope, reserveUsd): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Registers the repair round's verdict reserve (RV3701, the third
+comparison experiment's arc): absolute dollars held on the
+orchestrator account AND the run root for the verdict pass (the
+round's second judge invocation) that must follow a DISPATCHED
+claim repair round. The third comparison run
+proved the round's two invocation tail is only as convergent as
+the money left when the candidate materializes; with the verdict
+money held from the moment the round is admitted, the round's own
+repair turns (the layer-2b clamp prices output from a remainder
+this hold shrinks) and any concurrent admission (the hold joins
+the projected admission sum) cannot eat it, so a round the budget
+can only START is refused before any wire call instead of being
+paid for and left unjudgeable. Exactly the synthesis reserve
+mechanics: released to the invocation it was held FOR (the
+verdict pass dispatch), never joined to the severing check.
+Idempotent per account: registering again adjusts the root by the
+delta.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+| `reserveUsd` | `number` |
+
+#### Returns
+
+`void`
+
+***
+
 ### commitFinalizeReserve()
 
 ```ts
@@ -689,6 +728,28 @@ arithmetic so the two can never disagree about a refusal.
 | ------ | ------ |
 | `reserveUsd` | `number` |
 | `accountScope?` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+### releaseConvergenceReserve()
+
+```ts
+releaseConvergenceReserve(scope): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The verdict pass dispatch consumes its reserve; see commitConvergenceReserve.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
 
 #### Returns
 

@@ -528,6 +528,33 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
+    id: 'repair-round-convergence-hold-commit',
+    doctrine:
+      'the verdict money is held from the moment the repair round is admitted, so an unfundable round refuses pre dispatch instead of paying for a candidate nobody can rule on (RV3701)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          internals.budget.commitConvergenceReserve(convergenceScope, convergenceHoldUsd);\n',
+    replace: '',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'repair-round-convergence-hold-release',
+    doctrine:
+      'the convergence hold releases to the verdict pass it was held for, on success and on both round deaths alike (RV3701)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '            internals.budget.releaseConvergenceReserve(convergenceScope);\n',
+    replace: '',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'budget-convergence-reserve-admission-sum',
+    doctrine:
+      'the convergence hold joins the projected admission sum, so no spawn can be admitted onto the verdict money (RV3701)',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '        account.synthesisReserveUsd +\n        account.convergenceReserveUsd;\n',
+    replace: '        account.synthesisReserveUsd;\n',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
     id: 'repair-round-lesson-clean-history',
     doctrine:
       'a clean mechanical history folds NO lessons line, so every existing prompt stays byte identical (RV3603)',
@@ -4773,9 +4800,8 @@ export const MUTATIONS = [
     doctrine:
       "findings that survive the bounded repair round fail the run typed (RV3307): disarmed, the repaired composition ships over the contradictions the judge just re-confirmed and 'repair' becomes a paid detour back to the 2026-08-12 silent ok/complete",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');\n        if (claimFindingsFound !== undefined && claimFindingsFound.length > 0) {",
-    replace:
-      "        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');\n        if (false) {",
+    find: '          throw thrown;\n        }\n        if (claimFindingsFound !== undefined && claimFindingsFound.length > 0) {',
+    replace: '          throw thrown;\n        }\n        if (false) {',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
