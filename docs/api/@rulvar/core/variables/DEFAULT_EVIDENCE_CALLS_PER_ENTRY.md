@@ -10,6 +10,6 @@
 const DEFAULT_EVIDENCE_CALLS_PER_ENTRY: 3 = 3;
 ```
 
-Defined in: [packages/core/src/engine/preflight.ts:672](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L672)
+Defined in: [packages/core/src/engine/preflight.ts:678](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L678)
 
 Default estimated executed calls per recorded evidence entry (RV303).

@@ -46,6 +46,7 @@ const EXPECTED = [
   'repair-survivor-refusal',
   'repair-round-host-rejection',
   'repair-round-own-pool',
+  'repair-round-verdict-reserve',
   'claim-judge-dead-armed-refusal',
 ];
 
@@ -166,6 +167,18 @@ describe('the fault-injection kit (RV811)', () => {
     // bought lesson; the initial composition's did not.
     expect(byName.get('repair-round-own-pool')?.observation.detail).toContain(
       'lesson carried=true',
+    );
+    // The RV3701 scenario: the money twin of the RV3602 pool; a round
+    // whose verdict cannot be funded refuses pre dispatch with the
+    // held convergence reserve named, one composition ever paid.
+    expect(byName.get('repair-round-verdict-reserve')?.observation.detail).toContain(
+      'roundDispatched=false',
+    );
+    expect(byName.get('repair-round-verdict-reserve')?.observation.detail).toContain(
+      'held convergence reserve named=true',
+    );
+    expect(byName.get('repair-round-verdict-reserve')?.observation.detail).toContain(
+      '1 composition(s) paid',
     );
     // The report is self-describing (RV1014): the scenario count can
     // never quietly shrink under a consumer that pins these.

@@ -3381,6 +3381,81 @@ const repairRoundOwnPool: FaultScenario = {
 };
 
 /**
+ * The convergence hold (RV3701): the round is a two invocation
+ * bargain, and the third comparison run's class was an honest fail
+ * closed WITHOUT convergence. RV3602 gave the round its own mechanical
+ * pool; this hold closes the money twin: the verdict money is held
+ * from the moment the round is admitted, so a round the budget can
+ * only start refuses BEFORE any of its wires instead of paying for a
+ * candidate nobody can rule on.
+ */
+const repairRoundVerdictReserve: FaultScenario = {
+  name: 'repair-round-verdict-reserve',
+  doctrine:
+    'the repair round pays for its verdict up front (RV3701): the money of the round ' +
+    'second judge pass (the declared judge estCost first, else the run own observed ' +
+    'post draft judge price) is held from the moment the round is admitted, a round ' +
+    'the budget can only start refuses through the honest pre dispatch class before ' +
+    'any of its wires with the held convergence reserve named in the refusal ' +
+    'arithmetic, and exactly one composition is ever paid for',
+  async run() {
+    const adapter = tailAdapter({
+      judge: () => TAIL_FINDS,
+      finals: [TAIL_FINAL_INVERTED],
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        synthesis: { limits: { maxTurns: 3 }, estCost: 0.2 },
+        budget: { capUsd: 0.3, capFraction: 1.0 },
+        claimConsistency: {
+          stage: 'final',
+          onFound: 'repair',
+          judge: { estCost: 0.2 },
+        },
+      }),
+      undefined,
+      { runId: 'fault-repair-verdict-reserve', budgetUsd: 10 },
+    ).result;
+    const data = (outcome.error?.data ?? {}) as {
+      source?: unknown;
+      roundDispatched?: unknown;
+      repairsUsed?: unknown;
+      claimConsistencyMeta?: { findings?: unknown };
+    };
+    const entries = await store.load('fault-repair-verdict-reserve');
+    const { compositions, judges } = tailSpans(entries);
+    const message = outcome.error?.message ?? '';
+    const holdNamed = message.includes('held convergence reserve 0.2000');
+    const matched =
+      outcome.status === 'error' &&
+      message.includes('could not dispatch') &&
+      holdNamed &&
+      data.source === 'orchestrator_claim_consistency' &&
+      data.roundDispatched === false &&
+      data.repairsUsed === 0 &&
+      data.claimConsistencyMeta?.findings === 1 &&
+      compositions.length === 1 &&
+      judges.length === 1;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}': roundDispatched=${String(data.roundDispatched)}, ` +
+          `repairsUsed=${String(data.repairsUsed)}, held convergence reserve ` +
+          `named=${String(holdNamed)}; ${String(compositions.length)} composition(s) ` +
+          `paid, ${String(judges.length)} final judge pass(es)`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', { status: outcome.status, error: outcome.error ?? null }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
+/**
  * The armed posture doctrine on a dead judge (RV3307): a gate armed to
  * stop or to repair must not pass silently when its judge cannot rule.
  * Both armed postures refuse typed; the round never runs.
@@ -3486,6 +3561,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   repairSurvivorRefusal,
   repairRoundHostRejection,
   repairRoundOwnPool,
+  repairRoundVerdictReserve,
   claimJudgeDeadArmedRefusal,
 ];
 

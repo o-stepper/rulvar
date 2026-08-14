@@ -151,6 +151,8 @@ export interface BudgetAccountView {
   finalizeReserveUsd: number;
   /** The synthesis payload hold (cycle 76); zero when none is committed. */
   synthesisReserveUsd: number;
+  /** The repair round's verdict hold (RV3701); zero when none is committed. */
+  convergenceReserveUsd: number;
   parentScope?: string;
 }
 
@@ -180,6 +182,8 @@ interface AccountState {
   finalizeReserveUsd: number;
   /** The synthesis payload hold (cycle 76); see commitSynthesisReserve. */
   synthesisReserveUsd: number;
+  /** The repair round's verdict hold (RV3701); see commitConvergenceReserve. */
+  convergenceReserveUsd: number;
   parentScope?: string;
   /**
    * Diagnostic label: the orchestrator cap account marks itself, and a
@@ -365,6 +369,7 @@ export class RunBudget {
       committedReserveUsd: 0,
       finalizeReserveUsd: 0,
       synthesisReserveUsd: 0,
+      convergenceReserveUsd: 0,
       controller: new AbortController(),
     };
     if (options.ceilingUsd !== undefined) {
@@ -471,6 +476,7 @@ export class RunBudget {
       committedReserveUsd: 0,
       finalizeReserveUsd: options.finalizeReserveUsd ?? 0,
       synthesisReserveUsd: 0,
+      convergenceReserveUsd: 0,
       parentScope,
       controller: new AbortController(),
     };
@@ -663,6 +669,7 @@ export class RunBudget {
       committedReserveUsd: account.committedReserveUsd,
       finalizeReserveUsd: account.finalizeReserveUsd,
       synthesisReserveUsd: account.synthesisReserveUsd,
+      convergenceReserveUsd: account.convergenceReserveUsd,
     };
     if (account.ceilingUsd !== undefined) {
       view.ceilingUsd = account.ceilingUsd;
@@ -689,7 +696,8 @@ export class RunBudget {
         account.spentUsd -
         account.committedReserveUsd -
         account.finalizeReserveUsd -
-        account.synthesisReserveUsd,
+        account.synthesisReserveUsd -
+        account.convergenceReserveUsd,
     );
   }
 
@@ -804,7 +812,8 @@ export class RunBudget {
         account.spentUsd +
         account.committedReserveUsd +
         account.finalizeReserveUsd +
-        account.synthesisReserveUsd;
+        account.synthesisReserveUsd +
+        account.convergenceReserveUsd;
       if (committed >= account.ceilingUsd || committed + reserveUsd > account.ceilingUsd) {
         if (account.scope === ROOT_ACCOUNT) {
           this.exhaustedInternal = true;
@@ -824,6 +833,13 @@ export class RunBudget {
             (account.synthesisReserveUsd > 0
               ? `plus the held synthesis reserve ${account.synthesisReserveUsd.toFixed(4)} USD `
               : '') +
+            // The convergence clause mirrors the synthesis one (RV3701):
+            // the hold that refuses a spawn must be IN the printed
+            // arithmetic, the RV2106 rule, and hold free refusals keep
+            // their bytes.
+            (account.convergenceReserveUsd > 0
+              ? `plus the held convergence reserve ${account.convergenceReserveUsd.toFixed(4)} USD `
+              : '') +
             `plus the proposed reserve ${reserveUsd.toFixed(4)} USD does not fit the ` +
             `ceiling ${account.ceilingUsd.toFixed(4)} USD`,
           {
@@ -833,6 +849,7 @@ export class RunBudget {
               committedReserveUsd: account.committedReserveUsd,
               finalizeReserveUsd: account.finalizeReserveUsd,
               synthesisReserveUsd: account.synthesisReserveUsd,
+              convergenceReserveUsd: account.convergenceReserveUsd,
               proposedReserveUsd: reserveUsd,
               ceilingUsd: account.ceilingUsd,
             },
@@ -952,6 +969,57 @@ export class RunBudget {
       );
     }
     account.synthesisReserveUsd = 0;
+    this.emitUpdate();
+  }
+
+  /**
+   * Registers the repair round's verdict reserve (RV3701, the third
+   * comparison experiment's arc): absolute dollars held on the
+   * orchestrator account AND the run root for the verdict pass (the
+   * round's second judge invocation) that must follow a DISPATCHED
+   * claim repair round. The third comparison run
+   * proved the round's two invocation tail is only as convergent as
+   * the money left when the candidate materializes; with the verdict
+   * money held from the moment the round is admitted, the round's own
+   * repair turns (the layer-2b clamp prices output from a remainder
+   * this hold shrinks) and any concurrent admission (the hold joins
+   * the projected admission sum) cannot eat it, so a round the budget
+   * can only START is refused before any wire call instead of being
+   * paid for and left unjudgeable. Exactly the synthesis reserve
+   * mechanics: released to the invocation it was held FOR (the
+   * verdict pass dispatch), never joined to the severing check.
+   * Idempotent per account: registering again adjusts the root by the
+   * delta.
+   */
+  commitConvergenceReserve(scope: string, reserveUsd: number): void {
+    const account = this.accounts.get(scope);
+    if (account === undefined) {
+      throw new ConfigError(`unknown budget account '${scope}' for the convergence reserve`);
+    }
+    const previous = account.convergenceReserveUsd;
+    account.convergenceReserveUsd = reserveUsd;
+    if (account.scope !== ROOT_ACCOUNT) {
+      this.root.convergenceReserveUsd = Math.max(
+        0,
+        this.root.convergenceReserveUsd + reserveUsd - previous,
+      );
+    }
+    this.emitUpdate();
+  }
+
+  /** The verdict pass dispatch consumes its reserve; see commitConvergenceReserve. */
+  releaseConvergenceReserve(scope: string): void {
+    const account = this.accounts.get(scope);
+    if (account === undefined || account.convergenceReserveUsd === 0) {
+      return;
+    }
+    if (account.scope !== ROOT_ACCOUNT) {
+      this.root.convergenceReserveUsd = Math.max(
+        0,
+        this.root.convergenceReserveUsd - account.convergenceReserveUsd,
+      );
+    }
+    account.convergenceReserveUsd = 0;
     this.emitUpdate();
   }
 
@@ -1248,7 +1316,11 @@ export class RunBudget {
       if (account.ceilingUsd === undefined) {
         continue;
       }
-      const headroom = account.ceilingUsd - account.spentUsd - account.synthesisReserveUsd;
+      const headroom =
+        account.ceilingUsd -
+        account.spentUsd -
+        account.synthesisReserveUsd -
+        account.convergenceReserveUsd;
       remaining = remaining === undefined ? headroom : Math.min(remaining, headroom);
     }
     return remaining === undefined ? undefined : Math.max(0, remaining);
