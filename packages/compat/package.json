@@ -25,7 +25,6 @@
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "pnpm -w exec vitest run --project @rulvar/compat",
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {

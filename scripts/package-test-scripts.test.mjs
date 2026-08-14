@@ -40,6 +40,15 @@ test('every workspace package with test files declares a real test script (RV360
       continue;
     }
     const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+    // @rulvar/compat is published-immutable (the compat-immutability
+    // gate): its packed bytes must reproduce the published artifact,
+    // so its package.json cannot gain a script until a REAL compat
+    // release. Its single test still runs in the root suite and via
+    // `vitest run --project @rulvar/compat` directly; the filter form
+    // stays a documented no-op for exactly this one package.
+    if (pkg.name === '@rulvar/compat') {
+      continue;
+    }
     const script = pkg.scripts?.test;
     if (typeof script !== 'string' || script.length === 0) {
       offenders.push(`${pkg.name}: ${String(testFiles)} test file(s), no test script`);
