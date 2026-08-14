@@ -3283,7 +3283,9 @@ const repairRoundOwnPool: FaultScenario = {
     'bounded claim repair round enters with the full maxRepairs even after the initial ' +
     'composition spent its own, so the frozen third comparison sequence converges to ' +
     'ok/complete with verdicts repair/accepted twice and repairsUsed restarting at the ' +
-    'invocation boundary, never a host rejection born of an inherited spent pool',
+    'invocation boundary, never a host rejection born of an inherited spent pool; the ' +
+    "round's prompt also carries the HOST VALIDATION LESSONS block naming the failure " +
+    'the run already paid for (RV3603), while the initial composition carries none',
   async run() {
     let judgeCalls = 0;
     const adapter = tailAdapter({
@@ -3333,6 +3335,17 @@ const repairRoundOwnPool: FaultScenario = {
       .map((entry) => entry.value as { verdict?: string; repairsUsed?: number });
     const verdicts = verdictRows.map((row) => row.verdict).join(',');
     const pools = verdictRows.map((row) => String(row.repairsUsed)).join(',');
+    // The bought lessons ride the round's fresh invocation (RV3603):
+    // the initial composition's prompt predates any failure, the
+    // round's prompt names the validator the run already paid for.
+    const compositionPrompts = adapter.calls
+      .filter((call) => call.label === 'final-composition')
+      .map((call) => call.prompt);
+    const lessonCarried =
+      compositionPrompts.length === 4 &&
+      compositionPrompts[0]?.includes('HOST VALIDATION LESSONS') === false &&
+      compositionPrompts[2]?.includes('HOST VALIDATION LESSONS') === true &&
+      compositionPrompts[2]?.includes('provenance-anchor') === true;
     const matched =
       outcome.status === 'ok' &&
       value?.result === TAIL_FINAL_CLEAN &&
@@ -3341,6 +3354,7 @@ const repairRoundOwnPool: FaultScenario = {
       pools === '0,1,0,1' &&
       (value.rejectedFinishCandidates?.length ?? 0) === 2 &&
       value.rejectedFinishCandidates?.every((row) => row.verdict === 'repair') === true &&
+      lessonCarried &&
       compositions.length === 2 &&
       judges.length === 2;
     return {
@@ -3349,7 +3363,8 @@ const repairRoundOwnPool: FaultScenario = {
         detail:
           `run '${outcome.status}' shipped ${value?.result === TAIL_FINAL_CLEAN ? 'the repaired document' : 'an unexpected document'}; ` +
           `verdicts [${verdicts}], repairsUsed [${pools}] (fresh pool at the invocation ` +
-          `boundary); meta findings=${String(value?.claimConsistencyMeta?.findings)}; ` +
+          `boundary); lesson carried=${String(lessonCarried)}; meta findings=` +
+          `${String(value?.claimConsistencyMeta?.findings)}; ` +
           `${String(compositions.length)} composition(s), ${String(judges.length)} final ` +
           'judge pass(es)',
       },

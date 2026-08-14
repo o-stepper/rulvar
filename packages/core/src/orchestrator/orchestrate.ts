@@ -316,6 +316,16 @@ export interface OrchestrateAcceptance {
 export const DEFAULT_FINISH_MAX_REPAIRS = 1;
 
 /**
+ * Character cap of the HOST VALIDATION LESSONS prompt block (RV3603):
+ * the bounded repair round's prompt folds the run's journaled finish
+ * validation failures so the round does not relearn a lesson the run
+ * already bought, and a pathological history must not flood the
+ * composition context. Rows keep journal order; the tail is dropped
+ * and the block names how many rows it dropped.
+ */
+export const FINISH_LESSON_CAP_CHARS = 2000;
+
+/**
  * Default maxTurns of the synthesize invocation (RV-211): the finish
  * call plus headroom for one validator repair exchange.
  */
@@ -4538,6 +4548,53 @@ export function makeOrchestratorWorkflow(
       );
     };
     /**
+     * The HOST VALIDATION LESSONS block (RV3603): the third comparison
+     * run's repair round regressed provenance, the exact class the
+     * initial composition's mechanical loop had fixed minutes earlier,
+     * because the round is a FRESH invocation with no memory of
+     * exchanges it never saw. The block folds the run's journaled
+     * finish validation failures (current contract generation only,
+     * deduplicated by validator and reasons, journal order) so the
+     * round keeps the lessons the run already paid for. Derived ONLY
+     * from journaled decisions: a resume re-derives identical bytes.
+     * Capped at {@link FINISH_LESSON_CAP_CHARS}; the dropped row count
+     * is named, never silent.
+     */
+    const hostValidationLessons = (): string[] => {
+      const rows: { validator: string; reasons: string[] }[] = [];
+      const seen = new Set<string>();
+      for (const decision of validationDecisions()) {
+        if (decision.failed.length === 0 || !contractGenerationCurrent(decision)) {
+          continue;
+        }
+        for (const failure of decision.failed) {
+          const key = JSON.stringify([failure.name, failure.reasons]);
+          if (seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          rows.push({ validator: failure.name, reasons: failure.reasons });
+        }
+      }
+      if (rows.length === 0) {
+        return [];
+      }
+      let kept = rows.length;
+      while (kept > 1 && JSON.stringify(rows.slice(0, kept)).length > FINISH_LESSON_CAP_CHARS) {
+        kept -= 1;
+      }
+      const dropped = rows.length - kept;
+      return [
+        'HOST VALIDATION LESSONS: earlier composition attempts in this run failed the ' +
+          'declared finish contract exactly so; keep the repaired result clear of these ' +
+          'failures while resolving the contradictions. ' +
+          JSON.stringify(rows.slice(0, kept)) +
+          (dropped === 0
+            ? ''
+            : ` (${String(dropped)} lesson row${dropped === 1 ? '' : 's'} truncated)`),
+      ];
+    };
+    /**
      * The children snapshot (RV-202): spawn order, pure reads of the
      * records the orchestrator already tracks, so validators can hold
      * a finish result (or the RV510 draft pre-pass) against the
@@ -6917,6 +6974,18 @@ export function makeOrchestratorWorkflow(
                 '(say which reading holds and why) instead of keeping the inverted claim. ' +
                 JSON.stringify(claimFindingsFound),
             ]),
+        // The bought lessons ride beside the findings (RV3603): folded
+        // only from journaled finish validation decisions, present
+        // exactly when the prompt already carries judged findings AND
+        // a rejected attempt exists, so every existing prompt stays
+        // byte identical (the initial composition predates any
+        // findings, and a clean history folds nothing).
+        ...((opts?.claimConsistency?.onFound !== 'carry' &&
+          opts?.claimConsistency?.onFound !== 'repair') ||
+        claimFindingsFound === undefined ||
+        claimFindingsFound.length === 0
+          ? []
+          : hostValidationLessons()),
         // The opt-in policy-facts line (RV709): folded ONLY from
         // replay-stable material (the settled child results' durable
         // tool-budget subsets, which the journal replays verbatim), so

@@ -2691,6 +2691,10 @@
             "link": "/api/@rulvar/core/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
           },
           {
+            "text": "FINISH_LESSON_CAP_CHARS",
+            "link": "/api/@rulvar/core/variables/FINISH_LESSON_CAP_CHARS.md"
+          },
+          {
             "text": "FINISH_SCHEMA",
             "link": "/api/@rulvar/core/variables/FINISH_SCHEMA.md"
           },
@@ -7807,6 +7811,10 @@
           {
             "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
             "link": "/api/@rulvar/rulvar/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
+          },
+          {
+            "text": "FINISH_LESSON_CAP_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/FINISH_LESSON_CAP_CHARS.md"
           },
           {
             "text": "FINISH_SCHEMA",
