@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-The claim repair round pays for its verdict up front (RV3701, the third comparison experiment's arc). The round is a two invocation bargain, and admitting its composition on money that cannot also seat the second judge pass buys a candidate nobody can rule on: the budget now holds the verdict money (a new `convergenceReserveUsd` hold with exactly the synthesis reserve mechanics: counted by projected admission and the layer-2b clamp, released to the pass it was held for) from the moment the round is admitted until its judge dispatches, sized from the declared `claimConsistency.judge.estCost` first (the same figure that pass reserves at admission, so the guarantee is exact) and else from the run's own observed post draft judge price. A round the budget can only start now refuses through the honest pre dispatch decline before any wire call. And when the verdict still cannot be ruled after a dispatched round, the typed failure carries the round context (`roundDispatched: true`, `repairsUsed: 1`, `preRepairHash`, the unconsumed findings) instead of describing a draft death while a paid repaired candidate sits in the journal.

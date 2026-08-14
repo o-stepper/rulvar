@@ -18,6 +18,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+
 ### 1.241.0
 
 #### Patch Changes
@@ -2216,6 +2225,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+
 ### 1.241.0
 
 #### Patch Changes
@@ -4209,6 +4227,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
 
 ### 1.241.0
 
@@ -6769,6 +6796,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.242.0
+
+#### Minor Changes
+
+- 6e3438e: The claim repair round pays for its verdict up front (RV3701, the third comparison experiment's arc). The round is a two invocation bargain, and admitting its composition on money that cannot also seat the second judge pass buys a candidate nobody can rule on: the budget now holds the verdict money (a new `convergenceReserveUsd` hold with exactly the synthesis reserve mechanics: counted by projected admission and the layer-2b clamp, released to the pass it was held for) from the moment the round is admitted until its judge dispatches, sized from the declared `claimConsistency.judge.estCost` first (the same figure that pass reserves at admission, so the guarantee is exact) and else from the run's own observed post draft judge price. A round the budget can only start now refuses through the honest pre dispatch decline before any wire call. And when the verdict still cannot be ruled after a dispatched round, the typed failure carries the round context (`roundDispatched: true`, `repairsUsed: 1`, `preRepairHash`, the unconsumed findings) instead of describing a draft death while a paid repaired candidate sits in the journal.
+- ba5cf67: The host rejection becomes legible at the span level (RV3702, the third comparison experiment's arc). The third comparison run's reader saw the repair round's composition span end `cancelled` with both wires fine and had nothing to name the layer split. The finish contract's final rejection now aborts with the exported `FINISH_REJECTION_ABORT_REASON`, and the settle layer stamps `hostRejected: true` onto the terminal agent entry (a policy field, replay carries it) and the live `agent:end` event; a defective throwing validator aborts with its own distinct reason and never stamps, because a host defect is not a verdict on the candidate. Both surfaces of the critical path cut count the stamps as `hostRejectedSpans` (unconditional, zero when none), and the invocation table's rows carry the flag, so a reader can tell a document refused by host validation from a provider failure without a journal dig.
+- c2d1531: The price table provenance grows its content tail (RV3703, the R11 remainder of the third comparison experiment's arc). Every pinned pricing segment, and the snapshot's top level, now carries `rowsHash` (sha256 over the canonical JSON of the pinned rows) and the `ratesVerifiedAt` freshness range of its dated rows (oldest and newest, absent when no row is dated). The version string is a label the table author chose, and the arc held a price defect a label cannot expose: the hash is the content, so two tables sharing a version string but disagreeing on rates are distinguishable in any stored export, and two folds of one journal always derive the same hex. Computed at read time from the pinned bytes: the journal is unchanged and every existing pin gains the tail; invoice provenance and the CLI pass the segments through unchanged.
 
 ### 1.241.0
 
@@ -9594,6 +9629,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.242.0
+
 ### 1.241.0
 
 ### 1.240.0
@@ -10180,6 +10217,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+  - @rulvar/anthropic@1.242.0
+  - @rulvar/openai@1.242.0
+  - @rulvar/plan@1.242.0
+  - @rulvar/testing@1.242.0
 
 ### 1.241.0
 
@@ -12968,6 +13018,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+
 ### 1.241.0
 
 #### Patch Changes
@@ -14372,6 +14431,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
 
 ### 1.241.0
 
@@ -16572,6 +16640,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+
 ### 1.241.0
 
 #### Patch Changes
@@ -18684,6 +18761,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+  - eslint-plugin-rulvar@1.242.0
 
 ### 1.241.0
 
@@ -20995,6 +21082,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+  - @rulvar/anthropic@1.242.0
+  - @rulvar/openai@1.242.0
 
 ### 1.241.0
 
@@ -23633,6 +23731,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+
 ### 1.241.0
 
 #### Patch Changes
@@ -25748,6 +25855,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
+
 ### 1.241.0
 
 #### Patch Changes
@@ -27168,6 +27284,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
 
 ### 1.241.0
 
@@ -29220,6 +29345,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.242.0
+
+#### Patch Changes
+
+- Updated dependencies [6e3438e]
+- Updated dependencies [ba5cf67]
+- Updated dependencies [c2d1531]
+  - @rulvar/core@1.242.0
 
 ### 1.241.0
 
