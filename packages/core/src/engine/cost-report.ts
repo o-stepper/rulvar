@@ -53,6 +53,30 @@ function isOrchestratorAccount(scope: string): boolean {
 }
 
 /**
+ * The named fallback bucket of the attribution folds (RV3604): an
+ * absent phase, an EMPTY phase and an empty agentType all fold under
+ * 'unknown' instead of minting a '' key. The third comparison run's
+ * report read `byPhase {"": 5.58}` for the whole run and a '' bucket
+ * beside the named agent types: the empty string passed the `??`
+ * fallback, and a '' key is unaddressable in every downstream table.
+ * Both builders and both live accumulation sites apply this one rule,
+ * so the live report and the journal fold cannot disagree on the key.
+ */
+export function attributionBucket(value: string | undefined): string {
+  return value === undefined || value === '' ? 'unknown' : value;
+}
+
+/** {@link attributionBucket} over a whole live map, merging folded keys. */
+function foldBuckets(source: ReadonlyMap<string, number>): Record<string, number> {
+  const folded: Record<string, number> = {};
+  for (const [key, usd] of source) {
+    const bucket = attributionBucket(key);
+    folded[bucket] = (folded[bucket] ?? 0) + usd;
+  }
+  return folded;
+}
+
+/**
  * Folds the per-run attribution buckets into the normative CostReport.
  * Live attribution buckets never see abandoned subtrees, so a host
  * that tracked abandoned spend itself passes it as `abandoned`;
@@ -83,8 +107,8 @@ export function buildCostReport(
     grossUsd: totalUsd + abandoned.usd,
     abandoned,
     byModel: Object.fromEntries(attribution.byModel),
-    byPhase: Object.fromEntries(attribution.byPhase),
-    byAgentType: Object.fromEntries(attribution.byAgentType),
+    byPhase: foldBuckets(attribution.byPhase),
+    byAgentType: foldBuckets(attribution.byAgentType),
     byRole,
     orchestrator: {
       ...orchestrator,
@@ -205,9 +229,12 @@ export function costReportFromJournal(
       usageApprox = true;
     }
     const facts = entry.costAttribution;
-    const phase = facts?.phase ?? '';
+    // The named fallback (RV3604): absent AND empty fold under
+    // 'unknown'; `?? 'unknown'` alone let '' through, and phase used
+    // to fall back to '' itself.
+    const phase = attributionBucket(facts?.phase);
     byPhase[phase] = (byPhase[phase] ?? 0) + priced.usd;
-    const agentType = facts?.agentType ?? 'unknown';
+    const agentType = attributionBucket(facts?.agentType);
     byAgentType[agentType] = (byAgentType[agentType] ?? 0) + priced.usd;
     // Each priced slice lands in ITS OWN phase bucket (v1.19.0 review
     // P1-2): a slice without a role (written before roles shipped, or

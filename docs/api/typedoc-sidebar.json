@@ -2957,6 +2957,10 @@
             "link": "/api/@rulvar/core/functions/attestToolset.md"
           },
           {
+            "text": "attributionBucket",
+            "link": "/api/@rulvar/core/functions/attributionBucket.md"
+          },
+          {
             "text": "auditRun",
             "link": "/api/@rulvar/core/functions/auditRun.md"
           },
@@ -8089,6 +8093,10 @@
           {
             "text": "attestToolset",
             "link": "/api/@rulvar/rulvar/functions/attestToolset.md"
+          },
+          {
+            "text": "attributionBucket",
+            "link": "/api/@rulvar/rulvar/functions/attributionBucket.md"
           },
           {
             "text": "auditRun",

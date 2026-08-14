@@ -537,6 +537,32 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
+    id: 'cost-fold-journal-phase-bucket',
+    doctrine:
+      'the journal fold names the fallback phase bucket instead of minting a blank key (RV3604)',
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: '    const phase = attributionBucket(facts?.phase);\n',
+    replace: "    const phase = facts?.phase ?? '';\n",
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
+    id: 'cost-fold-journal-agenttype-bucket',
+    doctrine: 'the journal fold catches an EMPTY agentType, not only an absent one (RV3604)',
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: '    const agentType = attributionBucket(facts?.agentType);\n',
+    replace: "    const agentType = facts?.agentType ?? 'unknown';\n",
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
+    id: 'cost-fold-live-builder-bucket',
+    doctrine:
+      'the exported live builder folds blank map keys under the named bucket, merging (RV3604)',
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: '    byPhase: foldBuckets(attribution.byPhase),\n',
+    replace: '    byPhase: Object.fromEntries(attribution.byPhase),\n',
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
     id: 'jsonl-valid-tail-terminate',
     doctrine:
       'append terminates a parseable unterminated tail before writing, so it never glues two accepted records into one disposable line (RV701)',

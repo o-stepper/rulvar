@@ -77,8 +77,15 @@ export interface CostReport {
   };
   /** Keyed by canonical ModelRef 'adapterId:model'. */
   byModel: Record<string, number>;
-  /** ctx.phase names; phase is structural for this map. */
+  /**
+   * ctx.phase names; phase is structural for this map. Spend with no
+   * phase, or an EMPTY phase, folds under the named 'unknown' bucket
+   * (RV3604): a '' key is unaddressable in every downstream table,
+   * and the third comparison run's report read `byPhase {"": 5.58}`
+   * for the whole run.
+   */
   byPhase: Record<string, number>;
+  /** Spawn agentType names; absent and empty fold under 'unknown' (RV3604). */
   byAgentType: Record<string, number>;
   byRole: Record<InvocationRole, number>;
   /**
