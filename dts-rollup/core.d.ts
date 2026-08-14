@@ -10717,10 +10717,15 @@ interface OrchestrateClaimConsistencyMeta {
   * is a clean verdict, a positive count is a disagreement that stayed
   * wherever the posture did not stop the run. The findings themselves
   * ride `claimContradictions` beside this meta on the acceptance
-  * envelope, but the meta travels ALONE onto RunOutcome, the
-  * journaled run settle, and the terminal envelope, and the
-  * 2026-08-12 comparison run settled ok/complete over a retained
-  * finding no terminal surface could count.
+  * envelope, and since RV3601 the engine lifts them onto RunOutcome,
+  * the journaled settle and `run:end` beside the meta, from the
+  * envelope or the typed error data alike: the 2026-08-12 comparison
+  * run settled ok/complete over a retained finding no terminal
+  * surface could count (this count is that fix, RV3304), then the
+  * 2026-08-13 run failed typed with the findings buried in error
+  * data while the outcome's top level read null. Only the compact
+  * terminal envelope still carries the meta alone, this count
+  * standing in for the details.
   */
   findings?: number;
   /**
@@ -12177,7 +12182,20 @@ type RunOutcome<R> = {
   * and the error terminal carried null: the truth now rides every
   * terminal that has it, ok and failed alike.
   */
-  claimConsistencyMeta?: Record<string, unknown>; /** The synthesis-skip marker from the same envelope; same lift and posture (RV2203). */
+  claimConsistencyMeta?: Record<string, unknown>;
+  /**
+  * The judged contradictions themselves (RV3601), lifted from the
+  * same envelope or typed error data as the meta beside them. RV3304
+  * deliberately kept the details off this surface and let the meta's
+  * `findings` count stand in; the 2026-08-13 comparison run then
+  * failed typed with the findings buried in `error.data` while the
+  * outcome's top level read null beside a null meta, so the details
+  * now ride wherever the meta rides (this outcome, the journaled
+  * settle, `run:end`), the compact terminal envelope alone keeping
+  * the meta only. `[]` is the judge's claim of a clean document;
+  * absence means nothing was judged (RV1209).
+  */
+  claimContradictions?: Record<string, unknown>[]; /** The synthesis-skip marker from the same envelope; same lift and posture (RV2203). */
   synthesisSkipped?: boolean | string;
   /**
   * Whether the artifact THIS terminal carries was accepted by the

@@ -27,6 +27,7 @@ import {
   pairRunFactClaims,
 } from './consistency.js';
 import { makeOrchestratorWorkflow } from './orchestrate.js';
+import { minMatchesValidator } from './finish-validators.js';
 
 describe('pairDraftClaims (RV1501)', () => {
   it('pairs a draft sentence with the pool sentence reading the same anchor differently', () => {
@@ -1526,5 +1527,88 @@ describe('the bounded post judge repair (RV3307)', () => {
     ).catch((e: unknown) => e);
     expect(thrown).toBeInstanceOf(FailRunError);
     expect(String((thrown as FailRunError).message)).toContain('armed repair posture');
+  });
+
+  // The round's two deaths are different facts (RV3601): the third
+  // comparison run's round dispatched, paid its wires and lost its
+  // candidate to the finish contract, and the terminal read 'could
+  // not dispatch' with repairsUsed 0 over a null judge meta.
+  const RV3601_OPTS = {
+    ...REPAIR_OPTS,
+    finishValidation: {
+      validators: [
+        minMatchesValidator({ pattern: 'src/[a-z]+\\.ts:\\d+', min: 1, name: 'provenance-anchor' }),
+      ],
+      maxRepairs: 1,
+    },
+  };
+  const FINAL_UNGROUNDED = 'final: repaired wording with the provenance stripped.';
+
+  it('a round that dispatched and lost its candidate to host validation says so, typed (RV3601)', async () => {
+    const { internals, synthesis } = repairHarness({
+      judgeTurns: [JUDGE_FINDS],
+      finals: [FINAL_INVERTED, FINAL_UNGROUNDED, FINAL_UNGROUNDED],
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', RV3601_OPTS),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const message = String((thrown as FailRunError).message);
+    expect(message).toContain('dispatched and its repaired candidate failed host validation');
+    expect(message).not.toContain('could not dispatch');
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.source).toBe('orchestrator_claim_consistency');
+    expect(data.roundDispatched).toBe(true);
+    expect(data.repairsUsed).toBe(1);
+    expect(Array.isArray(data.claimContradictions)).toBe(true);
+    expect((data.claimContradictions as unknown[]).length).toBe(1);
+    const meta = data.claimConsistencyMeta as Record<string, unknown>;
+    expect(meta.judgedStage).toBe('final');
+    expect(meta.findings).toBe(1);
+    expect(typeof data.preRepairHash).toBe('string');
+    const verdict = data.finishValidation as Record<string, unknown>;
+    expect(typeof verdict.callId).toBe('string');
+    expect(verdict.repairsUsed).toBe(1);
+    expect(verdict.maxRepairs).toBe(1);
+    expect(typeof verdict.candidateHash).toBe('string');
+    expect(typeof verdict.candidateChars).toBe('number');
+    expect(JSON.stringify(verdict.failed)).toContain('provenance-anchor');
+    // The initial composition's turn, then the round's candidate and
+    // its granted mechanical repair turn: three synthesis turns.
+    expect(synthesis.calls).toHaveLength(3);
+  });
+
+  it('a round that truly could not dispatch keeps its frame and now carries the judge meta (RV3601)', async () => {
+    // The lifetime spawn cap admits the worker, the initial synthesis
+    // and the final judge, then refuses the round's composition: the
+    // one death where 'could not dispatch' is the honest frame.
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    const judge = scriptedAdapter((): ScriptedTurn => JUDGE_FINDS, { id: 'judge' });
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: FINAL_INVERTED } } }),
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+      lifetimeSpawnCap: 4,
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', REPAIR_OPTS),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain('could not dispatch');
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.roundDispatched).toBe(false);
+    expect(data.repairsUsed).toBe(0);
+    expect(data.finishValidation).toBeUndefined();
+    expect(Array.isArray(data.claimContradictions)).toBe(true);
+    const meta = data.claimConsistencyMeta as Record<string, unknown>;
+    expect(meta.findings).toBe(1);
   });
 });

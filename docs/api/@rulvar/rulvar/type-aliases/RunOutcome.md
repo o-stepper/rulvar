@@ -14,6 +14,7 @@ type RunOutcome<R> = {
   childrenAtFailure?: ChildrenAtFailure;
   childStatusCounts?: Record<string, number>;
   claimConsistencyMeta?: Record<string, unknown>;
+  claimContradictions?: Record<string, unknown>[];
   completion?: "complete" | "partial" | "rejected";
   cost: CostReport;
   degradedReasons?: string[];
@@ -160,6 +161,27 @@ the pair counts), lifted from the same envelope or typed error
 data (RV2203). The RV2106 mirror run journaled its declined judge
 and the error terminal carried null: the truth now rides every
 terminal that has it, ok and failed alike.
+
+***
+
+### claimContradictions?
+
+```ts
+optional claimContradictions?: Record<string, unknown>[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The judged contradictions themselves (RV3601), lifted from the
+same envelope or typed error data as the meta beside them. RV3304
+deliberately kept the details off this surface and let the meta's
+`findings` count stand in; the 2026-08-13 comparison run then
+failed typed with the findings buried in `error.data` while the
+outcome's top level read null beside a null meta, so the details
+now ride wherever the meta rides (this outcome, the journaled
+settle, `run:end`), the compact terminal envelope alone keeping
+the meta only. `[]` is the judge's claim of a clean document;
+absence means nothing was judged (RV1209).
 
 ***
 

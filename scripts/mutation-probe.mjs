@@ -473,6 +473,34 @@ export const MUTATIONS = [
     test: 'packages/cli/src/index.test.ts',
   },
   {
+    id: 'repair-round-host-rejection-class',
+    doctrine:
+      'a repair round throw carrying the finish validation source is classified as the dispatched host rejection, never folded into could not dispatch (RV3601)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "            (thrown.data as { source?: unknown }).source === 'orchestrator_finish_validation'\n",
+    replace:
+      "            (thrown.data as { source?: unknown }).source === 'rv3601-never-matches'\n",
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'repair-round-decline-meta',
+    doctrine:
+      'the could not dispatch decline carries the judge meta beside the findings instead of a null top level over a journal holding the verdict (RV3601)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '                claimConsistencyMeta: claimConsistencyMeta as unknown as Json,\n                repairsUsed: 0,\n',
+    replace: '                repairsUsed: 0,\n',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'claim-contradictions-outcome-lift',
+    doctrine:
+      'the engine lifts the judged findings beside the meta onto RunOutcome from the envelope or the typed error data (RV3601)',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '        if (lifted.claimContradictions !== undefined) {\n          outcomeFacts.claimContradictions = lifted.claimContradictions;\n        }\n',
+    replace: '',
+    test: 'packages/core/src/engine/run-completion.test.ts',
+  },
+  {
     id: 'jsonl-valid-tail-terminate',
     doctrine:
       'append terminates a parseable unterminated tail before writing, so it never glues two accepted records into one disposable line (RV701)',

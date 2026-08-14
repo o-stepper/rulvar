@@ -32,6 +32,7 @@ import {
   LeaseHeldError,
   makeOrchestratorWorkflow,
   memoryQuotaLimiter,
+  minMatchesValidator,
   citedValueValidator,
   evidenceGradeValidator,
   preflightEstimate,
@@ -2914,6 +2915,7 @@ const TAIL_FINAL_INVERTED =
 const TAIL_FINAL_STILL_INVERTED =
   'final: the repaired text still flips the recorded outcome [src/exec.ts:256-296].';
 const TAIL_FINAL_CLEAN = 'final: a failed audit write does not mask success [src/exec.ts:256-296].';
+const TAIL_FINAL_UNGROUNDED = 'final: repaired wording with the provenance stripped.';
 const TAIL_FINDS = {
   contradictions: [{ pair: 0, reason: 'the draft inverts the recorded reading' }],
 };
@@ -3163,6 +3165,106 @@ const repairSurvivorRefusal: FaultScenario = {
 };
 
 /**
+ * The round's second death told straight (RV3601): the third
+ * comparison run's repair round DISPATCHED, paid two wires, produced
+ * a candidate its own finish contract rejected, and the terminal read
+ * 'could not dispatch' with repairsUsed 0 beside a null judge meta
+ * and null findings. The class now names the host rejection, counts
+ * the bounded round as spent, mirrors the finish verdict facts, and
+ * the engine lifts the findings beside the meta onto the outcome.
+ */
+const repairRoundHostRejection: FaultScenario = {
+  name: 'repair-round-host-rejection',
+  doctrine:
+    'a repair round that dispatched and lost its candidate to the finish contract fails ' +
+    "typed as a host rejection (RV3601): the message names the dispatch, never 'could " +
+    "not dispatch'; data carries roundDispatched true, repairsUsed 1, the judge meta " +
+    'beside the findings, and the finish verdict verbatim (failed validators, ' +
+    'candidateHash, candidateChars); the outcome lifts the findings beside the meta',
+  async run() {
+    const adapter = tailAdapter({
+      judge: () => TAIL_FINDS,
+      finals: [TAIL_FINAL_INVERTED, TAIL_FINAL_UNGROUNDED, TAIL_FINAL_UNGROUNDED],
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        claimConsistency: { stage: 'final', onFound: 'repair' },
+        finishValidation: {
+          validators: [
+            minMatchesValidator({
+              pattern: 'src/[a-z]+\\.ts:\\d+',
+              min: 1,
+              name: 'provenance-anchor',
+            }),
+          ],
+          maxRepairs: 1,
+        },
+      }),
+      undefined,
+      { runId: 'fault-repair-host-rejection', budgetUsd: 10 },
+    ).result;
+    const data = (outcome.error?.data ?? {}) as {
+      source?: unknown;
+      roundDispatched?: unknown;
+      repairsUsed?: unknown;
+      claimConsistencyMeta?: { findings?: unknown };
+      claimContradictions?: unknown;
+      finishValidation?: {
+        callId?: unknown;
+        repairsUsed?: unknown;
+        maxRepairs?: unknown;
+        candidateHash?: unknown;
+        candidateChars?: unknown;
+        failed?: unknown;
+      };
+    };
+    const entries = await store.load('fault-repair-host-rejection');
+    const { compositions, judges } = tailSpans(entries);
+    const liftedFindings = (outcome as { claimContradictions?: unknown }).claimContradictions;
+    const message = outcome.error?.message ?? '';
+    const matched =
+      outcome.status === 'error' &&
+      message.includes('dispatched and its repaired candidate failed host validation') &&
+      !message.includes('could not dispatch') &&
+      data.source === 'orchestrator_claim_consistency' &&
+      data.roundDispatched === true &&
+      data.repairsUsed === 1 &&
+      data.claimConsistencyMeta?.findings === 1 &&
+      Array.isArray(data.claimContradictions) &&
+      (data.claimContradictions as unknown[]).length === 1 &&
+      typeof data.finishValidation?.callId === 'string' &&
+      data.finishValidation.repairsUsed === 1 &&
+      data.finishValidation.maxRepairs === 1 &&
+      typeof data.finishValidation.candidateHash === 'string' &&
+      typeof data.finishValidation.candidateChars === 'number' &&
+      JSON.stringify(data.finishValidation.failed ?? null).includes('provenance-anchor') &&
+      Array.isArray(liftedFindings) &&
+      (liftedFindings as unknown[]).length === 1 &&
+      compositions.length === 2 &&
+      judges.length === 1;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}': roundDispatched=${String(data.roundDispatched)}, ` +
+          `repairsUsed=${String(data.repairsUsed)}, meta findings=` +
+          `${String(data.claimConsistencyMeta?.findings)}, finish verdict carries hash=` +
+          `${String(typeof data.finishValidation?.candidateHash === 'string')} chars=` +
+          `${String(data.finishValidation?.candidateChars)}, outcome lifts findings=` +
+          `${String(Array.isArray(liftedFindings))}; ${String(compositions.length)} ` +
+          `composition(s), ${String(judges.length)} final judge pass(es)`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', { status: outcome.status, error: outcome.error ?? null }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
+/**
  * The armed posture doctrine on a dead judge (RV3307): a gate armed to
  * stop or to repair must not pass silently when its judge cannot rule.
  * Both armed postures refuse typed; the round never runs.
@@ -3266,6 +3368,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   validatorGuidanceConflict,
   repairRoundHonesty,
   repairSurvivorRefusal,
+  repairRoundHostRejection,
   claimJudgeDeadArmedRefusal,
 ];
 

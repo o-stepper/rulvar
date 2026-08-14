@@ -10,4 +10,4 @@
 type RunAuditVerdict = "consistent" | "meta-behind" | "stranded" | "suspect";
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:655](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L655)
+Defined in: [packages/core/src/stores/reconcile.ts:658](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L658)

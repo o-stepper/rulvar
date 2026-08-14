@@ -6,7 +6,7 @@
 
 # Interface: FaultScenarioObservation
 
-Defined in: [packages/evals/src/fault-injection.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L58)
+Defined in: [packages/evals/src/fault-injection.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L59)
 
 One machine-checkable observation of a driven branch.
 
@@ -14,5 +14,5 @@ One machine-checkable observation of a driven branch.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-detail"></a> `detail` | `string` | What was actually observed, quoting the typed surfaces. | [packages/evals/src/fault-injection.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L62) |
-| <a id="property-matched"></a> `matched` | `boolean` | The documented typed observable was produced exactly. | [packages/evals/src/fault-injection.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L60) |
+| <a id="property-detail"></a> `detail` | `string` | What was actually observed, quoting the typed surfaces. | [packages/evals/src/fault-injection.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L63) |
+| <a id="property-matched"></a> `matched` | `boolean` | The documented typed observable was produced exactly. | [packages/evals/src/fault-injection.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/fault-injection.ts#L61) |
