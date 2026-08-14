@@ -4912,6 +4912,24 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/orchestrator/synthesis.test.ts',
   },
+  {
+    id: 'pricing-provenance-rows-hash',
+    doctrine:
+      'every pinned pricing segment carries the sha256 of its rows canonical JSON, so two tables under one version label are distinguishable by content (RV3703)',
+    file: 'packages/core/src/engine/pricing-snapshot.ts',
+    find: "  return createHash('sha256').update(jcsSerialize(rows), 'utf8').digest('hex');\n",
+    replace: "  return 'mutated';\n",
+    test: 'packages/core/src/engine/pricing-snapshot.test.ts',
+  },
+  {
+    id: 'pricing-provenance-rates-range',
+    doctrine:
+      'the pin freshness range folds the oldest and newest parsable ratesVerifiedAt of the pinned rows, absent when none is dated (RV3703)',
+    file: 'packages/core/src/engine/pricing-snapshot.ts',
+    find: '  return oldest === undefined || newest === undefined\n    ? undefined\n    : { oldest: oldest.raw, newest: newest.raw };\n',
+    replace: '  return undefined;\n',
+    test: 'packages/core/src/engine/pricing-snapshot.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

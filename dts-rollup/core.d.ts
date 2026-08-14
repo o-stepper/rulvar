@@ -13979,6 +13979,28 @@ interface PinnedPricingSegment {
   pricingVersion?: string;
   /** The applied rows THIS settle pinned. */
   rows: AppliedPricingRow[];
+  /**
+  * sha256 over the canonical JSON of THIS pin's rows (RV3703): the
+  * version string is a label the table author chose, and the third
+  * experiment's arc found a price defect that a label cannot expose;
+  * the hash is the content. Two tables sharing a version string but
+  * disagreeing on rates are distinguishable, and two folds of one
+  * journal always derive the same hex. Computed at read time from
+  * the pinned bytes: the journal is unchanged and every existing pin
+  * gains it.
+  */
+  rowsHash: string;
+  /**
+  * The freshness range of THIS pin's dated rows (RV3703): the oldest
+  * and newest `ratesVerifiedAt` among rows carrying a parsable one,
+  * the machine-readable age of the table that priced the segment.
+  * Absent when no row is dated: freshness is then unattested, never
+  * guessed.
+  */
+  ratesVerifiedAt?: {
+    oldest: string;
+    newest: string;
+  };
 }
 /** What `journalPricingSnapshot` rebuilds from a pinned run settle. */
 interface JournalPricingSnapshot {
@@ -13986,6 +14008,16 @@ interface JournalPricingSnapshot {
   pricingVersion?: string;
   /** The last pin's rows: the union covering the whole settled journal. */
   rows: AppliedPricingRow[];
+  /** The last pin's content hash (RV3703); see PinnedPricingSegment.rowsHash. */
+  rowsHash: string;
+  /**
+  * The last pin's freshness range (RV3703); see the per-segment
+  * field. Absent when no row of the last pin is dated.
+  */
+  ratesVerifiedAt?: {
+    oldest: string;
+    newest: string;
+  };
   /**
   * The seq of the last pinning settle: rows at or past it belong to a
   * segment no pin covers yet, so a caller composing with a live table

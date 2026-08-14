@@ -12,7 +12,7 @@ function journalPricingSnapshot(entries):
   | undefined;
 ```
 
-Defined in: [packages/core/src/engine/pricing-snapshot.ts:206](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L206)
+Defined in: [packages/core/src/engine/pricing-snapshot.ts:276](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L276)
 
 The read side. Every settling segment pins the union it applied, and
 each pin's settle seq bounds the rows it settled FIRST, so the pins
