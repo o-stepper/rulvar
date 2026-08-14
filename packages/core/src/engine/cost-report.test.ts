@@ -395,7 +395,9 @@ describe('cost report reconciliation (M5-T03)', () => {
     const report = costReportFromJournal(entries, price);
     // Five priced entries minus the abandoned one: 4 USD.
     expect(report.totalUsd).toBeCloseTo(4, 12);
-    expect(report.byPhase).toEqual({ p: 1, '': 3 });
+    // The named fallback bucket (RV3604): entries with no phase fold
+    // under 'unknown', never a '' key.
+    expect(report.byPhase).toEqual({ p: 1, unknown: 3 });
     expect(report.byAgentType).toEqual({ worker: 1, orchestrator: 2, unknown: 1 });
     expect(report.byRole.orchestrate).toBeCloseTo(2, 12);
     expect(report.byRole.loop).toBeCloseTo(2, 12);
@@ -410,6 +412,38 @@ describe('cost report reconciliation (M5-T03)', () => {
       const sum = Object.values(values).reduce((acc, usd) => acc + usd, 0);
       expect(sum).toBeCloseTo(report.totalUsd, 12);
     }
+  });
+
+  it("empty phase and empty agentType fold under 'unknown', never a '' key (RV3604)", () => {
+    // The third comparison run's report read byPhase {"": 5.58} for
+    // the whole run and a '' agentType bucket beside the named ones:
+    // the empty STRING passed the ?? fallback that absence did not.
+    const base = { hashVersion: 2 as const, key: 'k', ordinal: 0, spanId: 's' };
+    const usage: Usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    const price = (_servedBy: ModelRef, sliceUsage: Usage): number | undefined =>
+      sliceUsage.inputTokens / 1_000_000;
+    const entries = [
+      {
+        ...base,
+        seq: 1,
+        scope: 'agent:1',
+        kind: 'agent',
+        status: 'ok',
+        usage,
+        servedBy: 'fake:model',
+        costAttribution: { phase: '', agentType: '', role: 'loop', budgetAccount: 'run' },
+      },
+    ] as unknown as JournalEntry[];
+    const report = costReportFromJournal(entries, price);
+    expect(report.byPhase).toEqual({ unknown: 1 });
+    expect(report.byAgentType).toEqual({ unknown: 1 });
+    const sum = Object.values(report.byPhase).reduce((acc, usd) => acc + usd, 0);
+    expect(sum).toBeCloseTo(report.totalUsd, 12);
   });
 
   it('raises usageApprox only when a contributing terminal entry is approximate (v1.39.0 review)', () => {
@@ -932,6 +966,16 @@ describe('the exported live builder refuses non-finite numbers (RV705)', () => {
     expect(report.grossUsd).toBe(1.5);
     expect(report.byRole.loop).toBe(1.5);
     expect(report.orchestrator.share).toBeCloseTo(0.5 / 1.5, 12);
+  });
+
+  it("the live builder folds a '' key under 'unknown', merging with an existing bucket (RV3604)", () => {
+    const attribution = liveAttribution();
+    // liveAttribution carries byPhase '' = 1.5; a host that already
+    // accumulated an 'unknown' bucket must see ONE merged bucket.
+    attribution.byPhase.set('unknown', 0.5);
+    const report = buildCostReport(attribution, 2.0);
+    expect(report.byPhase).toEqual({ unknown: 2.0 });
+    expect(Object.keys(report.byAgentType)).not.toContain('');
   });
 
   it('an Infinity or NaN total is a typed refusal, never a null in JSON', () => {

@@ -43,6 +43,32 @@ describe('createEngine and engine.run (M1-T11)', () => {
     expect(outcome.pending).toEqual([]);
   });
 
+  it("unphased spend folds under the 'unknown' bucket, live and on pure replay (RV3604)", async () => {
+    // The third comparison run's whole spend read byPhase {"": 5.58}:
+    // an unaddressable '' key on every downstream table. Live
+    // accumulation, the replay accumulation of a resume, and the
+    // journal fold now share one named fallback.
+    const adapter = scriptedAdapter(() => ({ text: 'hello' }));
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const wf = defineWorkflow({ name: 'unphased' }, (ctx) => ctx.agent('say hello'));
+    const outcome = await engine.run(wf, undefined, { runId: 'UNPHASED' }).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.cost.byPhase.unknown).toBeGreaterThan(0);
+    expect(Object.keys(outcome.cost.byPhase)).toEqual(['unknown']);
+    expect(Object.keys(outcome.cost.byAgentType)).toEqual(['unknown']);
+    // A pure replay resume re-accumulates through the replay branch
+    // and must land in the same bucket.
+    const resumed = await engine.resume('UNPHASED', wf).result;
+    expect(resumed.status).toBe('ok');
+    expect(Object.keys(resumed.cost.byPhase)).toEqual(['unknown']);
+    expect(resumed.cost.byPhase.unknown).toBeCloseTo(outcome.cost.byPhase.unknown ?? 0, 12);
+  });
+
   it('streams events with monotonic seq and correct span parentage', async () => {
     const adapter = scriptedAdapter(() => ({ text: 'hello' }));
     const engine = createEngine({
