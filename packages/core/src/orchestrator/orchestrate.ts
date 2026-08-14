@@ -369,7 +369,8 @@ const CLAIM_JUDGE_SCHEMA: SchemaSpec = {
  * finish({ result }) call first passes the configured host validators;
  * a rejection returns the failure reasons to the model as the call's
  * error tool result and the turn continues (a repair turn: the model
- * fixes the result and calls finish again), bounded by maxRepairs. A
+ * fixes the result and calls finish again), bounded by maxRepairs
+ * within the composition invocation (RV3602). A
  * rejection past the bound fails the run with the typed FailRunError
  * (code 'fail_run', data.source 'orchestrator_finish_validation'),
  * BEFORE the acceptance settle, so acceptance never judges a finish the
@@ -398,7 +399,14 @@ export interface FinishValidationSpec {
    * How many rejected finishes are returned to the model for repair
    * before the run fails; a nonnegative integer, default
    * {@link DEFAULT_FINISH_MAX_REPAIRS}. Zero means the first rejected
-   * finish fails the run.
+   * finish fails the run. The bound belongs to one composition
+   * invocation (RV3602): with the bounded claim repair round armed
+   * (`claimConsistency.onFound: 'repair'`), the initial composition
+   * and the round each enter with the full bound, because the third
+   * comparison run's round inherited a spent run wide pool and its
+   * first regression was final by construction. At most two
+   * invocations exist, so the worst case is `maxRepairs + 1` judged
+   * finishes per invocation, twice.
    */
   maxRepairs?: number;
   /**
@@ -4410,6 +4418,12 @@ export function makeOrchestratorWorkflow(
       callId: string;
       verdict: 'accepted' | 'repair' | 'rejected';
       failed: { name: string; reasons: string[] }[];
+      /**
+       * Non accepted verdicts of the current contract generation
+       * rendered before this one WITHIN the current composition
+       * invocation (RV3602; the count was run wide before that, which
+       * is how the third comparison run's repair round entered spent).
+       */
       repairsUsed: number;
       maxRepairs: number;
       /**
@@ -4472,6 +4486,27 @@ export function makeOrchestratorWorkflow(
               'orchestrator_finish_validation',
         )
         .map((entry) => entry.value as unknown as FinishValidationDecision);
+    /**
+     * Where the CURRENT composition invocation's verdicts begin
+     * (RV3602): an index into validationDecisions(), captured from the
+     * journaled verdict count at each synthesis dispatch, so the
+     * mechanical repair pool belongs to one composition invocation.
+     * The third comparison run's initial composition spent the single
+     * run wide repair (default maxRepairs 1), so the bounded claim
+     * repair round (RV3307) entered with zero mechanical retries BY
+     * CONSTRUCTION and its first regression was final: the round was
+     * structurally doomed whenever the initial composition had used
+     * its retry. Cycle 73 scoped the pool to the contract generation;
+     * this scopes it to the invocation on the same doctrine, the pool
+     * spender must be the thing that gets the bound. Replay stable:
+     * a resume replays the identical decision prefix, so the captured
+     * index is identical. Validators bound to the coordination loop
+     * (no synthesis) keep the zero baseline: one loop, one invocation,
+     * the pre RV3602 pool byte for byte. Worst case stays bounded:
+     * at most two composition invocations exist (the initial and one
+     * RV3307 round), each granting at most maxRepairs repair turns.
+     */
+    let validationInvocationStart = 0;
     /**
      * The contract generation membership test (cycle 73). Without a
      * contract there are no generations and every decision is current
@@ -4747,9 +4782,15 @@ export function makeOrchestratorWorkflow(
           }
         }
         // Only the CURRENT contract generation spends the repair budget
-        // (cycle 73): a fixed contract starts with the full bound again.
+        // (cycle 73), and only the CURRENT composition invocation does
+        // (RV3602): a fixed contract starts with the full bound again,
+        // and so does the bounded claim repair round, instead of
+        // inheriting a pool the initial composition already spent.
         const repairsUsed = known.filter(
-          (candidate) => candidate.verdict !== 'accepted' && contractGenerationCurrent(candidate),
+          (candidate, index) =>
+            index >= validationInvocationStart &&
+            candidate.verdict !== 'accepted' &&
+            contractGenerationCurrent(candidate),
         ).length;
         // The rejected candidate becomes addressable (RV2507). The
         // identity is free and always recorded: the hash names WHICH
@@ -7126,6 +7167,12 @@ export function makeOrchestratorWorkflow(
               }),
         },
       };
+      // The mechanical repair pool belongs to THIS invocation (RV3602):
+      // the boundary is the journaled verdict count at dispatch, so a
+      // resume derives the identical index from the identical prefix
+      // and the bounded claim repair round enters with the full
+      // maxRepairs instead of the initial composition's leftovers.
+      validationInvocationStart = validationDecisions().length;
       const synthesized = await runtime.runInScope(synthesisState, () =>
         (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
           prompt,

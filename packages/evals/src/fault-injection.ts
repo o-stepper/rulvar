@@ -2916,6 +2916,7 @@ const TAIL_FINAL_STILL_INVERTED =
   'final: the repaired text still flips the recorded outcome [src/exec.ts:256-296].';
 const TAIL_FINAL_CLEAN = 'final: a failed audit write does not mask success [src/exec.ts:256-296].';
 const TAIL_FINAL_UNGROUNDED = 'final: repaired wording with the provenance stripped.';
+const TAIL_FINAL_UNGROUNDED_INITIAL = 'final: the initial wording arrived without any anchor.';
 const TAIL_FINDS = {
   contradictions: [{ pair: 0, reason: 'the draft inverts the recorded reading' }],
 };
@@ -3265,6 +3266,106 @@ const repairRoundHostRejection: FaultScenario = {
 };
 
 /**
+ * The mechanical repair pool belongs to the invocation (RV3602): the
+ * third comparison run's initial composition spent the single run
+ * wide repair, so the bounded round entered with zero retries by
+ * construction and its first regression was final. This scenario is
+ * that exact frozen sequence carried one step further: the initial
+ * composition trips the contract and repairs mechanically, the final
+ * judge finds the real contradiction, the round's candidate trips the
+ * contract AGAIN, and the round's OWN fresh pool grants the retry
+ * that lands the clean document; the run settles ok over it.
+ */
+const repairRoundOwnPool: FaultScenario = {
+  name: 'repair-round-own-pool',
+  doctrine:
+    'the mechanical repair pool belongs to one composition invocation (RV3602): the ' +
+    'bounded claim repair round enters with the full maxRepairs even after the initial ' +
+    'composition spent its own, so the frozen third comparison sequence converges to ' +
+    'ok/complete with verdicts repair/accepted twice and repairsUsed restarting at the ' +
+    'invocation boundary, never a host rejection born of an inherited spent pool',
+  async run() {
+    let judgeCalls = 0;
+    const adapter = tailAdapter({
+      judge: () => ((judgeCalls += 1) === 1 ? TAIL_FINDS : TAIL_AGREES),
+      finals: [
+        TAIL_FINAL_UNGROUNDED_INITIAL,
+        TAIL_FINAL_INVERTED,
+        TAIL_FINAL_UNGROUNDED,
+        TAIL_FINAL_CLEAN,
+      ],
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        claimConsistency: { stage: 'final', onFound: 'repair' },
+        finishValidation: {
+          validators: [
+            minMatchesValidator({
+              pattern: 'src/[a-z]+\\.ts:\\d+',
+              min: 1,
+              name: 'provenance-anchor',
+            }),
+          ],
+          maxRepairs: 1,
+        },
+      }),
+      undefined,
+      { runId: 'fault-repair-own-pool', budgetUsd: 10 },
+    ).result;
+    const value = outcome.value as
+      | {
+          result?: unknown;
+          claimConsistencyMeta?: { findings?: unknown };
+          rejectedFinishCandidates?: { verdict?: unknown }[];
+        }
+      | undefined;
+    const entries = await store.load('fault-repair-own-pool');
+    const { compositions, judges } = tailSpans(entries);
+    const verdictRows = entries
+      .filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_finish_validation',
+      )
+      .map((entry) => entry.value as { verdict?: string; repairsUsed?: number });
+    const verdicts = verdictRows.map((row) => row.verdict).join(',');
+    const pools = verdictRows.map((row) => String(row.repairsUsed)).join(',');
+    const matched =
+      outcome.status === 'ok' &&
+      value?.result === TAIL_FINAL_CLEAN &&
+      value.claimConsistencyMeta?.findings === 0 &&
+      verdicts === 'repair,accepted,repair,accepted' &&
+      pools === '0,1,0,1' &&
+      (value.rejectedFinishCandidates?.length ?? 0) === 2 &&
+      value.rejectedFinishCandidates?.every((row) => row.verdict === 'repair') === true &&
+      compositions.length === 2 &&
+      judges.length === 2;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' shipped ${value?.result === TAIL_FINAL_CLEAN ? 'the repaired document' : 'an unexpected document'}; ` +
+          `verdicts [${verdicts}], repairsUsed [${pools}] (fresh pool at the invocation ` +
+          `boundary); meta findings=${String(value?.claimConsistencyMeta?.findings)}; ` +
+          `${String(compositions.length)} composition(s), ${String(judges.length)} final ` +
+          'judge pass(es)',
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          envelope: outcome.envelope,
+        }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
+/**
  * The armed posture doctrine on a dead judge (RV3307): a gate armed to
  * stop or to repair must not pass silently when its judge cannot rule.
  * Both armed postures refuse typed; the round never runs.
@@ -3369,6 +3470,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   repairRoundHonesty,
   repairSurvivorRefusal,
   repairRoundHostRejection,
+  repairRoundOwnPool,
   claimJudgeDeadArmedRefusal,
 ];
 

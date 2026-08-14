@@ -304,7 +304,13 @@ export interface PreflightInput {
      * the mandatory synthesis tail (RV2504): every granted repair can
      * write to the output allowance, so the tail
      * `synthesis-reserve-below-cap-composition` prices is one
-     * composition plus this many turns, whatever the turn reserve says.
+     * composition plus this many turns, whatever the turn reserve
+     * says. Since RV3602 the bound belongs to one composition
+     * invocation, so this tail is the price of EACH invocation: the
+     * armed claim repair round (RV3307) runs a second invocation with
+     * its own full bound, and the working room finding already prices
+     * that round at the declared synthesis reserve, the host's own
+     * estimate of exactly this tail.
      */
     maxRepairs?: number;
     /**
@@ -1957,6 +1963,12 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         // hold under exactly two composition turns of price, so the
         // old one-repair arithmetic passed the config that then died
         // on its second repair with the first still uncomposed.
+        // Under RV3602 the bound is per composition invocation, and
+        // this requirement prices ONE invocation's tail: the armed
+        // claim repair round is a second invocation with the same
+        // worst case, priced by the RV3402 working room term at the
+        // same declared reserve, so the multiplication here needs no
+        // doubling.
         {
           const pricing = pricingOf(servedBy);
           const declared = input.orchestrator?.budget?.synthesisReserveUsd;

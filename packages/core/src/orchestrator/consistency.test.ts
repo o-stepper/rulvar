@@ -1580,6 +1580,100 @@ describe('the bounded post judge repair (RV3307)', () => {
     expect(synthesis.calls).toHaveLength(3);
   });
 
+  // The mechanical repair pool belongs to the invocation (RV3602):
+  // the third comparison run's initial composition spent the single
+  // run wide repair, so its repair round entered with zero retries by
+  // construction and the first regression was final. The frozen
+  // sequence below is that run, carried one step further to the
+  // convergence the old pool made impossible.
+  const FINAL_UNGROUNDED_INITIAL = 'final: the initial wording arrived without any anchor.';
+
+  function poolVerdictRows(
+    entries: readonly { kind: string; value?: unknown }[],
+  ): { verdict?: string; repairsUsed?: number }[] {
+    return entries
+      .filter(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_finish_validation',
+      )
+      .map((e) => e.value as { verdict?: string; repairsUsed?: number });
+  }
+
+  it('the frozen third comparison sequence converges: the round enters with its own full bound (RV3602)', async () => {
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    let judgeCall = 0;
+    const judgeTurns = [JUDGE_FINDS, JUDGE_AGREES];
+    const judge = scriptedAdapter(
+      (): ScriptedTurn => judgeTurns[Math.min(judgeCall++, judgeTurns.length - 1)] ?? JUDGE_FINDS,
+      { id: 'judge' },
+    );
+    let synthCall = 0;
+    const finals = [FINAL_UNGROUNDED_INITIAL, FINAL_INVERTED, FINAL_UNGROUNDED, FINAL_CLEAN];
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({
+        toolCall: {
+          name: 'finish',
+          args: { result: finals[Math.min(synthCall++, finals.length - 1)] },
+        },
+      }),
+      { id: 'strong' },
+    );
+    const { internals, store } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', RV3601_OPTS),
+      undefined,
+    )) as {
+      result: unknown;
+      claimContradictions?: unknown[];
+      claimConsistencyMeta?: Record<string, unknown>;
+      rejectedFinishCandidates?: { verdict?: string }[];
+    };
+    expect(outcome.result).toBe(FINAL_CLEAN);
+    expect(outcome.claimContradictions).toEqual([]);
+    expect(outcome.claimConsistencyMeta?.findings).toBe(0);
+    expect(synthesis.calls).toHaveLength(4);
+    expect(judge.calls).toHaveLength(2);
+    const rows = poolVerdictRows(await store.load('test-run'));
+    expect(rows.map((row) => row.verdict)).toEqual(['repair', 'accepted', 'repair', 'accepted']);
+    // The discriminator: the round's regression counts a FRESH pool
+    // (repairsUsed 0) where the run wide pool read 1 and rejected the
+    // candidate outright.
+    expect(rows.map((row) => row.repairsUsed)).toEqual([0, 1, 0, 1]);
+    expect(outcome.rejectedFinishCandidates?.map((row) => row.verdict)).toEqual([
+      'repair',
+      'repair',
+    ]);
+  });
+
+  it('a round that regresses past its OWN bound still fails typed as the host rejection (RV3602)', async () => {
+    const { internals, synthesis } = repairHarness({
+      judgeTurns: [JUDGE_FINDS],
+      finals: [FINAL_UNGROUNDED_INITIAL, FINAL_INVERTED, FINAL_UNGROUNDED, FINAL_UNGROUNDED],
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', RV3601_OPTS),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain(
+      'dispatched and its repaired candidate failed host validation',
+    );
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    const verdict = data.finishValidation as Record<string, unknown>;
+    // The round DID get its own retry after the initial composition
+    // spent one: four synthesis turns, two per invocation.
+    expect(verdict.repairsUsed).toBe(1);
+    expect(synthesis.calls).toHaveLength(4);
+  });
+
   it('a round that truly could not dispatch keeps its frame and now carries the judge meta (RV3601)', async () => {
     // The lifetime spawn cap admits the worker, the initial synthesis
     // and the final judge, then refuses the round's composition: the

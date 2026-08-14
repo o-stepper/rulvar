@@ -45,6 +45,7 @@ const EXPECTED = [
   'repair-round-honesty',
   'repair-survivor-refusal',
   'repair-round-host-rejection',
+  'repair-round-own-pool',
   'claim-judge-dead-armed-refusal',
 ];
 
@@ -151,6 +152,15 @@ describe('the fault-injection kit (RV811)', () => {
     );
     expect(byName.get('repair-round-host-rejection')?.observation.detail).toContain(
       'outcome lifts findings=true',
+    );
+    // The RV3602 scenario: the frozen third comparison sequence
+    // carried to convergence; the pins prove the round's pool
+    // restarted at the invocation boundary.
+    expect(byName.get('repair-round-own-pool')?.observation.detail).toContain(
+      'repairsUsed [0,1,0,1]',
+    );
+    expect(byName.get('repair-round-own-pool')?.observation.detail).toContain(
+      'the repaired document',
     );
     // The report is self-describing (RV1014): the scenario count can
     // never quietly shrink under a consumer that pins these.
