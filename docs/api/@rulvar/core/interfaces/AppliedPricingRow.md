@@ -6,7 +6,7 @@
 
 # Interface: AppliedPricingRow
 
-Defined in: [packages/core/src/engine/pricing-snapshot.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L36)
+Defined in: [packages/core/src/engine/pricing-snapshot.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L39)
 
 One pinned row: the pricing that was APPLIED to this model's usage.
 
@@ -14,5 +14,5 @@ One pinned row: the pricing that was APPLIED to this model's usage.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-model"></a> `model` | `` `${string}:${string}` `` | [packages/core/src/engine/pricing-snapshot.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L37) |
-| <a id="property-rates"></a> `rates` | [`Pricing`](/api/@rulvar/core/interfaces/Pricing.md) | [packages/core/src/engine/pricing-snapshot.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L38) |
+| <a id="property-model"></a> `model` | `` `${string}:${string}` `` | [packages/core/src/engine/pricing-snapshot.ts:40](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L40) |
+| <a id="property-rates"></a> `rates` | [`Pricing`](/api/@rulvar/core/interfaces/Pricing.md) | [packages/core/src/engine/pricing-snapshot.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/pricing-snapshot.ts#L41) |

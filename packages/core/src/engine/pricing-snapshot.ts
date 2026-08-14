@@ -25,8 +25,11 @@
  * journaled spend debits are untouched: they were always priced at
  * write time and never re-priced by a fold.
  */
+import { createHash } from 'node:crypto';
+
 import type { JournalEntry } from '../l0/entries.js';
 import { entryUsageSlices } from '../l0/entries.js';
+import { jcsSerialize } from '../l0/jcs.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
 import type { Pricing } from '../l0/spi/provider.js';
 import { priceUsdOf } from '../model/pricing.js';
@@ -119,6 +122,25 @@ export interface PinnedPricingSegment {
   pricingVersion?: string;
   /** The applied rows THIS settle pinned. */
   rows: AppliedPricingRow[];
+  /**
+   * sha256 over the canonical JSON of THIS pin's rows (RV3703): the
+   * version string is a label the table author chose, and the third
+   * experiment's arc found a price defect that a label cannot expose;
+   * the hash is the content. Two tables sharing a version string but
+   * disagreeing on rates are distinguishable, and two folds of one
+   * journal always derive the same hex. Computed at read time from
+   * the pinned bytes: the journal is unchanged and every existing pin
+   * gains it.
+   */
+  rowsHash: string;
+  /**
+   * The freshness range of THIS pin's dated rows (RV3703): the oldest
+   * and newest `ratesVerifiedAt` among rows carrying a parsable one,
+   * the machine-readable age of the table that priced the segment.
+   * Absent when no row is dated: freshness is then unattested, never
+   * guessed.
+   */
+  ratesVerifiedAt?: { oldest: string; newest: string };
 }
 
 /** What `journalPricingSnapshot` rebuilds from a pinned run settle. */
@@ -127,6 +149,13 @@ export interface JournalPricingSnapshot {
   pricingVersion?: string;
   /** The last pin's rows: the union covering the whole settled journal. */
   rows: AppliedPricingRow[];
+  /** The last pin's content hash (RV3703); see PinnedPricingSegment.rowsHash. */
+  rowsHash: string;
+  /**
+   * The last pin's freshness range (RV3703); see the per-segment
+   * field. Absent when no row of the last pin is dated.
+   */
+  ratesVerifiedAt?: { oldest: string; newest: string };
   /**
    * The seq of the last pinning settle: rows at or past it belong to a
    * segment no pin covers yet, so a caller composing with a live table
@@ -171,6 +200,47 @@ export interface JournalPricingSnapshot {
   composedPriceUsd: (
     current: (servedBy: ModelRef, usage: Usage) => number | undefined,
   ) => (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined;
+}
+
+/**
+ * The pin's content hash (RV3703): sha256 over the canonical JSON of
+ * the rows, so the derivation is byte-stable across folds, engines and
+ * platforms; JCS fixes the key order, and the row order is the pin's
+ * own (sorted at write, preserved at read).
+ */
+function rowsHashOf(rows: AppliedPricingRow[]): string {
+  return createHash('sha256').update(jcsSerialize(rows), 'utf8').digest('hex');
+}
+
+/**
+ * The freshness range of a pin's dated rows (RV3703): oldest and
+ * newest parsable `ratesVerifiedAt`, original strings preserved.
+ * Undefined when no row carries a parsable date.
+ */
+function ratesVerifiedRangeOf(
+  rows: AppliedPricingRow[],
+): { oldest: string; newest: string } | undefined {
+  let oldest: { at: number; raw: string } | undefined;
+  let newest: { at: number; raw: string } | undefined;
+  for (const row of rows) {
+    const raw = row.rates.ratesVerifiedAt;
+    if (raw === undefined) {
+      continue;
+    }
+    const at = Date.parse(raw);
+    if (!Number.isFinite(at)) {
+      continue;
+    }
+    if (oldest === undefined || at < oldest.at) {
+      oldest = { at, raw };
+    }
+    if (newest === undefined || at > newest.at) {
+      newest = { at, raw };
+    }
+  }
+  return oldest === undefined || newest === undefined
+    ? undefined
+    : { oldest: oldest.raw, newest: newest.raw };
 }
 
 function pinnedRows(value: unknown): AppliedPricingRow[] | undefined {
@@ -255,16 +325,24 @@ export function journalPricingSnapshot(
     const rates = ratesFor(servedBy, seq);
     return rates === undefined ? undefined : priceUsdOf(rates, usage);
   };
+  const lastRange = ratesVerifiedRangeOf(last.rows);
   return {
     ...(last.pricingVersion === undefined ? {} : { pricingVersion: last.pricingVersion }),
     rows: last.rows,
+    rowsHash: rowsHashOf(last.rows),
+    ...(lastRange === undefined ? {} : { ratesVerifiedAt: lastRange }),
     pinnedThroughSeq,
-    segments: pins.map((pin, index) => ({
-      fromSeq: index === 0 ? 0 : (pins[index - 1]?.seq ?? 0),
-      settleSeq: pin.seq,
-      ...(pin.pricingVersion === undefined ? {} : { pricingVersion: pin.pricingVersion }),
-      rows: pin.rows,
-    })),
+    segments: pins.map((pin, index) => {
+      const range = ratesVerifiedRangeOf(pin.rows);
+      return {
+        fromSeq: index === 0 ? 0 : (pins[index - 1]?.seq ?? 0),
+        settleSeq: pin.seq,
+        ...(pin.pricingVersion === undefined ? {} : { pricingVersion: pin.pricingVersion }),
+        rows: pin.rows,
+        rowsHash: rowsHashOf(pin.rows),
+        ...(range === undefined ? {} : { ratesVerifiedAt: range }),
+      };
+    }),
     priceUsd,
     composedPriceUsd: (current) => (servedBy, usage, seq) =>
       seq !== undefined && seq < pinnedThroughSeq

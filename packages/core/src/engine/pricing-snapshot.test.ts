@@ -475,14 +475,19 @@ describe('stored consumers compose the pins like the engine (RV611)', () => {
         settleSeq: 1,
         pricingVersion: 'v-a',
         rows: [{ model: 'fake:model', rates: { inputUsdPerMTok: 10, outputUsdPerMTok: 0 } }],
+        rowsHash: expect.stringMatching(/^[0-9a-f]{64}$/) as string,
       },
       {
         fromSeq: 1,
         settleSeq: 3,
         pricingVersion: 'v-b',
         rows: [{ model: 'fake:model', rates: { inputUsdPerMTok: 100, outputUsdPerMTok: 0 } }],
+        rowsHash: expect.stringMatching(/^[0-9a-f]{64}$/) as string,
       },
     ]);
+    // Two pins with different rates carry different content hashes
+    // (RV3703), whatever their version labels say.
+    expect(snapshot?.segments[0]?.rowsHash).not.toBe(snapshot?.segments[1]?.rowsHash);
     // The last-pin fields keep their historical meaning.
     expect(snapshot?.pricingVersion).toBe('v-b');
     expect(snapshot?.pinnedThroughSeq).toBe(3);
@@ -508,5 +513,74 @@ describe('rates verification date through the pin (RV814)', () => {
     const snapshot = journalPricingSnapshot(entries);
     expect(snapshot?.rows).toHaveLength(1);
     expect(snapshot?.rows[0]?.rates.ratesVerifiedAt).toBe('2026-07-18');
+  });
+});
+
+describe('the provenance tail: content hash and freshness range (RV3703)', () => {
+  it('derives a stable rowsHash on every fold, sensitive to rates under one version label', async () => {
+    const entries = await settledEntries(TABLE_A);
+    const first = journalPricingSnapshot(entries);
+    const second = journalPricingSnapshot(entries);
+    expect(first?.rowsHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(second?.rowsHash).toBe(first?.rowsHash);
+    expect(first?.segments.every((segment) => segment.rowsHash === first.rowsHash)).toBe(true);
+    // Same version STRING, different rates: the label cannot tell the
+    // two tables apart (the third experiment's price defect class),
+    // the content hash can.
+    const relabeled: PriceTable = {
+      pricingVersion: 'v-a',
+      models: {
+        'fake:model': { inputUsdPerMTok: 4, outputUsdPerMTok: 15, cacheReadUsdPerMTok: 0.3 },
+      },
+    };
+    const other = journalPricingSnapshot(await settledEntries(relabeled));
+    expect(other?.pricingVersion).toBe(first?.pricingVersion);
+    expect(other?.rowsHash).not.toBe(first?.rowsHash);
+  });
+
+  it('reports the freshness range of dated pins and stays silent on undated ones', async () => {
+    const dated: PriceTable = {
+      pricingVersion: 'v-dated',
+      models: {
+        'fake:model': { inputUsdPerMTok: 3, outputUsdPerMTok: 15, ratesVerifiedAt: '2026-08-01' },
+      },
+    };
+    const snapshot = journalPricingSnapshot(await settledEntries(dated));
+    expect(snapshot?.ratesVerifiedAt).toEqual({ oldest: '2026-08-01', newest: '2026-08-01' });
+    expect(snapshot?.segments[0]?.ratesVerifiedAt).toEqual({
+      oldest: '2026-08-01',
+      newest: '2026-08-01',
+    });
+    const undated = journalPricingSnapshot(await settledEntries(TABLE_A));
+    expect(undated?.rowsHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(undated?.ratesVerifiedAt).toBeUndefined();
+  });
+
+  it('spans the range across differently dated rows and skips unparsable dates', () => {
+    const pin = {
+      kind: 'decision',
+      seq: 9,
+      value: {
+        decisionType: RUN_SETTLE_DECISION_TYPE,
+        pricingVersion: 'v-mixed',
+        pricing: [
+          {
+            model: 'fake:a',
+            rates: { inputUsdPerMTok: 1, outputUsdPerMTok: 2, ratesVerifiedAt: '2026-07-01' },
+          },
+          {
+            model: 'fake:b',
+            rates: { inputUsdPerMTok: 1, outputUsdPerMTok: 2, ratesVerifiedAt: '2026-08-05' },
+          },
+          {
+            model: 'fake:c',
+            rates: { inputUsdPerMTok: 1, outputUsdPerMTok: 2, ratesVerifiedAt: 'not a date' },
+          },
+        ],
+      },
+    } as unknown as JournalEntry;
+    const snapshot = journalPricingSnapshot([pin]);
+    expect(snapshot?.ratesVerifiedAt).toEqual({ oldest: '2026-07-01', newest: '2026-08-05' });
+    expect(snapshot?.segments[0]?.rowsHash).toBe(snapshot?.rowsHash);
   });
 });
