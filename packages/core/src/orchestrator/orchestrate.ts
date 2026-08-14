@@ -4568,7 +4568,7 @@ export function makeOrchestratorWorkflow(
           continue;
         }
         for (const failure of decision.failed) {
-          const key = `${failure.name} ${failure.reasons.join(' ')}`;
+          const key = JSON.stringify([failure.name, failure.reasons]);
           if (seen.has(key)) {
             continue;
           }
