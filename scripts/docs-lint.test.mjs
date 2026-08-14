@@ -418,6 +418,44 @@ test('source scanning judges comment lines only, never string literals or code',
 // judge NORMALIZED contiguous prose and comment blocks, not single
 // source lines, and the prior shipped recurrence "each ran once" is the
 // same claim. The audit's two verbatim reproductions lead the block.
+// RV3606: link targets are addresses, not published claims. The
+// durability registry's own anchor slug carries the vetted phrase, so
+// linking the precise fragment from an unvetted page used to trip the
+// tombstone and pages linked the bare page instead.
+test('a link target quoting the vetted anchor slug is not a claim (RV3606)', () => {
+  const doc =
+    'The lane rides [RV3405](/guide/durability#at-least-once-dispatch-exactly-once-pay), ' +
+    'paid wires the settled terminal does not cover.';
+  assert.equal(exactlyOnceHits(doc, 'guide/cli.md').length, 0);
+});
+
+test('link TEXT carrying the claim still trips; only the target is an address (RV3606)', () => {
+  const doc = 'See [the tool executes exactly once](/guide/tools) for details.';
+  const hits = exactlyOnceHits(doc, 'guide/x.md');
+  assert.equal(hits.length, 1);
+});
+
+test('a source comment quoting the docs URL quotes an address too (RV3606)', () => {
+  const src =
+    '// the never-pay-twice invariant:\n' +
+    '// https://docs.rulvar.com/guide/durability#at-least-once-dispatch-exactly-once-pay\n' +
+    'export const x = 1;\n';
+  assert.equal(exactlyOnceHits(src, 'packages/core/src/x.ts').length, 0);
+});
+
+test('a link wrapped across a markdown line break stays an address in the block pass (RV3606)', () => {
+  const doc =
+    'The pay doctrine lives at [the registry\n' +
+    'section](/guide/durability#at-least-once-dispatch-exactly-once-pay) of the guide.';
+  assert.equal(exactlyOnceHits(doc, 'guide/x.md').length, 0);
+});
+
+test('an autolink URL is an address (RV3606)', () => {
+  const doc =
+    'Read <https://docs.rulvar.com/guide/durability#at-least-once-dispatch-exactly-once-pay>.';
+  assert.equal(exactlyOnceHits(doc, 'guide/x.md').length, 0);
+});
+
 test('a claim wrapped across a markdown line break is caught at the block start (RV612)', () => {
   const wrapped = exactlyOnceHits('The approved tool executes exactly\nonce.', 'guide/tools.md');
   assert.equal(wrapped.length, 1);
