@@ -765,6 +765,8 @@ export interface CostAttribution {
   byModel: Map<string, number>;
   byPhase: Map<string, number>;
   byAgentType: Map<string, number>;
+  /** Keyed by the raw journal scope (RV3805); '' is the root's own scope. */
+  byScope: Map<string, number>;
   byRole: Map<InvocationRole, number>;
   unpriced: Array<{ model: string; usage: Usage }>;
   /** The DEF-7 orchestrator block, mutated by the mode (c) machinery. */
@@ -1761,6 +1763,7 @@ export function createCtx(
       }
       bump(internals.cost.byPhase, state.phase ?? '', costUsd);
       bump(internals.cost.byAgentType, agentType, costUsd);
+      bump(internals.cost.byScope, state.scope, costUsd);
       internals.cost.byRole.set(
         primaryRole,
         (internals.cost.byRole.get(primaryRole) ?? 0) + costUsd,
@@ -3248,6 +3251,7 @@ export function createCtx(
     }
     bump(internals.cost.byPhase, state.phase ?? '', usd);
     bump(internals.cost.byAgentType, agentType, usd);
+    bump(internals.cost.byScope, state.scope, usd);
 
     // Uniform ceiling behavior: every ctx primitive throws
     // BudgetExhaustedError at the run ceiling. The message names the

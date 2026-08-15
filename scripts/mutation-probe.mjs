@@ -4967,6 +4967,15 @@ export const MUTATIONS = [
     replace: "    class: 'package-identity',",
     test: 'packages/evals/src/claim-corpus.test.ts',
   },
+  {
+    id: 'cost-fold-scope-rollup',
+    doctrine:
+      'the journal fold carries the byScope rollup under the same net inclusion policy as the total (RV3805): dropping it must break the live/journal parity, never leave the report quietly scopeless',
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: '    const scope = scopeBucket(entry.scope);\n    byScope[scope] = (byScope[scope] ?? 0) + priced.usd;\n',
+    replace: '',
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

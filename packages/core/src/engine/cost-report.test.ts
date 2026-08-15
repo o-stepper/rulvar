@@ -21,7 +21,12 @@ import type { JournalEntry, ProviderCallRecord } from '../l0/entries.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import { makeOrchestratorWorkflow } from '../orchestrator/orchestrate.js';
 import { createEngine } from './engine.js';
-import { accountSpendFromJournal, buildCostReport, costReportFromJournal } from './cost-report.js';
+import {
+  accountSpendFromJournal,
+  buildCostReport,
+  costReportFromJournal,
+  scopeBucket,
+} from './cost-report.js';
 import { priceEntryBilling } from '../l0/entries.js';
 import { scriptedAdapter, testCaps, type ScriptedTurn } from './test-harness.js';
 
@@ -408,10 +413,19 @@ describe('cost report reconciliation (M5-T03)', () => {
       forcedFinish: true,
       reserveUsedUsd: 1,
     });
-    for (const values of [report.byModel, report.byPhase, report.byAgentType, report.byRole]) {
+    for (const values of [
+      report.byModel,
+      report.byPhase,
+      report.byAgentType,
+      report.byRole,
+      report.byScope,
+    ]) {
       const sum = Object.values(values).reduce((acc, usd) => acc + usd, 0);
       expect(sum).toBeCloseTo(report.totalUsd, 12);
     }
+    // The abandoned subtree is excluded from the scope rollup too
+    // (RV3805): agent:8 paid and was sanctioned away, so no row.
+    expect(Object.keys(report.byScope)).not.toContain('agent:8');
   });
 
   it("empty phase and empty agentType fold under 'unknown', never a '' key (RV3604)", () => {
@@ -950,11 +964,98 @@ describe('non-finite accounting is refused typed (RV610)', () => {
   });
 });
 
+describe('the byScope rollup (RV3805)', () => {
+  const base = { hashVersion: 2 as const, key: 'k', ordinal: 0, spanId: 's' };
+  const usage: Usage = {
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  };
+  const price = (_servedBy: ModelRef, sliceUsage: Usage): number | undefined =>
+    sliceUsage.inputTokens / 1_000_000;
+
+  it('root and every child are addressable rows whose sum equals the total', () => {
+    // The third comparison analysis had to hand-aggregate invoice rows
+    // to say "the children cost $2.75 of the $5.58 run"; the report
+    // now carries the cut directly.
+    const entries = [
+      {
+        ...base,
+        seq: 1,
+        scope: '',
+        kind: 'agent',
+        status: 'ok',
+        usage,
+        servedBy: 'fake:model',
+        costAttribution: { role: 'orchestrate' },
+      },
+      {
+        ...base,
+        seq: 2,
+        scope: 'agent:1',
+        kind: 'agent',
+        status: 'ok',
+        usage,
+        servedBy: 'fake:model',
+      },
+      {
+        ...base,
+        seq: 3,
+        scope: 'agent:1',
+        kind: 'agent',
+        status: 'ok',
+        usage,
+        servedBy: 'fake:model',
+      },
+      {
+        ...base,
+        seq: 4,
+        scope: 'agent:2',
+        kind: 'agent',
+        status: 'ok',
+        usage,
+        servedBy: 'fake:model',
+      },
+    ] as unknown as JournalEntry[];
+    const report = costReportFromJournal(entries, price);
+    expect(report.byScope).toEqual({ root: 1, 'agent:1': 2, 'agent:2': 1 });
+    const sum = Object.values(report.byScope).reduce((acc, usd) => acc + usd, 0);
+    expect(sum).toBeCloseTo(report.totalUsd, 12);
+  });
+
+  it("scopeBucket names the root's own empty scope 'root' and reserves 'unknown' for absence", () => {
+    expect(scopeBucket('')).toBe('root');
+    expect(scopeBucket('agent:3')).toBe('agent:3');
+    expect(scopeBucket(undefined)).toBe('unknown');
+  });
+
+  it('live and journal agree on the rollup, one rule on both builders', async () => {
+    const store = new InMemoryStore();
+    const adapter = scriptedAdapter((_req, call) => ({
+      text: `answer ${String(call)}`,
+      usage: { inputTokens: 1000, outputTokens: 50 },
+    }));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(wf, undefined, { runId: 'COST-SCOPE' }).result;
+    expect(outcome.status).toBe('ok');
+    const independent = costReportFromJournal(await store.load('COST-SCOPE'), priceVia(adapter));
+    expect(outcome.cost.byScope).toEqual(independent.byScope);
+    const sum = Object.values(outcome.cost.byScope).reduce((acc, usd) => acc + usd, 0);
+    expect(sum).toBeCloseTo(outcome.cost.totalUsd, 12);
+  });
+});
+
 describe('the exported live builder refuses non-finite numbers (RV705)', () => {
   const liveAttribution = (): CostAttribution => ({
     byModel: new Map([['fake:m', 1.5]]),
     byPhase: new Map([['', 1.5]]),
     byAgentType: new Map([['worker', 1.5]]),
+    byScope: new Map([['', 1.5]]),
     byRole: new Map<InvocationRole, number>([['loop', 1.5]]),
     unpriced: [],
     orchestrator: { spentUsd: 0.5, wakes: 1, forcedFinish: false, reserveUsedUsd: 0 },
@@ -1014,6 +1115,7 @@ describe('the cost provenance marker (RV1413)', () => {
         byModel: new Map([['fake:m', 1.5]]),
         byPhase: new Map([['', 1.5]]),
         byAgentType: new Map([['worker', 1.5]]),
+        byScope: new Map([['', 1.5]]),
         byRole: new Map<InvocationRole, number>([['loop', 1.5]]),
         unpriced: [],
         orchestrator: { spentUsd: 0, wakes: 0, forcedFinish: false, reserveUsedUsd: 0 },

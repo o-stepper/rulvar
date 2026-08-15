@@ -392,6 +392,7 @@ describe('handle sources and lifecycle', () => {
     byModel: { 'fake:model': 0.021 },
     byPhase: {},
     byAgentType: { worker: 0.021 },
+    byScope: { root: 0.021 },
     byRole: {
       orchestrate: 0,
       plan: 0,
