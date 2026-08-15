@@ -18,6 +18,7 @@ Per-run cost attribution buckets consumed by CostReport (M1-T10/T11).
 | <a id="property-bymodel"></a> `byModel` | `Map`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-byphase"></a> `byPhase` | `Map`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-byrole"></a> `byRole` | `Map`\&lt;[`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md), `number`\&gt; | - | `packages/core/dist/index.d.ts` |
+| <a id="property-byscope"></a> `byScope` | `Map`\&lt;`string`, `number`\&gt; | Keyed by the raw journal scope (RV3805); '' is the root's own scope. | `packages/core/dist/index.d.ts` |
 | <a id="property-orchestrator"></a> `orchestrator` | \{ `forcedFinish`: `boolean`; `reserveUsedUsd`: `number`; `spentUsd`: `number`; `wakes`: `number`; \} | The DEF-7 orchestrator block, mutated by the mode (c) machinery. | `packages/core/dist/index.d.ts` |
 | `orchestrator.forcedFinish` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `orchestrator.reserveUsedUsd` | `number` | - | `packages/core/dist/index.d.ts` |

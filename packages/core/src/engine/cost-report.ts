@@ -77,6 +77,29 @@ function foldBuckets(source: ReadonlyMap<string, number>): Record<string, number
 }
 
 /**
+ * The scope key rule of the byScope rollup (RV3805). The root's OWN
+ * scope is the empty string BY CONSTRUCTION: present data whose string
+ * happens to be empty, not an absence, so it folds under the
+ * addressable name 'root' instead of the RV3604 'unknown' fallback,
+ * which stays reserved for a scope that is truly missing. Children
+ * keep their scope strings verbatim. One rule for both builders, so
+ * the live report and the journal fold cannot disagree on the key.
+ */
+export function scopeBucket(scope: string | undefined): string {
+  return scope === undefined ? 'unknown' : scope === '' ? 'root' : scope;
+}
+
+/** {@link scopeBucket} over a whole live map, merging folded keys. */
+function foldScopeBuckets(source: ReadonlyMap<string, number>): Record<string, number> {
+  const folded: Record<string, number> = {};
+  for (const [key, usd] of source) {
+    const bucket = scopeBucket(key);
+    folded[bucket] = (folded[bucket] ?? 0) + usd;
+  }
+  return folded;
+}
+
+/**
  * Folds the per-run attribution buckets into the normative CostReport.
  * Live attribution buckets never see abandoned subtrees, so a host
  * that tracked abandoned spend itself passes it as `abandoned`;
@@ -110,6 +133,7 @@ export function buildCostReport(
     byPhase: foldBuckets(attribution.byPhase),
     byAgentType: foldBuckets(attribution.byAgentType),
     byRole,
+    byScope: foldScopeBuckets(attribution.byScope),
     orchestrator: {
       ...orchestrator,
       // H-OrchShare: the epsilon-floored share.
@@ -143,6 +167,7 @@ export function costReportFromJournal(
   const byModel: Record<string, number> = {};
   const byPhase: Record<string, number> = {};
   const byAgentType: Record<string, number> = {};
+  const byScope: Record<string, number> = {};
   const byRole = emptyByRole();
   const unpriced: Array<{ model: string; usage: Usage }> = [];
   let totalUsd = 0;
@@ -236,6 +261,11 @@ export function costReportFromJournal(
     byPhase[phase] = (byPhase[phase] ?? 0) + priced.usd;
     const agentType = attributionBucket(facts?.agentType);
     byAgentType[agentType] = (byAgentType[agentType] ?? 0) + priced.usd;
+    // The scope rollup (RV3805): the same inclusion policy as the
+    // total, accumulated beside it, so the bucket sum equals totalUsd
+    // by construction.
+    const scope = scopeBucket(entry.scope);
+    byScope[scope] = (byScope[scope] ?? 0) + priced.usd;
     // Each priced slice lands in ITS OWN phase bucket (v1.19.0 review
     // P1-2): a slice without a role (written before roles shipped, or
     // the whole-entry fallback slice) folds under the entry's primary
@@ -268,6 +298,7 @@ export function costReportFromJournal(
     byPhase,
     byAgentType,
     byRole,
+    byScope,
     orchestrator: {
       spentUsd: orchestratorSpentUsd,
       // H-OrchShare: the epsilon-floored share.

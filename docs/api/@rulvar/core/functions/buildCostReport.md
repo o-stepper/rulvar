@@ -13,7 +13,7 @@ function buildCostReport(
    abandoned?): CostReport;
 ```
 
-Defined in: [packages/core/src/engine/cost-report.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L89)
+Defined in: [packages/core/src/engine/cost-report.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L112)
 
 Folds the per-run attribution buckets into the normative CostReport.
 Live attribution buckets never see abandoned subtrees, so a host

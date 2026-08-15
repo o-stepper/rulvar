@@ -364,6 +364,7 @@ interface CostReport {
   byPhase: Record<string, number>;      // ctx.phase names
   byAgentType: Record<string, number>;
   byRole: Record<InvocationRole, number>;
+  byScope: Record<string, number>;      // RV3805: 'root' and every child scope, summing to totalUsd
   orchestrator: {
     spentUsd: number;        // orchestrator sub-account spend
     share: number;           // spentUsd / max(totalUsd, 0.01)
@@ -383,6 +384,7 @@ Five details worth knowing:
 - `usageApprox` is present and true when any usage folded into the total was estimated rather than reported by the provider (a transport cut, a stream a ceiling severed, or an abort), making the total a lower bound. The same flag rides `agent:end` and `run:end`, and the CLI cost line marks it.
 - Usage on a model absent from the price table lands in `unpriced` and never contributes a silent zero to a priced bucket. Missing pricing is visible, not invisible.
 - The `orchestrator` block exists in every run; without a dynamic orchestrator it is all zero with `forcedFinish: false`. The `share` denominator is floored at one cent, so a zero-cost run reports share 0 instead of dividing by zero. `byPhase` is why `ctx.phase` is structural for cost attribution while staying cosmetic for journal identity: renaming a phase changes your report, never your replay.
+- `byScope` (RV3805) is the children versus whole workflow cut read directly off the report: one addressable row per journal scope under the same net inclusion policy as `totalUsd`, so the rows sum to it. The root's OWN scope is the empty string by construction, present data rather than an absence, so it folds under the named `root` bucket (`scopeBucket`); children keep their scope strings verbatim, and `unknown` stays reserved for a scope that is truly missing, the RV3604 fallback rule. The third comparison analysis had to hand-aggregate invoice rows to say the children cost $2.75 of the $5.58 run; this row set says it in one read, live and from the journal fold alike.
 
 The budget machinery behind these numbers, including the `'exhausted'` outcome and committed reserves, is covered in [Budgets](/guide/budgets).
 

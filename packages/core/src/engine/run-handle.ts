@@ -89,6 +89,18 @@ export interface CostReport {
   byAgentType: Record<string, number>;
   byRole: Record<InvocationRole, number>;
   /**
+   * Spend per journal scope (RV3805): the root and every child are
+   * addressable rows whose sum equals `totalUsd`, so the children
+   * versus whole-workflow cut (the third comparison analysis had to
+   * hand-aggregate it from invoice rows) reads off the report
+   * directly. The root's OWN scope is the empty string BY
+   * CONSTRUCTION, present data rather than an absence, so it folds
+   * under the named 'root' bucket; children keep their scope strings
+   * verbatim, and only a truly absent scope folds under 'unknown',
+   * the RV3604 fallback.
+   */
+  byScope: Record<string, number>;
+  /**
    * All-zero with forcedFinish false in runs without a dynamic
    * orchestrator (or when no cap resolved, so no sub-account opened).
    * Folded purely from the journal: spentUsd is the priced usage of

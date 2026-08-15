@@ -372,6 +372,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       byModel: new Map(),
       byPhase: new Map(),
       byAgentType: new Map(),
+      byScope: new Map(),
       byRole: new Map(),
       unpriced: [],
       orchestrator: { spentUsd: 0, wakes: 0, forcedFinish: false, reserveUsedUsd: 0 },
