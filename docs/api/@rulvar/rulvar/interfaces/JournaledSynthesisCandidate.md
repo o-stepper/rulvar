@@ -24,6 +24,7 @@ One finish candidate, folded from its journaled verdict (RV2902).
 | <a id="property-maxrepairs"></a> `maxRepairs?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-repairsused"></a> `repairsUsed?` | `number` | Repairs spent BEFORE this candidate, from the verdict itself. | `packages/core/dist/index.d.ts` |
 | <a id="property-spanlabel"></a> `spanLabel?` | `string` | The hosting span's dispatch label (RV2901), when journaled. | `packages/core/dist/index.d.ts` |
+| <a id="property-spanseq"></a> `spanSeq?` | `number` | The hosting span's running entry seq (RV3802): the span's identity within the run, so two candidates can be read as neighbors of ONE composition invocation (the repair-turn pairing below) instead of accidental neighbors across spans. Absent exactly when unhosted. | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage?` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | Summed recorded usage of the window's wires; same condition. | `packages/core/dist/index.d.ts` |
 | <a id="property-usageunknownwires"></a> `usageUnknownWires?` | `number` | Window wires that recorded NO usage on a non-ok outcome: the provider may have billed them anyway, so `costUsd` is a floor whenever this is nonzero. | `packages/core/dist/index.d.ts` |
 | <a id="property-verdict"></a> `verdict` | `"accepted"` \| `"rejected"` \| `"repair"` | The journaled verdict: 'accepted', 'repair', or 'rejected'. | `packages/core/dist/index.d.ts` |

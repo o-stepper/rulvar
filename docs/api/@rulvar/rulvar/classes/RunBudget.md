@@ -436,6 +436,43 @@ Idempotent: re-registering on resume keeps the journaled amount.
 
 ***
 
+### commitRepairReserve()
+
+```ts
+commitRepairReserve(scope, reserveUsd): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Registers the repair round's MECHANICAL leg (RV3802), the money
+twin of the RV3602 per-invocation pool: the round's finish
+contract can grant one bounded mechanical repair turn, and the
+third comparison run's round entered exactly that turn's price
+short of certainty (the repair existed by pool and by contract,
+but nothing guaranteed the money would still be there when the
+candidate materialized). Held beside the verdict leg from the
+moment the round is admitted; released EARLY, to the round's own
+finish loop, at its first journaled verdict (a 'repair' verdict is
+about to spend the freed money on the granted turn, an 'accepted'
+one never needed it), where the verdict leg lives until the judge
+dispatch. Exactly the convergence reserve mechanics otherwise:
+joins the projected admission sum and both remainders, named in
+the refusal clause, never joined to the severing check, idempotent
+per account with the root adjusted by the delta.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+| `reserveUsd` | `number` |
+
+#### Returns
+
+`void`
+
+***
+
 ### commitSynthesisReserve()
 
 ```ts
@@ -804,6 +841,28 @@ and the finalize dispatch begins, the reserve stops subtracting from
 the admission remainder, or the finalize agent could never draw the
 money reserved for it under a tight run ceiling. Admissions stay
 frozen past the cap, so nothing else can take it.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+### releaseRepairReserve()
+
+```ts
+releaseRepairReserve(scope): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The round's finish loop consumes its leg; see commitRepairReserve.
 
 #### Parameters
 

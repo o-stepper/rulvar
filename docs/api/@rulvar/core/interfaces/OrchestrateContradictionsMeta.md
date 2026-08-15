@@ -6,7 +6,7 @@
 
 # Interface: OrchestrateContradictionsMeta
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:819](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L819)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:835](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L835)
 
 What the contradiction pass looked at, beside its findings (RV1404).
 Rides the acceptance envelope as `contradictionsMeta` whenever the
@@ -20,5 +20,5 @@ list is indistinguishable from a complete one.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-poolchildren"></a> `poolChildren` | `number` | How many accepted children the pass actually judged. | [packages/core/src/orchestrator/orchestrate.ts:821](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L821) |
-| <a id="property-truncated"></a> `truncated` | `boolean` | True when more contradictions existed than `max` allowed to report. | [packages/core/src/orchestrator/orchestrate.ts:823](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L823) |
+| <a id="property-poolchildren"></a> `poolChildren` | `number` | How many accepted children the pass actually judged. | [packages/core/src/orchestrator/orchestrate.ts:837](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L837) |
+| <a id="property-truncated"></a> `truncated` | `boolean` | True when more contradictions existed than `max` allowed to report. | [packages/core/src/orchestrator/orchestrate.ts:839](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L839) |

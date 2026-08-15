@@ -64,6 +64,7 @@ import { emitSpawnAdmitted, emitSpawnRejected } from '../engine/spawn-events.js'
 import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
 import { lastRunSettle } from '../stores/reconcile.js';
+import { lastMechanicalRepairCostUsd } from '../stores/synthesis-candidates.js';
 import type { AgentOpts, AgentProfile, Ctx, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
@@ -471,6 +472,21 @@ export interface FinishValidationSpec {
    * there. Zero keeps the pre 1.73 ceiling byte identical.
    */
   repairTurnReserve?: number;
+  /**
+   * The declared price of ONE mechanical repair turn in USD (RV3802),
+   * the money twin of `repairTurnReserve`'s turn grant: the bounded
+   * claim repair round (`claimConsistency.onFound: 'repair'`) holds
+   * this beside the verdict money (RV3701) from the moment the round
+   * is admitted, so the one repair turn the round's own finish
+   * contract can grant is funded when the candidate materializes; the
+   * leg releases to the round's finish loop at its first journaled
+   * verdict. Undeclared, the hold falls back to the run's own observed
+   * last mechanical repair price (`lastMechanicalRepairCostUsd` over
+   * the journal, absent when no priced repair window exists), else
+   * zero, which keeps every pre-RV3802 admission byte identical. A
+   * nonnegative finite number; refused typed otherwise.
+   */
+  estRepairCostUsd?: number;
   /**
    * The coordination draft gate (the v1.74 experiment review, P0.3),
    * meaningful ONLY with `synthesis` configured: with validators bound
@@ -1623,6 +1639,16 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       requireNonNegativeInteger(
         (fv as { repairTurnReserve?: unknown }).repairTurnReserve as number,
         'orchestrate finishValidation.repairTurnReserve',
+      );
+    }
+    const estRepair = (fv as { estRepairCostUsd?: unknown }).estRepairCostUsd;
+    if (
+      estRepair !== undefined &&
+      (typeof estRepair !== 'number' || !Number.isFinite(estRepair) || estRepair < 0)
+    ) {
+      throw new ConfigError(
+        'orchestrate finishValidation.estRepairCostUsd must be a nonnegative finite number; ' +
+          `got ${JSON.stringify(estRepair)}`,
       );
     }
     const retain = (fv as { retainRejectedCandidates?: unknown }).retainRejectedCandidates;
@@ -4552,6 +4578,19 @@ export function makeOrchestratorWorkflow(
      */
     let validationInvocationStart = 0;
     /**
+     * The staged release of the round's mechanical money leg (RV3802),
+     * armed by the bounded claim repair round right before its
+     * composition dispatches and fired at the round invocation's FIRST
+     * journaled finish verdict: a 'repair' verdict is about to spend
+     * the freed money on the granted turn, an 'accepted' one never
+     * needed it, and a 'rejected' one dies into the round's own
+     * finally, which releases whatever is still armed. Live-only state
+     * on the RV808b doctrine: the hold itself is re-committed by the
+     * re-executed round code on a resume, and full replay never runs
+     * validateFinish at all.
+     */
+    let releaseRepairLeg: (() => void) | undefined;
+    /**
      * The contract generation membership test (cycle 73). Without a
      * contract there are no generations and every decision is current
      * (the pre 1.77 behavior, byte identical). With one, a decision
@@ -5060,6 +5099,10 @@ export function makeOrchestratorWorkflow(
           site: 'orchestrator-finish-validation',
           value: decision,
         });
+        // The staged release (RV3802): the round's first journaled
+        // verdict is the moment the mechanical leg's purpose resolves,
+        // whichever way it resolved; fires at most once.
+        releaseRepairLeg?.();
       }
       if (decision.verdict === 'accepted') {
         // An accepted PATCHED call resolves the invocation output to
@@ -8926,6 +8969,32 @@ export function makeOrchestratorWorkflow(
         if (convergenceHoldUsd > 0) {
           internals.budget.commitConvergenceReserve(convergenceScope, convergenceHoldUsd);
         }
+        // The MECHANICAL leg of the same bargain (RV3802): the round's
+        // finish contract can grant one bounded repair turn, and the
+        // third comparison run's round entered exactly that turn's
+        // price short of certainty. Sized from the host's declared
+        // `finishValidation.estRepairCostUsd` first, else from this
+        // run's own observed last mechanical repair window (a priced
+        // fact of the journal by the time the round is admitted), else
+        // zero, inert. Held beside the verdict leg, released EARLY at
+        // the round invocation's first journaled verdict (the staged
+        // release the validateFinish hook fires), and by the finally
+        // below on every path that never reached one.
+        const repairHoldUsd =
+          validationSpec === undefined
+            ? 0
+            : (validationSpec.estRepairCostUsd ??
+              lastMechanicalRepairCostUsd(internals.replayer.snapshot(), (servedBy, usage) =>
+                internals.priceUsd(servedBy, usage),
+              ) ??
+              0);
+        if (repairHoldUsd > 0) {
+          internals.budget.commitRepairReserve(convergenceScope, repairHoldUsd);
+          releaseRepairLeg = () => {
+            releaseRepairLeg = undefined;
+            internals.budget.releaseRepairReserve(convergenceScope);
+          };
+        }
         try {
           synthesizedFinal = await runSynthesis(result.output);
         } catch (thrown) {
@@ -9008,7 +9077,14 @@ export function makeOrchestratorWorkflow(
           // released to the verdict pass it was held FOR, right before that
           // dispatch admits, and released on both deaths too, so no
           // terminal arithmetic ever carries a hold for a verdict that
-          // can no longer happen.
+          // can no longer happen. The mechanical leg (RV3802) normally
+          // released earlier, at the round's first verdict; a path that
+          // never reached one (a pre dispatch refusal, a death before
+          // any finish call) disarms and releases it here.
+          releaseRepairLeg = undefined;
+          if (repairHoldUsd > 0) {
+            internals.budget.releaseRepairReserve(convergenceScope);
+          }
           if (convergenceHoldUsd > 0) {
             internals.budget.releaseConvergenceReserve(convergenceScope);
           }

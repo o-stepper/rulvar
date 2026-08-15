@@ -19,6 +19,7 @@ Read-only projection of one account.
 | <a id="property-convergencereserveusd"></a> `convergenceReserveUsd` | `number` | The repair round's verdict hold (RV3701); zero when none is committed. | `packages/core/dist/index.d.ts` |
 | <a id="property-finalizereserveusd"></a> `finalizeReserveUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-parentscope"></a> `parentScope?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-repairreserveusd"></a> `repairReserveUsd` | `number` | The repair round's mechanical leg (RV3802); zero when none is committed. | `packages/core/dist/index.d.ts` |
 | <a id="property-scope"></a> `scope` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-spentusd"></a> `spentUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-synthesisreserveusd"></a> `synthesisReserveUsd` | `number` | The synthesis payload hold (cycle 76); zero when none is committed. | `packages/core/dist/index.d.ts` |

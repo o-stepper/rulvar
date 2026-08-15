@@ -3479,6 +3479,94 @@ const repairRoundVerdictReserve: FaultScenario = {
 };
 
 /**
+ * The mechanical leg of the convergence hold (RV3802): RV3701 holds
+ * the verdict money and RV3602 gives the round its own repair pool,
+ * but the one mechanical repair turn that pool can grant was funded by
+ * nothing. This drives the ceiling where the round could pay its
+ * composition and its verdict but not the granted repair: the refusal
+ * fires pre dispatch with BOTH legs named in the printed arithmetic.
+ */
+const repairRoundMechanicalReserve: FaultScenario = {
+  name: 'repair-round-mechanical-reserve',
+  doctrine:
+    'the repair round pays ahead for its one mechanical repair turn too (RV3802): the ' +
+    'declared finishValidation.estRepairCostUsd is held beside the verdict money from ' +
+    'the moment the round is admitted, a round that could seat only its composition ' +
+    'and verdict refuses through the honest pre dispatch class before any of its ' +
+    'wires, with the held convergence reserve AND the held repair reserve both named ' +
+    'in the refusal arithmetic, and exactly one composition ever paid for',
+  async run() {
+    const adapter = tailAdapter({
+      judge: () => TAIL_FINDS,
+      finals: [TAIL_FINAL_INVERTED],
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        synthesis: { limits: { maxTurns: 3 }, estCost: 0.2 },
+        budget: { capUsd: 0.5, capFraction: 1.0 },
+        claimConsistency: {
+          stage: 'final',
+          onFound: 'repair',
+          judge: { estCost: 0.2 },
+        },
+        finishValidation: {
+          validators: [
+            minMatchesValidator({
+              pattern: 'src/[a-z]+\\.ts:\\d+',
+              min: 1,
+              name: 'provenance-anchor',
+            }),
+          ],
+          maxRepairs: 1,
+          estRepairCostUsd: 0.15,
+        },
+      }),
+      undefined,
+      { runId: 'fault-repair-mechanical-reserve', budgetUsd: 10 },
+    ).result;
+    const data = (outcome.error?.data ?? {}) as {
+      source?: unknown;
+      roundDispatched?: unknown;
+      repairsUsed?: unknown;
+      claimConsistencyMeta?: { findings?: unknown };
+    };
+    const entries = await store.load('fault-repair-mechanical-reserve');
+    const { compositions, judges } = tailSpans(entries);
+    const message = outcome.error?.message ?? '';
+    const verdictNamed = message.includes('held convergence reserve 0.2000');
+    const mechanicalNamed = message.includes('held repair reserve 0.1500');
+    const matched =
+      outcome.status === 'error' &&
+      message.includes('could not dispatch') &&
+      verdictNamed &&
+      mechanicalNamed &&
+      data.source === 'orchestrator_claim_consistency' &&
+      data.roundDispatched === false &&
+      data.repairsUsed === 0 &&
+      data.claimConsistencyMeta?.findings === 1 &&
+      compositions.length === 1 &&
+      judges.length === 1;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}': roundDispatched=${String(data.roundDispatched)}, ` +
+          `repairsUsed=${String(data.repairsUsed)}, held convergence reserve ` +
+          `named=${String(verdictNamed)}, held repair reserve named=${String(mechanicalNamed)}; ` +
+          `${String(compositions.length)} composition(s) paid, ` +
+          `${String(judges.length)} final judge pass(es)`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', { status: outcome.status, error: outcome.error ?? null }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
+/**
  * The armed posture doctrine on a dead judge (RV3307): a gate armed to
  * stop or to repair must not pass silently when its judge cannot rule.
  * Both armed postures refuse typed; the round never runs.
@@ -3698,6 +3786,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   repairRoundHostRejection,
   repairRoundOwnPool,
   repairRoundVerdictReserve,
+  repairRoundMechanicalReserve,
   deterministicProvenancePatch,
   claimJudgeDeadArmedRefusal,
 ];

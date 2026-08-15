@@ -47,6 +47,7 @@ const EXPECTED = [
   'repair-round-host-rejection',
   'repair-round-own-pool',
   'repair-round-verdict-reserve',
+  'repair-round-mechanical-reserve',
   'deterministic-provenance-patch',
   'claim-judge-dead-armed-refusal',
 ];
@@ -180,6 +181,15 @@ describe('the fault-injection kit (RV811)', () => {
     );
     expect(byName.get('repair-round-verdict-reserve')?.observation.detail).toContain(
       '1 composition(s) paid',
+    );
+    // The RV3802 scenario: the mechanical leg beside the verdict leg;
+    // a round that could not fund its one granted repair turn refuses
+    // pre dispatch with BOTH holds in the printed arithmetic.
+    expect(byName.get('repair-round-mechanical-reserve')?.observation.detail).toContain(
+      'held repair reserve named=true',
+    );
+    expect(byName.get('repair-round-mechanical-reserve')?.observation.detail).toContain(
+      'roundDispatched=false',
     );
     // The RV3801 scenario: the deterministic patch heals the graded
     // candidate without a wire or a pool spend, the healed failure

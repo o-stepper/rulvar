@@ -1941,3 +1941,176 @@ describe('the bounded post judge repair (RV3307)', () => {
     expect(entries.some((entry) => entry.hostRejected === true)).toBe(false);
   });
 });
+
+describe('the mechanical leg of the convergence hold (RV3802)', () => {
+  const FINAL_INVERTED_LOCAL =
+    'final: an audit-write failure does not turn success into failure [src/exec.ts:256-296].';
+  const FINAL_UNGROUNDED_LOCAL = 'final: repaired wording with the provenance stripped.';
+  const FINAL_CLEAN_LOCAL =
+    'final: a failed audit write does not mask success [src/exec.ts:256-296].';
+  const JUDGE_FINDS_LOCAL: ScriptedTurn = {
+    text: JSON.stringify({
+      contradictions: [{ pair: 0, reason: 'the draft inverts the recorded reading' }],
+    }),
+  };
+  const JUDGE_AGREES_LOCAL: ScriptedTurn = { text: JSON.stringify({ contradictions: [] }) };
+  const LEG_OPTS = {
+    acceptance: { childPolicy: 'all-ok' as const },
+    synthesis: { limits: { maxTurns: 3 }, estCost: 0.2 },
+    claimConsistency: {
+      stage: 'final' as const,
+      onFound: 'repair' as const,
+      judge: { model: 'judge:model' as const, estCost: 0.2 },
+    },
+    finishValidation: {
+      validators: [
+        minMatchesValidator({ pattern: 'src/[a-z]+\\.ts:\\d+', min: 1, name: 'provenance-anchor' }),
+      ],
+      maxRepairs: 1,
+      estRepairCostUsd: 0.15,
+    },
+  };
+
+  function legHarness(options: { judgeTurns: ScriptedTurn[]; finals: string[] }) {
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    let judgeCall = 0;
+    const judge = scriptedAdapter(
+      (): ScriptedTurn =>
+        options.judgeTurns[Math.min(judgeCall++, options.judgeTurns.length - 1)] ??
+        JUDGE_FINDS_LOCAL,
+      { id: 'judge' },
+    );
+    let synthCall = 0;
+    let onSynthesisTurn: (() => void) | undefined;
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => {
+        onSynthesisTurn?.();
+        return {
+          toolCall: {
+            name: 'finish',
+            args: { result: options.finals[Math.min(synthCall++, options.finals.length - 1)] },
+          },
+        };
+      },
+      { id: 'strong' },
+    );
+    const { internals, store } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    return {
+      internals,
+      store,
+      judge,
+      synthesis,
+      armProbe: (probe: () => void) => {
+        onSynthesisTurn = probe;
+      },
+    };
+  }
+
+  it('a round that cannot fund its granted repair turn refuses pre dispatch, both legs named', async () => {
+    // 0.2 held for the verdict plus 0.15 held for the mechanical leg
+    // plus 0.2 proposed for the composition does not fit 0.5; without
+    // the leg the same round admits at 0.4, so the refusal is the
+    // leg's own.
+    const { internals } = legHarness({
+      judgeTurns: [JUDGE_FINDS_LOCAL],
+      finals: [FINAL_INVERTED_LOCAL],
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...LEG_OPTS,
+        budget: { capUsd: 0.5, capFraction: 1.0 },
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const message = String((thrown as FailRunError).message);
+    expect(message).toContain('could not dispatch');
+    expect(message).toContain('held convergence reserve 0.2000');
+    expect(message).toContain('held repair reserve 0.1500');
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.roundDispatched).toBe(false);
+    expect(data.repairsUsed).toBe(0);
+  });
+
+  it('the leg releases at the round invocation FIRST verdict, funding the granted turn', async () => {
+    const { internals, armProbe, synthesis } = legHarness({
+      judgeTurns: [JUDGE_FINDS_LOCAL, JUDGE_AGREES_LOCAL],
+      finals: [FINAL_INVERTED_LOCAL, FINAL_UNGROUNDED_LOCAL, FINAL_CLEAN_LOCAL],
+    });
+    const legAtTurn: (number | undefined)[] = [];
+    const verdictAtTurn: (number | undefined)[] = [];
+    armProbe(() => {
+      legAtTurn.push(internals.budget.accountView('run')?.repairReserveUsd);
+      verdictAtTurn.push(internals.budget.accountView('run')?.convergenceReserveUsd);
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...LEG_OPTS,
+        budget: { capUsd: 0.9, capFraction: 1.0 },
+      }),
+      undefined,
+    )) as { result: unknown };
+    expect(outcome.result).toBe(FINAL_CLEAN_LOCAL);
+    expect(synthesis.calls).toHaveLength(3);
+    // The staged lifecycle, read at each synthesis wire: the initial
+    // composition predates the round (no legs), the round's candidate
+    // turn runs under BOTH holds, and the granted repair turn runs
+    // with the mechanical leg already released to it while the
+    // verdict leg stays held for the judge.
+    expect(legAtTurn).toEqual([0, 0.15, 0]);
+    expect(verdictAtTurn).toEqual([0, 0.2, 0.2]);
+    // Nothing stays committed once the run settles.
+    expect(internals.budget.accountView('run')?.repairReserveUsd).toBe(0);
+    expect(internals.budget.accountView('run')?.convergenceReserveUsd).toBe(0);
+  });
+
+  it('acceptance without a repair also releases the leg at the first verdict', async () => {
+    const { internals, armProbe } = legHarness({
+      judgeTurns: [JUDGE_FINDS_LOCAL, JUDGE_AGREES_LOCAL],
+      finals: [FINAL_INVERTED_LOCAL, FINAL_CLEAN_LOCAL],
+    });
+    const legAtTurn: (number | undefined)[] = [];
+    armProbe(() => {
+      legAtTurn.push(internals.budget.accountView('run')?.repairReserveUsd);
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...LEG_OPTS,
+        budget: { capUsd: 0.9, capFraction: 1.0 },
+      }),
+      undefined,
+    )) as { result: unknown };
+    expect(outcome.result).toBe(FINAL_CLEAN_LOCAL);
+    // Two synthesis turns: the initial composition and the round's
+    // accepted candidate; the leg was held only for the second and
+    // consumed by nothing.
+    expect(legAtTurn).toEqual([0, 0.15]);
+    expect(internals.budget.accountView('run')?.repairReserveUsd).toBe(0);
+  });
+
+  it('intake refuses a negative or non finite declared estimate typed', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        finishValidation: {
+          validators: [minMatchesValidator({ pattern: 'x', min: 1, name: 'provenance-anchor' })],
+          estRepairCostUsd: -0.1,
+        },
+      }),
+    ).toThrow(/estRepairCostUsd must be a nonnegative finite number/);
+    expect(() =>
+      makeOrchestratorWorkflow('goal', {
+        finishValidation: {
+          validators: [minMatchesValidator({ pattern: 'x', min: 1, name: 'provenance-anchor' })],
+          estRepairCostUsd: Number.NaN,
+        },
+      }),
+    ).toThrow(/estRepairCostUsd/);
+  });
+});

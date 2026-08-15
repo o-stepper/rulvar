@@ -15,7 +15,10 @@ import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from '../engine/engine.js';
 import { scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 import { makeOrchestratorWorkflow } from '../orchestrator/orchestrate.js';
-import { synthesisCandidatesFromJournal } from './synthesis-candidates.js';
+import {
+  lastMechanicalRepairCostUsd,
+  synthesisCandidatesFromJournal,
+} from './synthesis-candidates.js';
 
 const stamp = (ms: number): string => new Date(1_700_000_000_000 + ms).toISOString();
 
@@ -317,3 +320,55 @@ const handlesIn = (req: ChatRequest): number[] => {
   }
   return handles;
 };
+
+describe('lastMechanicalRepairCostUsd (RV3802)', () => {
+  const price = (servedBy: string, usage: { inputTokens: number }): number | undefined =>
+    servedBy === 'fake:model' ? usage.inputTokens / 1000 : undefined;
+
+  it('prices the window that followed a repair verdict inside the same span', () => {
+    expect(lastMechanicalRepairCostUsd(repairShaped(), price)).toBeCloseTo(0.1, 12);
+  });
+
+  it('spanSeq names the hosting span so the pairing never crosses invocations', () => {
+    const { candidates } = synthesisCandidatesFromJournal(repairShaped(), price);
+    expect(candidates.map((candidate) => candidate.spanSeq)).toEqual([109, 109]);
+  });
+
+  it('returns undefined with no pairing, an unpriced window, or cross-span neighbors', () => {
+    const clean = [
+      running(1, 's1', 0),
+      wire(2, 1, 1, 10, USE),
+      verdict(3, 20, { callId: 'C1', verdict: 'accepted', failed: [], repairsUsed: 0 }),
+      terminal(4, 1, 's1', 0, 30, {
+        costAttribution: { role: 'synthesize' },
+        providerCalls: [{ ordinal: 1 }],
+      }),
+    ];
+    expect(lastMechanicalRepairCostUsd(clean, price)).toBeUndefined();
+    expect(lastMechanicalRepairCostUsd(repairShaped(), () => undefined)).toBeUndefined();
+    // A span that DIED on its repair verdict beside a fresh span that
+    // opened with an acceptance: global neighbors, never a pairing.
+    const cross = [
+      running(1, 'sA', 0),
+      wire(2, 1, 1, 10, USE),
+      verdict(3, 20, {
+        callId: 'A1',
+        verdict: 'repair',
+        failed: [{ name: 'provenance-anchor', reasons: ['no anchor'] }],
+        repairsUsed: 0,
+      }),
+      terminal(4, 1, 'sA', 0, 30, {
+        costAttribution: { role: 'synthesize' },
+        providerCalls: [{ ordinal: 1 }],
+      }),
+      running(5, 'sB', 40),
+      wire(6, 5, 1, 50, USE),
+      verdict(7, 60, { callId: 'B1', verdict: 'accepted', failed: [], repairsUsed: 0 }),
+      terminal(8, 5, 'sB', 40, 70, {
+        costAttribution: { role: 'synthesize' },
+        providerCalls: [{ ordinal: 1 }],
+      }),
+    ];
+    expect(lastMechanicalRepairCostUsd(cross, price)).toBeUndefined();
+  });
+});

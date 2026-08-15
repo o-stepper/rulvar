@@ -835,3 +835,48 @@ describe('the convergence reserve (RV3701)', () => {
     expect(() => budget.releaseConvergenceReserve('ghost')).not.toThrow();
   });
 });
+
+describe('the repair reserve, the mechanical leg (RV3802)', () => {
+  it('joins projected admission beside the verdict leg, both clauses named, and releases whole', () => {
+    const budget = new RunBudget({ ceilingUsd: 1 });
+    budget.commitConvergenceReserve('run', 0.3);
+    budget.commitRepairReserve('run', 0.25);
+    expect(budget.accountView('run')?.repairReserveUsd).toBe(0.25);
+    expect(budget.remainderOf('run')).toBeCloseTo(0.45);
+    expect(budget.remainingUsd('run')).toBeCloseTo(0.45);
+    expect(() => budget.refuseSpawnIfInfeasible(0.5)).toThrow(BudgetExhaustedError);
+    expect(() => budget.refuseSpawnIfInfeasible(0.5)).toThrow(
+      /held convergence reserve 0\.3000 USD/,
+    );
+    expect(() => budget.refuseSpawnIfInfeasible(0.5)).toThrow(/held repair reserve 0\.2500 USD/);
+    // An exact fill beside BOTH holds admits, the admitSpawn rule.
+    expect(() => budget.refuseSpawnIfInfeasible(0.45)).not.toThrow();
+    budget.releaseRepairReserve('run');
+    expect(budget.accountView('run')?.repairReserveUsd).toBe(0);
+    expect(budget.remainingUsd('run')).toBeCloseTo(0.7);
+    budget.releaseConvergenceReserve('run');
+    expect(budget.remainingUsd('run')).toBeCloseTo(1);
+  });
+
+  it('mirrors a sub account leg onto the root by the delta, registering again included', () => {
+    const budget = new RunBudget({ ceilingUsd: 2 });
+    budget.openAccount('orchestrator', {});
+    budget.commitRepairReserve('orchestrator', 0.4);
+    expect(budget.accountView('run')?.repairReserveUsd).toBe(0.4);
+    budget.commitRepairReserve('orchestrator', 0.15);
+    expect(budget.accountView('orchestrator')?.repairReserveUsd).toBe(0.15);
+    expect(budget.accountView('run')?.repairReserveUsd).toBeCloseTo(0.15);
+    budget.releaseRepairReserve('orchestrator');
+    expect(budget.accountView('orchestrator')?.repairReserveUsd).toBe(0);
+    expect(budget.accountView('run')?.repairReserveUsd).toBeCloseTo(0);
+  });
+
+  it('an unknown scope refuses typed and a released release stays a no-op', () => {
+    const budget = new RunBudget({});
+    expect(() => budget.commitRepairReserve('ghost', 0.1)).toThrow(ConfigError);
+    expect(() => budget.releaseRepairReserve('ghost')).not.toThrow();
+    const clean = new RunBudget({ ceilingUsd: 1 });
+    clean.releaseRepairReserve('run');
+    expect(clean.accountView('run')?.repairReserveUsd).toBe(0);
+  });
+});

@@ -550,8 +550,8 @@ export const MUTATIONS = [
     doctrine:
       'the convergence hold joins the projected admission sum, so no spawn can be admitted onto the verdict money (RV3701)',
     file: 'packages/core/src/engine/budget.ts',
-    find: '        account.synthesisReserveUsd +\n        account.convergenceReserveUsd;\n',
-    replace: '        account.synthesisReserveUsd;\n',
+    find: '        account.synthesisReserveUsd +\n        account.convergenceReserveUsd +\n        account.repairReserveUsd;\n',
+    replace: '        account.synthesisReserveUsd +\n        account.repairReserveUsd;\n',
     test: 'packages/core/src/engine/budget.test.ts',
   },
   {
@@ -4975,6 +4975,24 @@ export const MUTATIONS = [
     find: '    const scope = scopeBucket(entry.scope);\n    byScope[scope] = (byScope[scope] ?? 0) + priced.usd;\n',
     replace: '',
     test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
+    id: 'budget-repair-reserve-admission-sum',
+    doctrine:
+      'the mechanical leg joins the projected admission sum beside the verdict hold (RV3802), so no spawn can be admitted onto the money of the one repair turn the round can grant',
+    file: 'packages/core/src/engine/budget.ts',
+    find: '        account.synthesisReserveUsd +\n        account.convergenceReserveUsd +\n        account.repairReserveUsd;\n',
+    replace: '        account.synthesisReserveUsd +\n        account.convergenceReserveUsd;\n',
+    test: 'packages/core/src/engine/budget.test.ts',
+  },
+  {
+    id: 'repair-round-staged-release',
+    doctrine:
+      'the mechanical leg releases at the round invocation FIRST journaled verdict (RV3802): a repair verdict is about to spend the freed money on the granted turn, and holding the leg through that turn starves exactly the repair it was held for',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        releaseRepairLeg?.();\n',
+    replace: '',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
 ];
 
