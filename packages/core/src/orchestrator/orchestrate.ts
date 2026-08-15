@@ -327,6 +327,89 @@ export const DEFAULT_FINISH_MAX_REPAIRS = 1;
  */
 const MAX_DETERMINISTIC_PATCHES = 64;
 
+/** The sectional round's owning sections and marker roster (RV3803). */
+export interface SectionalRoundPlan {
+  /** Every H2 marker of the retained document, in document order. */
+  sections: string[];
+  /** The markers owning at least one finding excerpt, document order. */
+  targets: string[];
+}
+
+/**
+ * Plans the sectional claim repair round (RV3803): which H2 sections
+ * of the accepted pre-repair document own the judged findings. The
+ * third comparison run's round regenerated the WHOLE 43k character
+ * document to consume findings that lived in a handful of sentences,
+ * and the tail after fan-in was 80.1 percent of the run's wall. Each
+ * finding's `draftExcerpt` (whitespace collapsed by the pairing fold)
+ * is located in the document through a collapse-aware scan, and its
+ * owning section is the nearest H2 line above it. Fail closed to the
+ * FULL regeneration (undefined, the historical round byte for byte)
+ * whenever the plan cannot be exact: no excerpts, a document without
+ * H2 headings, duplicated markers (the splice grammar needs unique
+ * lines), or any excerpt the scan cannot locate.
+ */
+export function sectionalRoundPlan(
+  document: string,
+  excerpts: readonly string[],
+): SectionalRoundPlan | undefined {
+  if (excerpts.length === 0) {
+    return undefined;
+  }
+  const markers: { marker: string; start: number }[] = [];
+  let offset = 0;
+  for (const line of document.split('\n')) {
+    if (line.trim().startsWith('## ')) {
+      markers.push({ marker: line.trim(), start: offset });
+    }
+    offset += line.length + 1;
+  }
+  if (markers.length === 0 || new Set(markers.map((m) => m.marker)).size !== markers.length) {
+    return undefined;
+  }
+  // The collapse-aware index: the excerpt bytes went through
+  // `trim().replace(/\s+/gu, ' ')` in the pairing fold, so the raw
+  // document is walked into the same shape with each collapsed
+  // character remembering its raw offset.
+  const collapsed: string[] = [];
+  const rawAt: number[] = [];
+  let pendingSpace = false;
+  for (let index = 0; index < document.length; index += 1) {
+    const char = document[index] ?? '';
+    if (/\s/u.test(char)) {
+      pendingSpace = collapsed.length > 0;
+      continue;
+    }
+    if (pendingSpace) {
+      collapsed.push(' ');
+      rawAt.push(index);
+      pendingSpace = false;
+    }
+    collapsed.push(char);
+    rawAt.push(index);
+  }
+  const haystack = collapsed.join('');
+  const targets: string[] = [];
+  for (const excerpt of excerpts) {
+    const at = haystack.indexOf(excerpt.trim());
+    if (at < 0) {
+      return undefined;
+    }
+    const raw = rawAt[at] ?? -1;
+    const owner = [...markers].reverse().find((m) => m.start <= raw);
+    if (owner === undefined) {
+      return undefined;
+    }
+    if (!targets.includes(owner.marker)) {
+      targets.push(owner.marker);
+    }
+  }
+  targets.sort(
+    (a, b) => markers.findIndex((m) => m.marker === a) - markers.findIndex((m) => m.marker === b),
+  );
+  return { sections: markers.map((m) => m.marker), targets };
+}
+
 /**
  * Character cap of the HOST VALIDATION LESSONS prompt block (RV3603):
  * the bounded repair round's prompt folds the run's journaled finish
@@ -4591,6 +4674,18 @@ export function makeOrchestratorWorkflow(
      */
     let releaseRepairLeg: (() => void) | undefined;
     /**
+     * The sectional round context (RV3803), armed by the bounded claim
+     * repair round exactly when {@link sectionalRoundPlan} is exact
+     * over the accepted pre-repair document and the judged findings:
+     * the retained base, its full H2 marker roster, and the target
+     * sections owning the findings. Live state cleared in the round's
+     * finally; a resume re-derives it from replayed material (the
+     * judged findings and the accepted document both replay verbatim),
+     * so the round's prompt bytes stay identical without journaling
+     * anything new.
+     */
+    let sectionalRoundContext: { base: string; sections: string[]; targets: string[] } | undefined;
+    /**
      * The contract generation membership test (cycle 73). Without a
      * contract there are no generations and every decision is current
      * (the pre 1.77 behavior, byte identical). With one, a decision
@@ -4872,10 +4967,66 @@ export function makeOrchestratorWorkflow(
       // mechanics refusal is the moral twin of a schema rejection
       // (typed feedback, nothing journals, no repair spent, bounded by
       // the turn budget); only the verdict over the resolved document
-      // spends the repair bound.
+      // spends the repair bound. The ROUND's dynamic context (RV3803)
+      // wins over the statically declared vocabulary while armed: its
+      // base is the accepted pre-repair document and its markers are
+      // that document's own headings, which is exactly what the round
+      // was asked to repair.
       let effective = (call.result ?? null) as Json | null;
       let spliced = false;
-      if (finishSectional !== undefined) {
+      if (sectionalRoundContext !== undefined) {
+        const round = sectionalRoundContext;
+        const args = (call.args ?? {}) as Record<string, unknown>;
+        const hasSections = Object.hasOwn(args, 'sections');
+        const hasResult = Object.hasOwn(args, 'result');
+        const guidance = (): Record<string, unknown> => ({
+          declaredSections: round.sections,
+          targetSections: round.targets,
+          instruction:
+            'repair ONLY the target sections: call finish({ sections: { "<marker>": "<new ' +
+            'section body>" } }); unchanged sections are spliced from the retained accepted ' +
+            'document byte for byte and the spliced whole is validated and judged. Resubmit ' +
+            'the full document as result only when a targeted repair is impossible.',
+        });
+        if (hasSections && hasResult) {
+          return {
+            ok: false,
+            feedback: {
+              error:
+                'pass either result (the full document) or sections (a sectional repair of ' +
+                'the retained accepted document), never both',
+              ...guidance(),
+            },
+          };
+        }
+        if (hasSections) {
+          const patch = args.sections as Record<string, string>;
+          const markers = Object.keys(patch);
+          if (markers.length === 0) {
+            return {
+              ok: false,
+              feedback: {
+                error: 'sections must name at least one declared section marker',
+                ...guidance(),
+              },
+            };
+          }
+          const unknown = markers.filter((marker) => !round.sections.includes(marker));
+          if (unknown.length > 0) {
+            return {
+              ok: false,
+              feedback: {
+                error: `sections names an undeclared section ${unknown
+                  .map((marker) => `'${marker}'`)
+                  .join(', ')}; only the retained document's own markers splice`,
+                ...guidance(),
+              },
+            };
+          }
+          effective = spliceSections(round.base, round.sections, patch);
+          spliced = true;
+        }
+      } else if (finishSectional !== undefined) {
         const resolution = finishSectional.resolve(call);
         if (resolution.kind === 'refused') {
           return { ok: false, feedback: resolution.feedback };
@@ -5155,8 +5306,26 @@ export function makeOrchestratorWorkflow(
           repairsRemaining: decision.maxRepairs - decision.repairsUsed - 1,
           // The sectional vocabulary rides every repairable rejection
           // (RV808b), derived from configuration alone so a replayed
-          // exchange re-renders identical feedback bytes.
-          ...(finishSectional === undefined ? {} : { sectionalRepair: finishSectional.guidance() }),
+          // exchange re-renders identical feedback bytes. Under the
+          // armed round context (RV3803) the ROUND's own vocabulary
+          // rides instead: same replay argument, the context re-derives
+          // from replayed material.
+          ...(sectionalRoundContext !== undefined
+            ? {
+                sectionalRepair: {
+                  declaredSections: sectionalRoundContext.sections,
+                  targetSections: sectionalRoundContext.targets,
+                  instruction:
+                    'repair ONLY the target sections: call finish({ sections: { "<marker>": ' +
+                    '"<new section body>" } }); unchanged sections are spliced from the ' +
+                    'retained accepted document byte for byte and the spliced whole is ' +
+                    'validated and judged. Resubmit the full document as result only when a ' +
+                    'targeted repair is impossible.',
+                },
+              }
+            : finishSectional === undefined
+              ? {}
+              : { sectionalRepair: finishSectional.guidance() }),
         },
       };
     };
@@ -6994,7 +7163,11 @@ export function makeOrchestratorWorkflow(
       ]);
       const synthesisTools = buildOrchestratorTools(orchestratorRuntime, fullCardText, {
         childResultTools: exposeTools,
-        sectionalFinish: synthSectionalFinish,
+        // The sections argument exists on the finish tool exactly when
+        // something can splice it: the declared vocabulary (RV808b) or
+        // the armed sectional round (RV3803). Deterministic on resume:
+        // the round context re-derives from replayed material.
+        sectionalFinish: synthSectionalFinish || sectionalRoundContext !== undefined,
       }).filter((tool) => synthesisToolNames.has(tool.name));
       if (finishSectional !== undefined && synthSectionalFinish) {
         // The synthesis invocation is SEEDED with the coordination
@@ -7198,6 +7371,30 @@ export function makeOrchestratorWorkflow(
         claimFindingsFound.length === 0
           ? []
           : hostValidationLessons()),
+        // The sectional round block (RV3803), present exactly when the
+        // round armed an exact plan: the retained accepted document
+        // rides the prompt beside its target sections, so the model
+        // repairs sections instead of regenerating a 43k character
+        // document to consume findings living in a handful of
+        // sentences (the third comparison run's tail after fan-in was
+        // 80.1 percent of its wall). Absent otherwise, so every
+        // existing prompt stays byte identical; re-derived from
+        // replayed material on resume, so the bytes are stable.
+        ...(sectionalRoundContext === undefined
+          ? []
+          : [
+              `RETAINED FINAL: ${JSON.stringify(sectionalRoundContext.base)}`,
+              'SECTIONAL ROUND: the accepted document above is RETAINED; repair ONLY the ' +
+                'sections owning the contradicted claims by calling finish({ sections: { ' +
+                '"<marker>": "<new section body>" } }). Unchanged sections are spliced from ' +
+                'the retained document byte for byte and the spliced whole is validated and ' +
+                'judged. Target sections: ' +
+                JSON.stringify(sectionalRoundContext.targets) +
+                '. Declared markers: ' +
+                JSON.stringify(sectionalRoundContext.sections) +
+                '. Resubmit the full document as result only when a targeted repair is ' +
+                'impossible.',
+            ]),
         // The opt-in policy-facts line (RV709): folded ONLY from
         // replay-stable material (the settled child results' durable
         // tool-budget subsets, which the journal replays verbatim), so
@@ -8995,6 +9192,37 @@ export function makeOrchestratorWorkflow(
             internals.budget.releaseRepairReserve(convergenceScope);
           };
         }
+        // The sectional plan (RV3803): exact, or the round regenerates
+        // in full exactly as before. Derived purely from replayed
+        // material (the accepted document and the judged findings), so
+        // a resume re-arms the identical context and the round's
+        // prompt bytes hold.
+        // The sectional vocabulary rides the VALIDATED finish channel
+        // only: without a finish contract there is no resolution hook
+        // to splice through, and the round regenerates in full as it
+        // always did.
+        const roundPlan =
+          validationSpec !== undefined && typeof synthesizedFinal === 'string'
+            ? sectionalRoundPlan(
+                synthesizedFinal,
+                carried.map((finding) => finding.draftExcerpt),
+              )
+            : undefined;
+        if (roundPlan !== undefined) {
+          sectionalRoundContext = { base: synthesizedFinal as string, ...roundPlan };
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'debug',
+              msg: 'orchestrator sectional round armed',
+              data: {
+                targets: roundPlan.targets,
+                sections: roundPlan.sections.length,
+              },
+            },
+            callingState.spanId,
+          );
+        }
         try {
           synthesizedFinal = await runSynthesis(result.output);
         } catch (thrown) {
@@ -9080,7 +9308,10 @@ export function makeOrchestratorWorkflow(
           // can no longer happen. The mechanical leg (RV3802) normally
           // released earlier, at the round's first verdict; a path that
           // never reached one (a pre dispatch refusal, a death before
-          // any finish call) disarms and releases it here.
+          // any finish call) disarms and releases it here. The
+          // sectional context (RV3803) is live state of THIS round and
+          // dies with it on every path.
+          sectionalRoundContext = undefined;
           releaseRepairLeg = undefined;
           if (repairHoldUsd > 0) {
             internals.budget.releaseRepairReserve(convergenceScope);

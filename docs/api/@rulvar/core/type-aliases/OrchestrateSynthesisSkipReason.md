@@ -13,7 +13,7 @@ type OrchestrateSynthesisSkipReason =
   | "synthesis_skipped_by_valid_draft";
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:1459](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1459)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:1542](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1542)
 
 The machine-readable reason a CONFIGURED synthesis step was skipped
 (the 1.65.0 experiment review, item 11.4): telemetry that shows zero

@@ -4994,6 +4994,24 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
+  {
+    id: 'sectional-round-splice',
+    doctrine:
+      'the sectional round splices the resubmitted section into the RETAINED accepted document (RV3803): substituting the patch for the whole loses every untouched byte, and the byte identity of unrepaired sections is the contract',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          effective = spliceSections(round.base, round.sections, patch);',
+    replace: "          effective = Object.values(patch).join('\\n');",
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'sectional-round-fallback',
+    doctrine:
+      'an inexact sectional plan falls back to the FULL regeneration (RV3803): arming the round on a plan that does not exist ships a sectional prompt over nothing, and the honest fallback is the historical round byte for byte',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (roundPlan !== undefined) {',
+    replace: '        if (true) {',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

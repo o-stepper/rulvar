@@ -27,7 +27,7 @@ import {
   pairDraftClaims,
   pairRunFactClaims,
 } from './consistency.js';
-import { makeOrchestratorWorkflow } from './orchestrate.js';
+import { makeOrchestratorWorkflow, sectionalRoundPlan } from './orchestrate.js';
 import { minMatchesValidator } from './finish-validators.js';
 
 describe('pairDraftClaims (RV1501)', () => {
@@ -2112,5 +2112,170 @@ describe('the mechanical leg of the convergence hold (RV3802)', () => {
         },
       }),
     ).toThrow(/estRepairCostUsd/);
+  });
+});
+
+describe('the sectional claim repair round (RV3803)', () => {
+  const PREFIX = '# Audit\n\n## Fine\n\nThe ledger holds one denominator.\n\n';
+  const FINAL_SECTIONED_INVERTED =
+    `${PREFIX}## Verdict\n\n` +
+    'final: an audit-write failure does not turn success into failure [src/exec.ts:256-296].\n';
+  const VERDICT_BODY = 'final: a failed audit write does not mask success [src/exec.ts:256-296].\n';
+  const FINAL_SPLICED = `${PREFIX}## Verdict\n${VERDICT_BODY}`;
+  const JUDGE_FINDS_LOCAL: ScriptedTurn = {
+    text: JSON.stringify({
+      contradictions: [{ pair: 0, reason: 'the draft inverts the recorded reading' }],
+    }),
+  };
+  const JUDGE_AGREES_LOCAL: ScriptedTurn = { text: JSON.stringify({ contradictions: [] }) };
+  const ROUND_OPTS = {
+    acceptance: { childPolicy: 'all-ok' as const },
+    synthesis: { limits: { maxTurns: 3 } },
+    claimConsistency: {
+      stage: 'final' as const,
+      onFound: 'repair' as const,
+      judge: { model: 'judge:model' as const },
+    },
+    finishValidation: {
+      validators: [
+        minMatchesValidator({ pattern: 'src/[a-z]+\\.ts:\\d+', min: 1, name: 'provenance-anchor' }),
+      ],
+      maxRepairs: 1,
+    },
+  };
+
+  function roundHarness(synthesisTurns: readonly ScriptedTurn[], judgeTurns: ScriptedTurn[]) {
+    const coordination = rootAdapter([POOL_READING], DRAFT_INVERTED);
+    let judgeCall = 0;
+    const judge = scriptedAdapter(
+      (): ScriptedTurn =>
+        judgeTurns[Math.min(judgeCall++, judgeTurns.length - 1)] ?? JUDGE_FINDS_LOCAL,
+      { id: 'judge' },
+    );
+    let synthCall = 0;
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn =>
+        synthesisTurns[Math.min(synthCall++, synthesisTurns.length - 1)] ?? { text: '' },
+      { id: 'strong' },
+    );
+    const { internals, store } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    return { internals, store, judge, synthesis };
+  }
+
+  const finishWith = (result: string): ScriptedTurn => ({
+    toolCall: { name: 'finish', args: { result } },
+  });
+
+  it('the round repairs ONLY the owning section: untouched bytes identical, judged whole', async () => {
+    const { internals, store, judge, synthesis } = roundHarness(
+      [
+        finishWith(FINAL_SECTIONED_INVERTED),
+        { toolCall: { name: 'finish', args: { sections: { '## Verdict': VERDICT_BODY } } } },
+      ],
+      [JUDGE_FINDS_LOCAL, JUDGE_AGREES_LOCAL],
+    );
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', ROUND_OPTS),
+      undefined,
+    )) as { result?: unknown; claimConsistencyMeta?: Record<string, unknown> };
+    // The spliced whole shipped: the repaired section carries the new
+    // body, and every byte outside it is the accepted document's own.
+    expect(outcome.result).toBe(FINAL_SPLICED);
+    expect(String(outcome.result).startsWith(PREFIX)).toBe(true);
+    expect(outcome.claimConsistencyMeta?.findings).toBe(0);
+    expect(synthesis.calls).toHaveLength(2);
+    expect(judge.calls).toHaveLength(2);
+    // The round prompt carried the retained document and the targets,
+    // never the full-regeneration shape.
+    const roundPrompt = textOf(synthesis.calls[1] ?? ({ messages: [] } as unknown as ChatRequest));
+    expect(roundPrompt).toContain('SECTIONAL ROUND');
+    expect(roundPrompt).toContain('RETAINED FINAL');
+    expect(roundPrompt).toContain('"## Verdict"');
+    expect(roundPrompt).toContain('CLAIM CONTRADICTIONS');
+    // Two accepted verdicts, no mechanical repair spent anywhere.
+    const rows = (await store.load('test-run'))
+      .filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_finish_validation',
+      )
+      .map((entry) => entry.value as { verdict?: string });
+    expect(rows.map((row) => row.verdict)).toEqual(['accepted', 'accepted']);
+  });
+
+  it('a document without headings falls back to the full regeneration, byte for byte', async () => {
+    const FINAL_FLAT_INVERTED =
+      'final: an audit-write failure does not turn success into failure [src/exec.ts:256-296].';
+    const FINAL_FLAT_CLEAN =
+      'final: a failed audit write does not mask success [src/exec.ts:256-296].';
+    const { internals, synthesis } = roundHarness(
+      [finishWith(FINAL_FLAT_INVERTED), finishWith(FINAL_FLAT_CLEAN)],
+      [JUDGE_FINDS_LOCAL, JUDGE_AGREES_LOCAL],
+    );
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', ROUND_OPTS),
+      undefined,
+    )) as { result?: unknown };
+    expect(outcome.result).toBe(FINAL_FLAT_CLEAN);
+    const roundPrompt = textOf(synthesis.calls[1] ?? ({ messages: [] } as unknown as ChatRequest));
+    expect(roundPrompt).toContain('CLAIM CONTRADICTIONS');
+    expect(roundPrompt).not.toContain('SECTIONAL ROUND');
+    expect(roundPrompt).not.toContain('RETAINED FINAL');
+  });
+
+  it('an undeclared marker refuses typed without spending a verdict', async () => {
+    const { internals, store, synthesis } = roundHarness(
+      [
+        finishWith(FINAL_SECTIONED_INVERTED),
+        { toolCall: { name: 'finish', args: { sections: { '## Ghost': 'nothing' } } } },
+        { toolCall: { name: 'finish', args: { sections: { '## Verdict': VERDICT_BODY } } } },
+      ],
+      [JUDGE_FINDS_LOCAL, JUDGE_AGREES_LOCAL],
+    );
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', ROUND_OPTS),
+      undefined,
+    )) as { result?: unknown };
+    expect(outcome.result).toBe(FINAL_SPLICED);
+    expect(synthesis.calls).toHaveLength(3);
+    // The mechanics refusal journaled nothing: exactly two verdicts
+    // exist, both accepted, and the refused exchange spent no repair.
+    const rows = (await store.load('test-run'))
+      .filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_finish_validation',
+      )
+      .map((entry) => entry.value as { verdict?: string; repairsUsed?: number });
+    expect(rows.map((row) => row.verdict)).toEqual(['accepted', 'accepted']);
+    expect(rows.map((row) => row.repairsUsed)).toEqual([0, 0]);
+  });
+
+  it('sectionalRoundPlan is exact or silent: locates collapsed excerpts, refuses the rest', () => {
+    const doc = '# T\n\n## A\n\nalpha  beta\ngamma.\n\n## B\n\ndelta epsilon.\n';
+    // The excerpt arrives whitespace collapsed from the pairing fold.
+    expect(sectionalRoundPlan(doc, ['alpha beta gamma.'])).toEqual({
+      sections: ['## A', '## B'],
+      targets: ['## A'],
+    });
+    expect(sectionalRoundPlan(doc, ['delta epsilon.', 'alpha beta gamma.'])?.targets).toEqual([
+      '## A',
+      '## B',
+    ]);
+    expect(sectionalRoundPlan(doc, ['missing entirely'])).toBeUndefined();
+    expect(sectionalRoundPlan('no headings here', ['no headings here'])).toBeUndefined();
+    expect(sectionalRoundPlan('## A\n\nx\n\n## A\n\ny', ['x'])).toBeUndefined();
+    expect(sectionalRoundPlan(doc, [])).toBeUndefined();
+    // An excerpt above the first heading has no owning section.
+    expect(sectionalRoundPlan('intro line\n\n## A\n\nbody', ['intro line'])).toBeUndefined();
   });
 });
