@@ -3566,6 +3566,202 @@ const repairRoundMechanicalReserve: FaultScenario = {
   },
 };
 
+// ---- The sectional claim repair round (RV3803): the third
+// comparison run's round regenerated the WHOLE 43k character document
+// to consume findings living in a handful of sentences, and the tail
+// after fan-in was 80.1 percent of its wall. The round now repairs
+// the owning H2 sections through the RV808b splice grammar when the
+// plan is exact, and regenerates in full, byte for byte the
+// historical round, when it is not.
+const SECTIONAL_PREFIX = '# Audit\n\n## Fine\n\nThe ledger holds one denominator.\n\n';
+const SECTIONAL_FINAL_INVERTED =
+  `${SECTIONAL_PREFIX}## Verdict\n\n` +
+  'final: an audit-write failure does not turn success into failure [src/exec.ts:256-296].\n';
+const SECTIONAL_VERDICT_BODY =
+  'final: a failed audit write does not mask success [src/exec.ts:256-296].\n';
+const SECTIONAL_SPLICED = `${SECTIONAL_PREFIX}## Verdict\n${SECTIONAL_VERDICT_BODY}`;
+
+const sectionalRepairRound: FaultScenario = {
+  name: 'sectional-repair-round',
+  doctrine:
+    'the bounded claim repair round repairs ONLY the sections owning the judged findings ' +
+    '(RV3803): the round prompt retains the accepted document and names the target ' +
+    'sections, the model resubmits one section body, the host splices it into the ' +
+    'retained document with every other byte identical, and the FULL validator set plus ' +
+    'the final judge rule on the spliced whole; two compositions, two judge passes, no ' +
+    'mechanical repair spent',
+  async run() {
+    let judgeCalls = 0;
+    let synthCalls = 0;
+    let loopTurns = 0;
+    const adapter = new FakeAdapter({
+      agents: {
+        'claim-consistency-judge-final': () => ((judgeCalls += 1) === 1 ? TAIL_FINDS : TAIL_AGREES),
+        'final-composition': () =>
+          (synthCalls += 1) === 1
+            ? fakeToolCalls({ name: 'finish', args: { result: SECTIONAL_FINAL_INVERTED } })
+            : fakeToolCalls({
+                name: 'finish',
+                args: { sections: { '## Verdict': SECTIONAL_VERDICT_BODY } },
+              }),
+        worker: TAIL_POOL_READING,
+        '*': (call) => {
+          loopTurns += 1;
+          if (loopTurns === 1) {
+            return fakeToolCalls({
+              name: 'spawn_agent',
+              args: { agentType: 'worker', prompt: 'read the recorded span' },
+            });
+          }
+          if (loopTurns === 2) {
+            return fakeToolCalls({ name: 'await_all', args: { handles: tailHandles(call.req) } });
+          }
+          return fakeToolCalls({ name: 'finish', args: { result: TAIL_DRAFT_INVERTED } });
+        },
+      },
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        claimConsistency: { stage: 'final', onFound: 'repair' },
+        finishValidation: {
+          validators: [
+            minMatchesValidator({
+              pattern: 'src/[a-z]+\\.ts:\\d+',
+              min: 1,
+              name: 'provenance-anchor',
+            }),
+          ],
+          maxRepairs: 1,
+        },
+      }),
+      undefined,
+      { runId: 'fault-sectional-round', budgetUsd: 10 },
+    ).result;
+    const value = outcome.value as
+      { result?: unknown; claimConsistencyMeta?: { findings?: unknown } } | undefined;
+    const entries = await store.load('fault-sectional-round');
+    const { compositions, judges } = tailSpans(entries);
+    const verdictRows = entries
+      .filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_finish_validation',
+      )
+      .map((entry) => entry.value as { verdict?: string; repairsUsed?: number });
+    const roundPrompts = adapter.calls
+      .filter((call) => call.label === 'final-composition')
+      .map((call) => call.prompt);
+    const sectionalPrompt =
+      roundPrompts.length === 2 &&
+      roundPrompts[0]?.includes('SECTIONAL ROUND') === false &&
+      roundPrompts[1]?.includes('SECTIONAL ROUND') === true &&
+      roundPrompts[1]?.includes('"## Verdict"') === true;
+    const byteIdentity =
+      value?.result === SECTIONAL_SPLICED && String(value.result).startsWith(SECTIONAL_PREFIX);
+    const matched =
+      outcome.status === 'ok' &&
+      byteIdentity &&
+      value.claimConsistencyMeta?.findings === 0 &&
+      verdictRows.map((row) => row.verdict).join(',') === 'accepted,accepted' &&
+      verdictRows.map((row) => String(row.repairsUsed)).join(',') === '0,0' &&
+      sectionalPrompt &&
+      compositions.length === 2 &&
+      judges.length === 2;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' shipped ${value?.result === SECTIONAL_SPLICED ? 'the spliced whole' : 'an unexpected document'}; ` +
+          `byte identity=${String(byteIdentity)}; sectional prompt=${String(sectionalPrompt)}; ` +
+          `verdicts [${verdictRows.map((row) => row.verdict).join(',')}]; ` +
+          `${String(compositions.length)} composition(s), ${String(judges.length)} final ` +
+          'judge pass(es)',
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          envelope: outcome.envelope,
+        }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
+const sectionalRepairRoundFallback: FaultScenario = {
+  name: 'sectional-repair-round-fallback',
+  doctrine:
+    'a round whose plan cannot be exact regenerates in full, byte for byte the ' +
+    'historical round (RV3803): a document without H2 headings arms no sectional ' +
+    'context, the round prompt carries neither the retained document nor a target ' +
+    'list, and the full regeneration converges exactly as before',
+  async run() {
+    let judgeCalls = 0;
+    const adapter = tailAdapter({
+      judge: () => ((judgeCalls += 1) === 1 ? TAIL_FINDS : TAIL_AGREES),
+      finals: [TAIL_FINAL_INVERTED, TAIL_FINAL_CLEAN],
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        claimConsistency: { stage: 'final', onFound: 'repair' },
+        finishValidation: {
+          validators: [
+            minMatchesValidator({
+              pattern: 'src/[a-z]+\\.ts:\\d+',
+              min: 1,
+              name: 'provenance-anchor',
+            }),
+          ],
+          maxRepairs: 1,
+        },
+      }),
+      undefined,
+      { runId: 'fault-sectional-fallback', budgetUsd: 10 },
+    ).result;
+    const value = outcome.value as { result?: unknown } | undefined;
+    const entries = await store.load('fault-sectional-fallback');
+    const { compositions, judges } = tailSpans(entries);
+    const roundPrompts = adapter.calls
+      .filter((call) => call.label === 'final-composition')
+      .map((call) => call.prompt);
+    const fullRegeneration =
+      roundPrompts.length === 2 &&
+      roundPrompts[1]?.includes('CLAIM CONTRADICTIONS') === true &&
+      roundPrompts[1]?.includes('SECTIONAL ROUND') === false &&
+      roundPrompts[1]?.includes('RETAINED FINAL') === false;
+    const matched =
+      outcome.status === 'ok' &&
+      value?.result === TAIL_FINAL_CLEAN &&
+      fullRegeneration &&
+      compositions.length === 2 &&
+      judges.length === 2;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' shipped ${value?.result === TAIL_FINAL_CLEAN ? 'the regenerated document' : 'an unexpected document'}; ` +
+          `full regeneration=${String(fullRegeneration)} (sectional block absent); ` +
+          `${String(compositions.length)} composition(s), ${String(judges.length)} final ` +
+          'judge pass(es)',
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          envelope: outcome.envelope,
+        }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
 /**
  * The armed posture doctrine on a dead judge (RV3307): a gate armed to
  * stop or to repair must not pass silently when its judge cannot rule.
@@ -3787,6 +3983,8 @@ const SCENARIOS: readonly FaultScenario[] = [
   repairRoundOwnPool,
   repairRoundVerdictReserve,
   repairRoundMechanicalReserve,
+  sectionalRepairRound,
+  sectionalRepairRoundFallback,
   deterministicProvenancePatch,
   claimJudgeDeadArmedRefusal,
 ];

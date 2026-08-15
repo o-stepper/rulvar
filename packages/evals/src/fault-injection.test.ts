@@ -48,6 +48,8 @@ const EXPECTED = [
   'repair-round-own-pool',
   'repair-round-verdict-reserve',
   'repair-round-mechanical-reserve',
+  'sectional-repair-round',
+  'sectional-repair-round-fallback',
   'deterministic-provenance-patch',
   'claim-judge-dead-armed-refusal',
 ];
@@ -190,6 +192,19 @@ describe('the fault-injection kit (RV811)', () => {
     );
     expect(byName.get('repair-round-mechanical-reserve')?.observation.detail).toContain(
       'roundDispatched=false',
+    );
+    // The RV3803 scenarios: the sectional round splices the owning
+    // section into the retained document (untouched bytes identical,
+    // full judge on the whole), and an inexact plan regenerates in
+    // full, byte for byte the historical round.
+    expect(byName.get('sectional-repair-round')?.observation.detail).toContain(
+      'byte identity=true',
+    );
+    expect(byName.get('sectional-repair-round')?.observation.detail).toContain(
+      'sectional prompt=true',
+    );
+    expect(byName.get('sectional-repair-round-fallback')?.observation.detail).toContain(
+      'full regeneration=true',
     );
     // The RV3801 scenario: the deterministic patch heals the graded
     // candidate without a wire or a pool spend, the healed failure

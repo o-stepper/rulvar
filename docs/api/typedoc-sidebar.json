@@ -1643,6 +1643,10 @@
             "link": "/api/@rulvar/core/interfaces/SecretMasker.md"
           },
           {
+            "text": "SectionalRoundPlan",
+            "link": "/api/@rulvar/core/interfaces/SectionalRoundPlan.md"
+          },
+          {
             "text": "SectionPatternEntry",
             "link": "/api/@rulvar/core/interfaces/SectionPatternEntry.md"
           },
@@ -3747,6 +3751,10 @@
           {
             "text": "scopeBucket",
             "link": "/api/@rulvar/core/functions/scopeBucket.md"
+          },
+          {
+            "text": "sectionalRoundPlan",
+            "link": "/api/@rulvar/core/functions/sectionalRoundPlan.md"
           },
           {
             "text": "sectionCitationsValidator",
@@ -6777,6 +6785,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/SecretMasker.md"
           },
           {
+            "text": "SectionalRoundPlan",
+            "link": "/api/@rulvar/rulvar/interfaces/SectionalRoundPlan.md"
+          },
+          {
             "text": "SectionPatternEntry",
             "link": "/api/@rulvar/rulvar/interfaces/SectionPatternEntry.md"
           },
@@ -8917,6 +8929,10 @@
           {
             "text": "scopeBucket",
             "link": "/api/@rulvar/rulvar/functions/scopeBucket.md"
+          },
+          {
+            "text": "sectionalRoundPlan",
+            "link": "/api/@rulvar/rulvar/functions/sectionalRoundPlan.md"
           },
           {
             "text": "sectionCitationsValidator",
