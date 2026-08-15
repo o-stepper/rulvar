@@ -1083,6 +1083,10 @@
             "link": "/api/@rulvar/core/interfaces/FinishContractSectionPattern.md"
           },
           {
+            "text": "FinishRepairHint",
+            "link": "/api/@rulvar/core/interfaces/FinishRepairHint.md"
+          },
+          {
             "text": "FinishSelfTestFailure",
             "link": "/api/@rulvar/core/interfaces/FinishSelfTestFailure.md"
           },
@@ -2925,6 +2929,10 @@
             "link": "/api/@rulvar/core/functions/applyClaimOps.md"
           },
           {
+            "text": "applyFinishRepairHints",
+            "link": "/api/@rulvar/core/functions/applyFinishRepairHints.md"
+          },
+          {
             "text": "applyStructuredOutputTier",
             "link": "/api/@rulvar/core/functions/applyStructuredOutputTier.md"
           },
@@ -3307,6 +3315,10 @@
           {
             "text": "implementationAgentProfile",
             "link": "/api/@rulvar/core/functions/implementationAgentProfile.md"
+          },
+          {
+            "text": "insertRunIdIntoSentence",
+            "link": "/api/@rulvar/core/functions/insertRunIdIntoSentence.md"
           },
           {
             "text": "invoiceFromJournal",
@@ -6173,6 +6185,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/FinishContractSectionPattern.md"
           },
           {
+            "text": "FinishRepairHint",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishRepairHint.md"
+          },
+          {
             "text": "FinishSelfTestFailure",
             "link": "/api/@rulvar/rulvar/interfaces/FinishSelfTestFailure.md"
           },
@@ -8063,6 +8079,10 @@
             "link": "/api/@rulvar/rulvar/functions/applyClaimOps.md"
           },
           {
+            "text": "applyFinishRepairHints",
+            "link": "/api/@rulvar/rulvar/functions/applyFinishRepairHints.md"
+          },
+          {
             "text": "applyStructuredOutputTier",
             "link": "/api/@rulvar/rulvar/functions/applyStructuredOutputTier.md"
           },
@@ -8445,6 +8465,10 @@
           {
             "text": "implementationAgentProfile",
             "link": "/api/@rulvar/rulvar/functions/implementationAgentProfile.md"
+          },
+          {
+            "text": "insertRunIdIntoSentence",
+            "link": "/api/@rulvar/rulvar/functions/insertRunIdIntoSentence.md"
           },
           {
             "text": "invoiceFromJournal",

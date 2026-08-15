@@ -14,6 +14,7 @@ type FinishValidationVerdict =
   | {
   ok: false;
   reasons: string[];
+  repairHints?: FinishRepairHint[];
 };
 ```
 

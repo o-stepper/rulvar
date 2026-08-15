@@ -2774,41 +2774,45 @@ const resumeSpawnFamine: FaultScenario = {
  * beside the live-observed claim, the model wove the id into a cited
  * sentence, cited-value lawfully rejected the id as a value absent from
  * the cited window, and both repairs burned without an exit. The
- * evidence-grade reason now NAMES the safe composition, so the same
- * trap converges in one repair round with cited-value silent. It also
- * names the id ITSELF (RV2501): the 1.226.0 comparison run obeyed the
- * same reason with an id no artifact pattern could match, so the
- * instruction was unexecutable and both repairs burned again. And the
- * composition it names is now the DIRECT one (RV2502): with the id in
- * hand cited-value reads it as identity rather than as a value asserted
- * about the cited line, so the corrected finish here writes this run's
- * own id in the graded sentence BESIDE the citation, the exact shape
- * the old bundle could not accept from either side.
+ * evidence-grade reason then learned to NAME the safe composition
+ * (RV2202) and the id itself (RV2501), with cited-value reading that id
+ * as identity (RV2502), so the trap converged in one repair round. The
+ * deterministic patch (RV3801) closes the arc: the host now PERFORMS
+ * the reason's own prescription, so the same trap converges in ZERO
+ * model repairs, the third subscription run's two burned wires cost
+ * nothing at all, cited-value stays silent over the patched document,
+ * and the guidance bytes remain journaled on the healed verdict for
+ * the failure shapes a patch cannot reach.
  */
 const validatorGuidanceConflict: FaultScenario = {
   name: 'validator-guidance-conflict',
   doctrine:
     'the evidence-grade reason names the SAFE composition against its cited-value sibling ' +
-    'and names the run id it wants written (RV2202, RV2501, RV2502): the c3 trap finish ' +
-    "repairs in ONE round by carrying THIS run's own id in the graded sentence, beside a " +
-    'source citation, with cited-value reading that id as identity and never rejecting; the ' +
-    'third subscription run burned both repairs between the two verdicts, and the 1.226.0 ' +
-    'comparison run burned both again on an id no artifact pattern could match',
+    'and names the run id it wants written (RV2202, RV2501, RV2502), and the finish loop ' +
+    'now performs that prescription itself (RV3801): the c3 trap heals in ZERO model ' +
+    "repairs, the accepted document carries THIS run's own id inside the graded sentence " +
+    'with cited-value reading it as identity and never rejecting, and the composition-safe ' +
+    'guidance bytes ride the journaled healed verdict; the third subscription run burned ' +
+    'both repairs between the two verdicts, and the 1.226.0 comparison run burned both ' +
+    'again on an id no artifact pattern could match',
   async run() {
     const TRAP_FINISH =
       'The reserve fold is live-observed under sustained load. ' +
       'The engine seals the journal at settle (`README.md:3`).';
-    // The safe composition the reason names: the graded claim carries
-    // THIS RUN'S OWN id in the SAME sentence (RV2501, the arm that
-    // needs no ULID shaped id at all) BESIDE the source citation. That
-    // sentence is exactly what the old bundle could not accept: the
-    // grade wanted the id there and cited-value judged it against the
-    // cited window. Under RV2502 the id is identity, not an asserted
-    // value, so one repair round satisfies both.
+    // The safe composition the reason prescribes, now performed by the
+    // HOST (RV3801): this run's own id inside the graded sentence
+    // (RV2501, the arm that needs no ULID shaped id at all), with
+    // cited-value reading the id as identity (RV2502) and staying
+    // silent. The model-facing FIXED answer stays scripted as the
+    // fallback wire: reaching it means the patch did not fire, and the
+    // attempt count below fails the scenario.
     const FIXED_FINISH =
       'The reserve fold is live-observed under sustained load in run ' +
       '`fault-guidance-conflict`, where the engine seals the journal at settle ' +
       '(`README.md:3`).';
+    const PATCHED_TRAP =
+      'The reserve fold is live-observed under sustained load (run fault-guidance-conflict). ' +
+      'The engine seals the journal at settle (`README.md:3`).';
     const calls: ChatRequest[] = [];
     let finishAttempts = 0;
     const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
@@ -2856,27 +2860,46 @@ const validatorGuidanceConflict: FaultScenario = {
       budgetUsd: 10,
     }).result;
     const entries = await store.load('fault-guidance-conflict');
-    // The repair exchange bytes: the second root request carries the
-    // rejected finish tool-result, whose reason must steer to the safe
-    // composition instead of into the sibling validator.
-    const repairRequest = calls[1];
-    const repairBytes = JSON.stringify(repairRequest?.messages ?? []);
+    // The guidance bytes now ride the journaled healed verdict
+    // (RV3801): the reason that once steered a paid repair exchange is
+    // the same reason whose prescription the host performed, so its
+    // composition-safe wording is pinned from the decision record.
+    const decision = entries
+      .filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_finish_validation',
+      )
+      .map(
+        (entry) =>
+          entry.value as {
+            verdict?: string;
+            deterministicRepair?: {
+              outcome?: string;
+              healed?: { name?: string; reasons?: string[] }[];
+            };
+          },
+      )[0];
+    const healedReasons = (decision?.deterministicRepair?.healed ?? [])
+      .flatMap((failure) => failure.reasons ?? [])
+      .join(' ');
     const guidanceQuoted =
-      repairBytes.includes("write this run's id fault-guidance-conflict") &&
-      repairBytes.includes('may share a sentence with a source citation');
-    const citedValueNamed = repairBytes.includes('cited-value reads a run id as identity');
+      healedReasons.includes("write this run's id fault-guidance-conflict") &&
+      healedReasons.includes('may share a sentence with a source citation');
+    const citedValueNamed = healedReasons.includes('cited-value reads a run id as identity');
     const decisionsText = JSON.stringify(
       entries.filter((entry) => entry.kind === 'decision').map((entry) => entry.value ?? null),
     );
-    const citedValueRejected = decisionsText.includes('"cited-value"')
-      ? decisionsText.includes('not present inside the cited window')
-      : false;
+    const citedValueRejected = decisionsText.includes('not present inside the cited window');
     const matched =
       outcome.status === 'ok' &&
-      outcome.value === FIXED_FINISH &&
-      // Exactly one repair round: the trap finish and the corrected
-      // finish, nothing burned between the two verdicts.
-      finishAttempts === 2 &&
+      outcome.value === PATCHED_TRAP &&
+      // ZERO model repairs: the single trap finish is healed host
+      // side, and the scripted FIXED fallback wire is never reached.
+      finishAttempts === 1 &&
+      decision?.verdict === 'accepted' &&
+      decision.deterministicRepair?.outcome === 'accepted' &&
       guidanceQuoted &&
       citedValueNamed &&
       !citedValueRejected;
@@ -2884,16 +2907,16 @@ const validatorGuidanceConflict: FaultScenario = {
       observation: {
         matched,
         detail:
-          `run '${outcome.status}' after ${String(finishAttempts)} finish attempt(s); the ` +
-          `repair exchange named the run id and the shared-sentence composition ` +
+          `run '${outcome.status}' after ${String(finishAttempts)} finish attempt(s), healed ` +
+          `host side (patch outcome='${String(decision?.deterministicRepair?.outcome)}'); the ` +
+          `journaled healed verdict named the run id and the shared-sentence composition ` +
           `(${String(guidanceQuoted)}) and named the identity reading ` +
           `(${String(citedValueNamed)}); cited-value rejected=${String(citedValueRejected)}; ` +
-          `final result carries this run's own id beside the citation in the graded ` +
-          `sentence: ${String(outcome.value === FIXED_FINISH)}`,
+          `final result carries this run's own id inside the graded sentence: ` +
+          String(outcome.value === PATCHED_TRAP),
       },
       artifacts: [
         jsonArtifact('outcome.json', { status: outcome.status, value: outcome.value ?? null }),
-        { name: 'repair-request.json', content: repairBytes },
         jsonArtifact('journal.json', entries),
       ],
     };
@@ -3529,6 +3552,119 @@ const claimJudgeDeadArmedRefusal: FaultScenario = {
   },
 };
 
+/**
+ * The deterministic provenance patch (RV3801): the third comparison
+ * run died twice on a failure class whose remedy the evidence-grade
+ * verdict prescribes word for word (write this run's id inside each
+ * offending sentence). The finish loop now performs that prescription
+ * host side; this drives the arc on the real engine in the adversarial
+ * shape the patch must never mask: a POSITIVE production claim that
+ * inverts the pool reading, healed into mechanical validity by the
+ * inserted id, then caught semantically by the final judge.
+ */
+const PATCH_RUN_ID = 'fault-deterministic-patch';
+const PATCH_FINAL_INVERTED_GRADED =
+  'final: an audit-write failure does not turn success into failure and the fix is ' +
+  'production-proven [src/exec.ts:256-296].';
+
+const deterministicProvenancePatch: FaultScenario = {
+  name: 'deterministic-provenance-patch',
+  doctrine:
+    'the finish loop performs the evidence-grade prescription host side (RV3801): a ' +
+    'candidate whose every failure carries repair hints is patched without a provider ' +
+    'wire and accepted with the mechanical pool untouched, the healed failure still ' +
+    'teaches the repair round through HOST VALIDATION LESSONS, and the claim judge ' +
+    'rules on the PATCHED document, so an inserted id satisfies provenance mechanics ' +
+    'but never masks a false positive production claim',
+  async run() {
+    let judgeCalls = 0;
+    const adapter = tailAdapter({
+      judge: () => ((judgeCalls += 1) === 1 ? TAIL_FINDS : TAIL_AGREES),
+      finals: [PATCH_FINAL_INVERTED_GRADED, TAIL_FINAL_CLEAN],
+    });
+    const { engine, store } = tailEngine(adapter);
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        claimConsistency: { stage: 'final', onFound: 'repair' },
+        finishValidation: {
+          validators: [
+            evidenceGradeValidator({ artifactPattern: 'run[ -]?[0-9A-HJKMNP-TV-Z]{6,26}' }),
+          ],
+          maxRepairs: 1,
+        },
+      }),
+      undefined,
+      { runId: PATCH_RUN_ID, budgetUsd: 10 },
+    ).result;
+    const value = outcome.value as
+      { result?: unknown; claimConsistencyMeta?: { findings?: unknown } } | undefined;
+    const entries = await store.load(PATCH_RUN_ID);
+    const { compositions, judges } = tailSpans(entries);
+    const verdictRows = entries
+      .filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_finish_validation',
+      )
+      .map(
+        (entry) =>
+          entry.value as {
+            verdict?: string;
+            repairsUsed?: number;
+            deterministicRepair?: { outcome?: string; healed?: { name?: string }[] };
+          },
+      );
+    const verdicts = verdictRows.map((row) => row.verdict).join(',');
+    const pools = verdictRows.map((row) => String(row.repairsUsed)).join(',');
+    const patch = verdictRows[0]?.deterministicRepair;
+    const judgePrompts = adapter.calls
+      .filter((call) => call.label === 'claim-consistency-judge-final')
+      .map((call) => call.prompt);
+    const judgeSawPatched = judgePrompts[0]?.includes(`(run ${PATCH_RUN_ID})`) === true;
+    const roundPrompts = adapter.calls
+      .filter((call) => call.label === 'final-composition')
+      .map((call) => call.prompt);
+    const lessonCarried =
+      roundPrompts.length === 2 &&
+      roundPrompts[0]?.includes('HOST VALIDATION LESSONS') === false &&
+      roundPrompts[1]?.includes('HOST VALIDATION LESSONS') === true &&
+      roundPrompts[1]?.includes('evidence-grade') === true;
+    const matched =
+      outcome.status === 'ok' &&
+      value?.result === TAIL_FINAL_CLEAN &&
+      value.claimConsistencyMeta?.findings === 0 &&
+      verdicts === 'accepted,accepted' &&
+      pools === '0,0' &&
+      patch?.outcome === 'accepted' &&
+      patch.healed?.map((healed) => healed.name).join(',') === 'evidence-grade' &&
+      judgeSawPatched &&
+      lessonCarried &&
+      compositions.length === 2 &&
+      judges.length === 2;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}' shipped ${value?.result === TAIL_FINAL_CLEAN ? 'the clean round document' : 'an unexpected document'}; ` +
+          `verdicts [${verdicts}], repairsUsed [${pools}] (no wire, no pool spent); patch ` +
+          `outcome='${String(patch?.outcome)}'; judge saw patched=${String(judgeSawPatched)}; ` +
+          `lesson carried=${String(lessonCarried)}; ${String(compositions.length)} ` +
+          `composition(s), ${String(judges.length)} final judge pass(es)`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          envelope: outcome.envelope,
+        }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -3562,6 +3698,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   repairRoundHostRejection,
   repairRoundOwnPool,
   repairRoundVerdictReserve,
+  deterministicProvenancePatch,
   claimJudgeDeadArmedRefusal,
 ];
 

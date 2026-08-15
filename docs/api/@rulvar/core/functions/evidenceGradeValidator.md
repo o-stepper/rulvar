@@ -10,7 +10,7 @@
 function evidenceGradeValidator(options?): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1116)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1220](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1220)
 
 Requires every evidence-GRADE claim to point at an artifact (RV1212).
 A sentence that says `live-observed`, `provider bill`, or
@@ -40,6 +40,13 @@ a whole token satisfies the grade, and the verdict names the id so
 the repair instruction is executable rather than aspirational. An id
 shorter than `MIN_RUN_ID_ARTIFACT_CHARS` (six) is ignored, and
 without an id the verdict is byte identical to the historical one.
+
+With the id in hand the failure also carries [FinishRepairHint](/api/@rulvar/core/interfaces/FinishRepairHint.md)
+rows (RV3801), one per offending sentence, so the finish loop can
+perform the verdict's own prescription host side without spending a
+provider wire; the reasons stay byte identical either way, and the
+hints are bounded (at most `MAX_REPAIR_HINTS` offenders) and fail
+closed (an id whose bytes could split a sentence is never hinted).
 Default name 'evidence-grade'.
 
 ## Parameters

@@ -10,7 +10,7 @@
 function requiredSectionsValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:453](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L453)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:484](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L484)
 
 Requires every named section to appear LITERALLY in the result text
 (a heading like 'FINDINGS' or any marker the goal demands). Default

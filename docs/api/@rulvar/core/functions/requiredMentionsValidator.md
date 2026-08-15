@@ -10,7 +10,7 @@
 function requiredMentionsValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1663](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1663)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1798](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1798)
 
 Every declared literal must appear in the finish result at least
 once (RV3308). The 2026-08-12 comparison run passed an exact twelve

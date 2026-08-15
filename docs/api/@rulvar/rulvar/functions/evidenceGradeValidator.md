@@ -40,6 +40,13 @@ a whole token satisfies the grade, and the verdict names the id so
 the repair instruction is executable rather than aspirational. An id
 shorter than `MIN_RUN_ID_ARTIFACT_CHARS` (six) is ignored, and
 without an id the verdict is byte identical to the historical one.
+
+With the id in hand the failure also carries [FinishRepairHint](/api/@rulvar/rulvar/interfaces/FinishRepairHint.md)
+rows (RV3801), one per offending sentence, so the finish loop can
+perform the verdict's own prescription host side without spending a
+provider wire; the reasons stay byte identical either way, and the
+hints are bounded (at most `MAX_REPAIR_HINTS` offenders) and fail
+closed (an id whose bytes could split a sentence is never hinted).
 Default name 'evidence-grade'.
 
 ## Parameters

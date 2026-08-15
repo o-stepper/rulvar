@@ -6,7 +6,7 @@
 
 # Interface: FinishValidator
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L101)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L132)
 
 A deterministic host validator of the orchestrator finish result.
 `validate` must be pure, synchronous host code: no model calls, no
@@ -18,7 +18,7 @@ throwing validator is a host defect that fails the run as ConfigError
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-name"></a> `name` | `readonly` | `string` | Unique within one orchestrate call; appears in the journaled verdicts, the repair feedback, and the orchestrator prompt. | [packages/core/src/orchestrator/finish-validators.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L106) |
+| <a id="property-name"></a> `name` | `readonly` | `string` | Unique within one orchestrate call; appears in the journaled verdicts, the repair feedback, and the orchestrator prompt. | [packages/core/src/orchestrator/finish-validators.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L137) |
 
 ## Methods
 
@@ -28,7 +28,7 @@ throwing validator is a host defect that fails the run as ConfigError
 validate(input): FinishValidationVerdict;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L107)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L138)
 
 #### Parameters
 

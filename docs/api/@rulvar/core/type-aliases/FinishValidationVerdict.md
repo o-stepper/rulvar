@@ -14,9 +14,10 @@ type FinishValidationVerdict =
   | {
   ok: false;
   reasons: string[];
+  repairHints?: FinishRepairHint[];
 };
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L92)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L122)
 
 The verdict of one validator over one finish attempt.

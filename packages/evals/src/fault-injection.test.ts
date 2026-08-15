@@ -47,6 +47,7 @@ const EXPECTED = [
   'repair-round-host-rejection',
   'repair-round-own-pool',
   'repair-round-verdict-reserve',
+  'deterministic-provenance-patch',
   'claim-judge-dead-armed-refusal',
 ];
 
@@ -179,6 +180,22 @@ describe('the fault-injection kit (RV811)', () => {
     );
     expect(byName.get('repair-round-verdict-reserve')?.observation.detail).toContain(
       '1 composition(s) paid',
+    );
+    // The RV3801 scenario: the deterministic patch heals the graded
+    // candidate without a wire or a pool spend, the healed failure
+    // still teaches the round, and the judge rules on the patched
+    // bytes, catching the false positive claim the id cannot mask.
+    expect(byName.get('deterministic-provenance-patch')?.observation.detail).toContain(
+      'repairsUsed [0,0] (no wire, no pool spent)',
+    );
+    expect(byName.get('deterministic-provenance-patch')?.observation.detail).toContain(
+      "patch outcome='accepted'",
+    );
+    expect(byName.get('deterministic-provenance-patch')?.observation.detail).toContain(
+      'judge saw patched=true',
+    );
+    expect(byName.get('deterministic-provenance-patch')?.observation.detail).toContain(
+      'lesson carried=true',
     );
     // The report is self-describing (RV1014): the scenario count can
     // never quietly shrink under a consumer that pins these.
