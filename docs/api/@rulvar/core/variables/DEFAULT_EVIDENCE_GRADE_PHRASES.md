@@ -10,7 +10,7 @@
 const DEFAULT_EVIDENCE_GRADE_PHRASES: readonly string[];
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1070](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1070)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1167)
 
 The default evidence-grade phrases (RV1212, the sixteenth comparison
 experiment P2-3). Each asserts the STRONGEST kind of provenance a

@@ -13,7 +13,7 @@ function spliceSections(
    patch): string;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:237](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L237)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L268)
 
 The deterministic host half of sectional bounded repair (RV808b): a
 rejected finish used to resend the WHOLE document to fix one violated

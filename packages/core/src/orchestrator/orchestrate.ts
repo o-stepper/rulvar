@@ -97,7 +97,9 @@ import {
 } from './spawn-tools.js';
 import {
   DEFAULT_CITATION_PATTERN,
+  applyFinishRepairHints,
   spliceSections,
+  type FinishRepairHint,
   type FinishValidationInput,
   type FinishValidationVerdict,
   type FinishValidator,
@@ -315,6 +317,14 @@ export interface OrchestrateAcceptance {
 
 /** How many rejected finishes are repaired by default: the plan's repair once. */
 export const DEFAULT_FINISH_MAX_REPAIRS = 1;
+
+/**
+ * The most hinted edits one deterministic repair attempt will apply
+ * (RV3801): a validator caps its own hints well below this, so the
+ * bound only guards against a custom validator flooding the journal
+ * with patch rows; past it the candidate goes to the model pool.
+ */
+const MAX_DETERMINISTIC_PATCHES = 64;
 
 /**
  * Character cap of the HOST VALIDATION LESSONS prompt block (RV3603):
@@ -4456,6 +4466,29 @@ export function makeOrchestratorWorkflow(
       candidateHash?: string;
       candidateChars?: number;
       candidateRef?: string;
+      /**
+       * The deterministic host repair attempted on this call's
+       * candidate (RV3801): present exactly when every failure of the
+       * submitted document carried applicable repair hints and the
+       * document was a string. Outcome 'accepted' means the patched
+       * document survived the FULL validator set, this decision's
+       * verdict is 'accepted' with `failed` empty, no repair was
+       * spent, and the accepted result is the PATCHED bytes; the
+       * failures the patch healed ride `healed` so the lessons block
+       * keeps teaching them. Outcome 'failed' means the patch did not
+       * survive re-validation (`residual` names the validators that
+       * still rejected it), the attempt cost nothing, and the
+       * decision reads exactly as it would without one.
+       */
+      deterministicRepair?: {
+        mechanism: 'insert-run-id';
+        patches: { start: number; end: number; insert: string }[];
+        beforeHash: string;
+        afterHash: string;
+        outcome: 'accepted' | 'failed';
+        healed?: { name: string; reasons: string[] }[];
+        residual?: string[];
+      };
     }
     const finishValidationError = (decision: FinishValidationDecision): FailRunError =>
       new FailRunError(
@@ -4565,10 +4598,15 @@ export function makeOrchestratorWorkflow(
       const rows: { validator: string; reasons: string[] }[] = [];
       const seen = new Set<string>();
       for (const decision of validationDecisions()) {
-        if (decision.failed.length === 0 || !contractGenerationCurrent(decision)) {
+        // A failure the deterministic patch healed (RV3801) is still a
+        // lesson the run paid for: the submitted document DID fail the
+        // contract exactly so, and a later invocation should not need
+        // the host to heal the same class again.
+        const taught = [...decision.failed, ...(decision.deterministicRepair?.healed ?? [])];
+        if (taught.length === 0 || !contractGenerationCurrent(decision)) {
           continue;
         }
-        for (const failure of decision.failed) {
+        for (const failure of taught) {
           const key = JSON.stringify([failure.name, failure.reasons]);
           if (seen.has(key)) {
             continue;
@@ -4808,6 +4846,7 @@ export function makeOrchestratorWorkflow(
       }
       const maxRepairs = validationSpec.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS;
       const known = validationDecisions();
+      let patchedResult: string | undefined;
       let decision = known.find((candidate) => candidate.callId === call.id);
       if (decision === undefined) {
         const result = effective;
@@ -4818,6 +4857,7 @@ export function makeOrchestratorWorkflow(
           runId: internals.runId,
         };
         const failed: { name: string; reasons: string[] }[] = [];
+        const failureHints: (readonly FinishRepairHint[] | undefined)[] = [];
         for (const validator of validationSpec.validators) {
           let verdict: FinishValidationVerdict;
           try {
@@ -4841,6 +4881,94 @@ export function makeOrchestratorWorkflow(
           }
           if (!verdict.ok) {
             failed.push({ name: validator.name, reasons: verdict.reasons });
+            failureHints.push(verdict.repairHints);
+          }
+        }
+        // The deterministic remedy (RV3801). The third comparison run
+        // died twice on a failure class whose fix the evidence-grade
+        // verdict prescribes word for word (write this run's id inside
+        // each offending sentence): the initial composition spent the
+        // mechanical pool on it, and the repair round's candidate hit
+        // it again with nothing left. When EVERY failure of a string
+        // candidate carries applicable hints, the loop performs the
+        // prescription itself and re-judges the patched document with
+        // the FULL validator set: no provider wire, no repair spent,
+        // one attempt per candidate. Fail closed at every step:
+        // partial hint coverage, a non-string candidate, structurally
+        // unsound hints, or residual failures on the patched document
+        // all fall through to the ordinary model repair pool with the
+        // original verdict bytes. Masking is excluded downstream: the
+        // claim judge rules on the PATCHED document, so an inserted id
+        // can satisfy provenance mechanics but never a false claim.
+        let deterministicRepair: FinishValidationDecision['deterministicRepair'];
+        if (
+          failed.length > 0 &&
+          typeof result === 'string' &&
+          failureHints.every((hints) => hints !== undefined && hints.length > 0)
+        ) {
+          const merged: FinishRepairHint[] = [];
+          const seenHints = new Set<string>();
+          for (const hints of failureHints) {
+            for (const hint of hints ?? []) {
+              const key = `${String(hint.start)}:${String(hint.end)}:${hint.insert}`;
+              if (!seenHints.has(key)) {
+                seenHints.add(key);
+                merged.push(hint);
+              }
+            }
+          }
+          const sound =
+            merged.length <= MAX_DETERMINISTIC_PATCHES &&
+            merged.every(
+              (hint) =>
+                hint.mechanism === 'insert-run-id' &&
+                result.slice(hint.start, hint.end) === hint.sentence,
+            );
+          const patched = sound ? applyFinishRepairHints(result, merged) : undefined;
+          if (patched !== undefined) {
+            const patchedInput: FinishValidationInput = {
+              result: patched,
+              text: patched,
+              children: input.children,
+              runId: internals.runId,
+            };
+            const residual: string[] = [];
+            for (const validator of validationSpec.validators) {
+              let verdict: FinishValidationVerdict;
+              try {
+                verdict = validator.validate(patchedInput);
+              } catch (thrown) {
+                // A validator that throws on the patched document is
+                // the same host defect it would be on the submitted
+                // one: nothing journals, no repair is granted.
+                validationTermination = new ConfigError(
+                  `finish validator '${validator.name}' threw instead of returning a verdict: ` +
+                    (thrown instanceof Error ? thrown.message : String(thrown)),
+                );
+                validationAbort.abort('rulvar:finish-validation-defect');
+                return {
+                  ok: false,
+                  feedback: {
+                    error: `finish validator '${validator.name}' is defective; the run fails`,
+                  },
+                };
+              }
+              if (!verdict.ok) {
+                residual.push(validator.name);
+              }
+            }
+            const patchSurvived = residual.length === 0;
+            deterministicRepair = {
+              mechanism: 'insert-run-id',
+              patches: merged.map(({ start, end, insert }) => ({ start, end, insert })),
+              beforeHash: createHash('sha256').update(jcsSerialize(result), 'utf8').digest('hex'),
+              afterHash: createHash('sha256').update(jcsSerialize(patched), 'utf8').digest('hex'),
+              outcome: patchSurvived ? 'accepted' : 'failed',
+              ...(patchSurvived ? { healed: failed } : { residual }),
+            };
+            if (patchSurvived) {
+              patchedResult = patched;
+            }
           }
         }
         // Only the CURRENT contract generation spends the repair budget
@@ -4863,7 +4991,7 @@ export function makeOrchestratorWorkflow(
         // it on for evaluation runs. A store that refuses the write
         // must never cost a run its verdict: the ref stays absent, and
         // absence means NOT RECORDED (RV1209).
-        const rejectedCandidate = failed.length > 0;
+        const rejectedCandidate = failed.length > 0 && deterministicRepair?.outcome !== 'accepted';
         let candidateRef: string | undefined;
         if (rejectedCandidate && validationSpec.retainRejectedCandidates === true) {
           const ref = `${internals.runId}/finish-rejected/${call.id}`;
@@ -4895,11 +5023,21 @@ export function makeOrchestratorWorkflow(
         decision = {
           decisionType: 'orchestrator_finish_validation',
           callId: call.id,
+          // A candidate the deterministic patch healed is ACCEPTED
+          // (RV3801): the verdict judges the resolved document, the
+          // sectional splice precedent, and the healed failures ride
+          // deterministicRepair.healed instead of `failed` so every
+          // consumer's accepted-means-clean invariant holds.
           verdict:
-            failed.length === 0 ? 'accepted' : repairsUsed < maxRepairs ? 'repair' : 'rejected',
-          failed,
+            failed.length === 0 || deterministicRepair?.outcome === 'accepted'
+              ? 'accepted'
+              : repairsUsed < maxRepairs
+                ? 'repair'
+                : 'rejected',
+          failed: deterministicRepair?.outcome === 'accepted' ? [] : failed,
           repairsUsed,
           maxRepairs,
+          ...(deterministicRepair === undefined ? {} : { deterministicRepair }),
           ...(validationSpec.contract === undefined
             ? {}
             : { contractHash: validationSpec.contract.hash }),
@@ -4924,11 +5062,17 @@ export function makeOrchestratorWorkflow(
         });
       }
       if (decision.verdict === 'accepted') {
-        // An accepted SPLICED call resolves the invocation output to
-        // the reconstructed full document (RV808b). Unreachable on a
-        // re-executed exchange: an accepted finish terminates its
-        // invocation, so checkpoint boots (which re-execute only the
-        // pending calls of a cancelled root) never replay one.
+        // An accepted PATCHED call resolves the invocation output to
+        // the deterministically repaired document (RV3801), and an
+        // accepted SPLICED call to the reconstructed full one
+        // (RV808b). Unreachable on a re-executed exchange either way:
+        // an accepted finish terminates its invocation, so checkpoint
+        // boots (which re-execute only the pending calls of a
+        // cancelled root) never replay one, and the fresh path above
+        // always has the patched bytes in hand.
+        if (patchedResult !== undefined) {
+          return { ok: true, resolved: { result: patchedResult } };
+        }
         return spliced ? { ok: true, resolved: { result: effective } } : { ok: true };
       }
       // Every rejection retains the resolved attempt as the sectional

@@ -10,7 +10,7 @@
 function manifestValidators(manifest): FinishValidator[];
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1750](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1750)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1885](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1885)
 
 The manifest's gate half (RV3308): heading structure (ordered,
 exclusive), word bounds, the citation floor, and the mention

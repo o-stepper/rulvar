@@ -10,7 +10,7 @@
 function renderContractRequirements(manifest): string;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:1783](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1783)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:1918](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L1918)
 
 The manifest's prompt half (RV3308): a deterministic requirements
 block enumerating the SAME headings, bounds, citation floor and

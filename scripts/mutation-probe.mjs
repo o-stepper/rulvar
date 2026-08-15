@@ -4205,9 +4205,9 @@ export const MUTATIONS = [
     doctrine:
       'the identity of a rejected candidate is recorded WITHOUT the retention opt-in (RV2507): the hash and the size come from bytes the validator already held, and gating them behind retention would leave the default terminal saying only that something failed, which is the exact blindness the comparison analysis had to script around',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '        const rejectedCandidate = failed.length > 0;',
+    find: "        const rejectedCandidate = failed.length > 0 && deterministicRepair?.outcome !== 'accepted';",
     replace:
-      '        const rejectedCandidate =\n          failed.length > 0 && validationSpec.retainRejectedCandidates === true;',
+      "        const rejectedCandidate =\n          failed.length > 0 &&\n          deterministicRepair?.outcome !== 'accepted' &&\n          validationSpec.retainRejectedCandidates === true;",
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
@@ -4929,6 +4929,34 @@ export const MUTATIONS = [
     find: '  return oldest === undefined || newest === undefined\n    ? undefined\n    : { oldest: oldest.raw, newest: newest.raw };\n',
     replace: '  return undefined;\n',
     test: 'packages/core/src/engine/pricing-snapshot.test.ts',
+  },
+  {
+    id: 'deterministic-patch-applies',
+    doctrine:
+      'a candidate whose every failure carries applicable repair hints is healed host side and accepted without a provider wire or a pool spend (RV3801): the third comparison run died twice, pool spent, on a failure class whose remedy the verdict prescribed word for word',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "          failed.length > 0 &&\n          typeof result === 'string' &&\n          failureHints.every((hints) => hints !== undefined && hints.length > 0)",
+    replace:
+      "          false &&\n          typeof result === 'string' &&\n          failureHints.every((hints) => hints !== undefined && hints.length > 0)",
+    test: 'packages/core/src/orchestrator/deterministic-repair.test.ts',
+  },
+  {
+    id: 'deterministic-patch-journals',
+    doctrine:
+      'the deterministic repair journals on the verdict it healed (RV3801): before and after hashes, the patch windows, and the healed failures, so an accepted-after-patch decision can never read as a clean first-try acceptance',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          ...(deterministicRepair === undefined ? {} : { deterministicRepair }),\n',
+    replace: '',
+    test: 'packages/core/src/orchestrator/deterministic-repair.test.ts',
+  },
+  {
+    id: 'deterministic-patch-healed-lessons',
+    doctrine:
+      'a failure the patch healed is still a bought lesson (RV3801 on RV3603): the submitted document DID fail the contract, so the repair round prompt keeps teaching the class even though the host, not a model turn, performed the fix',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        const taught = [...decision.failed, ...(decision.deterministicRepair?.healed ?? [])];',
+    replace: '        const taught = [...decision.failed];',
+    test: 'packages/core/src/orchestrator/deterministic-repair.test.ts',
   },
 ];
 

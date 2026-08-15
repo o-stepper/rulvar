@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
 import {
+  applyFinishRepairHints,
   citationTargetsValidator,
   citedValueValidator,
   evidenceGradeValidator,
   evidencePreservedValidator,
   formatCharacterValidator,
   headingStructureValidator,
+  insertRunIdIntoSentence,
   manifestValidators,
   minMatchesValidator,
   renderContractRequirements,
@@ -1360,5 +1362,125 @@ describe('the output contract manifest (RV3308)', () => {
       .map((v) => v.validate({ result: missingMention, text: missingMention }))
       .filter((verdict) => !verdict.ok);
     expect(failing).toHaveLength(1);
+  });
+});
+
+describe('deterministic provenance repair hints (RV3801, the third comparison run)', () => {
+  // The three sentence SHAPES the third comparison run's repair round
+  // candidate died on at journal seq 115 (v1.239.0, candidate hash
+  // b0b0f37d), translated (the framework is English only, fixtures
+  // included): the graded register inside markdown bold, an inner
+  // semicolon, and the 'provider billing' substring carrying the
+  // 'provider bill' phrase. The verdict prescribed the exact remedy in
+  // words while the run had no repair left to perform it; these pin
+  // the machine-readable form of that same prescription.
+  const RUN_ID = 'comparison-rulvar-v12390-aug13-clean-1786653656588';
+  const FROZEN = [
+    'Therefore **live-observed behavior evidence is absent; production-proven evidence is absent**.',
+    'The current run has **no production-proven semantic accuracy**; it must be measured by a blind claim corpus with human adjudication.',
+    'The current run carries no provider billing reconciliation, peak soak, or production incident/SLO history, so the STOP verdict can be revisited only after host outbox/idempotency, tenant isolation red-team, a measured semantic corpus, and the listed operational proofs.',
+  ] as const;
+  const CLEAN_HEAD =
+    '## Verdict\n\nThe cap is live-observed at `src/retry.ts:12`. All checks passed.';
+  const DOC = `${CLEAN_HEAD}\n\n${FROZEN[0]} ${FROZEN[1]}\n\n${FROZEN[2]}`;
+  const withId = (value: string): FinishValidationInput => ({
+    result: value,
+    text: value,
+    runId: RUN_ID,
+  });
+
+  it('hints every offending sentence with exact offsets, zero false positives', () => {
+    const verdict = evidenceGradeValidator().validate(withId(DOC));
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    const hints = verdict.repairHints ?? [];
+    expect(hints).toHaveLength(3);
+    hints.forEach((hint, index) => {
+      expect(hint.mechanism).toBe('insert-run-id');
+      expect(hint.insert).toBe(RUN_ID);
+      expect(hint.sentence).toBe(FROZEN[index]);
+      expect(DOC.slice(hint.start, hint.end)).toBe(hint.sentence);
+    });
+  });
+
+  it('the applied patch satisfies the verdict without a wire and touches nothing else', () => {
+    const verdict = evidenceGradeValidator().validate(withId(DOC));
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) {
+      return;
+    }
+    const patched = applyFinishRepairHints(DOC, verdict.repairHints ?? []);
+    expect(patched).toBeDefined();
+    expect(evidenceGradeValidator().validate(withId(patched ?? '')).ok).toBe(true);
+    // Byte identity outside the offending sentences, and the citation
+    // multiset is untouched: the patch adds provenance, never sources.
+    expect(patched?.startsWith(CLEAN_HEAD)).toBe(true);
+    const cites = (value: string): string[] => value.match(/[\w./-]+\.\w+:\d+/gu) ?? [];
+    expect(cites(patched ?? '')).toEqual(cites(DOC));
+    // The id landed INSIDE each sentence, before its terminator run.
+    expect(patched).toContain(`production-proven evidence is absent** (run ${RUN_ID}).`);
+    expect(patched).toContain(`the listed operational proofs (run ${RUN_ID}).`);
+  });
+
+  it('insertRunIdIntoSentence lands inside the sentence under every tail shape', () => {
+    expect(insertRunIdIntoSentence('The path is production-proven.', 'run-id-123456')).toBe(
+      'The path is production-proven (run run-id-123456).',
+    );
+    expect(insertRunIdIntoSentence('**production-proven.**', 'run-id-123456')).toBe(
+      '**production-proven (run run-id-123456).**',
+    );
+    expect(insertRunIdIntoSentence('a live-observed tail', 'run-id-123456')).toBe(
+      'a live-observed tail (run run-id-123456)',
+    );
+    expect(insertRunIdIntoSentence('is it production-proven?"', 'run-id-123456')).toBe(
+      'is it production-proven (run run-id-123456)?"',
+    );
+  });
+
+  it('applyFinishRepairHints fails closed on empty, overlapping, and unbounded windows', () => {
+    expect(applyFinishRepairHints('abcdef', [])).toBeUndefined();
+    expect(
+      applyFinishRepairHints('abcdef', [
+        { start: 0, end: 4, insert: 'x' },
+        { start: 2, end: 6, insert: 'x' },
+      ]),
+    ).toBeUndefined();
+    expect(applyFinishRepairHints('abcdef', [{ start: 4, end: 9, insert: 'x' }])).toBeUndefined();
+    expect(applyFinishRepairHints('abcdef', [{ start: 3, end: 3, insert: 'x' }])).toBeUndefined();
+  });
+
+  it('hints are fail closed: no id, an unsafe id, and too many offenders produce none', () => {
+    const noId = evidenceGradeValidator().validate(text(DOC));
+    expect(noId.ok).toBe(false);
+    if (!noId.ok) {
+      expect(noId.repairHints).toBeUndefined();
+    }
+    // An id whose bytes could terminate a sentence must never be
+    // spliced in: the patched sentence would split under sentencesOf
+    // and fail the same verdict again.
+    const unsafe = evidenceGradeValidator().validate({
+      result: DOC,
+      text: DOC,
+      runId: 'ends. badly',
+    });
+    expect(unsafe.ok).toBe(false);
+    if (!unsafe.ok) {
+      expect(unsafe.repairHints).toBeUndefined();
+    }
+    const flood = Array.from(
+      { length: 21 },
+      (_, index) => `Claim ${String(index)} is production-proven here.`,
+    ).join(' ');
+    const flooded = evidenceGradeValidator().validate({
+      result: flood,
+      text: flood,
+      runId: RUN_ID,
+    });
+    expect(flooded.ok).toBe(false);
+    if (!flooded.ok) {
+      expect(flooded.repairHints).toBeUndefined();
+    }
   });
 });

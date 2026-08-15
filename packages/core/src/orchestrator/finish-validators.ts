@@ -88,8 +88,39 @@ export interface FinishValidationInput {
   readonly runId?: string;
 }
 
+/**
+ * One structured repair hint on a failed verdict (RV3801): the exact
+ * edit whose application satisfies this validator, precise enough for
+ * the HOST to perform without a provider wire. The third comparison
+ * run died with its repair pool spent on a failure class whose remedy
+ * the evidence-grade verdict already prescribed word for word (write
+ * this run's id inside each offending sentence); a remedy that
+ * deterministic must not cost a model turn. A hint is advisory: the
+ * finish loop attempts the patch only when EVERY failure of the
+ * candidate carries hints, re-runs the FULL validator set over the
+ * patched document, and falls back to the ordinary model repair pool
+ * when the patch does not survive re-validation.
+ */
+export interface FinishRepairHint {
+  /** The one host-side edit the loop knows how to apply. */
+  readonly mechanism: 'insert-run-id';
+  /** Offset of the offending sentence's first character in the judged text. */
+  readonly start: number;
+  /** Offset one past the offending sentence's last character. */
+  readonly end: number;
+  /**
+   * The offending sentence verbatim (never normalized or clipped): the
+   * loop refuses the patch unless `text.slice(start, end)` equals it,
+   * so a stale hint can never edit the wrong bytes.
+   */
+  readonly sentence: string;
+  /** The identifier whose insertion the verdict prescribes. */
+  readonly insert: string;
+}
+
 /** The verdict of one validator over one finish attempt. */
-export type FinishValidationVerdict = { ok: true } | { ok: false; reasons: string[] };
+export type FinishValidationVerdict =
+  { ok: true } | { ok: false; reasons: string[]; repairHints?: FinishRepairHint[] };
 
 /**
  * A deterministic host validator of the orchestrator finish result.
@@ -592,6 +623,72 @@ const MAX_LISTED_CITATIONS = 20;
  */
 const MAX_NAMED_OFFENDING_SENTENCES = 5;
 const MAX_OFFENDING_SENTENCE_CHARS = 240;
+
+/**
+ * The most offending sentences a verdict will hint (RV3801). A
+ * document broken in more places than this needs a model repair
+ * anyway, and an unbounded hint set would carry unbounded sentence
+ * bytes through the live verdict.
+ */
+const MAX_REPAIR_HINTS = 20;
+
+/**
+ * The deterministic edit behind the `insert-run-id` mechanism
+ * (RV3801): the id lands INSIDE the sentence, before its trailing
+ * terminator run (a `.`, `!`, or `?` with any closing quotes,
+ * brackets, or markdown emphasis after it), or at the very end when
+ * the sentence carries no terminator. Inside matters: appended AFTER
+ * the terminator the id would belong to the NEXT sentence under the
+ * shared `sentencesOf` segmentation and the re-validation would fail
+ * the same sentence again. Exported so tests and hosts can reproduce
+ * the loop's exact bytes.
+ */
+export function insertRunIdIntoSentence(sentence: string, insert: string): string {
+  const tail = /[.!?]['")\]*_`]*\s*$/u.exec(sentence);
+  const at = tail?.index ?? sentence.length;
+  return `${sentence.slice(0, at)} (run ${insert})${sentence.slice(at)}`;
+}
+
+/**
+ * Applies `insert-run-id` repair hints to a judged text (RV3801): each
+ * `[start, end)` window is replaced by
+ * {@link insertRunIdIntoSentence}(window, insert), right to left so
+ * earlier offsets stay valid, every other byte identical. Fail closed:
+ * `undefined` (never a partial patch) when the set is empty, any
+ * window is out of bounds or empty, or two windows overlap; the caller
+ * treats a refused patch exactly like an absent one and proceeds to
+ * the model repair pool.
+ */
+export function applyFinishRepairHints(
+  text: string,
+  hints: readonly { start: number; end: number; insert: string }[],
+): string | undefined {
+  if (hints.length === 0) {
+    return undefined;
+  }
+  const ordered = [...hints].sort((a, b) => a.start - b.start);
+  let previousEnd = 0;
+  for (const hint of ordered) {
+    if (
+      !Number.isInteger(hint.start) ||
+      !Number.isInteger(hint.end) ||
+      hint.start < previousEnd ||
+      hint.end <= hint.start ||
+      hint.end > text.length
+    ) {
+      return undefined;
+    }
+    previousEnd = hint.end;
+  }
+  let patched = text;
+  for (const hint of [...ordered].reverse()) {
+    patched =
+      patched.slice(0, hint.start) +
+      insertRunIdIntoSentence(patched.slice(hint.start, hint.end), hint.insert) +
+      patched.slice(hint.end);
+  }
+  return patched;
+}
 
 /**
  * The shortest run id {@link evidenceGradeValidator} will accept as an
@@ -1111,6 +1208,13 @@ export const DEFAULT_ARTIFACT_PATTERN =
  * the repair instruction is executable rather than aspirational. An id
  * shorter than `MIN_RUN_ID_ARTIFACT_CHARS` (six) is ignored, and
  * without an id the verdict is byte identical to the historical one.
+ *
+ * With the id in hand the failure also carries {@link FinishRepairHint}
+ * rows (RV3801), one per offending sentence, so the finish loop can
+ * perform the verdict's own prescription host side without spending a
+ * provider wire; the reasons stay byte identical either way, and the
+ * hints are bounded (at most `MAX_REPAIR_HINTS` offenders) and fail
+ * closed (an id whose bytes could split a sentence is never hinted).
  * Default name 'evidence-grade'.
  */
 export function evidenceGradeValidator(options?: {
@@ -1149,14 +1253,22 @@ export function evidenceGradeValidator(options?: {
     name: options?.name ?? 'evidence-grade',
     validate: (input) => {
       const unsupported: string[] = [];
-      const offenders: string[] = [];
+      const offenders: { sentence: string; start: number; end: number }[] = [];
       // The run's own id, when it is long enough to be an identifier
       // rather than a syllable (RV2501).
       const runId =
         typeof input.runId === 'string' && input.runId.trim().length >= MIN_RUN_ID_ARTIFACT_CHARS
           ? input.runId.trim()
           : undefined;
+      // The pieces of sentencesOf are verbatim substrings in document
+      // order, so a forward cursor recovers each one's exact offsets
+      // (RV3801), duplicates included: only whitespace separators sit
+      // between the cursor and the next piece, and a piece can never
+      // match inside pure whitespace.
+      let cursor = 0;
       for (const sentence of sentencesOf(input.text)) {
+        const start = input.text.indexOf(sentence, cursor);
+        cursor = start + sentence.length;
         const haystack = sentence.toLowerCase();
         const found = lowered.filter((phrase) => haystack.includes(phrase));
         if (
@@ -1166,7 +1278,7 @@ export function evidenceGradeValidator(options?: {
         ) {
           continue;
         }
-        offenders.push(sentence);
+        offenders.push({ sentence, start, end: start + sentence.length });
         for (const phrase of found) {
           if (!unsupported.includes(phrase)) {
             unsupported.push(phrase);
@@ -1183,7 +1295,7 @@ export function evidenceGradeValidator(options?: {
       // closed with half its budget unspent. The offending sentences
       // ride the reasons verbatim, bounded and whitespace-normalized,
       // so a repair turn fixes exactly the lines the verdict judged.
-      const named = offenders.slice(0, MAX_NAMED_OFFENDING_SENTENCES).map((sentence) => {
+      const named = offenders.slice(0, MAX_NAMED_OFFENDING_SENTENCES).map(({ sentence }) => {
         const flat = sentence.replace(/\s+/gu, ' ').trim();
         const clipped =
           flat.length <= MAX_OFFENDING_SENTENCE_CHARS
@@ -1191,6 +1303,28 @@ export function evidenceGradeValidator(options?: {
             : `${flat.slice(0, MAX_OFFENDING_SENTENCE_CHARS)}...`;
         return `offending sentence: "${clipped}"`;
       });
+      // The verdict's remedy as a machine edit (RV3801): with the id
+      // in hand the fix is ONE insertion per offending sentence, so
+      // the hints spell it out for the host loop. Bounded and fail
+      // closed: no id means no prescribed edit, more offenders than
+      // the cap means a model repair is due anyway, and an id that
+      // could itself terminate a sentence (a `.` `!` `?` followed by
+      // whitespace, or any newline) must never be spliced in, because
+      // the patched sentence would split under sentencesOf and fail
+      // this same verdict again.
+      const hints =
+        runId !== undefined &&
+        offenders.length <= MAX_REPAIR_HINTS &&
+        !/[.!?]\s|[\r\n]/u.test(runId) &&
+        offenders.every((offender) => offender.start >= 0)
+          ? offenders.map(({ sentence, start, end }): FinishRepairHint => ({
+              mechanism: 'insert-run-id',
+              start,
+              end,
+              sentence,
+              insert: runId,
+            }))
+          : undefined;
       const overflow = offenders.length - named.length;
       // The guidance is composition-safe (RV2202): the older "name a
       // run id or a file:line citation beside it" was obeyed literally
@@ -1230,6 +1364,7 @@ export function evidenceGradeValidator(options?: {
           ...named,
           ...(overflow > 0 ? [`and ${String(overflow)} more offending sentences`] : []),
         ],
+        ...(hints === undefined ? {} : { repairHints: hints }),
       };
     },
   };
