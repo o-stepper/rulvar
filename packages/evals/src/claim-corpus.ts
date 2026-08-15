@@ -39,7 +39,13 @@ import { claimCoverageOf, pairDraftClaims, pairRunFactClaims } from '@rulvar/cor
  * classes, plus the nineteenth benchmark's pair (RV1809):
  * 'modality-overclaim' is a mitigation stated as an unconditional
  * guarantee, and 'scope-ambiguity' is a child-only total printed as a
- * whole-workflow figure.
+ * whole-workflow figure. The third comparison experiment validated
+ * three more (RV3804): 'bound-conflation' lists opt-in caps and
+ * unconditional guards as one mode, 'derived-premise' is a derived
+ * figure whose premise contradicts the declared input (2,000 slots
+ * computed from a 30 minute window where the input declares a 20
+ * minute burst), and 'cost-basis' prints a locally estimated total as
+ * the provider's bill.
  */
 export type ClaimCorpusClass =
   | 'live-fact'
@@ -49,7 +55,10 @@ export type ClaimCorpusClass =
   | 'negation'
   | 'bounded-coverage'
   | 'modality-overclaim'
-  | 'scope-ambiguity';
+  | 'scope-ambiguity'
+  | 'bound-conflation'
+  | 'derived-premise'
+  | 'cost-basis';
 
 /** One adversarial case: a draft, its contradicting evidence, and the mechanical expectations. */
 export interface ClaimCorpusCase {
@@ -220,6 +229,65 @@ export const CLAIM_CORPUS: readonly ClaimCorpusCase[] = [
       numbers: [100, 6126893, 94555, 118, 6517187, 138947],
     },
     runFactTerms: ['in total', 'end to end'],
+    expect: { minRunFactPairs: 1 },
+  },
+  {
+    id: 'bound-conflation-mcp-caps-guards',
+    class: 'bound-conflation',
+    draft:
+      'MCP resource reads are bounded unconditionally: byte caps, page caps, and the ' +
+      'cursor guards all refuse oversized or cyclic reads by default ' +
+      '(packages/core/src/tools/mcp.ts:44).',
+    pool: [
+      {
+        nodeId: 'agent:2',
+        text:
+          'The MCP read caps are OPT-IN: an absent maxResourceBytes or maxResourcePages ' +
+          'means unbounded, and only requireBounds: true refuses their absence ' +
+          '(packages/core/src/tools/mcp.ts:44-57). The cursor echo and visited-cursor ' +
+          'guards are the unconditional half: they refuse a cycle regardless of any cap ' +
+          '(packages/core/src/tools/mcp.ts:168-174).',
+      },
+    ],
+    critical: ['packages/core/src/tools/mcp.ts'],
+    expect: {
+      minPairs: 1,
+      anchors: ['packages/core/src/tools/mcp.ts:44'],
+      coverage: 'full',
+    },
+  },
+  {
+    id: 'derived-premise-slot-arithmetic',
+    class: 'derived-premise',
+    draft:
+      'The gateway sustains 2000 slots per burst window, a figure derived from the ' +
+      '30 minute window at the recorded admission rate.',
+    runFacts: {
+      text:
+        'The declared burst window is 20 minutes end to end; at the recorded admission ' +
+        'rate a 20 minute window admits 1333 slots, and 2000 slots would require the ' +
+        '30 minute window no configuration declares.',
+      ids: ['comparison-run-aug13'],
+      numbers: [20, 1333, 2000],
+    },
+    runFactTerms: ['2000 slots', '30 minute window'],
+    expect: { minRunFactPairs: 1 },
+  },
+  {
+    id: 'cost-basis-local-estimate-as-bill',
+    class: 'cost-basis',
+    draft:
+      'The provider bill for the whole workflow came to 5.5807 USD, charged and settled ' +
+      'by the provider for this run.',
+    runFacts: {
+      text:
+        "The invoice cost basis is 'locally-estimated': recorded usage priced at the " +
+        'pinned local rate table; no provider statement was reconciled for this run and ' +
+        'no charged amount was recorded.',
+      ids: ['comparison-run-aug13'],
+      numbers: [],
+    },
+    runFactTerms: ['provider bill', 'charged and settled'],
     expect: { minRunFactPairs: 1 },
   },
 ];

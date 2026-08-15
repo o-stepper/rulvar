@@ -10,6 +10,6 @@
 const CLAIM_CORPUS: readonly ClaimCorpusCase[];
 ```
 
-Defined in: [packages/evals/src/claim-corpus.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/claim-corpus.ts#L83)
+Defined in: [packages/evals/src/claim-corpus.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/claim-corpus.ts#L92)
 
 The shipped corpus, one case per failure class, adversarial by design.

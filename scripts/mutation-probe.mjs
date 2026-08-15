@@ -4958,6 +4958,15 @@ export const MUTATIONS = [
     replace: '        const taught = [...decision.failed];',
     test: 'packages/core/src/orchestrator/deterministic-repair.test.ts',
   },
+  {
+    id: 'corpus-third-experiment-class-present',
+    doctrine:
+      'the corpus covers every named failure class exactly once (RV3804): dropping one of the third-experiment classes must fail the class roster by name, never shrink the corpus silently',
+    file: 'packages/evals/src/claim-corpus.ts',
+    find: "    class: 'bound-conflation',",
+    replace: "    class: 'package-identity',",
+    test: 'packages/evals/src/claim-corpus.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
