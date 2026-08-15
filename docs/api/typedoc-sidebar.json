@@ -3365,6 +3365,10 @@
             "link": "/api/@rulvar/core/functions/ladderRungChoice.md"
           },
           {
+            "text": "lastMechanicalRepairCostUsd",
+            "link": "/api/@rulvar/core/functions/lastMechanicalRepairCostUsd.md"
+          },
+          {
             "text": "lastRunSettle",
             "link": "/api/@rulvar/core/functions/lastRunSettle.md"
           },
@@ -8517,6 +8521,10 @@
           {
             "text": "ladderRungChoice",
             "link": "/api/@rulvar/rulvar/functions/ladderRungChoice.md"
+          },
+          {
+            "text": "lastMechanicalRepairCostUsd",
+            "link": "/api/@rulvar/rulvar/functions/lastMechanicalRepairCostUsd.md"
           },
           {
             "text": "lastRunSettle",

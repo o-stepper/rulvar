@@ -210,7 +210,12 @@ export interface PreflightOrchestratorSpec {
      * (this same `judge.estCost` first, else the run's own observed
      * post draft judge price) until that pass admits, so the
      * declared estimate is not only judged before the run but enforced
-     * inside it.
+     * inside it. The mechanical leg has the same twin (RV3802): the
+     * one repair turn the round's finish contract can grant is held as
+     * `finishValidation.estRepairCostUsd` (else the run's observed
+     * last mechanical repair price) beside the verdict money, released
+     * to the round's finish loop at its first verdict; the runtime
+     * enforcement of the `repairTurnReserve` turn grant's price.
      */
     onFound?: 'report' | 'carry' | 'fail' | 'repair';
     /**

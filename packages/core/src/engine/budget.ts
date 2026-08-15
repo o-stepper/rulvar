@@ -153,6 +153,8 @@ export interface BudgetAccountView {
   synthesisReserveUsd: number;
   /** The repair round's verdict hold (RV3701); zero when none is committed. */
   convergenceReserveUsd: number;
+  /** The repair round's mechanical leg (RV3802); zero when none is committed. */
+  repairReserveUsd: number;
   parentScope?: string;
 }
 
@@ -184,6 +186,8 @@ interface AccountState {
   synthesisReserveUsd: number;
   /** The repair round's verdict hold (RV3701); see commitConvergenceReserve. */
   convergenceReserveUsd: number;
+  /** The repair round's mechanical leg (RV3802); see commitRepairReserve. */
+  repairReserveUsd: number;
   parentScope?: string;
   /**
    * Diagnostic label: the orchestrator cap account marks itself, and a
@@ -370,6 +374,7 @@ export class RunBudget {
       finalizeReserveUsd: 0,
       synthesisReserveUsd: 0,
       convergenceReserveUsd: 0,
+      repairReserveUsd: 0,
       controller: new AbortController(),
     };
     if (options.ceilingUsd !== undefined) {
@@ -477,6 +482,7 @@ export class RunBudget {
       finalizeReserveUsd: options.finalizeReserveUsd ?? 0,
       synthesisReserveUsd: 0,
       convergenceReserveUsd: 0,
+      repairReserveUsd: 0,
       parentScope,
       controller: new AbortController(),
     };
@@ -670,6 +676,7 @@ export class RunBudget {
       finalizeReserveUsd: account.finalizeReserveUsd,
       synthesisReserveUsd: account.synthesisReserveUsd,
       convergenceReserveUsd: account.convergenceReserveUsd,
+      repairReserveUsd: account.repairReserveUsd,
     };
     if (account.ceilingUsd !== undefined) {
       view.ceilingUsd = account.ceilingUsd;
@@ -697,7 +704,8 @@ export class RunBudget {
         account.committedReserveUsd -
         account.finalizeReserveUsd -
         account.synthesisReserveUsd -
-        account.convergenceReserveUsd,
+        account.convergenceReserveUsd -
+        account.repairReserveUsd,
     );
   }
 
@@ -813,7 +821,8 @@ export class RunBudget {
         account.committedReserveUsd +
         account.finalizeReserveUsd +
         account.synthesisReserveUsd +
-        account.convergenceReserveUsd;
+        account.convergenceReserveUsd +
+        account.repairReserveUsd;
       if (committed >= account.ceilingUsd || committed + reserveUsd > account.ceilingUsd) {
         if (account.scope === ROOT_ACCOUNT) {
           this.exhaustedInternal = true;
@@ -840,6 +849,12 @@ export class RunBudget {
             (account.convergenceReserveUsd > 0
               ? `plus the held convergence reserve ${account.convergenceReserveUsd.toFixed(4)} USD `
               : '') +
+            // The mechanical leg mirrors the verdict clause (RV3802):
+            // a hold in the refused arithmetic must be in the printed
+            // arithmetic, and hold free refusals keep their bytes.
+            (account.repairReserveUsd > 0
+              ? `plus the held repair reserve ${account.repairReserveUsd.toFixed(4)} USD `
+              : '') +
             `plus the proposed reserve ${reserveUsd.toFixed(4)} USD does not fit the ` +
             `ceiling ${account.ceilingUsd.toFixed(4)} USD`,
           {
@@ -850,6 +865,7 @@ export class RunBudget {
               finalizeReserveUsd: account.finalizeReserveUsd,
               synthesisReserveUsd: account.synthesisReserveUsd,
               convergenceReserveUsd: account.convergenceReserveUsd,
+              repairReserveUsd: account.repairReserveUsd,
               proposedReserveUsd: reserveUsd,
               ceilingUsd: account.ceilingUsd,
             },
@@ -1020,6 +1036,52 @@ export class RunBudget {
       );
     }
     account.convergenceReserveUsd = 0;
+    this.emitUpdate();
+  }
+
+  /**
+   * Registers the repair round's MECHANICAL leg (RV3802), the money
+   * twin of the RV3602 per-invocation pool: the round's finish
+   * contract can grant one bounded mechanical repair turn, and the
+   * third comparison run's round entered exactly that turn's price
+   * short of certainty (the repair existed by pool and by contract,
+   * but nothing guaranteed the money would still be there when the
+   * candidate materialized). Held beside the verdict leg from the
+   * moment the round is admitted; released EARLY, to the round's own
+   * finish loop, at its first journaled verdict (a 'repair' verdict is
+   * about to spend the freed money on the granted turn, an 'accepted'
+   * one never needed it), where the verdict leg lives until the judge
+   * dispatch. Exactly the convergence reserve mechanics otherwise:
+   * joins the projected admission sum and both remainders, named in
+   * the refusal clause, never joined to the severing check, idempotent
+   * per account with the root adjusted by the delta.
+   */
+  commitRepairReserve(scope: string, reserveUsd: number): void {
+    const account = this.accounts.get(scope);
+    if (account === undefined) {
+      throw new ConfigError(`unknown budget account '${scope}' for the repair reserve`);
+    }
+    const previous = account.repairReserveUsd;
+    account.repairReserveUsd = reserveUsd;
+    if (account.scope !== ROOT_ACCOUNT) {
+      this.root.repairReserveUsd = Math.max(0, this.root.repairReserveUsd + reserveUsd - previous);
+    }
+    this.emitUpdate();
+  }
+
+  /** The round's finish loop consumes its leg; see commitRepairReserve. */
+  releaseRepairReserve(scope: string): void {
+    const account = this.accounts.get(scope);
+    if (account === undefined || account.repairReserveUsd === 0) {
+      return;
+    }
+    if (account.scope !== ROOT_ACCOUNT) {
+      this.root.repairReserveUsd = Math.max(
+        0,
+        this.root.repairReserveUsd - account.repairReserveUsd,
+      );
+    }
+    account.repairReserveUsd = 0;
     this.emitUpdate();
   }
 
@@ -1320,7 +1382,8 @@ export class RunBudget {
         account.ceilingUsd -
         account.spentUsd -
         account.synthesisReserveUsd -
-        account.convergenceReserveUsd;
+        account.convergenceReserveUsd -
+        account.repairReserveUsd;
       remaining = remaining === undefined ? headroom : Math.min(remaining, headroom);
     }
     return remaining === undefined ? undefined : Math.max(0, remaining);

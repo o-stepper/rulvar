@@ -56,6 +56,13 @@ export interface JournaledSynthesisCandidate {
   /** The hosting span's dispatch label (RV2901), when journaled. */
   spanLabel?: string;
   /**
+   * The hosting span's running entry seq (RV3802): the span's identity
+   * within the run, so two candidates can be read as neighbors of ONE
+   * composition invocation (the repair-turn pairing below) instead of
+   * accidental neighbors across spans. Absent exactly when unhosted.
+   */
+  spanSeq?: number;
+  /**
    * Wall from the previous boundary (the span's start, or the prior
    * verdict) to this verdict's stamp. Absent when the candidate is not
    * hosted by a settled synthesize span or a stamp is missing.
@@ -390,6 +397,7 @@ export function synthesisCandidatesFromJournal(
             }))
         : [],
       ...(span.label === undefined ? {} : { spanLabel: span.label }),
+      spanSeq: span.runningSeq,
     };
     if (boundary.at !== undefined && verdictAtMs !== undefined) {
       candidate.windowMs = Math.max(0, verdictAtMs - boundary.at);
@@ -431,4 +439,38 @@ export function synthesisCandidatesFromJournal(
     unattributedSpans,
     tailWires,
   };
+}
+
+/**
+ * The observed price of the run's LAST mechanical repair turn
+ * (RV3802): the window of the candidate that FOLLOWED a 'repair'
+ * verdict inside the same settled synthesize span, priced by the same
+ * per-call fold every candidate window uses. This is the fallback the
+ * repair round's mechanical money leg sizes itself from when the host
+ * declared no estimate: by the time the round is admitted the initial
+ * composition has settled, so a mechanical repair it performed is a
+ * priced window in the journal. Fail closed under RV1209: no such
+ * pairing, an unattributed span, or an unpriceable window all return
+ * undefined (never a guessed number), and the caller treats undefined
+ * as an inert zero-size leg.
+ */
+export function lastMechanicalRepairCostUsd(
+  entries: readonly JournalEntry[],
+  priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined,
+): number | undefined {
+  const { candidates } = synthesisCandidatesFromJournal(entries, priceUsd);
+  let observed: number | undefined;
+  for (let index = 1; index < candidates.length; index += 1) {
+    const previous = candidates[index - 1];
+    const row = candidates[index];
+    if (
+      previous?.verdict === 'repair' &&
+      row?.spanSeq !== undefined &&
+      row.spanSeq === previous.spanSeq &&
+      row.costUsd !== undefined
+    ) {
+      observed = row.costUsd;
+    }
+  }
+  return observed;
 }
