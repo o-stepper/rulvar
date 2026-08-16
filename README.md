@@ -441,6 +441,7 @@ The two hundred eleven rounds, verbatim in this repository's history:
 | v1.239.0      | b2cf668 (#967): the plan 35 solo train: the orphaned receipt lane reaches every audit output form, the verdict and exit code stay put, journals without the lane render byte for byte     | v1.240.0   |
 | v1.240.0      | a4e22bf (#970): plan 36 closes the third loss: the round's two deaths named, an own repair pool with carried lessons, named cost buckets, candidate milestones, the test filter can fail  | v1.241.0   |
 | v1.241.0      | 6e3438e (#978): plan 37 seals the loss arc: the round pays for its verdict up front, host rejection legible at the span level, price pins carry a content hash and freshness range        | v1.242.0   |
+| v1.242.0      | 746d1f4 (#983): plan 38 closes the validated remainder: the loop performs the verdict's own prescription, both round legs funded, the sectional round, corpus classes, byScope rollup     | v1.243.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
