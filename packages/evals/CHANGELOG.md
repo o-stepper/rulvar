@@ -1,5 +1,30 @@
 # @rulvar/evals
 
+## 1.244.0
+
+### Minor Changes
+
+- 38d839a: `RunOptions.budgetPolicy: 'segment' | 'immutable-lifetime'` (RV3902, the fourth comparison experiment): the regulated posture the docs used to promise by accident is now a real, opt-in invariant. Default `'segment'` is today's behavior byte for byte. Under `'immutable-lifetime'` the posture is recorded in `RunMeta` at genesis (only the non-default is written; the store conformance kit holds stores to the round-trip) and restored on every resume, and a resume carrying ANY applying `ResumeOptions.run` override refuses with a typed `ConfigError` before ownership, meta writes, or any append, raising and lowering alike; the empty `run: {}` object stays the documented no-op, a bare resume stays a pure replay, and a store that drops the field degrades to `'segment'` (the door works again), never to an invented refusal. The fault kit gains the `budget-policy-immutable` scenario (typed refusal, zero wires, zero durable mutations, bare replay intact); two mutation probes pin the refusal gate and the genesis recording. The source TSDoc sweep retires the last `immutable after start` comments (engine, budget, termination, orchestrate, plan), and the docs doctrine pins now scan `docs/api` too.
+- 4fa23e3: The verdict lineage on the acceptance envelope (RV3904, the fourth comparison experiment): the run's terminal read `findings: 0` over a lineage whose first judge pass had caught a real contradiction, and only the journal could say so. Under the armed claim repair round, `claimConsistencyMeta` now carries `passes`, `firstPassFindings` (when passes exceeds 1), and `semanticRepairRounds`, so a repaired verdict is distinguishable from a clean first one on the envelope; absent fields mean NOT RECORDED (no round armed, or an older journal), and the mechanical `repairsUsed` keeps its byte contract untouched. Beside it, the acceptance envelope gains `deterministicPatches` (the RV3801 machine-patch aggregate: accepted decisions, total patches, the last patch's canonical before/after hashes), derived from the same journaled finish decisions the patches live on, so live and resumed envelopes agree by construction. The sectional and deterministic-patch kit scenarios pin the lineage and the aggregate; two mutation probes pin the pass count and the envelope block; the observability guide documents what zero findings does and does not mean.
+- c894a43: `budget.acceptanceReserve: 'warn' | 'require'` (RV3907, the fourth comparison experiment): preflight has long priced the acceptance tail and warned (`reserve-line-headroom`, `orchestrator-working-room`), and the experiment's run started anyway with both warnings on record. Under `'require'` the declared acceptance tail (the held `synthesisReserveUsd`, the claim judge's `estCost` times one plus the armed semantic repair round, the declared `finishValidation.estRepairCostUsd`, and the armed round's declared `synthesis.estCost` composition floor) plus one coordination turn floor must fit the effective cap at exact fill or better, or the run refuses with a typed `OrchestratorCapConfigError` BEFORE the first wire, journaling an `acceptance_reserve_refused` decision that names every term. Undeclared estimates contribute zero, so the gate binds exactly what the host declared; the default `'warn'` keeps today's behavior byte for byte. The fault kit gains `acceptance-reserve-refusal` (typed refusal, zero dispatches, term-by-term decision); boundary tests pin exact fill as admission; one mutation probe pins the gate.
+- 23fd0e0: The stale-doctrine corpus class and the proactive sectional reminder (RV3909, the fourth comparison experiment). The corpus gains `stale-doctrine-echo`: a draft echoing a DOCUMENTED doctrine while the pool holds the diverging source fact, both sides cited, the experiment's decisive failure shape ("immutable after start" echoed from a guide six weeks stale into a pool that never carried the source side); the honest formulation naming the override door is pinned as a test-side control (the source-claim pairing is polarity-blind by design, and the exoneration belongs to the judge, who now holds both sides). The sectional repair round's prompt gains a deterministic evidence-discipline reminder (the experiment's rewritten section birthed two new evidence-grade offenders that the RV3801 patch then healed; a prompt line is cheaper than a healed failure), present only under the sectional block so every other prompt stays byte-identical; the kit's sectional scenario pins the line present in the round and absent from the initial composition. Two mutation probes pin the reminder and the class roster.
+
+### Patch Changes
+
+- Updated dependencies [38d839a]
+- Updated dependencies [ce13b0f]
+- Updated dependencies [4fa23e3]
+- Updated dependencies [6841c69]
+- Updated dependencies [f56721d]
+- Updated dependencies [c894a43]
+- Updated dependencies [f6944a3]
+- Updated dependencies [23fd0e0]
+  - @rulvar/core@1.244.0
+  - @rulvar/anthropic@1.244.0
+  - @rulvar/openai@1.244.0
+  - @rulvar/plan@1.244.0
+  - @rulvar/testing@1.244.0
+
 ## 1.243.0
 
 ### Minor Changes

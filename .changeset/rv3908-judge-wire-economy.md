@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-The judge wire economy (RV3908, the fourth comparison experiment): every final claim judge paid TWO wires, and the extract wire re-sent the whole conversation at the full input rate with zero cache read; the run's extract role cost $0.28, 5.2% of all money. Two fixes at the agent loop, both verdict-neutral: (1) even when the separate extract invocation is armed (extract routed to a different model than the loop), a final loop turn whose text already validates against the schema IS the structured result and the wire is skipped, exactly the semantics of the no-separate-extract path; the separate invocation stays the repair lane for prose-wrapped or malformed finals. (2) The separate extract request now compiles the same prompt-cache hint the loop turns compile (RV2006 posture: explicit-caching adapters only, transport-level only), so the repair lane's re-sent prefix reads from cache instead of re-paying the input rate. Two mutation probes pin the ride-along guard and the cache compilation.

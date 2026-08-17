@@ -1,5 +1,23 @@
 # @rulvar/cli
 
+## 1.244.0
+
+### Minor Changes
+
+- f56721d: `InvoiceRow.agentType?` and `InvoiceRow.label?` (RV3906, the fourth comparison experiment): in dynamic runs the scope grammar nests every orchestrator spawn under one `agent:<seq>` bucket, so `byScope` legitimately reads two buckets and per-child money used to require a join through the journal. Every row of an attributed terminal (record rows, unattributed slice rows, and remainder rows alike) now carries the spawn's `agentType` and the dispatch `label` from the terminal's cost attribution; the empty agentType folds as absent (the root's honest non-type), and rows of journals recorded before attribution shipped stay byte for byte. `rulvar cost-audit` prints the same cut as a `by agentType:` line and carries it as `invoice.byAgentType` in the JSON form, both absent on pre-attribution journals. Cardinality pins unchanged; one mutation probe pins the threading.
+
+### Patch Changes
+
+- Updated dependencies [38d839a]
+- Updated dependencies [ce13b0f]
+- Updated dependencies [4fa23e3]
+- Updated dependencies [6841c69]
+- Updated dependencies [f56721d]
+- Updated dependencies [c894a43]
+- Updated dependencies [f6944a3]
+- Updated dependencies [23fd0e0]
+  - @rulvar/core@1.244.0
+
 ## 1.243.0
 
 ### Patch Changes
