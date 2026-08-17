@@ -10,6 +10,7 @@
 type RunMeta = {
   argsHash?: string;
   argsProvided?: boolean;
+  budgetPolicy?: "immutable-lifetime";
   budgetUsd?: number;
   configFingerprint?: string;
   execKeyDerivation?: number;
@@ -47,7 +48,7 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L124)
+Defined in: [packages/core/src/l0/spi/store.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L137)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
@@ -74,7 +75,7 @@ checks).
 optional argsProvided?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L105)
+Defined in: [packages/core/src/l0/spi/store.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L118)
 
 Whether the run started with defined args. Engine-recorded at
 genesis and preserved verbatim by every later segment (a resume
@@ -88,19 +89,40 @@ round-trip the field (the conformance kit checks).
 
 ***
 
+### budgetPolicy?
+
+```ts
+optional budgetPolicy?: "immutable-lifetime";
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L63)
+
+The ceiling-override posture (RunOptions.budgetPolicy, RV3902),
+recorded at genesis only when 'immutable-lifetime': under it a
+resume carrying any ResumeOptions.run override refuses typed
+before ownership. Absent means 'segment', the historical
+behavior. Stores must round-trip the field (the conformance kit
+checks); a store that drops it degrades the run to the 'segment'
+posture (the override door works again), never to an invented
+refusal.
+
+***
+
 ### budgetUsd?
 
 ```ts
 optional budgetUsd?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L50)
+Defined in: [packages/core/src/l0/spi/store.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L52)
 
-The run's immutable USD ceiling (RunOptions.budgetUsd), recorded so
-resume restores the original invocation's bound. Absent when the
-run started without a ceiling. Stores must round-trip the field
-(the conformance kit checks); a store that drops it degrades a
-resumed run to uncapped.
+The run's segment-immutable USD ceiling (RunOptions.budgetUsd),
+recorded so resume restores the original invocation's bound (only
+the explicit, journaled ResumeOptions.run override changes it,
+RV2208, by rewriting this field for the run's remaining life).
+Absent when the run started without a ceiling. Stores must
+round-trip the field (the conformance kit checks); a store that
+drops it degrades a resumed run to uncapped.
 
 ***
 
@@ -110,7 +132,7 @@ resumed run to uncapped.
 optional configFingerprint?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L81)
+Defined in: [packages/core/src/l0/spi/store.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L94)
 
 The host-declared config identity (RunOptions.configFingerprint,
 RV3210): an opaque pin over what the workflow body closes over,
@@ -127,7 +149,7 @@ or a false refusal (absence means NOT RECORDED).
 optional execKeyDerivation?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L154)
+Defined in: [packages/core/src/l0/spi/store.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L167)
 
 Which isolated-executor idempotency key derivation this run uses
 (RV403), for its WHOLE life: stamped at the fresh start by the
@@ -153,7 +175,7 @@ at-least-once fold of a redispatched call for a version 2 run.
 optional genesis?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L136)
+Defined in: [packages/core/src/l0/spi/store.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L149)
 
 Unique token minted at the run's fresh start (genesis) and preserved
 verbatim by every later segment, so two runs that reuse the same
@@ -193,7 +215,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:35](https://github.com/o-stepper/
 optional maxInFlightExposureUsd?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L62)
+Defined in: [packages/core/src/l0/spi/store.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L75)
 
 The opt-in in-flight exposure cap
 (RunOptions.maxInFlightExposureUsd), recorded at genesis so resume
@@ -233,7 +255,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/
 optional segments?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L93)
+Defined in: [packages/core/src/l0/spi/store.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L106)
 
 Count of execution segments this run has STARTED (a fresh start
 writes 1; every resume writes prior + 1, durably, BEFORE the
@@ -266,7 +288,7 @@ optional strictPricing?: {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L72)
+Defined in: [packages/core/src/l0/spi/store.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L85)
 
 The opt-in strict pre-egress pricing gate
 (RunOptions.strictPricing canonicalized, RV1508), recorded at

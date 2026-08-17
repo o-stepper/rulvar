@@ -12,7 +12,7 @@ function readTerminationInit(entry):
   | undefined;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L210)
+Defined in: [packages/core/src/journal/termination.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L220)
 
 Reads a termination.init entry's payload; undefined when malformed.
 

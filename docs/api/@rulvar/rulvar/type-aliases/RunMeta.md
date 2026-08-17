@@ -10,6 +10,7 @@
 type RunMeta = {
   argsHash?: string;
   argsProvided?: boolean;
+  budgetPolicy?: "immutable-lifetime";
   budgetUsd?: number;
   configFingerprint?: string;
   execKeyDerivation?: number;
@@ -88,6 +89,25 @@ round-trip the field (the conformance kit checks).
 
 ***
 
+### budgetPolicy?
+
+```ts
+optional budgetPolicy?: "immutable-lifetime";
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The ceiling-override posture (RunOptions.budgetPolicy, RV3902),
+recorded at genesis only when 'immutable-lifetime': under it a
+resume carrying any ResumeOptions.run override refuses typed
+before ownership. Absent means 'segment', the historical
+behavior. Stores must round-trip the field (the conformance kit
+checks); a store that drops it degrades the run to the 'segment'
+posture (the override door works again), never to an invented
+refusal.
+
+***
+
 ### budgetUsd?
 
 ```ts
@@ -96,11 +116,13 @@ optional budgetUsd?: number;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-The run's immutable USD ceiling (RunOptions.budgetUsd), recorded so
-resume restores the original invocation's bound. Absent when the
-run started without a ceiling. Stores must round-trip the field
-(the conformance kit checks); a store that drops it degrades a
-resumed run to uncapped.
+The run's segment-immutable USD ceiling (RunOptions.budgetUsd),
+recorded so resume restores the original invocation's bound (only
+the explicit, journaled ResumeOptions.run override changes it,
+RV2208, by rewriting this field for the run's remaining life).
+Absent when the run started without a ceiling. Stores must
+round-trip the field (the conformance kit checks); a store that
+drops it degrades a resumed run to uncapped.
 
 ***
 

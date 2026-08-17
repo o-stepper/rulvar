@@ -19,4 +19,4 @@ type DebitResult =
 };
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L75)
+Defined in: [packages/core/src/journal/termination.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L85)

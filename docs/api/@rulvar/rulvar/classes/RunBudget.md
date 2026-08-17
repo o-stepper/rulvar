@@ -53,7 +53,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable after start. Undefined means no USD ceiling. | `packages/core/dist/index.d.ts` |
+| <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable within a segment (RV2511): only the explicit, journaled ResumeOptions.run override (RV2208) changes it, by opening a new segment, and budgetPolicy 'immutable-lifetime' (RV3902) refuses even that. Undefined means no USD ceiling. | `packages/core/dist/index.d.ts` |
 | <a id="property-maxinflightexposureusd"></a> `maxInFlightExposureUsd?` | `readonly` | `number` | The opt-in in-flight exposure cap (RV711). Undefined means the reservation surface is inert and reserveTurnExposure never binds. | `packages/core/dist/index.d.ts` |
 | <a id="property-strictpricing"></a> `strictPricing?` | `readonly` | \{ `allowUnpriced?`: readonly `string`[]; `maxRatesAgeDays?`: `number`; \} | The strict pre-egress pricing gate config (RV1508); undefined means the surface is inert and [assertPricedDispatch](/api/@rulvar/rulvar/classes/RunBudget.md#assertpriceddispatch) never binds. | `packages/core/dist/index.d.ts` |
 | `strictPricing.allowUnpriced?` | `public` | readonly `string`[] | - | `packages/core/dist/index.d.ts` |

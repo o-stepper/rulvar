@@ -63,6 +63,24 @@ time](/guide/durability#raising-a-ceiling-at-resume-time) for the override's
 full contract. More money without a resume is still a new run, decided by
 the host.
 
+### Welding the door shut: `budgetPolicy` {#budget-policy}
+
+`RunOptions.budgetPolicy` (RV3902) declares the override posture of the
+run's whole life. The default `'segment'` is everything above, byte for
+byte. `'immutable-lifetime'` is for hosts whose review promised a lifetime
+bound: the posture is recorded in `RunMeta` at genesis and restored on every
+resume, and a resume carrying ANY applying `ResumeOptions.run` refuses with
+a typed `ConfigError` before ownership, meta writes, or any append, raising
+and lowering alike; no journaled override exists in this mode, so the
+ceilings the run started under are the ceilings it settles under. A bare
+resume stays an ordinary pure replay, because the policy pins the ceilings,
+never the resume, and the emergency lever for a run that must stop spending
+is cancel, not a ceiling edit. Degradation is honest: a store that drops the
+optional `RunMeta` field resumes the run under `'segment'` (the override
+door works again), never as an invented refusal, and the conformance kit
+holds stores to the round-trip. Declared at genesis only; the policy itself
+has no override.
+
 A run without `budgetUsd` has no USD ceiling: `ctx.budget.remaining()` returns
 `null` and only the structural bounds apply (the engine lifetime cap of 500
 spawns per run, the nesting depth limit, and per-agent `UsageLimits`). For

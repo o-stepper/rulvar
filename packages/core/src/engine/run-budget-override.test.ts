@@ -218,3 +218,116 @@ describe('the exposure cap override records beside the ceiling (RV2208)', () => 
     expect((await store.getMeta('OVERRIDE-CAP'))?.maxInFlightExposureUsd).toBe(0.5);
   });
 });
+
+describe("budgetPolicy 'immutable-lifetime' welds the override door shut (RV3902)", () => {
+  it('refuses a raising override typed, before ownership, meta writes, or any append', async () => {
+    const { store, make, wf } = exhaustedFirstSegment();
+    const first = await make().engine.run(wf, undefined, {
+      runId: 'POLICY-RAISE',
+      budgetUsd: 0.001,
+      budgetPolicy: 'immutable-lifetime',
+    }).result;
+    expect(first.status).toBe('exhausted');
+    expect((await store.getMeta('POLICY-RAISE'))?.budgetPolicy).toBe('immutable-lifetime');
+    const entriesBefore = (await store.load('POLICY-RAISE')).length;
+    const metaBefore = await store.getMeta('POLICY-RAISE');
+
+    await expect(
+      make().engine.resume('POLICY-RAISE', wf, { run: { budgetUsd: 0.002 } }).result,
+    ).rejects.toMatchObject({
+      code: 'config',
+      message: expect.stringMatching(/immutable-lifetime/u) as unknown,
+    });
+
+    // Nothing durable moved: no append, no meta rewrite, no segment
+    // bump, and the money is exactly where the settle left it.
+    expect((await store.load('POLICY-RAISE')).length).toBe(entriesBefore);
+    const metaAfter = await store.getMeta('POLICY-RAISE');
+    expect(metaAfter?.segments).toBe(metaBefore?.segments);
+    expect(metaAfter?.budgetUsd).toBe(0.001);
+    expect(metaAfter?.budgetPolicy).toBe('immutable-lifetime');
+  });
+
+  it('refuses a lowering override and an exposure-only override alike', async () => {
+    const { make, wf } = exhaustedFirstSegment();
+    await make().engine.run(wf, undefined, {
+      runId: 'POLICY-LOWER',
+      budgetUsd: 0.001,
+      budgetPolicy: 'immutable-lifetime',
+    }).result;
+    await expect(
+      make().engine.resume('POLICY-LOWER', wf, { run: { budgetUsd: 0.0008 } }).result,
+    ).rejects.toMatchObject({ code: 'config' });
+    await expect(
+      make().engine.resume('POLICY-LOWER', wf, { run: { maxInFlightExposureUsd: 1 } }).result,
+    ).rejects.toMatchObject({ code: 'config' });
+  });
+
+  it('an empty override object stays the documented no-op, and a bare resume keeps the posture', async () => {
+    const { store, make, wf } = exhaustedFirstSegment();
+    await make().engine.run(wf, undefined, {
+      runId: 'POLICY-NOOP',
+      budgetUsd: 0.001,
+      budgetPolicy: 'immutable-lifetime',
+    }).result;
+    // {} applies nothing and journals nothing, so there is nothing to
+    // refuse; the run replays exhausted under its recorded ceiling.
+    const noop = await make().engine.resume('POLICY-NOOP', wf, { run: {} }).result;
+    expect(noop.status).toBe('exhausted');
+    // The posture survives the bare resume: a second override attempt
+    // in segment 3 refuses exactly like the first.
+    await expect(
+      make().engine.resume('POLICY-NOOP', wf, { run: { budgetUsd: 1 } }).result,
+    ).rejects.toMatchObject({ code: 'config' });
+    expect((await store.getMeta('POLICY-NOOP'))?.budgetPolicy).toBe('immutable-lifetime');
+  });
+
+  it("the default 'segment' posture and an explicit 'segment' record nothing and change nothing", async () => {
+    const { store, make, wf } = exhaustedFirstSegment();
+    await make().engine.run(wf, undefined, {
+      runId: 'POLICY-DEFAULT',
+      budgetUsd: 0.001,
+      budgetPolicy: 'segment',
+    }).result;
+    // Absence means 'segment': the explicit default is not recorded,
+    // so old stores and new read one meta shape.
+    expect((await store.getMeta('POLICY-DEFAULT'))?.budgetPolicy).toBeUndefined();
+    const resumed = await make().engine.resume('POLICY-DEFAULT', wf, {
+      run: { budgetUsd: 0.002 },
+    }).result;
+    expect(resumed.status).toBe('ok');
+  });
+
+  it('a store that drops the field degrades to segment, never to an invented refusal', async () => {
+    const { store, make, wf } = exhaustedFirstSegment();
+    await make().engine.run(wf, undefined, {
+      runId: 'POLICY-DROPPED',
+      budgetUsd: 0.001,
+      budgetPolicy: 'immutable-lifetime',
+    }).result;
+    // Simulate a legacy store that does not round-trip the field.
+    const recorded = await store.getMeta('POLICY-DROPPED');
+    expect(recorded).toBeDefined();
+    if (recorded !== undefined) {
+      const { budgetPolicy: _dropped, ...rest } = recorded;
+      await store.putMeta(rest);
+    }
+    const resumed = await make().engine.resume('POLICY-DROPPED', wf, {
+      run: { budgetUsd: 0.002 },
+    }).result;
+    expect(resumed.status).toBe('ok');
+  });
+
+  it('a malformed budgetPolicy refuses at genesis with the RunOptions validation', () => {
+    const { make, wf } = exhaustedFirstSegment();
+    // The intake validation throws synchronously, before any journal
+    // entry or store read, exactly like the other RunOptions guards.
+    expect(() =>
+      make().engine.run(wf, undefined, {
+        runId: 'POLICY-MALFORMED',
+        budgetUsd: 0.001,
+        budgetPolicy: 'frozen' as never,
+      }),
+    ).toThrowError(/RunOptions\.budgetPolicy must be 'segment' or 'immutable-lifetime'/u);
+  });
+});

@@ -15,7 +15,7 @@ LangGraph, in common-knowledge terms, builds agent applications as explicit grap
 
 - **No graph core.** A Rulvar workflow is an ordinary async TypeScript function over an injected `ctx`; there is no node/edge DSL and no YAML, deliberately. See [Workflows](/guide/workflows).
 - **Durability at the LLM-call level.** The [journal](/guide/journal) is a content-addressed memo of completed calls. Resume replays every paid call byte-identically at zero cost, and there is no workflow versioning API: edit the code and resume, unchanged calls replay by content, and inserting one new call costs exactly one live call.
-- **Budget as an invariant.** A run carries an immutable dollar ceiling enforced in [three layers](/guide/budgets), not a callback you remember to wire.
+- **Budget as an invariant.** A run carries a hard dollar ceiling enforced in [three layers](/guide/budgets), immutable within a segment with one journaled resume-time override door, which `budgetPolicy: 'immutable-lifetime'` welds shut; never a callback you remember to wire.
 - **A closed topology.** Exactly three [orchestration modes](/guide/orchestration-modes), all call-and-return.
 
 If you want maximal topological freedom and a large ecosystem of prebuilt integrations, a graph framework may serve you better. Rulvar trades that freedom for deterministic replay, exact cost attribution, and [testability](/guide/testing).

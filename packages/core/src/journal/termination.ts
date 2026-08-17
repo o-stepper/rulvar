@@ -8,8 +8,12 @@
  * exclusively DEBIT-ONLY API and a limits vector frozen at start in the
  * `termination.init` entry, plus the variant function Phi. No credit
  * operation exists anywhere by construction; no journal entry kind
- * carries credit; B0 is immutable after start and no API, including
- * HITL, can top it up. Every debit is atomic with the append of its
+ * carries credit; B0 is immutable within a segment and no API,
+ * including HITL, tops up a live run (the one explicit door is the
+ * journaled ResumeOptions.run override at resume, RV2208, refused
+ * outright under budgetPolicy 'immutable-lifetime', RV3902; the
+ * frozen vector below keeps the GENESIS ceiling either way). Every
+ * debit is atomic with the append of its
  * carrying decision entry and embeds the balance-after; an underflow
  * writes `termination.denied` strictly BEFORE the typed error surfaces.
  *
@@ -38,7 +42,13 @@ export interface TerminationLimits {
   maxDepth: number;
   /** Maximum declared ladder length per the profile-registry snapshot. */
   kMax: number;
-  /** B0; immutable after start, no API including HITL can top up. */
+  /**
+   * B0 as frozen at genesis; no API, HITL included, tops up a live
+   * run. The vector keeps the GENESIS ceiling even when a later
+   * segment's journaled ResumeOptions.run override (RV2208) moved the
+   * enforced bound: the frozen dollars are the termination account's
+   * record, the override decision entry is the budget's.
+   */
   runBudgetUsdCeiling: number;
   /**
    * The resolved orchestrator cap in absolute USD (DEF-7; XF-09),
@@ -221,8 +231,9 @@ export function readTerminationInit(entry: JournalEntry): TerminationInitValue |
 /**
  * Config-drift detection at resume: the journaled vector
  * always wins; every differing field is reported for the
- * `termination:config-drift` event. Dynamic budget top-up via restart is
- * excluded by construction.
+ * `termination:config-drift` event. Ambient config can never top up a
+ * budget through a restart; the one explicit, journaled door is
+ * ResumeOptions.run (RV2208), which is a decision entry, not a drift.
  */
 export function terminationConfigDrift(
   frozen: TerminationLimits,

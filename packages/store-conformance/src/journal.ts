@@ -407,6 +407,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             tags: ['team:core'],
             budgetUsd: 12.5,
             maxInFlightExposureUsd: 0.07,
+            budgetPolicy: 'immutable-lifetime',
             strictPricing: { maxRatesAgeDays: 30, allowUnpriced: ['local:llama'] },
             segments: 3,
             argsProvided: true,
@@ -428,6 +429,14 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           roundTripped?.maxInFlightExposureUsd === 0.07,
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (maxInFlightExposureUsd)',
+        );
+        // The ceiling-override posture (RV3902): a store that drops it
+        // silently re-opens the resume override door a regulated host
+        // welded shut, the same silent-loosening failure mode.
+        ensure(
+          roundTripped?.budgetPolicy === 'immutable-lifetime',
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (budgetPolicy)',
         );
         // The pricing gate (RV1508): a store that drops it degrades a
         // resumed run to unpriced dispatch, the same silent-loosening

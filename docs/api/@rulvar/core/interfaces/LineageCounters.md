@@ -6,11 +6,11 @@
 
 # Interface: LineageCounters
 
-Defined in: [packages/core/src/journal/termination.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L62)
+Defined in: [packages/core/src/journal/termination.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L72)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-escalationunitsremaining"></a> `escalationUnitsRemaining` | `number` | [packages/core/src/journal/termination.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L63) |
-| <a id="property-rungsremaining"></a> `rungsRemaining` | `number` | [packages/core/src/journal/termination.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L64) |
+| <a id="property-escalationunitsremaining"></a> `escalationUnitsRemaining` | `number` | [packages/core/src/journal/termination.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L73) |
+| <a id="property-rungsremaining"></a> `rungsRemaining` | `number` | [packages/core/src/journal/termination.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L74) |

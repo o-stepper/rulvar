@@ -15,7 +15,10 @@
  * false). The one thing that can change it is `ResumeOptions.run`, an
  * explicit host decision journaled as its own decision entry, and it
  * takes effect only by opening a NEW segment: a live run can never
- * raise the bound it is already being measured against.
+ * raise the bound it is already being measured against. Under
+ * RunOptions.budgetPolicy 'immutable-lifetime' (RV3902) even that door
+ * refuses typed before ownership, and the recorded ceilings hold for
+ * the run's whole life.
  *
  * The account tree: the run root plus one
  * sub-account per admitted child workflow (and, from M7, the orchestrator
@@ -207,7 +210,12 @@ interface AccountState {
  * spawn-admission decision entries, M6).
  */
 export class RunBudget {
-  /** B0; immutable after start. Undefined means no USD ceiling. */
+  /**
+   * B0; immutable within a segment (RV2511): only the explicit,
+   * journaled ResumeOptions.run override (RV2208) changes it, by
+   * opening a new segment, and budgetPolicy 'immutable-lifetime'
+   * (RV3902) refuses even that. Undefined means no USD ceiling.
+   */
   readonly ceilingUsd?: number;
   /**
    * The opt-in in-flight exposure cap (RV711). Undefined means the

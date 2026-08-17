@@ -19,7 +19,7 @@ Defined in: [packages/plan/src/plan-runner.ts:2981](https://github.com/o-stepper
 The PlanRunner entry surface: mode (c) plus the extension in one call.
 `runOptions` are the ordinary engine RunOptions of the created run:
 `runOptions.budgetUsd` is the ROOT hard ceiling over the whole tree,
-immutable after start, while `opts.budget` only shapes the
+immutable within a segment, while `opts.budget` only shapes the
 orchestrator's own sub-account inside it (v1.18.0 review P1-5).
 
 ## Parameters

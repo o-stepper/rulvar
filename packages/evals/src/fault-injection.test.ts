@@ -52,6 +52,7 @@ const EXPECTED = [
   'sectional-repair-round-fallback',
   'deterministic-provenance-patch',
   'claim-judge-dead-armed-refusal',
+  'budget-policy-immutable',
 ];
 
 describe('the fault-injection kit (RV811)', () => {

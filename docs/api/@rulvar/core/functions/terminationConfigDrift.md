@@ -14,12 +14,13 @@ function terminationConfigDrift(frozen, live): {
 }[];
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L227)
+Defined in: [packages/core/src/journal/termination.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L238)
 
 Config-drift detection at resume: the journaled vector
 always wins; every differing field is reported for the
-`termination:config-drift` event. Dynamic budget top-up via restart is
-excluded by construction.
+`termination:config-drift` event. Ambient config can never top up a
+budget through a restart; the one explicit, journaled door is
+ResumeOptions.run (RV2208), which is a decision entry, not a drift.
 
 ## Parameters
 
