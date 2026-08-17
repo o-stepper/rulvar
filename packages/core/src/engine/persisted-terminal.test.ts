@@ -352,4 +352,56 @@ describe('the tail-aware persisted terminal (RV1407)', () => {
     expect(derived.reason).toBe('not-terminal');
     expect(derived.message).toContain('past the settle');
   });
+
+  describe('the runtime contract gate on the rebuilt envelope (RV3903)', () => {
+    // The meta row is external bytes a custom store hands back
+    // verbatim (readRunMeta filters nothing), and the fourth
+    // comparison experiment's probe pushed contract-violating values
+    // through the typed copy of the built dist without a sound. A
+    // rebuild the contract refuses is withheld as its own typed
+    // refusal, never served green. A hostile pricing function, by
+    // contrast, is already sanitized upstream (a NaN or negative
+    // price folds as unpriced, RV3204's class), which is exactly why
+    // the last gate guards the assembled envelope and not one
+    // ingress.
+    it('a corrupted meta configFingerprint refuses typed, never a green envelope', async () => {
+      const store = new InMemoryStore();
+      await engineOver(store).run(claiming, undefined, { runId: 'PT7' }).result;
+      const { entries, meta, priceUsd } = await reload(store, 'PT7');
+      const derived = persistedTerminalEnvelope({
+        runId: 'PT7',
+        meta: meta === undefined ? meta : { ...meta, configFingerprint: '' },
+        entries,
+        priceUsd,
+      });
+      expect(derived.available).toBe(false);
+      if (derived.available) {
+        return;
+      }
+      expect(derived.reason).toBe('malformed-envelope');
+      expect(derived.message).toContain('runtime terminal contract gate');
+      expect(derived.message).toContain('configFingerprint');
+    });
+
+    it('an empty stored workflow name refuses through the parser, not as unknown-workflow', async () => {
+      const store = new InMemoryStore();
+      await engineOver(store).run(claiming, undefined, { runId: 'PT8' }).result;
+      const { entries, meta, priceUsd } = await reload(store, 'PT8');
+      const derived = persistedTerminalEnvelope({
+        runId: 'PT8',
+        meta: meta === undefined ? meta : { ...meta, workflowName: '' },
+        entries,
+        priceUsd,
+      });
+      expect(derived.available).toBe(false);
+      if (derived.available) {
+        return;
+      }
+      // '' is present but malformed: the unknown-workflow refusal
+      // speaks only for ABSENT names, and inventing one would lie on
+      // the envelope's most-read field.
+      expect(derived.reason).toBe('malformed-envelope');
+      expect(derived.message).toContain('workflow');
+    });
+  });
 });

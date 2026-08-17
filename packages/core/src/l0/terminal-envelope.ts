@@ -27,6 +27,7 @@
  *
  * Docs: https://docs.rulvar.com/guide/observability
  */
+import { ConfigError } from './errors.js';
 import type { WireError } from './errors.js';
 import type { Usage } from './messages.js';
 
@@ -139,4 +140,189 @@ export interface TerminalEnvelope {
    * the error reads it from the live outcome or the run:end event.
    */
   provenance?: 'journal';
+}
+
+const ENVELOPE_STATUSES: ReadonlySet<string> = new Set([
+  'ok',
+  'error',
+  'cancelled',
+  'exhausted',
+  'suspended',
+]);
+
+const ENVELOPE_COMPLETIONS: ReadonlySet<string> = new Set(['complete', 'partial', 'rejected']);
+
+function refuseEnvelope(field: string, requirement: string, got: unknown): never {
+  const printed = typeof got === 'number' ? String(got) : (JSON.stringify(got) ?? String(got));
+  throw new ConfigError(`terminal envelope ${field} must be ${requirement}; got ${printed}`);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function requireMoney(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    refuseEnvelope(field, 'a finite nonnegative number', value);
+  }
+  return value;
+}
+
+function requireCount(value: unknown, field: string): void {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    refuseEnvelope(field, 'a nonnegative integer', value);
+  }
+}
+
+function requireBoolean(value: unknown, field: string): void {
+  if (typeof value !== 'boolean') {
+    refuseEnvelope(field, 'a boolean', value);
+  }
+}
+
+function requireNonEmptyString(value: unknown, field: string): void {
+  if (typeof value !== 'string' || value.length === 0) {
+    refuseEnvelope(field, 'a non-empty string', value);
+  }
+}
+
+/** Every numeric leaf of the usage subtree: finite and nonnegative. */
+function requireUsageNumbers(node: unknown, path: string): void {
+  if (typeof node === 'number') {
+    if (!Number.isFinite(node) || node < 0) {
+      refuseEnvelope(path, 'a finite nonnegative number', node);
+    }
+    return;
+  }
+  if (isPlainObject(node)) {
+    for (const [key, item] of Object.entries(node)) {
+      requireUsageNumbers(item, `${path}.${key}`);
+    }
+    return;
+  }
+  refuseEnvelope(path, 'a number or a nested usage object', node);
+}
+
+/**
+ * The runtime gate over the terminal envelope contract (RV3903, the
+ * fourth comparison experiment). `terminalEnvelopeOf` is the ONE
+ * producer, but a producer is a compile-time promise, and the envelope
+ * crosses trust boundaries the type system never sees: a journal read
+ * back after a restart, a plain JS caller, an HTTP body a pipeline
+ * gates on. The experiment probed the built dist and the typed copy
+ * accepted `status: 'green'`, NaN dollars, and negative counts without
+ * a sound; a finance or compliance consumer downstream would have
+ * gated a run on fiction.
+ *
+ * The gate validates the CONTRACT fields and refuses with a typed
+ * {@link ConfigError} naming the field and the defect: enum `status`
+ * and `completion`, finite nonnegative money (with `totalUsd <=
+ * grossUsd`, gross being net plus abandoned by construction), usage
+ * and counters, `settledReason` only beside `settled: false`, the
+ * `costBasis` and `provenance` literals, boolean `usageApprox`, and
+ * the `WireError` shape when an error rides along. Unknown top-level
+ * fields pass through untouched: the contract evolves additively, and
+ * a parser that refused tomorrow's field would turn every additive
+ * release into a wire break. On success the SAME reference comes back,
+ * typed: the gate is a boundary check, never a normalizer.
+ *
+ * Wired where external bytes actually enter: `persistedTerminalEnvelope`
+ * runs every journal-rebuilt envelope through it (and refuses typed as
+ * `malformed-envelope`), which also covers the server's persisted
+ * serving by construction. The live settlement chokepoint stays
+ * unparsed on purpose: it is the one producer inside one process, and
+ * gating it would add a throw site to settlement itself.
+ */
+export function parseTerminalEnvelope(value: unknown): TerminalEnvelope {
+  if (!isPlainObject(value)) {
+    refuseEnvelope('value', 'an object', value);
+  }
+  requireNonEmptyString(value.runId, 'runId');
+  requireNonEmptyString(value.workflow, 'workflow');
+  if (typeof value.status !== 'string' || !ENVELOPE_STATUSES.has(value.status)) {
+    refuseEnvelope(
+      'status',
+      "one of 'ok' | 'error' | 'cancelled' | 'exhausted' | 'suspended'",
+      value.status,
+    );
+  }
+  requireBoolean(value.settled, 'settled');
+  if (value.settledReason !== undefined) {
+    if (value.settledReason !== 'superseded') {
+      refuseEnvelope('settledReason', "the literal 'superseded' when present", value.settledReason);
+    }
+    if (value.settled !== false) {
+      refuseEnvelope(
+        'settledReason',
+        'present only beside settled: false (a settled terminal has no supersession to explain)',
+        value.settledReason,
+      );
+    }
+  }
+  const totalUsd = requireMoney(value.totalUsd, 'totalUsd');
+  const grossUsd = requireMoney(value.grossUsd, 'grossUsd');
+  if (totalUsd > grossUsd) {
+    refuseEnvelope(
+      'totalUsd',
+      `at most grossUsd (${String(grossUsd)}): gross is the net fold plus abandoned spend`,
+      totalUsd,
+    );
+  }
+  if (value.costBasis !== 'locally-estimated') {
+    refuseEnvelope('costBasis', "the literal 'locally-estimated'", value.costBasis);
+  }
+  if (!isPlainObject(value.costByModel)) {
+    refuseEnvelope('costByModel', 'an object of per-model dollars', value.costByModel);
+  }
+  for (const [model, usd] of Object.entries(value.costByModel)) {
+    requireMoney(usd, `costByModel['${model}']`);
+  }
+  if (value.wireRequests !== undefined) {
+    requireCount(value.wireRequests, 'wireRequests');
+  }
+  if (!isPlainObject(value.usage)) {
+    refuseEnvelope('usage', 'a usage object', value.usage);
+  }
+  requireUsageNumbers(value.usage, 'usage');
+  requireBoolean(value.usageApprox, 'usageApprox');
+  requireCount(value.agentsSpawned, 'agentsSpawned');
+  if (
+    value.completion !== undefined &&
+    (typeof value.completion !== 'string' || !ENVELOPE_COMPLETIONS.has(value.completion))
+  ) {
+    refuseEnvelope(
+      'completion',
+      "one of 'complete' | 'partial' | 'rejected' when present",
+      value.completion,
+    );
+  }
+  if (value.error !== undefined) {
+    if (!isPlainObject(value.error)) {
+      refuseEnvelope('error', 'a typed wire error object when present', value.error);
+    }
+    requireNonEmptyString(value.error.code, 'error.code');
+    if (typeof value.error.message !== 'string') {
+      refuseEnvelope('error.message', 'a string', value.error.message);
+    }
+    requireBoolean(value.error.retryable, 'error.retryable');
+  }
+  if (value.deliverableAccepted !== undefined) {
+    requireBoolean(value.deliverableAccepted, 'deliverableAccepted');
+  }
+  if (value.resultAvailable !== undefined) {
+    requireBoolean(value.resultAvailable, 'resultAvailable');
+  }
+  if (value.acceptedArtifactRef !== undefined) {
+    requireCount(value.acceptedArtifactRef, 'acceptedArtifactRef');
+  }
+  if (value.claimConsistencyMeta !== undefined && !isPlainObject(value.claimConsistencyMeta)) {
+    refuseEnvelope('claimConsistencyMeta', 'an object when present', value.claimConsistencyMeta);
+  }
+  if (value.configFingerprint !== undefined) {
+    requireNonEmptyString(value.configFingerprint, 'configFingerprint');
+  }
+  if (value.provenance !== undefined && value.provenance !== 'journal') {
+    refuseEnvelope('provenance', "the literal 'journal' when present", value.provenance);
+  }
+  return value as unknown as TerminalEnvelope;
 }

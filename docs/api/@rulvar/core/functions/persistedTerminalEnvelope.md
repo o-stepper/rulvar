@@ -10,7 +10,7 @@
 function persistedTerminalEnvelope(input): PersistedTerminalResult;
 ```
 
-Defined in: [packages/core/src/engine/persisted-terminal.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/persisted-terminal.ts#L95)
+Defined in: [packages/core/src/engine/persisted-terminal.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/persisted-terminal.ts#L106)
 
 Rebuilds one run's terminal envelope from its journal (RV1209).
 `priceUsd` is the caller's composed pricing, exactly what the cost

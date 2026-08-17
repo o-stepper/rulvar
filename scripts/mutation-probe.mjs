@@ -5012,6 +5012,43 @@ export const MUTATIONS = [
     replace: '        if (true) {',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
+  {
+    id: 'envelope-parse-status-enum',
+    doctrine:
+      "the terminal envelope gate refuses an unknown status literal (RV3903): with the enum check widened to any string, the fourth experiment's status 'green' probe passes the boundary again and the malformed table must go red",
+    file: 'packages/core/src/l0/terminal-envelope.ts',
+    find: "  if (typeof value.status !== 'string' || !ENVELOPE_STATUSES.has(value.status)) {",
+    replace: "  if (typeof value.status !== 'string') {",
+    test: 'packages/core/src/l0/terminal-envelope.test.ts',
+  },
+  {
+    id: 'envelope-parse-money-finite',
+    doctrine:
+      'the terminal envelope gate refuses non-finite and negative money (RV3903): with the money guard reduced to a typeof check, NaN dollars read as a valid terminal and a finance consumer downstream gates a run on fiction',
+    file: 'packages/core/src/l0/terminal-envelope.ts',
+    find: "  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {\n    refuseEnvelope(field, 'a finite nonnegative number', value);\n  }\n  return value;",
+    replace:
+      "  if (typeof value !== 'number') {\n    refuseEnvelope(field, 'a finite nonnegative number', value);\n  }\n  return value;",
+    test: 'packages/core/src/l0/terminal-envelope.test.ts',
+  },
+  {
+    id: 'envelope-parse-settledreason-coherence',
+    doctrine:
+      'settledReason is coherent only beside settled: false (RV3903): with the coherence check dropped, a settled terminal claiming a supersession parses green and the one field that explains a withheld settle becomes noise',
+    file: 'packages/core/src/l0/terminal-envelope.ts',
+    find: "    if (value.settled !== false) {\n      refuseEnvelope(\n        'settledReason',\n        'present only beside settled: false (a settled terminal has no supersession to explain)',\n        value.settledReason,\n      );\n    }",
+    replace: '',
+    test: 'packages/core/src/l0/terminal-envelope.test.ts',
+  },
+  {
+    id: 'persisted-envelope-gate',
+    doctrine:
+      'the persisted rebuild passes the runtime contract gate before it is served (RV3903): with the parse bypassed, a corrupted store row rides a green envelope out of the one surface a restarted reader trusts',
+    file: 'packages/core/src/engine/persisted-terminal.ts',
+    find: '  return { available: true, envelope: parseTerminalEnvelope(envelope) };',
+    replace: '  return { available: true, envelope };',
+    test: 'packages/core/src/engine/persisted-terminal.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
