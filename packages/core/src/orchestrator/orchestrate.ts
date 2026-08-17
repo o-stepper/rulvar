@@ -7569,6 +7569,19 @@ export function makeOrchestratorWorkflow(
                 JSON.stringify(sectionalRoundContext.sections) +
                 '. Resubmit the full document as result only when a targeted repair is ' +
                 'impossible.',
+              // The proactive evidence-discipline reminder (RV3909):
+              // the fourth comparison run's rewritten section birthed
+              // two NEW evidence-grade offenders that the RV3801 patch
+              // then healed; a prompt line is cheaper than a healed
+              // failure, and the lessons block still teaches whatever
+              // slips through. Deterministic bytes, present only under
+              // the sectional block, so every other prompt is
+              // byte-identical.
+              'Rewritten sections must keep the retained evidence discipline: a sentence ' +
+                'making a verified or confirmed grade claim carries the run id or a ' +
+                'file:line citation INSIDE the sentence, exactly like the retained ' +
+                'sections do; a rewritten sentence that drops it fails the finish ' +
+                'contract mechanically.',
             ]),
         // The opt-in policy-facts line (RV709): folded ONLY from
         // replay-stable material (the settled child results' durable

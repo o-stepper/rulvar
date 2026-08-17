@@ -5140,6 +5140,25 @@ export const MUTATIONS = [
     replace: '    if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate-intake.test.ts',
   },
+  {
+    id: 'sectional-evidence-reminder',
+    doctrine:
+      "the sectional round prompt carries the proactive evidence-discipline reminder (RV3909): with the line dropped, a rewritten section is invited to birth the exact evidence-grade offenders the fourth comparison run's round birthed, and only the healed-failure lesson teaches after the fact",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "              'Rewritten sections must keep the retained evidence discipline: a sentence ' +",
+    replace: "              'Rewritten sections read best when they stay concise: a sentence ' +",
+    test: 'packages/evals/src/fault-injection.test.ts',
+    build: '@rulvar/core',
+  },
+  {
+    id: 'corpus-stale-doctrine-class',
+    doctrine:
+      "the corpus covers the stale-doctrine-echo class (RV3909): dropping the fourth experiment's decisive failure class must fail the class roster by name, never shrink the corpus silently",
+    file: 'packages/evals/src/claim-corpus.ts',
+    find: "    class: 'stale-doctrine-echo',",
+    replace: "    class: 'package-identity',",
+    test: 'packages/evals/src/claim-corpus.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

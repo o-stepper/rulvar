@@ -45,7 +45,12 @@ import { claimCoverageOf, pairDraftClaims, pairRunFactClaims } from '@rulvar/cor
  * figure whose premise contradicts the declared input (2,000 slots
  * computed from a 30 minute window where the input declares a 20
  * minute burst), and 'cost-basis' prints a locally estimated total as
- * the provider's bill.
+ * the provider's bill. The fourth comparison experiment named the
+ * decisive one (RV3909): 'stale-doctrine-echo' is a draft echoing a
+ * DOCUMENTED doctrine while the pool holds the diverging source fact,
+ * both sides cited; the experiment's answer echoed the retired
+ * budget-immutability wording from a guide six weeks stale, and no
+ * judge could flag it because the pool never carried the source side.
  */
 export type ClaimCorpusClass =
   | 'live-fact'
@@ -58,7 +63,8 @@ export type ClaimCorpusClass =
   | 'scope-ambiguity'
   | 'bound-conflation'
   | 'derived-premise'
-  | 'cost-basis';
+  | 'cost-basis'
+  | 'stale-doctrine-echo';
 
 /** One adversarial case: a draft, its contradicting evidence, and the mechanical expectations. */
 export interface ClaimCorpusCase {
@@ -289,6 +295,41 @@ export const CLAIM_CORPUS: readonly ClaimCorpusCase[] = [
     },
     runFactTerms: ['provider bill', 'charged and settled'],
     expect: { minRunFactPairs: 1 },
+  },
+  {
+    // The fourth comparison experiment's decisive class (RV3909): the
+    // draft echoes a DOCUMENTED doctrine while the pool holds the
+    // diverging source fact, both sides cited. The experiment's answer
+    // echoed "immutable after start ... resume accepts no budget
+    // parameter" from the stale guide while ResumeOptions.run had
+    // shipped six weeks earlier; the pool never carried the source
+    // side, so no judge could have flagged it. With both sides in the
+    // pool the pair MUST form, and the judge handoff carries the
+    // divergence.
+    id: 'stale-doctrine-echo-budget-override',
+    class: 'stale-doctrine-echo',
+    draft:
+      'The run budget ceiling is documented as immutable after start: resume accepts no ' +
+      'budget parameter, so an exhausted run can never continue under a raised ceiling ' +
+      '(docs/guide/budgets.md:43; packages/core/src/engine/engine.ts:588).',
+    pool: [
+      {
+        nodeId: 'agent:3',
+        text:
+          'The budgets guide historically taught "immutable after start" ' +
+          '(docs/guide/budgets.md:43), but ResumeOptions.run raises budgetUsd and ' +
+          'maxInFlightExposureUsd at resume, validated and journaled as a ' +
+          'run_budget_override decision with a typed floor at the settled spend ' +
+          '(packages/core/src/engine/engine.ts:588-604); the doctrine in force is ' +
+          'immutability WITHIN a segment.',
+      },
+    ],
+    critical: ['packages/core/src/engine/engine.ts'],
+    expect: {
+      minPairs: 1,
+      anchors: ['packages/core/src/engine/engine.ts:588'],
+      coverage: 'full',
+    },
   },
 ];
 
