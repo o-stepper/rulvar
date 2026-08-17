@@ -52,6 +52,7 @@ const EXPECTED = [
   'sectional-repair-round-fallback',
   'deterministic-provenance-patch',
   'claim-judge-dead-armed-refusal',
+  'acceptance-reserve-refusal',
   'budget-policy-immutable',
 ];
 

@@ -4065,6 +4065,90 @@ const budgetPolicyImmutable: FaultScenario = {
   },
 };
 
+/**
+ * RV3907: budget.acceptanceReserve 'require' turns the two preflight
+ * warning classes (`reserve-line-headroom`, `orchestrator-working-room`)
+ * into a typed boot refusal BEFORE the first wire: the declared
+ * acceptance tail must fit the effective cap at exact fill or better,
+ * and the refusal journals its arithmetic term by term.
+ */
+const acceptanceReserveRefusal: FaultScenario = {
+  name: 'acceptance-reserve-refusal',
+  doctrine:
+    "budget.acceptanceReserve 'require' refuses the run typed BEFORE the first wire when " +
+    'the declared acceptance tail (synthesis hold + judge passes + mechanical repair + ' +
+    'round composition + working room) does not fit the effective cap, and the refusal ' +
+    'journals every term; the same config under the default warn posture dispatches',
+  async run() {
+    const store = new InMemoryStore();
+    const adapter = new FakeAdapter({ agents: { '*': 'never dispatched' } });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: {
+          loop: FAKE_MODEL_REF,
+          orchestrate: FAKE_MODEL_REF,
+          synthesize: FAKE_MODEL_REF,
+          extract: FAKE_MODEL_REF,
+        },
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        synthesis: { estCost: 0.15 },
+        claimConsistency: {
+          stage: 'final',
+          onFound: 'repair',
+          judge: { estCost: 0.2 },
+        },
+        finishValidation: {
+          validators: [{ name: 'anything', validate: () => ({ ok: true }) }],
+          estRepairCostUsd: 0.1,
+        },
+        budget: { synthesisReserveUsd: 1.0, acceptanceReserve: 'require' },
+      }),
+      undefined,
+      { runId: 'fault-acceptance-reserve', budgetUsd: 10 },
+    ).result;
+    const entries = await store.load('fault-acceptance-reserve');
+    const refusal = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'acceptance_reserve_refused',
+    );
+    const terms = refusal?.value as
+      { requiredUsd?: number; effectiveCapUsd?: number; judgePasses?: number } | undefined;
+    const matched =
+      outcome.status === 'error' &&
+      (outcome.error?.message ?? '').includes("acceptanceReserve 'require'") &&
+      adapter.calls.length === 0 &&
+      terms !== undefined &&
+      Math.abs((terms.requiredUsd ?? 0) - 2.15) < 1e-9 &&
+      Math.abs((terms.effectiveCapUsd ?? 0) - 2.0) < 1e-9 &&
+      terms.judgePasses === 2;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}'; dispatches=${String(adapter.calls.length)}; ` +
+          `refusal decision=${String(refusal !== undefined)} ` +
+          `(required ${String(terms?.requiredUsd)} vs cap ${String(terms?.effectiveCapUsd)}, ` +
+          `judge passes ${String(terms?.judgePasses)}); ${outcome.error?.message ?? ''}`.slice(
+            0,
+            400,
+          ),
+      },
+      artifacts: [
+        jsonArtifact('refusal.json', {
+          error: outcome.error ?? null,
+          decision: refusal?.value ?? null,
+        }),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -4103,6 +4187,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   sectionalRepairRoundFallback,
   deterministicProvenancePatch,
   claimJudgeDeadArmedRefusal,
+  acceptanceReserveRefusal,
   budgetPolicyImmutable,
 ];
 

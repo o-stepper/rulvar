@@ -10090,6 +10090,27 @@ interface OrchestratorBudgetSpec {
   */
   synthesisReserveUsd?: number;
   /**
+  * The admission posture of the acceptance path (RV3907, the fourth
+  * comparison experiment). Preflight has long PRICED the tail and
+  * warned (`reserve-line-headroom`, `orchestrator-working-room`), and
+  * the experiment's run started anyway, with the warnings on record
+  * and the acceptance machinery funded by luck. 'warn' (default)
+  * keeps exactly that: findings in preflight, nothing at runtime.
+  * 'require' turns the arithmetic into a boot refusal BEFORE the
+  * first wire: the effective cap must cover, at exact fill or
+  * better, the DECLARED acceptance tail (the held
+  * `synthesisReserveUsd`, the claim judge's `judge.estCost` times
+  * one plus the armed semantic repair round, the declared
+  * `finishValidation.estRepairCostUsd`, and the armed round's
+  * declared `synthesis.estCost` composition floor) plus one
+  * coordination turn floor of working room. Undeclared estimates
+  * contribute zero, so the gate binds exactly what the host
+  * declared; the refusal journals an `acceptance_reserve_refused`
+  * decision naming every term and throws the typed
+  * OrchestratorCapConfigError with the same arithmetic.
+  */
+  acceptanceReserve?: "warn" | "require";
+  /**
   * A positive integer, validated before any journal entry or dispatch:
   * the turn limit of the reserved final wake.
   */
