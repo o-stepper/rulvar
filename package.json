@@ -26,6 +26,7 @@
     "docs:fence-syntax": "node scripts/docs-fence-syntax.mjs",
     "docs:metadata": "node scripts/docs-metadata.mjs",
     "docs:roles": "node scripts/docs-role-truth.mjs",
+    "docs:doctrine": "node scripts/docs-doctrine-pins.mjs",
     "docs:dev": "pnpm --filter @rulvar/docs dev",
     "docs:build": "pnpm --filter @rulvar/docs build:site",
     "check:fixed-group": "node scripts/check-fixed-group.mjs",

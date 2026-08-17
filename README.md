@@ -114,7 +114,7 @@ const panel = defineWorkflow(
 
 const question = 'Should a five-person startup adopt a monorepo?';
 
-const handle = engine.run(panel, { question }, { runId: 'panel-1', budgetUsd: 2 }); // immutable run ceiling
+const handle = engine.run(panel, { question }, { runId: 'panel-1', budgetUsd: 2 }); // hard run ceiling
 // Live terminal view on stderr: one row per agent with its status,
 // running timer, token counts, and USD, plus spend against the ceiling;
 // plain lines in pipes and CI.

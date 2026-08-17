@@ -51,7 +51,7 @@ SQLite is optional: `@rulvar/store-sqlite` implements the same five-method contr
 
 ## What happens when the budget runs out?
 
-The run ends with honest partial results, never a bare `null` and never a hang. The ceiling you pass as `budgetUsd` is immutable after start: no API, including human-in-the-loop decisions, can top it up. Enforcement is three-layered: admission blocks new spawns, a guard checks before every agent turn, and on a ceiling crossing live streams are cut with their partial usage journaled as approximate. Overshoot is bounded by at most one turn per in-flight agent, because providers bill severed streams; no tighter bound is possible.
+The run ends with honest partial results, never a bare `null` and never a hang. The ceiling you pass as `budgetUsd` is immutable within a segment: no API, including human-in-the-loop decisions, can top up a live run, and only the explicit, journaled `ResumeOptions.run` override changes it between segments. Enforcement is three-layered: admission blocks new spawns, a guard checks before every agent turn, and on a ceiling crossing live streams are cut with their partial usage journaled as approximate. Overshoot is bounded by at most one turn per in-flight agent, because providers bill severed streams; no tighter bound is possible.
 
 ```ts
 const handle = engine.run(reviewAll, { prs }, { budgetUsd: 5 });
