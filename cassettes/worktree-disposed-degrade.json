@@ -273,6 +273,7 @@
       },
       "servedBy": "fake:cheap",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "wtclimber",
         "role": "loop",
         "budgetAccount": "plan/ULID-0001--------------------"
@@ -443,6 +444,7 @@
       },
       "servedBy": "fake:mid",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "wtclimber",
         "role": "loop",
         "budgetAccount": "plan/ULID-0001--------------------"
@@ -694,6 +696,7 @@
       "usageApprox": true,
       "servedBy": "fake:strong",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "wtclimber",
         "role": "loop",
         "budgetAccount": "plan/ULID-0001--------------------"
@@ -993,6 +996,7 @@
       },
       "servedBy": "fake:cheap",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "wtclimber",
         "role": "loop",
         "budgetAccount": "plan/ULID-0005--------------------"
@@ -1206,6 +1210,7 @@
       },
       "servedBy": "fake:mid",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "wtclimber",
         "role": "loop",
         "budgetAccount": "plan/ULID-0005--------------------"
@@ -1377,6 +1382,7 @@
       },
       "servedBy": "fake:strong",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "wtclimber",
         "role": "loop",
         "budgetAccount": "plan/ULID-0005--------------------"
@@ -1769,6 +1775,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "wtworker",
         "role": "loop",
         "budgetAccount": "plan/ULID-0008--------------------"
@@ -2492,6 +2499,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "coordination",
         "agentType": "",
         "role": "orchestrate",
         "budgetAccount": "orchestrator"

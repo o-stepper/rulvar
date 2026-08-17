@@ -12240,7 +12240,14 @@ interface CostReport {
   * phase, or an EMPTY phase, folds under the named 'unknown' bucket
   * (RV3604): a '' key is unaddressable in every downstream table,
   * and the third comparison run's report read `byPhase {"": 5.58}`
-  * for the whole run.
+  * for the whole run. In dynamic runs the orchestrator's own stages
+  * name their dispatches since RV3905 ('fan-out' children,
+  * 'coordination' loop turns and the forced-finish wake,
+  * 'composition' synthesis and incremental notes, 'judge' claim
+  * passes, 'repair' the bounded claim repair round), filling only
+  * the vacuum: an explicit host ctx.phase around the orchestration
+  * keeps its own bucket. The fourth comparison run's report read
+  * byPhase 100% 'unknown' over stages the journal held apart.
   */
   byPhase: Record<string, number>;
   /** Spawn agentType names; absent and empty fold under 'unknown' (RV3604). */

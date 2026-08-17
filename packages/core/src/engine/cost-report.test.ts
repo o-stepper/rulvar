@@ -629,6 +629,167 @@ describe('byRole attribution is exhaustive (v1.59.0 review P0)', () => {
   });
 });
 
+describe('the dynamic stage phases (RV3905, the fourth comparison experiment)', () => {
+  it('folds a dynamic run into named stage buckets, live and offline, summing to the total', async () => {
+    // The comparison run's report read byPhase 100% 'unknown' over a
+    // run whose stages were plainly separable in the journal: the fold
+    // reads costAttribution.phase and the dynamic path never stamped
+    // one. Each engine-owned dispatch now names its stage.
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-phase-'));
+    const store = new JsonlFileStore({ dir });
+    const anchor = 'src/exec.ts:256-296';
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)
+        ?.rulvar;
+      if (rulvar?.agentType === 'worker') {
+        return {
+          text: `A failed audit write does not mask success (\`${anchor}\`).`,
+          usage: { inputTokens: 400, outputTokens: 30 },
+        };
+      }
+      const text = req.messages
+        .flatMap((msg) => msg.parts)
+        .filter((part) => part.type === 'text')
+        .map((part) => part.text)
+        .join('\n');
+      // The judge loop wire (PAIRS:) and its schema extract wire (the
+      // judged JSON riding the extract prompt) both answer the same
+      // agreeing verdict; both fold under the 'judge' stage.
+      if (text.includes('PAIRS:') || text.includes('"contradictions"')) {
+        return {
+          text: JSON.stringify({ contradictions: [] }),
+          usage: { inputTokens: 300, outputTokens: 20 },
+        };
+      }
+      if (text.includes('DRAFT:')) {
+        return {
+          toolCall: {
+            name: 'finish',
+            args: { result: `final: the audit-write failure is not masked [${anchor}].` },
+          },
+          usage: { inputTokens: 700, outputTokens: 90 },
+        };
+      }
+      const handles: number[] = [];
+      for (const msg of req.messages) {
+        for (const part of msg.parts) {
+          if (part.type === 'tool-result') {
+            const result = part.result as { handle?: number } | undefined;
+            if (typeof result?.handle === 'number' && !handles.includes(result.handle)) {
+              handles.push(result.handle);
+            }
+          }
+        }
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'read span' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'draft: agree' } } };
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: {
+          loop: 'fake:model',
+          orchestrate: 'fake:model',
+          synthesize: 'fake:model',
+          // The schema'd judge extracts through the extract role
+          // (RV3406): without a route the judge dies unrouted.
+          extract: 'fake:model',
+        },
+        profiles: { worker: { description: 'does one task' } },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('audit the executor', {
+      synthesis: {},
+      claimConsistency: { stage: 'final' },
+    });
+    const outcome = await engine.run(wf, undefined, { runId: 'COST-PHASE' }).result;
+    expect(outcome.status).toBe('ok');
+
+    // Every stage the run performed has its named bucket, nothing
+    // falls to 'unknown', and the buckets partition the total.
+    const live = outcome.cost.byPhase;
+    expect(Object.keys(live).sort()).toEqual(['composition', 'coordination', 'fan-out', 'judge']);
+    for (const usd of Object.values(live)) {
+      expect(usd).toBeGreaterThan(0);
+    }
+    const sum = Object.values(live).reduce((acc, usd) => acc + usd, 0);
+    expect(sum).toBeCloseTo(outcome.cost.totalUsd, 12);
+
+    // Live and journal parity by construction: both folds read the
+    // same stamped field of the same entries.
+    const independent = costReportFromJournal(await store.load('COST-PHASE'), priceVia(adapter));
+    expect(independent.byPhase).toEqual(live);
+  });
+
+  it('an explicit host phase wins over the stage names, filling only the vacuum', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-phase-host-'));
+    const store = new JsonlFileStore({ dir });
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)
+        ?.rulvar;
+      if (rulvar?.agentType === 'worker') {
+        return { text: 'evidence', usage: { inputTokens: 100, outputTokens: 10 } };
+      }
+      const handles: number[] = [];
+      for (const msg of req.messages) {
+        for (const part of msg.parts) {
+          if (part.type === 'tool-result') {
+            const result = part.result as { handle?: number } | undefined;
+            if (typeof result?.handle === 'number' && !handles.includes(result.handle)) {
+              handles.push(result.handle);
+            }
+          }
+        }
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'read span' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'draft: agree' } } };
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: { description: 'does one task' } },
+      },
+    });
+    const wrapped = defineWorkflow({ name: 'wrapped' }, async (ctx) => {
+      return ctx.phase('audit', () => ctx.orchestrate('audit the executor'));
+    });
+    const outcome = await engine.run(wrapped, undefined, {
+      runId: 'COST-PHASE-HOST',
+      budgetUsd: 5,
+    }).result;
+    expect(outcome.status).toBe('ok');
+    // The host named the phase; the stage names must not displace it,
+    // for the coordination loop and the children alike.
+    expect(Object.keys(outcome.cost.byPhase)).toEqual(['audit']);
+    const independent = costReportFromJournal(
+      await store.load('COST-PHASE-HOST'),
+      priceVia(adapter),
+    );
+    expect(independent.byPhase).toEqual(outcome.cost.byPhase);
+  });
+});
+
 describe('the per-call additive fold (RV504, the ninth-experiment accounting P1)', () => {
   const usageOf = (inputTokens: number, outputTokens: number): Usage => ({
     inputTokens,

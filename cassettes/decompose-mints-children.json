@@ -365,6 +365,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "worker",
         "role": "loop",
         "budgetAccount": "plan/ULID-0001--------------------"
@@ -800,6 +801,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "worker",
         "role": "loop",
         "budgetAccount": "plan/ULID-0005--------------------"
@@ -900,6 +902,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "worker",
         "role": "loop",
         "budgetAccount": "plan/ULID-0008--------------------"
@@ -1221,6 +1224,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "coordination",
         "agentType": "",
         "role": "orchestrate",
         "budgetAccount": "orchestrator"

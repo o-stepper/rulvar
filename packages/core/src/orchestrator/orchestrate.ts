@@ -3233,6 +3233,12 @@ export function makeOrchestratorWorkflow(
       const childState: CtxScopeState = {
         scope,
         spanId: internals.spans.mint(callingState.spanId),
+        // The dynamic stage phase (RV3905): children fold under
+        // 'fan-out' unless the host wrapped the orchestration in an
+        // explicit ctx.phase, which then wins. The child state never
+        // inherited the calling phase before, so phase-wrapped hosts
+        // also stop losing their own bucket here.
+        phase: callingState.phase ?? 'fan-out',
         signal:
           upstream === undefined
             ? controller.signal
@@ -5652,6 +5658,15 @@ export function makeOrchestratorWorkflow(
     if (orchestratorAccount !== undefined) {
       orchestratorState.budgetScope = orchestratorAccount;
     }
+    // The dynamic stage phase (RV3905, the fourth comparison
+    // experiment): the run's byPhase read 100% 'unknown' while the
+    // orchestrator's own stages were plainly separable, because
+    // `costAttribution.phase` is stamped from the dispatch scope state
+    // and the dynamic path never set one. Each engine-owned dispatch
+    // now names its stage; an EXPLICIT host phase (a workflow that
+    // wrapped ctx.orchestrate in ctx.phase) wins, so phase-wrapped
+    // runs keep their buckets and only the vacuum is filled.
+    orchestratorState.phase = orchestratorState.phase ?? 'coordination';
     // Without validators the break signal IS the forced finish signal,
     // byte identical to the pre RV-204 behavior.
     const loopBreakSignal =
@@ -5757,6 +5772,9 @@ export function makeOrchestratorWorkflow(
         if (orchestratorAccount !== undefined) {
           finalState.budgetScope = orchestratorAccount;
         }
+        // The forced-finish wake is a coordination turn (RV3905): it
+        // spends the finalize reserve of the SAME loop it concludes.
+        finalState.phase = finalState.phase ?? 'coordination';
         const digest = buildDigest(wakeOrdinal);
         const reserveBaseline =
           orchestratorAccount === undefined
@@ -5911,6 +5929,9 @@ export function makeOrchestratorWorkflow(
       if (orchestratorAccount !== undefined) {
         noteState.budgetScope = orchestratorAccount;
       }
+      // Incremental notes are synthesis machinery (RV3905): they fold
+      // with the composition they feed, not with the loop they ride.
+      noteState.phase = noteState.phase ?? 'composition';
       const noteOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
         role: 'synthesize',
         result: 'full',
@@ -6674,6 +6695,9 @@ export function makeOrchestratorWorkflow(
       if (orchestratorAccount !== undefined) {
         judgeState.budgetScope = orchestratorAccount;
       }
+      // Both judge passes fold under one stage (RV3905): the labels
+      // already split draft from final where a reader needs it.
+      judgeState.phase = judgeState.phase ?? 'judge';
       const judgeOpts: AgentOpts & { result: 'full' } = {
         role: 'synthesize',
         result: 'full',
@@ -6869,7 +6893,14 @@ export function makeOrchestratorWorkflow(
       );
     };
 
-    const runSynthesis = async (draft: unknown): Promise<unknown> => {
+    const runSynthesis = async (
+      draft: unknown,
+      // The stage the dispatch folds under (RV3905): the initial
+      // composition and the redemption default to 'composition'; the
+      // bounded claim repair round names itself 'repair', so the money
+      // the round spends is separable from the composition it repairs.
+      stagePhase: 'composition' | 'repair' = 'composition',
+    ): Promise<unknown> => {
       const spec = opts?.synthesis;
       if (spec === undefined) {
         return draft;
@@ -7597,6 +7628,9 @@ export function makeOrchestratorWorkflow(
           ? 0
           : (internals.budget.accountView(orchestratorAccount)?.synthesisReserveUsd ?? 0);
       const synthesisState: CtxScopeState = { ...callingState };
+      // The stage phase fills only the vacuum (RV3905): an explicit
+      // host phase keeps its bucket.
+      synthesisState.phase = synthesisState.phase ?? stagePhase;
       if (orchestratorAccount !== undefined) {
         synthesisState.budgetScope = orchestratorAccount;
         // The reserve's whole purpose arrives here: the held money is
@@ -9224,7 +9258,7 @@ export function makeOrchestratorWorkflow(
           );
         }
         try {
-          synthesizedFinal = await runSynthesis(result.output);
+          synthesizedFinal = await runSynthesis(result.output, 'repair');
         } catch (thrown) {
           await journalSynthesisAdmissionDecline(thrown);
           // The round's two deaths are different facts (RV3601). The

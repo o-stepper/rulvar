@@ -281,6 +281,7 @@
       "usageApprox": true,
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "flaky",
         "role": "loop",
         "budgetAccount": "plan/ULID-0001--------------------"
@@ -785,6 +786,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "checker",
         "role": "loop",
         "budgetAccount": "plan/ULID-0004--------------------"
@@ -1201,6 +1203,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "grinder",
         "role": "loop",
         "budgetAccount": "plan/ULID-0006--------------------"
@@ -1615,6 +1618,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "worker",
         "role": "loop",
         "budgetAccount": "plan/ULID-0008--------------------"
@@ -1905,6 +1909,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "coordination",
         "agentType": "",
         "role": "orchestrate",
         "budgetAccount": "orchestrator"

@@ -546,6 +546,7 @@
       "usageApprox": true,
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "coordination",
         "agentType": "",
         "role": "orchestrate",
         "budgetAccount": "orchestrator"
@@ -681,6 +682,7 @@
       },
       "servedBy": "fake:model",
       "costAttribution": {
+        "phase": "coordination",
         "agentType": "",
         "role": "orchestrate",
         "budgetAccount": "orchestrator",
