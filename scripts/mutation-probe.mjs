@@ -5094,6 +5094,24 @@ export const MUTATIONS = [
     replace: '        : {}),',
     test: 'packages/core/src/engine/invoice.test.ts',
   },
+  {
+    id: 'extract-ride-along-first',
+    doctrine:
+      "a valid ride-along final skips the separate extract wire (RV3908): with the guard collapsed, every schema'd invocation with an extract route pays a full-conversation wire for JSON its own final already carried, the fourth comparison run's $0.28 extract toll",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    output === null &&',
+    replace: '    true &&',
+    test: 'packages/core/src/runtime/agent-loop.test.ts',
+  },
+  {
+    id: 'extract-request-cache-policy',
+    doctrine:
+      'the separate extract request rides the cache policy (RV3908): with the compilation dropped, the extract re-sends the whole conversation at the full input rate with zero cache read on adapters whose loop turns already cache the same prefix',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '            req = applyCachePolicy(req, target, options.cache);\n            return applyOutputBudget(req, target, options.budget);',
+    replace: '            return applyOutputBudget(req, target, options.budget);',
+    test: 'packages/core/src/runtime/agent-loop.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

@@ -294,6 +294,71 @@ describe('agent runtime v1 (M1-T06)', () => {
     expect(result.turns).toBe(2);
   });
 
+  it('a valid ride-along final skips the separate extract wire (RV3908)', async () => {
+    // The fourth comparison run's judge paid a full extract wire on
+    // every pass while its own final text already carried the exact
+    // JSON the schema wanted: $0.28, 5.2% of the run, re-sending the
+    // whole conversation with zero cache read. A final that validates
+    // IS the structured result; the wire stays the repair lane.
+    const loopAdapter = scriptedAdapter(() => ({ text: '{"verdict":"pass"}' }));
+    const extractAdapter = scriptedAdapter(() => ({ text: '{"verdict":"never-used"}' }), {
+      id: 'extractor',
+    });
+    const extractResolved: ResolvedInvocation = {
+      ref: 'extractor:mini',
+      adapterId: 'extractor',
+      model: 'mini',
+      canonical: { kind: 'model', model: 'extractor:mini', effort: 'low' },
+      scrubs: [],
+    };
+    const result = await runAgent({
+      prompt: 'judge and answer as JSON',
+      schema: verdictSchema,
+      canonicalSchema: canonicalVerdict,
+      adapter: loopAdapter,
+      resolved,
+      extract: { adapter: extractAdapter, resolved: extractResolved },
+      limits: mergeUsageLimits(),
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toEqual({ verdict: 'pass' });
+    expect(extractAdapter.calls).toHaveLength(0);
+    expect(result.turns).toBe(1);
+  });
+
+  it('the separate extract request rides the cache policy on an explicit-caching adapter (RV3908)', async () => {
+    const loopAdapter = scriptedAdapter(() => ({ text: 'analysis prose' }));
+    const extractAdapter = scriptedAdapter(() => ({ text: '{"verdict":"pass"}' }), {
+      id: 'extractor',
+      caps: { ...testCaps(), promptCaching: 'explicit' },
+    });
+    const extractResolved: ResolvedInvocation = {
+      ref: 'extractor:mini',
+      adapterId: 'extractor',
+      model: 'mini',
+      canonical: { kind: 'model', model: 'extractor:mini', effort: 'low' },
+      scrubs: [],
+    };
+    const result = await runAgent({
+      prompt: 'analyze then extract',
+      schema: verdictSchema,
+      canonicalSchema: canonicalVerdict,
+      adapter: loopAdapter,
+      resolved,
+      extract: { adapter: extractAdapter, resolved: extractResolved },
+      limits: mergeUsageLimits(),
+    });
+    expect(result.status).toBe('ok');
+    // The extract request re-sends the whole conversation; on an
+    // explicit-caching adapter it must carry the same sliding
+    // breakpoints the loop turns carry (RV2006), so the re-sent
+    // prefix reads from cache instead of re-paying the input rate.
+    expect(extractAdapter.calls[0]?.cacheHint).toBeDefined();
+    // The policy stays byte-identical where it cannot help: the loop
+    // adapter here declares no caching and its request carries none.
+    expect(loopAdapter.calls[0]?.cacheHint).toBeUndefined();
+  });
+
   it('persists the canonical transcript', async () => {
     const blobs = new Map<string, Uint8Array>();
     const adapter = scriptedAdapter(() => ({ text: 'answer' }));
