@@ -5049,6 +5049,24 @@ export const MUTATIONS = [
     replace: '  return { available: true, envelope };',
     test: 'packages/core/src/engine/persisted-terminal.test.ts',
   },
+  {
+    id: 'dynamic-phase-fanout',
+    doctrine:
+      "dynamic children fold under the 'fan-out' stage (RV3905): with the stamp dropped, child spend falls back to the 'unknown' bucket and the fourth comparison run's 100% unknown byPhase returns",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        phase: callingState.phase ?? 'fan-out',",
+    replace: '        ...(callingState.phase === undefined ? {} : { phase: callingState.phase }),',
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
+  {
+    id: 'dynamic-phase-judge',
+    doctrine:
+      "the claim judge folds under the 'judge' stage (RV3905): with the stamp dropped, the judge's wire money is indistinguishable from unattributed spend and the stage partition of the total breaks",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      judgeState.phase = judgeState.phase ?? 'judge';",
+    replace: '',
+    test: 'packages/core/src/engine/cost-report.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

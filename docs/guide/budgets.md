@@ -848,7 +848,7 @@ Every settled run, whatever its status, carries a complete `CostReport` in
 | --- | --- |
 | `totalUsd` | Total priced spend of the run |
 | `byModel` | Keyed by canonical `adapterId:model` |
-| `byPhase` | Buckets by `ctx.phase` name (innermost enclosing phase) |
+| `byPhase` | Buckets by `ctx.phase` name (innermost enclosing phase); in dynamic runs the orchestrator's stages name their own dispatches (`fan-out`, `coordination`, `composition`, `judge`, `repair`) and an explicit host phase wins |
 | `byAgentType` | Buckets by agent profile |
 | `byRole` | Buckets by invocation role (loop, plan, orchestrate, extract, finalize, summarize); every paid phase lands in its own bucket even when one model serves several phases of one agent, and entries journaled before per-role slices shipped fold under their primary role |
 | `orchestrator` | `spentUsd`, `share`, `wakes`, `forcedFinish`, `reserveUsedUsd`; all-zero in runs without a dynamic orchestrator |
