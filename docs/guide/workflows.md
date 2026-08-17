@@ -57,7 +57,7 @@ if (outcome.status === 'ok') {
 }
 ```
 
-`ctx.agent` with a schema resolves directly with the validated, typed output. The `budgetUsd: 5` is the run's dollar ceiling, immutable after start and enforced on three layers; see [Budgets](/guide/budgets).
+`ctx.agent` with a schema resolves directly with the validated, typed output. The `budgetUsd: 5` is the run's dollar ceiling, immutable within a segment (only the explicit, journaled resume override changes it) and enforced on three layers; see [Budgets](/guide/budgets).
 
 ::: warning Default store
 Without `stores.journal`, the engine uses `InMemoryStore`: fine for tests, but nothing survives a process exit, so a restarted process cannot resume, and the engine warns loudly. Use `SqliteStore` (or another durable journal store) for anything you may want to resume. See [Stores](/guide/stores).
@@ -80,7 +80,7 @@ Three rules define how a workflow body executes:
 ```ts
 const handle = engine.run(reviewDiff, { diff: myDiff }, {
   runId: 'review-42',          // explicit id; otherwise the engine mints a ULID
-  budgetUsd: 5,                // run ceiling, immutable after start
+  budgetUsd: 5,                // run ceiling, immutable within a segment
   deadlineAt: '2026-08-01T09:00:00Z',
   limits: { maxTurns: 16 },    // merged over engine defaults
 });

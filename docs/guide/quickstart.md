@@ -154,7 +154,7 @@ const args = { question: 'Should a five-person startup adopt a monorepo?' };
 
 const handle = engine.run(panel, args, {
   runId: 'quickstart-panel-1', // explicit so we can resume it below
-  budgetUsd: 2,                // the run ceiling; immutable after start
+  budgetUsd: 2,                // the run ceiling; immutable within a segment
 });
 
 // The live terminal view on stderr: one row per agent showing its
