@@ -71,6 +71,25 @@ export interface InvoiceRow {
   entrySeq: number;
   scope: string;
   key: string;
+  /**
+   * The spawn's agent type from the terminal's cost attribution
+   * (RV3906, the fourth comparison experiment): in dynamic runs the
+   * scope grammar nests every orchestrator spawn under one
+   * `agent:<seq>` bucket, so per-child money used to require a join
+   * through the journal; the row now names the profile directly.
+   * Additive and policy, never identity: absent on entries journaled
+   * before cost attribution shipped, on empty attributions, and on
+   * every pre-RV3906 export byte, so old journals and old consumers
+   * read exactly what they always read.
+   */
+  agentType?: string;
+  /**
+   * The dispatch label from the same attribution (RV2803 journaled
+   * it; RV3906 lifts it onto the row), what tells two spans of one
+   * role apart without a journal join. Absent on unlabelled
+   * dispatches, additive exactly like `agentType`.
+   */
+  label?: string;
   /** The call's dispatch ordinal within its invocation; remainder and slice rows continue past it. */
   ordinal: number;
   servedBy: ModelRef;
@@ -568,7 +587,21 @@ export function invoiceFromJournal(
       entry.kind !== 'resolution' &&
       entry.kind !== 'abandon' &&
       abandonFold.isAbandoned(entry.ref ?? entry.seq);
-    const base = { entrySeq: entry.seq, scope: entry.scope, key: entry.key };
+    // The attribution facts ride every row of the entry (RV3906):
+    // records, unattributed slices, and remainder rows alike, since
+    // all three describe the same invocation's money. The empty
+    // agentType folds as absent, the tool-calibration rule: '' is the
+    // root's honest non-type, not a name.
+    const attribution = entry.costAttribution;
+    const base = {
+      entrySeq: entry.seq,
+      scope: entry.scope,
+      key: entry.key,
+      ...(attribution?.agentType === undefined || attribution.agentType === ''
+        ? {}
+        : { agentType: attribution.agentType }),
+      ...(attribution?.label === undefined ? {} : { label: attribution.label }),
+    };
     const mark = abandoned ? ({ abandoned: true } as const) : {};
     const records = entry.providerCalls ?? [];
     for (const record of records) {

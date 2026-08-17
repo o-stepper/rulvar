@@ -1231,8 +1231,33 @@ function auditJournalEntries(
   return { report, invoice, checks, failed };
 }
 
+/**
+ * The per-agentType cut of the invoice rows (RV3906): in dynamic runs
+ * byScope nests every orchestrator spawn under one `agent:<seq>`
+ * bucket, so this is the per-child money surface. Rows journaled
+ * before the field ride the 'unknown' bucket, the fold vocabulary.
+ * Returns undefined when NO row names a type, so pre-RV3906 journals
+ * render byte for byte in both output forms.
+ */
+function invoiceByAgentType(
+  rows: readonly { agentType?: string; usd?: number }[],
+): Record<string, { usd: number; rows: number }> | undefined {
+  if (!rows.some((row) => row.agentType !== undefined)) {
+    return undefined;
+  }
+  const cut: Record<string, { usd: number; rows: number }> = {};
+  for (const row of rows) {
+    const key = row.agentType ?? 'unknown';
+    const bucket = (cut[key] ??= { usd: 0, rows: 0 });
+    bucket.usd += row.usd ?? 0;
+    bucket.rows += 1;
+  }
+  return cut;
+}
+
 /** The one JSON shape of a run's audit, shared by both command forms. */
 function costAuditRunJson(runId: string, audit: RunCostAudit): Record<string, unknown> {
+  const byAgentType = invoiceByAgentType(audit.invoice.rows);
   return {
     runId,
     verdict: audit.failed.length === 0 ? 'one-denominator' : 'divergent',
@@ -1245,6 +1270,7 @@ function costAuditRunJson(runId: string, audit: RunCostAudit): Record<string, un
       totalUsd: audit.invoice.totalUsd,
       rows: audit.invoice.rows.length,
       wireRequests: audit.invoice.cardinality.wireRequests,
+      ...(byAgentType === undefined ? {} : { byAgentType }),
       ...(audit.invoice.orphanedReceipts === undefined
         ? {}
         : { orphanedReceipts: audit.invoice.orphanedReceipts }),
@@ -1324,6 +1350,17 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
     context.io.out(
       `invoice: total $${audit.invoice.totalUsd.toFixed(4)} | rows ${String(audit.invoice.rows.length)} | wires ${String(audit.invoice.cardinality.wireRequests)}`,
     );
+    const byAgentType = invoiceByAgentType(audit.invoice.rows);
+    if (byAgentType !== undefined) {
+      // Largest money first; the per-child cut byScope cannot give in
+      // dynamic runs (RV3906). Absent on pre-attribution journals, so
+      // their output stays byte for byte.
+      const cutLine = Object.entries(byAgentType)
+        .sort(([, a], [, b]) => b.usd - a.usd)
+        .map(([type, bucket]) => `${type} $${bucket.usd.toFixed(4)} (${String(bucket.rows)} rows)`)
+        .join(' | ');
+      context.io.out(`by agentType: ${cutLine}`);
+    }
     const orphaned = audit.invoice.orphanedReceipts;
     if (orphaned !== undefined) {
       context.io.out(
