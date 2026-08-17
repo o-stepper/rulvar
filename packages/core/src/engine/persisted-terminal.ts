@@ -38,6 +38,7 @@ import type { RunMeta } from '../l0/spi/store.js';
 import type { TerminalEnvelope } from '../l0/terminal-envelope.js';
 import { buildAbandonFold } from '../journal/disposition.js';
 import { foldLedger } from '../journal/replayer.js';
+import { parseTerminalEnvelope } from '../l0/terminal-envelope.js';
 import { lastRunSettle } from '../stores/reconcile.js';
 import { costReportFromJournal } from './cost-report.js';
 import { terminalEnvelopeOf } from './terminal-envelope.js';
@@ -54,9 +55,16 @@ import { terminalEnvelopeOf } from './terminal-envelope.js';
  * a stale settle), which is exactly the evidence `auditRun` derives a
  * non-terminal status from. `unknown-workflow`: nothing names the
  * workflow the terminal belongs to, and an envelope that invented one
- * would be a lie on its most-read field.
+ * would be a lie on its most-read field. `malformed-envelope` (RV3903):
+ * the rebuilt envelope failed the runtime contract gate
+ * (`parseTerminalEnvelope`), which means the journal bytes this fold
+ * read produced values the terminal contract forbids (NaN money, a
+ * negative counter, an unknown status literal); the reconstruction is
+ * withheld typed instead of served green, and the message names the
+ * field and the defect.
  */
-export type PersistedTerminalRefusal = 'unsettled' | 'not-terminal' | 'unknown-workflow';
+export type PersistedTerminalRefusal =
+  'unsettled' | 'not-terminal' | 'unknown-workflow' | 'malformed-envelope';
 
 /** The reconstruction verdict: an envelope, or a typed refusal. */
 export type PersistedTerminalResult =
@@ -67,6 +75,9 @@ const REFUSAL_MESSAGES: Record<PersistedTerminalRefusal, string> = {
   unsettled: 'no run settle is journaled for this run: nothing durable records a terminal',
   'not-terminal': 'the journaled run settle records a running segment, not a terminal',
   'unknown-workflow': 'no stored metadata names the workflow this run belongs to',
+  'malformed-envelope':
+    'the rebuilt envelope failed the runtime terminal contract gate: the journal bytes ' +
+    'produced values the contract forbids',
 };
 
 /** Every envelope status; a settle may also record the non-terminal 'running'. */
@@ -123,6 +134,28 @@ export function persistedTerminalEnvelope(input: {
   if (workflow === undefined) {
     return refuse('unknown-workflow');
   }
+  // The runtime contract gate (RV3903): by the time a restarted reader
+  // folds it, the journal is external bytes and the pricing is a
+  // host-supplied function, and the typed producer cannot vouch for
+  // either (the fourth comparison experiment's probe pushed NaN
+  // dollars and negative counters straight through the typed copy).
+  // The whole assembly sits under one catch, so a fold overflow guard
+  // (RV610) and the envelope gate below refuse the same way: a typed
+  // `malformed-envelope` refusal naming the defect, never a green
+  // envelope and never a bare throw at a serving surface.
+  try {
+    return assemble(input, workflow, settle);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return refuse('malformed-envelope', `${REFUSAL_MESSAGES['malformed-envelope']}: ${detail}`);
+  }
+}
+
+function assemble(
+  input: Parameters<typeof persistedTerminalEnvelope>[0],
+  workflow: string,
+  settle: NonNullable<ReturnType<typeof lastRunSettle>>,
+): PersistedTerminalResult {
   const ledger = foldLedger(input.entries, buildAbandonFold(input.entries));
   const envelope = terminalEnvelopeOf({
     runId: input.runId,
@@ -166,5 +199,8 @@ export function persistedTerminalEnvelope(input: {
     // this fold reads.
     provenance: 'journal',
   });
-  return { available: true, envelope };
+  // The gate itself: a rebuild the contract refuses never leaves this
+  // function as an envelope; the enclosing catch turns the typed throw
+  // into the `malformed-envelope` refusal.
+  return { available: true, envelope: parseTerminalEnvelope(envelope) };
 }

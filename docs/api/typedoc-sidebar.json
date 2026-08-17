@@ -3517,6 +3517,10 @@
             "link": "/api/@rulvar/core/functions/parseScopePath.md"
           },
           {
+            "text": "parseTerminalEnvelope",
+            "link": "/api/@rulvar/core/functions/parseTerminalEnvelope.md"
+          },
+          {
             "text": "persistedTerminalEnvelope",
             "link": "/api/@rulvar/core/functions/persistedTerminalEnvelope.md"
           },
@@ -8685,6 +8689,10 @@
           {
             "text": "parseScopePath",
             "link": "/api/@rulvar/rulvar/functions/parseScopePath.md"
+          },
+          {
+            "text": "parseTerminalEnvelope",
+            "link": "/api/@rulvar/rulvar/functions/parseTerminalEnvelope.md"
           },
           {
             "text": "persistedTerminalEnvelope",

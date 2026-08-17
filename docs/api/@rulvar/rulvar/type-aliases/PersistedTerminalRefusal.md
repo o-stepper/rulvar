@@ -7,7 +7,11 @@
 # Type Alias: PersistedTerminalRefusal
 
 ```ts
-type PersistedTerminalRefusal = "unsettled" | "not-terminal" | "unknown-workflow";
+type PersistedTerminalRefusal = 
+  | "unsettled"
+  | "not-terminal"
+  | "unknown-workflow"
+  | "malformed-envelope";
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -23,4 +27,10 @@ detached resolution awaiting its resume, or a successor segment over
 a stale settle), which is exactly the evidence `auditRun` derives a
 non-terminal status from. `unknown-workflow`: nothing names the
 workflow the terminal belongs to, and an envelope that invented one
-would be a lie on its most-read field.
+would be a lie on its most-read field. `malformed-envelope` (RV3903):
+the rebuilt envelope failed the runtime contract gate
+(`parseTerminalEnvelope`), which means the journal bytes this fold
+read produced values the terminal contract forbids (NaN money, a
+negative counter, an unknown status literal); the reconstruction is
+withheld typed instead of served green, and the message names the
+field and the defect.
