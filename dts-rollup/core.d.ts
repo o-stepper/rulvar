@@ -14350,6 +14350,25 @@ interface InvoiceRow {
   entrySeq: number;
   scope: string;
   key: string;
+  /**
+  * The spawn's agent type from the terminal's cost attribution
+  * (RV3906, the fourth comparison experiment): in dynamic runs the
+  * scope grammar nests every orchestrator spawn under one
+  * `agent:<seq>` bucket, so per-child money used to require a join
+  * through the journal; the row now names the profile directly.
+  * Additive and policy, never identity: absent on entries journaled
+  * before cost attribution shipped, on empty attributions, and on
+  * every pre-RV3906 export byte, so old journals and old consumers
+  * read exactly what they always read.
+  */
+  agentType?: string;
+  /**
+  * The dispatch label from the same attribution (RV2803 journaled
+  * it; RV3906 lifts it onto the row), what tells two spans of one
+  * role apart without a journal join. Absent on unlabelled
+  * dispatches, additive exactly like `agentType`.
+  */
+  label?: string;
   /** The call's dispatch ordinal within its invocation; remainder and slice rows continue past it. */
   ordinal: number;
   servedBy: ModelRef;

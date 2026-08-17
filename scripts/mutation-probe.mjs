@@ -5085,6 +5085,15 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/engine/run-budget-override.test.ts',
   },
+  {
+    id: 'invoice-row-agent-type',
+    doctrine:
+      "the invoice row names the spawn's agentType from the terminal attribution (RV3906): with the threading dropped, per-child money in dynamic runs is a journal join again, exactly the gap the fourth comparison analysis had to hand-aggregate around",
+    file: 'packages/core/src/engine/invoice.ts',
+    find: '        : { agentType: attribution.agentType }),',
+    replace: '        : {}),',
+    test: 'packages/core/src/engine/invoice.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

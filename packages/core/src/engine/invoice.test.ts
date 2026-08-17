@@ -708,3 +708,61 @@ describe('the orphaned receipt lane (RV3405)', () => {
     expect(invoice.orphanedReceipts?.rows.map((row) => row.ordinal)).toEqual([1, 3]);
   });
 });
+
+describe('the attributed rows (RV3906, the fourth comparison experiment)', () => {
+  it('rows carry agentType and label from the terminal cost attribution, every row kind', () => {
+    const entries = [
+      terminalEntry(1, {
+        usage: usageOf(300, 30),
+        costAttribution: {
+          agentType: 'worker',
+          role: 'loop',
+          budgetAccount: 'run',
+          label: 'read-span',
+        },
+        providerCalls: [record(1, usageOf(300, 30), { responseId: 'resp_A' })],
+      }),
+      // No ledger: the unattributed slice row inherits the entry facts.
+      terminalEntry(2, {
+        usage: usageOf(100, 10),
+        costAttribution: { agentType: 'judge', role: 'synthesize', budgetAccount: 'orchestrator' },
+      }),
+      // Pre-attribution entry: both fields absent, the old bytes exactly.
+      terminalEntry(3, {
+        usage: usageOf(50, 5),
+        providerCalls: [record(1, usageOf(50, 5), { responseId: 'resp_C' })],
+      }),
+      // The root's empty agentType folds as absent, not as a name.
+      terminalEntry(4, {
+        usage: usageOf(10, 1),
+        costAttribution: { agentType: '', role: 'orchestrate', budgetAccount: 'run' },
+        providerCalls: [record(1, usageOf(10, 1), { responseId: 'resp_D' })],
+      }),
+    ];
+    const invoice = invoiceFromJournal(entries, linearPrice);
+    const bySeq = (seq: number) => invoice.rows.filter((row) => row.entrySeq === seq);
+    expect(bySeq(1)[0]?.agentType).toBe('worker');
+    expect(bySeq(1)[0]?.label).toBe('read-span');
+    expect(bySeq(2)[0]?.agentType).toBe('judge');
+    expect(bySeq(2)[0]?.outcome).toBe('unattributed');
+    expect('agentType' in (bySeq(3)[0] ?? {})).toBe(false);
+    expect('label' in (bySeq(3)[0] ?? {})).toBe(false);
+    expect('agentType' in (bySeq(4)[0] ?? {})).toBe(false);
+  });
+
+  it('the remainder row of a partially covered entry carries the same attribution', () => {
+    const entry = terminalEntry(9, {
+      usage: usageOf(600, 50),
+      costAttribution: { agentType: 'worker', role: 'loop', budgetAccount: 'run' },
+      providerCalls: [record(1, usageOf(200, 20), { responseId: 'resp_R' })],
+    });
+    const invoice = invoiceFromJournal([entry], linearPrice);
+    const rows = invoice.rows.filter((row) => row.entrySeq === 9);
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    expect(rows.every((row) => row.agentType === 'worker')).toBe(true);
+    // The per-child money question the fourth comparison run could
+    // only answer through a journal join now folds off the rows alone.
+    const workerUsd = rows.reduce((sum, row) => sum + (row.usd ?? 0), 0);
+    expect(workerUsd).toBeGreaterThan(0);
+  });
+});
