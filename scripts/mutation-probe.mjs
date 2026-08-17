@@ -5131,6 +5131,15 @@ export const MUTATIONS = [
     test: 'packages/evals/src/fault-injection.test.ts',
     build: '@rulvar/core',
   },
+  {
+    id: 'acceptance-reserve-gate',
+    doctrine:
+      "budget.acceptanceReserve 'require' refuses a run whose declared acceptance tail does not fit the cap BEFORE the first wire (RV3907): with the gate collapsed, the starving config dispatches anyway and dies mid-acceptance, the fourth comparison run's warned-and-started shape",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "    if (opts?.budget?.acceptanceReserve === 'require') {",
+    replace: '    if (false) {',
+    test: 'packages/core/src/orchestrator/orchestrate-intake.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

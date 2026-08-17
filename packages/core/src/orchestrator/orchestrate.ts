@@ -177,6 +177,27 @@ export interface OrchestratorBudgetSpec {
    */
   synthesisReserveUsd?: number;
   /**
+   * The admission posture of the acceptance path (RV3907, the fourth
+   * comparison experiment). Preflight has long PRICED the tail and
+   * warned (`reserve-line-headroom`, `orchestrator-working-room`), and
+   * the experiment's run started anyway, with the warnings on record
+   * and the acceptance machinery funded by luck. 'warn' (default)
+   * keeps exactly that: findings in preflight, nothing at runtime.
+   * 'require' turns the arithmetic into a boot refusal BEFORE the
+   * first wire: the effective cap must cover, at exact fill or
+   * better, the DECLARED acceptance tail (the held
+   * `synthesisReserveUsd`, the claim judge's `judge.estCost` times
+   * one plus the armed semantic repair round, the declared
+   * `finishValidation.estRepairCostUsd`, and the armed round's
+   * declared `synthesis.estCost` composition floor) plus one
+   * coordination turn floor of working room. Undeclared estimates
+   * contribute zero, so the gate binds exactly what the host
+   * declared; the refusal journals an `acceptance_reserve_refused`
+   * decision naming every term and throws the typed
+   * OrchestratorCapConfigError with the same arithmetic.
+   */
+  acceptanceReserve?: 'warn' | 'require';
+  /**
    * A positive integer, validated before any journal entry or dispatch:
    * the turn limit of the reserved final wake.
    */
@@ -2596,6 +2617,17 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     requirePositiveInteger(spec.finalizeTurns, 'orchestrate budget.finalizeTurns');
   }
   if (
+    spec.acceptanceReserve !== undefined &&
+    spec.acceptanceReserve !== 'warn' &&
+    spec.acceptanceReserve !== 'require'
+  ) {
+    // The runtime JS/JSON boundary, the atCap rule exactly.
+    throw new ConfigError(
+      "orchestrate budget.acceptanceReserve must be 'warn' or 'require'; got " +
+        `${String(spec.acceptanceReserve)}`,
+    );
+  }
+  if (
     spec.atCap !== undefined &&
     spec.atCap !== 'finish-with-partial' &&
     spec.atCap !== 'fail-run'
@@ -3075,6 +3107,68 @@ export function makeOrchestratorWorkflow(
           atCap: spec?.atCap ?? 'finish-with-partial',
           source: spec?.capUsd !== undefined || spec?.capFraction !== undefined ? 'call' : 'engine',
         };
+      }
+    }
+    // The admission reserve of the acceptance path (RV3907, the fourth
+    // comparison experiment): preflight priced the tail and warned
+    // (`reserve-line-headroom`, `orchestrator-working-room`), and the
+    // run started anyway, its acceptance machinery funded by luck.
+    // Under 'require', the DECLARED worst case must fit the effective
+    // cap at exact fill or better, BEFORE the first wire; undeclared
+    // estimates contribute zero, so the gate binds exactly what the
+    // host declared. The refusal journals its arithmetic term by term
+    // (the budget.ts refuse-clause pattern) and throws typed.
+    if (opts?.budget?.acceptanceReserve === 'require') {
+      const synthesisHoldUsd = opts.budget.synthesisReserveUsd ?? 0;
+      const judgeEstUsd = opts?.claimConsistency?.judge?.estCost ?? 0;
+      const bootClaimStage = opts?.claimConsistency?.stage ?? 'draft';
+      const roundArmed =
+        (opts?.claimConsistency?.onFound ?? 'report') === 'repair' && bootClaimStage !== 'draft';
+      const judgePasses = 1 + (roundArmed ? 1 : 0);
+      const judgeTailUsd = judgeEstUsd * judgePasses;
+      const mechanicalRepairUsd = opts?.finishValidation?.estRepairCostUsd ?? 0;
+      const roundCompositionUsd = roundArmed ? (opts?.synthesis?.estCost ?? 0) : 0;
+      const workingRoomUsd = capState?.turnEstimateUsd ?? internals.flatReserveUsd ?? 0.5;
+      const requiredUsd =
+        synthesisHoldUsd +
+        judgeTailUsd +
+        mechanicalRepairUsd +
+        roundCompositionUsd +
+        workingRoomUsd;
+      const capUsd = capState?.effectiveCapUsd;
+      if (capUsd === undefined || capUsd < requiredUsd) {
+        const terms =
+          `synthesisReserveUsd ${synthesisHoldUsd.toFixed(4)} + judge ${judgeEstUsd.toFixed(4)} x ` +
+          `${String(judgePasses)} pass(es) + estRepairCostUsd ${mechanicalRepairUsd.toFixed(4)} + ` +
+          `round composition ${roundCompositionUsd.toFixed(4)} + working room ` +
+          `${workingRoomUsd.toFixed(4)} = ${requiredUsd.toFixed(4)} USD`;
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: deriverV2.deriveKey({ kind: 'acceptance-reserve-refused' }),
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-budget',
+          value: {
+            decisionType: 'acceptance_reserve_refused',
+            requiredUsd,
+            effectiveCapUsd: capUsd ?? null,
+            synthesisReserveUsd: synthesisHoldUsd,
+            judgeEstUsd,
+            judgePasses,
+            estRepairCostUsd: mechanicalRepairUsd,
+            roundCompositionUsd,
+            workingRoomUsd,
+          },
+        });
+        throw new OrchestratorCapConfigError(
+          capUsd === undefined
+            ? `budget.acceptanceReserve 'require' needs a resolved effective cap to hold the ` +
+                `declared acceptance tail against (${terms}); declare budget.capUsd or a run ceiling`
+            : `budget.acceptanceReserve 'require': the declared acceptance tail does not fit the ` +
+                `effective cap ${capUsd.toFixed(4)} USD (${terms}); raise the cap or lower the ` +
+                'declared tail',
+        );
       }
     }
 
