@@ -3667,7 +3667,12 @@ const sectionalRepairRound: FaultScenario = {
       roundPrompts.length === 2 &&
       roundPrompts[0]?.includes('SECTIONAL ROUND') === false &&
       roundPrompts[1]?.includes('SECTIONAL ROUND') === true &&
-      roundPrompts[1]?.includes('"## Verdict"') === true;
+      roundPrompts[1]?.includes('"## Verdict"') === true &&
+      // The proactive evidence-discipline reminder (RV3909) rides the
+      // sectional block only: absent from the initial composition,
+      // present in the round.
+      roundPrompts[0]?.includes('retained evidence discipline') === false &&
+      roundPrompts[1]?.includes('retained evidence discipline') === true;
     const byteIdentity =
       value?.result === SECTIONAL_SPLICED && String(value.result).startsWith(SECTIONAL_PREFIX);
     // The verdict lineage on the envelope (RV3904): findings 0 is the

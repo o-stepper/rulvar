@@ -849,9 +849,14 @@ declare function runFaultInjection(options?: RunFaultInjectionOptions): Promise<
 * figure whose premise contradicts the declared input (2,000 slots
 * computed from a 30 minute window where the input declares a 20
 * minute burst), and 'cost-basis' prints a locally estimated total as
-* the provider's bill.
+* the provider's bill. The fourth comparison experiment named the
+* decisive one (RV3909): 'stale-doctrine-echo' is a draft echoing a
+* DOCUMENTED doctrine while the pool holds the diverging source fact,
+* both sides cited; the experiment's answer echoed the retired
+* budget-immutability wording from a guide six weeks stale, and no
+* judge could flag it because the pool never carried the source side.
 */
-type ClaimCorpusClass = "live-fact" | "package-identity" | "inverted-default" | "numeric-range" | "negation" | "bounded-coverage" | "modality-overclaim" | "scope-ambiguity" | "bound-conflation" | "derived-premise" | "cost-basis";
+type ClaimCorpusClass = "live-fact" | "package-identity" | "inverted-default" | "numeric-range" | "negation" | "bounded-coverage" | "modality-overclaim" | "scope-ambiguity" | "bound-conflation" | "derived-premise" | "cost-basis" | "stale-doctrine-echo";
 /** One adversarial case: a draft, its contradicting evidence, and the mechanical expectations. */
 interface ClaimCorpusCase {
   id: string;

@@ -21,6 +21,7 @@ describe('the adversarial claim corpus (RV1704)', () => {
       'numeric-range',
       'package-identity',
       'scope-ambiguity',
+      'stale-doctrine-echo',
     ]);
   });
 
@@ -62,6 +63,55 @@ describe('the adversarial claim corpus (RV1704)', () => {
     const basis = verdicts.find((verdict) => verdict.id === 'cost-basis-local-estimate-as-bill');
     expect(basis?.runFactPairs[0]?.draftExcerpt).toContain('provider bill');
     expect(basis?.runFactPairs[0]?.pool[0]?.excerpt).toContain('locally-estimated');
+  });
+
+  it('the stale-doctrine echo pairs the doc claim against the diverging source fact (RV3909)', () => {
+    // The fourth comparison experiment's decisive miss: the answer
+    // echoed the stale guide ("immutable after start ... resume
+    // accepts no budget parameter") and the pool never held the source
+    // side, so no judge could flag it. With both sides in the pool the
+    // pair forms on the shared source anchor and the judge handoff
+    // carries the divergence in both polarities.
+    const echo = runClaimCorpus().find(
+      (verdict) => verdict.id === 'stale-doctrine-echo-budget-override',
+    );
+    expect(echo?.pass).toBe(true);
+    expect(echo?.pairs[0]?.draftExcerpt).toContain('immutable after start');
+    expect(echo?.pairs[0]?.pool[0]?.excerpt).toContain('ResumeOptions.run');
+    expect(echo?.pairs[0]?.pool[0]?.excerpt).toContain('WITHIN a segment');
+    expect(echo?.coverage).toBe('full');
+  });
+
+  it('the honest formulation of the doctrine still pairs, for the judge to exonerate (RV3909)', () => {
+    // Unlike the RV3804 run-fact controls (whose TRIGGERS stay quiet on
+    // honest prose), the source-claim pairing is polarity-blind by
+    // design: an honest sentence citing the same anchor forms the same
+    // pair, and the exoneration belongs to the judge half, which now
+    // holds both sides. The control pins that the pairing never
+    // depends on the sentence being wrong.
+    const honest = runClaimCorpus([
+      {
+        id: 'honest-doctrine-echo',
+        class: 'stale-doctrine-echo',
+        draft:
+          'The run budget ceiling is immutable within a segment, and the one explicit door ' +
+          'is ResumeOptions.run at resume, journaled as a run_budget_override decision ' +
+          '(packages/core/src/engine/engine.ts:588).',
+        pool: [
+          {
+            nodeId: 'agent:3',
+            text:
+              'ResumeOptions.run raises budgetUsd and maxInFlightExposureUsd at resume, ' +
+              'validated and journaled as a run_budget_override decision with a typed floor ' +
+              'at the settled spend (packages/core/src/engine/engine.ts:588-604); the ' +
+              'doctrine in force is immutability WITHIN a segment.',
+          },
+        ],
+        expect: { minPairs: 1, anchors: ['packages/core/src/engine/engine.ts:588'] },
+      },
+    ]);
+    expect(honest[0]?.pass).toBe(true);
+    expect(honest[0]?.pairs[0]?.draftExcerpt).toContain('immutable within a segment');
   });
 
   it('honest formulations of the third-experiment classes trigger no pair (RV3804)', () => {
