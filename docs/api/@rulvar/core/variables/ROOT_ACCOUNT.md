@@ -10,6 +10,6 @@
 const ROOT_ACCOUNT: "run" = 'run';
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L70)
+Defined in: [packages/core/src/engine/budget.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L73)
 
 The run-root account scope.

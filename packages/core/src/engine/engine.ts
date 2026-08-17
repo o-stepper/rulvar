@@ -367,14 +367,37 @@ export interface RunOptions {
    */
   configFingerprint?: string;
   /**
-   * Run ceiling B0; immutable after start. Enforced by projected
-   * admission (a spawn whose reserve does not fit is denied before any
-   * dispatch), the per-turn guard with a budget-derived maxOutputTokens
-   * clamp, and live stream cuts on crossing; the residual
-   * provider-dependent overshoot is bounded by one in-flight turn per
-   * concurrent agent. Contract: https://docs.rulvar.com/guide/budgets.
+   * Run ceiling B0; immutable within a segment (RV2511): no API tops
+   * up a live run's ceiling, and the ONE explicit door after genesis
+   * is the validated, journaled `ResumeOptions.run` override (RV2208),
+   * which takes effect only by opening a new segment. Enforced by
+   * projected admission (a spawn whose reserve does not fit is denied
+   * before any dispatch), the per-turn guard with a budget-derived
+   * maxOutputTokens clamp, and live stream cuts on crossing; the
+   * residual provider-dependent overshoot is bounded by one in-flight
+   * turn per concurrent agent. Under {@link RunOptions.budgetPolicy}
+   * 'immutable-lifetime' even the override door refuses typed.
+   * Contract: https://docs.rulvar.com/guide/budgets.
    */
   budgetUsd?: number;
+  /**
+   * The ceiling-override posture of the run's whole life (RV3902, the
+   * fourth comparison experiment). Default 'segment', today's behavior
+   * byte for byte: B0 and the exposure cap are immutable WITHIN a
+   * segment, and the explicit, validated, journaled
+   * `ResumeOptions.run` override (RV2208) may change them by opening a
+   * new segment. 'immutable-lifetime' welds that one door shut: the
+   * posture is recorded in RunMeta at genesis and restored on every
+   * resume, and a resume carrying ANY `ResumeOptions.run` value
+   * refuses with a typed ConfigError BEFORE ownership, meta writes, or
+   * any append, raise and lower alike; no journaled override exists in
+   * this mode, and the emergency lever for a run that must stop
+   * spending is cancel, not a ceiling edit. Degradation is honest: a
+   * store that drops the optional RunMeta field resumes as 'segment'
+   * (the override door works again), never as an invented refusal.
+   * Declared at genesis only; the policy itself has no override.
+   */
+  budgetPolicy?: 'segment' | 'immutable-lifetime';
   /**
    * The opt-in in-flight exposure cap (RV711): bounds spent money plus
    * the summed worst-case estimates of live dispatches. The per-turn
@@ -599,7 +622,11 @@ export interface ResumeOptions {
    * meta, or any append: such a ceiling would exhaust the segment
    * before its first turn and read like a fresh money death. Absent
    * fields keep the recorded values; an absent object keeps the
-   * historical behavior byte for byte.
+   * historical behavior byte for byte. Under a recorded
+   * {@link RunOptions.budgetPolicy} 'immutable-lifetime' (RV3902) any
+   * applying override refuses typed before ownership, raise and lower
+   * alike: the door this field is exists only under the 'segment'
+   * posture.
    */
   run?: { budgetUsd?: number; maxInFlightExposureUsd?: number };
 }
@@ -623,7 +650,9 @@ export interface Engine {
    * whose source hash differs from the recorded one is a typed
    * ConfigError (M6-T02). ResumeOptions.run (RV2208) overrides the
    * recorded budget ceilings for the run's remaining life, with a
-   * journaled decision and a typed floor at the settled spend.
+   * journaled decision and a typed floor at the settled spend; under
+   * a recorded budgetPolicy 'immutable-lifetime' (RV3902) any applying
+   * override refuses typed before ownership instead.
    */
   resume<A, R>(
     runId: string,
@@ -1468,6 +1497,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
      */
     strictPricing?: { maxRatesAgeDays?: number; allowUnpriced?: string[] };
     /**
+     * The RunMeta-recorded ceiling-override posture (RV3902), restored
+     * verbatim; absence means 'segment'. The refusal of a
+     * ResumeOptions.run override under 'immutable-lifetime' already
+     * happened in engine.resume, before ownership.
+     */
+    budgetPolicy?: 'immutable-lifetime';
+    /**
      * Execution segments started before this one (RunMeta.segments;
      * 1 when the field predates v1.23 journals). Seeds this segment's
      * event seq and span-id base so telemetry counters stay strictly
@@ -1549,6 +1585,16 @@ export function createEngine(options: CreateEngineOptions): Engine {
       throw new ConfigError(
         'RunOptions.strictPricing must be a boolean or an options object; got ' +
           JSON.stringify(opts.strictPricing),
+      );
+    }
+    if (
+      opts?.budgetPolicy !== undefined &&
+      opts.budgetPolicy !== 'segment' &&
+      opts.budgetPolicy !== 'immutable-lifetime'
+    ) {
+      throw new ConfigError(
+        "RunOptions.budgetPolicy must be 'segment' or 'immutable-lifetime'; got " +
+          JSON.stringify(opts.budgetPolicy),
       );
     }
     if (opts?.limits !== undefined) {
@@ -1669,6 +1715,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // supplied fingerprint already happened in engine.resume, before
     // ownership), and absence stays absent.
     const configFingerprint = opts?.configFingerprint ?? resumeCtx?.configFingerprint;
+    // The ceiling-override posture follows the recording rule (RV3902):
+    // a fresh run takes the declared value, a resumed run restores the
+    // RunMeta-recorded one (the refusal of an override under
+    // 'immutable-lifetime' already happened in engine.resume, before
+    // ownership), and absence means 'segment', today's behavior byte
+    // for byte.
+    const budgetPolicy = opts?.budgetPolicy ?? resumeCtx?.budgetPolicy;
     const makeBudget = (): RunBudget =>
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
@@ -1997,6 +2050,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
               ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
               ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
               ...(strictPricing === undefined ? {} : { strictPricing }),
+              // Only the non-default posture is recorded (RV3902):
+              // absence means 'segment', and a store that drops the
+              // field degrades to the override door working again,
+              // never to an invented refusal.
+              ...(budgetPolicy === 'immutable-lifetime' ? { budgetPolicy } : {}),
               ...(configFingerprint === undefined ? {} : { configFingerprint }),
               ...(argsBinding.argsProvided === undefined
                 ? {}
@@ -2997,6 +3055,21 @@ export function createEngine(options: CreateEngineOptions): Engine {
                 ? {}
                 : { maxInFlightExposureUsd: runOverride.maxInFlightExposureUsd }),
             };
+      // The welded door (RV3902): a run recorded under budgetPolicy
+      // 'immutable-lifetime' refuses ANY applying override, raise and
+      // lower alike, HERE, before ownership, meta writes, or any
+      // append. The no-op empty object above stays a no-op: nothing
+      // would be applied or journaled, so there is nothing to refuse.
+      // The emergency lever for a run that must stop spending is
+      // cancel, not a ceiling edit.
+      if (budgetOverride !== undefined && meta?.budgetPolicy === 'immutable-lifetime') {
+        throw new ConfigError(
+          `run '${runId}' was started with budgetPolicy 'immutable-lifetime': the recorded ` +
+            'ceilings are immutable for the whole life of the run and ResumeOptions.run is ' +
+            'refused, raising and lowering alike; cancel the run (or start a new one) instead ' +
+            'of editing its ceilings',
+        );
+      }
       return run(bound, resumeOptions?.args, undefined, {
         runId,
         priorEntries,
@@ -3018,6 +3091,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(typeof meta?.strictPricing === 'object' && meta.strictPricing !== null
           ? { strictPricing: meta.strictPricing }
           : {}),
+        // The recorded ceiling-override posture travels back in
+        // (RV3902); only the exact literal counts, so a store that
+        // mangles the field degrades to 'segment', never to an
+        // invented refusal.
+        ...(meta?.budgetPolicy === 'immutable-lifetime' ? { budgetPolicy: meta.budgetPolicy } : {}),
         // Metas that predate the segments field (or a crash before the
         // first putMeta) count as ONE prior segment: the new base still
         // clears every realistic pre-upgrade seq (v1.22.0 review P1-2).

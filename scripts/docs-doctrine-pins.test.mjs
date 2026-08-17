@@ -49,7 +49,8 @@ test('a required pin binds only its own page', () => {
 test('a page satisfying its pins and avoiding the bans is clean', () => {
   const page =
     'B0 is immutable within a segment; `ResumeOptions.run` is the one ' +
-    'explicit door, journaled as a `run_budget_override` decision.\n';
+    'explicit door, journaled as a `run_budget_override` decision, and ' +
+    "`budgetPolicy: 'immutable-lifetime'` welds it shut.\n";
   assert.deepEqual(judgeDoctrine(page, 'docs/guide/budgets.md'), []);
 });
 

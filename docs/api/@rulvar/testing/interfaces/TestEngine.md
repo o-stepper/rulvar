@@ -212,7 +212,9 @@ persisted source pinned by workflowHash; supplying a compiled wf
 whose source hash differs from the recorded one is a typed
 ConfigError (M6-T02). ResumeOptions.run (RV2208) overrides the
 recorded budget ceilings for the run's remaining life, with a
-journaled decision and a typed floor at the settled spend.
+journaled decision and a typed floor at the settled spend; under
+a recorded budgetPolicy 'immutable-lifetime' (RV3902) any applying
+override refuses typed before ownership instead.
 
 #### Type Parameters
 

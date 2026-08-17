@@ -10,7 +10,7 @@
 function profileRegistrySnapshotHash(profiles): string;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L133)
+Defined in: [packages/core/src/journal/termination.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L143)
 
 The deterministic profile-registry snapshot hash frozen inside
 termination.init: profile names mapped to their declared ladder

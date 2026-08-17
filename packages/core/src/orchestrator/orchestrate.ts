@@ -9605,9 +9605,9 @@ export function makeOrchestratorWorkflow(
  * Top-level surface: creates a run. `runOptions` are the ordinary
  * engine {@link RunOptions} of the created run; in particular
  * `runOptions.budgetUsd` is the ROOT hard ceiling over the WHOLE tree
- * (the orchestrator and every child), immutable after start, while
- * `opts.budget` only shapes the orchestrator's own sub-account inside
- * that ceiling. The shortcut previously accepted no RunOptions at all,
+ * (the orchestrator and every child), immutable within a segment,
+ * while `opts.budget` only shapes the orchestrator's own sub-account
+ * inside that ceiling. The shortcut previously accepted no RunOptions at all,
  * so the canonical entry point could not set a root ceiling without
  * dropping to `engine.run(makeOrchestratorWorkflow(...))` (v1.18.0
  * review P1-5).

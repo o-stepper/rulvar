@@ -18,8 +18,9 @@ Defined in: `packages/core/dist/index.d.ts`
 
 Config-drift detection at resume: the journaled vector
 always wins; every differing field is reported for the
-`termination:config-drift` event. Dynamic budget top-up via restart is
-excluded by construction.
+`termination:config-drift` event. Ambient config can never top up a
+budget through a restart; the one explicit, journaled door is
+ResumeOptions.run (RV2208), which is a decision entry, not a drift.
 
 ## Parameters
 

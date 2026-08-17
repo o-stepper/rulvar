@@ -5067,6 +5067,24 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/engine/cost-report.test.ts',
   },
+  {
+    id: 'budget-policy-refusal-gate',
+    doctrine:
+      "budgetPolicy 'immutable-lifetime' refuses ANY applying resume override before ownership (RV3902): with the gate collapsed, the welded door swings open and a regulated run's recorded ceiling moves on a resume the policy promised to refuse",
+    file: 'packages/core/src/engine/engine.ts',
+    find: "      if (budgetOverride !== undefined && meta?.budgetPolicy === 'immutable-lifetime') {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/run-budget-override.test.ts',
+  },
+  {
+    id: 'budget-policy-recorded',
+    doctrine:
+      "the 'immutable-lifetime' posture is recorded in RunMeta at genesis (RV3902): with the recording dropped, a bare resume restores 'segment' and the very next override succeeds against a policy the run declared",
+    file: 'packages/core/src/engine/engine.ts',
+    find: "              ...(budgetPolicy === 'immutable-lifetime' ? { budgetPolicy } : {}),",
+    replace: '',
+    test: 'packages/core/src/engine/run-budget-override.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

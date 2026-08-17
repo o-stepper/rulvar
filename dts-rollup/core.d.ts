@@ -1194,13 +1194,26 @@ type RunMeta = {
   workflowHash?: string; /** TranscriptStore ref of the persisted CompiledWorkflow source. */
   workflowSourceRef?: string;
   /**
-  * The run's immutable USD ceiling (RunOptions.budgetUsd), recorded so
-  * resume restores the original invocation's bound. Absent when the
-  * run started without a ceiling. Stores must round-trip the field
-  * (the conformance kit checks); a store that drops it degrades a
-  * resumed run to uncapped.
+  * The run's segment-immutable USD ceiling (RunOptions.budgetUsd),
+  * recorded so resume restores the original invocation's bound (only
+  * the explicit, journaled ResumeOptions.run override changes it,
+  * RV2208, by rewriting this field for the run's remaining life).
+  * Absent when the run started without a ceiling. Stores must
+  * round-trip the field (the conformance kit checks); a store that
+  * drops it degrades a resumed run to uncapped.
   */
   budgetUsd?: number;
+  /**
+  * The ceiling-override posture (RunOptions.budgetPolicy, RV3902),
+  * recorded at genesis only when 'immutable-lifetime': under it a
+  * resume carrying any ResumeOptions.run override refuses typed
+  * before ownership. Absent means 'segment', the historical
+  * behavior. Stores must round-trip the field (the conformance kit
+  * checks); a store that drops it degrades the run to the 'segment'
+  * posture (the override door works again), never to an invented
+  * refusal.
+  */
+  budgetPolicy?: "immutable-lifetime";
   /**
   * The opt-in in-flight exposure cap
   * (RunOptions.maxInFlightExposureUsd), recorded at genesis so resume
@@ -6187,7 +6200,13 @@ interface TerminationLimits {
   maxDepth: number;
   /** Maximum declared ladder length per the profile-registry snapshot. */
   kMax: number;
-  /** B0; immutable after start, no API including HITL can top up. */
+  /**
+  * B0 as frozen at genesis; no API, HITL included, tops up a live
+  * run. The vector keeps the GENESIS ceiling even when a later
+  * segment's journaled ResumeOptions.run override (RV2208) moved the
+  * enforced bound: the frozen dollars are the termination account's
+  * record, the override decision entry is the budget's.
+  */
   runBudgetUsdCeiling: number;
   /**
   * The resolved orchestrator cap in absolute USD (DEF-7; XF-09),
@@ -6271,8 +6290,9 @@ declare function readTerminationInit(entry: JournalEntry): TerminationInitValue 
 /**
 * Config-drift detection at resume: the journaled vector
 * always wins; every differing field is reported for the
-* `termination:config-drift` event. Dynamic budget top-up via restart is
-* excluded by construction.
+* `termination:config-drift` event. Ambient config can never top up a
+* budget through a restart; the one explicit, journaled door is
+* ResumeOptions.run (RV2208), which is a decision entry, not a drift.
 */
 declare function terminationConfigDrift(frozen: TerminationLimits, live: Partial<TerminationLimits>): Array<{
   field: keyof TerminationLimits;
@@ -6513,7 +6533,12 @@ interface BudgetExhaustionDiagnostics {
 * spawn-admission decision entries, M6).
 */
 declare class RunBudget {
-  /** B0; immutable after start. Undefined means no USD ceiling. */
+  /**
+  * B0; immutable within a segment (RV2511): only the explicit,
+  * journaled ResumeOptions.run override (RV2208) changes it, by
+  * opening a new segment, and budgetPolicy 'immutable-lifetime'
+  * (RV3902) refuses even that. Undefined means no USD ceiling.
+  */
   readonly ceilingUsd?: number;
   /**
   * The opt-in in-flight exposure cap (RV711). Undefined means the
@@ -7966,14 +7991,37 @@ interface RunOptions {
   */
   configFingerprint?: string;
   /**
-  * Run ceiling B0; immutable after start. Enforced by projected
-  * admission (a spawn whose reserve does not fit is denied before any
-  * dispatch), the per-turn guard with a budget-derived maxOutputTokens
-  * clamp, and live stream cuts on crossing; the residual
-  * provider-dependent overshoot is bounded by one in-flight turn per
-  * concurrent agent. Contract: https://docs.rulvar.com/guide/budgets.
+  * Run ceiling B0; immutable within a segment (RV2511): no API tops
+  * up a live run's ceiling, and the ONE explicit door after genesis
+  * is the validated, journaled `ResumeOptions.run` override (RV2208),
+  * which takes effect only by opening a new segment. Enforced by
+  * projected admission (a spawn whose reserve does not fit is denied
+  * before any dispatch), the per-turn guard with a budget-derived
+  * maxOutputTokens clamp, and live stream cuts on crossing; the
+  * residual provider-dependent overshoot is bounded by one in-flight
+  * turn per concurrent agent. Under {@link RunOptions.budgetPolicy}
+  * 'immutable-lifetime' even the override door refuses typed.
+  * Contract: https://docs.rulvar.com/guide/budgets.
   */
   budgetUsd?: number;
+  /**
+  * The ceiling-override posture of the run's whole life (RV3902, the
+  * fourth comparison experiment). Default 'segment', today's behavior
+  * byte for byte: B0 and the exposure cap are immutable WITHIN a
+  * segment, and the explicit, validated, journaled
+  * `ResumeOptions.run` override (RV2208) may change them by opening a
+  * new segment. 'immutable-lifetime' welds that one door shut: the
+  * posture is recorded in RunMeta at genesis and restored on every
+  * resume, and a resume carrying ANY `ResumeOptions.run` value
+  * refuses with a typed ConfigError BEFORE ownership, meta writes, or
+  * any append, raise and lower alike; no journaled override exists in
+  * this mode, and the emergency lever for a run that must stop
+  * spending is cancel, not a ceiling edit. Degradation is honest: a
+  * store that drops the optional RunMeta field resumes as 'segment'
+  * (the override door works again), never as an invented refusal.
+  * Declared at genesis only; the policy itself has no override.
+  */
+  budgetPolicy?: "segment" | "immutable-lifetime";
   /**
   * The opt-in in-flight exposure cap (RV711): bounds spent money plus
   * the summed worst-case estimates of live dispatches. The per-turn
@@ -8159,7 +8207,11 @@ interface ResumeOptions {
   * meta, or any append: such a ceiling would exhaust the segment
   * before its first turn and read like a fresh money death. Absent
   * fields keep the recorded values; an absent object keeps the
-  * historical behavior byte for byte.
+  * historical behavior byte for byte. Under a recorded
+  * {@link RunOptions.budgetPolicy} 'immutable-lifetime' (RV3902) any
+  * applying override refuses typed before ownership, raise and lower
+  * alike: the door this field is exists only under the 'segment'
+  * posture.
   */
   run?: {
     budgetUsd?: number;
@@ -8184,7 +8236,9 @@ interface Engine {
   * whose source hash differs from the recorded one is a typed
   * ConfigError (M6-T02). ResumeOptions.run (RV2208) overrides the
   * recorded budget ceilings for the run's remaining life, with a
-  * journaled decision and a typed floor at the settled spend.
+  * journaled decision and a typed floor at the settled spend; under
+  * a recorded budgetPolicy 'immutable-lifetime' (RV3902) any applying
+  * override refuses typed before ownership instead.
   */
   resume<A, R>(runId: string, wf?: Workflow<A, R> | CompiledWorkflow, options?: ResumeOptions): ResumeHandle<R>;
   /**
@@ -11311,9 +11365,9 @@ declare function makeOrchestratorWorkflow(goal: string, opts?: OrchestrateOption
 * Top-level surface: creates a run. `runOptions` are the ordinary
 * engine {@link RunOptions} of the created run; in particular
 * `runOptions.budgetUsd` is the ROOT hard ceiling over the WHOLE tree
-* (the orchestrator and every child), immutable after start, while
-* `opts.budget` only shapes the orchestrator's own sub-account inside
-* that ceiling. The shortcut previously accepted no RunOptions at all,
+* (the orchestrator and every child), immutable within a segment,
+* while `opts.budget` only shapes the orchestrator's own sub-account
+* inside that ceiling. The shortcut previously accepted no RunOptions at all,
 * so the canonical entry point could not set a root ceiling without
 * dropping to `engine.run(makeOrchestratorWorkflow(...))` (v1.18.0
 * review P1-5).

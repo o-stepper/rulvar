@@ -3949,6 +3949,79 @@ const deterministicProvenancePatch: FaultScenario = {
   },
 };
 
+/**
+ * RV3902: budgetPolicy 'immutable-lifetime' welds the RV2208 override
+ * door shut. A resume carrying any applying ResumeOptions.run refuses
+ * typed BEFORE ownership, meta writes, or any append, raise and lower
+ * alike, with zero provider dispatches; a bare resume of the same run
+ * stays an ordinary pure replay, because the posture pins the
+ * ceilings, never the resume.
+ */
+const budgetPolicyImmutable: FaultScenario = {
+  name: 'budget-policy-immutable',
+  doctrine:
+    "budgetPolicy 'immutable-lifetime' refuses a resume-time ceiling override typed " +
+    'before ownership, raise and lower alike, with zero provider dispatches and zero ' +
+    'durable mutations; a bare resume of the same run stays a pure replay',
+  async run() {
+    const store = new InMemoryStore();
+    const seedAdapter = new FakeAdapter({ agents: { '*': 'answered' } });
+    const seeded = await createEngine({
+      adapters: [seedAdapter],
+      stores: { journal: store },
+      defaults: ROUTING,
+    }).run(echoWorkflow, undefined, {
+      runId: 'fault-budget-policy',
+      budgetUsd: 1,
+      budgetPolicy: 'immutable-lifetime',
+    }).result;
+    const entriesBefore = (await store.load('fault-budget-policy')).length;
+    const overrideAdapter = new FakeAdapter({ agents: { '*': 'never dispatched' } });
+    let refusalText = 'the override was not refused';
+    let refusedTyped = false;
+    try {
+      await createEngine({
+        adapters: [overrideAdapter],
+        stores: { journal: store },
+        defaults: ROUTING,
+      }).resume('fault-budget-policy', echoWorkflow, { run: { budgetUsd: 2 } }).result;
+    } catch (thrown) {
+      refusalText = errorText(thrown);
+      refusedTyped = thrown instanceof ConfigError && refusalText.includes('immutable-lifetime');
+    }
+    const entriesAfterRefusal = (await store.load('fault-budget-policy')).length;
+    const metaAfterRefusal = await store.getMeta('fault-budget-policy');
+    const bare = await createEngine({
+      adapters: [new FakeAdapter({ agents: { '*': 'never dispatched either' } })],
+      stores: { journal: store },
+      defaults: ROUTING,
+    }).resume('fault-budget-policy', echoWorkflow).result;
+    const matched =
+      seeded.status === 'ok' &&
+      refusedTyped &&
+      overrideAdapter.calls.length === 0 &&
+      entriesAfterRefusal === entriesBefore &&
+      metaAfterRefusal?.budgetUsd === 1 &&
+      metaAfterRefusal.budgetPolicy === 'immutable-lifetime' &&
+      bare.status === 'ok';
+    return {
+      observation: {
+        matched,
+        detail:
+          `seed '${seeded.status}'; refusal typed=${String(refusedTyped)} (${refusalText.slice(0, 160)}); ` +
+          `override dispatches=${String(overrideAdapter.calls.length)}; ` +
+          `entries ${String(entriesBefore)} -> ${String(entriesAfterRefusal)}; ` +
+          `meta budgetUsd=${String(metaAfterRefusal?.budgetUsd)} ` +
+          `policy=${String(metaAfterRefusal?.budgetPolicy)}; bare resume '${bare.status}'`,
+      },
+      artifacts: [
+        jsonArtifact('refusal.json', { refusalText, entriesBefore, entriesAfterRefusal }),
+        jsonArtifact('meta.json', metaAfterRefusal ?? null),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -3987,6 +4060,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   sectionalRepairRoundFallback,
   deterministicProvenancePatch,
   claimJudgeDeadArmedRefusal,
+  budgetPolicyImmutable,
 ];
 
 /** The scenario names in run order. */

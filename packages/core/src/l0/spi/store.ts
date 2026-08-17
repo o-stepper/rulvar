@@ -41,13 +41,26 @@ export type RunMeta = {
   /** TranscriptStore ref of the persisted CompiledWorkflow source. */
   workflowSourceRef?: string;
   /**
-   * The run's immutable USD ceiling (RunOptions.budgetUsd), recorded so
-   * resume restores the original invocation's bound. Absent when the
-   * run started without a ceiling. Stores must round-trip the field
-   * (the conformance kit checks); a store that drops it degrades a
-   * resumed run to uncapped.
+   * The run's segment-immutable USD ceiling (RunOptions.budgetUsd),
+   * recorded so resume restores the original invocation's bound (only
+   * the explicit, journaled ResumeOptions.run override changes it,
+   * RV2208, by rewriting this field for the run's remaining life).
+   * Absent when the run started without a ceiling. Stores must
+   * round-trip the field (the conformance kit checks); a store that
+   * drops it degrades a resumed run to uncapped.
    */
   budgetUsd?: number;
+  /**
+   * The ceiling-override posture (RunOptions.budgetPolicy, RV3902),
+   * recorded at genesis only when 'immutable-lifetime': under it a
+   * resume carrying any ResumeOptions.run override refuses typed
+   * before ownership. Absent means 'segment', the historical
+   * behavior. Stores must round-trip the field (the conformance kit
+   * checks); a store that drops it degrades the run to the 'segment'
+   * posture (the override door works again), never to an invented
+   * refusal.
+   */
+  budgetPolicy?: 'immutable-lifetime';
   /**
    * The opt-in in-flight exposure cap
    * (RunOptions.maxInFlightExposureUsd), recorded at genesis so resume

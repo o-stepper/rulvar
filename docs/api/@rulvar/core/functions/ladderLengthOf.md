@@ -10,7 +10,7 @@
 function ladderLengthOf(profile): number;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L107)
+Defined in: [packages/core/src/journal/termination.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L117)
 
 Reads the declared ladder length of one agent profile. Ladders are
 declared through the profile's ModelSpec (`model: { ladder }`, or the

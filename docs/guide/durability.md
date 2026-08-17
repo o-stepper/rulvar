@@ -150,6 +150,14 @@ const resumed = engine.resume('review-pr-4242', review, {
 
 Each supplied value is validated exactly like its `RunOptions` counterpart and applies to the resumed segment and the run's remaining life: the segment's first meta write records it back into `RunMeta`, so a LATER bare resume restores the overridden posture, not the genesis one. The change is never silent: before the meta mirror flips, the segment journals a `run_budget_override` decision naming the recorded value, the applied value, the source, and the settled spend it was judged against (a run that started uncapped records `null` for the old value). A `budgetUsd` below the journal's settled spend refuses with a typed `ConfigError` before ownership, meta, or any append: such a ceiling would exhaust the segment before its first turn and read like a fresh money death. Absent fields keep the recorded values; an absent `run` object keeps the historical behavior byte for byte, and `strictPricing` deliberately stays out of the override: pricing hygiene is not a per-segment decision.
 
+The door itself is a posture (RV3902): a run started with
+[`budgetPolicy: 'immutable-lifetime'`](/guide/budgets#budget-policy) records
+that posture in `RunMeta`, and a resume carrying ANY applying
+`ResumeOptions.run` refuses with a typed `ConfigError` before ownership,
+meta writes, or any append, raising and lowering alike. A bare resume of
+such a run stays an ordinary pure replay; the emergency lever for a run
+that must stop spending is cancel, not a ceiling edit.
+
 ## Previewing a resume before paying
 
 `dryRun: true` runs the same matching in replay-strict mode: the first call that would go live throws a typed `JournalMissError` and the run settles with that error, with zero live calls performed. A preview also performs zero store mutations by invariant: no meta write (no status flip, no `segments` bump), no transcript blob writes, and the journal's single append site refuses any append under replay-strict, so previewing repeatedly is always free and always safe.
