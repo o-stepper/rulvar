@@ -4771,6 +4771,24 @@ export async function runAgent<S extends SchemaSpec>(
       break;
     }
     if (separateExtract) {
+      // The ride-along candidate first (RV3908, the fourth comparison
+      // experiment): the run's extract role cost $0.28, 5.2% of all
+      // money, re-sending the whole judge conversation to the extract
+      // model while the loop's own final text already carried the
+      // exact JSON the schema wanted. When the final turn's text
+      // validates, it IS the structured result, exactly as it is when
+      // no separate extract is configured; the separate invocation
+      // below stays the repair lane for prose-wrapped or malformed
+      // finals, and a loop that was never prompted for JSON simply
+      // falls through to it as before.
+      const rideAlong = extractCandidate(outcome.turn, rideTierFor(servedTarget));
+      if (rideAlong !== undefined) {
+        const validation = await validateSchemaSpec(options.schema, rideAlong.raw);
+        if (validation.valid) {
+          output = validation.value;
+          break;
+        }
+      }
       // The loop turn is done; the extract invocation below produces the output.
       break;
     }
@@ -5181,6 +5199,10 @@ export async function runAgent<S extends SchemaSpec>(
     status === 'ok' &&
     !finishedViaTool &&
     separateExtract &&
+    // The ride-along final already produced the validated output
+    // (RV3908): the separate invocation is the repair lane, not a
+    // mandatory toll, so a set output skips the wire entirely.
+    output === null &&
     options.extract !== undefined &&
     options.schema !== undefined
   ) {
@@ -5245,6 +5267,14 @@ export async function runAgent<S extends SchemaSpec>(
               req = { ...req, toolChoice: 'none' };
             }
             req = applyStructuredOutputTier(req, targetTier, options.canonicalSchema ?? {});
+            // The cache policy compiles here too (RV3908): the extract
+            // request re-sends the WHOLE conversation, and the fourth
+            // comparison run paid the full input rate for that prefix
+            // on every judge pass (cacheReadTokens 0) because only the
+            // loop turns ever carried the hint. Same posture as RV2006:
+            // explicit-caching adapters only, transport-level only,
+            // byte-identical everywhere else.
+            req = applyCachePolicy(req, target, options.cache);
             return applyOutputBudget(req, target, options.budget);
           },
           streamOptionsFor: (target) => {
