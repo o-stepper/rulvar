@@ -1491,6 +1491,47 @@ describe('the bounded post judge repair (RV3307)', () => {
     expect(outcome.claimConsistencyMeta?.findings).toBe(0);
     // The headline verdict describes the REPAIRED document.
     expect(outcome.claimConsistencyMeta?.judgedHash).toBe(outcome.draftToFinal?.finalHash);
+    // The verdict lineage (RV3904): findings 0 here is the SECOND
+    // pass's verdict, earned through one round over one first-pass
+    // finding, and the meta now says so instead of the journal alone.
+    expect(outcome.claimConsistencyMeta?.passes).toBe(2);
+    expect(outcome.claimConsistencyMeta?.firstPassFindings).toBe(1);
+    expect(outcome.claimConsistencyMeta?.semanticRepairRounds).toBe(1);
+  });
+
+  it('a clean first pass under the armed round reads passes 1, rounds 0 (RV3904)', async () => {
+    const { internals } = repairHarness({
+      judgeTurns: [JUDGE_AGREES],
+      finals: [FINAL_CLEAN],
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', REPAIR_OPTS),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    expect(outcome.claimConsistencyMeta?.findings).toBe(0);
+    expect(outcome.claimConsistencyMeta?.passes).toBe(1);
+    expect(outcome.claimConsistencyMeta?.semanticRepairRounds).toBe(0);
+    expect('firstPassFindings' in (outcome.claimConsistencyMeta ?? {})).toBe(false);
+  });
+
+  it('the lineage stays absent when no round is armed: NOT RECORDED, never one pass (RV3904)', async () => {
+    const { internals } = passHarness({
+      children: [POOL_READING],
+      draft: DRAFT_INVERTED,
+      judgeTurn: JUDGE_AGREES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        acceptance: { childPolicy: 'all-ok' },
+        claimConsistency: { ...JUDGE_MODEL },
+      }),
+      undefined,
+    )) as { claimConsistencyMeta?: Record<string, unknown> };
+    expect(outcome.claimConsistencyMeta).toBeDefined();
+    expect('passes' in (outcome.claimConsistencyMeta ?? {})).toBe(false);
+    expect('semanticRepairRounds' in (outcome.claimConsistencyMeta ?? {})).toBe(false);
   });
 
   it('findings that survive the round fail the run typed, never a silent ok', async () => {

@@ -5112,6 +5112,25 @@ export const MUTATIONS = [
     replace: '            return applyOutputBudget(req, target, options.budget);',
     test: 'packages/core/src/runtime/agent-loop.test.ts',
   },
+  {
+    id: 'claim-meta-lineage',
+    doctrine:
+      "the meta of a repaired verdict says it took two passes (RV3904): with the count forged to 1, findings 0 after a round reads as a clean first verdict, the fourth comparison run's exact ambiguity",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '            claimConsistencyMeta.passes = 2;',
+    replace: '            claimConsistencyMeta.passes = 1;',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'envelope-deterministic-aggregate',
+    doctrine:
+      'the acceptance envelope carries the deterministic-repair aggregate (RV3904): with the block dropped, "was the shipped document machine-patched" is a journal walk again and the kit pin on the patched-bytes hash pair goes red',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      ...(deterministicPatches === undefined\n        ? {}\n        : { deterministicPatches: deterministicPatches as unknown as Json }),',
+    replace: '',
+    test: 'packages/evals/src/fault-injection.test.ts',
+    build: '@rulvar/core',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

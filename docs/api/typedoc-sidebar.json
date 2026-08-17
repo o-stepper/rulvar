@@ -1315,6 +1315,10 @@
             "link": "/api/@rulvar/core/interfaces/OrchestrateContradictionsMeta.md"
           },
           {
+            "text": "OrchestrateDeterministicPatches",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateDeterministicPatches.md"
+          },
+          {
             "text": "OrchestrateDraftToFinal",
             "link": "/api/@rulvar/core/interfaces/OrchestrateDraftToFinal.md"
           },
@@ -6439,6 +6443,10 @@
           {
             "text": "OrchestrateContradictionsMeta",
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateContradictionsMeta.md"
+          },
+          {
+            "text": "OrchestrateDeterministicPatches",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateDeterministicPatches.md"
           },
           {
             "text": "OrchestrateDraftToFinal",

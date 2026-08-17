@@ -1225,6 +1225,35 @@ export interface OrchestrateClaimConsistencyMeta {
    * the synthesis rewrote what the judge cleared.
    */
   judgedHash: string;
+  /**
+   * How many judge passes this stage's verdict lineage ran (RV3904,
+   * the fourth comparison experiment): present exactly when the
+   * bounded claim repair round is armed (`onFound: 'repair'`), so a
+   * consumer reading `findings: 0` can tell a clean FIRST verdict
+   * (`passes: 1`) from a verdict earned through a repair
+   * (`passes: 2`, the meta above always describing the LAST pass).
+   * The experiment's terminal read findings 0 over a lineage whose
+   * first pass had caught a real contradiction, and only the journal
+   * could say so. Absent on journals and configs from before the
+   * field, and absent when no repair round is armed: NOT RECORDED,
+   * never a claim of a single pass.
+   */
+  passes?: number;
+  /**
+   * The findings count of the FIRST pass of this stage (RV3904),
+   * present exactly when `passes` exceeds 1: what the repair round
+   * consumed, so "zero findings after one round over one first-pass
+   * finding" reads off the envelope instead of the journal.
+   */
+  firstPassFindings?: number;
+  /**
+   * Bounded semantic repair rounds actually dispatched at this stage
+   * (RV3904); today 0 or 1, the evidence-grade precedent. Distinct
+   * from the finish validation's mechanical `repairsUsed`, which
+   * counts model repair turns INSIDE one invocation and keeps its
+   * byte contract untouched.
+   */
+  semanticRepairRounds?: number;
 }
 
 /**
@@ -1244,6 +1273,27 @@ export interface OrchestrateDraftToFinal {
   rewritten: boolean;
   /** Which documents the claim-consistency pass actually judged; absent when it never ran. */
   claimsJudgedOn?: 'draft' | 'final' | 'both';
+}
+
+/**
+ * The deterministic-repair aggregate of the shipped run (RV3904, the
+ * fourth comparison experiment): the patches themselves stay on the
+ * journaled finish-validation decisions (RV3801, byte-exact with
+ * before/after hashes per decision); the acceptance envelope carries
+ * the aggregate, so "was the shipped document machine-patched, and
+ * from what bytes" is an envelope read instead of a journal walk.
+ * Present exactly when at least one ACCEPTED deterministic repair
+ * exists; every other envelope stays byte identical.
+ */
+export interface OrchestrateDeterministicPatches {
+  /** Finish decisions whose deterministic repair was accepted. */
+  decisions: number;
+  /** Total individual patches across those decisions. */
+  patches: number;
+  /** The LAST accepted repair's canonical pre-patch hash. */
+  lastBeforeHash: string;
+  /** The LAST accepted repair's canonical post-patch hash; the judge rules on these bytes. */
+  lastAfterHash: string;
 }
 
 /**
@@ -9159,6 +9209,19 @@ export function makeOrchestratorWorkflow(
     if (claimStage !== 'draft') {
       claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;
       await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+      // The verdict lineage under an armed round (RV3904, the fourth
+      // comparison experiment): the terminal read findings 0 over a
+      // lineage whose first pass had caught a real contradiction, and
+      // only the journal could say so. Stamped only when the round is
+      // armed, so every other config keeps its meta bytes; the round
+      // below overwrites the pair when it actually runs.
+      if (
+        (opts?.claimConsistency?.onFound ?? 'report') === 'repair' &&
+        claimConsistencyMeta !== undefined
+      ) {
+        claimConsistencyMeta.passes = 1;
+        claimConsistencyMeta.semanticRepairRounds = 0;
+      }
       // The bounded post judge repair (RV3307), the honest carry for
       // the final stage: the 2026-08-12 comparison run settled
       // ok/complete over a finding its own final judge had named,
@@ -9356,6 +9419,15 @@ export function makeOrchestratorWorkflow(
         }
         try {
           await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+          // The lineage of the round that ran (RV3904): the meta above
+          // describes the SECOND pass; these three fields say so, and
+          // carry what the round consumed. Error paths keep their
+          // pre-RV3904 bytes: absence means NOT RECORDED.
+          if (claimConsistencyMeta !== undefined) {
+            claimConsistencyMeta.passes = 2;
+            claimConsistencyMeta.firstPassFindings = carried.length;
+            claimConsistencyMeta.semanticRepairRounds = 1;
+          }
         } catch (thrown) {
           // The round's THIRD death (RV3701): the candidate repaired
           // and materialized, then the verdict pass could not rule (an
@@ -9435,6 +9507,25 @@ export function makeOrchestratorWorkflow(
             };
           })();
     const envelopeRejectedCandidates = rejectedFinishCandidates();
+    // The deterministic-repair aggregate (RV3904): read from the same
+    // journaled decisions the patches live on, so live and resumed
+    // envelopes derive the identical block.
+    const acceptedRepairs = validationDecisions()
+      .map((verdict) => verdict.deterministicRepair)
+      .filter(
+        (repair): repair is NonNullable<FinishValidationDecision['deterministicRepair']> =>
+          repair !== undefined && repair.outcome === 'accepted',
+      );
+    const lastAcceptedRepair = acceptedRepairs.at(-1);
+    const deterministicPatches: OrchestrateDeterministicPatches | undefined =
+      lastAcceptedRepair === undefined
+        ? undefined
+        : {
+            decisions: acceptedRepairs.length,
+            patches: acceptedRepairs.reduce((sum, repair) => sum + repair.patches.length, 0),
+            lastBeforeHash: lastAcceptedRepair.beforeHash,
+            lastAfterHash: lastAcceptedRepair.afterHash,
+          };
     return {
       result: synthesizedFinal,
       completion: decision.completion,
@@ -9457,6 +9548,12 @@ export function makeOrchestratorWorkflow(
       ...(envelopeRejectedCandidates.length === 0
         ? {}
         : { rejectedFinishCandidates: envelopeRejectedCandidates }),
+      // The deterministic-repair aggregate (RV3904): absent when no
+      // accepted machine patch exists, so every pre-existing envelope
+      // stays byte identical; the per-decision patches stay journaled.
+      ...(deterministicPatches === undefined
+        ? {}
+        : { deterministicPatches: deterministicPatches as unknown as Json }),
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
       ...(decision.salvagedPartialChildren === undefined

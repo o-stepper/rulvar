@@ -3640,7 +3640,16 @@ const sectionalRepairRound: FaultScenario = {
       { runId: 'fault-sectional-round', budgetUsd: 10 },
     ).result;
     const value = outcome.value as
-      { result?: unknown; claimConsistencyMeta?: { findings?: unknown } } | undefined;
+      | {
+          result?: unknown;
+          claimConsistencyMeta?: {
+            findings?: unknown;
+            passes?: unknown;
+            firstPassFindings?: unknown;
+            semanticRepairRounds?: unknown;
+          };
+        }
+      | undefined;
     const entries = await store.load('fault-sectional-round');
     const { compositions, judges } = tailSpans(entries);
     const verdictRows = entries
@@ -3661,10 +3670,18 @@ const sectionalRepairRound: FaultScenario = {
       roundPrompts[1]?.includes('"## Verdict"') === true;
     const byteIdentity =
       value?.result === SECTIONAL_SPLICED && String(value.result).startsWith(SECTIONAL_PREFIX);
+    // The verdict lineage on the envelope (RV3904): findings 0 is the
+    // SECOND pass, earned through one round over one first-pass
+    // finding, readable without the journal.
+    const lineage =
+      value?.claimConsistencyMeta?.passes === 2 &&
+      value.claimConsistencyMeta.firstPassFindings === 1 &&
+      value.claimConsistencyMeta.semanticRepairRounds === 1;
     const matched =
       outcome.status === 'ok' &&
       byteIdentity &&
       value.claimConsistencyMeta?.findings === 0 &&
+      lineage &&
       verdictRows.map((row) => row.verdict).join(',') === 'accepted,accepted' &&
       verdictRows.map((row) => String(row.repairsUsed)).join(',') === '0,0' &&
       sectionalPrompt &&
@@ -3676,6 +3693,7 @@ const sectionalRepairRound: FaultScenario = {
         detail:
           `run '${outcome.status}' shipped ${value?.result === SECTIONAL_SPLICED ? 'the spliced whole' : 'an unexpected document'}; ` +
           `byte identity=${String(byteIdentity)}; sectional prompt=${String(sectionalPrompt)}; ` +
+          `lineage=${String(lineage)}; ` +
           `verdicts [${verdictRows.map((row) => row.verdict).join(',')}]; ` +
           `${String(compositions.length)} composition(s), ${String(judges.length)} final ` +
           'judge pass(es)',
@@ -3882,7 +3900,16 @@ const deterministicProvenancePatch: FaultScenario = {
       { runId: PATCH_RUN_ID, budgetUsd: 10 },
     ).result;
     const value = outcome.value as
-      { result?: unknown; claimConsistencyMeta?: { findings?: unknown } } | undefined;
+      | {
+          result?: unknown;
+          claimConsistencyMeta?: { findings?: unknown; judgedHash?: unknown };
+          deterministicPatches?: {
+            decisions?: unknown;
+            patches?: unknown;
+            lastAfterHash?: unknown;
+          };
+        }
+      | undefined;
     const entries = await store.load(PATCH_RUN_ID);
     const { compositions, judges } = tailSpans(entries);
     const verdictRows = entries
@@ -3915,10 +3942,25 @@ const deterministicProvenancePatch: FaultScenario = {
       roundPrompts[0]?.includes('HOST VALIDATION LESSONS') === false &&
       roundPrompts[1]?.includes('HOST VALIDATION LESSONS') === true &&
       roundPrompts[1]?.includes('evidence-grade') === true;
+    // The envelope aggregate (RV3904): the patch decision stays
+    // journaled; the acceptance envelope now counts it and names the
+    // patched bytes. In THIS shape the patch healed the FIRST
+    // composition and the final judge ruled on the round's clean
+    // document, so the two hash chains legitimately differ; the
+    // aggregate pins the count and the canonical hash pair.
+    const hex64 = /^[0-9a-f]{64}$/u;
+    const aggregate =
+      value?.deterministicPatches?.decisions === 1 &&
+      typeof value.deterministicPatches.patches === 'number' &&
+      value.deterministicPatches.patches >= 1 &&
+      hex64.test(String(value.deterministicPatches.lastAfterHash)) &&
+      value.deterministicPatches.lastAfterHash !==
+        (value.deterministicPatches as { lastBeforeHash?: unknown }).lastBeforeHash;
     const matched =
       outcome.status === 'ok' &&
       value?.result === TAIL_FINAL_CLEAN &&
       value.claimConsistencyMeta?.findings === 0 &&
+      aggregate &&
       verdicts === 'accepted,accepted' &&
       pools === '0,0' &&
       patch?.outcome === 'accepted' &&
@@ -3933,7 +3975,8 @@ const deterministicProvenancePatch: FaultScenario = {
         detail:
           `run '${outcome.status}' shipped ${value?.result === TAIL_FINAL_CLEAN ? 'the clean round document' : 'an unexpected document'}; ` +
           `verdicts [${verdicts}], repairsUsed [${pools}] (no wire, no pool spent); patch ` +
-          `outcome='${String(patch?.outcome)}'; judge saw patched=${String(judgeSawPatched)}; ` +
+          `outcome='${String(patch?.outcome)}'; envelope aggregate=${String(aggregate)}; ` +
+          `judge saw patched=${String(judgeSawPatched)}; ` +
           `lesson carried=${String(lessonCarried)}; ${String(compositions.length)} ` +
           `composition(s), ${String(judges.length)} final judge pass(es)`,
       },
