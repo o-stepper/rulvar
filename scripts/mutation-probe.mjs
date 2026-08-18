@@ -4843,10 +4843,10 @@ export const MUTATIONS = [
   {
     id: 'the-armed-round-is-priced-in-passes',
     doctrine:
-      'the static tail prices the judge in worst case passes and the armed repair round adds its composition (RV3402): collapsed to one pass and no round, a plan sized to the exact tail reads green and the triggered repair meets the typed decline live instead of a preflight warning, the 2026-08-12 admission cliff one release later',
+      'the static tail prices the judge in worst case passes and the armed repair round adds its composition (RV3402; the count is the shared acceptanceJudgePasses since RV4001): collapsed to one pass and no round, a plan sized to the exact tail reads green and the triggered repair meets the typed decline live instead of a preflight warning, the 2026-08-12 admission cliff one release later',
     file: 'packages/core/src/engine/preflight.ts',
-    find: "    ((claimPosture?.stage ?? 'draft') === 'both' ? 2 : 1) + (repairArmed ? 1 : 0);",
-    replace: '    1;',
+    find: '  const worstJudgePasses = acceptanceJudgePasses(claimPosture?.stage, claimPosture?.onFound);',
+    replace: '  const worstJudgePasses = 1;',
     test: 'packages/core/src/engine/preflight.test.ts',
   },
   {
@@ -5158,6 +5158,33 @@ export const MUTATIONS = [
     find: "    class: 'stale-doctrine-echo',",
     replace: "    class: 'package-identity',",
     test: 'packages/evals/src/claim-corpus.test.ts',
+  },
+  {
+    id: 'acceptance-tail-term-drop',
+    doctrine:
+      'the ONE acceptance-tail formula sums every declared term (RV4001): with the mechanical repair price dropped from acceptanceTailRequiredUsd, the fifth comparison fixture prices 4.62 where the runtime refused at 4.82, and both callers of the shared function inherit the same lie at once, which is exactly why the sum must be pinned in one place',
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '      terms.estRepairCostUsd +\n      terms.roundCompositionUsd +',
+    replace: '      terms.roundCompositionUsd +',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
+  {
+    id: 'acceptance-tail-both-passes',
+    doctrine:
+      "stage 'both' is TWO worst-case judge dispatches, three with an armed round (RV4001): reverting acceptanceJudgePasses to the RV3907 gate's one-pass reading must fail the grid and the runtime regression, because the undercount admitted plans whose second pass had no money",
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: "  return (resolvedStage === 'both' ? 2 : 1) + (roundArmed ? 1 : 0);",
+    replace: '  return 1 + (roundArmed ? 1 : 0);',
+    test: 'packages/core/src/orchestrator/orchestrate-intake.test.ts',
+  },
+  {
+    id: 'acceptance-reserve-unfit-severity',
+    doctrine:
+      "an unfit tail under declared 'require' is an ERROR finding (RV4001): the fifth comparison harness gated on error findings only and sailed a $4.54 cap past a $4.82 tail; a severity downgrade re-opens exactly that seam, with the arithmetic on record and the boot refusal waiting",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "          severity: spec.acceptanceReserve === 'require' ? 'error' : 'warning',",
+    replace: "          severity: 'warning',",
+    test: 'packages/core/src/engine/preflight.test.ts',
   },
 ];
 

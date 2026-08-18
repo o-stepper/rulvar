@@ -687,6 +687,14 @@
             "link": "/api/@rulvar/core/interfaces/AcceptanceChildSummary.md"
           },
           {
+            "text": "AcceptanceTailSpec",
+            "link": "/api/@rulvar/core/interfaces/AcceptanceTailSpec.md"
+          },
+          {
+            "text": "AcceptanceTailTerms",
+            "link": "/api/@rulvar/core/interfaces/AcceptanceTailTerms.md"
+          },
+          {
             "text": "AdmissionDecision",
             "link": "/api/@rulvar/core/interfaces/AdmissionDecision.md"
           },
@@ -2905,6 +2913,14 @@
         "collapsed": true,
         "items": [
           {
+            "text": "acceptanceJudgePasses",
+            "link": "/api/@rulvar/core/functions/acceptanceJudgePasses.md"
+          },
+          {
+            "text": "acceptanceTailRequiredUsd",
+            "link": "/api/@rulvar/core/functions/acceptanceTailRequiredUsd.md"
+          },
+          {
             "text": "accountSpendFromJournal",
             "link": "/api/@rulvar/core/functions/accountSpendFromJournal.md"
           },
@@ -3275,6 +3291,10 @@
           {
             "text": "foldTermination",
             "link": "/api/@rulvar/core/functions/foldTermination.md"
+          },
+          {
+            "text": "formatAcceptanceTailTerms",
+            "link": "/api/@rulvar/core/functions/formatAcceptanceTailTerms.md"
           },
           {
             "text": "formatCharacterValidator",
@@ -5809,6 +5829,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/AcceptanceChildSummary.md"
           },
           {
+            "text": "AcceptanceTailSpec",
+            "link": "/api/@rulvar/rulvar/interfaces/AcceptanceTailSpec.md"
+          },
+          {
+            "text": "AcceptanceTailTerms",
+            "link": "/api/@rulvar/rulvar/interfaces/AcceptanceTailTerms.md"
+          },
+          {
             "text": "AdmissionDecision",
             "link": "/api/@rulvar/rulvar/interfaces/AdmissionDecision.md"
           },
@@ -8075,6 +8103,14 @@
         "collapsed": true,
         "items": [
           {
+            "text": "acceptanceJudgePasses",
+            "link": "/api/@rulvar/rulvar/functions/acceptanceJudgePasses.md"
+          },
+          {
+            "text": "acceptanceTailRequiredUsd",
+            "link": "/api/@rulvar/rulvar/functions/acceptanceTailRequiredUsd.md"
+          },
+          {
             "text": "accountSpendFromJournal",
             "link": "/api/@rulvar/rulvar/functions/accountSpendFromJournal.md"
           },
@@ -8449,6 +8485,10 @@
           {
             "text": "foldTermination",
             "link": "/api/@rulvar/rulvar/functions/foldTermination.md"
+          },
+          {
+            "text": "formatAcceptanceTailTerms",
+            "link": "/api/@rulvar/rulvar/functions/formatAcceptanceTailTerms.md"
           },
           {
             "text": "formatCharacterValidator",

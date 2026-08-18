@@ -1,9 +1,9 @@
 {
   "comment": "Committed size baseline for the whole docs HTML output. scripts/docs-size-budget.mjs fails a docs build whose total raw, total gzip, p95 page, or max page exceeds it by more than 10 percent; refreeze deliberately with --update after adding content.",
-  "htmlFiles": 2264,
-  "totalRawBytes": 185795727,
-  "totalGzipBytes": 18712013,
-  "p95PageBytes": 121270,
-  "maxPageBytes": 2508784,
-  "recordedAt": "2026-08-09"
+  "htmlFiles": 2366,
+  "totalRawBytes": 206280417,
+  "totalGzipBytes": 20150268,
+  "p95PageBytes": 128916,
+  "maxPageBytes": 2751655,
+  "recordedAt": "2026-08-18"
 }

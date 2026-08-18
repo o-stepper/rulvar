@@ -3,10 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { ConfigError } from '../l0/errors.js';
 import { RunBudget } from '../engine/budget.js';
 import {
+  acceptanceJudgePasses,
+  acceptanceTailRequiredUsd,
   AdmissionController,
   DEFAULT_CHILD_BUDGET_FRACTION,
   DEFAULT_MAX_CHILDREN_PER_NODE,
   dispatchProjectionReserveUsd,
+  formatAcceptanceTailTerms,
   spawnDepthOf,
 } from './admission.js';
 
@@ -596,5 +599,81 @@ describe('the spawn-tool verdict is the dispatch projection (RV2004)', () => {
         10,
       );
     }
+  });
+});
+
+describe('the ONE acceptance-tail formula (RV4001, the fifth comparison experiment)', () => {
+  it('counts worst-case judge passes across the whole valid posture grid', () => {
+    // (stage, onFound) -> passes; draft+repair and final+carry are
+    // intake ConfigErrors and never reach the calculator live.
+    const grid: Array<
+      ['draft' | 'final' | 'both' | undefined, Parameters<typeof acceptanceJudgePasses>[1], number]
+    > = [
+      [undefined, undefined, 1],
+      ['draft', 'report', 1],
+      ['draft', 'carry', 1],
+      ['draft', 'fail', 1],
+      ['final', 'report', 1],
+      ['final', 'fail', 1],
+      ['final', 'repair', 2],
+      ['both', 'report', 2],
+      ['both', 'carry', 2],
+      ['both', 'fail', 2],
+      ['both', 'repair', 3],
+    ];
+    for (const [stage, onFound, passes] of grid) {
+      expect(acceptanceJudgePasses(stage, onFound)).toBe(passes);
+    }
+  });
+
+  it('prices the fifth experiment tail exactly: $4.82 required, term by term', () => {
+    // The experiment's declared config: hold 2.20, judge 0.32 at stage
+    // 'final' with an armed repair round (2 passes), mechanical repair
+    // 0.20, round composition 0.78, flat working room 1.00. Preflight
+    // passed the plan green at a $4.54 cap; the runtime refused at
+    // exactly this figure.
+    const { requiredUsd, terms } = acceptanceTailRequiredUsd({
+      synthesisReserveUsd: 2.2,
+      claimStage: 'final',
+      claimOnFound: 'repair',
+      claimJudgeEstCostUsd: 0.32,
+      finishEstRepairCostUsd: 0.2,
+      synthesisEstCostUsd: 0.78,
+      workingRoomUsd: 1.0,
+    });
+    expect(requiredUsd).toBeCloseTo(4.82, 10);
+    expect(terms.judgePasses).toBe(2);
+    expect(terms.roundCompositionUsd).toBeCloseTo(0.78, 10);
+    expect(formatAcceptanceTailTerms(terms)).toBe(
+      'synthesisReserveUsd 2.2000 + judge 0.3200 x 2 pass(es) + estRepairCostUsd 0.2000 + ' +
+        'round composition 0.7800 + working room 1.0000 = 4.8200 USD',
+    );
+  });
+
+  it("undeclared estimates contribute zero and 'both' arms the second pass", () => {
+    const bare = acceptanceTailRequiredUsd({ workingRoomUsd: 0.5 });
+    expect(bare.requiredUsd).toBeCloseTo(0.5, 10);
+    expect(bare.terms.judgePasses).toBe(1);
+    // The undercount this train fixes: 'both' + report is TWO passes
+    // (draft and final), and 'both' + repair is three; the RV3907 gate
+    // read them as one and two.
+    const bothReport = acceptanceTailRequiredUsd({
+      claimStage: 'both',
+      claimOnFound: 'report',
+      claimJudgeEstCostUsd: 0.1,
+      workingRoomUsd: 0,
+    });
+    expect(bothReport.requiredUsd).toBeCloseTo(0.2, 10);
+    const bothRepair = acceptanceTailRequiredUsd({
+      claimStage: 'both',
+      claimOnFound: 'repair',
+      claimJudgeEstCostUsd: 0.1,
+      synthesisEstCostUsd: 0.3,
+      workingRoomUsd: 0,
+    });
+    expect(bothRepair.terms.judgePasses).toBe(3);
+    expect(bothRepair.requiredUsd).toBeCloseTo(0.6, 10);
+    // No armed round, no composition term: report never pays for one.
+    expect(bothReport.terms.roundCompositionUsd).toBe(0);
   });
 });

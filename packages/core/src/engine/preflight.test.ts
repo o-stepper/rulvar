@@ -3162,3 +3162,146 @@ describe('the drained-finalization funding (RV2204, the third parity rerun)', ()
     expect(armed.findings.some((entry) => entry.code === 'inert-finalization-reserve')).toBe(false);
   });
 });
+
+describe('the acceptance-tail twin (RV4001, the fifth comparison experiment)', () => {
+  // The RV3907 gate landed runtime-only: the 2026-08-17 run passed
+  // preflight green at a $4.54 cap and refused typed at $4.82 before
+  // its first wire. The report block and the boot now call ONE
+  // exported formula (acceptanceTailRequiredUsd), and this block pins
+  // the experiment's exact numbers plus the posture the block reads.
+  function tailPostureInput(options: {
+    capUsd?: number;
+    declared?: 'warn' | 'require';
+    flatReserveUsd?: number;
+    estRepairCostUsd?: number;
+    synthesisEstCost?: number;
+    claimConsistency?: {
+      judge?: { estCost?: number };
+      onFound?: 'report' | 'carry' | 'fail' | 'repair';
+      stage?: 'draft' | 'final' | 'both';
+    };
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+        ...(options.flatReserveUsd === undefined
+          ? {}
+          : { budgetDefaults: { flatReserveUsd: options.flatReserveUsd } }),
+      },
+      run: { budgetUsd: 20 },
+      orchestrator: {
+        budget: {
+          capUsd: options.capUsd ?? 4.54,
+          capFraction: 1.0,
+          synthesisReserveUsd: 2.2,
+          ...(options.declared === undefined ? {} : { acceptanceReserve: options.declared }),
+        },
+        synthesis: {
+          limits: { maxTurns: 2 },
+          ...(options.synthesisEstCost === undefined ? {} : { estCost: options.synthesisEstCost }),
+        },
+        limits: { maxOutputTokensPerTurn: 36000 },
+        ...(options.claimConsistency === undefined
+          ? {}
+          : { claimConsistency: options.claimConsistency }),
+      },
+      ...(options.estRepairCostUsd === undefined
+        ? {}
+        : {
+            finishValidation: {
+              validators: [wordCountValidator({ min: 1 })],
+              estRepairCostUsd: options.estRepairCostUsd,
+            },
+          }),
+      spawns: [{ label: 'worker', estCost: 1, limits: { maxOutputTokensPerTurn: 14000 } }],
+    };
+  }
+
+  const EXPERIMENT = {
+    flatReserveUsd: 1.0,
+    estRepairCostUsd: 0.2,
+    synthesisEstCost: 0.78,
+    claimConsistency: {
+      judge: { estCost: 0.32 },
+      onFound: 'repair' as const,
+      stage: 'final' as const,
+    },
+  };
+
+  it('the $4.54 plan is an ERROR under declared require, with the runtime arithmetic verbatim', () => {
+    const report = preflightEstimate(tailPostureInput({ ...EXPERIMENT, declared: 'require' }));
+    const block = report.budget.orchestrator?.acceptanceReserve;
+    expect(block?.declared).toBe('require');
+    expect(block?.requiredUsd).toBeCloseTo(4.82, 10);
+    expect(block?.effectiveCapUsd).toBeCloseTo(4.54, 10);
+    expect(block?.fits).toBe(false);
+    expect(block?.terms.judgePasses).toBe(2);
+    expect(block?.terms.roundCompositionUsd).toBeCloseTo(0.78, 10);
+    const finding = report.findings.find((entry) => entry.code === 'acceptance-reserve-unfit');
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain(
+      'synthesisReserveUsd 2.2000 + judge 0.3200 x 2 pass(es) + estRepairCostUsd 0.2000 + ' +
+        'round composition 0.7800 + working room 1.0000 = 4.8200 USD',
+    );
+    expect(finding?.message).toContain('refuse to start before its first wire (RV3907)');
+  });
+
+  it('exact fill fits: the $4.82 cap clears the block and the finding', () => {
+    const report = preflightEstimate(
+      tailPostureInput({ ...EXPERIMENT, capUsd: 4.82, declared: 'require' }),
+    );
+    const block = report.budget.orchestrator?.acceptanceReserve;
+    expect(block?.fits).toBe(true);
+    expect(report.findings.some((entry) => entry.code === 'acceptance-reserve-unfit')).toBe(false);
+  });
+
+  it("declared 'warn' surfaces the same arithmetic as a warning", () => {
+    const report = preflightEstimate(tailPostureInput({ ...EXPERIMENT, declared: 'warn' }));
+    const finding = report.findings.find((entry) => entry.code === 'acceptance-reserve-unfit');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('funded by luck');
+    expect(report.budget.orchestrator?.acceptanceReserve?.declared).toBe('warn');
+  });
+
+  it('undeclared keeps the report and findings byte identical: no block, no finding', () => {
+    const report = preflightEstimate(tailPostureInput({ ...EXPERIMENT }));
+    expect(report.budget.orchestrator?.acceptanceReserve).toBeUndefined();
+    expect(report.findings.some((entry) => entry.code === 'acceptance-reserve-unfit')).toBe(false);
+  });
+
+  it('a malformed acceptanceReserve throws like every malformed input', () => {
+    expect(() =>
+      preflightEstimate(
+        tailPostureInput({ declared: 'block' as unknown as 'require', ...EXPERIMENT }),
+      ),
+    ).toThrow(ConfigError);
+    expect(() =>
+      preflightEstimate(
+        tailPostureInput({ declared: 'block' as unknown as 'require', ...EXPERIMENT }),
+      ),
+    ).toThrow(/acceptanceReserve must be 'warn' or 'require'; got "block"/);
+  });
+
+  it("counts stage 'both' at two passes and the armed round at three", () => {
+    const bothReport = preflightEstimate(
+      tailPostureInput({
+        declared: 'require',
+        claimConsistency: { judge: { estCost: 0.32 }, onFound: 'report', stage: 'both' },
+      }),
+    );
+    expect(bothReport.budget.orchestrator?.acceptanceReserve?.terms.judgePasses).toBe(2);
+    const bothRound = preflightEstimate(
+      tailPostureInput({
+        declared: 'require',
+        synthesisEstCost: 0.78,
+        claimConsistency: { judge: { estCost: 0.32 }, onFound: 'repair', stage: 'both' },
+      }),
+    );
+    expect(bothRound.budget.orchestrator?.acceptanceReserve?.terms.judgePasses).toBe(3);
+  });
+});

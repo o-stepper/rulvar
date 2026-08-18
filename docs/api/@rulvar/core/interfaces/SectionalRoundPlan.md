@@ -6,7 +6,7 @@
 
 # Interface: SectionalRoundPlan
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L352)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:353](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L353)
 
 The sectional round's owning sections and marker roster (RV3803).
 
@@ -14,5 +14,5 @@ The sectional round's owning sections and marker roster (RV3803).
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-sections"></a> `sections` | `string`[] | Every H2 marker of the retained document, in document order. | [packages/core/src/orchestrator/orchestrate.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L354) |
-| <a id="property-targets"></a> `targets` | `string`[] | The markers owning at least one finding excerpt, document order. | [packages/core/src/orchestrator/orchestrate.ts:356](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L356) |
+| <a id="property-sections"></a> `sections` | `string`[] | Every H2 marker of the retained document, in document order. | [packages/core/src/orchestrator/orchestrate.ts:355](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L355) |
+| <a id="property-targets"></a> `targets` | `string`[] | The markers owning at least one finding excerpt, document order. | [packages/core/src/orchestrator/orchestrate.ts:357](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L357) |
