@@ -1527,6 +1527,14 @@
             "link": "/api/@rulvar/core/interfaces/RejectedFinishCandidate.md"
           },
           {
+            "text": "RepairLedger",
+            "link": "/api/@rulvar/core/interfaces/RepairLedger.md"
+          },
+          {
+            "text": "RepairLedgerRound",
+            "link": "/api/@rulvar/core/interfaces/RepairLedgerRound.md"
+          },
+          {
             "text": "RepeatedClaim",
             "link": "/api/@rulvar/core/interfaces/RepeatedClaim.md"
           },
@@ -3683,6 +3691,10 @@
           {
             "text": "renderContractRequirements",
             "link": "/api/@rulvar/core/functions/renderContractRequirements.md"
+          },
+          {
+            "text": "repairLedgerFromJournal",
+            "link": "/api/@rulvar/core/functions/repairLedgerFromJournal.md"
           },
           {
             "text": "replayDisposition",
@@ -6697,6 +6709,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/RenderProgressOptions.md"
           },
           {
+            "text": "RepairLedger",
+            "link": "/api/@rulvar/rulvar/interfaces/RepairLedger.md"
+          },
+          {
+            "text": "RepairLedgerRound",
+            "link": "/api/@rulvar/rulvar/interfaces/RepairLedgerRound.md"
+          },
+          {
             "text": "RepeatedClaim",
             "link": "/api/@rulvar/rulvar/interfaces/RepeatedClaim.md"
           },
@@ -8889,6 +8909,10 @@
           {
             "text": "renderProgress",
             "link": "/api/@rulvar/rulvar/functions/renderProgress.md"
+          },
+          {
+            "text": "repairLedgerFromJournal",
+            "link": "/api/@rulvar/rulvar/functions/repairLedgerFromJournal.md"
           },
           {
             "text": "replayDisposition",

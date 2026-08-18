@@ -503,6 +503,10 @@ export default {
     // The RV2008 lane: the fixture run journals incremental rows and
     // they agree with the terminal set.
     expect(cleanText).toContain('[pass] incremental-rows-match');
+    // The RV4002 lane: a journal that proves no repair prints no
+    // repairs line, so pre-RV4002 journals and repair-free runs render
+    // byte for byte.
+    expect(cleanText).not.toContain('repairs:');
 
     const jsonIo = scriptedIo();
     expect(
@@ -566,6 +570,59 @@ export default {
       await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: rowsDiverge }),
     ).toBe(1);
     expect(rowsDiverge.outLines.join('\n')).toContain('[FAIL] incremental-rows-match');
+  });
+
+  it('cost-audit prints the workflow repair ledger when the journal proves one (RV4002)', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"x"}', '--store', '.rulvar'], { cwd, io });
+    const runId = runIdOf(io);
+    // Append the fifth experiment's shape as journaled decisions: one
+    // draft-gate rejection (three validators) and the sectional
+    // acceptance that healed it. Decisions only, so every audit check
+    // stays green and the exit code stays 0.
+    const journalPath = join(cwd, '.rulvar', `${runId}.jsonl`);
+    const lines = readFileSync(journalPath, 'utf8').trim().split('\n');
+    const parsedLines = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    const maxSeq = Math.max(...parsedLines.map((entry) => entry.seq as number));
+    const gate = (seq: number, key: string, value: Record<string, unknown>): string =>
+      JSON.stringify({ seq, kind: 'decision', scope: '', key, status: 'ok', value });
+    const appended = [
+      gate(maxSeq + 1, 'draft-gate:call-1', {
+        decisionType: 'orchestrator_draft_gate',
+        callId: 'call-1',
+        verdict: 'rejected',
+        failed: [
+          { name: 'contract-words', reasons: ['too short'] },
+          { name: 'word-count', reasons: ['too short'] },
+          { name: 'evidence-grade', reasons: ['no run id'] },
+        ],
+      }),
+      gate(maxSeq + 2, 'draft-gate-accept:call-2', {
+        decisionType: 'orchestrator_draft_gate',
+        callId: 'call-2',
+        verdict: 'accepted',
+        spliced: true,
+        sections: ['## Verdict'],
+      }),
+    ];
+    writeFileSync(journalPath, `${lines.join('\n')}\n${appended.join('\n')}\n`, 'utf8');
+    const audited = scriptedIo();
+    expect(await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: audited })).toBe(0);
+    const text = audited.outLines.join('\n');
+    expect(text).toContain('repairs: total 1 | draft 1 | composition 0 | semantic 0');
+    expect(text).toContain('draft @' + String(maxSeq + 1));
+    expect(text).toContain('validators contract-words, word-count, evidence-grade');
+    expect(text).toContain('sections ## Verdict');
+    const jsonIo = scriptedIo();
+    expect(
+      await runCli(['cost-audit', runId, '--store', '.rulvar', '--json'], { cwd, io: jsonIo }),
+    ).toBe(0);
+    const parsed = JSON.parse(jsonIo.outLines.join('\n')) as {
+      repairs?: { draft?: number; total?: number };
+    };
+    expect(parsed.repairs?.draft).toBe(1);
+    expect(parsed.repairs?.total).toBe(1);
   });
 
   it('cost-audit --all sweeps the catalog and exits 1 when any run diverges (RV2209)', async () => {

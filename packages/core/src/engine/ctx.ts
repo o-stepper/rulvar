@@ -1761,7 +1761,18 @@ export function createCtx(
       for (const slice of replayPriced?.unpriced ?? []) {
         internals.cost.unpriced.push({ model: slice.servedBy, usage: slice.usage });
       }
-      bump(internals.cost.byPhase, state.phase ?? '', costUsd);
+      // The wire-level repair override (RV4002), the replay arm: the
+      // granted repair turn's own wires fold under 'repair', exactly
+      // the journal fold's split, so a replayed accumulation and
+      // costReportFromJournal cannot disagree.
+      let replayPhaseUsd = costUsd;
+      for (const unit of replayPriced?.units ?? []) {
+        if (unit.source === 'call' && unit.record?.phase === 'repair') {
+          bump(internals.cost.byPhase, 'repair', unit.usd);
+          replayPhaseUsd -= unit.usd;
+        }
+      }
+      bump(internals.cost.byPhase, state.phase ?? '', replayPhaseUsd);
       bump(internals.cost.byAgentType, agentType, costUsd);
       bump(internals.cost.byScope, state.scope, costUsd);
       internals.cost.byRole.set(
@@ -3249,7 +3260,24 @@ export function createCtx(
       const sliceRole = slice.role ?? primaryRole;
       internals.cost.byRole.set(sliceRole, (internals.cost.byRole.get(sliceRole) ?? 0) + priced);
     }
-    bump(internals.cost.byPhase, state.phase ?? '', usd);
+    // The wire-level repair override (RV4002), the live arm: the
+    // granted repair turn's own wires fold under 'repair' at the same
+    // per-call price the journal fold's units carry, so the live
+    // report and the replayed one cannot disagree; dispatches without
+    // repair-stamped records bump byte identically to before.
+    let livePhaseUsd = usd;
+    for (const record of result.providerCalls ?? []) {
+      if (record.phase !== 'repair') {
+        continue;
+      }
+      const recordUsd = internals.priceUsd(record.servedBy, record.usage);
+      if (recordUsd === undefined || !Number.isFinite(recordUsd) || recordUsd < 0) {
+        continue;
+      }
+      bump(internals.cost.byPhase, 'repair', recordUsd);
+      livePhaseUsd -= recordUsd;
+    }
+    bump(internals.cost.byPhase, state.phase ?? '', livePhaseUsd);
     bump(internals.cost.byAgentType, agentType, usd);
     bump(internals.cost.byScope, state.scope, usd);
 

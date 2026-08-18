@@ -89,7 +89,13 @@ export interface CostReport {
    * passes, 'repair' the bounded claim repair round), filling only
    * the vacuum: an explicit host ctx.phase around the orchestration
    * keeps its own bucket. The fourth comparison run's report read
-   * byPhase 100% 'unknown' over stages the journal held apart.
+   * byPhase 100% 'unknown' over stages the journal held apart. The
+   * 'repair' bucket additionally receives the granted mechanical
+   * repair turns' own wires (RV4002): the call that immediately
+   * follows a rejected terminal-tool exchange carries a wire-level
+   * override, so a draft or composition repair's money no longer
+   * drowns in its hosting dispatch's bucket (the fifth comparison
+   * run's one draft repair wire read 'coordination').
    */
   byPhase: Record<string, number>;
   /** Spawn agentType names; absent and empty fold under 'unknown' (RV3604). */

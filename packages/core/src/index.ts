@@ -64,6 +64,7 @@ export * from './stores/meta-lookup.js';
 export * from './stores/fenced.js';
 export * from './stores/reconcile.js';
 export * from './stores/critical-path.js';
+export * from './stores/repair-ledger.js';
 export * from './stores/synthesis-candidates.js';
 export * from './stores/tool-calibration.js';
 export * from './stores/jsonl.js';

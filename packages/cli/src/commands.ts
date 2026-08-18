@@ -32,6 +32,7 @@ import {
   preflightEstimate,
   proposalStatement,
   readRunMeta,
+  repairLedgerFromJournal,
   runProfile,
   reconcileRunMeta,
   remeasureQueue,
@@ -51,6 +52,7 @@ import {
   type Pricing,
   type PreflightReport,
   type PreflightSpawnSpec,
+  type RepairLedger,
   type RunMeta,
   type RunOptions,
   type Usage,
@@ -1256,7 +1258,11 @@ function invoiceByAgentType(
 }
 
 /** The one JSON shape of a run's audit, shared by both command forms. */
-function costAuditRunJson(runId: string, audit: RunCostAudit): Record<string, unknown> {
+function costAuditRunJson(
+  runId: string,
+  audit: RunCostAudit,
+  repairs?: RepairLedger,
+): Record<string, unknown> {
   const byAgentType = invoiceByAgentType(audit.invoice.rows);
   return {
     runId,
@@ -1275,6 +1281,10 @@ function costAuditRunJson(runId: string, audit: RunCostAudit): Record<string, un
         ? {}
         : { orphanedReceipts: audit.invoice.orphanedReceipts }),
     },
+    // The workflow repair ledger (RV4002), present exactly when the
+    // journal proves a repair was paid for: a journal without one
+    // (every pre-RV4002 journal among them) renders byte for byte.
+    ...(repairs === undefined || repairs.total === 0 ? {} : { repairs }),
     checks: audit.checks,
   };
 }
@@ -1337,8 +1347,11 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
     }
     const entries = await assembled.store.load(runId);
     const audit = auditJournalEntries(entries, assembled.priceUsd);
+    const repairs = repairLedgerFromJournal(entries, (servedBy, usage) =>
+      assembled.priceUsd(servedBy, usage),
+    );
     if (json) {
-      context.io.out(JSON.stringify(costAuditRunJson(runId, audit), null, 2));
+      context.io.out(JSON.stringify(costAuditRunJson(runId, audit, repairs), null, 2));
       return audit.failed.length === 0 ? 0 : 1;
     }
     context.io.out(
@@ -1360,6 +1373,33 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
         .map(([type, bucket]) => `${type} $${bucket.usd.toFixed(4)} (${String(bucket.rows)} rows)`)
         .join(' | ');
       context.io.out(`by agentType: ${cutLine}`);
+    }
+    // The workflow repair ledger (RV4002): one line answering "how
+    // many repairs did this run pay for, by stage", the question the
+    // fifth comparison experiment's judge answered from the raw
+    // transcript. Absent when the journal proves none, so pre-RV4002
+    // journals and repair-free runs render byte for byte.
+    if (repairs.total > 0) {
+      const priced = repairs.rounds.filter((row) => row.costUsd !== undefined);
+      const pricedUsd = priced.reduce((sum, row) => sum + (row.costUsd ?? 0), 0);
+      context.io.out(
+        `repairs: total ${String(repairs.total)} | draft ${String(repairs.draft)} | ` +
+          `composition ${String(repairs.composition)} | semantic ${String(repairs.semantic)}` +
+          (priced.length === 0
+            ? ''
+            : ` | priced $${pricedUsd.toFixed(4)} over ${String(priced.length)} repair wire(s)`) +
+          (repairs.unstagedVerdicts === 0
+            ? ''
+            : ` | ${String(repairs.unstagedVerdicts)} unstaged verdict(s): the journal predates the ledger, counts are a floor`),
+      );
+      for (const row of repairs.rounds) {
+        context.io.out(
+          `  ${row.stage} @${String(row.seq)} | validators ${row.failedValidators.join(', ') || '(none)'}` +
+            (row.sections === undefined ? '' : ` | sections ${row.sections.join(', ')}`) +
+            (row.wireRef === undefined ? '' : ` | wire @${String(row.wireRef)}`) +
+            (row.costUsd === undefined ? '' : ` | ${usdOf(row.costUsd)}`),
+        );
+      }
     }
     const orphaned = audit.invoice.orphanedReceipts;
     if (orphaned !== undefined) {

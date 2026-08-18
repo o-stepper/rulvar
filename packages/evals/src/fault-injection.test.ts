@@ -50,6 +50,7 @@ const EXPECTED = [
   'repair-round-mechanical-reserve',
   'sectional-repair-round',
   'sectional-repair-round-fallback',
+  'coordination-draft-repair',
   'deterministic-provenance-patch',
   'claim-judge-dead-armed-refusal',
   'acceptance-reserve-refusal',
@@ -207,6 +208,19 @@ describe('the fault-injection kit (RV811)', () => {
     );
     expect(byName.get('sectional-repair-round-fallback')?.observation.detail).toContain(
       'full regeneration=true',
+    );
+    // The RV4002 scenarios: the sectional round's envelope carries the
+    // workflow repair ledger (one semantic round, nothing mechanical),
+    // and the fifth experiment's draft-gate shape counts as one draft
+    // repair with its validators, sections, and wire named.
+    expect(byName.get('sectional-repair-round')?.observation.detail).toContain('ledger=true');
+    expect(byName.get('coordination-draft-repair')?.observation.detail).toContain('ledger=true');
+    expect(byName.get('coordination-draft-repair')?.observation.detail).toContain('row=true');
+    expect(byName.get('coordination-draft-repair')?.observation.detail).toContain(
+      'gate decisions [rejected,accepted]',
+    );
+    expect(byName.get('coordination-draft-repair')?.observation.detail).toContain(
+      '1 repair-stamped wire(s)',
     );
     // The RV3801 scenario: the deterministic patch heals the graded
     // candidate without a wire or a pool spend, the healed failure
