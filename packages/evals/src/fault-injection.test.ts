@@ -57,6 +57,7 @@ const EXPECTED = [
   'strict-coverage-policy',
   'acceptance-reserve-refusal',
   'budget-policy-immutable',
+  'wire-intent-unknown-outcome',
 ];
 
 describe('the fault-injection kit (RV811)', () => {
@@ -240,6 +241,14 @@ describe('the fault-injection kit (RV811)', () => {
     );
     expect(byName.get('citation-entailment-audit')?.observation.detail).toContain(
       'fail arm typed=true',
+    );
+    // The RV4006 scenario: the open intent refuses the blind resume
+    // typed and the acknowledged resume journals the override.
+    expect(byName.get('wire-intent-unknown-outcome')?.observation.detail).toContain(
+      'refusal typed=true',
+    );
+    expect(byName.get('wire-intent-unknown-outcome')?.observation.detail).toContain(
+      'decision journaled=true',
     );
     // The RV3801 scenario: the deterministic patch heals the graded
     // candidate without a wire or a pool spend, the healed failure

@@ -572,6 +572,53 @@ export default {
     expect(rowsDiverge.outLines.join('\n')).toContain('[FAIL] incremental-rows-match');
   });
 
+  it('cost-audit prints the open intent lane when a wire has unknown outcome (RV4006)', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"x"}', '--store', '.rulvar'], { cwd, io });
+    const runId = runIdOf(io);
+    const clean = scriptedIo();
+    expect(await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: clean })).toBe(0);
+    expect(clean.outLines.join('\n')).not.toContain('open intents:');
+    // The crash window, reconstructed: an intent with no receipt and
+    // no terminal for its dispatch.
+    const journalPath = join(cwd, '.rulvar', `${runId}.jsonl`);
+    const lines = readFileSync(journalPath, 'utf8').trim().split('\n');
+    const maxSeq = Math.max(...lines.map((line) => (JSON.parse(line) as { seq: number }).seq));
+    const orphan = JSON.stringify({
+      seq: maxSeq + 1,
+      kind: 'decision',
+      scope: '',
+      key: 'pi:99999:1:1',
+      status: 'ok',
+      spanId: 'crash-window',
+      site: 'provider-intent',
+      value: {
+        decisionType: 'provider-intent',
+        agentRef: 99999,
+        ordinal: 1,
+        attempt: 1,
+        servedBy: 'fake:model',
+        requestFingerprint: 'f'.repeat(64),
+      },
+    });
+    writeFileSync(journalPath, `${lines.join('\n')}\n${orphan}\n`, 'utf8');
+    const audited = scriptedIo();
+    expect(await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: audited })).toBe(0);
+    const text = audited.outLines.join('\n');
+    expect(text).toContain('open intents: 1 wire(s) with unknown outcome (RV4006)');
+    expect(text).toContain('agent 99999');
+    expect(text).toContain('fingerprint ffffffffffffffff');
+    const jsonIo = scriptedIo();
+    expect(
+      await runCli(['cost-audit', runId, '--store', '.rulvar', '--json'], { cwd, io: jsonIo }),
+    ).toBe(0);
+    const parsed = JSON.parse(jsonIo.outLines.join('\n')) as {
+      invoice?: { openIntents?: { count?: number } };
+    };
+    expect(parsed.invoice?.openIntents?.count).toBe(1);
+  });
+
   it('cost-audit prints the workflow repair ledger when the journal proves one (RV4002)', async () => {
     const cwd = writeFixtureProject();
     const io = scriptedIo();

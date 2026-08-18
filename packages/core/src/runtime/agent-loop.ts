@@ -815,7 +815,28 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * durability, the loop honors it; a void return keeps the RV2008
    * fire and forget byte for byte.
    */
-  billing?: { onProviderCall: (record: ProviderCallRecord) => void | Promise<void> };
+  billing?: {
+    onProviderCall: (record: ProviderCallRecord) => void | Promise<void>;
+    /**
+     * The pre-wire intent (RV4006): invoked strictly BEFORE every
+     * dispatched wire attempt, after admission and any quota
+     * reservation, with the coordinates the settled record will carry
+     * (ordinal, role, servedBy, attempt) and the built request for
+     * fingerprinting. A returned promise is AWAITED before the wire
+     * dispatches (intent before effect, the RV601 precedent), and a
+     * rejected append refuses the dispatch: a wire whose intent could
+     * not be made durable must not be able to bill. Quota denials and
+     * pre-dispatch aborts never reach it, exactly like the settled
+     * record they never mint.
+     */
+    onProviderIntent?: (intent: {
+      ordinal: number;
+      role: InvocationRole;
+      servedBy: ModelRef;
+      attempt: number;
+      request: ChatRequest;
+    }) => void | Promise<void>;
+  };
   events?: RuntimeEventSink;
   transcript?: { mintRef(): string; put(ref: string, blob: Uint8Array): Promise<void> };
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
@@ -3574,6 +3595,21 @@ export async function runAgent<S extends SchemaSpec>(
           if (abandoned !== undefined) {
             return abandoned;
           }
+          // The pre-wire intent (RV4006): durable BEFORE either
+          // dispatch arm below can bill; denials and aborts above
+          // never reach it. Guarded, not optional-chained: an
+          // unconfigured hook must add ZERO ticks to the dispatch
+          // path, because the M7/M9 catalog cassettes reproduce the
+          // exact async interleaving of parallel dispatches.
+          if (options.billing?.onProviderIntent !== undefined) {
+            await options.billing.onProviderIntent({
+              ordinal: providerCalls.length + 1,
+              role: site.role,
+              servedBy: target.resolved.ref,
+              attempt: tries + 1,
+              request: req,
+            });
+          }
           if (quota.reserveContinuations !== true) {
             return streamTurn(target.adapter, req, meteredOptionsFor(target));
           }
@@ -3649,6 +3685,22 @@ export async function runAgent<S extends SchemaSpec>(
           if (options.quota === undefined) {
             const req = site.requestFor(target);
             admitExposure(req);
+            // The pre-wire intent (RV4006), the unconfigured-quota
+            // arm: the same zero-ticks-when-unset guard, so the
+            // dispatch path of every other posture keeps its exact
+            // interleaving.
+            const intentHook = options.billing?.onProviderIntent;
+            if (intentHook !== undefined) {
+              return Promise.resolve(
+                intentHook({
+                  ordinal: providerCalls.length + 1,
+                  role: site.role,
+                  servedBy: target.resolved.ref,
+                  attempt: tries + 1,
+                  request: req,
+                }),
+              ).then(() => streamTurn(target.adapter, req, meteredOptionsFor(target)));
+            }
             return streamTurn(target.adapter, req, meteredOptionsFor(target));
           }
           return dispatchWithQuota(options.quota);

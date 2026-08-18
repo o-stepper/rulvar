@@ -1,0 +1,7 @@
+---
+'@rulvar/core': minor
+'@rulvar/cli': minor
+'@rulvar/evals': minor
+---
+
+The pre-wire provider intent (RV4006, the fifth comparison experiment's P0.5). Receipts journal after a wire settles, so the wire most exposed at a crash is exactly the one being paid for: between dispatch and receipt, a death leaves money the journal never heard about. `defaults.billingReceipts: 'intent'` journals a `provider-intent` decision before every dispatched wire attempt (awaited, the executor ledger's intent-before-effect rule: a failed intent append refuses the dispatch), keyed by dispatch seq, ordinal, and attempt, carrying the serving model, role, and a sha256 request fingerprint; receipts stay awaited as under `'awaited'`. An intent with neither a receipt row nor a settled terminal covering it is a wire with UNKNOWN outcome: the exported `openWireIntentsOf` fold names them, the invoice carries the `openIntents` lane (no invented dollars), `rulvar cost-audit` prints it, and a resume that finds one refuses the blind retry typed until `ResumeOptions.acknowledgeOpenWireIntents: true` is passed, which the new segment journals as `open_wire_intents_acknowledged`. Dispatch stays at-least-once with attempt binding; the default `'async'` and `'awaited'` postures keep every byte. Kit: `wire-intent-unknown-outcome` drives the reconstructed crash window through both resume arms; probes pin the quota-arm intent, the resume gate, and the receipt closure.
