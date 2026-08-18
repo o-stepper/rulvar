@@ -404,6 +404,97 @@ export function formatAcceptanceTailTerms(terms: AcceptanceTailTerms): string {
   );
 }
 
+/** The declared wire counts of one orchestration plan (RV4005). */
+export interface WireCapacitySpec {
+  /** Fan-out provider dispatches: children times their turns. */
+  childWires: number;
+  /** Coordination loop dispatches, the finish exchanges included. */
+  coordinationWires?: number;
+  /** Composition invocations of the base plan (the initial synthesis). */
+  synthesisWires?: number;
+  /**
+   * Worst-case claim judge dispatches; feed
+   * {@link acceptanceJudgePasses} the declared posture to get it. NOTE:
+   * that count already includes the armed round's rejudge, while the
+   * estimate below prices the round's delta separately, so pass the
+   * UNARMED reading here ((stage === 'both') ? 2 : 1) when you intend
+   * to read `repairRoundDeltaWires` as the whole round.
+   */
+  judgeWires?: number;
+  /** Separate extract dispatches, when the finish rides one (RV3908 spares the schema'd final). */
+  extractWires?: number;
+}
+
+/** What one orchestration plan costs in wires, base and worst case (RV4005). */
+export interface WireCapacityEstimate {
+  /** The plan's wire total with no repair of any kind. */
+  baseWires: number;
+  /**
+   * The armed semantic repair round's delta: ONE more composition
+   * PLUS ONE more judge pass (RV3307), never one. The fifth
+   * comparison run's own answer modeled 34 to 35 and lost the
+   * decisive correctness point to exactly this constant.
+   */
+  repairRoundDeltaWires: number;
+  /** Each granted mechanical repair turn is one more wire on its invocation. */
+  mechanicalRepairDeltaWires: number;
+  /** baseWires + repairRoundDeltaWires. */
+  wiresWithRound: number;
+  /** repairRoundDeltaWires / baseWires: the round's overhead share. */
+  roundOverheadShare: number;
+}
+
+/**
+ * The wire capacity of a declared orchestration plan (RV4005, the
+ * fifth comparison experiment): base wires by declaration, the armed
+ * repair round's delta, and the round's overhead share, from ONE
+ * exported function so an answer about the runtime's own economics
+ * has a source instead of an improvisation. The experiment's terminal
+ * answer wrote "34 wires without repair, 35 with" and multiplied
+ * retry share as `1 + r`: the round is TWO wires (its composition
+ * plus the rejudge, `orchestrate.ts`'s own doctrine), so 34 becomes
+ * 36 at 5.88 percent overhead, and r retries over a base of B
+ * multiply wires by `1 + r/B` ({@link retryWireMultiplier}), not by
+ * `1 + r`.
+ */
+export function wireCapacityEstimate(spec: WireCapacitySpec): WireCapacityEstimate {
+  requireNonNegativeNumber(spec.childWires, 'wireCapacityEstimate childWires');
+  const coordinationWires = spec.coordinationWires ?? 0;
+  const synthesisWires = spec.synthesisWires ?? 0;
+  const judgeWires = spec.judgeWires ?? 0;
+  const extractWires = spec.extractWires ?? 0;
+  requireNonNegativeNumber(coordinationWires, 'wireCapacityEstimate coordinationWires');
+  requireNonNegativeNumber(synthesisWires, 'wireCapacityEstimate synthesisWires');
+  requireNonNegativeNumber(judgeWires, 'wireCapacityEstimate judgeWires');
+  requireNonNegativeNumber(extractWires, 'wireCapacityEstimate extractWires');
+  const baseWires =
+    spec.childWires + coordinationWires + synthesisWires + judgeWires + extractWires;
+  const repairRoundDeltaWires = 2;
+  return {
+    baseWires,
+    repairRoundDeltaWires,
+    mechanicalRepairDeltaWires: 1,
+    wiresWithRound: baseWires + repairRoundDeltaWires,
+    roundOverheadShare: baseWires === 0 ? 0 : repairRoundDeltaWires / baseWires,
+  };
+}
+
+/**
+ * The retry share of a wire plan (RV4005): r retries over a base of B
+ * wires re-dispatch r of the B, so totals scale by `1 + r/B`. The
+ * fifth comparison run's answer multiplied by `1 + r`, reading every
+ * retry as a whole extra plan.
+ */
+export function retryWireMultiplier(baseWires: number, retries: number): number {
+  requireNonNegativeNumber(retries, 'retryWireMultiplier retries');
+  if (!Number.isFinite(baseWires) || baseWires <= 0) {
+    throw new ConfigError(
+      `retryWireMultiplier baseWires must be a positive finite number; got ${String(baseWires)}`,
+    );
+  }
+  return 1 + retries / baseWires;
+}
+
 /** Nesting depth of a child scope: its workflow, agent, and plan-node segments. */
 export function spawnDepthOf(childScope: string): number {
   return parseScopePath(childScope).filter(

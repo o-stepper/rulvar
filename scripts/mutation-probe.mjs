@@ -5224,6 +5224,24 @@ export const MUTATIONS = [
     replace: "          severity: 'warning',",
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'round-delta-is-two-wires',
+    doctrine:
+      "the armed repair round is TWO wires past the plan, its composition plus the rejudge (RV4005): collapsed to one, the exported estimator reproduces the fifth comparison answer's decisive arithmetic error against this very runtime",
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '  const repairRoundDeltaWires = 2;',
+    replace: '  const repairRoundDeltaWires = 1;',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
+  {
+    id: 'retry-share-divides-by-base',
+    doctrine:
+      'r retries over a base of B wires multiply totals by 1 + r/B (RV4005): multiplied by 1 + r instead, one retry doubles the whole plan on paper, the exact misread the fifth comparison answer shipped',
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '  return 1 + retries / baseWires;',
+    replace: '  return 1 + retries;',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

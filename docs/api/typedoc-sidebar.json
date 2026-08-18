@@ -1883,6 +1883,14 @@
             "link": "/api/@rulvar/core/interfaces/WakeDigest.md"
           },
           {
+            "text": "WireCapacityEstimate",
+            "link": "/api/@rulvar/core/interfaces/WireCapacityEstimate.md"
+          },
+          {
+            "text": "WireCapacitySpec",
+            "link": "/api/@rulvar/core/interfaces/WireCapacitySpec.md"
+          },
+          {
             "text": "Workflow",
             "link": "/api/@rulvar/core/interfaces/Workflow.md"
           },
@@ -3741,6 +3749,10 @@
             "link": "/api/@rulvar/core/functions/retryDelayMs.md"
           },
           {
+            "text": "retryWireMultiplier",
+            "link": "/api/@rulvar/core/functions/retryWireMultiplier.md"
+          },
+          {
             "text": "reviewAgentProfile",
             "link": "/api/@rulvar/core/functions/reviewAgentProfile.md"
           },
@@ -3967,6 +3979,10 @@
           {
             "text": "validateUsageLimits",
             "link": "/api/@rulvar/core/functions/validateUsageLimits.md"
+          },
+          {
+            "text": "wireCapacityEstimate",
+            "link": "/api/@rulvar/core/functions/wireCapacityEstimate.md"
           },
           {
             "text": "wordCountValidator",
@@ -7065,6 +7081,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/WakeDigest.md"
           },
           {
+            "text": "WireCapacityEstimate",
+            "link": "/api/@rulvar/rulvar/interfaces/WireCapacityEstimate.md"
+          },
+          {
+            "text": "WireCapacitySpec",
+            "link": "/api/@rulvar/rulvar/interfaces/WireCapacitySpec.md"
+          },
+          {
             "text": "Workflow",
             "link": "/api/@rulvar/rulvar/interfaces/Workflow.md"
           },
@@ -8959,6 +8983,10 @@
             "link": "/api/@rulvar/rulvar/functions/retryDelayMs.md"
           },
           {
+            "text": "retryWireMultiplier",
+            "link": "/api/@rulvar/rulvar/functions/retryWireMultiplier.md"
+          },
+          {
             "text": "reviewAgentProfile",
             "link": "/api/@rulvar/rulvar/functions/reviewAgentProfile.md"
           },
@@ -9185,6 +9213,10 @@
           {
             "text": "validateUsageLimits",
             "link": "/api/@rulvar/rulvar/functions/validateUsageLimits.md"
+          },
+          {
+            "text": "wireCapacityEstimate",
+            "link": "/api/@rulvar/rulvar/functions/wireCapacityEstimate.md"
           },
           {
             "text": "wordCountValidator",
