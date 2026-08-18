@@ -1,5 +1,26 @@
 # @rulvar/cli
 
+## 1.245.0
+
+### Minor Changes
+
+- dee6db4: The workflow answers for its own repairs (RV4002, the fifth comparison experiment). The run paid for exactly one repair (a coordination draft rejected by three validators, healed by a sectional resubmission, one more wire at $0.186) and every terminal aggregate answered truthfully for its own stage while no surface answered for the workflow: the independent judge rebuilt the count from the raw transcript and the repair wire's money drowned in 'coordination'. The exported `repairLedgerFromJournal` folds the workflow-wide ledger (`{ draft, composition, semantic, total }` plus one row per granted repair with its stage, verdict seq, failed validators, spliced sections, and the repair wire's ref and price when the billing lane covered it); the acceptance envelope carries `repairs` computed by the same fold over the run's own snapshot, so live and post-hoc agree by construction. The draft gate journals its voice (`orchestrator_draft_gate` on rejection and on the healing sectional acceptance), finish-validation decisions carry their `stage` and spliced markers, and the granted repair turn's own wire is stamped `phase: 'repair'` (`ProviderCallRecord.phase`), which all three byPhase folds split out of the hosting dispatch's bucket. `rulvar cost-audit` prints the ledger when the journal proves one, byte parity otherwise; pre-RV4002 journals fold with `unstagedVerdicts` named, a floor, never a guess; clean runs keep every byte (all 61 frozen fixtures verify unchanged). Kit: `coordination-draft-repair` pins the experiment's exact shape (`{ draft: 1, composition: 0, semantic: 0, total: 1 }`, the gate decisions, the stamped wire) and `sectional-repair-round` pins the semantic round's ledger; four mutation probes pin the wire stamp, the gate's journal voice, the round count, and the CLI line. journal-shape-revision: the wire-level `phase` stamp is an additive journal evolution, and the frozen cassettes whose flows contain a refused finish exchange are re-recorded under it.
+- 19bcea0: The pre-wire provider intent (RV4006, the fifth comparison experiment's P0.5). Receipts journal after a wire settles, so the wire most exposed at a crash is exactly the one being paid for: between dispatch and receipt, a death leaves money the journal never heard about. `defaults.billingReceipts: 'intent'` journals a `provider-intent` decision before every dispatched wire attempt (awaited, the executor ledger's intent-before-effect rule: a failed intent append refuses the dispatch), keyed by dispatch seq, ordinal, and attempt, carrying the serving model, role, and a sha256 request fingerprint; receipts stay awaited as under `'awaited'`. An intent with neither a receipt row nor a settled terminal covering it is a wire with UNKNOWN outcome: the exported `openWireIntentsOf` fold names them, the invoice carries the `openIntents` lane (no invented dollars), `rulvar cost-audit` prints it, and a resume that finds one refuses the blind retry typed until `ResumeOptions.acknowledgeOpenWireIntents: true` is passed, which the new segment journals as `open_wire_intents_acknowledged`. Dispatch stays at-least-once with attempt binding; the default `'async'` and `'awaited'` postures keep every byte. Kit: `wire-intent-unknown-outcome` drives the reconstructed crash window through both resume arms; probes pin the quota-arm intent, the resume gate, and the receipt closure.
+
+### Patch Changes
+
+- Updated dependencies [b4d47a8]
+- Updated dependencies [dee6db4]
+- Updated dependencies [b85c113]
+- Updated dependencies [bc556e7]
+- Updated dependencies [9f11d29]
+- Updated dependencies [19bcea0]
+- Updated dependencies [60b461c]
+- Updated dependencies [61e3a1a]
+- Updated dependencies [a156b81]
+- Updated dependencies [0bd7045]
+  - @rulvar/core@1.245.0
+
 ## 1.244.0
 
 ### Minor Changes
