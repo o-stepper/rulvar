@@ -1122,6 +1122,41 @@ export interface OrchestrateClaimConsistency {
    * Requires at least one declared floor.
    */
   onLowCoverage?: 'report' | 'fail';
+  /**
+   * What the FINAL pass's coverage grade is allowed to be (RV4003,
+   * the fifth comparison experiment). 'observed' (the default) keeps
+   * today's bytes: the grade is reported and nothing gates on it.
+   * 'strict-final' refuses acceptance typed when the final meta's
+   * grade is anything but 'full' (partial, vacuous, critical
+   * uncovered, judge declined, judge failed alike), UNLESS a
+   * `waiver` is declared: the experiment's pass covered 54 of 74
+   * citing sentences, graded itself 'partial' honestly, met its own
+   * declared 0.72 target, and the run still shipped three
+   * unsupported citations inside the uncovered fraction. The ratio
+   * floors (`coverageTarget`, `minimumCoverageRatio`) stay untouched
+   * underneath: this policy binds the GRADE, the one word that
+   * already folds every truncation and dead-judge reading. Requires
+   * stage 'final' or 'both': a draft-only pass grades no final
+   * document, so the policy would gate on nothing.
+   */
+  coveragePolicy?: 'observed' | 'strict-final';
+  /**
+   * The signed exception to 'strict-final' (RV4003): a named
+   * principal accepting a non-'full' final grade, with the reason on
+   * record. The acceptance then proceeds, the decision journals as
+   * `claim_coverage_waived` (principal, reason, expiry, and the
+   * grade it waived, term for term), and the envelope carries the
+   * waiver verbatim beside the meta, so a consumer reading
+   * `coverage: 'partial'` on a strict run always finds WHO accepted
+   * it and why. `expiresAt` (ISO 8601) bounds the standing waiver: an
+   * expired one refuses exactly like no waiver, evaluated once at
+   * the enforcement point and journaled, so a resume replays the
+   * recorded verdict instead of re-reading the clock. Requires
+   * `coveragePolicy: 'strict-final'`; declaring it without the
+   * policy is a ConfigError, because a waiver over an unenforced
+   * grade is a signature over nothing.
+   */
+  waiver?: { principal: string; reason: string; expiresAt?: string };
 }
 
 /** One judged contradiction: the pair plus the judge's one-sentence reason. */
@@ -2543,6 +2578,64 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         'orchestrate claimConsistency.onLowCoverage needs a declared floor; set ' +
           'minimumCoverageRatio, runFactCoverageRatio, or coverageTarget',
       );
+    }
+    // The strict coverage policy (RV4003): garbage literals throw
+    // like every malformed input, a draft-only pass has no final
+    // grade to bind, and a waiver without the policy is a signature
+    // over nothing.
+    const coveragePolicy = (consistency as { coveragePolicy?: unknown }).coveragePolicy;
+    if (
+      coveragePolicy !== undefined &&
+      coveragePolicy !== 'observed' &&
+      coveragePolicy !== 'strict-final'
+    ) {
+      throw new ConfigError(
+        "orchestrate claimConsistency.coveragePolicy must be 'observed' or 'strict-final'; " +
+          `got ${JSON.stringify(coveragePolicy)}`,
+      );
+    }
+    if (coveragePolicy === 'strict-final' && stage === 'draft') {
+      throw new ConfigError(
+        "orchestrate claimConsistency.coveragePolicy 'strict-final' needs stage 'final' or " +
+          "'both': a draft-only pass grades no final document, so the policy would gate on " +
+          'nothing',
+      );
+    }
+    const waiver = (consistency as { waiver?: unknown }).waiver;
+    if (waiver !== undefined) {
+      if (coveragePolicy !== 'strict-final') {
+        throw new ConfigError(
+          "orchestrate claimConsistency.waiver requires coveragePolicy 'strict-final': a " +
+            'waiver over an unenforced grade is a signature over nothing',
+        );
+      }
+      if (typeof waiver !== 'object' || waiver === null || Array.isArray(waiver)) {
+        throw new ConfigError(
+          `orchestrate claimConsistency.waiver must be an object; got ${JSON.stringify(waiver)}`,
+        );
+      }
+      const shaped = waiver as { principal?: unknown; reason?: unknown; expiresAt?: unknown };
+      if (typeof shaped.principal !== 'string' || shaped.principal.length === 0) {
+        throw new ConfigError(
+          'orchestrate claimConsistency.waiver.principal must be a non empty string; got ' +
+            JSON.stringify(shaped.principal),
+        );
+      }
+      if (typeof shaped.reason !== 'string' || shaped.reason.length === 0) {
+        throw new ConfigError(
+          'orchestrate claimConsistency.waiver.reason must be a non empty string; got ' +
+            JSON.stringify(shaped.reason),
+        );
+      }
+      if (
+        shaped.expiresAt !== undefined &&
+        (typeof shaped.expiresAt !== 'string' || Number.isNaN(Date.parse(shaped.expiresAt)))
+      ) {
+        throw new ConfigError(
+          'orchestrate claimConsistency.waiver.expiresAt must be an ISO 8601 date string; ' +
+            `got ${JSON.stringify(shaped.expiresAt)}`,
+        );
+      }
     }
     if (consistency.judge !== undefined) {
       const judge = consistency.judge as {
@@ -9757,6 +9850,72 @@ export function makeOrchestratorWorkflow(
             internals.priceUsd(servedBy, usage),
           )
         : undefined;
+    // The strict final coverage policy (RV4003, the fifth comparison
+    // experiment): under 'strict-final', a final meta whose grade is
+    // anything but 'full' refuses acceptance typed, UNLESS the
+    // declared waiver stands. The experiment's pass graded itself
+    // 'partial' honestly (54 of 74 citing sentences, its own 0.72
+    // target met at 0.7297) and the run shipped three unsupported
+    // citations inside exactly the uncovered fraction; the grade was
+    // a report, and nothing could make it a gate. The waive decision
+    // journals BEFORE the envelope settles, so the exception is as
+    // durable as the acceptance it licensed.
+    let claimCoverageWaiver:
+      { principal: string; reason: string; expiresAt?: string; coverage: string } | undefined;
+    if (opts?.claimConsistency?.coveragePolicy === 'strict-final') {
+      const grade = claimConsistencyMeta?.coverage ?? 'not-judged';
+      if (grade !== 'full') {
+        const waiverSpec = opts.claimConsistency.waiver;
+        const expired =
+          waiverSpec?.expiresAt !== undefined && Date.parse(waiverSpec.expiresAt) < internals.now();
+        if (waiverSpec === undefined || expired) {
+          throw new FailRunError(
+            `claimConsistency.coveragePolicy 'strict-final': the final coverage grade is ` +
+              `'${grade}', not 'full', and ` +
+              (waiverSpec === undefined
+                ? 'no waiver is declared'
+                : `the declared waiver expired at ${String(waiverSpec.expiresAt)}`) +
+              '; raise the coverage (pairs, targets, critical anchors) or record a waiver ' +
+              'naming who accepts the gap and why',
+            {
+              data: {
+                source: 'orchestrator_claim_consistency',
+                coveragePolicy: 'strict-final',
+                coverage: grade,
+                ...(waiverSpec === undefined
+                  ? {}
+                  : { waiverExpiredAt: waiverSpec.expiresAt ?? null }),
+                ...(claimConsistencyMeta === undefined
+                  ? {}
+                  : { claimConsistencyMeta: claimConsistencyMeta as unknown as Json }),
+              },
+            },
+          );
+        }
+        claimCoverageWaiver = {
+          principal: waiverSpec.principal,
+          reason: waiverSpec.reason,
+          ...(waiverSpec.expiresAt === undefined ? {} : { expiresAt: waiverSpec.expiresAt }),
+          coverage: grade,
+        };
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: deriverV2.deriveKey({ kind: 'claim-coverage-waived' }),
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-claim-coverage',
+          value: {
+            decisionType: 'claim_coverage_waived',
+            ...claimCoverageWaiver,
+            ...(claimConsistencyMeta?.judgedHash === undefined
+              ? {}
+              : { judgedHash: claimConsistencyMeta.judgedHash }),
+          },
+        });
+      }
+    }
+
     return {
       result: synthesizedFinal,
       completion: decision.completion,
@@ -9791,6 +9950,14 @@ export function makeOrchestratorWorkflow(
       // machinery was configured, so those envelopes stay byte
       // identical.
       ...(repairLedger === undefined ? {} : { repairs: repairLedger as unknown as Json }),
+      // The standing exception (RV4003): present exactly when a
+      // strict-final acceptance was licensed by the declared waiver,
+      // verbatim plus the grade it waived, so a consumer reading a
+      // non-'full' grade on a strict run always finds who accepted it
+      // and why.
+      ...(claimCoverageWaiver === undefined
+        ? {}
+        : { claimCoverageWaiver: claimCoverageWaiver as unknown as Json }),
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
       ...(decision.salvagedPartialChildren === undefined

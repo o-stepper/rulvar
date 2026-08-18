@@ -11056,6 +11056,45 @@ interface OrchestrateClaimConsistency {
   * Requires at least one declared floor.
   */
   onLowCoverage?: "report" | "fail";
+  /**
+  * What the FINAL pass's coverage grade is allowed to be (RV4003,
+  * the fifth comparison experiment). 'observed' (the default) keeps
+  * today's bytes: the grade is reported and nothing gates on it.
+  * 'strict-final' refuses acceptance typed when the final meta's
+  * grade is anything but 'full' (partial, vacuous, critical
+  * uncovered, judge declined, judge failed alike), UNLESS a
+  * `waiver` is declared: the experiment's pass covered 54 of 74
+  * citing sentences, graded itself 'partial' honestly, met its own
+  * declared 0.72 target, and the run still shipped three
+  * unsupported citations inside the uncovered fraction. The ratio
+  * floors (`coverageTarget`, `minimumCoverageRatio`) stay untouched
+  * underneath: this policy binds the GRADE, the one word that
+  * already folds every truncation and dead-judge reading. Requires
+  * stage 'final' or 'both': a draft-only pass grades no final
+  * document, so the policy would gate on nothing.
+  */
+  coveragePolicy?: "observed" | "strict-final";
+  /**
+  * The signed exception to 'strict-final' (RV4003): a named
+  * principal accepting a non-'full' final grade, with the reason on
+  * record. The acceptance then proceeds, the decision journals as
+  * `claim_coverage_waived` (principal, reason, expiry, and the
+  * grade it waived, term for term), and the envelope carries the
+  * waiver verbatim beside the meta, so a consumer reading
+  * `coverage: 'partial'` on a strict run always finds WHO accepted
+  * it and why. `expiresAt` (ISO 8601) bounds the standing waiver: an
+  * expired one refuses exactly like no waiver, evaluated once at
+  * the enforcement point and journaled, so a resume replays the
+  * recorded verdict instead of re-reading the clock. Requires
+  * `coveragePolicy: 'strict-final'`; declaring it without the
+  * policy is a ConfigError, because a waiver over an unenforced
+  * grade is a signature over nothing.
+  */
+  waiver?: {
+    principal: string;
+    reason: string;
+    expiresAt?: string;
+  };
 }
 /** One judged contradiction: the pair plus the judge's one-sentence reason. */
 interface ClaimContradictionFinding extends ClaimPair {

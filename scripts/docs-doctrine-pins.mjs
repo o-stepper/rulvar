@@ -114,6 +114,18 @@ export const REQUIRED = [
       'the sizing section must name the 1 + r/B retry share source (RV4005: the fifth ' +
       'comparison answer multiplied by 1 + r)',
   },
+  {
+    file: 'docs/guide/orchestration-modes.md',
+    pattern: /coveragePolicy: 'strict-final'/u,
+    what: 'the claim section must name the grade gate and its waiver (RV4003)',
+  },
+  {
+    file: 'docs/guide/orchestration-modes.md',
+    pattern: /"0 findings" was never "semantically verified"/u,
+    what:
+      'the doctrine that a findings count is not a verification claim without its ' +
+      'denominator must stay on the page (RV4003, the fifth comparison experiment)',
+  },
 ];
 
 /** Judges one page; returns failure strings, empty when clean. */
