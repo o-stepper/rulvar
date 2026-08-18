@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-A grant can be taken back (RV4008, the fifth comparison experiment's P0.6 revocation half). An allow is a recorded fact history cannot unwrite, so `handle.revokeApproval(key, { principal, reason })` makes revocation its own journaled truth: a still-open approval is denied through the ordinary first-closing-wins arbitration (races stay deterministic by the journal), and a RECORDED allow gains an `approval_revoked` decision that beats it at the CONSUMPTION recheck, the moment the allow is about to license the effect, live or re-matched on resume, so an allow granted, crashed over, and revoked never dispatches its tool; the typed deny names the principal and the reason. The grant is boundable too: an allow resolution may carry `expiresAt` (validated at the registry; the recheck fails CLOSED on an unparsable expiry recorded past it), and an expired grant denies exactly like a revocation. `ApprovalDecision` gains `entryRef` and `expiresAt` (additive). Revocation gates dispatch and never chases it: an executing or executed tool is outside its reach, the documented at-least-once window. Probes pin the recheck and the fail-closed expiry.

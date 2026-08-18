@@ -1,5 +1,25 @@
 # @rulvar/store-conformance
 
+## 1.245.0
+
+### Minor Changes
+
+- 60b461c: The bounded execution scope (RV4007, the fifth comparison experiment's P0.4). Who a run executes for, as the host names it, carried WITHOUT LOSS and never interpreted: `RunOptions.scope` (`{ tenant?, account?, project? }`, own properties, non-empty strings, at least one field, copied at intake so later mutation moves nothing) records at genesis into RunMeta and a journaled `execution_scope` decision, is immutable for the run's life (no resume door), rides the invoice header as `executionScope` (a pure fold from the entries, so a FinOps pipeline reads the owner off the money document), travels in the export bundle via its meta, and `ResumeOptions.scope` asserts it back (mismatch refuses typed before ownership; a supplied scope over a run that recorded none warns). On the provider side, `ProviderAdapter.scopeKey` names the ACCOUNT within a family: the retention transport then keys provider-raw blocks by `(family, scopeKey)` instead of family alone, so cache handles and thinking blocks minted under one account never ride a request served by another; undeclared adapters keep the family-wide sharing byte for byte, and routing, pricing, and quota keys are untouched. The store conformance kit pins the RunMeta round-trip; probes pin the genesis decision and the retention separation. Attribution envelope, not IAM: tenancy semantics stay host decisions.
+
+### Patch Changes
+
+- Updated dependencies [b4d47a8]
+- Updated dependencies [dee6db4]
+- Updated dependencies [b85c113]
+- Updated dependencies [bc556e7]
+- Updated dependencies [9f11d29]
+- Updated dependencies [19bcea0]
+- Updated dependencies [60b461c]
+- Updated dependencies [61e3a1a]
+- Updated dependencies [a156b81]
+- Updated dependencies [0bd7045]
+  - @rulvar/core@1.245.0
+
 ## 1.244.0
 
 ### Minor Changes
