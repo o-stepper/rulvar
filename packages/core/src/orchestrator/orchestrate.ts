@@ -75,6 +75,7 @@ import type {
   RunHandle,
 } from '../engine/run-handle.js';
 import type { AdmissionDecision } from './admission.js';
+import { acceptanceTailRequiredUsd, formatAcceptanceTailTerms } from './admission.js';
 import { dedupeRepeatedClaims, type RepeatedClaim } from './claims.js';
 import {
   digestOf,
@@ -3117,31 +3118,39 @@ export function makeOrchestratorWorkflow(
     // cap at exact fill or better, BEFORE the first wire; undeclared
     // estimates contribute zero, so the gate binds exactly what the
     // host declared. The refusal journals its arithmetic term by term
-    // (the budget.ts refuse-clause pattern) and throws typed.
+    // (the budget.ts refuse-clause pattern) and throws typed. The
+    // arithmetic itself lives in acceptanceTailRequiredUsd (RV4001,
+    // the fifth comparison experiment): this gate shipped with its own
+    // inline formula, preflight kept another, the experiment's plan
+    // passed preflight at $4.54 and refused here at $4.82, and the
+    // inline judge-pass count read `stage: 'both'` as one pass where
+    // the worst case dispatches two. One exported function now serves
+    // both callers, so the gate and the report cannot drift again.
     if (opts?.budget?.acceptanceReserve === 'require') {
-      const synthesisHoldUsd = opts.budget.synthesisReserveUsd ?? 0;
-      const judgeEstUsd = opts?.claimConsistency?.judge?.estCost ?? 0;
-      const bootClaimStage = opts?.claimConsistency?.stage ?? 'draft';
-      const roundArmed =
-        (opts?.claimConsistency?.onFound ?? 'report') === 'repair' && bootClaimStage !== 'draft';
-      const judgePasses = 1 + (roundArmed ? 1 : 0);
-      const judgeTailUsd = judgeEstUsd * judgePasses;
-      const mechanicalRepairUsd = opts?.finishValidation?.estRepairCostUsd ?? 0;
-      const roundCompositionUsd = roundArmed ? (opts?.synthesis?.estCost ?? 0) : 0;
-      const workingRoomUsd = capState?.turnEstimateUsd ?? internals.flatReserveUsd ?? 0.5;
-      const requiredUsd =
-        synthesisHoldUsd +
-        judgeTailUsd +
-        mechanicalRepairUsd +
-        roundCompositionUsd +
-        workingRoomUsd;
+      const { requiredUsd, terms } = acceptanceTailRequiredUsd({
+        ...(opts.budget.synthesisReserveUsd === undefined
+          ? {}
+          : { synthesisReserveUsd: opts.budget.synthesisReserveUsd }),
+        ...(opts?.claimConsistency?.stage === undefined
+          ? {}
+          : { claimStage: opts.claimConsistency.stage }),
+        ...(opts?.claimConsistency?.onFound === undefined
+          ? {}
+          : { claimOnFound: opts.claimConsistency.onFound }),
+        ...(opts?.claimConsistency?.judge?.estCost === undefined
+          ? {}
+          : { claimJudgeEstCostUsd: opts.claimConsistency.judge.estCost }),
+        ...(opts?.finishValidation?.estRepairCostUsd === undefined
+          ? {}
+          : { finishEstRepairCostUsd: opts.finishValidation.estRepairCostUsd }),
+        ...(opts?.synthesis?.estCost === undefined
+          ? {}
+          : { synthesisEstCostUsd: opts.synthesis.estCost }),
+        workingRoomUsd: capState?.turnEstimateUsd ?? internals.flatReserveUsd ?? 0.5,
+      });
       const capUsd = capState?.effectiveCapUsd;
       if (capUsd === undefined || capUsd < requiredUsd) {
-        const terms =
-          `synthesisReserveUsd ${synthesisHoldUsd.toFixed(4)} + judge ${judgeEstUsd.toFixed(4)} x ` +
-          `${String(judgePasses)} pass(es) + estRepairCostUsd ${mechanicalRepairUsd.toFixed(4)} + ` +
-          `round composition ${roundCompositionUsd.toFixed(4)} + working room ` +
-          `${workingRoomUsd.toFixed(4)} = ${requiredUsd.toFixed(4)} USD`;
+        const termsLine = formatAcceptanceTailTerms(terms);
         await internals.replayer.appendSinglePhase({
           scope: callingState.scope,
           key: deriverV2.deriveKey({ kind: 'acceptance-reserve-refused' }),
@@ -3153,21 +3162,22 @@ export function makeOrchestratorWorkflow(
             decisionType: 'acceptance_reserve_refused',
             requiredUsd,
             effectiveCapUsd: capUsd ?? null,
-            synthesisReserveUsd: synthesisHoldUsd,
-            judgeEstUsd,
-            judgePasses,
-            estRepairCostUsd: mechanicalRepairUsd,
-            roundCompositionUsd,
-            workingRoomUsd,
+            synthesisReserveUsd: terms.synthesisReserveUsd,
+            judgeEstUsd: terms.judgeEstUsd,
+            judgePasses: terms.judgePasses,
+            estRepairCostUsd: terms.estRepairCostUsd,
+            roundCompositionUsd: terms.roundCompositionUsd,
+            workingRoomUsd: terms.workingRoomUsd,
           },
         });
         throw new OrchestratorCapConfigError(
           capUsd === undefined
             ? `budget.acceptanceReserve 'require' needs a resolved effective cap to hold the ` +
-                `declared acceptance tail against (${terms}); declare budget.capUsd or a run ceiling`
+                `declared acceptance tail against (${termsLine}); declare budget.capUsd or a ` +
+                'run ceiling'
             : `budget.acceptanceReserve 'require': the declared acceptance tail does not fit the ` +
-                `effective cap ${capUsd.toFixed(4)} USD (${terms}); raise the cap or lower the ` +
-                'declared tail',
+                `effective cap ${capUsd.toFixed(4)} USD (${termsLine}); raise the cap or lower ` +
+                'the declared tail',
         );
       }
     }

@@ -290,6 +290,120 @@ export function dispatchProjectionReserveUsd(
   return spec.budgetUsd === undefined ? base : Math.min(base, spec.budgetUsd);
 }
 
+/**
+ * Worst-case claim judge dispatches of a declared posture
+ * (RV3402/RV4001): `'both'` dispatches the judge at the draft AND the
+ * final, and an armed repair round (`onFound: 'repair'`, which intake
+ * refuses at stage 'draft') rejudges the repaired composition once
+ * more. Absent declarations read as the historical one pass.
+ */
+export function acceptanceJudgePasses(
+  stage?: 'draft' | 'final' | 'both',
+  onFound?: 'report' | 'carry' | 'fail' | 'repair',
+): number {
+  const resolvedStage = stage ?? 'draft';
+  const roundArmed = (onFound ?? 'report') === 'repair' && resolvedStage !== 'draft';
+  return (resolvedStage === 'both' ? 2 : 1) + (roundArmed ? 1 : 0);
+}
+
+/** The declared inputs of the acceptance tail (RV4001); undeclared estimates are zero. */
+export interface AcceptanceTailSpec {
+  /** The held synthesis payload reserve, exactly budget.synthesisReserveUsd. */
+  synthesisReserveUsd?: number;
+  /** Mirrors OrchestrateClaimConsistency.stage; absent reads 'draft'. */
+  claimStage?: 'draft' | 'final' | 'both';
+  /** Mirrors OrchestrateClaimConsistency.onFound; absent reads 'report'. */
+  claimOnFound?: 'report' | 'carry' | 'fail' | 'repair';
+  /** The claim judge's declared admission estimate, claimConsistency.judge.estCost. */
+  claimJudgeEstCostUsd?: number;
+  /** The mechanical repair turn's declared price, finishValidation.estRepairCostUsd. */
+  finishEstRepairCostUsd?: number;
+  /** The declared price of one composition, synthesis.estCost. */
+  synthesisEstCostUsd?: number;
+  /** One coordination turn floor: the resolved flat reserve of the run. */
+  workingRoomUsd: number;
+}
+
+/** The resolved terms behind {@link acceptanceTailRequiredUsd}; journal-ready numbers. */
+export interface AcceptanceTailTerms {
+  synthesisReserveUsd: number;
+  judgeEstUsd: number;
+  /** Worst-case judge dispatches: ('both' ? 2 : 1) plus one under an armed repair round. */
+  judgePasses: number;
+  estRepairCostUsd: number;
+  /** One more composition when the repair round is armed, priced at synthesis.estCost. */
+  roundCompositionUsd: number;
+  workingRoomUsd: number;
+}
+
+/**
+ * The ONE acceptance-tail formula (RV4001, the fifth comparison
+ * experiment): what the effective cap must cover, at exact fill or
+ * better, so the acceptance machinery the host declared is funded and
+ * not started on luck. The RV3907 runtime gate landed WITHOUT a
+ * preflight twin: preflight kept its own advisory arithmetic on
+ * different terms, passed the experiment's plan green at a $4.54 cap,
+ * and the runtime then refused the same plan typed at $4.82 before the
+ * first wire; worse, the runtime undercounted the judge passes of
+ * `stage: 'both'` (one where the worst case dispatches two) while
+ * preflight counted them right, so the two calculators disagreed in
+ * BOTH directions. The gate and the preflight `acceptanceReserve`
+ * report block now both call this function, exactly the
+ * {@link dispatchProjectionReserveUsd} precedent: one formula, so the
+ * linter and the runtime cannot drift. Undeclared estimates contribute
+ * zero: the tail binds exactly what the host declared. The armed
+ * repair round (`onFound: 'repair'`, never at stage 'draft', which
+ * intake refuses) adds one judge pass and one composition priced at
+ * the declared `synthesis.estCost`.
+ */
+export function acceptanceTailRequiredUsd(spec: AcceptanceTailSpec): {
+  requiredUsd: number;
+  terms: AcceptanceTailTerms;
+} {
+  const stage = spec.claimStage ?? 'draft';
+  const onFound = spec.claimOnFound ?? 'report';
+  const roundArmed = onFound === 'repair' && stage !== 'draft';
+  const judgePasses = acceptanceJudgePasses(spec.claimStage, spec.claimOnFound);
+  const terms: AcceptanceTailTerms = {
+    synthesisReserveUsd: spec.synthesisReserveUsd ?? 0,
+    judgeEstUsd: spec.claimJudgeEstCostUsd ?? 0,
+    judgePasses,
+    estRepairCostUsd: spec.finishEstRepairCostUsd ?? 0,
+    roundCompositionUsd: roundArmed ? (spec.synthesisEstCostUsd ?? 0) : 0,
+    workingRoomUsd: spec.workingRoomUsd,
+  };
+  return {
+    requiredUsd:
+      terms.synthesisReserveUsd +
+      terms.judgeEstUsd * terms.judgePasses +
+      terms.estRepairCostUsd +
+      terms.roundCompositionUsd +
+      terms.workingRoomUsd,
+    terms,
+  };
+}
+
+/**
+ * The one rendering of the tail arithmetic (RV4001): the runtime
+ * refusal message and the preflight finding print this same string, so
+ * an operator can diff them by eye and a test can assert them equal.
+ */
+export function formatAcceptanceTailTerms(terms: AcceptanceTailTerms): string {
+  const requiredUsd =
+    terms.synthesisReserveUsd +
+    terms.judgeEstUsd * terms.judgePasses +
+    terms.estRepairCostUsd +
+    terms.roundCompositionUsd +
+    terms.workingRoomUsd;
+  return (
+    `synthesisReserveUsd ${terms.synthesisReserveUsd.toFixed(4)} + judge ` +
+    `${terms.judgeEstUsd.toFixed(4)} x ${String(terms.judgePasses)} pass(es) + ` +
+    `estRepairCostUsd ${terms.estRepairCostUsd.toFixed(4)} + round composition ` +
+    `${terms.roundCompositionUsd.toFixed(4)} + working room ` +
+    `${terms.workingRoomUsd.toFixed(4)} = ${requiredUsd.toFixed(4)} USD`
+  );
+}
+
 /** Nesting depth of a child scope: its workflow, agent, and plan-node segments. */
 export function spawnDepthOf(childScope: string): number {
   return parseScopePath(childScope).filter(

@@ -33,4 +33,4 @@ validators that did it.
 | <a id="property-failed"></a> `failed` | \{ `name`: `string`; `reasons`: `string`[]; \}[] | Each validator that rejected it, with its reasons: the diff. | `packages/core/dist/index.d.ts` |
 | <a id="property-hash"></a> `hash` | `string` | sha256 over the canonical candidate; identity, not location. | `packages/core/dist/index.d.ts` |
 | <a id="property-ref"></a> `ref?` | `string` | Transcript ref holding the bytes; absent unless retention is on and the write succeeded. | `packages/core/dist/index.d.ts` |
-| <a id="property-verdict"></a> `verdict` | `"rejected"` \| `"repair"` | `'repair'` when another turn was granted, `'rejected'` when this was the last. | `packages/core/dist/index.d.ts` |
+| <a id="property-verdict"></a> `verdict` | `"repair"` \| `"rejected"` | `'repair'` when another turn was granted, `'rejected'` when this was the last. | `packages/core/dist/index.d.ts` |

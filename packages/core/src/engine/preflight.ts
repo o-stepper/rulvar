@@ -36,9 +36,13 @@ import {
   type UsageLimits,
 } from '../runtime/usage-limits.js';
 import {
+  acceptanceJudgePasses,
+  acceptanceTailRequiredUsd,
   DEFAULT_CHILD_BUDGET_FRACTION,
   DEFAULT_MAX_DEPTH,
   dispatchProjectionReserveUsd,
+  formatAcceptanceTailTerms,
+  type AcceptanceTailTerms,
 } from '../orchestrator/admission.js';
 import {
   DEFAULT_FINISH_MAX_REPAIRS,
@@ -170,6 +174,15 @@ export interface PreflightOrchestratorSpec {
     model?: ModelSpec;
     limits?: UsageLimits;
     estInputTokens?: number;
+    /**
+     * Mirrors OrchestrateSynthesis.estCost (RV4001): the declared
+     * price of one composition, the armed repair round's second
+     * invocation among them. The `acceptanceReserve` block prices the
+     * round's composition at exactly this figure, the same term the
+     * RV3907 runtime gate holds, so declaring it here is what makes
+     * the preflight verdict and the boot verdict one number.
+     */
+    estCost?: number;
     /**
      * Mirrors OrchestrateSynthesis.exposeChildResultTools (the v1.74
      * experiment review, P0.2): declaring it lets the evidence
@@ -342,6 +355,16 @@ export interface PreflightInput {
           requireSections?: string[];
         }
       | 'contract';
+    /**
+     * Mirrors FinishValidationSpec.estRepairCostUsd (RV4001): the
+     * declared price of the one mechanical repair turn the finish
+     * contract can grant (RV3802 holds exactly this figure live). The
+     * `acceptanceReserve` block folds it into the required tail, the
+     * same term the RV3907 runtime gate sums, so a declared repair
+     * price is judged before the run and enforced inside it by the
+     * SAME arithmetic.
+     */
+    estRepairCostUsd?: number;
   };
 }
 
@@ -472,6 +495,25 @@ export interface PreflightReport {
       synthesis?: {
         projectedProviderTurns: number;
         servedBy?: ModelRef;
+      };
+      /**
+       * The acceptance-tail verdict (RV4001), present exactly when
+       * budget.acceptanceReserve is declared: the SAME
+       * acceptanceTailRequiredUsd arithmetic the RV3907 runtime gate
+       * holds the boot against, term by term, so `fits` here IS the
+       * gate's answer. The fifth comparison experiment ran a plan
+       * preflight passed green at a $4.54 cap into a typed runtime
+       * refusal at $4.82 because the two sides computed different
+       * formulas; they now compute one.
+       */
+      acceptanceReserve?: {
+        declared: 'warn' | 'require';
+        requiredUsd: number;
+        /** Absent when no cap resolves; the runtime then refuses under 'require'. */
+        effectiveCapUsd?: number;
+        /** Exact fill admits, exactly the runtime gate. */
+        fits: boolean;
+        terms: AcceptanceTailTerms;
       };
     };
   };
@@ -972,6 +1014,28 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       }
     }
     const spec = input.orchestrator.budget;
+    if (
+      spec?.acceptanceReserve !== undefined &&
+      spec.acceptanceReserve !== 'warn' &&
+      spec.acceptanceReserve !== 'require'
+    ) {
+      throw new ConfigError(
+        "preflight.orchestrator.budget.acceptanceReserve must be 'warn' or 'require'; got " +
+          JSON.stringify(spec.acceptanceReserve),
+      );
+    }
+    if (input.orchestrator.synthesis?.estCost !== undefined) {
+      requireNonNegativeNumber(
+        input.orchestrator.synthesis.estCost,
+        'preflight.orchestrator.synthesis.estCost',
+      );
+    }
+    if (input.finishValidation?.estRepairCostUsd !== undefined) {
+      requireNonNegativeNumber(
+        input.finishValidation.estRepairCostUsd,
+        'preflight.finishValidation.estRepairCostUsd',
+      );
+    }
     const fraction = spec?.capFraction ?? 0.2;
     const fromFraction = ceilingUsd === undefined ? undefined : fraction * ceilingUsd;
     const bounds = [spec?.capUsd, fromFraction].filter(
@@ -1030,6 +1094,70 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           `effectiveCap ${effectiveCapUsd.toFixed(4)} USD is below the finalize reserve ` +
           `${finalizeReserveUsd.toFixed(4)} USD: the run would refuse to start`,
       });
+    }
+    // The acceptance-tail twin of the RV3907 runtime gate (RV4001, the
+    // fifth comparison experiment): the SAME acceptanceTailRequiredUsd
+    // arithmetic, term for term, against the SAME effective cap, with
+    // the working room at the runtime's own resolution (the flat
+    // reserve; the boot gate reads capState.turnEstimateUsd, which is
+    // exactly that figure). Present only when the posture is declared,
+    // so undeclared inputs keep the report and findings byte
+    // identical. Under 'require' an unfit tail is an ERROR: the run
+    // would refuse to start before its first wire, and a planner that
+    // only gates on errors (the experiment's harness) must not sail
+    // past it the way it sailed past the advisory warnings. Under
+    // 'warn' the same arithmetic surfaces as a warning, exactly the
+    // declared posture's contract: findings in preflight, nothing at
+    // runtime.
+    if (spec?.acceptanceReserve !== undefined) {
+      const { requiredUsd, terms } = acceptanceTailRequiredUsd({
+        ...(spec.synthesisReserveUsd === undefined
+          ? {}
+          : { synthesisReserveUsd: spec.synthesisReserveUsd }),
+        ...(input.orchestrator.claimConsistency?.stage === undefined
+          ? {}
+          : { claimStage: input.orchestrator.claimConsistency.stage }),
+        ...(input.orchestrator.claimConsistency?.onFound === undefined
+          ? {}
+          : { claimOnFound: input.orchestrator.claimConsistency.onFound }),
+        ...(input.orchestrator.claimConsistency?.judge?.estCost === undefined
+          ? {}
+          : { claimJudgeEstCostUsd: input.orchestrator.claimConsistency.judge.estCost }),
+        ...(input.finishValidation?.estRepairCostUsd === undefined
+          ? {}
+          : { finishEstRepairCostUsd: input.finishValidation.estRepairCostUsd }),
+        ...(input.orchestrator.synthesis?.estCost === undefined
+          ? {}
+          : { synthesisEstCostUsd: input.orchestrator.synthesis.estCost }),
+        workingRoomUsd: flatReserveUsd,
+      });
+      const fits = effectiveCapUsd !== undefined && effectiveCapUsd >= requiredUsd;
+      orchestratorEcho.acceptanceReserve = {
+        declared: spec.acceptanceReserve,
+        requiredUsd,
+        ...(effectiveCapUsd === undefined ? {} : { effectiveCapUsd }),
+        fits,
+        terms,
+      };
+      if (!fits) {
+        const termsLine = formatAcceptanceTailTerms(terms);
+        say({
+          severity: spec.acceptanceReserve === 'require' ? 'error' : 'warning',
+          code: 'acceptance-reserve-unfit',
+          message:
+            (effectiveCapUsd === undefined
+              ? `budget.acceptanceReserve '${spec.acceptanceReserve}': no effective cap ` +
+                `resolves to hold the declared acceptance tail against (${termsLine})`
+              : `budget.acceptanceReserve '${spec.acceptanceReserve}': the declared acceptance ` +
+                `tail does not fit the effective cap ${effectiveCapUsd.toFixed(4)} USD ` +
+                `(${termsLine})`) +
+            (spec.acceptanceReserve === 'require'
+              ? '; the run would refuse to start before its first wire (RV3907): raise the ' +
+                'cap or lower the declared tail'
+              : '; the run would start with its acceptance machinery funded by luck: raise ' +
+                "the cap, lower the declared tail, or declare 'require' to refuse instead"),
+        });
+      }
     }
   }
 
@@ -2316,11 +2444,16 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   // judge pass AND one more composition, priced at the declared
   // synthesis reserve because that is the host's own estimate of one
   // composition. Absent declarations keep the historical one pass
-  // reading byte for byte.
+  // reading byte for byte. The count itself is the shared
+  // acceptanceJudgePasses (RV4001): the same figure the RV3907 gate
+  // and the acceptanceReserve block hold, so the advisory warning and
+  // the binding arithmetic can never count passes differently again
+  // (the runtime undercounted 'both' for one release exactly because
+  // this line and the gate each kept their own copy).
   const claimPosture = input.orchestrator?.claimConsistency;
-  const repairArmed = claimPosture?.onFound === 'repair';
-  const worstJudgePasses =
-    ((claimPosture?.stage ?? 'draft') === 'both' ? 2 : 1) + (repairArmed ? 1 : 0);
+  const repairArmed =
+    claimPosture?.onFound === 'repair' && (claimPosture?.stage ?? 'draft') !== 'draft';
+  const worstJudgePasses = acceptanceJudgePasses(claimPosture?.stage, claimPosture?.onFound);
   {
     const judgeEstUsd = input.orchestrator?.claimConsistency?.judge?.estCost;
     if (judgeEstUsd !== undefined && effectiveCapUsd !== undefined && synthesisHoldUsd > 0) {
