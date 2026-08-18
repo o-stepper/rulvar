@@ -1323,6 +1323,10 @@
             "link": "/api/@rulvar/core/interfaces/NodeLinkValue.md"
           },
           {
+            "text": "OpenWireIntent",
+            "link": "/api/@rulvar/core/interfaces/OpenWireIntent.md"
+          },
+          {
             "text": "OrchestrateAcceptance",
             "link": "/api/@rulvar/core/interfaces/OrchestrateAcceptance.md"
           },
@@ -3587,6 +3591,10 @@
           {
             "text": "normalizeFallbacks",
             "link": "/api/@rulvar/core/functions/normalizeFallbacks.md"
+          },
+          {
+            "text": "openWireIntentsOf",
+            "link": "/api/@rulvar/core/functions/openWireIntentsOf.md"
           },
           {
             "text": "orchestrate",
@@ -6577,6 +6585,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/OpenAiAdapterOptions.md"
           },
           {
+            "text": "OpenWireIntent",
+            "link": "/api/@rulvar/rulvar/interfaces/OpenWireIntent.md"
+          },
+          {
             "text": "OrchestrateAcceptance",
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateAcceptance.md"
           },
@@ -8889,6 +8901,10 @@
           {
             "text": "openai",
             "link": "/api/@rulvar/rulvar/functions/openai.md"
+          },
+          {
+            "text": "openWireIntentsOf",
+            "link": "/api/@rulvar/rulvar/functions/openWireIntentsOf.md"
           },
           {
             "text": "orchestrate",

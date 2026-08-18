@@ -335,6 +335,29 @@ export interface InvoiceExport {
    * their bytes.
    */
   executionScope?: { tenant?: string; account?: string; project?: string };
+  /**
+   * The unknown-outcome intent lane (RV4006): `provider-intent`
+   * decisions (the 'intent' receipt posture journals one before every
+   * dispatched wire attempt) that neither a receipt row nor a settled
+   * terminal's record set covers. Each row is a wire the provider may
+   * have billed while this process never learned the outcome: no
+   * dollars ride the lane, because inventing them would be the exact
+   * lie the posture exists to prevent; reconcile against the provider
+   * statement by fingerprint and coordinates instead. Absent when no
+   * intent is open, so every other invoice keeps its bytes.
+   */
+  openIntents?: {
+    count: number;
+    rows: Array<{
+      seq: number;
+      scope: string;
+      agentRef: number;
+      ordinal: number;
+      attempt: number;
+      servedBy: string;
+      requestFingerprint?: string;
+    }>;
+  };
 }
 
 const USAGE_FIELDS = [
@@ -560,6 +583,92 @@ function rowUsd(
 ): number | undefined {
   const usd = priceUsd(servedBy, usage, seq);
   return usd !== undefined && Number.isFinite(usd) && usd >= 0 ? usd : undefined;
+}
+
+/** One open provider wire intent (RV4006). */
+export interface OpenWireIntent {
+  seq: number;
+  scope: string;
+  agentRef: number;
+  ordinal: number;
+  attempt: number;
+  servedBy: string;
+  requestFingerprint?: string;
+}
+
+/**
+ * The open provider wire intents of a journal (RV4006): every
+ * `provider-intent` decision with neither a `provider-call` receipt
+ * row nor a settled terminal record covering its (agentRef, ordinal,
+ * attempt). ONE pairing rule, shared by the invoice's `openIntents`
+ * lane and the resume refusal, the dispatchProjectionReserveUsd
+ * precedent: the linter and the gate cannot drift.
+ */
+export function openWireIntentsOf(entries: readonly JournalEntry[]): OpenWireIntent[] {
+  const terminals = new Map<number, JournalEntry>();
+  const receipts = new Set<string>();
+  const intents: OpenWireIntent[] = [];
+  for (const entry of entries) {
+    if (entry.kind === 'agent' && entry.status !== 'running' && typeof entry.ref === 'number') {
+      terminals.set(entry.ref, entry);
+      continue;
+    }
+    if (entry.kind !== 'decision') {
+      continue;
+    }
+    const value = entry.value as
+      | {
+          decisionType?: unknown;
+          agentRef?: unknown;
+          ordinal?: unknown;
+          attempt?: unknown;
+          servedBy?: unknown;
+          requestFingerprint?: unknown;
+          record?: { ordinal?: unknown; attempt?: unknown };
+        }
+      | undefined;
+    if (value?.decisionType === 'provider-call' && typeof value.agentRef === 'number') {
+      const ordinal = value.record?.ordinal;
+      const attempt = typeof value.record?.attempt === 'number' ? value.record.attempt : 1;
+      if (typeof ordinal === 'number') {
+        receipts.add(`${String(value.agentRef)}:${String(ordinal)}:${String(attempt)}`);
+      }
+      continue;
+    }
+    if (
+      value?.decisionType === 'provider-intent' &&
+      typeof value.agentRef === 'number' &&
+      typeof value.ordinal === 'number' &&
+      typeof value.attempt === 'number' &&
+      typeof value.servedBy === 'string'
+    ) {
+      intents.push({
+        seq: entry.seq,
+        scope: entry.scope,
+        agentRef: value.agentRef,
+        ordinal: value.ordinal,
+        attempt: value.attempt,
+        servedBy: value.servedBy,
+        ...(typeof value.requestFingerprint === 'string'
+          ? { requestFingerprint: value.requestFingerprint }
+          : {}),
+      });
+    }
+  }
+  return intents.filter((intent) => {
+    if (
+      receipts.has(`${String(intent.agentRef)}:${String(intent.ordinal)}:${String(intent.attempt)}`)
+    ) {
+      return false;
+    }
+    const terminal = terminals.get(intent.agentRef);
+    if (terminal === undefined) {
+      return true;
+    }
+    return !(terminal.providerCalls ?? []).some(
+      (call) => call.ordinal === intent.ordinal && call.attempt === intent.attempt,
+    );
+  });
 }
 
 /**
@@ -860,6 +969,12 @@ export function invoiceFromJournal(
         }
       }
       return {};
+    })(),
+    // The unknown-outcome intent lane (RV4006): the SAME exported
+    // pairing the resume refusal reads, absent when nothing is open.
+    ...((): { openIntents?: NonNullable<InvoiceExport['openIntents']> } => {
+      const open = openWireIntentsOf(entries);
+      return open.length === 0 ? {} : { openIntents: { count: open.length, rows: open } };
     })(),
     ...((): { usageUnknownRows?: number } => {
       const count = rows.filter((row) => row.usageUnknown === true).length;

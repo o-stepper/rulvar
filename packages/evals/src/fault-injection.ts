@@ -4561,6 +4561,120 @@ const citationEntailmentAudit: FaultScenario = {
   },
 };
 
+// ---- The pre-wire provider intent (RV4006): under the 'intent'
+// receipt posture, the wire most exposed at a crash (the one being
+// paid for) has a durable intent BEFORE the provider could bill; an
+// intent left open at resume marks a wire whose outcome the process
+// never learned, and a blind retry could pay twice.
+const wireIntentUnknownOutcome: FaultScenario = {
+  name: 'wire-intent-unknown-outcome',
+  doctrine:
+    "billingReceipts 'intent' journals a provider-intent before every dispatched wire " +
+    'attempt (RV4006), and a resume that finds one with no receipt and no terminal ' +
+    'coverage refuses the blind retry typed; the acknowledged resume journals the ' +
+    'override and the invoice names the wire in its openIntents lane, with no invented ' +
+    'dollars, because the outcome is exactly what the process does not know',
+  async run() {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-fault-intent-'));
+    const makeRig = (): { engine: ReturnType<typeof createEngine>; store: JsonlFileStore } => {
+      const store = new JsonlFileStore({ dir });
+      const engine = createEngine({
+        adapters: [new FakeAdapter({ agents: { '*': 'stored answer' } })],
+        stores: { journal: store },
+        defaults: {
+          ...ROUTING,
+          billingReceipts: 'intent',
+        },
+      });
+      return { engine, store };
+    };
+    const first = makeRig();
+    const seeded = await first.engine.run(echoWorkflow, undefined, {
+      runId: 'fault-wire-intent',
+      budgetUsd: 5,
+    }).result;
+    const seededEntries = await first.store.load('fault-wire-intent');
+    const intentRows = seededEntries.filter(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'provider-intent',
+    );
+    // The crash window, reconstructed byte for byte: an intent with
+    // no receipt and no terminal for its dispatch.
+    const file = readdirSync(dir)
+      .filter((name) => name.includes('fault-wire-intent') && name.endsWith('.jsonl'))
+      .map((name) => join(dir, name))[0];
+    if (file === undefined) {
+      throw new Error('fault kit: no journal file for the intent scenario');
+    }
+    const lines = readFileSync(file, 'utf8').trim().split('\n');
+    const maxSeq = Math.max(...lines.map((line) => (JSON.parse(line) as { seq: number }).seq));
+    const orphan = {
+      seq: maxSeq + 1,
+      kind: 'decision',
+      scope: '',
+      key: 'pi:99999:1:1',
+      status: 'ok',
+      spanId: 'crash-window',
+      site: 'provider-intent',
+      value: {
+        decisionType: 'provider-intent',
+        agentRef: 99999,
+        ordinal: 1,
+        attempt: 1,
+        servedBy: FAKE_MODEL_REF,
+        requestFingerprint: 'f'.repeat(64),
+      },
+    };
+    writeFileSync(file, `${lines.join('\n')}\n${JSON.stringify(orphan)}\n`, 'utf8');
+    const poisoned = await new JsonlFileStore({ dir }).load('fault-wire-intent');
+    const lane = invoiceFromJournal(poisoned, () => 0.001).openIntents;
+
+    let refusedTyped = false;
+    let refusedMessage = '';
+    try {
+      await makeRig().engine.resume('fault-wire-intent', echoWorkflow).result;
+    } catch (thrown) {
+      refusedMessage = thrown instanceof Error ? thrown.message : String(thrown);
+      refusedTyped =
+        thrown instanceof Error &&
+        thrown.name === 'ConfigError' &&
+        refusedMessage.includes('unknown outcome') &&
+        refusedMessage.includes('acknowledgeOpenWireIntents');
+    }
+    const acked = await makeRig().engine.resume('fault-wire-intent', echoWorkflow, {
+      acknowledgeOpenWireIntents: true,
+    }).result;
+    const after = await new JsonlFileStore({ dir }).load('fault-wire-intent');
+    const ackDecision = after.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'open_wire_intents_acknowledged',
+    );
+    const matched =
+      seeded.status === 'ok' &&
+      intentRows.length > 0 &&
+      lane?.count === 1 &&
+      lane.rows[0]?.agentRef === 99999 &&
+      refusedTyped &&
+      acked.status === 'ok' &&
+      ackDecision !== undefined;
+    return {
+      observation: {
+        matched,
+        detail:
+          `seed '${seeded.status}' with ${String(intentRows.length)} intent row(s); ` +
+          `lane count=${String(lane?.count)}; refusal typed=${String(refusedTyped)}; ` +
+          `acknowledged resume '${acked.status}' with decision journaled=` +
+          `${String(ackDecision !== undefined)}`,
+      },
+      artifacts: [
+        jsonArtifact('refusal.json', { message: refusedMessage }),
+        jsonArtifact('lane.json', lane ?? null),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -4604,6 +4718,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   strictCoveragePolicy,
   acceptanceReserveRefusal,
   budgetPolicyImmutable,
+  wireIntentUnknownOutcome,
 ];
 
 /** The scenario names in run order. */

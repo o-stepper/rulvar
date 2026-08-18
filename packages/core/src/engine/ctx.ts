@@ -9,7 +9,7 @@
  * Public contract: https://docs.rulvar.com/guide/workflows.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { randomUUID, getRandomValues } from 'node:crypto';
+import { createHash, randomUUID, getRandomValues } from 'node:crypto';
 import {
   AdmissionRejectedError,
   agentErrorFromWire,
@@ -25,6 +25,7 @@ import {
 import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import { requireDeadlineMs, requireNonNegativeNumber } from '../l0/validate-numbers.js';
 import type { Json } from '../l0/json.js';
+import { jcsSerialize } from '../l0/jcs.js';
 import type {
   CachePolicy,
   Effort,
@@ -831,7 +832,7 @@ export interface RunInternals {
     /** The engine-wide prompt-cache policy (RV2006); profile and call opts win. */
     cache?: CachePolicy;
     /** The receipt posture of the billing seam (RV3405); default 'async'. */
-    billingReceipts?: 'async' | 'awaited';
+    billingReceipts?: 'async' | 'awaited' | 'intent';
   };
   /** Telemetry compat posture (RV1810). */
   telemetry?: {
@@ -2599,12 +2600,59 @@ export function createCtx(
         // the wire being paid for at the moment of a crash is exactly
         // the one that survived. The catch above keeps a failed append
         // a loud degradation to the terminal lane in BOTH postures,
-        // never a run failure.
-        if (internals.defaults.billingReceipts === 'awaited') {
+        // never a run failure. The 'intent' posture (RV4006) awaits
+        // receipts too: fire-and-forget receipts beside durable
+        // intents would leave every intent looking open until the
+        // terminal landed.
+        if (
+          internals.defaults.billingReceipts === 'awaited' ||
+          internals.defaults.billingReceipts === 'intent'
+        ) {
           return append;
         }
         void append;
       },
+      // The pre-wire intent lane (RV4006): under the 'intent' posture
+      // every dispatched wire attempt journals its intent BEFORE the
+      // provider could bill, awaited (intent before effect, the RV601
+      // precedent), keyed by dispatch seq, ordinal, and attempt so a
+      // failover retry writes its own row. A failed append REFUSES
+      // the dispatch by letting the rejection surface: a wire whose
+      // intent could not be made durable must not be able to bill,
+      // the executor ledger's own rule. Absent in the other postures,
+      // so their dispatch path is byte identical.
+      ...(internals.defaults.billingReceipts === 'intent'
+        ? {
+            onProviderIntent: (intent: {
+              ordinal: number;
+              role: InvocationRole;
+              servedBy: ModelRef;
+              attempt: number;
+              request: { messages: unknown };
+            }): Promise<void> =>
+              internals.replayer
+                .appendSinglePhase({
+                  scope: state.scope,
+                  key: `pi:${String(running.seq)}:${String(intent.ordinal)}:${String(intent.attempt)}`,
+                  kind: 'decision',
+                  status: 'ok',
+                  spanId,
+                  site: 'provider-intent',
+                  value: {
+                    decisionType: 'provider-intent',
+                    agentRef: running.seq,
+                    ordinal: intent.ordinal,
+                    role: intent.role,
+                    servedBy: intent.servedBy,
+                    attempt: intent.attempt,
+                    requestFingerprint: createHash('sha256')
+                      .update(jcsSerialize(intent.request.messages as Json), 'utf8')
+                      .digest('hex'),
+                  },
+                })
+                .then(() => undefined),
+          }
+        : {}),
     };
     runAgentOptions.summarize = summarize;
     if (profile?.compaction !== undefined) {

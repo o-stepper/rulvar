@@ -44,6 +44,7 @@ import { validateEntryShape } from '../journal/kinds.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { validateSchemaSpec, type SchemaSpec } from '../l0/schema.js';
 import { jcsSerialize } from '../l0/jcs.js';
+import { openWireIntentsOf } from './invoice.js';
 import { validateToolsetAttestation, type ToolsOption } from '../tools/toolset-hash.js';
 import { normalizeEntry, type JournalEntry } from '../l0/entries.js';
 import { Replayer } from '../journal/replayer.js';
@@ -178,9 +179,21 @@ export interface EngineDefaults {
    * precedent), buying durable payment evidence for one journal IO
    * await per wire call; a failed append still degrades loudly to the
    * terminal lane (the RV2008 warning), never fails the run. Default
-   * `'async'`: byte identical to RV2008.
+   * `'async'`: byte identical to RV2008. `'intent'` (RV4006, the
+   * fifth comparison experiment's P0.5) goes one step further: every
+   * dispatched wire attempt journals a `provider-intent` decision
+   * BEFORE the provider could bill (awaited, intent before effect,
+   * the executor ledger's own rule: a failed intent append refuses
+   * the dispatch), receipts are awaited as under `'awaited'`, and a
+   * resume that finds an intent with no receipt and no terminal
+   * coverage refuses the blind retry typed unless
+   * `ResumeOptions.acknowledgeOpenWireIntents` is passed, because the
+   * provider may have billed a wire this process never heard back
+   * from. The intent narrows the unknown-outcome window to the wire
+   * itself; dispatch stays at-least-once with attempt binding, and
+   * the invoice names every open intent in its `openIntents` lane.
    */
-  billingReceipts?: 'async' | 'awaited';
+  billingReceipts?: 'async' | 'awaited' | 'intent';
 }
 
 export interface BudgetDefaults {
@@ -590,6 +603,18 @@ export interface ResumeOptions {
    * scope resumes verbatim whether or not it is re-asserted.
    */
   scope?: ExecutionScope;
+  /**
+   * The unknown-outcome acknowledgment (RV4006): a run under the
+   * 'intent' receipt posture that crashed between a wire's journaled
+   * intent and its receipt holds wires whose outcome this process
+   * never learned; the provider may have billed them, and a blind
+   * redispatch could pay twice, so resume refuses typed. Passing true
+   * acknowledges the risk explicitly (reconcile the invoice's
+   * `openIntents` lane against the provider statement first) and the
+   * new segment journals the acknowledgment, so the override is as
+   * durable as the intents it waves through.
+   */
+  acknowledgeOpenWireIntents?: boolean;
   /**
    * The host's asserted config identity for this resume (RV3210),
    * compared against the RunMeta-recorded
@@ -1457,9 +1482,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
   }
   if (
     options.defaults?.billingReceipts !== undefined &&
-    !['async', 'awaited'].includes(options.defaults.billingReceipts)
+    !['async', 'awaited', 'intent'].includes(options.defaults.billingReceipts)
   ) {
-    throw new ConfigError("createEngine defaults.billingReceipts must be 'async' or 'awaited'");
+    throw new ConfigError(
+      "createEngine defaults.billingReceipts must be 'async', 'awaited' or 'intent'",
+    );
   }
   if (
     options.telemetry?.quotaDeniedAgentError !== undefined &&
@@ -1614,6 +1641,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
     configFingerprint?: string;
     /** The RunMeta-recorded execution scope (RV4007), restored verbatim; absence stays absent. */
     scope?: ExecutionScope;
+    /**
+     * Open provider wire intents the host explicitly acknowledged
+     * (RV4006): the count travels in so the segment journals the
+     * acknowledgment beside the run_budget_override precedent.
+     */
+    acknowledgedOpenWireIntents?: number;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -2337,6 +2370,32 @@ export function createEngine(options: CreateEngineOptions): Engine {
           value: {
             decisionType: 'execution_scope',
             scope: executionScope as unknown as Json,
+          },
+        });
+      }
+      // The acknowledged unknown-outcome wires (RV4006): journaled by
+      // the segment that waved them through, the override decision's
+      // pattern, so an audit reads WHO resumed past open intents and
+      // when instead of inferring it from a segment boundary.
+      if (
+        resumeCtx?.acknowledgedOpenWireIntents !== undefined &&
+        resumeCtx.acknowledgedOpenWireIntents > 0 &&
+        resumeCtx.strict !== true
+      ) {
+        await replayer.appendSinglePhase({
+          scope: '',
+          key: deriverV2.deriveKey({
+            kind: 'open-wire-intents-acknowledged',
+            segment: segmentsBefore + 1,
+          }),
+          kind: 'decision',
+          status: 'ok',
+          spanId: rootSpanId,
+          site: 'resume-acknowledgment',
+          value: {
+            decisionType: 'open_wire_intents_acknowledged',
+            segment: segmentsBefore + 1,
+            count: resumeCtx.acknowledgedOpenWireIntents,
           },
         });
       }
@@ -3199,7 +3258,38 @@ export function createEngine(options: CreateEngineOptions): Engine {
             'of editing its ceilings',
         );
       }
+      // The unknown-outcome wire refusal (RV4006), before ownership,
+      // meta writes, and any append: an intent journaled before a
+      // dispatch that has neither a receipt row nor a terminal record
+      // covering it marks a wire whose outcome this process never
+      // learned. The provider may have billed it, and a blind
+      // redispatch could pay twice; the explicit acknowledgment is
+      // journaled by the new segment, so the override is durable.
+      const openIntents = openWireIntentsOf(priorEntries);
+      if (openIntents.length > 0 && resumeOptions?.acknowledgeOpenWireIntents !== true) {
+        const preview = openIntents
+          .slice(0, 3)
+          .map(
+            (intent) =>
+              `agent ${String(intent.agentRef)} ordinal ${String(intent.ordinal)} attempt ` +
+              `${String(intent.attempt)} (${intent.servedBy})`,
+          )
+          .join('; ');
+        throw new ConfigError(
+          `resume: run '${runId}' holds ${String(openIntents.length)} provider wire ` +
+            `intent(s) with unknown outcome (${preview}${openIntents.length > 3 ? '; …' : ''}): ` +
+            'an intent was journaled before dispatch and neither a receipt nor a terminal ' +
+            'record covers it, so the provider may have billed a wire this process never ' +
+            "heard back from, and a blind retry could pay twice. Reconcile the invoice's " +
+            'openIntents lane (cost-audit prints it) against the provider statement, then ' +
+            'resume with ResumeOptions.acknowledgeOpenWireIntents: true; the acknowledgment ' +
+            'is journaled',
+        );
+      }
       return run(bound, resumeOptions?.args, undefined, {
+        ...(openIntents.length > 0 && resumeOptions?.acknowledgeOpenWireIntents === true
+          ? { acknowledgedOpenWireIntents: openIntents.length }
+          : {}),
         runId,
         priorEntries,
         strict: resumeOptions?.dryRun ?? false,
