@@ -126,6 +126,13 @@ export const REQUIRED = [
       'the doctrine that a findings count is not a verification claim without its ' +
       'denominator must stay on the page (RV4003, the fifth comparison experiment)',
   },
+  {
+    file: 'docs/guide/orchestration-modes.md',
+    pattern: /citationAudit/u,
+    what:
+      'the guide must name the entailment audit (RV4004: pool consistency cannot vouch ' +
+      'for citations from files no child read)',
+  },
 ];
 
 /** Judges one page; returns failure strings, empty when clean. */

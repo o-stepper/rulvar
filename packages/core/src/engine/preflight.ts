@@ -240,6 +240,19 @@ export interface PreflightOrchestratorSpec {
     stage?: 'draft' | 'final' | 'both';
   };
   /**
+   * The citation entailment audit's admission slice (RV4004), exactly
+   * OrchestrateCitationAudit's judge estimate and posture: the audit
+   * judge pays one pass (two under its own armed round, which also
+   * arms the round composition term and one more claim rejudge when a
+   * claim pass is declared past the draft), and the acceptanceReserve
+   * block prices it with the SAME shared formula the runtime gate
+   * holds. Absent keeps every figure byte identical.
+   */
+  citationAudit?: {
+    judge?: { estCost?: number };
+    onFound?: 'report' | 'repair' | 'fail';
+  };
+  /**
    * The `reserve-line-headroom` threshold in coordination turn floors
    * (RV2201; previously hardwired to 2): the finding warns when the
    * admitted wave's steady state sits closer to the reserve line than
@@ -1036,6 +1049,21 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         'preflight.finishValidation.estRepairCostUsd',
       );
     }
+    if (input.orchestrator.citationAudit?.judge?.estCost !== undefined) {
+      requireNonNegativeNumber(
+        input.orchestrator.citationAudit.judge.estCost,
+        'preflight.orchestrator.citationAudit.judge.estCost',
+      );
+    }
+    if (
+      input.orchestrator.citationAudit?.onFound !== undefined &&
+      !['report', 'repair', 'fail'].includes(input.orchestrator.citationAudit.onFound)
+    ) {
+      throw new ConfigError(
+        "preflight.orchestrator.citationAudit.onFound must be 'report', 'repair' or 'fail'; " +
+          `got ${JSON.stringify(input.orchestrator.citationAudit.onFound)}`,
+      );
+    }
     const fraction = spec?.capFraction ?? 0.2;
     const fromFraction = ceilingUsd === undefined ? undefined : fraction * ceilingUsd;
     const bounds = [spec?.capUsd, fromFraction].filter(
@@ -1129,6 +1157,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         ...(input.orchestrator.synthesis?.estCost === undefined
           ? {}
           : { synthesisEstCostUsd: input.orchestrator.synthesis.estCost }),
+        ...(input.orchestrator.citationAudit?.judge?.estCost === undefined
+          ? {}
+          : { citationJudgeEstCostUsd: input.orchestrator.citationAudit.judge.estCost }),
+        ...(input.orchestrator.citationAudit?.onFound === undefined
+          ? {}
+          : { citationOnFound: input.orchestrator.citationAudit.onFound }),
+        ...(input.orchestrator.claimConsistency === undefined ? {} : { claimConfigured: true }),
         workingRoomUsd: flatReserveUsd,
       });
       const fits = effectiveCapUsd !== undefined && effectiveCapUsd >= requiredUsd;

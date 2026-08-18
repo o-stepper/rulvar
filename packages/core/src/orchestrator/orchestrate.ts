@@ -102,11 +102,22 @@ import {
   DEFAULT_CITATION_PATTERN,
   applyFinishRepairHints,
   spliceSections,
+  type CitationTarget,
   type FinishRepairHint,
   type FinishValidationInput,
   type FinishValidationVerdict,
   type FinishValidator,
 } from './finish-validators.js';
+import {
+  CITATION_JUDGE_SCHEMA,
+  citationExcerptOf,
+  parseCitationVerdicts,
+  resolveCitationAuditPlan,
+  sampleCitationRows,
+  type CitationAuditFinding,
+  type CitationAuditRow,
+  type CitationAuditSectionMeta,
+} from './citation-audit.js';
 import {
   DEFAULT_MAX_CONTRADICTIONS,
   findContradictions,
@@ -897,6 +908,74 @@ export interface OrchestrateOptions {
    * {@link OrchestrateClaimConsistency}.
    */
   claimConsistency?: OrchestrateClaimConsistency;
+  /**
+   * The citation entailment audit (RV4004, the fifth comparison
+   * experiment): a deterministic stratified sample of the FINAL
+   * document's citing sentences, their cited lines read back through
+   * the host's own pure snapshot resolver (the citedValueValidator
+   * channel), and one bounded judge invocation ruling
+   * supported/partial/unsupported per sampled citation. The run's
+   * other verifiers judge VALUES, TARGETS, and CONSISTENCY against
+   * the child pool; none of them reads the cited lines and asks
+   * whether the text entails the sentence, which is exactly how the
+   * experiment shipped three unsupported citations that were
+   * mechanically valid, value-clean, and invisible to a pool that
+   * held no reading of those files (20 of 74 citing sentences had no
+   * candidates at all). This pass is the independent judge's own
+   * method, internalized. See {@link OrchestrateCitationAudit}.
+   */
+  citationAudit?: OrchestrateCitationAudit;
+}
+
+/**
+ * The citation entailment audit's knobs (RV4004). The sample derives
+ * from the audited document's own hash (replay-stable, no clock, no
+ * randomness; a repaired candidate re-samples afresh), the excerpts
+ * come from a resolver the host froze before the run (PURE, exactly
+ * the {@link citedValueValidator} contract: a live-filesystem resolver
+ * would make verdicts depend on when they ran), and the judge is a
+ * paid, journaled invocation like the claim judge. A sampled citation
+ * whose FIRST cited line does not resolve is unsupported mechanically,
+ * with no judge needed for that row: a citation nothing resolves is
+ * not provenance.
+ */
+export interface OrchestrateCitationAudit {
+  /** The host's pure snapshot reader, exactly citedValueValidator's. */
+  resolve: (target: CitationTarget) => string | undefined;
+  /** Overrides {@link DEFAULT_CITATION_PATTERN}; must expose `path:line[-end]`. */
+  pattern?: string;
+  /** Sampled citing sentences per H2 section; default 2, the judge's own method. */
+  samplePerSection?: number;
+  /** The hard whole-document ceiling; default 24, the judge's own budget. */
+  maxSampled?: number;
+  /** Lines after the cited line an excerpt may carry; default 3. */
+  window?: number;
+  /** The judge invocation's knobs, exactly the claim judge's shape. */
+  judge?: {
+    model?: ModelSpec;
+    effort?: Effort;
+    /** UsageLimits of the judge invocation; default { maxTurns: 3 }. */
+    limits?: UsageLimits;
+    /** Admission estimate for the judge invocation, like AgentOpts.estCost. */
+    estCost?: number;
+  };
+  /**
+   * What a non-supported verdict does. 'report' (the default) stamps
+   * the meta and the findings on the envelope and changes nothing
+   * else. 'fail' fails the run typed (`data.source`
+   * 'orchestrator_citation_audit') when any sampled citation judges
+   * UNSUPPORTED (partial verdicts report either way: a half-carried
+   * claim is a finding, not a stop). 'repair' rides the RV3307
+   * bounded round mechanics: the unsupported rows ride one more
+   * composition, the repaired document is re-audited (a fresh sample
+   * from its new hash), a configured claim pass past the draft
+   * rejudges the rewritten document, and unsupported rows that
+   * survive fail the run typed. One round exactly; arming BOTH this
+   * 'repair' and `claimConsistency.onFound: 'repair'` is a
+   * ConfigError, because the run grants one bounded repair round and
+   * two consumers of it would pay two extra compositions.
+   */
+  onFound?: 'report' | 'repair' | 'fail';
 }
 
 /**
@@ -2680,6 +2759,55 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       `orchestrate executionFacts must be a boolean; got ${typeof opts.executionFacts}`,
     );
   }
+  // The citation entailment audit's intake (RV4004): the resolver is
+  // the pass's whole evidence channel, the numeric plan validates in
+  // its own module, and the round exclusivity is refused HERE because
+  // the run grants one bounded repair round and two armed consumers
+  // would pay two extra compositions.
+  const audit = opts?.citationAudit;
+  if (audit !== undefined) {
+    if (typeof audit !== 'object' || audit === null || Array.isArray(audit)) {
+      throw new ConfigError(
+        `orchestrate citationAudit must be an object; got ${JSON.stringify(audit)}`,
+      );
+    }
+    if (typeof audit.resolve !== 'function') {
+      throw new ConfigError(
+        'orchestrate citationAudit.resolve must be a function: the pure host snapshot ' +
+          'reader is the whole evidence channel of the audit',
+      );
+    }
+    resolveCitationAuditPlan(audit);
+    if (
+      audit.onFound !== undefined &&
+      audit.onFound !== 'report' &&
+      audit.onFound !== 'repair' &&
+      audit.onFound !== 'fail'
+    ) {
+      throw new ConfigError(
+        "orchestrate citationAudit.onFound must be 'report', 'repair' or 'fail'; got " +
+          `${String(audit.onFound)}`,
+      );
+    }
+    if (audit.judge?.estCost !== undefined) {
+      requireNonNegativeNumber(audit.judge.estCost, 'orchestrate citationAudit.judge.estCost');
+    }
+    if (audit.onFound === 'repair') {
+      if (opts?.synthesis === undefined) {
+        throw new ConfigError(
+          "orchestrate citationAudit.onFound 'repair' requires synthesis: the bounded round " +
+            'is one more composition, and without one there is nothing to repair with',
+        );
+      }
+      if (opts?.claimConsistency?.onFound === 'repair') {
+        throw new ConfigError(
+          "orchestrate citationAudit.onFound 'repair' cannot pair with " +
+            "claimConsistency.onFound 'repair': the run grants ONE bounded repair round " +
+            "(RV3307), so arm one consumer and give the other 'report' or 'fail'",
+        );
+      }
+    }
+  }
   const spec = opts.budget;
   if (spec === undefined) {
     return;
@@ -3240,6 +3368,13 @@ export function makeOrchestratorWorkflow(
         ...(opts?.synthesis?.estCost === undefined
           ? {}
           : { synthesisEstCostUsd: opts.synthesis.estCost }),
+        ...(opts?.citationAudit?.judge?.estCost === undefined
+          ? {}
+          : { citationJudgeEstCostUsd: opts.citationAudit.judge.estCost }),
+        ...(opts?.citationAudit?.onFound === undefined
+          ? {}
+          : { citationOnFound: opts.citationAudit.onFound }),
+        ...(opts?.claimConsistency === undefined ? {} : { claimConfigured: true }),
         workingRoomUsd: capState?.turnEstimateUsd ?? internals.flatReserveUsd ?? 0.5,
       });
       const capUsd = capState?.effectiveCapUsd;
@@ -3261,6 +3396,15 @@ export function makeOrchestratorWorkflow(
             judgePasses: terms.judgePasses,
             estRepairCostUsd: terms.estRepairCostUsd,
             roundCompositionUsd: terms.roundCompositionUsd,
+            // The citation audit terms (RV4004), present exactly when
+            // the audit is declared, so pre-RV4004 refusals keep their
+            // bytes.
+            ...(terms.citationJudgePasses === undefined
+              ? {}
+              : {
+                  citationJudgeEstUsd: terms.citationJudgeEstUsd ?? 0,
+                  citationJudgePasses: terms.citationJudgePasses,
+                }),
             workingRoomUsd: terms.workingRoomUsd,
           },
         });
@@ -6539,6 +6683,12 @@ export function makeOrchestratorWorkflow(
      */
     let claimFindingsFound: ClaimContradictionFinding[] | undefined;
     /**
+     * The citation findings riding the armed audit round's prompt
+     * (RV4004): set exactly while that round's composition dispatches,
+     * so every other synthesis prompt keeps its bytes.
+     */
+    let carriedCitationFindings: CitationAuditFinding[] | undefined;
+    /**
      * The observed price of this run's own latest post draft claim
      * judge pass (RV3701): the fallback sizing of the repair round's
      * convergence hold when the host declared no `judge.estCost`. By
@@ -7233,6 +7383,286 @@ export function makeOrchestratorWorkflow(
       );
     };
 
+    /**
+     * The citation entailment audit's terminal state (RV4004):
+     * undefined until the pass ran (or when it is not configured),
+     * the meta plus the findings once it did. `citationFindingsFound`
+     * carries every non-supported sampled citation (mechanically
+     * unresolved rows included); `[]` is the judge's claim that every
+     * sampled citation is supported.
+     */
+    let citationAuditMeta:
+      | {
+          sampled: number;
+          supported: number;
+          partial: number;
+          unsupported: number;
+          unresolved: number;
+          perSection: Record<string, CitationAuditSectionMeta>;
+          judgeInvoked: boolean;
+          judgeFailed?: true;
+          judgeDeclined?: true;
+          auditedHash: string;
+          samplePerSection: number;
+          maxSampled: number;
+          passes?: number;
+          firstPassFindings?: number;
+          citationRepairRounds?: number;
+        }
+      | undefined;
+    let citationFindingsFound: CitationAuditFinding[] | undefined;
+    /**
+     * The citation entailment audit (RV4004): a deterministic
+     * stratified sample of the document's citing sentences, excerpts
+     * through the host's pure snapshot resolver, one bounded judge
+     * invocation. Mirrors the claim judge's dispatch discipline
+     * (declined admissions degrade typed and journaled, dead judges
+     * stamp the meta, armed postures refuse to pass silently); the
+     * POSTURE consequences of findings ('fail', the RV3307 round)
+     * belong to the call site.
+     */
+    const runCitationAudit = async (document: unknown, pass: 'first' | 'round'): Promise<void> => {
+      const auditSpec = opts?.citationAudit;
+      if (auditSpec === undefined) {
+        return;
+      }
+      const plan = resolveCitationAuditPlan(auditSpec);
+      const auditedHash = createHash('sha256')
+        .update(jcsSerialize(document ?? null), 'utf8')
+        .digest('hex');
+      const text = typeof document === 'string' ? document : JSON.stringify(document ?? null);
+      const rows: CitationAuditRow[] = sampleCitationRows(text, plan, auditedHash).map((row) => {
+        const excerpt = citationExcerptOf(auditSpec.resolve, row, plan.window);
+        return excerpt === undefined ? row : { ...row, excerpt };
+      });
+      const perSection: Record<string, CitationAuditSectionMeta> = {};
+      const bucketOf = (section: string): CitationAuditSectionMeta =>
+        (perSection[section] ??= { sampled: 0, supported: 0, partial: 0, unsupported: 0 });
+      for (const row of rows) {
+        bucketOf(row.section).sampled += 1;
+      }
+      // A citation nothing resolves is not provenance (the
+      // citedValueValidator doctrine): unsupported mechanically, no
+      // judge needed for the row.
+      const mechanical: CitationAuditFinding[] = rows
+        .filter((row) => row.excerpt === undefined)
+        .map((row) => ({
+          row: row.row,
+          section: row.section,
+          sentence: row.sentence,
+          anchor: row.anchor,
+          verdict: 'unsupported' as const,
+          reason: 'the cited location does not resolve in the host snapshot',
+        }));
+      for (const finding of mechanical) {
+        bucketOf(finding.section).unsupported += 1;
+      }
+      const judgeRows = rows.filter((row) => row.excerpt !== undefined);
+      const metaBase = {
+        sampled: rows.length,
+        supported: 0,
+        partial: 0,
+        unsupported: mechanical.length,
+        unresolved: mechanical.length,
+        perSection,
+        auditedHash,
+        samplePerSection: plan.samplePerSection,
+        maxSampled: plan.maxSampled,
+      };
+      const onFound = auditSpec.onFound ?? 'report';
+      if (judgeRows.length === 0) {
+        citationAuditMeta = { ...metaBase, judgeInvoked: false };
+        citationFindingsFound = mechanical;
+        return;
+      }
+      const judgePrompt = [
+        'You audit CITATIONS for entailment. Each row below carries one sentence from a ' +
+          'composed document, the source location it cites, and the resolved text of the ' +
+          'cited lines. Judge whether the cited text ENTAILS what the sentence claims about ' +
+          "it: 'supported' when the lines carry the claimed meaning, 'partial' when they " +
+          "carry some of it but not the load-bearing part, 'unsupported' when they are " +
+          'about something else entirely, however plausible the sentence reads. Judge the ' +
+          'MEANING, not the mechanics: the location resolving, or sharing words with the ' +
+          'sentence, is not entailment. Answer with { verdicts: [{ row, verdict, reason }] }, ' +
+          'one verdict per row, reason one short sentence.',
+        `ROWS: ${JSON.stringify(
+          judgeRows.map((row) => ({
+            row: row.row,
+            section: row.section,
+            sentence: row.sentence,
+            anchor: row.anchor,
+            excerpt: row.excerpt,
+          })),
+        )}`,
+      ].join('\n');
+      const auditJudgeState: CtxScopeState = { ...callingState };
+      if (orchestratorAccount !== undefined) {
+        auditJudgeState.budgetScope = orchestratorAccount;
+      }
+      auditJudgeState.phase = auditJudgeState.phase ?? 'judge';
+      const judgeOpts: AgentOpts & { result: 'full' } = {
+        role: 'synthesize',
+        result: 'full',
+        label: pass === 'round' ? 'citation-entailment-judge-round' : 'citation-entailment-judge',
+        schema: CITATION_JUDGE_SCHEMA,
+        limits: auditSpec.judge?.limits ?? { maxTurns: DEFAULT_CLAIM_JUDGE_MAX_TURNS },
+        ...(auditSpec.judge?.model === undefined ? {} : { model: auditSpec.judge.model }),
+        ...(auditSpec.judge?.effort === undefined ? {} : { effort: auditSpec.judge.effort }),
+        ...(auditSpec.judge?.estCost === undefined ? {} : { estCost: auditSpec.judge.estCost }),
+      };
+      let judged: AgentResult<unknown>;
+      try {
+        judged = await runtime.runInScope(auditJudgeState, () =>
+          (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+            judgePrompt,
+            judgeOpts,
+          ),
+        );
+        noteInternalSettle(judged);
+      } catch (declined) {
+        if (!(declined instanceof BudgetExhaustedError)) {
+          throw declined;
+        }
+        citationAuditMeta = { ...metaBase, judgeInvoked: false, judgeDeclined: true };
+        citationFindingsFound = undefined;
+        const declineKey = deriverV2.deriveKey({
+          kind:
+            pass === 'round'
+              ? 'orchestrator-citation-judge-declined-round'
+              : 'orchestrator-citation-judge-declined',
+        });
+        if (
+          !internals.replayer
+            .snapshot()
+            .some((entry) => entry.kind === 'decision' && entry.key === declineKey)
+        ) {
+          await internals.replayer.appendSinglePhase({
+            scope: callingState.scope,
+            key: declineKey,
+            kind: 'decision',
+            status: 'ok',
+            spanId: internals.spans.mint(callingState.spanId),
+            site: 'orchestrator-budget',
+            value: {
+              decisionType: 'orchestrator_citation_judge_declined',
+              reason: declined.message.slice(0, 300),
+              remainingUsd:
+                internals.budget.remainingUsd(orchestratorAccount ?? ROOT_ACCOUNT) ?? null,
+            },
+          });
+        }
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg: 'orchestrator citation audit judge declined by admission',
+            data: { reason: declined.message.slice(0, 300) },
+          },
+          callingState.spanId,
+        );
+        if (onFound === 'fail' || onFound === 'repair') {
+          throw new FailRunError(
+            'the citation audit judge could not be admitted within the orchestrator ' +
+              `account, so the armed ${onFound} posture cannot pass the document: ` +
+              declined.message.slice(0, 300),
+            {
+              data: {
+                source: 'orchestrator_citation_audit',
+                citationAuditMeta: citationAuditMeta as unknown as Json,
+              },
+            },
+          );
+        }
+        return;
+      }
+      const verdicts =
+        judged.status === 'ok'
+          ? parseCitationVerdicts(
+              judged.output,
+              judgeRows.map((row) => row.row),
+            )
+          : undefined;
+      if (verdicts === undefined) {
+        citationAuditMeta = { ...metaBase, judgeInvoked: true, judgeFailed: true };
+        citationFindingsFound = undefined;
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg: 'orchestrator citation audit judge failed',
+            data: { status: judged.status },
+          },
+          callingState.spanId,
+        );
+        if (onFound === 'fail' || onFound === 'repair') {
+          throw new FailRunError(
+            'the citation audit judge did not produce a usable verdict, so the armed ' +
+              `${onFound} posture cannot pass the document`,
+            {
+              data: {
+                source: 'orchestrator_citation_audit',
+                citationAuditMeta: citationAuditMeta as unknown as Json,
+              },
+            },
+          );
+        }
+        return;
+      }
+      const findings: CitationAuditFinding[] = [...mechanical];
+      let supported = 0;
+      let partial = 0;
+      let unsupported = mechanical.length;
+      for (const row of judgeRows) {
+        const verdict = verdicts.get(row.row);
+        if (verdict === undefined) {
+          continue;
+        }
+        if (verdict.verdict === 'supported') {
+          supported += 1;
+          bucketOf(row.section).supported += 1;
+          continue;
+        }
+        if (verdict.verdict === 'partial') {
+          partial += 1;
+          bucketOf(row.section).partial += 1;
+        } else {
+          unsupported += 1;
+          bucketOf(row.section).unsupported += 1;
+        }
+        findings.push({
+          row: row.row,
+          section: row.section,
+          sentence: row.sentence,
+          anchor: row.anchor,
+          verdict: verdict.verdict,
+          reason: verdict.reason,
+        });
+      }
+      citationAuditMeta = {
+        ...metaBase,
+        supported,
+        partial,
+        unsupported,
+        judgeInvoked: true,
+      };
+      citationFindingsFound = findings;
+      internals.events.emit(
+        {
+          type: 'log',
+          level: findings.length === 0 ? 'debug' : 'info',
+          msg: 'orchestrator citation entailment audit',
+          data: {
+            sampled: rows.length,
+            supported,
+            partial,
+            unsupported,
+            pass,
+          },
+        },
+        callingState.spanId,
+      );
+    };
+
     const runSynthesis = async (
       draft: unknown,
       // The stage the dispatch folds under (RV3905): the initial
@@ -7742,6 +8172,18 @@ export function makeOrchestratorWorkflow(
         claimFindingsFound.length === 0
           ? []
           : hostValidationLessons()),
+        // The audited citations riding the armed audit round (RV4004):
+        // present exactly while that round's composition dispatches,
+        // so every other prompt keeps its bytes.
+        ...(carriedCitationFindings === undefined || carriedCitationFindings.length === 0
+          ? []
+          : [
+              'CITATION AUDIT FINDINGS: these sampled citations were judged NOT entailed by ' +
+                'their cited lines; for each, either fix the citation to the lines that ' +
+                'actually carry the claim or rewrite the sentence to claim what the cited ' +
+                'lines say, and keep every other sentence byte identical. ' +
+                JSON.stringify(carriedCitationFindings),
+            ]),
         // The sectional round block (RV3803), present exactly when the
         // round armed an exact plan: the retained accepted document
         // rides the prompt beside its target sections, so the model
@@ -9791,6 +10233,175 @@ export function makeOrchestratorWorkflow(
         }
       }
     }
+    // The citation entailment audit (RV4004), strictly AFTER the claim
+    // machinery (its round included) and before the envelope: the
+    // audit judges the document the run actually ships. Under 'fail',
+    // any UNSUPPORTED sampled citation stops the run typed; under
+    // 'repair', the unsupported rows ride the one bounded round
+    // (RV3307; intake refuses arming it beside the claim round), the
+    // repaired document is re-audited from its new hash, a configured
+    // claim pass past the draft rejudges the rewritten document, and
+    // survivors stop the run typed. Partial verdicts report in every
+    // posture: a half-carried claim is a finding, not a stop.
+    if (opts?.citationAudit !== undefined) {
+      const hashOfDocument = (value: unknown): string =>
+        createHash('sha256')
+          .update(jcsSerialize(value ?? null), 'utf8')
+          .digest('hex');
+      await runCitationAudit(synthesizedFinal, 'first');
+      const auditOnFound = opts.citationAudit.onFound ?? 'report';
+      const unsupportedOf = (): CitationAuditFinding[] =>
+        (citationFindingsFound ?? []).filter((finding) => finding.verdict === 'unsupported');
+      const firstUnsupported = unsupportedOf();
+      if (auditOnFound === 'fail' && firstUnsupported.length > 0) {
+        throw new FailRunError(
+          `the citation audit judged ${String(firstUnsupported.length)} sampled ` +
+            `citation${firstUnsupported.length === 1 ? '' : 's'} UNSUPPORTED by the cited ` +
+            'lines, and the armed fail posture cannot pass the document',
+          {
+            data: {
+              source: 'orchestrator_citation_audit',
+              citationFindings: citationFindingsFound as unknown as Json,
+              citationAuditMeta: citationAuditMeta as unknown as Json,
+              ...(acceptanceSnapshot as unknown as Record<string, Json>),
+            },
+          },
+        );
+      }
+      if (auditOnFound === 'repair' && citationAuditMeta !== undefined) {
+        citationAuditMeta.passes = 1;
+        citationAuditMeta.citationRepairRounds = 0;
+      }
+      if (auditOnFound === 'repair' && firstUnsupported.length > 0) {
+        const preRepairHash = hashOfDocument(synthesizedFinal);
+        const carried = firstUnsupported;
+        // The convergence hold (RV3701): the audit's round is the same
+        // two invocation bargain, its verdict pass priced from the
+        // declared judge estimate; zero (inert) when undeclared.
+        const auditConvergenceHoldUsd = opts.citationAudit.judge?.estCost ?? 0;
+        const auditHoldScope = orchestratorAccount ?? ROOT_ACCOUNT;
+        if (auditConvergenceHoldUsd > 0) {
+          internals.budget.commitConvergenceReserve(auditHoldScope, auditConvergenceHoldUsd);
+        }
+        // The mechanical leg (RV3802), byte for byte the claim round's.
+        const auditRepairHoldUsd =
+          validationSpec === undefined
+            ? 0
+            : (validationSpec.estRepairCostUsd ??
+              lastMechanicalRepairCostUsd(internals.replayer.snapshot(), (servedBy, usage) =>
+                internals.priceUsd(servedBy, usage),
+              ) ??
+              0);
+        if (auditRepairHoldUsd > 0) {
+          internals.budget.commitRepairReserve(auditHoldScope, auditRepairHoldUsd);
+          releaseRepairLeg = () => {
+            releaseRepairLeg = undefined;
+            internals.budget.releaseRepairReserve(auditHoldScope);
+          };
+        }
+        const auditRoundPlan =
+          validationSpec !== undefined && typeof synthesizedFinal === 'string'
+            ? sectionalRoundPlan(
+                synthesizedFinal,
+                carried.map((finding) => finding.sentence),
+              )
+            : undefined;
+        if (auditRoundPlan !== undefined) {
+          sectionalRoundContext = { base: synthesizedFinal as string, ...auditRoundPlan };
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'debug',
+              msg: 'orchestrator sectional round armed',
+              data: { targets: auditRoundPlan.targets, sections: auditRoundPlan.sections.length },
+            },
+            callingState.spanId,
+          );
+        }
+        carriedCitationFindings = carried;
+        try {
+          synthesizedFinal = await runSynthesis(result.output, 'repair');
+        } catch (thrown) {
+          await journalSynthesisAdmissionDecline(thrown);
+          const auditThrownSource =
+            thrown instanceof FailRunError &&
+            typeof thrown.data === 'object' &&
+            thrown.data !== null &&
+            !Array.isArray(thrown.data)
+              ? (thrown.data as { source?: unknown }).source
+              : undefined;
+          const auditHostRejection =
+            auditThrownSource === 'orchestrator_finish_validation'
+              ? ((thrown as FailRunError).data as Record<string, Json | undefined>)
+              : undefined;
+          throw new FailRunError(
+            auditHostRejection !== undefined
+              ? 'the citation audit repair round dispatched and its repaired candidate ' +
+                  'failed host validation ' +
+                  `(${thrown instanceof Error ? thrown.message.slice(0, 300) : String(thrown)}); ` +
+                  `${String(carried.length)} unsupported citation${carried.length === 1 ? '' : 's'} ` +
+                  'stand unconsumed and a gate armed to repair must not pass silently'
+              : 'the citation audit repair round could not dispatch ' +
+                  `(${thrown instanceof Error ? thrown.message.slice(0, 300) : String(thrown)}); ` +
+                  `${String(carried.length)} unsupported citation${carried.length === 1 ? '' : 's'} ` +
+                  'stand unconsumed and a gate armed to repair must not pass silently',
+            {
+              data: {
+                source: 'orchestrator_citation_audit',
+                citationFindings: carried as unknown as Json,
+                citationAuditMeta: citationAuditMeta as unknown as Json,
+                repairsUsed: auditHostRejection !== undefined ? 1 : 0,
+                roundDispatched: auditHostRejection !== undefined,
+                preRepairHash,
+                ...(acceptanceSnapshot as unknown as Record<string, Json>),
+              },
+            },
+          );
+        } finally {
+          carriedCitationFindings = undefined;
+          sectionalRoundContext = undefined;
+          releaseRepairLeg = undefined;
+          if (auditRepairHoldUsd > 0) {
+            internals.budget.releaseRepairReserve(auditHoldScope);
+          }
+          if (auditConvergenceHoldUsd > 0) {
+            internals.budget.releaseConvergenceReserve(auditHoldScope);
+          }
+        }
+        await runCitationAudit(synthesizedFinal, 'round');
+        if (citationAuditMeta !== undefined) {
+          citationAuditMeta.passes = 2;
+          citationAuditMeta.firstPassFindings = carried.length;
+          citationAuditMeta.citationRepairRounds = 1;
+        }
+        // The rewritten document's claim verdict (RV2509 doctrine): a
+        // configured claim pass past the draft rejudges what actually
+        // ships; its own armed postures rule on the fresh verdict.
+        if (opts?.claimConsistency !== undefined && claimStage !== 'draft') {
+          await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+        }
+        const survivors = unsupportedOf();
+        if (survivors.length > 0) {
+          throw new FailRunError(
+            `the citation audit still judged ${String(survivors.length)} sampled ` +
+              `citation${survivors.length === 1 ? '' : 's'} UNSUPPORTED after the bounded ` +
+              'repair round: the repaired document keeps citing lines that do not carry ' +
+              'its claims',
+            {
+              data: {
+                source: 'orchestrator_citation_audit',
+                citationFindings: citationFindingsFound as unknown as Json,
+                citationAuditMeta: citationAuditMeta as unknown as Json,
+                repairsUsed: 1,
+                preRepairHash,
+                repairedHash: hashOfDocument(synthesizedFinal),
+                ...(acceptanceSnapshot as unknown as Record<string, Json>),
+              },
+            },
+          );
+        }
+      }
+    }
     const envelopeSchemaRecovered =
       (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;
     const deliverable = deliverableVerdict(synthesizedFinal);
@@ -9845,7 +10456,9 @@ export function makeOrchestratorWorkflow(
     // while the workflow's one draft repair had no aggregate to live
     // in and the judge rebuilt it from the raw transcript.
     const repairLedger =
-      validationSpec !== undefined || (opts?.claimConsistency?.onFound ?? 'report') === 'repair'
+      validationSpec !== undefined ||
+      (opts?.claimConsistency?.onFound ?? 'report') === 'repair' ||
+      opts?.citationAudit?.onFound === 'repair'
         ? repairLedgerFromJournal(internals.replayer.snapshot(), (servedBy, usage) =>
             internals.priceUsd(servedBy, usage),
           )
@@ -9958,6 +10571,17 @@ export function makeOrchestratorWorkflow(
       ...(claimCoverageWaiver === undefined
         ? {}
         : { claimCoverageWaiver: claimCoverageWaiver as unknown as Json }),
+      // The citation entailment audit (RV4004): the meta plus every
+      // non-supported sampled citation, absent when the audit is not
+      // configured, so those envelopes stay byte identical.
+      ...(citationAuditMeta === undefined
+        ? {}
+        : {
+            ...(citationFindingsFound === undefined
+              ? {}
+              : { citationFindings: citationFindingsFound as unknown as Json }),
+            citationAuditMeta: citationAuditMeta as unknown as Json,
+          }),
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
       ...(decision.salvagedPartialChildren === undefined

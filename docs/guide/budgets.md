@@ -833,6 +833,10 @@ Three details make the cap safe rather than merely present:
   `acceptance-reserve-unfit` finding: an ERROR under `'require'`, since
   the run would refuse to start and a planner that only gates on error
   findings must not sail past it, and a warning under `'warn'`.
+  The declared `citationAudit.judge.estCost` (RV4004) enters the same
+  formula on both sides: one audit pass, two under the audit's own
+  armed round, which also arms the round composition term and one
+  more claim rejudge when a claim pass is declared past the draft.
 - **The finalize reserve.** At admission the engine journals a decision entry
   fixing `finalizeReserveUsd` in absolute dollars (explicit, or `finalizeTurns`
   times the estimated turn cost; default 2 turns). The reserve is registered
