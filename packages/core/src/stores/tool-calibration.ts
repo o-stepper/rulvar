@@ -69,6 +69,22 @@ export interface ToolCalibrationReport {
   budgetOnly: ToolCalibrationExclusion[];
   /** Dispatches carrying neither side. */
   unobserved: number;
+  /**
+   * The coordination side's own executed tool calls (RV4010, the
+   * fifth comparison experiment): terminal dispatches whose recorded
+   * role is 'orchestrate' or 'synthesize' with the RV3002 counter
+   * journaled. The experiment's telemetry counted 407 tool starts
+   * against 390 worker calls and the 17-call remainder (the
+   * coordination loop's spawn/await/finish exchanges and the
+   * composition's finish) had no bucket to live in, so the gap had to
+   * be explained by hand. Workers' counters plus this bucket now
+   * account for the run's executed tool calls; coordination
+   * dispatches never carry an evidence contract, so before RV4010
+   * they drowned in `budgetOnly` as if a declared contract had lost
+   * its pair. Absent when the journal holds no counted coordination
+   * dispatch, so every such report keeps its bytes.
+   */
+  coordination?: { dispatches: number; toolCallsUsed: number };
 }
 
 /**
@@ -89,11 +105,23 @@ export function toolCalibrationFromJournal(
   const budgetOnly: ToolCalibrationExclusion[] = [];
   let dispatches = 0;
   let unobserved = 0;
+  let coordinationDispatches = 0;
+  let coordinationToolCalls = 0;
   for (const entry of ordered) {
     if (entry.kind !== 'agent' || entry.ref === undefined || entry.status === 'running') {
       continue;
     }
     dispatches += 1;
+    // The coordination side's own partition class (RV4010): the
+    // orchestrate loop and the composition invocations execute tool
+    // calls too (spawn, await, finish), never under an evidence
+    // contract, and their counters used to read as budgetOnly noise.
+    const role = entry.costAttribution?.role;
+    if ((role === 'orchestrate' || role === 'synthesize') && entry.toolBudget !== undefined) {
+      coordinationDispatches += 1;
+      coordinationToolCalls += entry.toolBudget.used;
+      continue;
+    }
     const named = {
       scope: entry.scope,
       handle: entry.ref,
@@ -126,6 +154,14 @@ export function toolCalibrationFromJournal(
     evidenceOnly,
     budgetOnly,
     unobserved,
+    ...(coordinationDispatches > 0
+      ? {
+          coordination: {
+            dispatches: coordinationDispatches,
+            toolCallsUsed: coordinationToolCalls,
+          },
+        }
+      : {}),
   };
   if (observed.length > 0) {
     const toolCallsUsed = observed.reduce((sum, row) => sum + row.toolCallsUsed, 0);

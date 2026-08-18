@@ -5216,6 +5216,15 @@ export const MUTATIONS = [
     build: '@rulvar/cli',
   },
   {
+    id: 'coordination-tool-bucket',
+    doctrine:
+      "the calibration fold names the coordination side's own executed calls (RV4010): with the bucket dropped, the fifth comparison shape returns, 407 tool starts against 390 worker calls with the 17-call remainder drowned in budgetOnly noise and explained by hand",
+    file: 'packages/core/src/stores/tool-calibration.ts',
+    find: "    if ((role === 'orchestrate' || role === 'synthesize') && entry.toolBudget !== undefined) {",
+    replace: '    if (false) {',
+    test: 'packages/core/src/stores/tool-calibration.test.ts',
+  },
+  {
     id: 'acceptance-reserve-unfit-severity',
     doctrine:
       "an unfit tail under declared 'require' is an ERROR finding (RV4001): the fifth comparison harness gated on error findings only and sailed a $4.54 cap past a $4.82 tail; a severity downgrade re-opens exactly that seam, with the arithmetic on record and the boot refusal waiting",

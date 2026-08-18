@@ -171,3 +171,84 @@ describe('the observed tool-budget calibration fold (RV3003)', () => {
     expect(report.aggregate?.callsPerEntry).toBeUndefined();
   });
 });
+
+describe('the coordination bucket (RV4010, the fifth comparison experiment)', () => {
+  const entry = (value: Record<string, unknown>): unknown => ({
+    kind: 'agent',
+    status: 'ok',
+    scope: '',
+    key: 'k',
+    spanId: 's',
+    ...value,
+  });
+
+  it('counts orchestrate and synthesize counters into their own partition class', () => {
+    const report = toolCalibrationFromJournal([
+      // The coordination loop: 15 spawn/await/finish exchanges.
+      entry({
+        seq: 10,
+        ref: 1,
+        toolBudget: { used: 15 },
+        costAttribution: { role: 'orchestrate', agentType: '', budgetAccount: 'run' },
+      }),
+      // The composition: its finish exchanges.
+      entry({
+        seq: 20,
+        ref: 11,
+        toolBudget: { used: 2 },
+        costAttribution: {
+          role: 'synthesize',
+          agentType: '',
+          budgetAccount: 'run',
+          label: 'final-composition',
+        },
+      }),
+      // A worker carrying both sides pairs as before.
+      entry({
+        seq: 30,
+        ref: 21,
+        evidence: { recordedEntries: 4, minEntries: 3, met: true },
+        toolBudget: { used: 20 },
+        costAttribution: { role: 'loop', agentType: 'worker', budgetAccount: 'run' },
+      }),
+    ] as never[]);
+    expect(report.dispatches).toBe(3);
+    expect(report.coordination).toEqual({ dispatches: 2, toolCallsUsed: 17 });
+    // The coordination rows are OUT of the exclusion noise: before
+    // RV4010 they read as budgetOnly, a declared contract that lost
+    // its pair, which no coordination dispatch ever had.
+    expect(report.budgetOnly).toEqual([]);
+    expect(report.observed).toHaveLength(1);
+    expect(report.aggregate).toEqual({ toolCallsUsed: 20, recordedEntries: 4, callsPerEntry: 5 });
+    // Workers plus coordination now explain the run's executed calls:
+    // 390 worker calls plus 17 coordination calls was the experiment's
+    // hand-explained 407.
+    expect((report.aggregate?.toolCallsUsed ?? 0) + (report.coordination?.toolCallsUsed ?? 0)).toBe(
+      37,
+    );
+  });
+
+  it('stays absent when no counted coordination dispatch exists, bytes stable', () => {
+    const report = toolCalibrationFromJournal([
+      entry({
+        seq: 10,
+        ref: 1,
+        evidence: { recordedEntries: 2, minEntries: 1, met: true },
+        toolBudget: { used: 6 },
+        costAttribution: { role: 'loop', agentType: 'worker', budgetAccount: 'run' },
+      }),
+    ] as never[]);
+    expect('coordination' in report).toBe(false);
+    // A coordination dispatch WITHOUT a journaled counter is not the
+    // bucket's business either: it stays in the unobserved partition.
+    const uncounted = toolCalibrationFromJournal([
+      entry({
+        seq: 10,
+        ref: 1,
+        costAttribution: { role: 'orchestrate', agentType: '', budgetAccount: 'run' },
+      }),
+    ] as never[]);
+    expect('coordination' in uncounted).toBe(false);
+    expect(uncounted.unobserved).toBe(1);
+  });
+});

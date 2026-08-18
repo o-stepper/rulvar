@@ -10,7 +10,7 @@
 function toolCalibrationFromJournal(entries): ToolCalibrationReport;
 ```
 
-Defined in: [packages/core/src/stores/tool-calibration.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/tool-calibration.ts#L83)
+Defined in: [packages/core/src/stores/tool-calibration.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/tool-calibration.ts#L99)
 
 Folds the observed tool-budget calibration from a journal (RV3003):
 every terminal agent entry is partitioned by which sides of the

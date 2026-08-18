@@ -14445,6 +14445,25 @@ interface ToolCalibrationReport {
   budgetOnly: ToolCalibrationExclusion[];
   /** Dispatches carrying neither side. */
   unobserved: number;
+  /**
+  * The coordination side's own executed tool calls (RV4010, the
+  * fifth comparison experiment): terminal dispatches whose recorded
+  * role is 'orchestrate' or 'synthesize' with the RV3002 counter
+  * journaled. The experiment's telemetry counted 407 tool starts
+  * against 390 worker calls and the 17-call remainder (the
+  * coordination loop's spawn/await/finish exchanges and the
+  * composition's finish) had no bucket to live in, so the gap had to
+  * be explained by hand. Workers' counters plus this bucket now
+  * account for the run's executed tool calls; coordination
+  * dispatches never carry an evidence contract, so before RV4010
+  * they drowned in `budgetOnly` as if a declared contract had lost
+  * its pair. Absent when the journal holds no counted coordination
+  * dispatch, so every such report keeps its bytes.
+  */
+  coordination?: {
+    dispatches: number;
+    toolCallsUsed: number;
+  };
 }
 /**
 * Folds the observed tool-budget calibration from a journal (RV3003):
