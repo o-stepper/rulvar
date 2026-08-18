@@ -100,6 +100,20 @@ export const REQUIRED = [
     pattern: /run_budget_override/u,
     what: 'the resume guide documents the journaled override decision',
   },
+  {
+    file: 'docs/guide/orchestration-modes.md',
+    pattern: /a triggered repair pays one synthesis and one judge invocation past the plan/u,
+    what:
+      'the two-invoice cost of the repair round must stay on the page (RV4005: the fifth ' +
+      'comparison answer modeled the round as one wire and lost the decisive point)',
+  },
+  {
+    file: 'docs/guide/budgets.md',
+    pattern: /retryWireMultiplier/u,
+    what:
+      'the sizing section must name the 1 + r/B retry share source (RV4005: the fifth ' +
+      'comparison answer multiplied by 1 + r)',
+  },
 ];
 
 /** Judges one page; returns failure strings, empty when clean. */

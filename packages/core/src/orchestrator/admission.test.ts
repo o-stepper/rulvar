@@ -10,7 +10,9 @@ import {
   DEFAULT_MAX_CHILDREN_PER_NODE,
   dispatchProjectionReserveUsd,
   formatAcceptanceTailTerms,
+  retryWireMultiplier,
   spawnDepthOf,
+  wireCapacityEstimate,
 } from './admission.js';
 
 function makeController(options?: {
@@ -675,5 +677,45 @@ describe('the ONE acceptance-tail formula (RV4001, the fifth comparison experime
     expect(bothRepair.requiredUsd).toBeCloseTo(0.6, 10);
     // No armed round, no composition term: report never pays for one.
     expect(bothReport.terms.roundCompositionUsd).toBe(0);
+  });
+});
+
+describe('the wire capacity estimator (RV4005, the fifth comparison experiment)', () => {
+  it('prices the healthy 34-wire plan: the round is TWO wires, 36 total, 5.88 percent', () => {
+    // The experiment's answer wrote "34 wires without repair, 35 with"
+    // and lost the decisive correctness point: the armed round is one
+    // more composition PLUS one more judge pass.
+    const estimate = wireCapacityEstimate({
+      childWires: 24,
+      coordinationWires: 7,
+      synthesisWires: 1,
+      judgeWires: 1,
+      extractWires: 1,
+    });
+    expect(estimate.baseWires).toBe(34);
+    expect(estimate.repairRoundDeltaWires).toBe(2);
+    expect(estimate.wiresWithRound).toBe(36);
+    expect(estimate.roundOverheadShare).toBeCloseTo(2 / 34, 12);
+    expect((estimate.roundOverheadShare * 100).toFixed(2)).toBe('5.88');
+    expect(estimate.mechanicalRepairDeltaWires).toBe(1);
+  });
+
+  it('multiplies retries as 1 + r/B, never 1 + r', () => {
+    expect(retryWireMultiplier(34, 0)).toBe(1);
+    expect(retryWireMultiplier(34, 1)).toBeCloseTo(35 / 34, 12);
+    expect(retryWireMultiplier(34, 3)).toBeCloseTo(37 / 34, 12);
+    expect(() => retryWireMultiplier(0, 1)).toThrow(ConfigError);
+    expect(() => retryWireMultiplier(Number.NaN, 1)).toThrow(ConfigError);
+    expect(() => retryWireMultiplier(34, -1)).toThrow(/retries/);
+  });
+
+  it('undeclared stages contribute zero and malformed counts refuse typed', () => {
+    const bare = wireCapacityEstimate({ childWires: 10 });
+    expect(bare.baseWires).toBe(10);
+    expect(bare.wiresWithRound).toBe(12);
+    expect(() => wireCapacityEstimate({ childWires: -1 })).toThrow(ConfigError);
+    expect(() => wireCapacityEstimate({ childWires: 1, judgeWires: Number.NaN })).toThrow(
+      ConfigError,
+    );
   });
 });
