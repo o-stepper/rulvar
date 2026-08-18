@@ -839,6 +839,22 @@
             "link": "/api/@rulvar/core/interfaces/ChildResultPage.md"
           },
           {
+            "text": "CitationAuditFinding",
+            "link": "/api/@rulvar/core/interfaces/CitationAuditFinding.md"
+          },
+          {
+            "text": "CitationAuditPlanOptions",
+            "link": "/api/@rulvar/core/interfaces/CitationAuditPlanOptions.md"
+          },
+          {
+            "text": "CitationAuditRow",
+            "link": "/api/@rulvar/core/interfaces/CitationAuditRow.md"
+          },
+          {
+            "text": "CitationAuditSectionMeta",
+            "link": "/api/@rulvar/core/interfaces/CitationAuditSectionMeta.md"
+          },
+          {
             "text": "CitationTarget",
             "link": "/api/@rulvar/core/interfaces/CitationTarget.md"
           },
@@ -1305,6 +1321,10 @@
           {
             "text": "OrchestrateAcceptance",
             "link": "/api/@rulvar/core/interfaces/OrchestrateAcceptance.md"
+          },
+          {
+            "text": "OrchestrateCitationAudit",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateCitationAudit.md"
           },
           {
             "text": "OrchestrateClaimConsistency",
@@ -2507,6 +2527,10 @@
             "link": "/api/@rulvar/core/variables/CHECKPOINT_FORMAT_V1.md"
           },
           {
+            "text": "CITATION_JUDGE_SCHEMA",
+            "link": "/api/@rulvar/core/variables/CITATION_JUDGE_SCHEMA.md"
+          },
+          {
             "text": "CLAIM_JUDGE_LABEL",
             "link": "/api/@rulvar/core/variables/CLAIM_JUDGE_LABEL.md"
           },
@@ -2547,12 +2571,24 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_CHILD_RESULT_PAGE_CHARS.md"
           },
           {
+            "text": "DEFAULT_CITATION_EXCERPT_WINDOW",
+            "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_EXCERPT_WINDOW.md"
+          },
+          {
+            "text": "DEFAULT_CITATION_MAX_SAMPLED",
+            "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_MAX_SAMPLED.md"
+          },
+          {
             "text": "DEFAULT_CITATION_PATTERN",
             "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_PATTERN.md"
           },
           {
             "text": "DEFAULT_CITATION_SAMPLE",
             "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_SAMPLE.md"
+          },
+          {
+            "text": "DEFAULT_CITATION_SAMPLE_PER_SECTION",
+            "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_SAMPLE_PER_SECTION.md"
           },
           {
             "text": "DEFAULT_CLAIM_JUDGE_MAX_TURNS",
@@ -2809,6 +2845,14 @@
           {
             "text": "MAX_CHILD_RESULT_PAGE_CHARS",
             "link": "/api/@rulvar/core/variables/MAX_CHILD_RESULT_PAGE_CHARS.md"
+          },
+          {
+            "text": "MAX_CITATION_EXCERPT_CHARS",
+            "link": "/api/@rulvar/core/variables/MAX_CITATION_EXCERPT_CHARS.md"
+          },
+          {
+            "text": "MAX_CITATION_EXCERPT_LINES",
+            "link": "/api/@rulvar/core/variables/MAX_CITATION_EXCERPT_LINES.md"
           },
           {
             "text": "MAX_CRITICAL_UNCOVERED",
@@ -3083,6 +3127,10 @@
           {
             "text": "childRostersFromJournal",
             "link": "/api/@rulvar/core/functions/childRostersFromJournal.md"
+          },
+          {
+            "text": "citationExcerptOf",
+            "link": "/api/@rulvar/core/functions/citationExcerptOf.md"
           },
           {
             "text": "citationTargetsValidator",
@@ -3549,6 +3597,10 @@
             "link": "/api/@rulvar/core/functions/parallelScope.md"
           },
           {
+            "text": "parseCitationVerdicts",
+            "link": "/api/@rulvar/core/functions/parseCitationVerdicts.md"
+          },
+          {
             "text": "parseModelRef",
             "link": "/api/@rulvar/core/functions/parseModelRef.md"
           },
@@ -3729,6 +3781,10 @@
             "link": "/api/@rulvar/core/functions/researchAgentProfile.md"
           },
           {
+            "text": "resolveCitationAuditPlan",
+            "link": "/api/@rulvar/core/functions/resolveCitationAuditPlan.md"
+          },
+          {
             "text": "resolveModelInvocation",
             "link": "/api/@rulvar/core/functions/resolveModelInvocation.md"
           },
@@ -3771,6 +3827,10 @@
           {
             "text": "runProfile",
             "link": "/api/@rulvar/core/functions/runProfile.md"
+          },
+          {
+            "text": "sampleCitationRows",
+            "link": "/api/@rulvar/core/functions/sampleCitationRows.md"
           },
           {
             "text": "sanitizeTerminalText",
@@ -6013,6 +6073,22 @@
             "link": "/api/@rulvar/rulvar/interfaces/ChildResultPage.md"
           },
           {
+            "text": "CitationAuditFinding",
+            "link": "/api/@rulvar/rulvar/interfaces/CitationAuditFinding.md"
+          },
+          {
+            "text": "CitationAuditPlanOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/CitationAuditPlanOptions.md"
+          },
+          {
+            "text": "CitationAuditRow",
+            "link": "/api/@rulvar/rulvar/interfaces/CitationAuditRow.md"
+          },
+          {
+            "text": "CitationAuditSectionMeta",
+            "link": "/api/@rulvar/rulvar/interfaces/CitationAuditSectionMeta.md"
+          },
+          {
             "text": "CitationTarget",
             "link": "/api/@rulvar/rulvar/interfaces/CitationTarget.md"
           },
@@ -6483,6 +6559,10 @@
           {
             "text": "OrchestrateAcceptance",
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateAcceptance.md"
+          },
+          {
+            "text": "OrchestrateCitationAudit",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateCitationAudit.md"
           },
           {
             "text": "OrchestrateClaimConsistency",
@@ -7717,6 +7797,10 @@
             "link": "/api/@rulvar/rulvar/variables/CHECKPOINT_FORMAT_V1.md"
           },
           {
+            "text": "CITATION_JUDGE_SCHEMA",
+            "link": "/api/@rulvar/rulvar/variables/CITATION_JUDGE_SCHEMA.md"
+          },
+          {
             "text": "CLAIM_JUDGE_LABEL",
             "link": "/api/@rulvar/rulvar/variables/CLAIM_JUDGE_LABEL.md"
           },
@@ -7757,12 +7841,24 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_CHILD_RESULT_PAGE_CHARS.md"
           },
           {
+            "text": "DEFAULT_CITATION_EXCERPT_WINDOW",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_EXCERPT_WINDOW.md"
+          },
+          {
+            "text": "DEFAULT_CITATION_MAX_SAMPLED",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_MAX_SAMPLED.md"
+          },
+          {
             "text": "DEFAULT_CITATION_PATTERN",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_PATTERN.md"
           },
           {
             "text": "DEFAULT_CITATION_SAMPLE",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_SAMPLE.md"
+          },
+          {
+            "text": "DEFAULT_CITATION_SAMPLE_PER_SECTION",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_SAMPLE_PER_SECTION.md"
           },
           {
             "text": "DEFAULT_CLAIM_JUDGE_MAX_TURNS",
@@ -8019,6 +8115,14 @@
           {
             "text": "MAX_CHILD_RESULT_PAGE_CHARS",
             "link": "/api/@rulvar/rulvar/variables/MAX_CHILD_RESULT_PAGE_CHARS.md"
+          },
+          {
+            "text": "MAX_CITATION_EXCERPT_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_CITATION_EXCERPT_CHARS.md"
+          },
+          {
+            "text": "MAX_CITATION_EXCERPT_LINES",
+            "link": "/api/@rulvar/rulvar/variables/MAX_CITATION_EXCERPT_LINES.md"
           },
           {
             "text": "MAX_CRITICAL_UNCOVERED",
@@ -8305,6 +8409,10 @@
           {
             "text": "childRostersFromJournal",
             "link": "/api/@rulvar/rulvar/functions/childRostersFromJournal.md"
+          },
+          {
+            "text": "citationExcerptOf",
+            "link": "/api/@rulvar/rulvar/functions/citationExcerptOf.md"
           },
           {
             "text": "citationTargetsValidator",
@@ -8775,6 +8883,10 @@
             "link": "/api/@rulvar/rulvar/functions/parallelScope.md"
           },
           {
+            "text": "parseCitationVerdicts",
+            "link": "/api/@rulvar/rulvar/functions/parseCitationVerdicts.md"
+          },
+          {
             "text": "parseModelRef",
             "link": "/api/@rulvar/rulvar/functions/parseModelRef.md"
           },
@@ -8963,6 +9075,10 @@
             "link": "/api/@rulvar/rulvar/functions/researchAgentProfile.md"
           },
           {
+            "text": "resolveCitationAuditPlan",
+            "link": "/api/@rulvar/rulvar/functions/resolveCitationAuditPlan.md"
+          },
+          {
             "text": "resolveModelInvocation",
             "link": "/api/@rulvar/rulvar/functions/resolveModelInvocation.md"
           },
@@ -9005,6 +9121,10 @@
           {
             "text": "runProfile",
             "link": "/api/@rulvar/rulvar/functions/runProfile.md"
+          },
+          {
+            "text": "sampleCitationRows",
+            "link": "/api/@rulvar/rulvar/functions/sampleCitationRows.md"
           },
           {
             "text": "sanitizeTerminalText",

@@ -51,6 +51,7 @@ const EXPECTED = [
   'sectional-repair-round',
   'sectional-repair-round-fallback',
   'coordination-draft-repair',
+  'citation-entailment-audit',
   'deterministic-provenance-patch',
   'claim-judge-dead-armed-refusal',
   'strict-coverage-policy',
@@ -230,6 +231,15 @@ describe('the fault-injection kit (RV811)', () => {
     );
     expect(byName.get('coordination-draft-repair')?.observation.detail).toContain(
       '1 repair-stamped wire(s)',
+    );
+    // The RV4004 scenario: the entailment audit catches the citation
+    // every built-in verifier passed, and the armed fail posture stops
+    // the run typed.
+    expect(byName.get('citation-entailment-audit')?.observation.detail).toContain(
+      'report arm=true',
+    );
+    expect(byName.get('citation-entailment-audit')?.observation.detail).toContain(
+      'fail arm typed=true',
     );
     // The RV3801 scenario: the deterministic patch heals the graded
     // candidate without a wire or a pool spend, the healed failure

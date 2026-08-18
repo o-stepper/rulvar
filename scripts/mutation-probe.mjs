@@ -5269,6 +5269,33 @@ export const MUTATIONS = [
     replace: '        const expired = false;',
     test: 'packages/core/src/orchestrator/coverage-policy.test.ts',
   },
+  {
+    id: 'citation-unresolved-is-unsupported',
+    doctrine:
+      'a citation nothing resolves is not provenance (RV4004, the citedValueValidator doctrine): with the mechanical verdict dropped, a sampled citation over a vanished location silently leaves the audit and the meta undercounts exactly the rows that can never be entailed',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        .filter((row) => row.excerpt === undefined)',
+    replace: '        .filter(() => false)',
+    test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
+  {
+    id: 'citation-audit-fail-gate',
+    doctrine:
+      "the armed 'fail' posture stops the run on an UNSUPPORTED sampled citation (RV4004): with the gate collapsed, the fifth comparison shape ships again, three citations not entailed by their lines behind a green terminal, with the audit declared and inert",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (auditOnFound === 'fail' && firstUnsupported.length > 0) {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
+  {
+    id: 'citation-round-re-audits',
+    doctrine:
+      "the audit's bounded round re-audits the repaired document from its new hash (RV4004): with the second pass dropped, the lineage claims a clean second verdict nobody rendered, and a repaired document ships on the FIRST pass's stale findings",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        await runCitationAudit(synthesizedFinal, 'round');",
+    replace: '',
+    test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

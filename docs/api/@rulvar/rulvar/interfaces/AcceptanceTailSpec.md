@@ -14,6 +14,9 @@ The declared inputs of the acceptance tail (RV4001); undeclared estimates are ze
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-citationjudgeestcostusd"></a> `citationJudgeEstCostUsd?` | `number` | The citation audit judge's declared estimate (RV4004), citationAudit.judge.estCost. The audit pays one pass, two under its own armed repair round, and that round also pays one more composition plus (when a claim pass is configured past the draft) one more claim rejudge; all of it enters the tail exactly like the claim terms, declared or zero. | `packages/core/dist/index.d.ts` |
+| <a id="property-citationonfound"></a> `citationOnFound?` | `"report"` \| `"fail"` \| `"repair"` | Mirrors OrchestrateCitationAudit.onFound; 'repair' arms the audit's round. | `packages/core/dist/index.d.ts` |
+| <a id="property-claimconfigured"></a> `claimConfigured?` | `boolean` | True when a claim-consistency pass is declared (its rejudge after a citation round is priced). | `packages/core/dist/index.d.ts` |
 | <a id="property-claimjudgeestcostusd"></a> `claimJudgeEstCostUsd?` | `number` | The claim judge's declared admission estimate, claimConsistency.judge.estCost. | `packages/core/dist/index.d.ts` |
 | <a id="property-claimonfound"></a> `claimOnFound?` | `"report"` \| `"carry"` \| `"fail"` \| `"repair"` | Mirrors OrchestrateClaimConsistency.onFound; absent reads 'report'. | `packages/core/dist/index.d.ts` |
 | <a id="property-claimstage"></a> `claimStage?` | `"draft"` \| `"final"` \| `"both"` | Mirrors OrchestrateClaimConsistency.stage; absent reads 'draft'. | `packages/core/dist/index.d.ts` |

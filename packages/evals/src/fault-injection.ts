@@ -4444,6 +4444,123 @@ const strictCoveragePolicy: FaultScenario = {
   },
 };
 
+// ---- The citation entailment audit (RV4004): the fifth comparison
+// run shipped three citations that were mechanically valid,
+// value-clean, invisible to a pool holding no reading of their files,
+// and simply NOT entailed by their cited lines; the independent judge
+// caught all three by reading the cited lines. The audit is that
+// method internalized, and the scenario drives its flagship shape: an
+// unsupported citation caught with the supported control clean, and
+// the armed fail posture stopping the run typed.
+const AUDIT_SNAPSHOT: Record<string, string> = {
+  'src/otel.ts:18': 'attributes: dropUnknown(config.exporter),',
+  'src/otel.ts:19': 'batchWindowMs: 500,',
+  'src/retry.ts:24': 'const MAX_ATTEMPTS = 3;',
+};
+const AUDIT_RESOLVE = (target: { path: string; line: number }): string | undefined =>
+  AUDIT_SNAPSHOT[`${target.path}:${String(target.line)}`];
+const AUDIT_FINAL = [
+  '# Audit',
+  '',
+  '## Grid',
+  '',
+  'No SLO observations exist anywhere in the exporter [src/otel.ts:18].',
+  '',
+  '## Verdict',
+  '',
+  'The retry ladder caps at three attempts [src/retry.ts:24].',
+].join('\n');
+
+const citationEntailmentAudit: FaultScenario = {
+  name: 'citation-entailment-audit',
+  doctrine:
+    'the citation audit reads the cited lines and judges entailment (RV4004): a citation ' +
+    'that is mechanically valid and value-clean but not entailed by its lines is a named ' +
+    'finding with the section and reason on the envelope, the supported control stays ' +
+    "clean, and the armed 'fail' posture stops the run typed; the fifth comparison run " +
+    'shipped three exactly such citations past every built-in verifier',
+  async run() {
+    const makeAdapter = (): FakeAdapter =>
+      new FakeAdapter({
+        agents: {
+          'citation-entailment-judge': JSON.stringify({
+            verdicts: [
+              {
+                row: 0,
+                verdict: 'unsupported',
+                reason: 'the line sets an exporter attribute policy, not observation absence',
+              },
+              { row: 1, verdict: 'supported', reason: 'the line pins the attempts constant' },
+            ],
+          }),
+          'final-composition': () =>
+            fakeToolCalls({ name: 'finish', args: { result: AUDIT_FINAL } }),
+          '*': () => fakeToolCalls({ name: 'finish', args: { result: 'the coordination draft' } }),
+        },
+      });
+    const reportRig = tailEngine(makeAdapter());
+    const reported = await reportRig.engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        citationAudit: { resolve: AUDIT_RESOLVE },
+      }),
+      undefined,
+      { runId: 'fault-citation-audit-report', budgetUsd: 10 },
+    ).result;
+    const reportedValue = reported.value as
+      | {
+          citationAuditMeta?: {
+            sampled?: unknown;
+            supported?: unknown;
+            unsupported?: unknown;
+            judgeInvoked?: unknown;
+          };
+          citationFindings?: Array<{ verdict?: unknown; anchor?: unknown; section?: unknown }>;
+        }
+      | undefined;
+    const reportedOk =
+      reported.status === 'ok' &&
+      reportedValue?.citationAuditMeta?.sampled === 2 &&
+      reportedValue.citationAuditMeta.supported === 1 &&
+      reportedValue.citationAuditMeta.unsupported === 1 &&
+      reportedValue.citationAuditMeta.judgeInvoked === true &&
+      reportedValue.citationFindings?.length === 1 &&
+      reportedValue.citationFindings[0]?.verdict === 'unsupported' &&
+      reportedValue.citationFindings[0].anchor === 'src/otel.ts:18' &&
+      reportedValue.citationFindings[0].section === '## Grid';
+
+    const failRig = tailEngine(makeAdapter());
+    const failed = await failRig.engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        citationAudit: { resolve: AUDIT_RESOLVE, onFound: 'fail' },
+      }),
+      undefined,
+      { runId: 'fault-citation-audit-fail', budgetUsd: 10 },
+    ).result;
+    const failData = failed.error?.data as { source?: unknown } | undefined;
+    const failTyped =
+      failed.status === 'error' &&
+      failData?.source === 'orchestrator_citation_audit' &&
+      (failed.error?.message ?? '').includes('UNSUPPORTED');
+    const matched = reportedOk && failTyped;
+    return {
+      observation: {
+        matched,
+        detail:
+          `report arm=${String(reportedOk)} (status '${reported.status}', ` +
+          `sampled ${String(reportedValue?.citationAuditMeta?.sampled)}, ` +
+          `unsupported ${String(reportedValue?.citationAuditMeta?.unsupported)}); ` +
+          `fail arm typed=${String(failTyped)} (status '${failed.status}')`,
+      },
+      artifacts: [
+        jsonArtifact('reported.json', { status: reported.status, value: reported.value ?? null }),
+        jsonArtifact('failed.json', { status: failed.status, error: failed.error ?? null }),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -4481,6 +4598,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   sectionalRepairRound,
   sectionalRepairRoundFallback,
   coordinationDraftRepair,
+  citationEntailmentAudit,
   deterministicProvenancePatch,
   claimJudgeDeadArmedRefusal,
   strictCoveragePolicy,

@@ -320,6 +320,19 @@ export interface AcceptanceTailSpec {
   finishEstRepairCostUsd?: number;
   /** The declared price of one composition, synthesis.estCost. */
   synthesisEstCostUsd?: number;
+  /**
+   * The citation audit judge's declared estimate (RV4004),
+   * citationAudit.judge.estCost. The audit pays one pass, two under
+   * its own armed repair round, and that round also pays one more
+   * composition plus (when a claim pass is configured past the draft)
+   * one more claim rejudge; all of it enters the tail exactly like
+   * the claim terms, declared or zero.
+   */
+  citationJudgeEstCostUsd?: number;
+  /** Mirrors OrchestrateCitationAudit.onFound; 'repair' arms the audit's round. */
+  citationOnFound?: 'report' | 'repair' | 'fail';
+  /** True when a claim-consistency pass is declared (its rejudge after a citation round is priced). */
+  claimConfigured?: boolean;
   /** One coordination turn floor: the resolved flat reserve of the run. */
   workingRoomUsd: number;
 }
@@ -333,6 +346,15 @@ export interface AcceptanceTailTerms {
   estRepairCostUsd: number;
   /** One more composition when the repair round is armed, priced at synthesis.estCost. */
   roundCompositionUsd: number;
+  /**
+   * The citation audit judge terms (RV4004), present in the sum only
+   * when the audit is declared: `citationJudgePasses` is 1, 2 under
+   * the audit's own armed round (which also arms the composition term
+   * above and, with a claim pass configured past the draft, one more
+   * claim rejudge inside `judgePasses`).
+   */
+  citationJudgeEstUsd?: number;
+  citationJudgePasses?: number;
   workingRoomUsd: number;
 }
 
@@ -362,14 +384,26 @@ export function acceptanceTailRequiredUsd(spec: AcceptanceTailSpec): {
 } {
   const stage = spec.claimStage ?? 'draft';
   const onFound = spec.claimOnFound ?? 'report';
-  const roundArmed = onFound === 'repair' && stage !== 'draft';
-  const judgePasses = acceptanceJudgePasses(spec.claimStage, spec.claimOnFound);
+  // Either round (the claim pass's or the citation audit's; intake
+  // refuses arming both) buys one more composition.
+  const citationDeclared =
+    spec.citationJudgeEstCostUsd !== undefined || spec.citationOnFound !== undefined;
+  const citationRoundArmed = spec.citationOnFound === 'repair';
+  const roundArmed = (onFound === 'repair' && stage !== 'draft') || citationRoundArmed;
+  // A citation round rewrites the shipped document, so a configured
+  // claim pass past the draft rejudges it: one more claim pass.
+  const judgePasses =
+    acceptanceJudgePasses(spec.claimStage, spec.claimOnFound) +
+    (citationRoundArmed && spec.claimConfigured === true && stage !== 'draft' ? 1 : 0);
+  const citationJudgePasses = citationDeclared ? 1 + (citationRoundArmed ? 1 : 0) : 0;
+  const citationJudgeEstUsd = spec.citationJudgeEstCostUsd ?? 0;
   const terms: AcceptanceTailTerms = {
     synthesisReserveUsd: spec.synthesisReserveUsd ?? 0,
     judgeEstUsd: spec.claimJudgeEstCostUsd ?? 0,
     judgePasses,
     estRepairCostUsd: spec.finishEstRepairCostUsd ?? 0,
     roundCompositionUsd: roundArmed ? (spec.synthesisEstCostUsd ?? 0) : 0,
+    ...(citationDeclared ? { citationJudgeEstUsd, citationJudgePasses } : {}),
     workingRoomUsd: spec.workingRoomUsd,
   };
   return {
@@ -378,6 +412,7 @@ export function acceptanceTailRequiredUsd(spec: AcceptanceTailSpec): {
       terms.judgeEstUsd * terms.judgePasses +
       terms.estRepairCostUsd +
       terms.roundCompositionUsd +
+      citationJudgeEstUsd * citationJudgePasses +
       terms.workingRoomUsd,
     terms,
   };
@@ -389,18 +424,24 @@ export function acceptanceTailRequiredUsd(spec: AcceptanceTailSpec): {
  * an operator can diff them by eye and a test can assert them equal.
  */
 export function formatAcceptanceTailTerms(terms: AcceptanceTailTerms): string {
+  const citationUsd = (terms.citationJudgeEstUsd ?? 0) * (terms.citationJudgePasses ?? 0);
   const requiredUsd =
     terms.synthesisReserveUsd +
     terms.judgeEstUsd * terms.judgePasses +
     terms.estRepairCostUsd +
     terms.roundCompositionUsd +
+    citationUsd +
     terms.workingRoomUsd;
   return (
     `synthesisReserveUsd ${terms.synthesisReserveUsd.toFixed(4)} + judge ` +
     `${terms.judgeEstUsd.toFixed(4)} x ${String(terms.judgePasses)} pass(es) + ` +
     `estRepairCostUsd ${terms.estRepairCostUsd.toFixed(4)} + round composition ` +
-    `${terms.roundCompositionUsd.toFixed(4)} + working room ` +
-    `${terms.workingRoomUsd.toFixed(4)} = ${requiredUsd.toFixed(4)} USD`
+    `${terms.roundCompositionUsd.toFixed(4)} + ` +
+    (terms.citationJudgePasses === undefined || terms.citationJudgePasses === 0
+      ? ''
+      : `citation judge ${(terms.citationJudgeEstUsd ?? 0).toFixed(4)} x ` +
+        `${String(terms.citationJudgePasses)} pass(es) + `) +
+    `working room ${terms.workingRoomUsd.toFixed(4)} = ${requiredUsd.toFixed(4)} USD`
   );
 }
 
