@@ -1555,6 +1555,10 @@
             "link": "/api/@rulvar/core/interfaces/RefusalInfo.md"
           },
           {
+            "text": "RegulatedProfile",
+            "link": "/api/@rulvar/core/interfaces/RegulatedProfile.md"
+          },
+          {
             "text": "RejectedFinishCandidate",
             "link": "/api/@rulvar/core/interfaces/RejectedFinishCandidate.md"
           },
@@ -3203,6 +3207,10 @@
           {
             "text": "compilePermissionPreset",
             "link": "/api/@rulvar/core/functions/compilePermissionPreset.md"
+          },
+          {
+            "text": "compileRegulatedProfile",
+            "link": "/api/@rulvar/core/functions/compileRegulatedProfile.md"
           },
           {
             "text": "compileSecretMasker",
@@ -6837,6 +6845,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/RefusalInfo.md"
           },
           {
+            "text": "RegulatedProfile",
+            "link": "/api/@rulvar/rulvar/interfaces/RegulatedProfile.md"
+          },
+          {
             "text": "RejectedFinishCandidate",
             "link": "/api/@rulvar/rulvar/interfaces/RejectedFinishCandidate.md"
           },
@@ -8513,6 +8525,10 @@
           {
             "text": "compilePermissionPreset",
             "link": "/api/@rulvar/rulvar/functions/compilePermissionPreset.md"
+          },
+          {
+            "text": "compileRegulatedProfile",
+            "link": "/api/@rulvar/rulvar/functions/compileRegulatedProfile.md"
           },
           {
             "text": "compileSecretMasker",

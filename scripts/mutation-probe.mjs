@@ -5359,6 +5359,24 @@ export const MUTATIONS = [
     replace: '                Date.parse(decision.expiresAt) < internals.now()',
     test: 'packages/core/src/engine/approval-revocation.test.ts',
   },
+  {
+    id: 'regulated-floor-refuses-loosening',
+    doctrine:
+      "the regulated floor refuses a typed loosening instead of silently overwriting it (RV4009): with the billingReceipts refusal collapsed, a config declaring 'async' compiles to 'intent' behind the author's back, and the profile becomes exactly the unreviewed-config hazard it exists to close",
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: "  if (defaults.billingReceipts !== undefined && defaults.billingReceipts !== 'intent') {",
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-hash-covers-the-ceiling',
+    doctrine:
+      'the profile hash moves with the posture it pins (RV4009): with the budget ceiling dropped from the hashed map, two runs with different USD ceilings share one fingerprint, and the genesis/resume assertion machinery certifies a posture the hash never saw',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '    budgetUsd: run.budgetUsd,',
+    replace: '',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
