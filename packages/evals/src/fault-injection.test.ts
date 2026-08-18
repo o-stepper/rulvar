@@ -53,6 +53,7 @@ const EXPECTED = [
   'coordination-draft-repair',
   'deterministic-provenance-patch',
   'claim-judge-dead-armed-refusal',
+  'strict-coverage-policy',
   'acceptance-reserve-refusal',
   'budget-policy-immutable',
 ];
@@ -208,6 +209,14 @@ describe('the fault-injection kit (RV811)', () => {
     );
     expect(byName.get('sectional-repair-round-fallback')?.observation.detail).toContain(
       'full regeneration=true',
+    );
+    // The RV4003 scenario: the strict grade gate refuses typed and the
+    // declared waiver licenses the same run with the decision journaled.
+    expect(byName.get('strict-coverage-policy')?.observation.detail).toContain(
+      'strict refusal typed=true',
+    );
+    expect(byName.get('strict-coverage-policy')?.observation.detail).toContain(
+      'waived settle=true',
     );
     // The RV4002 scenarios: the sectional round's envelope carries the
     // workflow repair ledger (one semantic round, nothing mechanical),

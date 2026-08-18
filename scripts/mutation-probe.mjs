@@ -5242,6 +5242,24 @@ export const MUTATIONS = [
     replace: '  return 1 + retries;',
     test: 'packages/core/src/orchestrator/admission.test.ts',
   },
+  {
+    id: 'strict-coverage-grade-gate',
+    doctrine:
+      "coveragePolicy 'strict-final' refuses a non-full final grade typed (RV4003): with the gate collapsed, the fifth comparison shape ships again, a partial grade over the exact uncovered fraction that carried three unsupported citations, with the policy declared and inert",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "    if (opts?.claimConsistency?.coveragePolicy === 'strict-final') {",
+    replace: '    if (false) {',
+    test: 'packages/core/src/orchestrator/coverage-policy.test.ts',
+  },
+  {
+    id: 'coverage-waiver-expiry',
+    doctrine:
+      'an expired waiver refuses exactly like no waiver (RV4003): with the expiry check dropped, a signature from another era licenses acceptances forever, and the bounded exception becomes a standing hole',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        const expired =\n          waiverSpec?.expiresAt !== undefined && Date.parse(waiverSpec.expiresAt) < internals.now();',
+    replace: '        const expired = false;',
+    test: 'packages/core/src/orchestrator/coverage-policy.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

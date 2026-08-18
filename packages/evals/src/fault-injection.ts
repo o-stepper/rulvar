@@ -4326,6 +4326,124 @@ const coordinationDraftRepair: FaultScenario = {
   },
 };
 
+// ---- The strict final coverage policy (RV4003): the fifth
+// comparison run's claim pass graded itself 'partial' honestly (54 of
+// 74 citing sentences, its own 0.72 target met) and the run shipped
+// three unsupported citations inside exactly the uncovered fraction;
+// the grade was a report, and nothing could make it a gate.
+const COVERAGE_POOL = 'A failed audit write does not mask success (`src/exec.ts:256-296`).';
+const COVERAGE_FINAL_PARTIAL =
+  'final: an audit-write failure does not mask success [src/exec.ts:256-296]. ' +
+  'final: the retry ladder caps at three attempts [src/retry.ts:24].';
+
+const strictCoveragePolicy: FaultScenario = {
+  name: 'strict-coverage-policy',
+  doctrine:
+    "coveragePolicy 'strict-final' turns the coverage grade into a gate (RV4003): a final " +
+    "grade of 'partial' refuses acceptance typed with the grade named, and the SAME run " +
+    'under a declared waiver settles ok with claim_coverage_waived journaled and the waiver ' +
+    'riding the envelope verbatim, so a non-full grade on a strict run always names who ' +
+    'accepted it and why',
+  async run() {
+    const makeAdapter = (): FakeAdapter => {
+      let loopTurns = 0;
+      return new FakeAdapter({
+        agents: {
+          'claim-consistency-judge-final': JSON.stringify({ contradictions: [] }),
+          'final-composition': () =>
+            fakeToolCalls({ name: 'finish', args: { result: COVERAGE_FINAL_PARTIAL } }),
+          worker: COVERAGE_POOL,
+          '*': (call) => {
+            loopTurns += 1;
+            if (loopTurns === 1) {
+              return fakeToolCalls({
+                name: 'spawn_agent',
+                args: { agentType: 'worker', prompt: 'read the recorded span' },
+              });
+            }
+            if (loopTurns === 2) {
+              return fakeToolCalls({ name: 'await_all', args: { handles: tailHandles(call.req) } });
+            }
+            return fakeToolCalls({ name: 'finish', args: { result: 'draft before synthesis' } });
+          },
+        },
+      });
+    };
+    const strictOpts = {
+      ...TAIL_OPTS,
+      claimConsistency: {
+        stage: 'final' as const,
+        coveragePolicy: 'strict-final' as const,
+      },
+    };
+    const refusedRig = tailEngine(makeAdapter());
+    const refused = await refusedRig.engine.run(
+      makeOrchestratorWorkflow('audit the executor', strictOpts),
+      undefined,
+      { runId: 'fault-strict-coverage-refused', budgetUsd: 10 },
+    ).result;
+    const refusedData = refused.error?.data as
+      { coveragePolicy?: unknown; coverage?: unknown; source?: unknown } | undefined;
+    const refusedTyped =
+      refused.status === 'error' &&
+      refusedData?.source === 'orchestrator_claim_consistency' &&
+      refusedData.coveragePolicy === 'strict-final' &&
+      refusedData.coverage === 'partial';
+
+    const waivedRig = tailEngine(makeAdapter());
+    const waived = await waivedRig.engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...strictOpts,
+        claimConsistency: {
+          ...strictOpts.claimConsistency,
+          waiver: {
+            principal: 'release-owner',
+            reason: 'the uncovered anchor is a legacy path scheduled for removal',
+          },
+        },
+      }),
+      undefined,
+      { runId: 'fault-strict-coverage-waived', budgetUsd: 10 },
+    ).result;
+    const waivedValue = waived.value as
+      | {
+          claimCoverageWaiver?: { principal?: unknown; coverage?: unknown };
+          claimConsistencyMeta?: { coverage?: unknown };
+        }
+      | undefined;
+    const waivedEntries = await waivedRig.store.load('fault-strict-coverage-waived');
+    const waivedDecision = waivedEntries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'claim_coverage_waived',
+    );
+    const waivedOk =
+      waived.status === 'ok' &&
+      waivedValue?.claimConsistencyMeta?.coverage === 'partial' &&
+      waivedValue.claimCoverageWaiver?.principal === 'release-owner' &&
+      waivedValue.claimCoverageWaiver.coverage === 'partial' &&
+      waivedDecision !== undefined;
+    const matched = refusedTyped && waivedOk;
+    return {
+      observation: {
+        matched,
+        detail:
+          `strict refusal typed=${String(refusedTyped)} (status '${refused.status}', ` +
+          `coverage '${String(refusedData?.coverage)}'); waived settle=${String(waivedOk)} ` +
+          `(status '${waived.status}', principal '${String(waivedValue?.claimCoverageWaiver?.principal)}', ` +
+          `decision journaled=${String(waivedDecision !== undefined)})`,
+      },
+      artifacts: [
+        jsonArtifact('refused.json', { status: refused.status, error: refused.error ?? null }),
+        jsonArtifact('waived.json', {
+          status: waived.status,
+          value: waived.value ?? null,
+        }),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -4365,6 +4483,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   coordinationDraftRepair,
   deterministicProvenancePatch,
   claimJudgeDeadArmedRefusal,
+  strictCoveragePolicy,
   acceptanceReserveRefusal,
   budgetPolicyImmutable,
 ];
