@@ -118,3 +118,70 @@ describe('mixed-provider agent (M4-T02 acceptance)', () => {
     expect(rawProviders(anthEu.calls[0])).toEqual(['anthropic']);
   });
 });
+
+describe('the retention scope key (RV4007)', () => {
+  it('two accounts of one family stop sharing provider-raw blocks', async () => {
+    const anthProd = scriptedAdapter(
+      (_req, call) =>
+        call === 0
+          ? {
+              toolCall: { name: 'clock', args: {} },
+              providerMetadata: { 'anth-prod': { retainedParts: [thinkingBlock] } },
+            }
+          : { text: 'raw notes' },
+      { id: 'anth-prod', provider: 'anthropic', scopeKey: 'acct-prod' },
+    );
+    const anthStaging = scriptedAdapter(() => ({ text: 'synthesis from the other account' }), {
+      id: 'anth-staging',
+      provider: 'anthropic',
+      scopeKey: 'acct-staging',
+    });
+    const { internals } = makeInternals({
+      adapters: [anthProd, anthStaging],
+      routing: { loop: 'anth-prod:model-a' },
+    });
+    const ctx = createCtx(internals);
+    const result = await ctx.agent('research the time', {
+      tools: [clock],
+      routing: { finalize: 'anth-staging:model-b' },
+    });
+    expect(result).toBe('synthesis from the other account');
+    // The prod account's own second turn still echoes its block.
+    expect(anthProd.calls).toHaveLength(2);
+    expect(rawProviders(anthProd.calls[1])).toEqual(['anthropic#acct-prod']);
+    // The staging account of the SAME family sees none of it: cache
+    // handles and thinking blocks minted under one account are not
+    // portable to another.
+    expect(anthStaging.calls).toHaveLength(1);
+    expect(rawProviders(anthStaging.calls[0])).toEqual([]);
+  });
+
+  it('one declared scopeKey beside an undeclared same-family adapter also separates', async () => {
+    const anth = scriptedAdapter(
+      (_req, call) =>
+        call === 0
+          ? {
+              toolCall: { name: 'clock', args: {} },
+              providerMetadata: { anth: { retainedParts: [thinkingBlock] } },
+            }
+          : { text: 'raw notes' },
+      { id: 'anth', provider: 'anthropic' },
+    );
+    const anthScoped = scriptedAdapter(() => ({ text: 'scoped account synthesis' }), {
+      id: 'anth-scoped',
+      provider: 'anthropic',
+      scopeKey: 'acct-b',
+    });
+    const { internals } = makeInternals({
+      adapters: [anth, anthScoped],
+      routing: { loop: 'anth:model-a' },
+    });
+    const ctx = createCtx(internals);
+    const result = await ctx.agent('research the time', {
+      tools: [clock],
+      routing: { finalize: 'anth-scoped:model-b' },
+    });
+    expect(result).toBe('scoped account synthesis');
+    expect(rawProviders(anthScoped.calls[0])).toEqual([]);
+  });
+});

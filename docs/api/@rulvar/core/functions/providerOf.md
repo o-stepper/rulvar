@@ -10,7 +10,7 @@
 function providerOf(adapter): string;
 ```
 
-Defined in: [packages/core/src/model/projector.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/projector.ts#L33)
+Defined in: [packages/core/src/model/projector.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/projector.ts#L49)
 
 The provider family of an adapter: `provider` when set, else `id`.
 

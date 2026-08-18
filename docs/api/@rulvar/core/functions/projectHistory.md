@@ -10,7 +10,7 @@
 function projectHistory(messages, targetProvider): Msg[];
 ```
 
-Defined in: [packages/core/src/model/projector.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/projector.ts#L44)
+Defined in: [packages/core/src/model/projector.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/projector.ts#L60)
 
 Projects the canonical history into the target provider's view:
 provider-raw parts of a DIFFERENT provider are omitted; everything

@@ -29,6 +29,22 @@
 import type { Msg, Part } from '../l0/messages.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
 
+/**
+ * The RETENTION identity of an adapter (RV4007): the provider family,
+ * composed with the adapter's declared `scopeKey` when one exists, so
+ * two adapters of one family serving different accounts stop sharing
+ * provider-raw blocks (cache handles, thinking blocks: provider-side
+ * identifiers minted under one account are not portable to another).
+ * Adapters without a scopeKey keep the family alone, byte for byte
+ * the historical sharing.
+ */
+export function retentionKeyOf(
+  adapter: Pick<ProviderAdapter, 'id' | 'provider' | 'scopeKey'>,
+): string {
+  const family = providerOf(adapter);
+  return adapter.scopeKey === undefined ? family : `${family}#${adapter.scopeKey}`;
+}
+
 /** The provider family of an adapter: `provider` when set, else `id`. */
 export function providerOf(adapter: Pick<ProviderAdapter, 'id' | 'provider'>): string {
   return adapter.provider ?? adapter.id;
@@ -64,7 +80,7 @@ export function projectHistory(messages: Msg[], targetProvider: string): Msg[] {
  */
 export function liftRetainedParts(
   providerMetadata: Record<string, unknown> | undefined,
-  adapter: Pick<ProviderAdapter, 'id' | 'provider'>,
+  adapter: Pick<ProviderAdapter, 'id' | 'provider' | 'scopeKey'>,
 ): Part[] {
   const namespace = providerMetadata?.[adapter.id];
   if (typeof namespace !== 'object' || namespace === null) {
@@ -75,6 +91,9 @@ export function liftRetainedParts(
     return [];
   }
   const blocks: unknown[] = retained;
-  const provider = providerOf(adapter);
+  // The retention identity (RV4007): family alone without a declared
+  // scopeKey, family#scopeKey with one, so blocks minted under one
+  // account never project into another's requests.
+  const provider = retentionKeyOf(adapter);
   return blocks.map((block) => ({ type: 'provider-raw', provider, block }));
 }

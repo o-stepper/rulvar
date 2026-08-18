@@ -10,7 +10,7 @@
 function liftRetainedParts(providerMetadata, adapter): Part[];
 ```
 
-Defined in: [packages/core/src/model/projector.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/projector.ts#L65)
+Defined in: [packages/core/src/model/projector.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/projector.ts#L81)
 
 Lifts the adapter-shipped retention payload of one finished turn into
 provider-raw parts (the retention transport). Reads
@@ -23,7 +23,7 @@ nothing.
 | Parameter | Type |
 | ------ | ------ |
 | `providerMetadata` | `Record`\&lt;`string`, `unknown`\&gt; \| `undefined` |
-| `adapter` | `Pick`\&lt;[`ProviderAdapter`](/api/@rulvar/core/interfaces/ProviderAdapter.md), `"id"` \| `"provider"`\&gt; |
+| `adapter` | `Pick`\&lt;[`ProviderAdapter`](/api/@rulvar/core/interfaces/ProviderAdapter.md), `"id"` \| `"provider"` \| `"scopeKey"`\&gt; |
 
 ## Returns
 

@@ -399,6 +399,13 @@ export interface RunOptions {
    */
   budgetPolicy?: 'segment' | 'immutable-lifetime';
   /**
+   * The bounded execution scope (RV4007): recorded at genesis into
+   * RunMeta and a journal decision, immutable for the run's life (no
+   * resume door), lifted onto the invoice header and carried by the
+   * export bundle. Attribution only: the library never interprets it.
+   */
+  scope?: ExecutionScope;
+  /**
    * The opt-in in-flight exposure cap (RV711): bounds spent money plus
    * the summed worst-case estimates of live dispatches. The per-turn
    * guard checks money already SPENT, so under `budgetUsd` alone N
@@ -576,6 +583,14 @@ export interface ResumeOptions {
    */
   bodyHash?: 'warn' | 'refuse';
   /**
+   * The scope assertion (RV4007), the configFingerprint semantics: a
+   * supplied scope that differs from the recorded one refuses the
+   * resume typed before ownership; a supplied scope over a run that
+   * recorded none warns (absence means NOT RECORDED); a recorded
+   * scope resumes verbatim whether or not it is re-asserted.
+   */
+  scope?: ExecutionScope;
+  /**
    * The host's asserted config identity for this resume (RV3210),
    * compared against the RunMeta-recorded
    * {@link RunOptions.configFingerprint} BEFORE ownership, meta
@@ -735,6 +750,65 @@ export interface RunExport {
   meta?: RunMeta;
   entries: JournalEntry[];
   blobs: Array<{ ref: string; data: Bytes }>;
+}
+
+/**
+ * The bounded execution scope of one run (RV4007, the fifth
+ * comparison experiment's P0.4): WHO this run executes for, as the
+ * host names it. The library CARRIES the scope without loss (RunMeta,
+ * a genesis journal decision, the invoice header, the export bundle
+ * via its meta) and asserts identity on resume; it never interprets
+ * it. Tenancy semantics, entitlement, and isolation policy are host
+ * decisions: this is an attribution envelope, not IAM.
+ */
+export interface ExecutionScope {
+  /** The owning tenant or organization, host-defined. */
+  tenant?: string;
+  /** The billing account within the tenant. */
+  account?: string;
+  /** The project or workload name. */
+  project?: string;
+}
+
+const SCOPE_FIELDS = ['tenant', 'account', 'project'] as const;
+
+/**
+ * Validates and copies a declared scope (RV4007): own properties only
+ * (the RV1205 doctrine: a prototype member must never resolve),
+ * non-empty strings of at most 256 chars, at least one field, and the
+ * copy is what gets recorded, so later host mutation of the passed
+ * object cannot move the recorded identity.
+ */
+export function normalizeExecutionScope(value: unknown, site: string): ExecutionScope {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new ConfigError(`${site} must be an object; got ${JSON.stringify(value)}`);
+  }
+  const copy: ExecutionScope = {};
+  for (const field of SCOPE_FIELDS) {
+    if (!Object.hasOwn(value, field)) {
+      continue;
+    }
+    const declared = (value as Record<string, unknown>)[field];
+    if (typeof declared !== 'string' || declared.length === 0 || declared.length > 256) {
+      throw new ConfigError(
+        `${site}.${field} must be a non-empty string of at most 256 characters; got ` +
+          JSON.stringify(declared),
+      );
+    }
+    copy[field] = declared;
+  }
+  if (Object.keys(copy).length === 0) {
+    throw new ConfigError(
+      `${site} must declare at least one of tenant, account, project; an empty scope ` +
+        'records nothing and asserts nothing',
+    );
+  }
+  return copy;
+}
+
+/** The canonical identity string of a scope (RV4007): JCS bytes, total and deterministic. */
+export function executionScopeKey(scope: ExecutionScope): string {
+  return jcsSerialize(scope);
 }
 
 /** Validates a declared config fingerprint (RV3210): a non-empty string of at most 512 chars. */
@@ -1538,6 +1612,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
      * one from its own options, and absence stays absent.
      */
     configFingerprint?: string;
+    /** The RunMeta-recorded execution scope (RV4007), restored verbatim; absence stays absent. */
+    scope?: ExecutionScope;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -1597,6 +1673,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
           JSON.stringify(opts.budgetPolicy),
       );
     }
+    const declaredScope =
+      opts?.scope === undefined
+        ? undefined
+        : normalizeExecutionScope(opts.scope, 'RunOptions.scope');
     if (opts?.limits !== undefined) {
       validateUsageLimits(opts.limits, 'RunOptions.limits');
     }
@@ -1722,6 +1802,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // ownership), and absence means 'segment', today's behavior byte
     // for byte.
     const budgetPolicy = opts?.budgetPolicy ?? resumeCtx?.budgetPolicy;
+    // The recorded scope travels back in verbatim (RV4007); genesis
+    // declares it once, and there is no resume door.
+    const executionScope = declaredScope ?? resumeCtx?.scope;
     const makeBudget = (): RunBudget =>
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
@@ -2056,6 +2139,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
               // never to an invented refusal.
               ...(budgetPolicy === 'immutable-lifetime' ? { budgetPolicy } : {}),
               ...(configFingerprint === undefined ? {} : { configFingerprint }),
+              ...(executionScope === undefined ? {} : { scope: executionScope }),
               ...(argsBinding.argsProvided === undefined
                 ? {}
                 : { argsProvided: argsBinding.argsProvided }),
@@ -2235,6 +2319,24 @@ export function createEngine(options: CreateEngineOptions): Engine {
                   },
                 }),
             ...(budgetSeed === undefined ? {} : { settledSpendUsd: budgetSeed.usd }),
+          },
+        });
+      }
+      // The scope's journal voice (RV4007): one genesis decision, so a
+      // pure fold (the invoice header) reads the identity from the
+      // entries alone, meta stores aside. Resume segments append
+      // nothing: the recorded identity never changes.
+      if (executionScope !== undefined && resumeCtx === undefined) {
+        await replayer.appendSinglePhase({
+          scope: '',
+          key: deriverV2.deriveKey({ kind: 'execution-scope' }),
+          kind: 'decision',
+          status: 'ok',
+          spanId: rootSpanId,
+          site: 'execution-scope',
+          value: {
+            decisionType: 'execution_scope',
+            scope: executionScope as unknown as Json,
           },
         });
       }
@@ -3012,6 +3114,33 @@ export function createEngine(options: CreateEngineOptions): Engine {
           );
         }
       }
+      // The scope assertion (RV4007), the configFingerprint semantics.
+      {
+        const supplied =
+          resumeOptions?.scope === undefined
+            ? undefined
+            : normalizeExecutionScope(resumeOptions.scope, 'ResumeOptions.scope');
+        const recorded =
+          typeof meta?.scope === 'object' && meta.scope !== null ? meta.scope : undefined;
+        if (
+          supplied !== undefined &&
+          recorded !== undefined &&
+          executionScopeKey(supplied) !== executionScopeKey(recorded)
+        ) {
+          throw new ConfigError(
+            `resume: the supplied scope does not match the one run '${runId}' recorded at ` +
+              'genesis; the execution scope is immutable for the life of the run, and the ' +
+              'host declared exactly this check',
+          );
+        }
+        if (supplied !== undefined && recorded === undefined) {
+          process.emitWarning(
+            `resume: a scope was supplied but run '${runId}' never recorded one; the ` +
+              'assertion cannot be verified (absence means NOT RECORDED)',
+            { code: 'RULVAR_RESUME_SCOPE_UNRECORDED', type: 'RulvarWarning' },
+          );
+        }
+      }
       const raw = await journal.load(runId);
       const priorEntries = raw.map((entry) => normalizeEntry(entry));
       // One scan, strictly before any live call, append, or reserve.
@@ -3091,6 +3220,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(typeof meta?.strictPricing === 'object' && meta.strictPricing !== null
           ? { strictPricing: meta.strictPricing }
           : {}),
+        // The recorded execution scope travels back in verbatim
+        // (RV4007); absence stays absent.
+        ...(typeof meta?.scope === 'object' && meta.scope !== null ? { scope: meta.scope } : {}),
         // The recorded ceiling-override posture travels back in
         // (RV3902); only the exact literal counts, so a store that
         // mangles the field degrades to 'segment', never to an

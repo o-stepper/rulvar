@@ -20,6 +20,11 @@ type RunMeta = {
   maxInFlightExposureUsd?: number;
   name?: string;
   runId: string;
+  scope?: {
+     account?: string;
+     project?: string;
+     tenant?: string;
+  };
   segments?: number;
   status: string;
   strictPricing?: {
@@ -246,6 +251,45 @@ runId: string;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### scope?
+
+```ts
+optional scope?: {
+  account?: string;
+  project?: string;
+  tenant?: string;
+};
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The bounded execution scope (RV4007), recorded at genesis and
+immutable for the run's life: who this run executes for, as the
+host names it (tenant, account, project; attribution only, never
+IAM). Stores must round-trip the field (the conformance kit
+checks); a store that drops it degrades the run to unscoped
+attribution, never to an invented identity.
+
+#### account?
+
+```ts
+optional account?: string;
+```
+
+#### project?
+
+```ts
+optional project?: string;
+```
+
+#### tenant?
+
+```ts
+optional tenant?: string;
+```
 
 ***
 

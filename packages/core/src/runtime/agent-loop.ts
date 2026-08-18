@@ -51,7 +51,7 @@ import { toJournalValue } from '../journal/serializable.js';
 import type { CheckpointState, PendingToolTurn } from '../journal/checkpoint.js';
 import type { ProviderCallRecord, UsageSlice } from '../l0/entries.js';
 import { failoverTriggerOf, nextFailover, type FailoverTrigger } from '../model/failover.js';
-import { liftRetainedParts, projectHistory, providerOf } from '../model/projector.js';
+import { liftRetainedParts, projectHistory, retentionKeyOf } from '../model/projector.js';
 import {
   DEFAULT_RETRY_POLICY,
   retryClassOf,
@@ -4211,7 +4211,7 @@ export async function runAgent<S extends SchemaSpec>(
         requestFor: (target) => {
           let req = buildRequest(
             target.resolved,
-            projectHistory(drainMessages, providerOf(target.adapter)),
+            projectHistory(drainMessages, retentionKeyOf(target.adapter)),
             limits,
             toolsRide ? allowedTools : undefined,
           );
@@ -4395,7 +4395,7 @@ export async function runAgent<S extends SchemaSpec>(
         requestFor: (target) => {
           let req = buildRequest(
             target.resolved,
-            projectHistory(messages, providerOf(target.adapter)),
+            projectHistory(messages, retentionKeyOf(target.adapter)),
             limits,
             options.tools?.contracts,
           );
@@ -4661,7 +4661,10 @@ export async function runAgent<S extends SchemaSpec>(
             requestFor: (target) => {
               let req = buildRequest(
                 target.resolved,
-                [...projectHistory(messages, providerOf(target.adapter)), summarizeInstruction()],
+                [
+                  ...projectHistory(messages, retentionKeyOf(target.adapter)),
+                  summarizeInstruction(),
+                ],
                 limits,
                 options.tools?.contracts,
               );
@@ -4919,7 +4922,7 @@ export async function runAgent<S extends SchemaSpec>(
           requestFor: (target) => {
             let req = buildRequest(
               target.resolved,
-              projectHistory(reserveMessages, providerOf(target.adapter)),
+              projectHistory(reserveMessages, retentionKeyOf(target.adapter)),
               limits,
               options.tools?.contracts,
             );
@@ -5129,7 +5132,7 @@ export async function runAgent<S extends SchemaSpec>(
               {
                 ...buildRequest(
                   target.resolved,
-                  projectHistory(synthesisMessages, providerOf(target.adapter)),
+                  projectHistory(synthesisMessages, retentionKeyOf(target.adapter)),
                   limits,
                   options.tools?.contracts,
                 ),
@@ -5293,7 +5296,7 @@ export async function runAgent<S extends SchemaSpec>(
             const targetTier = extractTierFor(target);
             let req = buildRequest(
               target.resolved,
-              projectHistory(extractMessages, providerOf(target.adapter)),
+              projectHistory(extractMessages, retentionKeyOf(target.adapter)),
               limits,
               options.tools?.contracts,
             );
