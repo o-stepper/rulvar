@@ -5216,6 +5216,33 @@ export const MUTATIONS = [
     build: '@rulvar/cli',
   },
   {
+    id: 'wire-intent-before-dispatch',
+    doctrine:
+      'the provider intent is durable BEFORE the wire can bill (RV4006): with the quota-arm invocation dropped, the crash window re-opens to the whole dispatch, and the posture journals intents only on the unconfigured-quota path, a half-truth worse than absence',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          if (options.billing?.onProviderIntent !== undefined) {',
+    replace: '          if (false) {',
+    test: 'packages/core/src/engine/wire-intent.test.ts',
+  },
+  {
+    id: 'resume-refuses-open-intents',
+    doctrine:
+      'a resume that finds an open provider intent refuses the blind retry typed (RV4006): with the gate collapsed, a wire the provider may have billed is silently redispatched and the double payment the posture exists to prevent needs only a crash and a retry',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      if (openIntents.length > 0 && resumeOptions?.acknowledgeOpenWireIntents !== true) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/wire-intent.test.ts',
+  },
+  {
+    id: 'open-intent-receipt-closure',
+    doctrine:
+      'a receipt closes its intent (RV4006): with the receipt pairing dropped from the fold, every settled wire of an intent-posture run reads as unknown outcome, the lane cries wolf on clean journals, and the one real crash window drowns in noise',
+    file: 'packages/core/src/engine/invoice.ts',
+    find: '      receipts.has(`${String(intent.agentRef)}:${String(intent.ordinal)}:${String(intent.attempt)}`)\n    ) {\n      return false;\n    }',
+    replace: '      false\n    ) {\n      return false;\n    }',
+    test: 'packages/core/src/engine/wire-intent.test.ts',
+  },
+  {
     id: 'acceptance-reserve-unfit-severity',
     doctrine:
       "an unfit tail under declared 'require' is an ERROR finding (RV4001): the fifth comparison harness gated on error findings only and sailed a $4.54 cap past a $4.82 tail; a severity downgrade re-opens exactly that seam, with the arithmetic on record and the boot refusal waiting",

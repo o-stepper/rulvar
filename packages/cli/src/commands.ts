@@ -1280,6 +1280,9 @@ function costAuditRunJson(
       ...(audit.invoice.orphanedReceipts === undefined
         ? {}
         : { orphanedReceipts: audit.invoice.orphanedReceipts }),
+      ...(audit.invoice.openIntents === undefined
+        ? {}
+        : { openIntents: audit.invoice.openIntents }),
     },
     // The workflow repair ledger (RV4002), present exactly when the
     // journal proves a repair was paid for: a journal without one
@@ -1398,6 +1401,27 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
             (row.sections === undefined ? '' : ` | sections ${row.sections.join(', ')}`) +
             (row.wireRef === undefined ? '' : ` | wire @${String(row.wireRef)}`) +
             (row.costUsd === undefined ? '' : ` | ${usdOf(row.costUsd)}`),
+        );
+      }
+    }
+    // The unknown-outcome intent lane (RV4006): wires whose intent
+    // was journaled before dispatch and whose outcome this journal
+    // never learned; no dollars, because inventing them would be the
+    // lie the posture exists to prevent.
+    const openIntents = audit.invoice.openIntents;
+    if (openIntents !== undefined) {
+      context.io.out(
+        `open intents: ${String(openIntents.count)} wire(s) with unknown outcome (RV4006): ` +
+          'an intent was journaled before dispatch and neither a receipt nor a terminal ' +
+          'record covers it; reconcile against the provider statement before retrying',
+      );
+      for (const row of openIntents.rows) {
+        context.io.out(
+          `  agent ${String(row.agentRef)} (${row.scope}) | ordinal ${String(row.ordinal)} ` +
+            `attempt ${String(row.attempt)} | ${row.servedBy}` +
+            (row.requestFingerprint === undefined
+              ? ''
+              : ` | fingerprint ${row.requestFingerprint.slice(0, 16)}…`),
         );
       }
     }
