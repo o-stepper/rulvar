@@ -3648,6 +3648,12 @@ const sectionalRepairRound: FaultScenario = {
             firstPassFindings?: unknown;
             semanticRepairRounds?: unknown;
           };
+          repairs?: {
+            draft?: unknown;
+            composition?: unknown;
+            semantic?: unknown;
+            total?: unknown;
+          };
         }
       | undefined;
     const entries = await store.load('fault-sectional-round');
@@ -3682,11 +3688,21 @@ const sectionalRepairRound: FaultScenario = {
       value?.claimConsistencyMeta?.passes === 2 &&
       value.claimConsistencyMeta.firstPassFindings === 1 &&
       value.claimConsistencyMeta.semanticRepairRounds === 1;
+    // The workflow repair ledger (RV4002): one dispatched semantic
+    // round, zero mechanical repairs anywhere, total 1, readable off
+    // the envelope without the journal walk the fifth experiment's
+    // judge performed.
+    const ledger =
+      value?.repairs?.draft === 0 &&
+      value.repairs.composition === 0 &&
+      value.repairs.semantic === 1 &&
+      value.repairs.total === 1;
     const matched =
       outcome.status === 'ok' &&
       byteIdentity &&
       value.claimConsistencyMeta?.findings === 0 &&
       lineage &&
+      ledger &&
       verdictRows.map((row) => row.verdict).join(',') === 'accepted,accepted' &&
       verdictRows.map((row) => String(row.repairsUsed)).join(',') === '0,0' &&
       sectionalPrompt &&
@@ -3698,7 +3714,7 @@ const sectionalRepairRound: FaultScenario = {
         detail:
           `run '${outcome.status}' shipped ${value?.result === SECTIONAL_SPLICED ? 'the spliced whole' : 'an unexpected document'}; ` +
           `byte identity=${String(byteIdentity)}; sectional prompt=${String(sectionalPrompt)}; ` +
-          `lineage=${String(lineage)}; ` +
+          `lineage=${String(lineage)}; ledger=${String(ledger)}; ` +
           `verdicts [${verdictRows.map((row) => row.verdict).join(',')}]; ` +
           `${String(compositions.length)} composition(s), ${String(judges.length)} final ` +
           'judge pass(es)',
@@ -4154,6 +4170,162 @@ const acceptanceReserveRefusal: FaultScenario = {
   },
 };
 
+// ---- The coordination draft repair (RV4002): the fifth comparison
+// run's ONLY repair lived on the draft gate (three validators rejected
+// the first finish, a sectional resubmission healed it, one more wire
+// at $0.186), and every terminal aggregate truthfully answered zero
+// for its own stage while the workflow answer lived nowhere but the
+// raw transcript. The scenario drives exactly that shape and pins the
+// envelope ledger, the journaled gate decisions, and the repair
+// wire's phase stamp.
+const DRAFT_REPAIR_BROKEN =
+  `${SECTIONAL_PREFIX}## Verdict\n\n` + 'final: the audit path is safe.\n';
+const DRAFT_REPAIR_VERDICT_BODY = 'final: the audit path is safe [src/exec.ts:256-296].\n';
+const DRAFT_REPAIR_FINAL =
+  `${SECTIONAL_PREFIX}## Verdict\n\n` +
+  'final: the audit path is safe, composed over the healed draft [src/exec.ts:256-296].\n';
+
+const coordinationDraftRepair: FaultScenario = {
+  name: 'coordination-draft-repair',
+  doctrine:
+    'the workflow repair ledger counts the draft gate (RV4002): a coordination draft ' +
+    'rejected by the contract gate and healed by a sectional resubmission is ONE draft ' +
+    'repair on the envelope ({draft: 1, composition: 0, semantic: 0, total: 1}) with the ' +
+    'rejected validators, the resubmitted sections, and the repair wire named; the fifth ' +
+    "comparison run's judge rebuilt exactly this count from the raw transcript because " +
+    'no aggregate would answer for the workflow',
+  async run() {
+    let loopTurns = 0;
+    const adapter = new FakeAdapter({
+      agents: {
+        'final-composition': () =>
+          fakeToolCalls({ name: 'finish', args: { result: DRAFT_REPAIR_FINAL } }),
+        '*': () => {
+          loopTurns += 1;
+          return loopTurns === 1
+            ? fakeToolCalls({ name: 'finish', args: { result: DRAFT_REPAIR_BROKEN } })
+            : fakeToolCalls({
+                name: 'finish',
+                args: { sections: { '## Verdict': DRAFT_REPAIR_VERDICT_BODY } },
+              });
+        },
+      },
+    });
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: {
+          loop: FAKE_MODEL_REF,
+          orchestrate: FAKE_MODEL_REF,
+          synthesize: FAKE_MODEL_REF,
+          extract: FAKE_MODEL_REF,
+        },
+        // Deterministic receipts: the repair wire's incremental row is
+        // durable before the envelope assembles, so the ledger row's
+        // wireRef pins instead of racing the async lane.
+        billingReceipts: 'awaited',
+      },
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('audit the executor', {
+        ...TAIL_OPTS,
+        finishValidation: {
+          validators: [
+            minMatchesValidator({
+              pattern: 'src/[a-z]+\\.ts:\\d+',
+              min: 1,
+              name: 'provenance-anchor',
+            }),
+          ],
+          maxRepairs: 1,
+          draftPolicy: 'contract',
+          sectionalRepair: { sections: ['## Verdict'] },
+        },
+      }),
+      undefined,
+      { runId: 'fault-draft-repair', budgetUsd: 10 },
+    ).result;
+    const value = outcome.value as
+      | {
+          result?: unknown;
+          repairs?: {
+            draft?: unknown;
+            composition?: unknown;
+            semantic?: unknown;
+            total?: unknown;
+            rounds?: Array<{
+              stage?: unknown;
+              failedValidators?: unknown;
+              sections?: unknown;
+              wireRef?: unknown;
+            }>;
+          };
+        }
+      | undefined;
+    const entries = await store.load('fault-draft-repair');
+    const gateRows = entries
+      .filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_draft_gate',
+      )
+      .map(
+        (entry) =>
+          entry.value as { verdict?: string; failed?: { name?: string }[]; sections?: string[] },
+      );
+    const repairWires = entries.filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'provider-call' &&
+        (entry.value as { record?: { phase?: string } }).record?.phase === 'repair',
+    );
+    const ledger =
+      value?.repairs?.draft === 1 &&
+      value.repairs.composition === 0 &&
+      value.repairs.semantic === 0 &&
+      value.repairs.total === 1;
+    const row = value?.repairs?.rounds?.[0];
+    const rowFacts =
+      row?.stage === 'draft' &&
+      Array.isArray(row.failedValidators) &&
+      row.failedValidators.join(',') === 'provenance-anchor' &&
+      Array.isArray(row.sections) &&
+      row.sections.join(',') === '## Verdict' &&
+      typeof row.wireRef === 'number';
+    const gateFacts =
+      gateRows.map((gate) => gate.verdict).join(',') === 'rejected,accepted' &&
+      gateRows[0]?.failed?.map((f) => f.name).join(',') === 'provenance-anchor' &&
+      gateRows[1]?.sections?.join(',') === '## Verdict';
+    const matched =
+      outcome.status === 'ok' &&
+      value?.result === DRAFT_REPAIR_FINAL &&
+      ledger &&
+      rowFacts &&
+      gateFacts &&
+      repairWires.length === 1;
+    return {
+      observation: {
+        matched,
+        detail:
+          `run '${outcome.status}'; ledger=${String(ledger)}; row=${String(rowFacts)}; ` +
+          `gate decisions [${gateRows.map((gate) => gate.verdict).join(',')}]; ` +
+          `${String(repairWires.length)} repair-stamped wire(s)`,
+      },
+      artifacts: [
+        jsonArtifact('outcome.json', {
+          status: outcome.status,
+          value: outcome.value ?? null,
+          envelope: outcome.envelope,
+        }),
+        jsonArtifact('journal.json', entries),
+      ],
+    };
+  },
+};
+
 const SCENARIOS: readonly FaultScenario[] = [
   inFlightExposure,
   duplicateQuotaRule,
@@ -4190,6 +4362,7 @@ const SCENARIOS: readonly FaultScenario[] = [
   repairRoundMechanicalReserve,
   sectionalRepairRound,
   sectionalRepairRoundFallback,
+  coordinationDraftRepair,
   deterministicProvenancePatch,
   claimJudgeDeadArmedRefusal,
   acceptanceReserveRefusal,

@@ -3365,6 +3365,15 @@ export async function runAgent<S extends SchemaSpec>(
   const dispatchPhase = async (site: {
     /** The invocation phase this dispatch pays for (v1.19.0 review P1-2). */
     role: InvocationRole;
+    /**
+     * The wire-level phase override (RV4002): 'repair' when this
+     * dispatch IS the granted mechanical repair turn (the turn that
+     * immediately follows a rejected terminal-tool exchange), stamped
+     * onto every wire record of the dispatch, transport retries
+     * included, so the repair's money folds under its own bucket
+     * instead of the hosting dispatch's phase.
+     */
+    phase?: 'repair';
     chain: Array<PhaseTarget & { on?: FailoverTrigger[] }>;
     cursor: { index: number };
     requestFor: (target: PhaseTarget) => ChatRequest;
@@ -3881,6 +3890,9 @@ export async function runAgent<S extends SchemaSpec>(
                   : 'ok',
             usage: accounted,
           };
+          if (site.phase !== undefined) {
+            record.phase = site.phase;
+          }
           if (typeof namespace?.responseId === 'string') {
             record.responseId = namespace.responseId;
           } else if (typeof namespace?.response?.id === 'string') {
@@ -4345,6 +4357,27 @@ export async function runAgent<S extends SchemaSpec>(
     }
     turns += 1;
 
+    // The repair-turn wire marker (RV4002, the fifth comparison
+    // experiment): the turn that immediately follows a rejected
+    // terminal-tool exchange is the granted repair at work, and its
+    // wire records carry phase 'repair' so the mechanical repair's
+    // money is a first-class fold fact instead of a transcript
+    // reconstruction (the experiment's one draft repair wire drowned
+    // in 'coordination' and the judge rebuilt it by hand). Derived
+    // from the message window itself, exactly like the grant count
+    // above, so a resumed segment recounts the same marker without
+    // journaling anything.
+    const lastWindowMessage = messages[messages.length - 1];
+    const repairTurnWire =
+      options.terminalTool !== undefined &&
+      lastWindowMessage !== undefined &&
+      lastWindowMessage.parts.some(
+        (part) =>
+          part.type === 'tool-result' &&
+          part.name === options.terminalTool?.name &&
+          (part as { isError?: boolean }).isError === true,
+      );
+
     const signals: AbortSignal[] = [];
     if (options.signal !== undefined) {
       signals.push(options.signal);
@@ -4356,6 +4389,7 @@ export async function runAgent<S extends SchemaSpec>(
     try {
       loopDispatch = await dispatchPhase({
         role: primaryRole,
+        ...(repairTurnWire ? { phase: 'repair' as const } : {}),
         chain: loopChain,
         cursor: loopCursor,
         requestFor: (target) => {

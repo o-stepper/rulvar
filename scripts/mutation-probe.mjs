@@ -5178,6 +5178,44 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/orchestrate-intake.test.ts',
   },
   {
+    id: 'repair-wire-phase-stamp',
+    doctrine:
+      "the granted repair turn's own wire carries phase 'repair' (RV4002): with the stamp collapsed, the fifth comparison run's one draft repair wire drowns in 'coordination' again, the byPhase split disappears, and the ledger rows lose their wireRef pairing",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "        ...(repairTurnWire ? { phase: 'repair' as const } : {}),",
+    replace: '',
+    test: 'packages/core/src/stores/repair-ledger.test.ts',
+  },
+  {
+    id: 'draft-gate-journal-voice',
+    doctrine:
+      'a draft-gate rejection is a journaled decision (RV4002): silenced back to the pure per-exchange check, the workflow repair ledger reads draft 0 over a run that paid for a draft repair, the exact invisibility the fifth comparison judge had to fix with a transcript walk',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "            verdict: 'rejected',\n            failed,",
+    replace: "            verdict: 'observed',\n            failed,",
+    test: 'packages/core/src/stores/repair-ledger.test.ts',
+  },
+  {
+    id: 'ledger-semantic-round-count',
+    doctrine:
+      "the ledger counts a DISPATCHED claim repair round off the round span's own 'repair' phase (RV4002): with the count dropped, semantic reads 0 beside a settled round and total lies low by exactly the round the run paid two wires for",
+    file: 'packages/core/src/stores/repair-ledger.ts',
+    find: '        semantic += 1;',
+    replace: '',
+    test: 'packages/evals/src/fault-injection.test.ts',
+    build: '@rulvar/core',
+  },
+  {
+    id: 'cost-audit-repairs-line',
+    doctrine:
+      'cost-audit prints the workflow repair ledger when the journal proves one (RV4002): with the line gated off, the CLI answer to "how many repairs did this run pay for" is silence again, and only the envelope of a LIVE outcome could say',
+    file: 'packages/cli/src/commands.ts',
+    find: '    if (repairs.total > 0) {',
+    replace: '    if (false) {',
+    test: 'packages/cli/src/index.test.ts',
+    build: '@rulvar/cli',
+  },
+  {
     id: 'acceptance-reserve-unfit-severity',
     doctrine:
       "an unfit tail under declared 'require' is an ERROR finding (RV4001): the fifth comparison harness gated on error findings only and sailed a $4.54 cap past a $4.82 tail; a severity downgrade re-opens exactly that seam, with the arithmetic on record and the boot refusal waiting",

@@ -65,6 +65,7 @@ import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
 import { lastRunSettle } from '../stores/reconcile.js';
 import { lastMechanicalRepairCostUsd } from '../stores/synthesis-candidates.js';
+import { repairLedgerFromJournal } from '../stores/repair-ledger.js';
 import type { AgentOpts, AgentProfile, Ctx, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
@@ -4707,6 +4708,24 @@ export function makeOrchestratorWorkflow(
       decisionType: 'orchestrator_finish_validation';
       callId: string;
       verdict: 'accepted' | 'repair' | 'rejected';
+      /**
+       * Which invocation rendered this verdict (RV4002): 'composition'
+       * for the initial composition, the no-synthesis coordination
+       * finish, and the reserved finalizer; 'round' for the RV3307
+       * claim repair round's own composition. The workflow repair
+       * ledger folds granted repairs by exactly this field; decisions
+       * journaled before RV4002 carry none and fold as unstaged.
+       */
+      stage: 'composition' | 'round';
+      /**
+       * Present exactly when this verdict judged a sectional splice
+       * (RV808b): the accepted document was assembled from the
+       * retained base plus these resubmitted markers, so the ledger
+       * can name WHICH sections the repair rewrote without reading
+       * the transcript.
+       */
+      spliced?: true;
+      sections?: string[];
       failed: { name: string; reasons: string[] }[];
       /**
        * Non accepted verdicts of the current contract generation
@@ -4820,6 +4839,20 @@ export function makeOrchestratorWorkflow(
      * RV3307 round), each granting at most maxRepairs repair turns.
      */
     let validationInvocationStart = 0;
+    /**
+     * The stage a finish-validation verdict is rendered under (RV4002,
+     * the fifth comparison experiment): 'composition' for the initial
+     * composition invocation, the no-synthesis coordination finish,
+     * and the reserved finalizer wake; 'round' from the moment the
+     * RV3307 claim repair round's own composition dispatches. Written
+     * onto every `orchestrator_finish_validation` decision so the
+     * workflow-wide repair ledger is a pure journal fold instead of a
+     * positional reconstruction (the experiment's judge rebuilt the
+     * one draft repair from the raw transcript). Live state on the
+     * RV808b doctrine: replay re-delivers the journaled decisions and
+     * never re-runs validateFinish.
+     */
+    let finishValidationStage: 'composition' | 'round' = 'composition';
     /**
      * The staged release of the round's mechanical money leg (RV3802),
      * armed by the bounded claim repair round right before its
@@ -5009,7 +5042,7 @@ export function makeOrchestratorWorkflow(
         args?: unknown;
       }):
         | { kind: 'plain'; result: unknown }
-        | { kind: 'spliced'; result: string }
+        | { kind: 'spliced'; result: string; markers: readonly string[] }
         | { kind: 'refused'; feedback: Record<string, unknown> };
       retain(result: unknown): void;
       guidance(): Record<string, unknown>;
@@ -5100,7 +5133,7 @@ export function makeOrchestratorWorkflow(
               },
             };
           }
-          return { kind: 'spliced', result: spliceSections(retained, declared, patch) };
+          return { kind: 'spliced', result: spliceSections(retained, declared, patch), markers };
         },
       };
     };
@@ -5134,6 +5167,7 @@ export function makeOrchestratorWorkflow(
       // was asked to repair.
       let effective = (call.result ?? null) as Json | null;
       let spliced = false;
+      let splicedMarkers: readonly string[] | undefined;
       if (sectionalRoundContext !== undefined) {
         const round = sectionalRoundContext;
         const args = (call.args ?? {}) as Record<string, unknown>;
@@ -5185,6 +5219,7 @@ export function makeOrchestratorWorkflow(
           }
           effective = spliceSections(round.base, round.sections, patch);
           spliced = true;
+          splicedMarkers = markers;
         }
       } else if (finishSectional !== undefined) {
         const resolution = finishSectional.resolve(call);
@@ -5193,6 +5228,9 @@ export function makeOrchestratorWorkflow(
         }
         effective = (resolution.result ?? null) as Json | null;
         spliced = resolution.kind === 'spliced';
+        if (resolution.kind === 'spliced') {
+          splicedMarkers = resolution.markers;
+        }
       }
       const maxRepairs = validationSpec.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS;
       const known = validationDecisions();
@@ -5384,6 +5422,10 @@ export function makeOrchestratorWorkflow(
               : repairsUsed < maxRepairs
                 ? 'repair'
                 : 'rejected',
+          stage: finishValidationStage,
+          ...(spliced && splicedMarkers !== undefined
+            ? { spliced: true as const, sections: [...splicedMarkers] }
+            : {}),
           failed: deterministicRepair?.outcome === 'accepted' ? [] : failed,
           repairsUsed,
           maxRepairs,
@@ -5517,6 +5559,7 @@ export function makeOrchestratorWorkflow(
       // attempt becomes the retained base of the next sectional call.
       let effective = (call.result ?? null) as Json | null;
       let spliced = false;
+      let splicedMarkers: readonly string[] | undefined;
       if (draftSectional !== undefined) {
         const resolution = draftSectional.resolve(call);
         if (resolution.kind === 'refused') {
@@ -5524,22 +5567,66 @@ export function makeOrchestratorWorkflow(
         }
         effective = (resolution.result ?? null) as Json | null;
         spliced = resolution.kind === 'spliced';
+        if (resolution.kind === 'spliced') {
+          splicedMarkers = resolution.markers;
+        }
       }
       const result = effective;
       const text = typeof result === 'string' ? result : JSON.stringify(result);
-      const accept = (): Promise<{ ok: true; resolved?: { result: unknown } }> =>
-        Promise.resolve(spliced ? { ok: true, resolved: { result } } : { ok: true });
-      const reject = (
+      // The draft gate's journal voice (RV4002, the fifth comparison
+      // experiment): the gate itself stays a pure per-exchange check
+      // (the durable exchange still recounts identically), but a
+      // REJECTION and the sectional acceptance that heals it are now
+      // journaled decisions, because the experiment's one draft repair
+      // was invisible to every terminal aggregate and its judge
+      // rebuilt the count from the raw transcript. A clean accept
+      // journals nothing, so repair-free runs keep every byte.
+      const accept = async (): Promise<{ ok: true; resolved?: { result: unknown } }> => {
+        if (spliced && splicedMarkers !== undefined) {
+          await internals.replayer.appendSinglePhase({
+            scope: callingState.scope,
+            key: `draft-gate-accept:${call.id}`,
+            kind: 'decision',
+            status: 'ok',
+            spanId: internals.spans.mint(callingState.spanId),
+            site: 'orchestrator-draft-gate',
+            value: {
+              decisionType: 'orchestrator_draft_gate',
+              callId: call.id,
+              verdict: 'accepted',
+              spliced: true,
+              sections: [...splicedMarkers],
+            },
+          });
+        }
+        return spliced ? { ok: true, resolved: { result } } : { ok: true };
+      };
+      const reject = async (
         feedback: Record<string, unknown>,
+        failed: { name: string; reasons: string[] }[],
       ): Promise<{ ok: false; feedback: Record<string, unknown> }> => {
         draftSectional?.retain(result);
-        return Promise.resolve({
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: `draft-gate:${call.id}`,
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-draft-gate',
+          value: {
+            decisionType: 'orchestrator_draft_gate',
+            callId: call.id,
+            verdict: 'rejected',
+            failed,
+          },
+        });
+        return {
           ok: false,
           feedback: {
             ...feedback,
             ...(draftSectional === undefined ? {} : { sectionalRepair: draftSectional.guidance() }),
           },
-        });
+        };
       };
       if (policy === 'contract') {
         // The full-contract draft gate (RV808a): the SAME validators
@@ -5576,13 +5663,16 @@ export function makeOrchestratorWorkflow(
         if (failed.length === 0) {
           return accept();
         }
-        return reject({
-          error:
-            'the coordination draft failed the declared finish contract; repair the draft ' +
-            'and call finish again: a contract-valid draft skips the synthesis invocation ' +
-            'entirely, and every gap left here is paid for again downstream',
+        return reject(
+          {
+            error:
+              'the coordination draft failed the declared finish contract; repair the draft ' +
+              'and call finish again: a contract-valid draft skips the synthesis invocation ' +
+              'entirely, and every gap left here is paid for again downstream',
+            failed,
+          },
           failed,
-        });
+        );
       }
       const reasons: string[] = [];
       if (policy.minWords !== undefined) {
@@ -5602,13 +5692,16 @@ export function makeOrchestratorWorkflow(
       if (reasons.length === 0) {
         return accept();
       }
-      return reject({
-        error:
-          'the coordination draft failed the draft policy; repair the draft and call finish ' +
-          'again: the synthesis invocation composes the FINAL result from this draft, and a ' +
-          'collapsed draft starves it of the evidence the validators demand',
-        reasons,
-      });
+      return reject(
+        {
+          error:
+            'the coordination draft failed the draft policy; repair the draft and call finish ' +
+            'again: the synthesis invocation composes the FINAL result from this draft, and a ' +
+            'collapsed draft starves it of the evidence the validators demand',
+          reasons,
+        },
+        [{ name: 'draft-policy', reasons }],
+      );
     };
     /**
      * The extension finish gate (RV3202, the 2026-08-11 experiment's
@@ -7852,6 +7945,12 @@ export function makeOrchestratorWorkflow(
       // and the bounded claim repair round enters with the full
       // maxRepairs instead of the initial composition's leftovers.
       validationInvocationStart = validationDecisions().length;
+      // The verdict stage marker (RV4002): from this dispatch on,
+      // finish-validation decisions belong to the composition
+      // invocation being started ('round' when this IS the RV3307
+      // round's own composition), so the workflow repair ledger folds
+      // by a journaled field instead of span positions.
+      finishValidationStage = stagePhase === 'repair' ? 'round' : 'composition';
       const synthesized = await runtime.runInScope(synthesisState, () =>
         (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
           prompt,
@@ -9643,6 +9742,21 @@ export function makeOrchestratorWorkflow(
             lastBeforeHash: lastAcceptedRepair.beforeHash,
             lastAfterHash: lastAcceptedRepair.afterHash,
           };
+    // The workflow-wide repair ledger (RV4002): folded from the run's
+    // own journal snapshot by the SAME exported fold a post-hoc reader
+    // runs, so the live envelope and the persisted journal agree by
+    // construction. Present exactly when a repair machinery was
+    // configured (finish validation or the armed claim repair round):
+    // the fifth comparison experiment's run answered `repairsUsed 0`
+    // and `semanticRepairRounds 0`, both true for their own stages,
+    // while the workflow's one draft repair had no aggregate to live
+    // in and the judge rebuilt it from the raw transcript.
+    const repairLedger =
+      validationSpec !== undefined || (opts?.claimConsistency?.onFound ?? 'report') === 'repair'
+        ? repairLedgerFromJournal(internals.replayer.snapshot(), (servedBy, usage) =>
+            internals.priceUsd(servedBy, usage),
+          )
+        : undefined;
     return {
       result: synthesizedFinal,
       completion: decision.completion,
@@ -9671,6 +9785,12 @@ export function makeOrchestratorWorkflow(
       ...(deterministicPatches === undefined
         ? {}
         : { deterministicPatches: deterministicPatches as unknown as Json }),
+      // The workflow-wide repair ledger (RV4002): the one aggregate
+      // that answers "how many repairs did this workflow pay for, by
+      // stage" without a transcript walk; absent when no repair
+      // machinery was configured, so those envelopes stay byte
+      // identical.
+      ...(repairLedger === undefined ? {} : { repairs: repairLedger as unknown as Json }),
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
       ...(decision.salvagedPartialChildren === undefined

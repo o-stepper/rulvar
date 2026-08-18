@@ -1799,7 +1799,8 @@
             "outputTokens": 5,
             "cacheReadTokens": 0,
             "cacheWriteTokens": 0
-          }
+          },
+          "phase": "repair"
         }
       },
       "endedAt": "2026-02-01T00:00:00.000Z"
@@ -2137,7 +2138,8 @@
             "outputTokens": 5,
             "cacheReadTokens": 0,
             "cacheWriteTokens": 0
-          }
+          },
+          "phase": "repair"
         },
         {
           "ordinal": 9,

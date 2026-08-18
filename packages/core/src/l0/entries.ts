@@ -172,6 +172,19 @@ export interface ProviderCallRecord {
   errorCode?: string;
   /** What severed an 'aborted' call. */
   aborted?: 'budget' | 'external' | 'idle';
+  /**
+   * The wire-level phase override (RV4002, the fifth comparison
+   * experiment): 'repair' on the call that immediately follows a
+   * rejected terminal-tool exchange, the granted mechanical repair
+   * turn's own wire. Phase is otherwise a per-dispatch fact
+   * (`costAttribution.phase`), which is exactly how the experiment's
+   * one draft repair wire drowned in 'coordination': the judge had to
+   * reconstruct the repair from the raw transcript while the invoice
+   * said nothing. The cost folds bucket a call carrying this override
+   * under it instead of the dispatch phase; absent on every other
+   * call, keeping non-repair runs byte identical.
+   */
+  phase?: 'repair';
 }
 
 /**

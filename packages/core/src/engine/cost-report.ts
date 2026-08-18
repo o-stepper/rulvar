@@ -258,7 +258,20 @@ export function costReportFromJournal(
     // 'unknown'; `?? 'unknown'` alone let '' through, and phase used
     // to fall back to '' itself.
     const phase = attributionBucket(facts?.phase);
-    byPhase[phase] = (byPhase[phase] ?? 0) + priced.usd;
+    // The wire-level repair override (RV4002): a call unit whose
+    // record carries phase 'repair' is the granted mechanical repair
+    // turn's own wire, and it folds under 'repair' instead of the
+    // hosting dispatch's bucket (the fifth comparison experiment's one
+    // draft repair wire drowned in 'coordination'). Entries without
+    // such records fold byte identically to before.
+    let phaseUsd = priced.usd;
+    for (const unit of priced.units) {
+      if (unit.source === 'call' && unit.record?.phase === 'repair') {
+        byPhase.repair = (byPhase.repair ?? 0) + unit.usd;
+        phaseUsd -= unit.usd;
+      }
+    }
+    byPhase[phase] = (byPhase[phase] ?? 0) + phaseUsd;
     const agentType = attributionBucket(facts?.agentType);
     byAgentType[agentType] = (byAgentType[agentType] ?? 0) + priced.usd;
     // The scope rollup (RV3805): the same inclusion policy as the
