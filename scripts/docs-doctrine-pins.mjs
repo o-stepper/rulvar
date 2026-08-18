@@ -133,6 +133,14 @@ export const REQUIRED = [
       'the guide must name the entailment audit (RV4004: pool consistency cannot vouch ' +
       'for citations from files no child read)',
   },
+  {
+    file: 'docs/guide/production-profiles.md',
+    pattern: /compileRegulatedProfile/u,
+    what:
+      'the profiles guide must name the one-call regulated floor (RV4009: the fifth ' +
+      'comparison ran every gate at observe because assembling the posture by hand ' +
+      'was the only documented path)',
+  },
 ];
 
 /** Judges one page; returns failure strings, empty when clean. */

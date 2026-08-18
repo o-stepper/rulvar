@@ -1,6 +1,6 @@
 ---
 title: Production profiles
-description: "Three documented postures for running rulvar in production: read-only diagnosis, isolated patch, and the merge/deploy authority the library deliberately does not claim, each composed from features the other guides define."
+description: "Documented postures for running rulvar in production: read-only diagnosis, isolated patch, the one-call regulated floor, and the merge/deploy authority the library deliberately does not claim, each composed from features the other guides define."
 ---
 
 # Production profiles
@@ -33,6 +33,24 @@ The posture for workloads that produce changes without applying them: fix genera
 - Put every apply behind an [approval](/guide/agents#approval-suspensions) with an explicit `defaultDecision` on unattended flows, so an expired approval resolves the way the host declared, never a library-invented accept.
 
 What this posture guarantees: the blast radius of a bad patch is the worktree it was drafted in, and applying it is a host decision recorded on the host's side. What it does not guarantee: patch quality; validators and review own that.
+
+## The regulated floor: one call, refusals typed
+
+Every assurance posture in this library is an opt-in knob, which is correct for a library and hazardous for an unreviewed config: a deployment that hand-assembles twelve options can silently omit the one that mattered. `compileRegulatedProfile(input)` (RV4009) is the one-call composition for workloads that must not run loose. It takes ordinary `{ engine, run, orchestrate? }` options and returns the same shapes with the regulated floor applied:
+
+- `permissions.strictApprovals: true` on the engine defaults (the [monotonic mode](/guide/tools#the-permission-chain); a profile cannot un-arm it).
+- `billingReceipts: 'intent'`, so every provider wire journals its [intent before it can bill](/guide/durability#at-least-once-dispatch-exactly-once-pay).
+- `determinism: { mode: 'error' }`: bare nondeterminism in workflow bodies refuses instead of warning.
+- `strictPricing` armed and `budgetUsd` required, under `budgetPolicy: 'immutable-lifetime'`, so the recorded ceiling binds every later segment.
+- `scope` required (RV4007): a regulated run has an owner, recorded at genesis.
+- When `orchestrate` options are present: `budget.acceptanceReserve: 'require'`, `citationAudit` must be declared, and any `claimConsistency` runs at `coveragePolicy: 'strict-final'` on the shipped document, not the draft.
+- Any profile that declares `tools` must carry a [toolset attestation](/guide/tools#the-toolset-attestation).
+
+The compile REFUSES what it cannot keep: a field that loosens the floor (`billingReceipts: 'async'`, `determinism: { mode: 'warn' }`, a missing budget or scope) throws a typed `ConfigError` naming the field, never a silent overwrite. A config that compiles is a config whose author either stated the floor or left it to be filled; a config that fights the floor fails loud at construction, before any wire.
+
+The returned `profileHash` is a sha256 over the enforced posture map, and the compile writes it into `run.configFingerprint` as `regulated:1:<hash>`. The existing fingerprint machinery does the rest: genesis records it, and a resume asserting a different fingerprint refuses before ownership. No new meta surface, no engine branch: the compiled options are DATA, applied like any others.
+
+What the hash does not cover, deliberately: construction-side postures the options never see. An MCP source's `drift: 'refuse'` and discovery bounds, and the AI SDK bridge's `providerExecutedTools: 'deny'`, are declared where those objects are built; the checklist above and the [MCP](/guide/mcp#bounds) and [providers](/guide/providers) guides own them. A hash must not imply what it cannot verify.
 
 ## Merge and deploy authority: not claimed
 
