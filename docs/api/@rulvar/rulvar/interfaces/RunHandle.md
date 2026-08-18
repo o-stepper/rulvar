@@ -101,3 +101,32 @@ throws InvalidResolutionError and journals nothing.
 #### Returns
 
 `Promise`\&lt;[`ResolutionOutcome`](/api/@rulvar/rulvar/type-aliases/ResolutionOutcome.md)\&gt;
+
+***
+
+### revokeApproval()
+
+```ts
+revokeApproval(key, options): Promise<ApprovalRevocationOutcome>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Revokes a tool approval (RV4008): a still-open approval is denied
+through the ordinary arbitration, and a RECORDED allow gains a
+journaled `approval_revoked` decision that beats it at the
+consumption recheck, so an allow granted, crashed over, and
+revoked never dispatches its tool on resume.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+| `options` | \{ `principal`: `string`; `reason`: `string`; \} |
+| `options.principal` | `string` |
+| `options.reason` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`ApprovalRevocationOutcome`](/api/@rulvar/rulvar/interfaces/ApprovalRevocationOutcome.md)\&gt;

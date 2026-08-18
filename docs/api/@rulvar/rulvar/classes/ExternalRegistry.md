@@ -262,6 +262,38 @@ closed body (exactly one engine.resume owns the continuation).
 
 ***
 
+### revokeApproval()
+
+```ts
+revokeApproval(key, options): Promise<ApprovalRevocationOutcome>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Revokes a tool approval (RV4008). A still-open approval is denied
+through the ordinary first-closing-wins arbitration (a race with
+a live allow stays deterministic by the journal). A RECORDED
+allow cannot be unwritten (history is immutable): the revocation
+appends an `approval_revoked` decision that beats the allow at
+the consumption recheck, so an allow granted, crashed over, and
+revoked never dispatches its tool on resume. A denied or
+abandoned approval has nothing to revoke.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `key` | `string` |
+| `options` | \{ `principal`: `string`; `reason`: `string`; \} |
+| `options.principal` | `string` |
+| `options.reason` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`ApprovalRevocationOutcome`](/api/@rulvar/rulvar/interfaces/ApprovalRevocationOutcome.md)\&gt;
+
+***
+
 ### submitResolution()
 
 ```ts

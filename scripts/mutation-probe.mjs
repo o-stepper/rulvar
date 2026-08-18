@@ -5341,6 +5341,24 @@ export const MUTATIONS = [
     replace: '      false\n    ) {\n      return false;\n    }',
     test: 'packages/core/src/engine/wire-intent.test.ts',
   },
+  {
+    id: 'revocation-beats-recorded-allow',
+    doctrine:
+      'a journaled revocation beats a recorded allow at the consumption recheck (RV4008): with the recheck collapsed, an allow granted, crashed over, and revoked dispatches its tool on resume as if the operator had never spoken',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '              if (decision.entryRef !== undefined) {',
+    replace: '              if (false) {',
+    test: 'packages/core/src/engine/approval-revocation.test.ts',
+  },
+  {
+    id: 'grant-expiry-fails-closed',
+    doctrine:
+      'an unparsable grant expiry denies instead of standing forever (RV4008): flipped back to the open comparison, NaN fails every <, the recheck never fires, and a corrupt expiresAt becomes an eternal allow',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '                !(Date.parse(decision.expiresAt) >= internals.now())',
+    replace: '                Date.parse(decision.expiresAt) < internals.now()',
+    test: 'packages/core/src/engine/approval-revocation.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

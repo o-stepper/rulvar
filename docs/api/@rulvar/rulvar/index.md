@@ -143,6 +143,7 @@ const engine = createEngine({
 | [ApproachSignatureInputs](/api/@rulvar/rulvar/interfaces/ApproachSignatureInputs.md) | The identity inputs of the coarse signature (prompt prose excluded). |
 | [ApprovalDecision](/api/@rulvar/rulvar/interfaces/ApprovalDecision.md) | The resolution value shape of a tool-approval suspension (M3-T03). |
 | [ApprovalIdentityInput](/api/@rulvar/rulvar/interfaces/ApprovalIdentityInput.md) | Tool-approval suspensions (kind 'approval'). |
+| [ApprovalRevocationOutcome](/api/@rulvar/rulvar/interfaces/ApprovalRevocationOutcome.md) | One recorded approval revocation's outcome (RV4008). |
 | [Artifact](/api/@rulvar/rulvar/interfaces/Artifact.md) | Artifact: the normative shape of AgentResult.artifacts entries. |
 | [AuditRecord](/api/@rulvar/rulvar/interfaces/AuditRecord.md) | One reviewable authority event, in journal order. |
 | [AuditRunsOptions](/api/@rulvar/rulvar/interfaces/AuditRunsOptions.md) | - |

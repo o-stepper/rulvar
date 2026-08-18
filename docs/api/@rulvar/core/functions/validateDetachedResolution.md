@@ -13,7 +13,7 @@ function validateDetachedResolution(
 value): Promise<void>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L172)
+Defined in: [packages/core/src/engine/external.ts:215](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L215)
 
 The detached resolution validator (RV1408): classifies the target
 entry exactly as the engine's own detached path does (a kind-'approval'

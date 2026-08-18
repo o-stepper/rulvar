@@ -5,6 +5,7 @@
  */
 import type { WireError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
+import type { ApprovalRevocationOutcome } from './external.js';
 import type { ResolutionOutcome } from '../journal/resolution.js';
 import type { WorkflowEvent } from '../l0/events.js';
 import type { InvocationRole, Usage } from '../l0/messages.js';
@@ -447,6 +448,17 @@ export interface RunHandle<R> {
    * throws InvalidResolutionError and journals nothing.
    */
   resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
+  /**
+   * Revokes a tool approval (RV4008): a still-open approval is denied
+   * through the ordinary arbitration, and a RECORDED allow gains a
+   * journaled `approval_revoked` decision that beats it at the
+   * consumption recheck, so an allow granted, crashed over, and
+   * revoked never dispatches its tool on resume.
+   */
+  revokeApproval(
+    key: string,
+    options: { principal: string; reason: string },
+  ): Promise<ApprovalRevocationOutcome>;
   /** Cooperative cancellation; the run settles 'cancelled' with a complete CostReport. */
   cancel(reason?: string): Promise<void>;
 }

@@ -6,7 +6,7 @@
 
 # Interface: ChildrenAtFailure
 
-Defined in: [packages/core/src/engine/run-handle.ts:221](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L221)
+Defined in: [packages/core/src/engine/run-handle.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L222)
 
 The roster facts of a run that died before any acceptance verdict
 (RV2602): a fold over the children's own journaled terminals, so an
@@ -16,8 +16,8 @@ The roster facts of a run that died before any acceptance verdict
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-belowfloorokchildren"></a> `belowFloorOkChildren?` | `string`[] | Children that settled `ok` under a declared evidence contract they did not meet. The acceptance fold names these too, but only after it runs: the fourth parity run's silent worker was `ok` with zero recorded entries and its run never reached acceptance at all. | [packages/core/src/engine/run-handle.ts:234](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L234) |
-| <a id="property-settled"></a> `settled` | `number` | Of those, the ones carrying a terminal at the moment of death. | [packages/core/src/engine/run-handle.ts:225](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L225) |
-| <a id="property-spawned"></a> `spawned` | `number` | Children admitted, whether or not they settled. | [packages/core/src/engine/run-handle.ts:223](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L223) |
-| <a id="property-statuscounts"></a> `statusCounts` | `Record`\&lt;`string`, `number`\&gt; | Their statuses, counted; the same vocabulary a child terminal uses. | [packages/core/src/engine/run-handle.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L227) |
-| <a id="property-unsettled"></a> `unsettled?` | `string`[] | Children still running when the run gave up; absent when none were. | [packages/core/src/engine/run-handle.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L236) |
+| <a id="property-belowfloorokchildren"></a> `belowFloorOkChildren?` | `string`[] | Children that settled `ok` under a declared evidence contract they did not meet. The acceptance fold names these too, but only after it runs: the fourth parity run's silent worker was `ok` with zero recorded entries and its run never reached acceptance at all. | [packages/core/src/engine/run-handle.ts:235](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L235) |
+| <a id="property-settled"></a> `settled` | `number` | Of those, the ones carrying a terminal at the moment of death. | [packages/core/src/engine/run-handle.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L226) |
+| <a id="property-spawned"></a> `spawned` | `number` | Children admitted, whether or not they settled. | [packages/core/src/engine/run-handle.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L224) |
+| <a id="property-statuscounts"></a> `statusCounts` | `Record`\&lt;`string`, `number`\&gt; | Their statuses, counted; the same vocabulary a child terminal uses. | [packages/core/src/engine/run-handle.ts:228](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L228) |
+| <a id="property-unsettled"></a> `unsettled?` | `string`[] | Children still running when the run gave up; absent when none were. | [packages/core/src/engine/run-handle.ts:237](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L237) |
