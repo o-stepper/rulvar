@@ -62,6 +62,15 @@ export type RunMeta = {
    */
   budgetPolicy?: 'immutable-lifetime';
   /**
+   * The bounded execution scope (RV4007), recorded at genesis and
+   * immutable for the run's life: who this run executes for, as the
+   * host names it (tenant, account, project; attribution only, never
+   * IAM). Stores must round-trip the field (the conformance kit
+   * checks); a store that drops it degrades the run to unscoped
+   * attribution, never to an invented identity.
+   */
+  scope?: { tenant?: string; account?: string; project?: string };
+  /**
    * The opt-in in-flight exposure cap
    * (RunOptions.maxInFlightExposureUsd), recorded at genesis so resume
    * restores the original invocation's cap (RV1504): the option used

@@ -23,7 +23,7 @@ nothing.
 | Parameter | Type |
 | ------ | ------ |
 | `providerMetadata` | `Record`\&lt;`string`, `unknown`\&gt; \| `undefined` |
-| `adapter` | `Pick`\&lt;[`ProviderAdapter`](/api/@rulvar/rulvar/interfaces/ProviderAdapter.md), `"id"` \| `"provider"`\&gt; |
+| `adapter` | `Pick`\&lt;[`ProviderAdapter`](/api/@rulvar/rulvar/interfaces/ProviderAdapter.md), `"id"` \| `"provider"` \| `"scopeKey"`\&gt; |
 
 ## Returns
 

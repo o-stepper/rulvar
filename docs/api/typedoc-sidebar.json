@@ -1055,6 +1055,10 @@
             "link": "/api/@rulvar/core/interfaces/EvidenceContract.md"
           },
           {
+            "text": "ExecutionScope",
+            "link": "/api/@rulvar/core/interfaces/ExecutionScope.md"
+          },
+          {
             "text": "ExplorationSummary",
             "link": "/api/@rulvar/core/interfaces/ExplorationSummary.md"
           },
@@ -3317,6 +3321,10 @@
             "link": "/api/@rulvar/core/functions/executionFactsOf.md"
           },
           {
+            "text": "executionScopeKey",
+            "link": "/api/@rulvar/core/functions/executionScopeKey.md"
+          },
+          {
             "text": "exhaustionCodeOf",
             "link": "/api/@rulvar/core/functions/exhaustionCodeOf.md"
           },
@@ -3573,6 +3581,10 @@
             "link": "/api/@rulvar/core/functions/normalizeEntry.md"
           },
           {
+            "text": "normalizeExecutionScope",
+            "link": "/api/@rulvar/core/functions/normalizeExecutionScope.md"
+          },
+          {
             "text": "normalizeFallbacks",
             "link": "/api/@rulvar/core/functions/normalizeFallbacks.md"
           },
@@ -3795,6 +3807,10 @@
           {
             "text": "resolveToolset",
             "link": "/api/@rulvar/core/functions/resolveToolset.md"
+          },
+          {
+            "text": "retentionKeyOf",
+            "link": "/api/@rulvar/core/functions/retentionKeyOf.md"
           },
           {
             "text": "retryClassOf",
@@ -6289,6 +6305,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/EvidenceContract.md"
           },
           {
+            "text": "ExecutionScope",
+            "link": "/api/@rulvar/rulvar/interfaces/ExecutionScope.md"
+          },
+          {
             "text": "ExplorationSummary",
             "link": "/api/@rulvar/rulvar/interfaces/ExplorationSummary.md"
           },
@@ -8599,6 +8619,10 @@
             "link": "/api/@rulvar/rulvar/functions/executionFactsOf.md"
           },
           {
+            "text": "executionScopeKey",
+            "link": "/api/@rulvar/rulvar/functions/executionScopeKey.md"
+          },
+          {
             "text": "exhaustionCodeOf",
             "link": "/api/@rulvar/rulvar/functions/exhaustionCodeOf.md"
           },
@@ -8855,6 +8879,10 @@
             "link": "/api/@rulvar/rulvar/functions/normalizeEntry.md"
           },
           {
+            "text": "normalizeExecutionScope",
+            "link": "/api/@rulvar/rulvar/functions/normalizeExecutionScope.md"
+          },
+          {
             "text": "normalizeFallbacks",
             "link": "/api/@rulvar/rulvar/functions/normalizeFallbacks.md"
           },
@@ -9089,6 +9117,10 @@
           {
             "text": "resolveToolset",
             "link": "/api/@rulvar/rulvar/functions/resolveToolset.md"
+          },
+          {
+            "text": "retentionKeyOf",
+            "link": "/api/@rulvar/rulvar/functions/retentionKeyOf.md"
           },
           {
             "text": "retryClassOf",

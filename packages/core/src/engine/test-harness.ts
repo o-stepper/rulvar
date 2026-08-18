@@ -93,6 +93,8 @@ export function scriptedAdapter(
     id?: string;
     caps?: ModelCaps;
     provider?: string;
+    /** The account identity within the provider family (RV4007). */
+    scopeKey?: string;
     /**
      * Uniquifies tool-call ids across adapter INSTANCES (opt in; the
      * default template stays byte identical). A resumed run's live
@@ -110,6 +112,7 @@ export function scriptedAdapter(
   return {
     id: options?.id ?? 'fake',
     ...(options?.provider === undefined ? {} : { provider: options.provider }),
+    ...(options?.scopeKey === undefined ? {} : { scopeKey: options.scopeKey }),
     calls,
     caps: () => caps,
     async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {

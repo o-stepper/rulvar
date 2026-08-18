@@ -327,6 +327,14 @@ export interface InvoiceExport {
       responseId?: string;
     }>;
   };
+  /**
+   * The run's bounded execution scope (RV4007), lifted from the
+   * genesis `execution_scope` decision: who this run executed for, as
+   * the host named it, on the money document a FinOps pipeline
+   * actually consumes. Absent on unscoped runs, so their exports keep
+   * their bytes.
+   */
+  executionScope?: { tenant?: string; account?: string; project?: string };
 }
 
 const USAGE_FIELDS = [
@@ -836,6 +844,23 @@ export function invoiceFromJournal(
     cardinality: cardinalityOf(rows),
     ...(unsettled === undefined ? {} : { unsettled }),
     ...(orphanedReceipts === undefined ? {} : { orphanedReceipts }),
+    // The execution scope header (RV4007): read from the journal
+    // alone, the pure-fold rule, so an export over entries without
+    // meta still names its owner.
+    ...((): { executionScope?: NonNullable<InvoiceExport['executionScope']> } => {
+      for (const entry of entries) {
+        if (entry.kind !== 'decision') {
+          continue;
+        }
+        const value = entry.value as { decisionType?: unknown; scope?: unknown } | undefined;
+        if (value?.decisionType === 'execution_scope' && typeof value.scope === 'object') {
+          return {
+            executionScope: value.scope as NonNullable<InvoiceExport['executionScope']>,
+          };
+        }
+      }
+      return {};
+    })(),
     ...((): { usageUnknownRows?: number } => {
       const count = rows.filter((row) => row.usageUnknown === true).length;
       return count === 0 ? {} : { usageUnknownRows: count };

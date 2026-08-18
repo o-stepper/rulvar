@@ -5296,6 +5296,24 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/orchestrator/citation-audit.test.ts',
   },
+  {
+    id: 'scope-genesis-decision',
+    doctrine:
+      "the execution scope has a journal voice (RV4007): with the genesis decision dropped, the invoice header goes blind (a pure fold cannot read RunMeta) and 'who did this run execute for' is a store lookup again instead of an entries fact",
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      if (executionScope !== undefined && resumeCtx === undefined) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/execution-scope.test.ts',
+  },
+  {
+    id: 'retention-scope-separation',
+    doctrine:
+      'retained provider-raw blocks key by (family, scopeKey) when accounts are declared (RV4007): collapsed to the family alone, cache handles and thinking blocks minted under one account ride requests served by another, exactly the cross-account leak the key exists to prevent',
+    file: 'packages/core/src/model/projector.ts',
+    find: '  return adapter.scopeKey === undefined ? family : `${family}#${adapter.scopeKey}`;',
+    replace: '  return family;',
+    test: 'packages/core/src/engine/ctx-projection.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

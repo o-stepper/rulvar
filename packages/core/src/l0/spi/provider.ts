@@ -135,6 +135,18 @@ export interface ProviderAdapter {
    */
   provider?: string;
   /**
+   * The account identity of this adapter within its provider family
+   * (RV4007): two adapters of one family serving different provider
+   * accounts declare different scopeKeys, and the retention transport
+   * then keys provider-raw blocks by (family, scopeKey) instead of
+   * family alone, so cache handles and thinking blocks minted under
+   * one account never ride a request served by another. Undeclared
+   * keeps the family-wide sharing byte for byte. Attribution and
+   * projection identity only: routing, pricing, and quota keys are
+   * untouched.
+   */
+  scopeKey?: string;
+  /**
    * Declares WHICH reading of the provider's usage telemetry this
    * adapter normalizes under; the engine stamps it on usage-bearing
    * terminal entries so a journal records not only the numbers but the

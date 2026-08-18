@@ -414,6 +414,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             argsHash: 'a'.repeat(64),
             genesis: 'g'.repeat(26),
             execKeyDerivation: 2,
+            scope: { tenant: 'acme', account: 'prod-billing', project: 'audit' },
           }),
         );
         const roundTripped = (await store.listRuns()).find((candidate) => candidate.runId === RUN);
@@ -437,6 +438,16 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           roundTripped?.budgetPolicy === 'immutable-lifetime',
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (budgetPolicy)',
+        );
+        // The execution scope (RV4007): a store that drops it degrades
+        // the run to unscoped attribution, the same silent-loosening
+        // failure mode as the postures above.
+        ensure(
+          roundTripped?.scope?.tenant === 'acme' &&
+            roundTripped.scope.account === 'prod-billing' &&
+            roundTripped.scope.project === 'audit',
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (scope)',
         );
         // The pricing gate (RV1508): a store that drops it degrades a
         // resumed run to unpriced dispatch, the same silent-loosening
