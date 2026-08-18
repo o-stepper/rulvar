@@ -7,7 +7,7 @@
 # Function: toApprovalDecision()
 
 ```ts
-function toApprovalDecision(value): ApprovalDecision;
+function toApprovalDecision(value, entryRef?): ApprovalDecision;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -20,6 +20,7 @@ is not an explicit allow is a deny: an approval never fails open.
 | Parameter | Type |
 | ------ | ------ |
 | `value` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) |
+| `entryRef?` | `number` |
 
 ## Returns
 

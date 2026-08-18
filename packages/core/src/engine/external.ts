@@ -69,19 +69,50 @@ export class EscalationDecisionAbortedError extends Error {
 export interface ApprovalDecision {
   decision: 'allow' | 'deny';
   reason?: string;
+  /**
+   * The allow's declared expiry (RV4008), carried verbatim from the
+   * resolution value: the consumption recheck denies a granted allow
+   * whose expiry has passed, exactly like a revocation. Pending
+   * approvals already had `deadlineAt`; this bounds the GRANT.
+   */
+  expiresAt?: string;
+  /**
+   * The approval suspension's entry seq (RV4008): the address the
+   * consumption recheck reads revocations against. Present on every
+   * decision this registry hands out; absent only through older
+   * callers of toApprovalDecision.
+   */
+  entryRef?: number;
 }
 
 /**
  * Normalizes a resolution value into an ApprovalDecision. Anything that
  * is not an explicit allow is a deny: an approval never fails open.
  */
-export function toApprovalDecision(value: Json): ApprovalDecision {
-  const record = (value ?? {}) as { decision?: unknown; reason?: unknown };
+export function toApprovalDecision(value: Json, entryRef?: number): ApprovalDecision {
+  const record = (value ?? {}) as { decision?: unknown; reason?: unknown; expiresAt?: unknown };
   const decision = record.decision === 'allow' ? 'allow' : 'deny';
   return {
     decision,
     ...(typeof record.reason === 'string' ? { reason: record.reason } : {}),
+    ...(typeof record.expiresAt === 'string' ? { expiresAt: record.expiresAt } : {}),
+    ...(entryRef === undefined ? {} : { entryRef }),
   };
+}
+
+/** One recorded approval revocation's outcome (RV4008). */
+export interface ApprovalRevocationOutcome {
+  /**
+   * 'denied-pending': the approval was still open and is now denied
+   * through the ordinary first-closing-wins arbitration.
+   * 'revoked-allow': a recorded allow now carries a journaled
+   * revocation that beats it at the consumption recheck.
+   * 'already-revoked': a prior revocation already stands.
+   * 'already-closed': the approval was denied or abandoned; there is
+   * nothing to revoke.
+   */
+  state: 'denied-pending' | 'revoked-allow' | 'already-revoked' | 'already-closed';
+  entryRef: number;
 }
 
 /**
@@ -126,7 +157,19 @@ async function validatePayloadArms(
     const decision = (value as { decision?: unknown } | null)?.decision;
     if (decision !== 'allow' && decision !== 'deny') {
       throw new InvalidResolutionError(
-        `approval '${key}' resolves with { decision: 'allow' | 'deny', reason? }`,
+        `approval '${key}' resolves with { decision: 'allow' | 'deny', reason?, expiresAt? }`,
+      );
+    }
+    // The bounded grant (RV4008): a malformed expiry must not arm a
+    // recheck that can never fire.
+    const expiresAt = (value as { expiresAt?: unknown } | null)?.expiresAt;
+    if (
+      expiresAt !== undefined &&
+      (typeof expiresAt !== 'string' || Number.isNaN(Date.parse(expiresAt)))
+    ) {
+      throw new InvalidResolutionError(
+        `approval '${key}' expiresAt must be an ISO 8601 date string; got ` +
+          JSON.stringify(expiresAt),
       );
     }
   }
@@ -441,7 +484,7 @@ export class ExternalRegistry {
       replayed = true;
       const state = this.replayer.suspensionState(entry.seq);
       if (state.state === 'resolved') {
-        return toApprovalDecision(state.value);
+        return toApprovalDecision(state.value, entry.seq);
       }
       if (state.state === 'abandoned') {
         // The branch is being killed by a journaled abandon; the approval
@@ -485,7 +528,7 @@ export class ExternalRegistry {
         prompt: `approve tool '${options.toolName}'`,
         resolve: (value) => {
           resumeActivity();
-          resolve(toApprovalDecision(value));
+          resolve(toApprovalDecision(value, entry.seq));
         },
       };
       // The journaled deadline arms here, live or re-parked alike: the
@@ -754,6 +797,78 @@ export class ExternalRegistry {
    * resolvable this way only once the segment settled (closed registry),
    * with the exact live-path validation and no wake.
    */
+  /**
+   * Revokes a tool approval (RV4008). A still-open approval is denied
+   * through the ordinary first-closing-wins arbitration (a race with
+   * a live allow stays deterministic by the journal). A RECORDED
+   * allow cannot be unwritten (history is immutable): the revocation
+   * appends an `approval_revoked` decision that beats the allow at
+   * the consumption recheck, so an allow granted, crashed over, and
+   * revoked never dispatches its tool on resume. A denied or
+   * abandoned approval has nothing to revoke.
+   */
+  async revokeApproval(
+    key: string,
+    options: { principal: string; reason: string },
+  ): Promise<ApprovalRevocationOutcome> {
+    if (typeof options.principal !== 'string' || options.principal.length === 0) {
+      throw new InvalidResolutionError('revokeApproval principal must be a non empty string');
+    }
+    if (typeof options.reason !== 'string' || options.reason.length === 0) {
+      throw new InvalidResolutionError('revokeApproval reason must be a non empty string');
+    }
+    const candidates = this.replayer
+      .snapshot()
+      .filter(
+        (entry) => ExternalRegistry.suspensionKeyOf(entry) === key && entry.kind === 'approval',
+      );
+    const target = candidates[candidates.length - 1];
+    if (target === undefined) {
+      throw new InvalidResolutionError(`no approval suspension with key '${key}' in this run`);
+    }
+    const state = this.replayer.suspensionState(target.seq);
+    if (state.state === 'suspended') {
+      await this.resolveExternal(key, {
+        decision: 'deny',
+        reason: `revoked by ${options.principal}: ${options.reason}`,
+      });
+      return { state: 'denied-pending', entryRef: target.seq };
+    }
+    if (
+      state.state === 'resolved' &&
+      (state.value as { decision?: unknown } | null)?.decision === 'allow'
+    ) {
+      const existing = this.replayer
+        .snapshot()
+        .some(
+          (entry) =>
+            entry.kind === 'decision' &&
+            (entry.value as { decisionType?: unknown; targetRef?: unknown } | undefined)
+              ?.decisionType === 'approval_revoked' &&
+            (entry.value as { targetRef?: unknown }).targetRef === target.seq,
+        );
+      if (existing) {
+        return { state: 'already-revoked', entryRef: target.seq };
+      }
+      await this.replayer.appendSinglePhase({
+        scope: target.scope,
+        key: `approval-revoked:${String(target.seq)}`,
+        kind: 'decision',
+        status: 'ok',
+        spanId: target.spanId ?? '',
+        site: 'approval-revocation',
+        value: {
+          decisionType: 'approval_revoked',
+          targetRef: target.seq,
+          principal: options.principal,
+          reason: options.reason,
+        },
+      });
+      return { state: 'revoked-allow', entryRef: target.seq };
+    }
+    return { state: 'already-closed', entryRef: target.seq };
+  }
+
   private async resolveDetached(key: string, value: Json): Promise<ResolutionOutcome> {
     const candidates = this.replayer
       .snapshot()

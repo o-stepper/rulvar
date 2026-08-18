@@ -130,6 +130,7 @@ exactly the pieces you need, for example
 | [ApproachSignatureInputs](/api/@rulvar/core/interfaces/ApproachSignatureInputs.md) | The identity inputs of the coarse signature (prompt prose excluded). |
 | [ApprovalDecision](/api/@rulvar/core/interfaces/ApprovalDecision.md) | The resolution value shape of a tool-approval suspension (M3-T03). |
 | [ApprovalIdentityInput](/api/@rulvar/core/interfaces/ApprovalIdentityInput.md) | Tool-approval suspensions (kind 'approval'). |
+| [ApprovalRevocationOutcome](/api/@rulvar/core/interfaces/ApprovalRevocationOutcome.md) | One recorded approval revocation's outcome (RV4008). |
 | [Artifact](/api/@rulvar/core/interfaces/Artifact.md) | Artifact: the normative shape of AgentResult.artifacts entries. |
 | [AuditRecord](/api/@rulvar/core/interfaces/AuditRecord.md) | One reviewable authority event, in journal order. |
 | [AuditRunsOptions](/api/@rulvar/core/interfaces/AuditRunsOptions.md) | - |

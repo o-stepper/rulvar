@@ -2342,7 +2342,7 @@ export function createCtx(
               // the deadline survives resume and a config change never
               // moves an already-journaled one.
               const approvalDeadlineMs = chain.approvalDeadlineMs;
-              return internals.external.awaitApproval({
+              const decision = await internals.external.awaitApproval({
                 scope: agentScope(state.scope, running.seq),
                 spanId: internals.spans.mint(spanId),
                 toolName: call.name,
@@ -2360,6 +2360,49 @@ export function createCtx(
                     replayed,
                   ),
               });
+              if (decision.decision !== 'allow') {
+                return decision;
+              }
+              // The consumption recheck (RV4008): a recorded allow is
+              // consulted ONE more time at the moment it is about to
+              // license the effect. A journaled revocation beats it (an
+              // allow granted, crashed over, and revoked must never
+              // dispatch on resume), and an expired grant denies the
+              // same way; both read only what the journal already holds,
+              // so live and resumed consumption agree.
+              if (decision.entryRef !== undefined) {
+                const revocation = internals.replayer
+                  .snapshot()
+                  .find(
+                    (entry) =>
+                      entry.kind === 'decision' &&
+                      (entry.value as { decisionType?: unknown; targetRef?: unknown } | undefined)
+                        ?.decisionType === 'approval_revoked' &&
+                      (entry.value as { targetRef?: unknown }).targetRef === decision.entryRef,
+                  );
+                if (revocation !== undefined) {
+                  const why = (revocation.value as { principal?: unknown; reason?: unknown }) ?? {};
+                  const principal = typeof why.principal === 'string' ? why.principal : 'unknown';
+                  const reason = typeof why.reason === 'string' ? why.reason : 'no reason recorded';
+                  return {
+                    decision: 'deny',
+                    reason: `the recorded allow was revoked by ${principal}: ${reason}`,
+                  };
+                }
+              }
+              if (
+                decision.expiresAt !== undefined &&
+                // Fail closed: an unparsable expiry recorded past the
+                // registry's own validation (a raw store append) must
+                // deny, not silently stand forever.
+                !(Date.parse(decision.expiresAt) >= internals.now())
+              ) {
+                return {
+                  decision: 'deny',
+                  reason: `the recorded allow expired at ${decision.expiresAt}`,
+                };
+              }
+              return decision;
             },
           };
         },

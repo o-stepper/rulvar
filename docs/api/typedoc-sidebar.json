@@ -759,6 +759,10 @@
             "link": "/api/@rulvar/core/interfaces/ApprovalIdentityInput.md"
           },
           {
+            "text": "ApprovalRevocationOutcome",
+            "link": "/api/@rulvar/core/interfaces/ApprovalRevocationOutcome.md"
+          },
+          {
             "text": "Artifact",
             "link": "/api/@rulvar/core/interfaces/Artifact.md"
           },
@@ -6015,6 +6019,10 @@
           {
             "text": "ApprovalIdentityInput",
             "link": "/api/@rulvar/rulvar/interfaces/ApprovalIdentityInput.md"
+          },
+          {
+            "text": "ApprovalRevocationOutcome",
+            "link": "/api/@rulvar/rulvar/interfaces/ApprovalRevocationOutcome.md"
           },
           {
             "text": "Artifact",

@@ -6,7 +6,7 @@
 
 # Interface: SemanticPassSummary
 
-Defined in: [packages/core/src/engine/run-handle.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L172)
+Defined in: [packages/core/src/engine/run-handle.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L173)
 
 One semantic pass's explicit summary (RV1906): `ran: true` means the
 pass executed (its findings and meta fields carry the details);
@@ -20,5 +20,5 @@ judge had to annotate by hand that null meant NOT RUN.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-ran"></a> `ran` | `boolean` | [packages/core/src/engine/run-handle.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L173) |
-| <a id="property-reason"></a> `reason?` | `string` | [packages/core/src/engine/run-handle.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L174) |
+| <a id="property-ran"></a> `ran` | `boolean` | [packages/core/src/engine/run-handle.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L174) |
+| <a id="property-reason"></a> `reason?` | `string` | [packages/core/src/engine/run-handle.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L175) |

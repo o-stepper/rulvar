@@ -2999,6 +2999,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       events: bus.iterate(),
       on: (type, cb) => bus.on(type, cb),
       resolveExternal: (key, value) => external.resolveExternal(key, value),
+      revokeApproval: (key, options) => external.revokeApproval(key, options),
       cancel: async (reason?: string) => {
         requestCancel(reason ?? 'cancelled by host');
         await result.then(
@@ -3370,6 +3371,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
       resolveExternal: async (key, value) => {
         const handle = await handlePromise;
         return handle.resolveExternal(key, value);
+      },
+      revokeApproval: async (key, options) => {
+        const handle = await handlePromise;
+        return handle.revokeApproval(key, options);
       },
       cancel: async (reason?: string) => {
         const handle = await handlePromise;
