@@ -203,7 +203,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The two hundred twelve rounds, verbatim in this repository's history:
+The two hundred thirteen rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -444,6 +444,7 @@ The two hundred twelve rounds, verbatim in this repository's history:
 | v1.242.0      | 746d1f4 (#983): plan 38 closes the validated remainder: the loop performs the verdict's own prescription, both round legs funded, the sectional round, corpus classes, byScope rollup     | v1.243.0   |
 | v1.243.0      | adb5ad9 (#990): plan 39 answers the fourth loss: the doctrine pinned and weldable, the terminal parsed at runtime, phases and lineage on the money, the extract toll dropped              | v1.244.0   |
 | v1.244.0      | b4d47a8 (#1001): plan 40 answers the fifth loss: one acceptance formula on both sides, the repair round on the money, citations entailed against sources, the regulated floor in one call | v1.245.0   |
+| v1.245.0      | 46907ac (#1015): plan 41 audits its own floor: the hash sees the constructions and holds them at the seam, claims are required, the waiver survives its clock, semantic rounds own rows   | v1.246.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
