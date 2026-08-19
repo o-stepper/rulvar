@@ -48,7 +48,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Build framework packages (typings for TypeDoc)
-        run: pnpm exec turbo build
+        run: node scripts/turbo-retry.mjs build
 
       - name: Build documentation site (sync + TypeDoc + VitePress + llms.txt)
         run: pnpm --filter @rulvar/docs run build:site

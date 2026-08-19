@@ -22,7 +22,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo build
+      - run: node scripts/turbo-retry.mjs build
       - run: pnpm exec turbo typecheck
       - run: pnpm exec turbo lint
       - run: pnpm exec prettier --check .
@@ -112,7 +112,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo build
+      - run: node scripts/turbo-retry.mjs build
       - run: pnpm exec vitest run
 
   # The engine work budget (cycle 83): a committed baseline of the work
@@ -133,7 +133,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo build
+      - run: node scripts/turbo-retry.mjs build
       - run: node scripts/perf-budget.mjs
       # The mutation probe rides the same job: it rewrites one
       # doctrine-bearing line at a time and requires the owning test file
@@ -157,7 +157,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo build
+      - run: node scripts/turbo-retry.mjs build
       - run: node scripts/catalog-audit.mjs
       - run: >-
           pnpm exec vitest run
@@ -190,7 +190,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo build
+      - run: node scripts/turbo-retry.mjs build
       - uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
@@ -215,7 +215,7 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo build
+      - run: node scripts/turbo-retry.mjs build
       - run: pnpm exec vitest run
 
   pack-gates:
@@ -229,7 +229,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo pack-check
+      - run: node scripts/turbo-retry.mjs pack-check
       - name: Compat artifact immutability gate (offline)
         run: node scripts/compat-immutability.mjs
       - name: Umbrella install smoke on packed tarballs
@@ -253,7 +253,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo build
+      - run: node scripts/turbo-retry.mjs build
       - run: node scripts/cli-smoke.mjs
 
   # The pinned-pnpm bootstrap (v1.13 review P3-2): Turborepo spawns each
