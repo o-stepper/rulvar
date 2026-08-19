@@ -445,8 +445,13 @@ describe('the audit wired into the orchestrator (RV4004)', () => {
       firstPassFindings: 1,
       citationRepairRounds: 1,
     });
-    // The round is a dispatched semantic repair in the RV4002 ledger.
+    // The round is a dispatched semantic repair in the RV4002 ledger,
+    // and since RV4105 it owns a row attributed at dispatch.
     expect(outcome.repairs?.semantic).toBe(1);
+    const semanticRow = (
+      outcome.repairs as { rounds?: Array<{ stage?: string; trigger?: string }> }
+    ).rounds?.find((row) => row.stage === 'semantic');
+    expect(semanticRow?.trigger).toBe('citation');
   });
 
   it('survivors after the round stop the run typed', async () => {

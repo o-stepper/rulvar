@@ -1497,6 +1497,17 @@ describe('the bounded post judge repair (RV3307)', () => {
     expect(outcome.claimConsistencyMeta?.passes).toBe(2);
     expect(outcome.claimConsistencyMeta?.firstPassFindings).toBe(1);
     expect(outcome.claimConsistencyMeta?.semanticRepairRounds).toBe(1);
+    // The dispatched round is stamped with its trigger (RV4105), so
+    // the repair ledger attributes 'claim' without cross-reading metas.
+    const roundEntry = internals.replayer
+      .snapshot()
+      .find(
+        (entry) =>
+          entry.kind === 'agent' &&
+          entry.costAttribution?.label === 'final-composition' &&
+          entry.costAttribution.phase === 'repair',
+      );
+    expect(roundEntry?.costAttribution?.repairTrigger).toBe('claim');
   });
 
   it('a clean first pass under the armed round reads passes 1, rounds 0 (RV3904)', async () => {

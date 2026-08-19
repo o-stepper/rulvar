@@ -5414,6 +5414,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/regulated-profile.test.ts',
   },
   {
+    id: 'semantic-round-owns-a-row',
+    doctrine:
+      "a dispatched semantic repair round owns a ledger row (RV4105): with the row push collapsed, the round's wires have no home and seek a foreign verdict's row, and a reader of semantic: 2 cannot tell the claim round from the citation round without cross-reading two metas",
+    file: 'packages/core/src/stores/repair-ledger.ts',
+    find: '        rounds.push(semanticRow);',
+    replace: '',
+    test: 'packages/core/src/stores/repair-ledger.test.ts',
+  },
+  {
+    id: 'repair-wire-window-closes-at-the-next-row',
+    doctrine:
+      "a repair wire never walks past a nearer row (RV4105): with the claimed-row guard collapsed back to the open scan, a wire whose own row's neighbor lost its billing lane signs its money onto that neighbor, and the ledger's costUsd names another repair's price",
+    file: 'packages/core/src/stores/repair-ledger.ts',
+    find: '    if (nearest === undefined || nearest.wireRef !== undefined) {',
+    replace: '    if (nearest === undefined) {',
+    test: 'packages/core/src/stores/repair-ledger.test.ts',
+  },
+  {
     id: 'journaled-waiver-licenses-the-resumed-acceptance',
     doctrine:
       "the journaled waive decision is the authority on resume (RV4104): with the prior-decision lookup collapsed, a run that waived its coverage gap, crashed, and outlived the waiver's expiry re-renders the exception against the live clock and becomes unfinishable with its exception already on the record",

@@ -7675,6 +7675,10 @@ export function makeOrchestratorWorkflow(
       // bounded claim repair round names itself 'repair', so the money
       // the round spends is separable from the composition it repairs.
       stagePhase: 'composition' | 'repair' = 'composition',
+      // Who dispatched the repair round (RV4105): stamped into the
+      // round's costAttribution beside the phase, so the repair ledger
+      // attributes 'claim' vs 'citation' without cross-reading metas.
+      repairTrigger?: 'claim' | 'citation',
     ): Promise<unknown> => {
       const spec = opts?.synthesis;
       if (spec === undefined) {
@@ -8431,6 +8435,9 @@ export function makeOrchestratorWorkflow(
       // The stage phase fills only the vacuum (RV3905): an explicit
       // host phase keeps its bucket.
       synthesisState.phase = synthesisState.phase ?? stagePhase;
+      if (repairTrigger !== undefined) {
+        synthesisState.repairTrigger = repairTrigger;
+      }
       if (orchestratorAccount !== undefined) {
         synthesisState.budgetScope = orchestratorAccount;
         // The reserve's whole purpose arrives here: the held money is
@@ -10077,7 +10084,7 @@ export function makeOrchestratorWorkflow(
           );
         }
         try {
-          synthesizedFinal = await runSynthesis(result.output, 'repair');
+          synthesizedFinal = await runSynthesis(result.output, 'repair', 'claim');
         } catch (thrown) {
           await journalSynthesisAdmissionDecline(thrown);
           // The round's two deaths are different facts (RV3601). The
@@ -10325,7 +10332,7 @@ export function makeOrchestratorWorkflow(
         }
         carriedCitationFindings = carried;
         try {
-          synthesizedFinal = await runSynthesis(result.output, 'repair');
+          synthesizedFinal = await runSynthesis(result.output, 'repair', 'citation');
         } catch (thrown) {
           await journalSynthesisAdmissionDecline(thrown);
           const auditThrownSource =

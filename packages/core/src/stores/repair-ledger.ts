@@ -21,9 +21,13 @@
 //                stage ('composition' for the initial invocation and
 //                the no-synthesis coordination final, 'round' for the
 //                RV3307 round's own pool), both counting here.
-//   semantic:    a DISPATCHED claim repair round (RV3307): a settled
-//                `final-composition` span whose costAttribution.phase
-//                is 'repair' (RV3905 stamps it at dispatch).
+//   semantic:    a DISPATCHED semantic repair round: the RV3307 claim
+//                round or the RV4004 citation round, either way a
+//                settled `final-composition` span whose
+//                costAttribution.phase is 'repair' (RV3905 stamps it
+//                at dispatch). Since RV4105 the round carries its own
+//                row, with the dispatch-stamped trigger naming which
+//                machinery asked for it.
 //
 // What it refuses to claim (RV1209: absence means NOT RECORDED, never
 // zero). Journals written before RV4002 carry finish-validation
@@ -37,10 +41,23 @@
 import type { JournalEntry, ProviderCallRecord } from '../l0/entries.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
 
-/** One granted repair, folded from its journaled verdict (RV4002). */
+/** One counted repair, folded from its journaled verdict or dispatch (RV4002/RV4105). */
 export interface RepairLedgerRound {
-  /** Which gate granted it: the draft gate, a composition invocation, or the RV3307 round's own pool. */
-  stage: 'draft' | 'composition' | 'round';
+  /**
+   * Which gate granted it (the draft gate, a composition invocation,
+   * or the RV3307 round's own pool), or 'semantic' for a dispatched
+   * semantic repair round itself (RV4105): the round has no verdict
+   * decision, so its row folds from the settled dispatch entry.
+   */
+  stage: 'draft' | 'composition' | 'round' | 'semantic';
+  /**
+   * What dispatched the semantic round (RV4105): 'claim' (the RV3307
+   * contradiction round) or 'citation' (the RV4004 entailment round),
+   * read from the `costAttribution.repairTrigger` stamped at dispatch.
+   * Absent on non-semantic rows and on journals written before the
+   * stamp shipped (absence means NOT RECORDED, RV1209).
+   */
+  trigger?: 'claim' | 'citation';
   /** The verdict decision's seq: the repair's address in the run. */
   seq: number;
   /** The finish call id the verdict was keyed by, when journaled. */
@@ -76,7 +93,12 @@ export interface RepairLedger {
   semantic: number;
   /** draft + composition + semantic. */
   total: number;
-  /** One row per counted repair, in seq order (semantic rounds carry no verdict row). */
+  /**
+   * One row per counted repair, in seq order. Semantic rounds carry
+   * their own rows since RV4105 (stage 'semantic', with the trigger
+   * when the journal stamped one), so their wires have a home and
+   * `semantic: 2` is decomposable without cross-reading metas.
+   */
   rounds: readonly RepairLedgerRound[];
   /**
    * Finish-validation 'repair' verdicts with no journaled stage: the
@@ -155,6 +177,18 @@ export function repairLedgerFromJournal(
         entry.costAttribution.phase === 'repair'
       ) {
         semantic += 1;
+        // The round's own row (RV4105): without it the round's wires
+        // had no home and sought a foreign verdict's row, and a reader
+        // of `semantic: 2` could not tell claim from citation.
+        const trigger = entry.costAttribution.repairTrigger;
+        const semanticRow: RepairLedgerRound = {
+          stage: 'semantic',
+          seq: entry.seq,
+          failedValidators: [],
+          ...(trigger === 'claim' || trigger === 'citation' ? { trigger } : {}),
+        };
+        rounds.push(semanticRow);
+        rowScopes.set(semanticRow, entry.scope);
       }
       continue;
     }
@@ -244,24 +278,31 @@ export function repairLedgerFromJournal(
       break;
     }
   }
-  // Attach each repair-stamped wire to the nearest earlier row of the
-  // same scope that has none yet (the wire follows its verdict).
+  // Attach each repair-stamped wire to the NEAREST earlier row of the
+  // same scope: the wire follows its verdict, and the window closes at
+  // the next row (RV4105). The old scan skipped rows that already held
+  // a wireRef and walked PAST them onto an older repair's row, so a
+  // semantic round whose neighbor's billing row had not landed (the
+  // RV2008 async posture) could sign its money onto that neighbor. The
+  // first wire in a window claims the row (`wireRef` is "the first
+  // incremental billing row after this verdict"); later wires of the
+  // same window stay unattached rather than misattached.
   for (const wire of wireRows) {
-    let target: RepairLedgerRound | undefined;
+    let nearest: RepairLedgerRound | undefined;
     for (const row of rounds) {
-      if (row.seq >= wire.seq || row.wireRef !== undefined || rowScopes.get(row) !== wire.scope) {
+      if (row.seq >= wire.seq || rowScopes.get(row) !== wire.scope) {
         continue;
       }
-      target = row;
+      nearest = row;
     }
-    if (target === undefined) {
+    if (nearest === undefined || nearest.wireRef !== undefined) {
       continue;
     }
-    target.wireRef = wire.seq;
+    nearest.wireRef = wire.seq;
     if (priceUsd !== undefined && wire.record.servedBy !== undefined) {
       const usd = priceUsd(wire.record.servedBy, wire.record.usage);
       if (usd !== undefined && Number.isFinite(usd) && usd >= 0) {
-        target.costUsd = usd;
+        nearest.costUsd = usd;
       }
     }
   }

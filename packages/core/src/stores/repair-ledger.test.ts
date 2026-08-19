@@ -123,7 +123,79 @@ describe('repairLedgerFromJournal (RV4002)', () => {
     expect(ledger.semantic).toBe(1);
     expect(ledger.total).toBe(3);
     expect(ledger.unstagedVerdicts).toBe(1);
-    expect(ledger.rounds.map((row) => row.stage)).toEqual(['composition', 'round']);
+    // The dispatched round owns a row since RV4105; this journal
+    // predates the trigger stamp, so the row honestly carries none.
+    expect(ledger.rounds.map((row) => row.stage)).toEqual(['composition', 'round', 'semantic']);
+    expect(ledger.rounds[2]?.trigger).toBeUndefined();
+  });
+
+  it("a semantic round's wire lands on its own row, never on an earlier verdict whose billing has not landed (RV4105)", () => {
+    const entries: JournalEntry[] = [
+      decision(20, '', {
+        decisionType: 'orchestrator_finish_validation',
+        callId: 'f1',
+        verdict: 'repair',
+        stage: 'composition',
+        failed: [{ name: 'word-count', reasons: ['short'] }],
+      }),
+      // The composition repair's own billing row never landed (the
+      // RV2008 async posture allows it); before RV4105 the round's
+      // wire below walked onto this row and its costUsd lied.
+      {
+        seq: 30,
+        ref: 25,
+        kind: 'agent',
+        scope: '',
+        key: 'k-round',
+        status: 'ok',
+        costAttribution: {
+          label: 'final-composition',
+          phase: 'repair',
+          role: 'synthesize',
+          repairTrigger: 'claim',
+        },
+      } as unknown as JournalEntry,
+      wireRow(31, '', 25, { ordinal: 31, servedBy: 'fake:model', phase: 'repair', usage }),
+    ];
+    const ledger = repairLedgerFromJournal(entries, () => 0.2);
+    expect(ledger.rounds.map((row) => row.stage)).toEqual(['composition', 'semantic']);
+    const compositionRow = ledger.rounds[0];
+    const semanticRow = ledger.rounds[1];
+    expect(compositionRow?.wireRef).toBeUndefined();
+    expect(compositionRow?.costUsd).toBeUndefined();
+    expect(semanticRow?.trigger).toBe('claim');
+    expect(semanticRow?.wireRef).toBe(31);
+    expect(semanticRow?.costUsd).toBeCloseTo(0.2, 10);
+  });
+
+  it('the pairing window closes at the next row: a later wire stays unattached instead of misattached (RV4105)', () => {
+    const entries: JournalEntry[] = [
+      decision(20, '', {
+        decisionType: 'orchestrator_finish_validation',
+        callId: 'f1',
+        verdict: 'repair',
+        stage: 'composition',
+        failed: [{ name: 'word-count', reasons: ['short'] }],
+      }),
+      decision(30, '', {
+        decisionType: 'orchestrator_finish_validation',
+        callId: 'f2',
+        verdict: 'repair',
+        stage: 'round',
+        failed: [{ name: 'evidence-grade', reasons: ['unanchored'] }],
+      }),
+      wireRow(31, '', 25, { ordinal: 31, servedBy: 'fake:model', phase: 'repair', usage }),
+      wireRow(32, '', 25, { ordinal: 32, servedBy: 'fake:model', phase: 'repair', usage }),
+    ];
+    const ledger = repairLedgerFromJournal(entries, () => 0.1);
+    const first = ledger.rounds[0];
+    const second = ledger.rounds[1];
+    // The first wire claims its nearest row; the second wire's nearest
+    // row is already claimed, and it must NOT walk past it onto the
+    // older row whose own billing never landed.
+    expect(second?.wireRef).toBe(31);
+    expect(first?.wireRef).toBeUndefined();
+    expect(first?.costUsd).toBeUndefined();
   });
 
   it('a clean journal folds to zeros with no rows', () => {

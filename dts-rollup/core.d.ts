@@ -922,6 +922,16 @@ interface CostAttributionFacts {
   */
   label?: string;
   finalizeReserve?: boolean;
+  /**
+  * What dispatched a semantic repair round (RV4105): 'claim' (the
+  * RV3307 contradiction round) or 'citation' (the RV4004 entailment
+  * round), stamped at dispatch beside `phase: 'repair'`, so the
+  * repair ledger attributes the round without cross-reading two
+  * metas. Absent on every other dispatch and on journals written
+  * before it shipped (absence means NOT RECORDED, RV1209). Policy,
+  * never identity.
+  */
+  repairTrigger?: "claim" | "citation";
 }
 /**
 * The per-model slices of a terminal entry: the recorded split when the
@@ -14571,10 +14581,23 @@ interface JournaledPostFanIn {
 declare function criticalPathFromJournal(entries: readonly JournalEntry[]): JournaledCriticalPath;
 //#endregion
 //#region src/stores/repair-ledger.d.ts
-/** One granted repair, folded from its journaled verdict (RV4002). */
+/** One counted repair, folded from its journaled verdict or dispatch (RV4002/RV4105). */
 interface RepairLedgerRound {
-  /** Which gate granted it: the draft gate, a composition invocation, or the RV3307 round's own pool. */
-  stage: "draft" | "composition" | "round";
+  /**
+  * Which gate granted it (the draft gate, a composition invocation,
+  * or the RV3307 round's own pool), or 'semantic' for a dispatched
+  * semantic repair round itself (RV4105): the round has no verdict
+  * decision, so its row folds from the settled dispatch entry.
+  */
+  stage: "draft" | "composition" | "round" | "semantic";
+  /**
+  * What dispatched the semantic round (RV4105): 'claim' (the RV3307
+  * contradiction round) or 'citation' (the RV4004 entailment round),
+  * read from the `costAttribution.repairTrigger` stamped at dispatch.
+  * Absent on non-semantic rows and on journals written before the
+  * stamp shipped (absence means NOT RECORDED, RV1209).
+  */
+  trigger?: "claim" | "citation";
   /** The verdict decision's seq: the repair's address in the run. */
   seq: number;
   /** The finish call id the verdict was keyed by, when journaled. */
@@ -14609,7 +14632,12 @@ interface RepairLedger {
   semantic: number;
   /** draft + composition + semantic. */
   total: number;
-  /** One row per counted repair, in seq order (semantic rounds carry no verdict row). */
+  /**
+  * One row per counted repair, in seq order. Semantic rounds carry
+  * their own rows since RV4105 (stage 'semantic', with the trigger
+  * when the journal stamped one), so their wires have a home and
+  * `semantic: 2` is decomposable without cross-reading metas.
+  */
   rounds: readonly RepairLedgerRound[];
   /**
   * Finish-validation 'repair' verdicts with no journaled stage: the
