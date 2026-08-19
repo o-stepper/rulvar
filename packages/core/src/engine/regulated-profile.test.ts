@@ -105,6 +105,15 @@ describe('compileRegulatedProfile (RV4009)', () => {
         /citationAudit/,
       ],
       [
+        'missing claim consistency',
+        () =>
+          compileRegulatedProfile({
+            ...BASE(),
+            orchestrate: { citationAudit: { resolve: RESOLVE } },
+          }),
+        /claimConsistency must be declared with stage 'final' or 'both'/,
+      ],
+      [
         'observed coverage',
         () =>
           compileRegulatedProfile({

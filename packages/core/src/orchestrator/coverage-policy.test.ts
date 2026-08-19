@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
+import type { JournalEntry } from '../l0/entries.js';
 import type { ChatRequest } from '../l0/messages.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
@@ -47,7 +48,10 @@ function handlesIn(req: ChatRequest): number[] {
   return handles;
 }
 
-function strictHarness(finalText: string) {
+function strictHarness(
+  finalText: string,
+  extra: { now?: () => number; priorEntries?: JournalEntry[] } = {},
+) {
   let orchTurn = 0;
   const coordination = scriptedAdapter((req): ScriptedTurn => {
     if (agentTypeOf(req) === 'worker') {
@@ -76,6 +80,7 @@ function strictHarness(finalText: string) {
     adapters: [coordination, judge, synthesis],
     routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
     profiles: PROFILES,
+    ...extra,
   });
   return { internals, store };
 }
@@ -267,6 +272,90 @@ describe("coveragePolicy 'strict-final' (RV4003)", () => {
       ),
     ).rejects.toMatchObject({
       message: expect.stringContaining('expired at 2000-01-01T00:00:00.000Z') as unknown,
+      data: { coveragePolicy: 'strict-final', coverage: 'partial' },
+    });
+  });
+});
+
+describe('the journaled waiver is the authority on resume (RV4104)', () => {
+  const BEFORE_EXPIRY = Date.parse('2026-01-01T00:00:00.000Z');
+  const AFTER_EXPIRY = Date.parse('2026-03-01T00:00:00.000Z');
+  const EXPIRES = '2026-02-01T00:00:00.000Z';
+  const WAIVED_OPTS = {
+    ...STRICT_OPTS,
+    claimConsistency: {
+      ...STRICT_OPTS.claimConsistency,
+      waiver: { principal: 'release-owner', reason: 'known legacy gap', expiresAt: EXPIRES },
+    },
+  };
+
+  /**
+   * Runs the waived orchestration once with the clock BEFORE the
+   * expiry, then cuts the journal right after the waive decision: the
+   * crash window the doctrine is about, between the recorded
+   * exception and the terminal.
+   */
+  async function waiveThenCrash(): Promise<JournalEntry[]> {
+    const first = strictHarness(FINAL_PARTIAL, { now: () => BEFORE_EXPIRY });
+    await executeWorkflow(
+      first.internals,
+      makeOrchestratorWorkflow('audit the executor', WAIVED_OPTS),
+      undefined,
+    );
+    const entries = await first.store.load(first.internals.runId);
+    const waiveIndex = entries.findIndex(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'claim_coverage_waived',
+    );
+    expect(waiveIndex).toBeGreaterThan(-1);
+    return entries.slice(0, waiveIndex + 1);
+  }
+
+  it('a run that waived, crashed, and outlived the expiry finishes under the recorded exception', async () => {
+    const journaled = await waiveThenCrash();
+    const second = strictHarness(FINAL_PARTIAL, {
+      now: () => AFTER_EXPIRY,
+      priorEntries: journaled,
+    });
+    const outcome = (await executeWorkflow(
+      second.internals,
+      makeOrchestratorWorkflow('audit the executor', WAIVED_OPTS),
+      undefined,
+    )) as { claimCoverageWaiver?: unknown };
+    expect(outcome.claimCoverageWaiver).toEqual({
+      principal: 'release-owner',
+      reason: 'known legacy gap',
+      expiresAt: EXPIRES,
+      coverage: 'partial',
+    });
+  });
+
+  it('the frozen waiver licenses only the document it judged: a foreign judgedHash falls back to the live clock', async () => {
+    const journaled = await waiveThenCrash();
+    const tampered: JournalEntry[] = journaled.map((entry) =>
+      (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+      'claim_coverage_waived'
+        ? {
+            ...entry,
+            value: {
+              ...(entry.value as Record<string, unknown>),
+              judgedHash: 'feedfacefeedface',
+            },
+          }
+        : entry,
+    );
+    const second = strictHarness(FINAL_PARTIAL, {
+      now: () => AFTER_EXPIRY,
+      priorEntries: tampered,
+    });
+    await expect(
+      executeWorkflow(
+        second.internals,
+        makeOrchestratorWorkflow('audit the executor', WAIVED_OPTS),
+        undefined,
+      ),
+    ).rejects.toMatchObject({
       data: { coveragePolicy: 'strict-final', coverage: 'partial' },
     });
   });

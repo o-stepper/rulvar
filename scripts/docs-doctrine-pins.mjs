@@ -141,6 +141,22 @@ export const REQUIRED = [
       'comparison ran every gate at observe because assembling the posture by hand ' +
       'was the only documented path)',
   },
+  {
+    file: 'docs/guide/production-profiles.md',
+    pattern: /`claimConsistency` must be declared/u,
+    what:
+      'the profiles guide must say the regulated floor requires the claim machinery ' +
+      '(RV4103: absence is the loosest claim posture there is, and the third defeat ' +
+      'arc ran exactly that unarmed shape)',
+  },
+  {
+    file: 'docs/guide/orchestration-modes.md',
+    pattern: /the journaled decision is the authority on resume \(RV4104\)/u,
+    what:
+      'the strict-coverage section must state that the journaled waiver licenses the ' +
+      'resumed acceptance (RV4104: a run that waived, crashed, and outlived its ' +
+      'expiry must finish under the recorded exception, not fail against a moving clock)',
+  },
 ];
 
 /** Judges one page; returns failure strings, empty when clean. */

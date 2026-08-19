@@ -43,7 +43,7 @@ Every assurance posture in this library is an opt-in knob, which is correct for 
 - `determinism: { mode: 'error' }`: bare nondeterminism in workflow bodies refuses instead of warning.
 - `strictPricing` armed and `budgetUsd` required, under `budgetPolicy: 'immutable-lifetime'`, so the recorded ceiling binds every later segment.
 - `scope` required (RV4007): a regulated run has an owner, recorded at genesis.
-- When `orchestrate` options are present: `budget.acceptanceReserve: 'require'`, `citationAudit` must be declared, and any `claimConsistency` runs at `coveragePolicy: 'strict-final'` on the shipped document, not the draft.
+- When `orchestrate` options are present: `budget.acceptanceReserve: 'require'`, `citationAudit` must be declared, and `claimConsistency` must be declared with stage `'final'` or `'both'`, running at `coveragePolicy: 'strict-final'` on the shipped document, not the draft (RV4103). Absence is the loosest claim posture there is: an orchestration with no claim machinery runs no pass, grades no coverage, and arms no gate, so the floor refuses the omission exactly like an explicit loosening; it does not autofill a judge it would have to invent billable defaults for.
 - Any profile that declares `tools` must carry a [toolset attestation](/guide/tools#the-toolset-attestation).
 
 The compile REFUSES what it cannot keep: a field that loosens the floor (`billingReceipts: 'async'`, `determinism: { mode: 'warn' }`, a missing budget or scope) throws a typed `ConfigError` naming the field, never a silent overwrite. A config that compiles is a config whose author either stated the floor or left it to be filled; a config that fights the floor fails loud at construction, before any wire.
