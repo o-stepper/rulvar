@@ -10,7 +10,7 @@
 function compileRegulatedProfile(input): RegulatedProfile;
 ```
 
-Defined in: [packages/core/src/engine/regulated-profile.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/regulated-profile.ts#L57)
+Defined in: [packages/core/src/engine/regulated-profile.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/regulated-profile.ts#L75)
 
 ## Parameters
 

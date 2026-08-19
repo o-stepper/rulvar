@@ -29,7 +29,7 @@ while a run is in flight fails that run's MCP tool calls).
 
 | Property | Type | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-id"></a> `id` | `string` | [`ToolSource`](/api/@rulvar/core/interfaces/ToolSource.md).[`id`](/api/@rulvar/core/interfaces/ToolSource.md#property-id) | [packages/core/src/l0/spi/toolsource.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L96) |
+| <a id="property-id"></a> `id` | `string` | [`ToolSource`](/api/@rulvar/core/interfaces/ToolSource.md).[`id`](/api/@rulvar/core/interfaces/ToolSource.md#property-id) | [packages/core/src/l0/spi/toolsource.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L97) |
 
 ## Methods
 
@@ -47,13 +47,38 @@ Defined in: [packages/core/src/tools/mcp.ts:149](https://github.com/o-stepper/ru
 
 ***
 
+### describeRegulatedPosture()?
+
+```ts
+optional describeRegulatedPosture(): RegulatedPostureDescriptor;
+```
+
+Defined in: [packages/core/src/l0/spi/toolsource.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L107)
+
+The construction-side posture attestation (RV4101): a PURE
+snapshot of the risk postures this source chose at construction
+(no wire, no connect, no side effects), read by
+`compileRegulatedProfile` to refuse a loosened posture and hash a
+tightened one. Optional: a source without it counts into the
+profile's `unrecognized` tally instead of being implied verified.
+
+#### Returns
+
+[`RegulatedPostureDescriptor`](/api/@rulvar/core/type-aliases/RegulatedPostureDescriptor.md)
+
+#### Inherited from
+
+[`ToolSource`](/api/@rulvar/core/interfaces/ToolSource.md).[`describeRegulatedPosture`](/api/@rulvar/core/interfaces/ToolSource.md#describeregulatedposture)
+
+***
+
 ### tools()
 
 ```ts
 tools(session): Promise<ToolDef<SchemaSpec>[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/toolsource.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L97)
+Defined in: [packages/core/src/l0/spi/toolsource.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L98)
 
 #### Parameters
 

@@ -138,6 +138,7 @@ const engine = createEngine({
 | [AgentProfileTemplateOptions](/api/@rulvar/rulvar/interfaces/AgentProfileTemplateOptions.md) | Options shared by the implementation and review templates. |
 | [AgentResult](/api/@rulvar/rulvar/interfaces/AgentResult.md) | - |
 | [AgentResultMeta](/api/@rulvar/rulvar/interfaces/AgentResultMeta.md) | The consumer-facing reuse mark on results. |
+| [AiSdkBridgeRegulatedPosture](/api/@rulvar/rulvar/interfaces/AiSdkBridgeRegulatedPosture.md) | The posture a bridgeAiSdk() adapter chose at construction. |
 | [AnthropicAdapterOptions](/api/@rulvar/rulvar/interfaces/AnthropicAdapterOptions.md) | - |
 | [AppliedPricingRow](/api/@rulvar/rulvar/interfaces/AppliedPricingRow.md) | One pinned row: the pricing that was APPLIED to this model's usage. |
 | [ApproachSignatureInputs](/api/@rulvar/rulvar/interfaces/ApproachSignatureInputs.md) | The identity inputs of the coarse signature (prompt prose excluded). |
@@ -275,6 +276,7 @@ const engine = createEngine({
 | [LineageStats](/api/@rulvar/rulvar/interfaces/LineageStats.md) | The pure lineage fold rendered in plan_view and WakeDigest, always pinned to a snapshot (`uptoSeq`), never a live read inside a turn. `approaches` groups settled history by approachSig; a group whose attempts have not settled yet is omitted (there is no outcome to learn from), while `attemptsUsed` still counts every authorized attempt. |
 | [LogicalRunTelemetry](/api/@rulvar/rulvar/interfaces/LogicalRunTelemetry.md) | One logical run's telemetry, folded across every segment (RV2510). |
 | [McpConfig](/api/@rulvar/rulvar/interfaces/McpConfig.md) | - |
+| [McpSourceRegulatedPosture](/api/@rulvar/rulvar/interfaces/McpSourceRegulatedPosture.md) | The posture an mcp() tool source chose at construction (RV1516/RV1808). |
 | [McpToolSource](/api/@rulvar/rulvar/interfaces/McpToolSource.md) | The ToolSource returned by [mcp](/api/@rulvar/rulvar/functions/mcp.md): the frozen ToolSource seam plus the lifecycle the seam deliberately leaves to the host. `close()` releases everything the source created on first use: the SDK client, its transport, and, for stdio, the spawned child process, without which a one shot host process cannot exit naturally after a run, because the child and its pipes keep the event loop alive (v1.33.0 review P2). It is idempotent, resolves even when the connection never succeeded, and resets the source, so a later `tools()` call connects afresh. The engine never closes a source, because one source may serve many runs: the host owns the lifecycle and should close once its runs have settled (closing while a run is in flight fails that run's MCP tool calls). |
 | [MechanicalGateVerdict](/api/@rulvar/rulvar/interfaces/MechanicalGateVerdict.md) | The verdict of one mechanical acceptance gate evaluation. |
 | [MemoryQuotaLimiter](/api/@rulvar/rulvar/interfaces/MemoryQuotaLimiter.md) | The in-process reference QuotaLimiter returned by memoryQuotaLimiter. |
@@ -544,6 +546,7 @@ const engine = createEngine({
 | [QuotaDecision](/api/@rulvar/rulvar/type-aliases/QuotaDecision.md) | The admission verdict. `retryAfterMs` on a denial is the provider-shaped hint the retry engine honors verbatim: the time until the limiter expects capacity (0 = retry immediately, e.g. a request whose estimate can never fit its cap, so exhaustion and failover happen without waiting; absent = the caller's backoff policy applies). |
 | [RandPayload](/api/@rulvar/rulvar/type-aliases/RandPayload.md) | Rand-entry payload. |
 | [RefEntryClassification](/api/@rulvar/rulvar/type-aliases/RefEntryClassification.md) | Fold classification of one ref-entry; NEVER persisted. |
+| [RegulatedPostureDescriptor](/api/@rulvar/rulvar/type-aliases/RegulatedPostureDescriptor.md) | What `describeRegulatedPosture()` returns: one of the known shapes. |
 | [ReplayDisposition](/api/@rulvar/rulvar/type-aliases/ReplayDisposition.md) | - |
 | [ReplayMode](/api/@rulvar/rulvar/type-aliases/ReplayMode.md) | - |
 | [ResolutionAttempt](/api/@rulvar/rulvar/type-aliases/ResolutionAttempt.md) | - |

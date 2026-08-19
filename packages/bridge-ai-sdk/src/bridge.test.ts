@@ -870,3 +870,25 @@ describe('supported interface pin (v1.22.0 review P3-5)', () => {
     ).toThrow();
   });
 });
+
+describe('describeRegulatedPosture (RV4101)', () => {
+  it('reports the deny default and the allow opt-in, by adapter id', () => {
+    expect(bridgeAiSdk(fakeModel([]), { id: 'bridged' }).describeRegulatedPosture?.()).toEqual({
+      regulatedPosture: 1,
+      kind: 'ai-sdk-bridge',
+      name: 'bridged',
+      providerExecutedTools: 'deny',
+    });
+    expect(
+      bridgeAiSdk(fakeModel([]), {
+        id: 'bridged',
+        providerExecutedTools: 'allow',
+      }).describeRegulatedPosture?.(),
+    ).toEqual({
+      regulatedPosture: 1,
+      kind: 'ai-sdk-bridge',
+      name: 'bridged',
+      providerExecutedTools: 'allow',
+    });
+  });
+});

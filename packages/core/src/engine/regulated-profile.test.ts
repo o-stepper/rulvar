@@ -7,6 +7,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
+import type { RegulatedPostureDescriptor } from '../l0/spi/regulated-posture.js';
+import type { ToolSource } from '../l0/spi/toolsource.js';
 import { createEngine, type CreateEngineOptions, type RunOptions } from './engine.js';
 import { defineWorkflow } from './ctx.js';
 import { scriptedAdapter } from './test-harness.js';
@@ -33,7 +35,7 @@ describe('compileRegulatedProfile (RV4009)', () => {
     expect(compiled.engine.determinism?.mode).toBe('error');
     expect(compiled.run.budgetPolicy).toBe('immutable-lifetime');
     expect(compiled.run.strictPricing).toBe(true);
-    expect(compiled.run.configFingerprint).toMatch(/^regulated:1:[0-9a-f]{64}$/);
+    expect(compiled.run.configFingerprint).toMatch(/^regulated:2:[0-9a-f]{64}$/);
     expect(compiled.profileHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -167,5 +169,190 @@ describe('compileRegulatedProfile (RV4009)', () => {
       runId: 'REG-SMOKE',
     }).result;
     expect(outcome.status).toBe('ok');
+  });
+});
+
+describe('the construction posture attestation (RV4101)', () => {
+  const tightSource = (name: string): ToolSource => ({
+    id: name,
+    tools: () => Promise.resolve([]),
+    describeRegulatedPosture: () => ({
+      regulatedPosture: 1,
+      kind: 'mcp-source',
+      name,
+      drift: 'refuse',
+      bounds: {
+        declared: true,
+        maxTools: 16,
+        maxPages: 4,
+        maxSchemaBytes: 65536,
+        discoveryMs: 5000,
+      },
+    }),
+  });
+  const plainSource = (name: string): ToolSource => ({
+    id: name,
+    tools: () => Promise.resolve([]),
+  });
+  const withToolsets = (
+    toolsets: Record<string, ToolSource[]>,
+  ): { engine: CreateEngineOptions; run: RunOptions } => ({
+    ...BASE(),
+    engine: {
+      ...BASE().engine,
+      defaults: { routing: { loop: 'fake:model' }, toolsets },
+    },
+  });
+
+  it('a tightened source compiles and moves the hash; a renamed one moves it again', () => {
+    const bare = compileRegulatedProfile(BASE());
+    const one = compileRegulatedProfile(withToolsets({ research: [tightSource('mcp:inprocess')] }));
+    const renamed = compileRegulatedProfile(
+      withToolsets({ research: [tightSource('mcp:http:x')] }),
+    );
+    expect(one.profileHash).not.toBe(bare.profileHash);
+    expect(renamed.profileHash).not.toBe(one.profileHash);
+  });
+
+  it('a construction that attests nothing still moves the hash: the blind spot is counted', () => {
+    const bare = compileRegulatedProfile(BASE());
+    const counted = compileRegulatedProfile(withToolsets({ research: [plainSource('opaque')] }));
+    expect(counted.profileHash).not.toBe(bare.profileHash);
+  });
+
+  it('one source reached through two toolsets is walked once', () => {
+    const source = tightSource('mcp:inprocess');
+    const twice = compileRegulatedProfile(withToolsets({ a: [source], b: [source] }));
+    const once = compileRegulatedProfile(withToolsets({ a: [source] }));
+    expect(twice.profileHash).toBe(once.profileHash);
+  });
+
+  it('descriptor field order cannot move the hash', () => {
+    const reversed: ToolSource = {
+      id: 'mcp:inprocess',
+      tools: () => Promise.resolve([]),
+      describeRegulatedPosture: () => ({
+        bounds: {
+          discoveryMs: 5000,
+          maxSchemaBytes: 65536,
+          maxPages: 4,
+          maxTools: 16,
+          declared: true,
+        },
+        drift: 'refuse',
+        name: 'mcp:inprocess',
+        kind: 'mcp-source',
+        regulatedPosture: 1,
+      }),
+    };
+    expect(compileRegulatedProfile(withToolsets({ r: [reversed] })).profileHash).toBe(
+      compileRegulatedProfile(withToolsets({ r: [tightSource('mcp:inprocess')] })).profileHash,
+    );
+  });
+
+  it('a deny bridge among the adapters compiles and enters the hash', () => {
+    const denyBridge = {
+      ...scriptedAdapter(() => ({ text: 'x' }), { id: 'bridged' }),
+      describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+        regulatedPosture: 1,
+        kind: 'ai-sdk-bridge',
+        name: 'bridged',
+        providerExecutedTools: 'deny',
+      }),
+    };
+    const augmented = compileRegulatedProfile({
+      ...BASE(),
+      engine: { ...BASE().engine, adapters: [...BASE().engine.adapters, denyBridge] },
+    });
+    expect(augmented.profileHash).not.toBe(compileRegulatedProfile(BASE()).profileHash);
+  });
+
+  it('refuses every loosened construction posture typed, naming the field', () => {
+    const sourceWith = (descriptor: unknown): ToolSource =>
+      ({
+        id: 'loose',
+        tools: () => Promise.resolve([]),
+        describeRegulatedPosture: () => descriptor,
+      }) as unknown as ToolSource;
+    const cases: Array<[string, () => unknown, RegExp]> = [
+      [
+        'rekey drift',
+        () =>
+          compileRegulatedProfile(
+            withToolsets({
+              r: [
+                sourceWith({
+                  regulatedPosture: 1,
+                  kind: 'mcp-source',
+                  name: 'mcp:inprocess',
+                  drift: 'rekey',
+                  bounds: { declared: true },
+                }),
+              ],
+            }),
+          ),
+        /construction\['mcp:inprocess'\]\.drift must be 'refuse'/,
+      ],
+      [
+        'undeclared bounds',
+        () =>
+          compileRegulatedProfile(
+            withToolsets({
+              r: [
+                sourceWith({
+                  regulatedPosture: 1,
+                  kind: 'mcp-source',
+                  name: 'mcp:inprocess',
+                  drift: 'refuse',
+                  bounds: { declared: false },
+                }),
+              ],
+            }),
+          ),
+        /construction\['mcp:inprocess'\]\.bounds must declare every discovery bound/,
+      ],
+      [
+        'allow bridge',
+        () =>
+          compileRegulatedProfile({
+            ...BASE(),
+            engine: {
+              ...BASE().engine,
+              adapters: [
+                ...BASE().engine.adapters,
+                {
+                  ...scriptedAdapter(() => ({ text: 'x' }), { id: 'bridged' }),
+                  describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+                    regulatedPosture: 1,
+                    kind: 'ai-sdk-bridge',
+                    name: 'bridged',
+                    providerExecutedTools: 'allow',
+                  }),
+                },
+              ],
+            },
+          }),
+        /construction\['bridged'\]\.providerExecutedTools must be 'deny'/,
+      ],
+      [
+        'unknown kind',
+        () =>
+          compileRegulatedProfile(
+            withToolsets({
+              r: [sourceWith({ regulatedPosture: 1, kind: 'quantum', name: 'q' })],
+            }),
+          ),
+        /attests an unrecognized kind 'quantum'/,
+      ],
+      [
+        'malformed descriptor',
+        () => compileRegulatedProfile(withToolsets({ r: [sourceWith({ shrug: true })] })),
+        /unrecognized shape/,
+      ],
+    ];
+    for (const [label, thunk, pattern] of cases) {
+      expect(thunk, label).toThrow(ConfigError);
+      expect(thunk, label).toThrow(pattern);
+    }
   });
 });

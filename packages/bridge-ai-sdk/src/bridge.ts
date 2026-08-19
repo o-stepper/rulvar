@@ -205,6 +205,18 @@ export function bridgeAiSdk(
     id,
     provider: family,
 
+    // The construction-side posture attestation (RV4101): a pure
+    // snapshot of the seam decision this adapter was constructed
+    // under. compileRegulatedProfile refuses 'allow' on the regulated
+    // floor, because a provider-executed tool runs outside the
+    // permission chain and the journal.
+    describeRegulatedPosture: () => ({
+      regulatedPosture: 1,
+      kind: 'ai-sdk-bridge',
+      name: id,
+      providerExecutedTools,
+    }),
+
     caps(wireModel: string): ModelCaps {
       const overrides = options.caps?.(wireModel);
       return overrides === undefined

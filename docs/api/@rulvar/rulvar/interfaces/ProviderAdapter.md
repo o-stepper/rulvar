@@ -72,6 +72,27 @@ this call entirely.
 
 ***
 
+### describeRegulatedPosture()?
+
+```ts
+optional describeRegulatedPosture(): RegulatedPostureDescriptor;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The construction-side posture attestation (RV4101): a PURE
+snapshot of the risk postures this adapter chose at construction
+(no wire, no side effects), read by `compileRegulatedProfile` to
+refuse a loosened posture and hash a tightened one. Optional: an
+adapter without it counts into the profile's `unrecognized` tally
+instead of being implied verified.
+
+#### Returns
+
+[`RegulatedPostureDescriptor`](/api/@rulvar/rulvar/type-aliases/RegulatedPostureDescriptor.md)
+
+***
+
 ### refreshCaps()?
 
 ```ts

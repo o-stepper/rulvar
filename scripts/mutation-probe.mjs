@@ -5387,6 +5387,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/regulated-profile.test.ts',
   },
   {
+    id: 'construction-posture-refuses-loosened-drift',
+    doctrine:
+      "a loosened construction posture refuses by field name (RV4101): with the drift refusal collapsed, an mcp source attesting drift 'rekey' compiles into the regulated posture, and a listChanged notification imports a changed tool list beneath a run whose hash claims the construction was judged",
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: "      if (mcpPosture.drift !== 'refuse') {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'construction-hash-counts-the-invisible',
+    doctrine:
+      'the profile hash names its own blind spot (RV4101): with the unrecognized counter collapsed, a config whose toolset gained an opaque construction hashes identically to one without it, and the hash implies a totality it never verified, the exact reading RV4009 refused to fake',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '      unrecognized += 1;',
+    replace: '',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
     id: 'journaled-waiver-licenses-the-resumed-acceptance',
     doctrine:
       "the journaled waive decision is the authority on resume (RV4104): with the prior-decision lookup collapsed, a run that waived its coverage gap, crashed, and outlived the waiver's expiry re-renders the exception against the live clock and becomes unfinishable with its exception already on the record",

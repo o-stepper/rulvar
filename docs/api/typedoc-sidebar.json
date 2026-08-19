@@ -743,6 +743,10 @@
             "link": "/api/@rulvar/core/interfaces/AgentResultMeta.md"
           },
           {
+            "text": "AiSdkBridgeRegulatedPosture",
+            "link": "/api/@rulvar/core/interfaces/AiSdkBridgeRegulatedPosture.md"
+          },
+          {
             "text": "AppliedPricingRow",
             "link": "/api/@rulvar/core/interfaces/AppliedPricingRow.md"
           },
@@ -1285,6 +1289,10 @@
           {
             "text": "McpConfig",
             "link": "/api/@rulvar/core/interfaces/McpConfig.md"
+          },
+          {
+            "text": "McpSourceRegulatedPosture",
+            "link": "/api/@rulvar/core/interfaces/McpSourceRegulatedPosture.md"
           },
           {
             "text": "McpToolSource",
@@ -2315,6 +2323,10 @@
           {
             "text": "RefEntryClassification",
             "link": "/api/@rulvar/core/type-aliases/RefEntryClassification.md"
+          },
+          {
+            "text": "RegulatedPostureDescriptor",
+            "link": "/api/@rulvar/core/type-aliases/RegulatedPostureDescriptor.md"
           },
           {
             "text": "ReplayDisposition",
@@ -6009,6 +6021,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/AgentResultMeta.md"
           },
           {
+            "text": "AiSdkBridgeRegulatedPosture",
+            "link": "/api/@rulvar/rulvar/interfaces/AiSdkBridgeRegulatedPosture.md"
+          },
+          {
             "text": "AnthropicAdapterOptions",
             "link": "/api/@rulvar/rulvar/interfaces/AnthropicAdapterOptions.md"
           },
@@ -6555,6 +6571,10 @@
           {
             "text": "McpConfig",
             "link": "/api/@rulvar/rulvar/interfaces/McpConfig.md"
+          },
+          {
+            "text": "McpSourceRegulatedPosture",
+            "link": "/api/@rulvar/rulvar/interfaces/McpSourceRegulatedPosture.md"
           },
           {
             "text": "McpToolSource",
@@ -7617,6 +7637,10 @@
           {
             "text": "RefEntryClassification",
             "link": "/api/@rulvar/rulvar/type-aliases/RefEntryClassification.md"
+          },
+          {
+            "text": "RegulatedPostureDescriptor",
+            "link": "/api/@rulvar/rulvar/type-aliases/RegulatedPostureDescriptor.md"
           },
           {
             "text": "ReplayDisposition",

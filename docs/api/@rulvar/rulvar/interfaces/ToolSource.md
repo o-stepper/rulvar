@@ -25,6 +25,27 @@ NOT mutate an in-flight agent's toolset.
 
 ## Methods
 
+### describeRegulatedPosture()?
+
+```ts
+optional describeRegulatedPosture(): RegulatedPostureDescriptor;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The construction-side posture attestation (RV4101): a PURE
+snapshot of the risk postures this source chose at construction
+(no wire, no connect, no side effects), read by
+`compileRegulatedProfile` to refuse a loosened posture and hash a
+tightened one. Optional: a source without it counts into the
+profile's `unrecognized` tally instead of being implied verified.
+
+#### Returns
+
+[`RegulatedPostureDescriptor`](/api/@rulvar/rulvar/type-aliases/RegulatedPostureDescriptor.md)
+
+***
+
 ### tools()
 
 ```ts

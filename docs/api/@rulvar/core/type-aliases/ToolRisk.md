@@ -10,7 +10,7 @@
 type ToolRisk = "read" | "write" | "network" | "execute" | "destructive";
 ```
 
-Defined in: [packages/core/src/l0/spi/toolsource.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L19)
+Defined in: [packages/core/src/l0/spi/toolsource.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L20)
 
 Declarative risk metadata on the tool contract. Policy input, not
 identity: it does NOT enter toolsetHash.
