@@ -230,7 +230,7 @@ export function compileRegulatedProfile(input: {
   for (const profile of Object.values(defaults.profiles ?? {})) {
     visitTools(profile.tools);
   }
-  const postureKeyOf = (entry: RegulatedPostureDescriptor): string => `${entry.kind} ${entry.name}`;
+  const postureKeyOf = (entry: RegulatedPostureDescriptor): string => `${entry.kind} ${entry.name}`;
   attested.sort((a, b) =>
     postureKeyOf(a) < postureKeyOf(b) ? -1 : postureKeyOf(a) > postureKeyOf(b) ? 1 : 0,
   );
