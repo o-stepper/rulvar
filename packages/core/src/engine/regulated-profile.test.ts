@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
+import type { ChatRequest } from '../l0/messages.js';
 import type { RegulatedPostureDescriptor } from '../l0/spi/regulated-posture.js';
 import type { ToolSource } from '../l0/spi/toolsource.js';
 import { createEngine, type CreateEngineOptions, type RunOptions } from './engine.js';
@@ -354,5 +355,125 @@ describe('the construction posture attestation (RV4101)', () => {
       expect(thunk, label).toThrow(ConfigError);
       expect(thunk, label).toThrow(pattern);
     }
+  });
+});
+
+describe('the use-time posture re-assertion (RV4102)', () => {
+  interface MutableSource extends ToolSource {
+    posture: { drift: 'rekey' | 'refuse'; name: string };
+  }
+  const mutableSource = (): MutableSource => {
+    const posture = { drift: 'refuse' as 'rekey' | 'refuse', name: 'mcp:inprocess' };
+    return {
+      id: 'mutable',
+      posture,
+      tools: () => Promise.resolve([]),
+      describeRegulatedPosture: () => ({
+        regulatedPosture: 1,
+        kind: 'mcp-source',
+        name: posture.name,
+        drift: posture.drift,
+        bounds: {
+          declared: true,
+          maxTools: 8,
+          maxPages: 2,
+          maxSchemaBytes: 65536,
+          discoveryMs: 1000,
+        },
+      }),
+    };
+  };
+  const withToolsets = (
+    toolsets: Record<string, ToolSource[]>,
+  ): { engine: CreateEngineOptions; run: RunOptions } => ({
+    ...BASE(),
+    engine: {
+      ...BASE().engine,
+      defaults: { routing: { loop: 'fake:model' }, toolsets },
+    },
+  });
+  const compiledSourceOf = (compiled: { engine: CreateEngineOptions }): ToolSource =>
+    compiled.engine.defaults?.toolsets?.r?.[0] as ToolSource;
+
+  it('an unmutated wrapped source serves tools; identity fields pass through', async () => {
+    const source = mutableSource();
+    const compiled = compileRegulatedProfile(withToolsets({ r: [source] }));
+    const wrapped = compiledSourceOf(compiled);
+    expect(wrapped).not.toBe(source);
+    expect(wrapped.id).toBe('mutable');
+    await expect(wrapped.tools({ runId: 'r' })).resolves.toEqual([]);
+  });
+
+  it('a posture loosened after compile refuses at the seam with the field-named error', () => {
+    const source = mutableSource();
+    const compiled = compileRegulatedProfile(withToolsets({ r: [source] }));
+    source.posture.drift = 'rekey';
+    expect(() => {
+      void compiledSourceOf(compiled).tools({ runId: 'r' });
+    }).toThrow(/construction\['mcp:inprocess'\]\.drift must be 'refuse'/);
+  });
+
+  it('a tightened but moved posture refuses naming the drift', () => {
+    const source = mutableSource();
+    const compiled = compileRegulatedProfile(withToolsets({ r: [source] }));
+    source.posture.name = 'mcp:http:renamed';
+    expect(() => {
+      void compiledSourceOf(compiled).tools({ runId: 'r' });
+    }).toThrow(/posture moved between compile time and tools\(\)/);
+  });
+
+  it('a vanished descriptor refuses too', () => {
+    const source = mutableSource();
+    const compiled = compileRegulatedProfile(withToolsets({ r: [source] }));
+    delete (source as Partial<MutableSource>).describeRegulatedPosture;
+    expect(() => {
+      void compiledSourceOf(compiled).tools({ runId: 'r' });
+    }).toThrow(/no describeRegulatedPosture\(\) at all/);
+  });
+
+  it('an adapter that flips to allow after compile refuses at stream()', () => {
+    const seam = { providerExecutedTools: 'deny' as 'allow' | 'deny' };
+    const adapter = {
+      ...scriptedAdapter(() => ({ text: 'x' }), { id: 'bridged' }),
+      describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+        regulatedPosture: 1,
+        kind: 'ai-sdk-bridge',
+        name: 'bridged',
+        providerExecutedTools: seam.providerExecutedTools,
+      }),
+    };
+    const compiled = compileRegulatedProfile({
+      ...BASE(),
+      engine: { ...BASE().engine, adapters: [...BASE().engine.adapters, adapter] },
+    });
+    seam.providerExecutedTools = 'allow';
+    const wrapped = compiled.engine.adapters.find((candidate) => candidate.id === 'bridged');
+    expect(wrapped).toBeDefined();
+    expect(() => wrapped?.stream({} as ChatRequest)).toThrow(
+      /construction\['bridged'\]\.providerExecutedTools must be 'deny'/,
+    );
+  });
+
+  it('the compiled options run through the wrapper: an honest construction is invisible', async () => {
+    const adapter = {
+      ...scriptedAdapter(() => ({ text: 'x' }), { id: 'bridged' }),
+      describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+        regulatedPosture: 1,
+        kind: 'ai-sdk-bridge',
+        name: 'bridged',
+        providerExecutedTools: 'deny',
+      }),
+    };
+    const compiled = compileRegulatedProfile({
+      engine: { adapters: [adapter], defaults: { routing: { loop: 'bridged:model' } } },
+      run: { budgetUsd: 5, scope: { tenant: 'acme' } },
+    });
+    const engine = createEngine(compiled.engine);
+    const wf = defineWorkflow({ name: 'reassert-smoke' }, async (ctx) => ctx.agent('one'));
+    const outcome = await engine.run(wf, undefined, {
+      ...compiled.run,
+      runId: 'REASSERT-SMOKE',
+    }).result;
+    expect(outcome.status).toBe('ok');
   });
 });

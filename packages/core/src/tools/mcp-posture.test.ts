@@ -21,7 +21,8 @@ import { z } from 'zod';
 
 import { ConfigError } from '../l0/errors.js';
 import type { ToolContext } from '../l0/spi/toolsource.js';
-import { mcp } from './mcp.js';
+import { compileRegulatedProfile } from '../engine/regulated-profile.js';
+import { mcp, type McpToolSource } from './mcp.js';
 
 const SESSION = { runId: 'run-posture' };
 
@@ -230,5 +231,32 @@ describe('describeRegulatedPosture (RV4101)', () => {
       drift: 'rekey',
       bounds: { declared: false },
     });
+  });
+});
+
+describe('the compiled profile re-asserts the mcp posture at tools() (RV4102)', () => {
+  it('a cfg mutated after compile refuses before any wire', () => {
+    const cfg = {
+      transport: 'inprocess' as const,
+      server: fixtureServer(),
+      drift: 'refuse' as 'refuse' | 'rekey',
+      maxTools: 8,
+      maxPages: 2,
+      maxSchemaBytes: 65536,
+      timeouts: { discoveryMs: 2000 },
+    };
+    const source = mcp(cfg);
+    const compiled = compileRegulatedProfile({
+      engine: {
+        adapters: [],
+        defaults: { routing: { loop: 'fake:model' }, toolsets: { docs: [source] } },
+      },
+      run: { budgetUsd: 1, scope: { tenant: 'acme' } },
+    });
+    cfg.drift = 'rekey';
+    const wrapped = compiled.engine.defaults?.toolsets?.docs?.[0] as McpToolSource;
+    expect(() => {
+      void wrapped.tools(SESSION);
+    }).toThrow(/construction\['mcp:inprocess'\]\.drift must be 'refuse'/);
   });
 });

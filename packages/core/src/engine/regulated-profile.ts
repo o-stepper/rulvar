@@ -29,8 +29,11 @@
  * there as `unrecognized`, so the hash names its own blind spot
  * instead of implying totality (the RV4009 rule "a hash must not
  * imply what it cannot verify", now with the verifiable part
- * verified). What deliberately stays open: a construction mutated
- * AFTER compile time; the descriptor is a snapshot, not a lease.
+ * verified). The between-compile-and-use window is held as well
+ * (RV4102): the compiled options carry re-asserting wrappers whose
+ * risk seams re-judge the descriptor on every use, and the
+ * cross-process half was always held by the RV3210 fingerprint
+ * assertion.
  */
 import { createHash } from 'node:crypto';
 
@@ -70,6 +73,132 @@ function refuse(field: string, requirement: string): never {
     `compileRegulatedProfile: ${field} ${requirement}; the regulated floor is ` +
       'non-loosenable, so drop the field to inherit the floor or meet it explicitly',
   );
+}
+
+/**
+ * Judges one construction's descriptor against the floor (RV4101) and
+ * returns the normalized shape that enters the hashed posture map.
+ * Shared by the compile walk and the use-time re-assertion (RV4102),
+ * so a posture that loosens AFTER compile refuses with the same
+ * field-named error it would have refused with at compile time.
+ */
+function judgeDescriptor(raw: unknown): RegulatedPostureDescriptor {
+  const descriptor = raw as Partial<RegulatedPostureDescriptor> | null | undefined;
+  if (
+    descriptor === null ||
+    typeof descriptor !== 'object' ||
+    descriptor.regulatedPosture !== 1 ||
+    typeof descriptor.name !== 'string' ||
+    descriptor.name === ''
+  ) {
+    refuse(
+      'construction',
+      'exposes describeRegulatedPosture() with an unrecognized shape (need ' +
+        'regulatedPosture: 1, a non-empty string name, and a known kind)',
+    );
+  }
+  if (descriptor.kind === 'mcp-source') {
+    const mcpPosture = descriptor as McpSourceRegulatedPosture;
+    if (mcpPosture.drift !== 'refuse') {
+      refuse(
+        `construction['${descriptor.name}'].drift`,
+        "must be 'refuse' (RV1516): under a rekey posture a listChanged notification " +
+          'imports a changed tool list beneath the regulated run',
+      );
+    }
+    const bounds = mcpPosture.bounds as McpSourceRegulatedPosture['bounds'] | undefined;
+    if (bounds === undefined || bounds.declared !== true) {
+      refuse(
+        `construction['${descriptor.name}'].bounds`,
+        'must declare every discovery bound (maxTools, maxPages, maxSchemaBytes, ' +
+          'timeouts.discoveryMs; RV1808): an unbounded sweep against a remote registry ' +
+          'is an availability decision someone should have made on purpose',
+      );
+    }
+    return {
+      regulatedPosture: 1,
+      kind: 'mcp-source',
+      name: descriptor.name,
+      drift: 'refuse',
+      bounds: {
+        declared: true,
+        ...(typeof bounds.maxTools === 'number' ? { maxTools: bounds.maxTools } : {}),
+        ...(typeof bounds.maxPages === 'number' ? { maxPages: bounds.maxPages } : {}),
+        ...(typeof bounds.maxSchemaBytes === 'number'
+          ? { maxSchemaBytes: bounds.maxSchemaBytes }
+          : {}),
+        ...(typeof bounds.discoveryMs === 'number' ? { discoveryMs: bounds.discoveryMs } : {}),
+      },
+    };
+  }
+  if (descriptor.kind === 'ai-sdk-bridge') {
+    const bridgePosture = descriptor as AiSdkBridgeRegulatedPosture;
+    if (bridgePosture.providerExecutedTools !== 'deny') {
+      refuse(
+        `construction['${descriptor.name}'].providerExecutedTools`,
+        "must be 'deny': a provider-executed tool runs outside the permission chain " +
+          'and the journal',
+      );
+    }
+    return {
+      regulatedPosture: 1,
+      kind: 'ai-sdk-bridge',
+      name: descriptor.name,
+      providerExecutedTools: 'deny',
+    };
+  }
+  refuse(
+    `construction['${descriptor.name}']`,
+    `attests an unrecognized kind '${String((descriptor as { kind?: unknown }).kind)}'; ` +
+      "this floor can judge 'mcp-source' and 'ai-sdk-bridge'",
+  );
+}
+
+/**
+ * The use-time re-assertion (RV4102, the RV1608 template). The
+ * descriptor is a snapshot, and the window between compile and use is
+ * where a construction mutated in-process could walk a moved posture
+ * beneath the hash. The compiled options therefore carry this proxy
+ * in the original's place: every use of the risk seam (`tools` on a
+ * source, `stream` on an adapter) re-reads and re-judges the
+ * descriptor first. A loosening refuses with the compile-time
+ * field-named error; any other movement (a rename, a bound change, a
+ * vanished descriptor) refuses naming the drift. Everything else
+ * passes through untouched, so `close()`, `caps()`, and identity
+ * fields behave exactly as before. The cross-process half of the
+ * window needs no proxy: a mutated construction compiles to a
+ * different profile hash, and the RV3210 resume assertion refuses it.
+ */
+function wrapReasserting<T extends object>(construction: T, frozen: string): T {
+  const guard =
+    (seam: string, original: (...args: unknown[]) => unknown) =>
+    (...args: unknown[]): unknown => {
+      const probe = (construction as { describeRegulatedPosture?: () => unknown })
+        .describeRegulatedPosture;
+      const fresh =
+        typeof probe === 'function'
+          ? jcsSerialize(judgeDescriptor(probe.call(construction)))
+          : undefined;
+      if (fresh !== frozen) {
+        throw new ConfigError(
+          `compileRegulatedProfile: the construction posture moved between compile time ` +
+            `and ${seam}() (RV4102): the compiled profile licensed ${frozen}, the ` +
+            `construction now reports ${fresh ?? 'no describeRegulatedPosture() at all'}. ` +
+            'Recompile the profile deliberately instead of mutating a construction ' +
+            'beneath it.',
+        );
+      }
+      return original.apply(construction, args);
+    };
+  return new Proxy(construction, {
+    get(target, prop): unknown {
+      const value = Reflect.get(target, prop, target);
+      if ((prop === 'tools' || prop === 'stream') && typeof value === 'function') {
+        return guard(String(prop), value as (...args: unknown[]) => unknown);
+      }
+      return value;
+    },
+  });
 }
 
 export function compileRegulatedProfile(input: {
@@ -123,10 +252,14 @@ export function compileRegulatedProfile(input: {
   // could not see instead of implying totality. A descriptor of an
   // unrecognized shape or kind refuses outright: a construction that
   // claims an attestation this floor cannot judge must not compile
-  // into silence. Deliberately open, by name: a construction mutated
-  // AFTER this compile; the descriptor is a snapshot, not a lease.
+  // into silence. The window between this compile and the run is
+  // closed too (RV4102): every attested construction is wrapped so
+  // its risk seam re-judges the descriptor on use, and the
+  // cross-process half was always held by the RV3210 fingerprint
+  // assertion (a mutated construction compiles to a different hash).
   const walked = new Set<object>();
   const attested: RegulatedPostureDescriptor[] = [];
+  const reasserted = new Map<object, object>();
   let unrecognized = 0;
   const visit = (construction: unknown): void => {
     if (construction === null || typeof construction !== 'object' || walked.has(construction)) {
@@ -138,78 +271,9 @@ export function compileRegulatedProfile(input: {
       unrecognized += 1;
       return;
     }
-    const descriptor = (probe as () => unknown).call(construction) as
-      Partial<RegulatedPostureDescriptor> | null | undefined;
-    if (
-      descriptor === null ||
-      typeof descriptor !== 'object' ||
-      descriptor.regulatedPosture !== 1 ||
-      typeof descriptor.name !== 'string' ||
-      descriptor.name === ''
-    ) {
-      refuse(
-        'construction',
-        'exposes describeRegulatedPosture() with an unrecognized shape (need ' +
-          'regulatedPosture: 1, a non-empty string name, and a known kind)',
-      );
-    }
-    if (descriptor.kind === 'mcp-source') {
-      const mcpPosture = descriptor as McpSourceRegulatedPosture;
-      if (mcpPosture.drift !== 'refuse') {
-        refuse(
-          `construction['${descriptor.name}'].drift`,
-          "must be 'refuse' (RV1516): under a rekey posture a listChanged notification " +
-            'imports a changed tool list beneath the regulated run',
-        );
-      }
-      const bounds = mcpPosture.bounds as McpSourceRegulatedPosture['bounds'] | undefined;
-      if (bounds === undefined || bounds.declared !== true) {
-        refuse(
-          `construction['${descriptor.name}'].bounds`,
-          'must declare every discovery bound (maxTools, maxPages, maxSchemaBytes, ' +
-            'timeouts.discoveryMs; RV1808): an unbounded sweep against a remote registry ' +
-            'is an availability decision someone should have made on purpose',
-        );
-      }
-      attested.push({
-        regulatedPosture: 1,
-        kind: 'mcp-source',
-        name: descriptor.name,
-        drift: 'refuse',
-        bounds: {
-          declared: true,
-          ...(typeof bounds.maxTools === 'number' ? { maxTools: bounds.maxTools } : {}),
-          ...(typeof bounds.maxPages === 'number' ? { maxPages: bounds.maxPages } : {}),
-          ...(typeof bounds.maxSchemaBytes === 'number'
-            ? { maxSchemaBytes: bounds.maxSchemaBytes }
-            : {}),
-          ...(typeof bounds.discoveryMs === 'number' ? { discoveryMs: bounds.discoveryMs } : {}),
-        },
-      });
-      return;
-    }
-    if (descriptor.kind === 'ai-sdk-bridge') {
-      const bridgePosture = descriptor as AiSdkBridgeRegulatedPosture;
-      if (bridgePosture.providerExecutedTools !== 'deny') {
-        refuse(
-          `construction['${descriptor.name}'].providerExecutedTools`,
-          "must be 'deny': a provider-executed tool runs outside the permission chain " +
-            'and the journal',
-        );
-      }
-      attested.push({
-        regulatedPosture: 1,
-        kind: 'ai-sdk-bridge',
-        name: descriptor.name,
-        providerExecutedTools: 'deny',
-      });
-      return;
-    }
-    refuse(
-      `construction['${descriptor.name}']`,
-      `attests an unrecognized kind '${String((descriptor as { kind?: unknown }).kind)}'; ` +
-        "this floor can judge 'mcp-source' and 'ai-sdk-bridge'",
-    );
+    const judged = judgeDescriptor((probe as () => unknown).call(construction));
+    attested.push(judged);
+    reasserted.set(construction, wrapReasserting(construction, jcsSerialize(judged)));
   };
   for (const adapter of engine.adapters ?? []) {
     visit(adapter);
@@ -229,6 +293,31 @@ export function compileRegulatedProfile(input: {
   }
   for (const profile of Object.values(defaults.profiles ?? {})) {
     visitTools(profile.tools);
+  }
+  // The compiled options carry the re-asserting wrappers in place of
+  // the attested originals (RV4102): same identity everywhere one
+  // object appeared, strings and static ToolDefs untouched.
+  const swap = <T>(value: T): T =>
+    typeof value === 'object' && value !== null && reasserted.has(value)
+      ? (reasserted.get(value) as T)
+      : value;
+  if (reasserted.size > 0) {
+    if (engine.adapters !== undefined) {
+      engine.adapters = engine.adapters.map(swap);
+    }
+    if (defaults.toolsets !== undefined) {
+      defaults.toolsets = Object.fromEntries(
+        Object.entries(defaults.toolsets).map(([name, tools]) => [name, tools.map(swap)]),
+      );
+    }
+    if (defaults.profiles !== undefined) {
+      defaults.profiles = Object.fromEntries(
+        Object.entries(defaults.profiles).map(([name, profile]) => [
+          name,
+          profile.tools === undefined ? profile : { ...profile, tools: profile.tools.map(swap) },
+        ]),
+      );
+    }
   }
   const postureKeyOf = (entry: RegulatedPostureDescriptor): string => `${entry.kind} ${entry.name}`;
   attested.sort((a, b) =>

@@ -12,6 +12,6 @@ type RegulatedPostureDescriptor =
   | AiSdkBridgeRegulatedPosture;
 ```
 
-Defined in: [packages/core/src/l0/spi/regulated-posture.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/regulated-posture.ts#L66)
+Defined in: [packages/core/src/l0/spi/regulated-posture.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/regulated-posture.ts#L70)
 
 What `describeRegulatedPosture()` returns: one of the known shapes.

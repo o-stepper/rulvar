@@ -5391,8 +5391,8 @@ export const MUTATIONS = [
     doctrine:
       "a loosened construction posture refuses by field name (RV4101): with the drift refusal collapsed, an mcp source attesting drift 'rekey' compiles into the regulated posture, and a listChanged notification imports a changed tool list beneath a run whose hash claims the construction was judged",
     file: 'packages/core/src/engine/regulated-profile.ts',
-    find: "      if (mcpPosture.drift !== 'refuse') {",
-    replace: '      if (false) {',
+    find: "    if (mcpPosture.drift !== 'refuse') {",
+    replace: '    if (false) {',
     test: 'packages/core/src/engine/regulated-profile.test.ts',
   },
   {
@@ -5402,6 +5402,15 @@ export const MUTATIONS = [
     file: 'packages/core/src/engine/regulated-profile.ts',
     find: '      unrecognized += 1;',
     replace: '',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'construction-posture-holds-at-the-seam',
+    doctrine:
+      'the compiled profile re-judges the construction posture at the risk seam (RV4102): with the use-time comparison collapsed, a construction renamed or rebounded after compile walks its moved posture beneath a hash that licensed a different one, and the in-process half of the RV4101 window reopens',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '      if (fresh !== frozen) {',
+    replace: '      if (false) {',
     test: 'packages/core/src/engine/regulated-profile.test.ts',
   },
   {
