@@ -43,7 +43,10 @@ jobs:
           cache: pnpm
           registry-url: 'https://registry.npmjs.org'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo build
+      # Retries once on the tsdown pack flake; scripts/turbo-retry.mjs
+      # documents why that is safe. A flaked first build must not cost
+      # the release train a manual re-run.
+      - run: node scripts/turbo-retry.mjs build
       # A push with no pending changesets is publish-shaped (the merge
       # of a Version Packages PR): run the full test suite once more as
       # the release's own gate, instead of relying on branch protection
