@@ -126,6 +126,21 @@ export function compileRegulatedProfile(input: {
           'regulated posture, not an option',
       );
     }
+    // Absence is the loosest claim posture there is (RV4103): an
+    // orchestration with no claimConsistency runs no claim pass, grades
+    // no coverage, and arms no strict-final gate, which is a loosening
+    // deeper than any field this floor already refuses. The floor does
+    // not autofill it either: the pass needs a judge model and its
+    // estimated cost, and a floor that invents billable defaults is a
+    // different hazard, so the requirement is a refusal, symmetric with
+    // citationAudit above.
+    if (orchestrate.claimConsistency === undefined) {
+      refuse(
+        'orchestrate.claimConsistency',
+        "must be declared with stage 'final' or 'both' (RV4103): the claim machinery is " +
+          'the regulated posture, and omitting it entirely is the deepest loosening',
+      );
+    }
     if (orchestrate.claimConsistency !== undefined) {
       const claim = { ...orchestrate.claimConsistency };
       if (claim.coveragePolicy !== undefined && claim.coveragePolicy !== 'strict-final') {

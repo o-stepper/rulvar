@@ -11514,7 +11514,12 @@ interface OrchestrateClaimConsistency {
   * it and why. `expiresAt` (ISO 8601) bounds the standing waiver: an
   * expired one refuses exactly like no waiver, evaluated once at
   * the enforcement point and journaled, so a resume replays the
-  * recorded verdict instead of re-reading the clock. Requires
+  * recorded verdict instead of re-reading the clock (RV4104): a run
+  * that waived, crashed, and outlived its waiver finishes under the
+  * recorded exception. The frozen decision licenses exactly the
+  * document it judged: an entry carrying a `judgedHash` is honored
+  * only for that hash (the RV603 bound), and entries written before
+  * the field existed stay reusable. Requires
   * `coveragePolicy: 'strict-final'`; declaring it without the
   * policy is a ConfigError, because a waiver over an unenforced
   * grade is a signature over nothing.

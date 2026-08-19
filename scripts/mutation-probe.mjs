@@ -5265,8 +5265,8 @@ export const MUTATIONS = [
     doctrine:
       'an expired waiver refuses exactly like no waiver (RV4003): with the expiry check dropped, a signature from another era licenses acceptances forever, and the bounded exception becomes a standing hole',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '        const expired =\n          waiverSpec?.expiresAt !== undefined && Date.parse(waiverSpec.expiresAt) < internals.now();',
-    replace: '        const expired = false;',
+    find: '          const expired =\n            waiverSpec?.expiresAt !== undefined &&\n            Date.parse(waiverSpec.expiresAt) < internals.now();',
+    replace: '          const expired = false;',
     test: 'packages/core/src/orchestrator/coverage-policy.test.ts',
   },
   {
@@ -5376,6 +5376,24 @@ export const MUTATIONS = [
     find: '    budgetUsd: run.budgetUsd,',
     replace: '',
     test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-floor-requires-claim-consistency',
+    doctrine:
+      'the regulated floor refuses an orchestration with no claim machinery at all (RV4103): with the absence refusal collapsed, a config that simply omits claimConsistency compiles into the regulated posture running no claim pass, no coverage grade, and no strict-final gate, a loosening deeper than any field the floor already refuses',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '    if (orchestrate.claimConsistency === undefined) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'journaled-waiver-licenses-the-resumed-acceptance',
+    doctrine:
+      "the journaled waive decision is the authority on resume (RV4104): with the prior-decision lookup collapsed, a run that waived its coverage gap, crashed, and outlived the waiver's expiry re-renders the exception against the live clock and becomes unfinishable with its exception already on the record",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (priorWaiveDecision !== undefined) {',
+    replace: '        if (false) {',
+    test: 'packages/core/src/orchestrator/coverage-policy.test.ts',
   },
 ];
 

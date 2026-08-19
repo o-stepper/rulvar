@@ -1230,7 +1230,12 @@ export interface OrchestrateClaimConsistency {
    * it and why. `expiresAt` (ISO 8601) bounds the standing waiver: an
    * expired one refuses exactly like no waiver, evaluated once at
    * the enforcement point and journaled, so a resume replays the
-   * recorded verdict instead of re-reading the clock. Requires
+   * recorded verdict instead of re-reading the clock (RV4104): a run
+   * that waived, crashed, and outlived its waiver finishes under the
+   * recorded exception. The frozen decision licenses exactly the
+   * document it judged: an entry carrying a `judgedHash` is honored
+   * only for that hash (the RV603 bound), and entries written before
+   * the field existed stay reusable. Requires
    * `coveragePolicy: 'strict-final'`; declaring it without the
    * policy is a ConfigError, because a waiver over an unenforced
    * grade is a signature over nothing.
@@ -10478,54 +10483,91 @@ export function makeOrchestratorWorkflow(
     if (opts?.claimConsistency?.coveragePolicy === 'strict-final') {
       const grade = claimConsistencyMeta?.coverage ?? 'not-judged';
       if (grade !== 'full') {
-        const waiverSpec = opts.claimConsistency.waiver;
-        const expired =
-          waiverSpec?.expiresAt !== undefined && Date.parse(waiverSpec.expiresAt) < internals.now();
-        if (waiverSpec === undefined || expired) {
-          throw new FailRunError(
-            `claimConsistency.coveragePolicy 'strict-final': the final coverage grade is ` +
-              `'${grade}', not 'full', and ` +
-              (waiverSpec === undefined
-                ? 'no waiver is declared'
-                : `the declared waiver expired at ${String(waiverSpec.expiresAt)}`) +
-              '; raise the coverage (pairs, targets, critical anchors) or record a waiver ' +
-              'naming who accepts the gap and why',
-            {
-              data: {
-                source: 'orchestrator_claim_consistency',
-                coveragePolicy: 'strict-final',
-                coverage: grade,
-                ...(waiverSpec === undefined
-                  ? {}
-                  : { waiverExpiredAt: waiverSpec.expiresAt ?? null }),
-                ...(claimConsistencyMeta === undefined
-                  ? {}
-                  : { claimConsistencyMeta: claimConsistencyMeta as unknown as Json }),
-              },
-            },
+        // The journaled waive decision is the authority on resume
+        // (RV4104; the skip and cap precedents, and what the waiver's
+        // own TSDoc has promised since RV4003): the exception was
+        // rendered once and recorded beside the acceptance it
+        // licensed, so a finalize re-execution must not re-render it
+        // against a clock that kept moving over the crash window, or
+        // the run whose exception is already on the record becomes
+        // unfinishable. Bound like the RV603 skip: an entry carrying
+        // a judgedHash licenses exactly the document it judged, and
+        // entries written before the field existed stay reusable.
+        const priorWaiveDecision = internals.replayer.snapshot().find((entry) => {
+          if (entry.kind !== 'decision' || entry.scope !== callingState.scope) {
+            return false;
+          }
+          const value = entry.value as { decisionType?: string; judgedHash?: string } | undefined;
+          return (
+            value?.decisionType === 'claim_coverage_waived' &&
+            (value.judgedHash === undefined ||
+              value.judgedHash === claimConsistencyMeta?.judgedHash)
           );
-        }
-        claimCoverageWaiver = {
-          principal: waiverSpec.principal,
-          reason: waiverSpec.reason,
-          ...(waiverSpec.expiresAt === undefined ? {} : { expiresAt: waiverSpec.expiresAt }),
-          coverage: grade,
-        };
-        await internals.replayer.appendSinglePhase({
-          scope: callingState.scope,
-          key: deriverV2.deriveKey({ kind: 'claim-coverage-waived' }),
-          kind: 'decision',
-          status: 'ok',
-          spanId: internals.spans.mint(callingState.spanId),
-          site: 'orchestrator-claim-coverage',
-          value: {
-            decisionType: 'claim_coverage_waived',
-            ...claimCoverageWaiver,
-            ...(claimConsistencyMeta?.judgedHash === undefined
-              ? {}
-              : { judgedHash: claimConsistencyMeta.judgedHash }),
-          },
         });
+        if (priorWaiveDecision !== undefined) {
+          const frozen = priorWaiveDecision.value as {
+            principal: string;
+            reason: string;
+            expiresAt?: string;
+            coverage: string;
+          };
+          claimCoverageWaiver = {
+            principal: frozen.principal,
+            reason: frozen.reason,
+            ...(frozen.expiresAt === undefined ? {} : { expiresAt: frozen.expiresAt }),
+            coverage: frozen.coverage,
+          };
+        } else {
+          const waiverSpec = opts.claimConsistency.waiver;
+          const expired =
+            waiverSpec?.expiresAt !== undefined &&
+            Date.parse(waiverSpec.expiresAt) < internals.now();
+          if (waiverSpec === undefined || expired) {
+            throw new FailRunError(
+              `claimConsistency.coveragePolicy 'strict-final': the final coverage grade is ` +
+                `'${grade}', not 'full', and ` +
+                (waiverSpec === undefined
+                  ? 'no waiver is declared'
+                  : `the declared waiver expired at ${String(waiverSpec.expiresAt)}`) +
+                '; raise the coverage (pairs, targets, critical anchors) or record a waiver ' +
+                'naming who accepts the gap and why',
+              {
+                data: {
+                  source: 'orchestrator_claim_consistency',
+                  coveragePolicy: 'strict-final',
+                  coverage: grade,
+                  ...(waiverSpec === undefined
+                    ? {}
+                    : { waiverExpiredAt: waiverSpec.expiresAt ?? null }),
+                  ...(claimConsistencyMeta === undefined
+                    ? {}
+                    : { claimConsistencyMeta: claimConsistencyMeta as unknown as Json }),
+                },
+              },
+            );
+          }
+          claimCoverageWaiver = {
+            principal: waiverSpec.principal,
+            reason: waiverSpec.reason,
+            ...(waiverSpec.expiresAt === undefined ? {} : { expiresAt: waiverSpec.expiresAt }),
+            coverage: grade,
+          };
+          await internals.replayer.appendSinglePhase({
+            scope: callingState.scope,
+            key: deriverV2.deriveKey({ kind: 'claim-coverage-waived' }),
+            kind: 'decision',
+            status: 'ok',
+            spanId: internals.spans.mint(callingState.spanId),
+            site: 'orchestrator-claim-coverage',
+            value: {
+              decisionType: 'claim_coverage_waived',
+              ...claimCoverageWaiver,
+              ...(claimConsistencyMeta?.judgedHash === undefined
+                ? {}
+                : { judgedHash: claimConsistencyMeta.judgedHash }),
+            },
+          });
+        }
       }
     }
 
