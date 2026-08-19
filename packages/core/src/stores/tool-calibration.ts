@@ -114,10 +114,18 @@ export function toolCalibrationFromJournal(
     dispatches += 1;
     // The coordination side's own partition class (RV4010): the
     // orchestrate loop and the composition invocations execute tool
-    // calls too (spawn, await, finish), never under an evidence
-    // contract, and their counters used to read as budgetOnly noise.
+    // calls too (spawn, await, finish), and their counters used to
+    // read as budgetOnly noise. The PAIR is primary (RV4106): a
+    // coordination-side dispatch that carries a declared evidence
+    // contract AND a counter is an observed row like any worker, so
+    // its declared contract stays in calibration instead of drowning
+    // in the bucket; the bucket takes the contract-less rest.
     const role = entry.costAttribution?.role;
-    if ((role === 'orchestrate' || role === 'synthesize') && entry.toolBudget !== undefined) {
+    if (
+      (role === 'orchestrate' || role === 'synthesize') &&
+      entry.toolBudget !== undefined &&
+      entry.evidence === undefined
+    ) {
       coordinationDispatches += 1;
       coordinationToolCalls += entry.toolBudget.used;
       continue;

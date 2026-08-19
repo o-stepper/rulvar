@@ -46,7 +46,7 @@ import type {
 } from '../l0/spi/regulated-posture.js';
 import type { OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import type { ToolsOption } from '../tools/toolset-hash.js';
-import type { CreateEngineOptions, RunOptions } from './engine.js';
+import { normalizeExecutionScope, type CreateEngineOptions, type RunOptions } from './engine.js';
 
 /** What compileRegulatedProfile returns: apply verbatim. */
 export interface RegulatedProfile {
@@ -325,8 +325,12 @@ export function compileRegulatedProfile(input: {
   );
 
   // ---- Run floor.
-  if (typeof run.budgetUsd !== 'number') {
-    refuse('run.budgetUsd', 'must declare a USD ceiling');
+  if (typeof run.budgetUsd !== 'number' || !Number.isFinite(run.budgetUsd) || run.budgetUsd <= 0) {
+    refuse(
+      'run.budgetUsd',
+      'must declare a positive finite USD ceiling (RV4107): NaN and Infinity are not ' +
+        'ceilings, and a non-positive one is a run that cannot pay for its own floor',
+    );
   }
   if (run.strictPricing === false) {
     refuse('run.strictPricing', 'must not be false');
@@ -339,6 +343,13 @@ export function compileRegulatedProfile(input: {
   if (run.scope === undefined) {
     refuse('run.scope', 'must name the execution scope (RV4007): a regulated run has an owner');
   }
+  // The hashed scope is the NORMALIZED copy (RV4107): the engine drops
+  // junk fields downstream (normalizeExecutionScope), so a junk field
+  // must not move the hash while the effective posture stands still.
+  // The same call refuses an empty or malformed scope HERE, at compile
+  // time, and the copy rides the compiled run, so later host mutation
+  // of the passed object cannot move what genesis records.
+  run.scope = normalizeExecutionScope(run.scope, 'compileRegulatedProfile run.scope');
 
   // ---- Orchestrate floor (when the run is a dynamic orchestration).
   if (orchestrate !== undefined) {
@@ -353,6 +364,16 @@ export function compileRegulatedProfile(input: {
         'orchestrate.citationAudit',
         'must be declared with the host snapshot resolver (RV4004): entailment is the ' +
           'regulated posture, not an option',
+      );
+    }
+    // Judged at compile time instead of orchestrate intake (RV4107):
+    // a declared audit that cannot resolve a single anchor is a
+    // posture in name only, and the floor should say so before a run
+    // exists to fail.
+    if (typeof orchestrate.citationAudit.resolve !== 'function') {
+      refuse(
+        'orchestrate.citationAudit.resolve',
+        'must be the host snapshot resolver function (RV4004/RV4107)',
       );
     }
     // Absence is the loosest claim posture there is (RV4103): an

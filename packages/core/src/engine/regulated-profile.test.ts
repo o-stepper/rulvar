@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
 import type { ChatRequest } from '../l0/messages.js';
+import type { OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import type { RegulatedPostureDescriptor } from '../l0/spi/regulated-posture.js';
 import type { ToolSource } from '../l0/spi/toolsource.js';
 import { createEngine, type CreateEngineOptions, type RunOptions } from './engine.js';
@@ -475,5 +476,52 @@ describe('the use-time posture re-assertion (RV4102)', () => {
       runId: 'REASSERT-SMOKE',
     }).result;
     expect(outcome.status).toBe('ok');
+  });
+});
+
+describe('the compile intake edges (RV4107)', () => {
+  it.each([
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['zero', 0],
+    ['negative', -5],
+  ])('refuses a %s budget ceiling typed', (_label, budgetUsd) => {
+    expect(() =>
+      compileRegulatedProfile({ ...BASE(), run: { budgetUsd, scope: { tenant: 'acme' } } }),
+    ).toThrow(/positive finite USD ceiling/);
+  });
+
+  it('hashes the normalized scope: a junk field cannot move the hash, and the copy rides the run', () => {
+    const clean = compileRegulatedProfile(BASE());
+    const junky = compileRegulatedProfile({
+      ...BASE(),
+      run: {
+        budgetUsd: 5,
+        scope: { tenant: 'acme', junk: 'x' } as unknown as RunOptions['scope'],
+      },
+    });
+    expect(junky.profileHash).toBe(clean.profileHash);
+    expect(junky.run.scope).toEqual({ tenant: 'acme' });
+  });
+
+  it('an empty scope refuses at compile time, not at run intake', () => {
+    expect(() =>
+      compileRegulatedProfile({
+        ...BASE(),
+        run: { budgetUsd: 5, scope: {} },
+      }),
+    ).toThrow(/at least one of tenant, account, project/);
+  });
+
+  it('a resolver that is not a function refuses at compile time', () => {
+    expect(() =>
+      compileRegulatedProfile({
+        ...BASE(),
+        orchestrate: {
+          citationAudit: { resolve: 'nope' } as unknown as OrchestrateOptions['citationAudit'],
+          claimConsistency: { judge: { model: 'judge:model' }, stage: 'final' },
+        },
+      }),
+    ).toThrow(/citationAudit\.resolve/);
   });
 });

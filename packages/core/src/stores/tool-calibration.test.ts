@@ -228,6 +228,42 @@ describe('the coordination bucket (RV4010, the fifth comparison experiment)', ()
     );
   });
 
+  it('the pair is primary: a synthesize dispatch carrying a contract stays an observed row (RV4106)', () => {
+    const report = toolCalibrationFromJournal([
+      entry({
+        seq: 10,
+        ref: 1,
+        toolBudget: { used: 15 },
+        costAttribution: { role: 'orchestrate', agentType: '', budgetAccount: 'run' },
+      }),
+      // A composition dispatched under a declared evidence contract
+      // AND a counter: before RV4106 the role check ran first and the
+      // bucket swallowed it, dropping its declared contract out of
+      // calibration entirely.
+      entry({
+        seq: 20,
+        ref: 11,
+        evidence: { recordedEntries: 3, minEntries: 2, met: true },
+        toolBudget: { used: 9 },
+        costAttribution: {
+          role: 'synthesize',
+          agentType: '',
+          budgetAccount: 'run',
+          label: 'final-composition',
+        },
+      }),
+    ] as never[]);
+    expect(report.coordination).toEqual({ dispatches: 1, toolCallsUsed: 15 });
+    expect(report.observed).toHaveLength(1);
+    expect(report.observed[0]).toMatchObject({
+      recordedEntries: 3,
+      minEntries: 2,
+      toolCallsUsed: 9,
+      callsPerEntry: 3,
+    });
+    expect(report.budgetOnly).toEqual([]);
+  });
+
   it('stays absent when no counted coordination dispatch exists, bytes stable', () => {
     const report = toolCalibrationFromJournal([
       entry({
