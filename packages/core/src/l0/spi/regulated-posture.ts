@@ -17,10 +17,14 @@
  * constructions that exposed nothing, so the hash names its own blind
  * spot instead of implying totality.
  *
- * The window this deliberately leaves open: a construction mutated
- * AFTER compile time. The descriptor is a snapshot, not a lease;
- * closing that window is the RV1608 template applied at first use,
- * and is its own train.
+ * The descriptor is a snapshot, not a lease, and the window between
+ * compile time and use is held by re-assertion (RV4102, the RV1608
+ * template): the compiled options wrap each attested construction so
+ * every use of its risk seam (`tools()` on a source, `stream()` on an
+ * adapter) re-reads and re-judges the descriptor, refusing a posture
+ * that moved since compile. The cross-process half of the window
+ * needs no wrapper: a mutated construction compiles to a different
+ * profile hash, and the RV3210 resume assertion refuses it.
  */
 
 /** The posture an mcp() tool source chose at construction (RV1516/RV1808). */
