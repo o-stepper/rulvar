@@ -13,6 +13,12 @@ export interface CtxScopeState {
   scope: string;
   spanId: string;
   phase?: string;
+  /**
+   * What dispatched the semantic repair round riding this scope
+   * (RV4105): stamped into the round invocation's costAttribution so
+   * the repair ledger attributes it without cross-reading metas.
+   */
+  repairTrigger?: 'claim' | 'citation';
   signal?: AbortSignal;
   budgetScope?: string;
 }

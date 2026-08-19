@@ -23,6 +23,6 @@ type RandPayload =
 };
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:652](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L652)
+Defined in: [packages/core/src/l0/entries.ts:662](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L662)
 
 Rand-entry payload.

@@ -334,7 +334,7 @@ exactly the pieces you need, for example
 | [RegulatedProfile](/api/@rulvar/core/interfaces/RegulatedProfile.md) | What compileRegulatedProfile returns: apply verbatim. |
 | [RejectedFinishCandidate](/api/@rulvar/core/interfaces/RejectedFinishCandidate.md) | One finish candidate the declared contract did NOT accept (RV2507). The 1.226.0 comparison run rejected three syntheses; nothing on its terminal said so, nothing said whether the three differed from each other, and the only way to read them was an external script that re-parsed the whole agent transcript. The row is the artifact that dig produced, made first class. |
 | [RepairLedger](/api/@rulvar/core/interfaces/RepairLedger.md) | The workflow-wide repair aggregate (RV4002). |
-| [RepairLedgerRound](/api/@rulvar/core/interfaces/RepairLedgerRound.md) | One granted repair, folded from its journaled verdict (RV4002). |
+| [RepairLedgerRound](/api/@rulvar/core/interfaces/RepairLedgerRound.md) | One counted repair, folded from its journaled verdict or dispatch (RV4002/RV4105). |
 | [RepeatedClaim](/api/@rulvar/core/interfaces/RepeatedClaim.md) | One claim reported more than once across the input rows. |
 | [RepositoryResearchToolset](/api/@rulvar/core/interfaces/RepositoryResearchToolset.md) | - |
 | [RepositoryResearchToolsetOptions](/api/@rulvar/core/interfaces/RepositoryResearchToolsetOptions.md) | - |

@@ -742,6 +742,11 @@ interface ScopeState {
    */
   workflowLayer?: ResolutionLayer;
   phase?: string;
+  /**
+   * What dispatched the semantic repair round riding this scope
+   * (RV4105): copied into the round invocation's costAttribution.
+   */
+  repairTrigger?: 'claim' | 'citation';
   signal?: AbortSignal;
   /** The nearest enclosing budget account; the run root when absent (M6-T06). */
   budgetScope?: string;
@@ -3137,6 +3142,10 @@ export function createCtx(
       // mixing the persistent ledger with this process's buckets.
       costAttribution: {
         ...(state.phase === undefined ? {} : { phase: state.phase }),
+        // The semantic-round trigger (RV4105): stamped at dispatch so
+        // the repair ledger names WHO asked for the round ('claim' or
+        // 'citation') without cross-reading two metas.
+        ...(state.repairTrigger === undefined ? {} : { repairTrigger: state.repairTrigger }),
         agentType,
         role: primaryRole,
         budgetAccount: state.budgetScope ?? ROOT_ACCOUNT,

@@ -212,6 +212,16 @@ export interface CostAttributionFacts {
    */
   label?: string;
   finalizeReserve?: boolean;
+  /**
+   * What dispatched a semantic repair round (RV4105): 'claim' (the
+   * RV3307 contradiction round) or 'citation' (the RV4004 entailment
+   * round), stamped at dispatch beside `phase: 'repair'`, so the
+   * repair ledger attributes the round without cross-reading two
+   * metas. Absent on every other dispatch and on journals written
+   * before it shipped (absence means NOT RECORDED, RV1209). Policy,
+   * never identity.
+   */
+  repairTrigger?: 'claim' | 'citation';
 }
 
 /**
