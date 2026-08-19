@@ -1,5 +1,20 @@
 # @rulvar/bridge-ai-sdk
 
+## 1.246.0
+
+### Minor Changes
+
+- d165b0c: The profile hash sees the constructions, and counts what it cannot (RV4101; the debt RV4009 named). The regulated floor binds what flows through options, but the postures that decide whether a tool list can drift beneath a run (an `mcp()` source's `drift` and discovery bounds, RV1516/RV1808) or whether a provider executes tools outside the permission chain (the AI SDK bridge's `providerExecutedTools` seam) live on CONSTRUCTIONS the options never see; RV4009 excluded them from the hash by principle ("a hash must not imply what it cannot verify") and named them in prose. This train makes the verifiable part verified. A risk-bearing construction now exposes `describeRegulatedPosture()`, a PURE snapshot of what was chosen at build time (no wire, no connect): `mcp()` reports `{ drift, bounds }`, `bridgeAiSdk()` reports `{ providerExecutedTools }`, both implemented this release. `compileRegulatedProfile` walks every construction its options reach (adapters, named toolsets, profile toolsets, each object once), REFUSES a loosened posture by field name (`construction['mcp:http:...'].drift must be 'refuse'`; bounds must be declared; the bridge must deny), refuses outright a descriptor of a shape or kind it cannot judge, and folds the sorted descriptors into the hashed posture map under `construction`, beside an `unrecognized` count of the constructions that exposed nothing, so the hash names its own blind spot instead of implying totality. `REGULATED_VERSION` bumps to 2 (`regulated:2:<hash>`): the map's meaning changed, and a v1 fingerprint must never collide with a v2 reading of the same options. Deliberately open, by name: a construction mutated AFTER compile time; the descriptor is a snapshot, not a lease, and the first-use re-assertion is the RV1608 template applied in its own train. Probes pin the drift refusal and the blind-spot count.
+
+### Patch Changes
+
+- Updated dependencies [d165b0c]
+- Updated dependencies [d59f4a0]
+- Updated dependencies [46907ac]
+- Updated dependencies [9929ad3]
+- Updated dependencies [1790a6a]
+  - @rulvar/core@1.246.0
+
 ## 1.245.0
 
 ### Patch Changes
