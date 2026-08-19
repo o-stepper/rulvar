@@ -157,6 +157,14 @@ export const REQUIRED = [
       'resumed acceptance (RV4104: a run that waived, crashed, and outlived its ' +
       'expiry must finish under the recorded exception, not fail against a moving clock)',
   },
+  {
+    file: 'docs/guide/production-profiles.md',
+    pattern: /describeRegulatedPosture/u,
+    what:
+      'the profiles guide must name the construction posture attestation (RV4101: the ' +
+      'RV4009 hash implied nothing about MCP drift and provider-executed tools; the ' +
+      'descriptor walk verifies them or counts them as unrecognized)',
+  },
 ];
 
 /** Judges one page; returns failure strings, empty when clean. */

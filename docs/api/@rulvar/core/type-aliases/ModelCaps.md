@@ -20,7 +20,7 @@ type ModelCaps = {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L96)
+Defined in: [packages/core/src/l0/spi/provider.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L97)
 
 Capability facts the router consumes for tier selection and scrubbing.
 
@@ -32,7 +32,7 @@ Capability facts the router consumes for tier selection and scrubbing.
 contextWindow: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L102)
+Defined in: [packages/core/src/l0/spi/provider.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L103)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:102](https://github.com/o-step
 maxOutputTokens: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L103)
+Defined in: [packages/core/src/l0/spi/provider.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L104)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:103](https://github.com/o-step
 optional minOutputTokensPerTurn?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L113)
+Defined in: [packages/core/src/l0/spi/provider.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L114)
 
 The smallest request output cap the provider accepts (the v1.74
 experiment review, P0.1): OpenAI's Responses API rejects
@@ -70,7 +70,7 @@ the wire. Absent means one, the historical floor.
 optional pricing?: Pricing;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L125)
+Defined in: [packages/core/src/l0/spi/provider.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L126)
 
 Adapter-reported fallback only; the versioned price table wins.
 
@@ -82,7 +82,7 @@ Adapter-reported fallback only; the versioned price table wins.
 optional promptCaching?: "explicit" | "implicit";
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L123)
+Defined in: [packages/core/src/l0/spi/provider.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L124)
 
 How this model's prompt caching is driven (RV2006). 'explicit'
 means the adapter compiles ChatRequest.cacheHint into provider
@@ -100,7 +100,7 @@ nothing and the wire stays byte identical to pre-RV2006 traffic.
 reasoningEfforts: Effort[];
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L101)
+Defined in: [packages/core/src/l0/spi/provider.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L102)
 
 Canonical efforts this model accepts after mapping.
 
@@ -112,7 +112,7 @@ Canonical efforts this model accepts after mapping.
 structuredOutput: "native" | "forced-tool" | "prompt";
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L97)
+Defined in: [packages/core/src/l0/spi/provider.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L98)
 
 ***
 
@@ -122,7 +122,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:97](https://github.com/o-stepp
 supportsParallelTools: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L99)
+Defined in: [packages/core/src/l0/spi/provider.ts:100](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L100)
 
 ***
 
@@ -132,4 +132,4 @@ Defined in: [packages/core/src/l0/spi/provider.ts:99](https://github.com/o-stepp
 supportsTemperature: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L98)
+Defined in: [packages/core/src/l0/spi/provider.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L99)

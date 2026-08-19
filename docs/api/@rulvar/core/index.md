@@ -126,6 +126,7 @@ exactly the pieces you need, for example
 | [AgentProfileTemplateOptions](/api/@rulvar/core/interfaces/AgentProfileTemplateOptions.md) | Options shared by the implementation and review templates. |
 | [AgentResult](/api/@rulvar/core/interfaces/AgentResult.md) | - |
 | [AgentResultMeta](/api/@rulvar/core/interfaces/AgentResultMeta.md) | The consumer-facing reuse mark on results. |
+| [AiSdkBridgeRegulatedPosture](/api/@rulvar/core/interfaces/AiSdkBridgeRegulatedPosture.md) | The posture a bridgeAiSdk() adapter chose at construction. |
 | [AppliedPricingRow](/api/@rulvar/core/interfaces/AppliedPricingRow.md) | One pinned row: the pricing that was APPLIED to this model's usage. |
 | [ApproachSignatureInputs](/api/@rulvar/core/interfaces/ApproachSignatureInputs.md) | The identity inputs of the coarse signature (prompt prose excluded). |
 | [ApprovalDecision](/api/@rulvar/core/interfaces/ApprovalDecision.md) | The resolution value shape of a tool-approval suspension (M3-T03). |
@@ -262,6 +263,7 @@ exactly the pieces you need, for example
 | [LineageStats](/api/@rulvar/core/interfaces/LineageStats.md) | The pure lineage fold rendered in plan_view and WakeDigest, always pinned to a snapshot (`uptoSeq`), never a live read inside a turn. `approaches` groups settled history by approachSig; a group whose attempts have not settled yet is omitted (there is no outcome to learn from), while `attemptsUsed` still counts every authorized attempt. |
 | [LogicalRunTelemetry](/api/@rulvar/core/interfaces/LogicalRunTelemetry.md) | One logical run's telemetry, folded across every segment (RV2510). |
 | [McpConfig](/api/@rulvar/core/interfaces/McpConfig.md) | - |
+| [McpSourceRegulatedPosture](/api/@rulvar/core/interfaces/McpSourceRegulatedPosture.md) | The posture an mcp() tool source chose at construction (RV1516/RV1808). |
 | [McpToolSource](/api/@rulvar/core/interfaces/McpToolSource.md) | The ToolSource returned by [mcp](/api/@rulvar/core/functions/mcp.md): the frozen ToolSource seam plus the lifecycle the seam deliberately leaves to the host. `close()` releases everything the source created on first use: the SDK client, its transport, and, for stdio, the spawned child process, without which a one shot host process cannot exit naturally after a run, because the child and its pipes keep the event loop alive (v1.33.0 review P2). It is idempotent, resolves even when the connection never succeeded, and resets the source, so a later `tools()` call connects afresh. The engine never closes a source, because one source may serve many runs: the host owns the lifecycle and should close once its runs have settled (closing while a run is in flight fails that run's MCP tool calls). |
 | [MechanicalGateVerdict](/api/@rulvar/core/interfaces/MechanicalGateVerdict.md) | The verdict of one mechanical acceptance gate evaluation. |
 | [MemoryQuotaLimiter](/api/@rulvar/core/interfaces/MemoryQuotaLimiter.md) | The in-process reference QuotaLimiter returned by memoryQuotaLimiter. |
@@ -523,6 +525,7 @@ exactly the pieces you need, for example
 | [QuotaDecision](/api/@rulvar/core/type-aliases/QuotaDecision.md) | The admission verdict. `retryAfterMs` on a denial is the provider-shaped hint the retry engine honors verbatim: the time until the limiter expects capacity (0 = retry immediately, e.g. a request whose estimate can never fit its cap, so exhaustion and failover happen without waiting; absent = the caller's backoff policy applies). |
 | [RandPayload](/api/@rulvar/core/type-aliases/RandPayload.md) | Rand-entry payload. |
 | [RefEntryClassification](/api/@rulvar/core/type-aliases/RefEntryClassification.md) | Fold classification of one ref-entry; NEVER persisted. |
+| [RegulatedPostureDescriptor](/api/@rulvar/core/type-aliases/RegulatedPostureDescriptor.md) | What `describeRegulatedPosture()` returns: one of the known shapes. |
 | [ReplayDisposition](/api/@rulvar/core/type-aliases/ReplayDisposition.md) | - |
 | [ReplayMode](/api/@rulvar/core/type-aliases/ReplayMode.md) | - |
 | [ResolutionAttempt](/api/@rulvar/core/type-aliases/ResolutionAttempt.md) | - |

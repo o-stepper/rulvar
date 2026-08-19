@@ -19,6 +19,7 @@
  */
 import type { ChatEvent, ChatRequest, Effort } from '../messages.js';
 import type { WireError } from '../errors.js';
+import type { RegulatedPostureDescriptor } from './regulated-posture.js';
 
 /**
  * Live-only hooks the engine passes to a stream dispatch (RV1013).
@@ -177,4 +178,13 @@ export interface ProviderAdapter {
    * this call entirely.
    */
   countTokens?(req: ChatRequest, opts?: { signal?: AbortSignal }): Promise<number>;
+  /**
+   * The construction-side posture attestation (RV4101): a PURE
+   * snapshot of the risk postures this adapter chose at construction
+   * (no wire, no side effects), read by `compileRegulatedProfile` to
+   * refuse a loosened posture and hash a tightened one. Optional: an
+   * adapter without it counts into the profile's `unrecognized` tally
+   * instead of being implied verified.
+   */
+  describeRegulatedPosture?(): RegulatedPostureDescriptor;
 }

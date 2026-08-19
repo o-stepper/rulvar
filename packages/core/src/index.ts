@@ -26,6 +26,7 @@ export type * from './l0/spi/isolation.js';
 export type * from './l0/spi/store.js';
 export type * from './l0/spi/transcript.js';
 export type * from './l0/spi/toolsource.js';
+export type * from './l0/spi/regulated-posture.js';
 export type * from './l0/spi/knowledge.js';
 export type * from './l0/spi/quota.js';
 export type * from './l0/spi/executor.js';

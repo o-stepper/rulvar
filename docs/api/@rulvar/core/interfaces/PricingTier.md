@@ -6,7 +6,7 @@
 
 # Interface: PricingTier
 
-Defined in: [packages/core/src/l0/spi/provider.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L59)
+Defined in: [packages/core/src/l0/spi/provider.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L60)
 
 One long-context price tier. When the full prompt (canonical
 inputTokens, cache included) is strictly above `aboveInputTokens`, the
@@ -25,6 +25,6 @@ order.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-aboveinputtokens"></a> `aboveInputTokens` | `number` | [packages/core/src/l0/spi/provider.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L60) |
-| <a id="property-inputmultiplier"></a> `inputMultiplier` | `number` | [packages/core/src/l0/spi/provider.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L61) |
-| <a id="property-outputmultiplier"></a> `outputMultiplier` | `number` | [packages/core/src/l0/spi/provider.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L62) |
+| <a id="property-aboveinputtokens"></a> `aboveInputTokens` | `number` | [packages/core/src/l0/spi/provider.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L61) |
+| <a id="property-inputmultiplier"></a> `inputMultiplier` | `number` | [packages/core/src/l0/spi/provider.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L62) |
+| <a id="property-outputmultiplier"></a> `outputMultiplier` | `number` | [packages/core/src/l0/spi/provider.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L63) |

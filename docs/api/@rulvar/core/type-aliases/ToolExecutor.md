@@ -10,7 +10,7 @@
 type ToolExecutor = "inprocess" | "subprocess" | "container";
 ```
 
-Defined in: [packages/core/src/l0/spi/toolsource.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L52)
+Defined in: [packages/core/src/l0/spi/toolsource.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L53)
 
 Where execute runs. A declared capability consumed by dispatch and
 policy. 'inprocess' runs the tool's `execute` closure in the engine

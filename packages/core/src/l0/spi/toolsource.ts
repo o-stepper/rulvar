@@ -11,6 +11,7 @@
 import type { Json } from '../json.js';
 import type { Out, SchemaSpec } from '../schema.js';
 import type { IsolationSpec } from './isolation.js';
+import type { RegulatedPostureDescriptor } from './regulated-posture.js';
 
 /**
  * Declarative risk metadata on the tool contract. Policy input, not
@@ -95,4 +96,13 @@ export interface ToolSourceSession {
 export interface ToolSource {
   id: string;
   tools(session: ToolSourceSession): Promise<ToolDef[]>;
+  /**
+   * The construction-side posture attestation (RV4101): a PURE
+   * snapshot of the risk postures this source chose at construction
+   * (no wire, no connect, no side effects), read by
+   * `compileRegulatedProfile` to refuse a loosened posture and hash a
+   * tightened one. Optional: a source without it counts into the
+   * profile's `unrecognized` tally instead of being implied verified.
+   */
+  describeRegulatedPosture?(): RegulatedPostureDescriptor;
 }

@@ -194,3 +194,41 @@ describe('the drift policy (RV1516)', () => {
     await expect(defs[0]?.execute({}, toolContext())).resolves.toBe('still-live');
   });
 });
+
+describe('describeRegulatedPosture (RV4101)', () => {
+  it('is a pure snapshot of a tightened construction: no wire, no connect', () => {
+    const source = mcp({
+      transport: 'inprocess',
+      server: fixtureServer(),
+      drift: 'refuse',
+      maxTools: 8,
+      maxPages: 2,
+      maxSchemaBytes: 65536,
+      timeouts: { discoveryMs: 2000 },
+    });
+    expect(source.describeRegulatedPosture?.()).toEqual({
+      regulatedPosture: 1,
+      kind: 'mcp-source',
+      name: 'mcp:inprocess',
+      drift: 'refuse',
+      bounds: {
+        declared: true,
+        maxTools: 8,
+        maxPages: 2,
+        maxSchemaBytes: 65536,
+        discoveryMs: 2000,
+      },
+    });
+  });
+
+  it('reports the loose defaults honestly: rekey drift, bounds undeclared', () => {
+    const source = mcp({ transport: 'inprocess', server: fixtureServer() });
+    expect(source.describeRegulatedPosture?.()).toEqual({
+      regulatedPosture: 1,
+      kind: 'mcp-source',
+      name: 'mcp:inprocess',
+      drift: 'rekey',
+      bounds: { declared: false },
+    });
+  });
+});

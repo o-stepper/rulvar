@@ -20,4 +20,4 @@ re-matches an existing one) and parks until a resolution closes it.
 | <a id="property-advisory"></a> `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/runtime/agent-loop.ts:522](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L522) |
 | <a id="property-decidedby"></a> `decidedBy` | `string` | [packages/core/src/runtime/agent-loop.ts:520](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L520) |
 | <a id="property-rule"></a> `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/runtime/agent-loop.ts:521](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L521) |
-| <a id="property-verdict"></a> `verdict` | `"allow"` \| `"ask"` \| `"deny"` | [packages/core/src/runtime/agent-loop.ts:519](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L519) |
+| <a id="property-verdict"></a> `verdict` | `"allow"` \| `"deny"` \| `"ask"` | [packages/core/src/runtime/agent-loop.ts:519](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L519) |

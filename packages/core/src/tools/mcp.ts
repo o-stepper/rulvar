@@ -597,6 +597,29 @@ export function mcp(cfg: McpConfig): McpToolSource {
 
   return {
     id: sourceIdOf(cfg),
+    // The construction-side posture attestation (RV4101): a pure
+    // snapshot of what THIS source chose at construction; no wire, no
+    // connect, no cache touch. compileRegulatedProfile reads it to
+    // refuse a loosened posture and to hash a tightened one.
+    describeRegulatedPosture: () => ({
+      regulatedPosture: 1,
+      kind: 'mcp-source',
+      name: sourceIdOf(cfg),
+      drift: cfg.drift ?? 'rekey',
+      bounds: {
+        declared:
+          cfg.maxTools !== undefined &&
+          cfg.maxPages !== undefined &&
+          cfg.maxSchemaBytes !== undefined &&
+          cfg.timeouts?.discoveryMs !== undefined,
+        ...(cfg.maxTools === undefined ? {} : { maxTools: cfg.maxTools }),
+        ...(cfg.maxPages === undefined ? {} : { maxPages: cfg.maxPages }),
+        ...(cfg.maxSchemaBytes === undefined ? {} : { maxSchemaBytes: cfg.maxSchemaBytes }),
+        ...(cfg.timeouts?.discoveryMs === undefined
+          ? {}
+          : { discoveryMs: cfg.timeouts.discoveryMs }),
+      },
+    }),
     tools: async () => {
       if (poisoned) {
         throw new ConfigError(

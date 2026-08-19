@@ -6,7 +6,7 @@
 
 # Interface: ToolSourceSession
 
-Defined in: [packages/core/src/l0/spi/toolsource.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L85)
+Defined in: [packages/core/src/l0/spi/toolsource.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L86)
 
 Session handle passed to ToolSource.tools (minimal in v1; audited at M9).
 
@@ -14,4 +14,4 @@ Session handle passed to ToolSource.tools (minimal in v1; audited at M9).
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-runid"></a> `runId` | `string` | [packages/core/src/l0/spi/toolsource.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L86) |
+| <a id="property-runid"></a> `runId` | `string` | [packages/core/src/l0/spi/toolsource.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L87) |

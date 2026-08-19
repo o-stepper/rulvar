@@ -18,17 +18,31 @@
  * no strategy enum and no behavioral branch; a host that wants the
  * posture applies the compiled options like any others. The floor
  * binds what flows through CreateEngineOptions / RunOptions /
- * OrchestrateOptions; construction-side postures the options cannot
- * see (MCP source `drift: 'refuse'` and bounds, the AI SDK bridge's
- * `providerExecutedTools: 'deny'`) are named in the docs checklist
- * beside this function, because a hash must not imply what it cannot
- * verify.
+ * OrchestrateOptions, and since RV4101 it also walks the
+ * CONSTRUCTIONS those options reach (adapters, tool sources in named
+ * toolsets and profiles). A construction exposing
+ * `describeRegulatedPosture()` has its posture judged by field name
+ * (an MCP source's drift must be 'refuse' with every discovery bound
+ * declared; the AI SDK bridge must keep providerExecutedTools
+ * 'deny'), the sorted descriptors enter the hashed map under
+ * `construction`, and constructions exposing nothing are COUNTED
+ * there as `unrecognized`, so the hash names its own blind spot
+ * instead of implying totality (the RV4009 rule "a hash must not
+ * imply what it cannot verify", now with the verifiable part
+ * verified). What deliberately stays open: a construction mutated
+ * AFTER compile time; the descriptor is a snapshot, not a lease.
  */
 import { createHash } from 'node:crypto';
 
 import { ConfigError } from '../l0/errors.js';
 import { jcsSerialize } from '../l0/jcs.js';
+import type {
+  AiSdkBridgeRegulatedPosture,
+  McpSourceRegulatedPosture,
+  RegulatedPostureDescriptor,
+} from '../l0/spi/regulated-posture.js';
 import type { OrchestrateOptions } from '../orchestrator/orchestrate.js';
+import type { ToolsOption } from '../tools/toolset-hash.js';
 import type { CreateEngineOptions, RunOptions } from './engine.js';
 
 /** What compileRegulatedProfile returns: apply verbatim. */
@@ -45,7 +59,11 @@ export interface RegulatedProfile {
   profileHash: string;
 }
 
-const REGULATED_VERSION = 1;
+// 2 since RV4101: the hashed map gained the `construction` key (the
+// sorted attested descriptors plus the unrecognized count), so the
+// meaning of the map changed and a v1 hash must never collide with a
+// v2 reading of the same options.
+const REGULATED_VERSION = 2;
 
 function refuse(field: string, requirement: string): never {
   throw new ConfigError(
@@ -94,6 +112,128 @@ export function compileRegulatedProfile(input: {
       );
     }
   }
+
+  // ---- Construction floor (RV4101). The postures the options cannot
+  // express live on constructions: an mcp() source's drift and
+  // discovery bounds, the AI SDK bridge's provider-executed-tools
+  // seam. Walk everything the options reach (adapters, named
+  // toolsets, profile toolsets), read the pure descriptors, refuse a
+  // loosened posture by field name, and COUNT what exposed nothing:
+  // the hashed map then tells the auditor how many constructions it
+  // could not see instead of implying totality. A descriptor of an
+  // unrecognized shape or kind refuses outright: a construction that
+  // claims an attestation this floor cannot judge must not compile
+  // into silence. Deliberately open, by name: a construction mutated
+  // AFTER this compile; the descriptor is a snapshot, not a lease.
+  const walked = new Set<object>();
+  const attested: RegulatedPostureDescriptor[] = [];
+  let unrecognized = 0;
+  const visit = (construction: unknown): void => {
+    if (construction === null || typeof construction !== 'object' || walked.has(construction)) {
+      return;
+    }
+    walked.add(construction);
+    const probe = (construction as { describeRegulatedPosture?: unknown }).describeRegulatedPosture;
+    if (typeof probe !== 'function') {
+      unrecognized += 1;
+      return;
+    }
+    const descriptor = (probe as () => unknown).call(construction) as
+      Partial<RegulatedPostureDescriptor> | null | undefined;
+    if (
+      descriptor === null ||
+      typeof descriptor !== 'object' ||
+      descriptor.regulatedPosture !== 1 ||
+      typeof descriptor.name !== 'string' ||
+      descriptor.name === ''
+    ) {
+      refuse(
+        'construction',
+        'exposes describeRegulatedPosture() with an unrecognized shape (need ' +
+          'regulatedPosture: 1, a non-empty string name, and a known kind)',
+      );
+    }
+    if (descriptor.kind === 'mcp-source') {
+      const mcpPosture = descriptor as McpSourceRegulatedPosture;
+      if (mcpPosture.drift !== 'refuse') {
+        refuse(
+          `construction['${descriptor.name}'].drift`,
+          "must be 'refuse' (RV1516): under a rekey posture a listChanged notification " +
+            'imports a changed tool list beneath the regulated run',
+        );
+      }
+      const bounds = mcpPosture.bounds as McpSourceRegulatedPosture['bounds'] | undefined;
+      if (bounds === undefined || bounds.declared !== true) {
+        refuse(
+          `construction['${descriptor.name}'].bounds`,
+          'must declare every discovery bound (maxTools, maxPages, maxSchemaBytes, ' +
+            'timeouts.discoveryMs; RV1808): an unbounded sweep against a remote registry ' +
+            'is an availability decision someone should have made on purpose',
+        );
+      }
+      attested.push({
+        regulatedPosture: 1,
+        kind: 'mcp-source',
+        name: descriptor.name,
+        drift: 'refuse',
+        bounds: {
+          declared: true,
+          ...(typeof bounds.maxTools === 'number' ? { maxTools: bounds.maxTools } : {}),
+          ...(typeof bounds.maxPages === 'number' ? { maxPages: bounds.maxPages } : {}),
+          ...(typeof bounds.maxSchemaBytes === 'number'
+            ? { maxSchemaBytes: bounds.maxSchemaBytes }
+            : {}),
+          ...(typeof bounds.discoveryMs === 'number' ? { discoveryMs: bounds.discoveryMs } : {}),
+        },
+      });
+      return;
+    }
+    if (descriptor.kind === 'ai-sdk-bridge') {
+      const bridgePosture = descriptor as AiSdkBridgeRegulatedPosture;
+      if (bridgePosture.providerExecutedTools !== 'deny') {
+        refuse(
+          `construction['${descriptor.name}'].providerExecutedTools`,
+          "must be 'deny': a provider-executed tool runs outside the permission chain " +
+            'and the journal',
+        );
+      }
+      attested.push({
+        regulatedPosture: 1,
+        kind: 'ai-sdk-bridge',
+        name: descriptor.name,
+        providerExecutedTools: 'deny',
+      });
+      return;
+    }
+    refuse(
+      `construction['${descriptor.name}']`,
+      `attests an unrecognized kind '${String((descriptor as { kind?: unknown }).kind)}'; ` +
+        "this floor can judge 'mcp-source' and 'ai-sdk-bridge'",
+    );
+  };
+  for (const adapter of engine.adapters ?? []) {
+    visit(adapter);
+  }
+  const visitTools = (tools: ToolsOption | undefined): void => {
+    for (const entry of tools ?? []) {
+      if (typeof entry === 'string' || (entry as { kind?: unknown }).kind === 'tool') {
+        // A string names a toolset walked from defaults.toolsets
+        // below; a static ToolDef is a contract, not a construction.
+        continue;
+      }
+      visit(entry);
+    }
+  };
+  for (const toolset of Object.values(defaults.toolsets ?? {})) {
+    visitTools(toolset);
+  }
+  for (const profile of Object.values(defaults.profiles ?? {})) {
+    visitTools(profile.tools);
+  }
+  const postureKeyOf = (entry: RegulatedPostureDescriptor): string => `${entry.kind} ${entry.name}`;
+  attested.sort((a, b) =>
+    postureKeyOf(a) < postureKeyOf(b) ? -1 : postureKeyOf(a) > postureKeyOf(b) ? 1 : 0,
+  );
 
   // ---- Run floor.
   if (typeof run.budgetUsd !== 'number') {
@@ -162,6 +302,10 @@ export function compileRegulatedProfile(input: {
     strictApprovals: true,
     billingReceipts: 'intent',
     determinism: 'error',
+    // The construction postures (RV4101): what attested, sorted for
+    // determinism, and how many constructions attested NOTHING, so
+    // the hash carries its own blind-spot count.
+    construction: { attested, unrecognized },
     strictPricing: run.strictPricing === true ? true : run.strictPricing,
     budgetPolicy: 'immutable-lifetime',
     budgetUsd: run.budgetUsd,
