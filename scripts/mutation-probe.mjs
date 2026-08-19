@@ -5220,8 +5220,8 @@ export const MUTATIONS = [
     doctrine:
       "the calibration fold names the coordination side's own executed calls (RV4010): with the bucket dropped, the fifth comparison shape returns, 407 tool starts against 390 worker calls with the 17-call remainder drowned in budgetOnly noise and explained by hand",
     file: 'packages/core/src/stores/tool-calibration.ts',
-    find: "    if ((role === 'orchestrate' || role === 'synthesize') && entry.toolBudget !== undefined) {",
-    replace: '    if (false) {',
+    find: "      (role === 'orchestrate' || role === 'synthesize') &&\n      entry.toolBudget !== undefined &&",
+    replace: '      false &&',
     test: 'packages/core/src/stores/tool-calibration.test.ts',
   },
   {
@@ -5430,6 +5430,33 @@ export const MUTATIONS = [
     find: '    if (nearest === undefined || nearest.wireRef !== undefined) {',
     replace: '    if (nearest === undefined) {',
     test: 'packages/core/src/stores/repair-ledger.test.ts',
+  },
+  {
+    id: 'coordination-bucket-defers-to-the-pair',
+    doctrine:
+      'the evidence/counter pair is primary over the coordination bucket (RV4106): with the pair check dropped from the bucket condition, a synthesize dispatch carrying a declared evidence contract AND a counter is swallowed by the bucket, and its declared contract falls out of calibration entirely',
+    file: 'packages/core/src/stores/tool-calibration.ts',
+    find: '      entry.toolBudget !== undefined &&\n      entry.evidence === undefined\n    ) {',
+    replace: '      entry.toolBudget !== undefined\n    ) {',
+    test: 'packages/core/src/stores/tool-calibration.test.ts',
+  },
+  {
+    id: 'regulated-budget-is-a-real-ceiling',
+    doctrine:
+      'the regulated budget must be a positive finite ceiling (RV4107): with the finiteness refusal collapsed back to a bare typeof, budgetUsd NaN compiles into the posture map and the run carries a ceiling that bounds nothing',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: "  if (typeof run.budgetUsd !== 'number' || !Number.isFinite(run.budgetUsd) || run.budgetUsd <= 0) {",
+    replace: "  if (typeof run.budgetUsd !== 'number') {",
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-hash-reads-the-normalized-scope',
+    doctrine:
+      'the profile hash reads the normalized scope (RV4107): with the normalization dropped, a junk field the engine discards downstream moves the hash while the effective posture stands still, and two identical postures stop sharing a fingerprint',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: "  run.scope = normalizeExecutionScope(run.scope, 'compileRegulatedProfile run.scope');",
+    replace: '',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
   },
   {
     id: 'journaled-waiver-licenses-the-resumed-acceptance',
