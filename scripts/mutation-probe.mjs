@@ -5473,7 +5473,7 @@ export const MUTATIONS = [
     doctrine:
       'the pinned waiver licenses exactly the reviewed document (RV4201): with the pin mismatch collapsed, a waiver signed under one judgedHash licenses whatever bytes the re-run composed, and the signature under a specific document becomes the blank cheque the declaration exists to forbid',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '            claimConsistencyMeta?.judgedHash !== pinnedJudgedHash;',
+    find: '            pinnedJudgedHash !== undefined && claimConsistencyMeta?.judgedHash !== pinnedJudgedHash;',
     replace: '            false;',
     test: 'packages/core/src/orchestrator/semantic-acceptance.test.ts',
   },
