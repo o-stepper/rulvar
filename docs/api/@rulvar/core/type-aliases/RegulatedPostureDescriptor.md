@@ -9,9 +9,11 @@
 ```ts
 type RegulatedPostureDescriptor = 
   | McpSourceRegulatedPosture
-  | AiSdkBridgeRegulatedPosture;
+  | AiSdkBridgeRegulatedPosture
+  | ModelAdapterRegulatedPosture
+  | ToolExecutorRegulatedPosture;
 ```
 
-Defined in: [packages/core/src/l0/spi/regulated-posture.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/regulated-posture.ts#L70)
+Defined in: [packages/core/src/l0/spi/regulated-posture.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/regulated-posture.ts#L133)
 
 What `describeRegulatedPosture()` returns: one of the known shapes.

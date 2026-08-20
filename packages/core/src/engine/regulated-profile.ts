@@ -231,8 +231,7 @@ function judgeDescriptor(raw: unknown): RegulatedPostureDescriptor {
       );
     }
     const isolation = executorPosture.isolation as
-      | ToolExecutorRegulatedPosture['isolation']
-      | undefined;
+      ToolExecutorRegulatedPosture['isolation'] | undefined;
     if (
       isolation === undefined ||
       (isolation.flavor !== 'subprocess' && isolation.flavor !== 'container')
@@ -433,9 +432,7 @@ export function compileRegulatedProfile(input: {
       // instead of counting anonymously.
       const id = (construction as { id?: unknown }).id;
       unrecognizedNames.push(
-        typeof id === 'string' && id !== ''
-          ? id
-          : (construction.constructor?.name ?? 'anonymous'),
+        typeof id === 'string' && id !== '' ? id : (construction.constructor?.name ?? 'anonymous'),
       );
       return;
     }

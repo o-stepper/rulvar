@@ -10,6 +10,6 @@
 type IsolatedExecutorTag = Exclude<ToolExecutor, "inprocess">;
 ```
 
-Defined in: [packages/core/src/l0/spi/executor.ts:21](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L21)
+Defined in: [packages/core/src/l0/spi/executor.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L22)
 
 The non-inprocess executor tags a provider can be registered under.

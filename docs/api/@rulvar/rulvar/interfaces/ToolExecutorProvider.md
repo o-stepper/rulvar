@@ -17,6 +17,26 @@ stays durable.
 
 ## Methods
 
+### describeRegulatedPosture()?
+
+```ts
+optional describeRegulatedPosture(): RegulatedPostureDescriptor;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The construction-side posture attestation (RV4204): a PURE
+snapshot of what the executor chose at construction (ledger,
+env allowlist, ceilings, isolation seam), read by
+`compileRegulatedProfile` and folded into the hashed posture map;
+see the `regulated-posture` module.
+
+#### Returns
+
+[`RegulatedPostureDescriptor`](/api/@rulvar/rulvar/type-aliases/RegulatedPostureDescriptor.md)
+
+***
+
 ### run()
 
 ```ts

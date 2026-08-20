@@ -837,7 +837,7 @@ describe('the first-party construction descriptors (RV4204)', () => {
     expect(moved.profileHash).not.toBe(compiled.profileHash);
   });
 
-  it("a custom-base-url descriptor with no origin refuses: an egress the hash cannot pin", () => {
+  it('a custom-base-url descriptor with no origin refuses: an egress the hash cannot pin', () => {
     const adapter = {
       ...scriptedAdapter(() => ({ text: 'x' })),
       describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
