@@ -37,7 +37,7 @@ describe('compileRegulatedProfile (RV4009)', () => {
     expect(compiled.engine.determinism?.mode).toBe('error');
     expect(compiled.run.budgetPolicy).toBe('immutable-lifetime');
     expect(compiled.run.strictPricing).toBe(true);
-    expect(compiled.run.configFingerprint).toMatch(/^regulated:2:[0-9a-f]{64}$/);
+    expect(compiled.run.configFingerprint).toMatch(/^regulated:3:[0-9a-f]{64}$/);
     expect(compiled.profileHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -652,6 +652,92 @@ describe('the regulated semantic acceptance (RV4201)', () => {
       expect(thunk, label).toThrow(ConfigError);
       expect(thunk, label).toThrow(pattern);
     }
+  });
+
+  it('the posture map hashes the findings postures: fail closed and repair armed differ (RV4203)', () => {
+    const failClosed = compileRegulatedProfile({ ...BASE(), orchestrate: ORCH() });
+    const repairArmed = compileRegulatedProfile({
+      ...BASE(),
+      orchestrate: {
+        synthesis: {},
+        citationAudit: { resolve: RESOLVE, onFound: 'repair' },
+        claimConsistency: { judge: { model: 'judge:model' }, stage: 'final', onFound: 'repair' },
+      },
+    });
+    expect(repairArmed.profileHash).not.toBe(failClosed.profileHash);
+    expect(failClosed.run.configFingerprint).toMatch(/^regulated:3:/);
+  });
+
+  it('the waiver terms move the hash: forbid, a pin, and a different pin are three postures (RV4203)', () => {
+    const forbid = compileRegulatedProfile({ ...BASE(), orchestrate: ORCH() });
+    const pinned = (hash: string) =>
+      compileRegulatedProfile({
+        ...BASE(),
+        orchestrate: {
+          ...ORCH(),
+          claimConsistency: {
+            ...ORCH().claimConsistency,
+            waiver: { principal: 'release-owner', reason: 'reviewed dossier' },
+          },
+          semanticAcceptance: {
+            judgedStage: 'final',
+            claimCoverage: 'full',
+            contradictions: 'fail',
+            citations: 'fail',
+            unresolved: 'fail',
+            waiver: { judgedHash: hash },
+          },
+        },
+      });
+    const pinnedA = pinned('a'.repeat(64));
+    const pinnedB = pinned('b'.repeat(64));
+    expect(pinnedA.profileHash).not.toBe(forbid.profileHash);
+    expect(pinnedB.profileHash).not.toBe(pinnedA.profileHash);
+  });
+
+  it('the audit sampling and judge parameters move the hash (RV4203)', () => {
+    const base = compileRegulatedProfile({ ...BASE(), orchestrate: ORCH() });
+    const widerSample = compileRegulatedProfile({
+      ...BASE(),
+      orchestrate: { ...ORCH(), citationAudit: { resolve: RESOLVE, samplePerSection: 4 } },
+    });
+    const otherJudge = compileRegulatedProfile({
+      ...BASE(),
+      orchestrate: {
+        ...ORCH(),
+        citationAudit: { resolve: RESOLVE, judge: { model: 'stronger:model' } },
+      },
+    });
+    expect(widerSample.profileHash).not.toBe(base.profileHash);
+    expect(otherJudge.profileHash).not.toBe(base.profileHash);
+    expect(otherJudge.profileHash).not.toBe(widerSample.profileHash);
+  });
+
+  it('an upgraded toolset pin moves the hash: authority joins the contract (RV4203)', () => {
+    const contractHash = 'c'.repeat(64);
+    const withPin = (authorityHash?: string) =>
+      compileRegulatedProfile({
+        ...BASE(),
+        engine: {
+          ...BASE().engine,
+          defaults: {
+            routing: { loop: 'fake:model' },
+            profiles: {
+              digger: {
+                description: 'digs',
+                tools: [],
+                toolsetAttestation: {
+                  hash: contractHash,
+                  ...(authorityHash === undefined ? {} : { authorityHash }),
+                },
+              },
+            },
+          },
+        },
+      });
+    const contractOnly = withPin();
+    const upgraded = withPin('d'.repeat(64));
+    expect(upgraded.profileHash).not.toBe(contractOnly.profileHash);
   });
 
   it('the pinned-hash waiver is the one exception the floor admits', () => {
