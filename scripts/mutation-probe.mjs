@@ -574,10 +574,11 @@ export const MUTATIONS = [
   },
   {
     id: 'cost-fold-journal-agenttype-bucket',
-    doctrine: 'the journal fold catches an EMPTY agentType, not only an absent one (RV3604)',
+    doctrine:
+      'the journal fold catches an EMPTY agentType, not only an absent one (RV3604; the bucket rule lives in agentTypeBucket since RV4206)',
     file: 'packages/core/src/engine/cost-report.ts',
-    find: '    const agentType = attributionBucket(facts?.agentType);\n',
-    replace: "    const agentType = facts?.agentType ?? 'unknown';\n",
+    find: "  if (agentType !== undefined && agentType !== '') {\n    return agentType;\n  }",
+    replace: '  if (agentType !== undefined) {\n    return agentType;\n  }',
     test: 'packages/core/src/engine/cost-report.test.ts',
   },
   {
@@ -2902,10 +2903,10 @@ export const MUTATIONS = [
   {
     id: 'critical-path-judge-split',
     doctrine:
-      'the synthesize wall splits by the claim judge label (RV1604): erasing the label check folds the judge wall back into finalCompositionMs and the benchmark misread of a slow composer returns',
+      'the synthesize wall splits by the claim judge label (RV1604; classified through synthesizeSpanClassOf since RV4206): collapsing the claim-judge branch folds the judge wall back into finalCompositionMs and the benchmark misread of a slow composer returns',
     file: 'packages/core/src/l0/telemetry-reduce.ts',
-    find: '          const judge = stage !== undefined;',
-    replace: '          const judge = false;',
+    find: "          if (cls === 'claim-judge') {",
+    replace: '          if (false) {',
     test: 'packages/core/src/orchestrator/synthesis.test.ts',
   },
   {
@@ -5566,6 +5567,51 @@ export const MUTATIONS = [
     find: "        const coverageDefect = (firstGrade ?? 'full') !== 'full';",
     replace: '        const coverageDefect = false;',
     test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
+    id: 'citation-judge-is-not-a-composition',
+    doctrine:
+      "the one classifier tells the citation judge apart from a composition (RV4206): with the branch collapsed, the audit judge's wall folds back into finalCompositionMs on both reducers, compositionSpans fakes a repair round's signature on a clean run, and lastCandidateMs overshoots the settled candidate by the whole verdict tail, the sixth comparison run's exact misreading",
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: "    return 'citation-judge';",
+    replace: "    return 'composition';",
+    test: 'packages/core/src/l0/telemetry-classification.test.ts',
+  },
+  {
+    id: 'unknown-synthesize-label-is-a-named-floor',
+    doctrine:
+      'a present unknown synthesize label is unclassified, never silently a composition (RV4206): with the fallthrough collapsed to composition, the next vocabulary member hides inside finalCompositionMs exactly the way the citation judge did for four releases, and nothing flags the split as a floor',
+    file: 'packages/core/src/l0/telemetry-reduce.ts',
+    find: "  return 'unclassified';",
+    replace: "  return 'composition';",
+    test: 'packages/core/src/l0/telemetry-classification.test.ts',
+  },
+  {
+    id: 'capacity-intake-is-closed',
+    doctrine:
+      'the wire capacity intake refuses unknown keys typed (RV4206): with the refusal collapsed, repairRound and transportRetries are silently zero again and the estimate answers confidently for a plan nobody declared, the sixth comparison harness call',
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '    if (!known.includes(key)) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
+  {
+    id: 'capacity-childwires-is-a-total-not-a-count',
+    doctrine:
+      'childWires beside the structural pair must agree with their product (RV4206): with the contradiction check collapsed, a child COUNT passed where the wire TOTAL belongs prices a 44-wire plan as 8 and the capacity answer is out by the whole fan-out, the sixth comparison harness exact call',
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '    if (spec.childWires !== product) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
+  {
+    id: 'agent-type-vacuum-fills',
+    doctrine:
+      "the byAgentType vacuum fill derives the engine-owned names from recorded facts (RV4206): with the orchestrate branch collapsed, a dynamic run's per-agent-type money folds back under 'unknown' while every dispatch had a nameable stage, the sixth comparison run's report",
+    file: 'packages/core/src/engine/cost-report.ts',
+    find: "    return 'orchestrator';",
+    replace: "    return 'unknown';",
+    test: 'packages/core/src/engine/agent-type-fill.test.ts',
   },
 ];
 

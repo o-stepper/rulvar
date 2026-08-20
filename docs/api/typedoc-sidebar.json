@@ -2571,6 +2571,10 @@
             "link": "/api/@rulvar/core/variables/CHECKPOINT_FORMAT_V1.md"
           },
           {
+            "text": "CITATION_JUDGE_LABEL",
+            "link": "/api/@rulvar/core/variables/CITATION_JUDGE_LABEL.md"
+          },
+          {
             "text": "CITATION_JUDGE_SCHEMA",
             "link": "/api/@rulvar/core/variables/CITATION_JUDGE_SCHEMA.md"
           },
@@ -3057,6 +3061,10 @@
             "link": "/api/@rulvar/core/functions/agentScope.md"
           },
           {
+            "text": "agentTypeBucket",
+            "link": "/api/@rulvar/core/functions/agentTypeBucket.md"
+          },
+          {
             "text": "applyClaimOps",
             "link": "/api/@rulvar/core/functions/applyClaimOps.md"
           },
@@ -3179,6 +3187,10 @@
           {
             "text": "citationExcerptOf",
             "link": "/api/@rulvar/core/functions/citationExcerptOf.md"
+          },
+          {
+            "text": "citationJudgePassOf",
+            "link": "/api/@rulvar/core/functions/citationJudgePassOf.md"
           },
           {
             "text": "citationTargetsValidator",
@@ -4003,6 +4015,10 @@
           {
             "text": "synthesisCandidatesFromJournal",
             "link": "/api/@rulvar/core/functions/synthesisCandidatesFromJournal.md"
+          },
+          {
+            "text": "synthesizeSpanClassOf",
+            "link": "/api/@rulvar/core/functions/synthesizeSpanClassOf.md"
           },
           {
             "text": "terminalEnvelopeOf",
@@ -7913,6 +7929,10 @@
             "link": "/api/@rulvar/rulvar/variables/CHECKPOINT_FORMAT_V1.md"
           },
           {
+            "text": "CITATION_JUDGE_LABEL",
+            "link": "/api/@rulvar/rulvar/variables/CITATION_JUDGE_LABEL.md"
+          },
+          {
             "text": "CITATION_JUDGE_SCHEMA",
             "link": "/api/@rulvar/rulvar/variables/CITATION_JUDGE_SCHEMA.md"
           },
@@ -8407,6 +8427,10 @@
             "link": "/api/@rulvar/rulvar/functions/agentScope.md"
           },
           {
+            "text": "agentTypeBucket",
+            "link": "/api/@rulvar/rulvar/functions/agentTypeBucket.md"
+          },
+          {
             "text": "anthropic",
             "link": "/api/@rulvar/rulvar/functions/anthropic.md"
           },
@@ -8533,6 +8557,10 @@
           {
             "text": "citationExcerptOf",
             "link": "/api/@rulvar/rulvar/functions/citationExcerptOf.md"
+          },
+          {
+            "text": "citationJudgePassOf",
+            "link": "/api/@rulvar/rulvar/functions/citationJudgePassOf.md"
           },
           {
             "text": "citationTargetsValidator",
@@ -9369,6 +9397,10 @@
           {
             "text": "synthesisCandidatesFromJournal",
             "link": "/api/@rulvar/rulvar/functions/synthesisCandidatesFromJournal.md"
+          },
+          {
+            "text": "synthesizeSpanClassOf",
+            "link": "/api/@rulvar/rulvar/functions/synthesizeSpanClassOf.md"
           },
           {
             "text": "terminalEnvelopeOf",

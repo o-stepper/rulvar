@@ -24,8 +24,10 @@ which is why it refuses to share the name.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-finalcompositionms"></a> `finalCompositionMs?` | `number` | The composition half of the covered spans, clipped; present under the same all-or-nothing labelling condition as the top level split, and equal to the live breakdown's reading of the same run. | `packages/core/dist/index.d.ts` |
-| <a id="property-semanticjudgems"></a> `semanticJudgeMs?` | `number` | The judge half, clipped; same condition. | `packages/core/dist/index.d.ts` |
+| <a id="property-citationjudgems"></a> `citationJudgeMs?` | `number` | The citation-judge share, clipped (RV4206); same condition. | `packages/core/dist/index.d.ts` |
+| <a id="property-finalcompositionms"></a> `finalCompositionMs?` | `number` | The composition share of the covered spans, clipped; present under the same all-or-nothing labelling condition as the top level split, and equal to the live breakdown's reading of the same run. | `packages/core/dist/index.d.ts` |
+| <a id="property-semanticjudgems"></a> `semanticJudgeMs?` | `number` | The claim-judge share, clipped; same condition. | `packages/core/dist/index.d.ts` |
 | <a id="property-synthesiscoveredms"></a> `synthesisCoveredMs` | `number` | Union of settled synthesize spans clipped to the window. | `packages/core/dist/index.d.ts` |
 | <a id="property-unaccountedms"></a> `unaccountedMs` | `number` | `postFanInMs` minus `synthesisCoveredMs`, floored at zero. | `packages/core/dist/index.d.ts` |
 | <a id="property-unaccountedshare"></a> `unaccountedShare?` | `number` | `unaccountedMs / postFanInMs` when the window is positive. | `packages/core/dist/index.d.ts` |
+| <a id="property-unclassifiedsynthesisms"></a> `unclassifiedSynthesisMs?` | `number` | The unclassified share, clipped (RV4206); same condition. | `packages/core/dist/index.d.ts` |

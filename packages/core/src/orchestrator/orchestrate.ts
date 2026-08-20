@@ -24,6 +24,7 @@ import {
   FailRunError,
 } from '../l0/errors.js';
 import {
+  CITATION_JUDGE_LABEL,
   CLAIM_JUDGE_LABEL,
   FINAL_COMPOSITION_LABEL,
   FINISH_REJECTION_ABORT_REASON,
@@ -7858,7 +7859,9 @@ export function makeOrchestratorWorkflow(
       const judgeOpts: AgentOpts & { result: 'full' } = {
         role: 'synthesize',
         result: 'full',
-        label: pass === 'round' ? 'citation-entailment-judge-round' : 'citation-entailment-judge',
+        // The shared constant (RV4206): the reducers classify by this
+        // exact vocabulary, so the dispatch and the fold cannot drift.
+        label: pass === 'round' ? `${CITATION_JUDGE_LABEL}-round` : CITATION_JUDGE_LABEL,
         schema: CITATION_JUDGE_SCHEMA,
         limits: auditSpec.judge?.limits ?? { maxTurns: DEFAULT_CLAIM_JUDGE_MAX_TURNS },
         ...(auditSpec.judge?.model === undefined ? {} : { model: auditSpec.judge.model }),

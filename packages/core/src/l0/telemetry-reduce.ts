@@ -246,17 +246,24 @@ export interface CriticalPath {
   postFanInMs?: number;
   /**
    * Summed wall of completed 'synthesize' spans (0 when none). Since
-   * RV1604 this is exactly `finalCompositionMs + semanticJudgeMs`,
-   * kept whole for existing consumers: the name predates the claim
-   * judge riding the same role, and the eighteenth comparison
-   * benchmark read a 54-second `synthesisMs` as a second final
-   * composition when the run had SKIPPED synthesis and the bucket was
-   * entirely the judge and its extract. Read the split fields.
+   * RV4206 this is exactly `finalCompositionMs + semanticJudgeMs +
+   * citationJudgeMs + unclassifiedSynthesisMs`, kept whole for
+   * existing consumers: the name predates the judges riding the same
+   * role, and the eighteenth comparison benchmark read a 54-second
+   * `synthesisMs` as a second final composition when the run had
+   * SKIPPED synthesis and the bucket was entirely the judge and its
+   * extract. Read the split fields.
    */
   synthesisMs: number;
   /**
-   * Completed 'synthesize' spans that ARE final composition (every
-   * synthesize span not labeled as the claim judge), summed (RV1604).
+   * Completed 'synthesize' spans that ARE final composition, summed
+   * (RV1604; classified through {@link synthesizeSpanClassOf} since
+   * RV4206): the engine's own composition labels plus every
+   * unlabelled span (composition was the only unlabelled engine
+   * dispatch before RV2901 named it). A span whose label this
+   * classifier does not know lands in `unclassifiedSynthesisMs`
+   * instead of here: the sixth comparison run read 368889 ms of
+   * "final composition" of which 154019 ms was the citation judge.
    */
   finalCompositionMs: number;
   /**
@@ -276,6 +283,32 @@ export interface CriticalPath {
   draftJudgeMs: number;
   /** The post draft half of the split; see `draftJudgeMs`. */
   finalJudgeMs: number;
+  /**
+   * Completed 'synthesize' spans that are the citation entailment
+   * audit judge (labels {@link CITATION_JUDGE_LABEL} and its suffixed
+   * variants), summed (RV4206). Until this bucket existed the audit
+   * judge folded into `finalCompositionMs` on BOTH surfaces: the
+   * sixth comparison run's 368889 ms "composition" was 214870 ms of
+   * composition plus 154019 ms of this judge, `compositionSpans` then
+   * counted the judge as a second composition (the legible signature
+   * of a repair round on a run that had none), and `lastCandidateMs`
+   * stretched to the judge's end while the candidate had settled
+   * 154 seconds earlier.
+   */
+  citationJudgeMs: number;
+  /** Completed citation-judge synthesize spans, counted (RV4206). */
+  citationJudgeSpans: number;
+  /**
+   * Completed 'synthesize' spans whose label names NEITHER a judge
+   * nor a composition (RV4206): a vocabulary member this classifier
+   * does not know. Nonzero means the split beside it is a floor, and
+   * saying so is the whole point: an unknown synthesize label used to
+   * fold silently into `finalCompositionMs`, which is exactly how the
+   * citation judge hid there for four releases.
+   */
+  unclassifiedSynthesisMs: number;
+  /** Completed unclassified synthesize spans, counted; nonzero flags the split as a floor. */
+  unclassifiedSynthesisSpans: number;
   /**
    * Completed composition-side synthesize spans, counted (RV3404): two
    * compositions on one run is the legible signature of the bounded
@@ -392,10 +425,18 @@ export interface PostFanInBreakdown {
   coordinationToolCallsByName: Record<string, number>;
   /** Completed 'synthesize' span wall clipped to the window. */
   synthesisMs: number;
-  /** The final-composition half of `synthesisMs`, clipped (RV1604). */
+  /** The composition share of `synthesisMs`, clipped (RV1604; RV4206 classification). */
   finalCompositionMs: number;
-  /** The claim-judge half of `synthesisMs`, clipped (RV1604). */
+  /** The claim-judge share of `synthesisMs`, clipped (RV1604). */
   semanticJudgeMs: number;
+  /** The citation-judge share of `synthesisMs`, clipped (RV4206). */
+  citationJudgeMs: number;
+  /**
+   * The unclassified share of `synthesisMs`, clipped (RV4206):
+   * nonzero flags the itemization as a floor, exactly like the
+   * top-level counter.
+   */
+  unclassifiedSynthesisMs: number;
   /** Union length of every covered interval above. */
   coveredMs: number;
   /** postFanInMs minus coveredMs, floored at zero. */
@@ -459,6 +500,76 @@ export function claimJudgeStageOf(label: string | undefined): 'draft' | 'final' 
     return 'draft';
   }
   return (label?.startsWith(`${CLAIM_JUDGE_LABEL}-`) ?? false) ? 'final' : undefined;
+}
+
+/**
+ * The label the citation entailment audit judge dispatches under
+ * (RV4004; named here since RV4206 so the reducers and the
+ * orchestrator share one constant, the CLAIM_JUDGE_LABEL precedent):
+ * the audit judge rides role 'synthesize' exactly like the claim
+ * judge, and until RV4206 no reducer knew its name, so its wall
+ * folded into final composition on both surfaces.
+ */
+export const CITATION_JUDGE_LABEL = 'citation-entailment-judge';
+
+/**
+ * Which audit pass a citation judge label names (RV4206): the exact
+ * {@link CITATION_JUDGE_LABEL} is the first pass over the shipped
+ * document, and every suffixed variant is a post round re-audit
+ * (today `citation-entailment-judge-round`, the RV4004 round and the
+ * RV4202 merged round both dispatch it). `undefined` for every other
+ * label; one classifier for both reducers, the RV3302 doctrine.
+ */
+export function citationJudgePassOf(label: string | undefined): 'first' | 'round' | undefined {
+  if (label === CITATION_JUDGE_LABEL) {
+    return 'first';
+  }
+  return (label?.startsWith(`${CITATION_JUDGE_LABEL}-`) ?? false) ? 'round' : undefined;
+}
+
+/**
+ * The ONE synthesize-span classifier both reducers fold through
+ * (RV4206, the RV3302 doctrine extended from a judge predicate to the
+ * whole vocabulary): the sixth comparison experiment's citation judge
+ * (label {@link CITATION_JUDGE_LABEL}, role 'synthesize') was
+ * recognized by neither reducer and fell into `finalCompositionMs` on
+ * both, so the run's 368889 ms "composition" was half verdict, its
+ * `compositionSpans: 2` faked a repair round's signature on a clean
+ * run, and `lastCandidateMs` overshot the candidate by 154 seconds.
+ *
+ * - 'claim-judge': {@link claimJudgeStageOf} recognizes the label.
+ * - 'citation-judge': {@link citationJudgePassOf} recognizes it.
+ * - 'composition': the engine's own composition labels
+ *   ({@link FINAL_COMPOSITION_LABEL}, {@link SYNTHESIS_NOTE_LABEL},
+ *   suffixed variants included) and every UNLABELLED span: streams
+ *   recorded before RV2901 carry no labels, and composition was the
+ *   only unlabelled engine dispatch, so absence keeps its historical
+ *   reading.
+ * - 'unclassified': any OTHER label. A present label this classifier
+ *   does not know is a NEW vocabulary member, and folding it silently
+ *   into composition is exactly the failure this function exists to
+ *   end; the reducers bucket it under `unclassifiedSynthesisMs` with
+ *   its own nonzero span counter.
+ */
+export function synthesizeSpanClassOf(
+  label: string | undefined,
+): 'claim-judge' | 'citation-judge' | 'composition' | 'unclassified' {
+  if (claimJudgeStageOf(label) !== undefined) {
+    return 'claim-judge';
+  }
+  if (citationJudgePassOf(label) !== undefined) {
+    return 'citation-judge';
+  }
+  if (
+    label === undefined ||
+    label === FINAL_COMPOSITION_LABEL ||
+    label.startsWith(`${FINAL_COMPOSITION_LABEL}-`) ||
+    label === SYNTHESIS_NOTE_LABEL ||
+    label.startsWith(`${SYNTHESIS_NOTE_LABEL}-`)
+  ) {
+    return 'composition';
+  }
+  return 'unclassified';
 }
 
 /**
@@ -528,6 +639,10 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   let semanticJudgeMs = 0;
   let draftJudgeMs = 0;
   let finalJudgeMs = 0;
+  let citationJudgeMs = 0;
+  let citationJudgeSpans = 0;
+  let unclassifiedSynthesisMs = 0;
+  let unclassifiedSynthesisSpans = 0;
   let compositionSpans = 0;
   let judgeSpans = 0;
   let hostRejectedSpans = 0;
@@ -540,7 +655,7 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
   // clock, so the reconstruction holds whatever epoch that clock uses.
   const coordinationModel: Array<Interval & { phase: string }> = [];
   const coordinationTools: Array<Interval & { name: string }> = [];
-  const synthesisSpans: Array<Interval & { judge: boolean }> = [];
+  const synthesisSpans: Array<Interval & { cls: ReturnType<typeof synthesizeSpanClassOf> }> = [];
   const spanOf = (durationMs: number): number =>
     Number.isFinite(durationMs) && durationMs > 0 ? durationMs : 0;
   for (const event of events) {
@@ -597,10 +712,13 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         }
         if (started.role === 'synthesize') {
           const wall = Math.max(0, at - started.at);
-          const stage = claimJudgeStageOf(started.label);
-          const judge = stage !== undefined;
+          // The one classifier for the whole vocabulary (RV4206): a
+          // judge must never read as a composition, and an unknown
+          // label must never read as anything but unknown.
+          const cls = synthesizeSpanClassOf(started.label);
           synthesisMs += wall;
-          if (judge) {
+          if (cls === 'claim-judge') {
+            const stage = claimJudgeStageOf(started.label);
             semanticJudgeMs += wall;
             judgeSpans += 1;
             if (stage === 'draft') {
@@ -608,16 +726,23 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
             } else {
               finalJudgeMs += wall;
             }
+          } else if (cls === 'citation-judge') {
+            citationJudgeMs += wall;
+            citationJudgeSpans += 1;
+          } else if (cls === 'unclassified') {
+            unclassifiedSynthesisMs += wall;
+            unclassifiedSynthesisSpans += 1;
           } else {
             finalCompositionMs += wall;
             compositionSpans += 1;
-            // The candidate milestones (RV3605): a composition span's
-            // end is the moment a candidate deliverable existed.
+            // The candidate milestones (RV3605): a COMPOSITION span's
+            // end is the moment a candidate deliverable existed; a
+            // judge's end never is (RV4206).
             firstCompositionEnd = firstCompositionEnd === undefined ? at : firstCompositionEnd;
             lastCompositionEnd =
               lastCompositionEnd === undefined ? at : Math.max(lastCompositionEnd, at);
           }
-          synthesisSpans.push({ from: started.at, to: at, judge });
+          synthesisSpans.push({ from: started.at, to: at, cls });
         } else if (started.role !== 'orchestrate') {
           workerSpans += 1;
           lastWorkerEnd = lastWorkerEnd === undefined ? at : Math.max(lastWorkerEnd, at);
@@ -634,6 +759,10 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
     semanticJudgeMs,
     draftJudgeMs,
     finalJudgeMs,
+    citationJudgeMs,
+    citationJudgeSpans,
+    unclassifiedSynthesisMs,
+    unclassifiedSynthesisSpans,
     compositionSpans,
     judgeSpans,
     workerSpans,
@@ -679,6 +808,8 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
     }
     const synthesisClipped: Interval[] = [];
     let judgeClippedMs = 0;
+    let citationJudgeClippedMs = 0;
+    let unclassifiedClippedMs = 0;
     let compositionClippedMs = 0;
     for (const span of synthesisSpans) {
       const clipped = clip(span);
@@ -686,10 +817,15 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
         continue;
       }
       synthesisClipped.push(clipped);
-      if (span.judge) {
-        judgeClippedMs += clipped.to - clipped.from;
+      const clippedMs = clipped.to - clipped.from;
+      if (span.cls === 'claim-judge') {
+        judgeClippedMs += clippedMs;
+      } else if (span.cls === 'citation-judge') {
+        citationJudgeClippedMs += clippedMs;
+      } else if (span.cls === 'unclassified') {
+        unclassifiedClippedMs += clippedMs;
       } else {
-        compositionClippedMs += clipped.to - clipped.from;
+        compositionClippedMs += clippedMs;
       }
     }
     const byName: Record<string, number> = {};
@@ -723,6 +859,8 @@ export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPat
       synthesisMs: lengthOf(synthesisClipped),
       finalCompositionMs: compositionClippedMs,
       semanticJudgeMs: judgeClippedMs,
+      citationJudgeMs: citationJudgeClippedMs,
+      unclassifiedSynthesisMs: unclassifiedClippedMs,
       coveredMs,
       residueMs: Math.max(0, path.postFanInMs - coveredMs),
     };

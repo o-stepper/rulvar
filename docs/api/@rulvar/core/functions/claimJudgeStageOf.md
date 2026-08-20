@@ -10,7 +10,7 @@
 function claimJudgeStageOf(label): "draft" | "final" | undefined;
 ```
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:457](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L457)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:498](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L498)
 
 Which pass a claim-consistency judge label names (RV3404): the exact
 [CLAIM\_JUDGE\_LABEL](/api/@rulvar/core/variables/CLAIM_JUDGE_LABEL.md) is the draft pass, and every suffixed

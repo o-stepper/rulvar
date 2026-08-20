@@ -27,7 +27,11 @@
 // attribution facts), so the split is absent on every journal written
 // before that and on every unlabelled dispatch, never zero.
 import type { JournalEntry } from '../l0/entries.js';
-import { claimJudgeStageOf, unionOfIntervalsMs } from '../l0/telemetry-reduce.js';
+import {
+  claimJudgeStageOf,
+  synthesizeSpanClassOf,
+  unionOfIntervalsMs,
+} from '../l0/telemetry-reduce.js';
 import { logicalRunTelemetry } from './reconcile.js';
 
 /**
@@ -63,7 +67,9 @@ export interface JournaledCriticalPath {
   /** `synthesisMs / runWallMs`, under the same conditions. */
   synthesisShare?: number;
   /**
-   * Synthesis that is NOT the claim judge (RV1604). Present only when
+   * Synthesis that is COMPOSITION (RV1604; classified through
+   * {@link synthesizeSpanClassOf} since RV4206, so a judge of either
+   * kind and an unknown label never land here). Present only when
    * EVERY synthesize span in the journal carried a label: one
    * unlabelled span would make the split a guess, and the split exists
    * because a guess here read a 54 second judge as a second final
@@ -72,6 +78,23 @@ export interface JournaledCriticalPath {
   finalCompositionMs?: number;
   /** Synthesis that IS the claim judge; same all-or-nothing condition. */
   semanticJudgeMs?: number;
+  /**
+   * Synthesis that is the citation entailment audit judge (RV4206);
+   * same all-or-nothing condition. Until this field the audit judge
+   * read as final composition in every archived journal, the same
+   * blindness the live reducer had.
+   */
+  citationJudgeMs?: number;
+  /** Settled citation-judge spans, counted; same condition. */
+  citationJudgeSpans?: number;
+  /**
+   * Synthesis whose label this fold's classifier does not know
+   * (RV4206); same condition. Nonzero means the split beside it is a
+   * floor, never silently "composition".
+   */
+  unclassifiedSynthesisMs?: number;
+  /** Settled unclassified synthesize spans, counted; same condition. */
+  unclassifiedSynthesisSpans?: number;
   /**
    * The stage split of `semanticJudgeMs` (RV3404), same all-or-nothing
    * condition: the draft pass is the exact judge label and every
@@ -145,13 +168,17 @@ export interface JournaledPostFanIn {
   /** Union of settled synthesize spans clipped to the window. */
   synthesisCoveredMs: number;
   /**
-   * The composition half of the covered spans, clipped; present under
+   * The composition share of the covered spans, clipped; present under
    * the same all-or-nothing labelling condition as the top level
    * split, and equal to the live breakdown's reading of the same run.
    */
   finalCompositionMs?: number;
-  /** The judge half, clipped; same condition. */
+  /** The claim-judge share, clipped; same condition. */
   semanticJudgeMs?: number;
+  /** The citation-judge share, clipped (RV4206); same condition. */
+  citationJudgeMs?: number;
+  /** The unclassified share, clipped (RV4206); same condition. */
+  unclassifiedSynthesisMs?: number;
   /** `postFanInMs` minus `synthesisCoveredMs`, floored at zero. */
   unaccountedMs: number;
   /** `unaccountedMs / postFanInMs` when the window is positive. */
@@ -187,16 +214,24 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
   let semanticJudgeMs = 0;
   let draftJudgeMs = 0;
   let finalJudgeMs = 0;
+  let citationJudgeMs = 0;
+  let citationJudgeSpans = 0;
+  let unclassifiedSynthesisMs = 0;
+  let unclassifiedSynthesisSpans = 0;
   let compositionSpans = 0;
   let judgeSpans = 0;
   let firstCompositionEnd: number | undefined;
   let lastCompositionEnd: number | undefined;
   let labelledSynthesis = false;
   let unlabelledSynthesis = false;
-  // Settled synthesize spans, kept for the window clip below; `judge`
+  // Settled synthesize spans, kept for the window clip below; `cls`
   // is undefined on an unlabelled span (it still covers the window, it
   // just cannot pick a side).
-  const synthSpans: Array<{ from: number; to: number; judge?: boolean }> = [];
+  const synthSpans: Array<{
+    from: number;
+    to: number;
+    cls?: ReturnType<typeof synthesizeSpanClassOf>;
+  }> = [];
   for (const entry of ordered) {
     const startedAt = parse(entry.startedAt);
     const endedAt = parse(entry.endedAt);
@@ -248,11 +283,13 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
     }
     labelledSynthesis = true;
     // One classifier for both surfaces (RV3302, extended to the stage
-    // by RV3404): this fold and the live reduceCriticalPath must never
-    // disagree on what counts as the judge, or on which pass it was,
-    // or a benchmark reads the same run two different ways.
-    const stage = claimJudgeStageOf(label);
-    if (stage !== undefined) {
+    // by RV3404 and to the whole vocabulary by RV4206): this fold and
+    // the live reduceCriticalPath must never disagree on what counts
+    // as a judge, which judge, or an unknown label, or a benchmark
+    // reads the same run two different ways.
+    const cls = synthesizeSpanClassOf(label);
+    if (cls === 'claim-judge') {
+      const stage = claimJudgeStageOf(label);
       semanticJudgeMs += wall;
       judgeSpans += 1;
       if (stage === 'draft') {
@@ -260,17 +297,24 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
       } else {
         finalJudgeMs += wall;
       }
+    } else if (cls === 'citation-judge') {
+      citationJudgeMs += wall;
+      citationJudgeSpans += 1;
+    } else if (cls === 'unclassified') {
+      unclassifiedSynthesisMs += wall;
+      unclassifiedSynthesisSpans += 1;
     } else {
       finalCompositionMs += wall;
       compositionSpans += 1;
-      // The candidate milestones (RV3605): a settled composition
-      // span's end stamp is the moment a candidate existed.
+      // The candidate milestones (RV3605): a settled COMPOSITION
+      // span's end stamp is the moment a candidate existed; a judge's
+      // never is (RV4206).
       firstCompositionEnd =
         firstCompositionEnd === undefined ? endedAt : Math.min(firstCompositionEnd, endedAt);
       lastCompositionEnd =
         lastCompositionEnd === undefined ? endedAt : Math.max(lastCompositionEnd, endedAt);
     }
-    synthSpans.push({ from: startedAt, to: endedAt, judge: stage !== undefined });
+    synthSpans.push({ from: startedAt, to: endedAt, cls });
   }
   const segments = logicalRunTelemetry(ordered).segments;
   const path: JournaledCriticalPath = {
@@ -286,6 +330,10 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
     path.semanticJudgeMs = semanticJudgeMs;
     path.draftJudgeMs = draftJudgeMs;
     path.finalJudgeMs = finalJudgeMs;
+    path.citationJudgeMs = citationJudgeMs;
+    path.citationJudgeSpans = citationJudgeSpans;
+    path.unclassifiedSynthesisMs = unclassifiedSynthesisMs;
+    path.unclassifiedSynthesisSpans = unclassifiedSynthesisSpans;
     path.compositionSpans = compositionSpans;
     path.judgeSpans = judgeSpans;
   }
@@ -313,7 +361,11 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
     // the window at all, exactly like the live clip.
     const windowFrom = Math.min(lastWorkerEnd, runEnd);
     const windowTo = runEnd;
-    const clipped: Array<{ from: number; to: number; judge?: boolean }> = [];
+    const clipped: Array<{
+      from: number;
+      to: number;
+      cls?: ReturnType<typeof synthesizeSpanClassOf>;
+    }> = [];
     for (const span of synthSpans) {
       if (span.to < windowFrom || span.from > windowTo) {
         continue;
@@ -321,7 +373,7 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
       clipped.push({
         from: Math.max(span.from, windowFrom),
         to: Math.min(span.to, windowTo),
-        ...(span.judge === undefined ? {} : { judge: span.judge }),
+        ...(span.cls === undefined ? {} : { cls: span.cls }),
       });
     }
     const synthesisCoveredMs = unionOfIntervalsMs(clipped);
@@ -331,17 +383,25 @@ export function criticalPathFromJournal(entries: readonly JournalEntry[]): Journ
     };
     if (splitLegible) {
       let judgeClippedMs = 0;
+      let citationJudgeClippedMs = 0;
+      let unclassifiedClippedMs = 0;
       let compositionClippedMs = 0;
       for (const span of clipped) {
         const wall = span.to - span.from;
-        if (span.judge === true) {
+        if (span.cls === 'claim-judge') {
           judgeClippedMs += wall;
+        } else if (span.cls === 'citation-judge') {
+          citationJudgeClippedMs += wall;
+        } else if (span.cls === 'unclassified') {
+          unclassifiedClippedMs += wall;
         } else {
           compositionClippedMs += wall;
         }
       }
       block.finalCompositionMs = compositionClippedMs;
       block.semanticJudgeMs = judgeClippedMs;
+      block.citationJudgeMs = citationJudgeClippedMs;
+      block.unclassifiedSynthesisMs = unclassifiedClippedMs;
     }
     if (path.postFanInMs > 0) {
       block.unaccountedShare = block.unaccountedMs / path.postFanInMs;

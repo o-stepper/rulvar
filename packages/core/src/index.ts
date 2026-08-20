@@ -120,13 +120,16 @@ export type { ExecKeyDerivation } from './runtime/executor.js';
 export type * from './l0/events.js';
 export * from './engine/events.js';
 export {
+  CITATION_JUDGE_LABEL,
   CLAIM_JUDGE_LABEL,
   FINAL_COMPOSITION_LABEL,
   SYNTHESIS_NOTE_LABEL,
+  citationJudgePassOf,
   claimJudgeStageOf,
   isClaimJudgeLabel,
   reduceCriticalPath,
   reduceInvocationTable,
+  synthesizeSpanClassOf,
   unionOfIntervalsMs,
   type AgentInvocationRow,
   type CriticalPath,

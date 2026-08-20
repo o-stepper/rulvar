@@ -95,6 +95,7 @@ import {
 } from '../runtime/agent-loop.js';
 import type { CostBasis, ExplorationSummary, ToolBudgetSummary } from '../l0/events.js';
 import { FINISH_REJECTION_ABORT_REASON } from '../l0/telemetry-reduce.js';
+import { agentTypeBucket } from './cost-report.js';
 import type { AbortClass } from '../runtime/no-progress.js';
 import {
   countsAgainstLimit,
@@ -1814,7 +1815,16 @@ export function createCtx(
         }
       }
       bump(internals.cost.byPhase, state.phase ?? '', replayPhaseUsd);
-      bump(internals.cost.byAgentType, agentType, costUsd);
+      // The byAgentType vacuum fill (RV4206): the bucket NAME derives
+      // from facts the journal already records (agentType, role,
+      // label), so the live report, the journal fold, and every
+      // archived journal read the same named buckets with zero new
+      // journal bytes.
+      bump(
+        internals.cost.byAgentType,
+        agentTypeBucket(agentType, primaryRole, opts.label),
+        costUsd,
+      );
       bump(internals.cost.byScope, state.scope, costUsd);
       internals.cost.byRole.set(
         primaryRole,
@@ -3428,7 +3438,9 @@ export function createCtx(
       livePhaseUsd -= recordUsd;
     }
     bump(internals.cost.byPhase, state.phase ?? '', livePhaseUsd);
-    bump(internals.cost.byAgentType, agentType, usd);
+    // The byAgentType vacuum fill (RV4206): the same derivation the
+    // journal fold applies, so the two surfaces cannot disagree.
+    bump(internals.cost.byAgentType, agentTypeBucket(agentType, primaryRole, opts.label), usd);
     bump(internals.cost.byScope, state.scope, usd);
 
     // Uniform ceiling behavior: every ctx primitive throws

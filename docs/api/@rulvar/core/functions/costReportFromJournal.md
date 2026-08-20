@@ -10,7 +10,7 @@
 function costReportFromJournal(entries, priceUsd): CostReport;
 ```
 
-Defined in: [packages/core/src/engine/cost-report.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L162)
+Defined in: [packages/core/src/engine/cost-report.ts:203](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L203)
 
 The pure journal fold: the complete CostReport from terminal entries,
 the same summation the kernel ledger uses (each terminal entry's

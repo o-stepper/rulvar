@@ -10,7 +10,7 @@
 function isClaimJudgeLabel(label): boolean;
 ```
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:443](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L443)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:484](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L484)
 
 Whether a synthesize span's label names a claim-consistency judge
 invocation: the exact [CLAIM\_JUDGE\_LABEL](/api/@rulvar/core/variables/CLAIM_JUDGE_LABEL.md), or a suffixed

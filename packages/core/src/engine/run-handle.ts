@@ -99,7 +99,19 @@ export interface CostReport {
    * run's one draft repair wire read 'coordination').
    */
   byPhase: Record<string, number>;
-  /** Spawn agentType names; absent and empty fold under 'unknown' (RV3604). */
+  /**
+   * Spawn agentType names; absent and empty fold under 'unknown'
+   * (RV3604). Since RV4206 the vacuum is FILLED by pure derivation
+   * from recorded facts (`agentTypeBucket` over agentType, role, and
+   * dispatch label, the RV3905 phase precedent): the orchestrator's
+   * own dispatches read 'orchestrator' (the coordination loop and the
+   * forced-finish wake), 'synthesizer' (compositions and incremental
+   * notes), 'claim-judge', and 'citation-judge'; a spawned profile
+   * always keeps its own name, no journal byte changes, and archived
+   * journals fold to the named rows retroactively. The sixth
+   * comparison run's report read this table 100% 'unknown' over a run
+   * whose every dispatch had a nameable stage.
+   */
   byAgentType: Record<string, number>;
   byRole: Record<InvocationRole, number>;
   /**

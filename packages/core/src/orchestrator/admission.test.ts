@@ -718,4 +718,46 @@ describe('the wire capacity estimator (RV4005, the fifth comparison experiment)'
       ConfigError,
     );
   });
+
+  it('refuses unknown keys typed instead of ignoring them (RV4206)', () => {
+    // The sixth comparison harness passed `repairRound` and
+    // `transportRetries`; both were silently zero and the estimate
+    // answered confidently for a plan nobody had declared.
+    expect(() => wireCapacityEstimate({ childWires: 10, repairRound: 2 } as never)).toThrow(
+      /does not know the key 'repairRound'/,
+    );
+    expect(() => wireCapacityEstimate({ childWires: 10, transportRetries: 3 } as never)).toThrow(
+      /transportRetries/,
+    );
+  });
+
+  it('takes the structural pair, prices the citation judge, and stamps its basis (RV4206)', () => {
+    const estimate = wireCapacityEstimate({
+      children: 4,
+      turnsPerChild: 10,
+      coordinationWires: 7,
+      synthesisWires: 1,
+      judgeWires: 1,
+      citationJudgeWires: 1,
+      extractWires: 1,
+    });
+    expect(estimate.baseWires).toBe(51);
+    expect(estimate.basis).toBe('declared-estimate');
+    // Half a pair is not a declaration.
+    expect(() => wireCapacityEstimate({ children: 4 })).toThrow(/come as a pair/);
+    expect(() => wireCapacityEstimate({ turnsPerChild: 10 })).toThrow(/come as a pair/);
+    expect(() => wireCapacityEstimate({})).toThrow(/needs the fan-out declared/);
+  });
+
+  it('gives the typed hint when childWires contradicts the structural pair (RV4206)', () => {
+    // The harness call this exists for: the child COUNT passed where
+    // the wire TOTAL belongs.
+    expect(() => wireCapacityEstimate({ childWires: 4, children: 4, turnsPerChild: 10 })).toThrow(
+      /childWires 4 contradicts children 4 x turnsPerChild 10 = 40/,
+    );
+    // Agreement is legal: the redundant declaration is a cross-check.
+    expect(wireCapacityEstimate({ childWires: 40, children: 4, turnsPerChild: 10 }).baseWires).toBe(
+      40,
+    );
+  });
 });

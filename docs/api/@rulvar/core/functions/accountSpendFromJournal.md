@@ -10,7 +10,7 @@
 function accountSpendFromJournal(entries, priceUsd): Record<string, number>;
 ```
 
-Defined in: [packages/core/src/engine/cost-report.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L352)
+Defined in: [packages/core/src/engine/cost-report.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L395)
 
 The per-account settled fold (RV1505, closing the DEF-7 remainder):
 each budget account's INCLUSIVE spend from the same entries, skips,

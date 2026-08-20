@@ -10,7 +10,7 @@
 const SYNTHESIS_NOTE_LABEL: "synthesis-note" = 'synthesis-note';
 ```
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:491](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L491)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:602](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L602)
 
 The label an incremental synthesis note dispatches under (RV2901).
 Notes ride role 'synthesize' and are composition-side work, so both
