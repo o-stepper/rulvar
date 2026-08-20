@@ -42,7 +42,9 @@ import { jcsSerialize } from '../l0/jcs.js';
 import type {
   AiSdkBridgeRegulatedPosture,
   McpSourceRegulatedPosture,
+  ModelAdapterRegulatedPosture,
   RegulatedPostureDescriptor,
+  ToolExecutorRegulatedPosture,
 } from '../l0/spi/regulated-posture.js';
 import type { OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import type { ToolsOption } from '../tools/toolset-hash.js';
@@ -156,10 +158,115 @@ function judgeDescriptor(raw: unknown): RegulatedPostureDescriptor {
       providerExecutedTools: 'deny',
     };
   }
+  if (descriptor.kind === 'model-adapter') {
+    // A first-party model adapter (RV4204). Its risk seams are the
+    // egress and the caps pagination bound; nothing here is refused
+    // outright beyond shape, but every value enters the hashed map,
+    // so a moved base URL or a dropped bound moves the fingerprint.
+    const adapterPosture = descriptor as ModelAdapterRegulatedPosture;
+    if (
+      adapterPosture.transport !== 'official' &&
+      adapterPosture.transport !== 'custom-base-url' &&
+      adapterPosture.transport !== 'preconstructed-client'
+    ) {
+      refuse(
+        `construction['${descriptor.name}'].transport`,
+        "must be 'official', 'custom-base-url' or 'preconstructed-client' (RV4204)",
+      );
+    }
+    if (
+      adapterPosture.transport === 'custom-base-url' &&
+      (typeof adapterPosture.baseUrlOrigin !== 'string' || adapterPosture.baseUrlOrigin === '')
+    ) {
+      refuse(
+        `construction['${descriptor.name}'].baseUrlOrigin`,
+        "must name the override's origin under 'custom-base-url' (RV4204): an egress the " +
+          'hash cannot pin is an egress nobody attested',
+      );
+    }
+    return {
+      regulatedPosture: 1,
+      kind: 'model-adapter',
+      name: descriptor.name,
+      transport: adapterPosture.transport,
+      ...(adapterPosture.transport === 'custom-base-url'
+        ? { baseUrlOrigin: adapterPosture.baseUrlOrigin }
+        : {}),
+      ...(adapterPosture.capsBound === undefined
+        ? {}
+        : {
+            capsBound: {
+              declared: adapterPosture.capsBound.declared === true,
+              ...(typeof adapterPosture.capsBound.maxPages === 'number'
+                ? { maxPages: adapterPosture.capsBound.maxPages }
+                : {}),
+            },
+          }),
+    };
+  }
+  if (descriptor.kind === 'tool-executor') {
+    // An isolated tool executor (RV4204): the one construction that
+    // dispatches HOST-SIDE effects. The floor requires its ledger,
+    // because an effect no ledger records is an effect nobody can
+    // reconcile, the billingReceipts doctrine applied to tools; the
+    // env allowlist, the ceilings, and the isolation seam enter the
+    // hashed map verbatim.
+    const executorPosture = descriptor as ToolExecutorRegulatedPosture;
+    if (executorPosture.ledger !== true) {
+      refuse(
+        `construction['${descriptor.name}'].ledger`,
+        'must be armed (RV4204): an effect no ledger records is an effect nobody can ' +
+          'reconcile; construct the executor with a ToolEffectLedger',
+      );
+    }
+    const bounds = executorPosture.bounds as ToolExecutorRegulatedPosture['bounds'] | undefined;
+    if (
+      bounds === undefined ||
+      typeof bounds.timeoutMs !== 'number' ||
+      typeof bounds.maxOutputBytes !== 'number'
+    ) {
+      refuse(
+        `construction['${descriptor.name}'].bounds`,
+        'must carry the resolved timeoutMs and maxOutputBytes ceilings (RV4204)',
+      );
+    }
+    const isolation = executorPosture.isolation as
+      | ToolExecutorRegulatedPosture['isolation']
+      | undefined;
+    if (
+      isolation === undefined ||
+      (isolation.flavor !== 'subprocess' && isolation.flavor !== 'container')
+    ) {
+      refuse(
+        `construction['${descriptor.name}'].isolation`,
+        "must name its flavor, 'subprocess' or 'container' (RV4204)",
+      );
+    }
+    const allowEnv = Array.isArray(executorPosture.allowEnv)
+      ? executorPosture.allowEnv.filter((entry): entry is string => typeof entry === 'string')
+      : [];
+    return {
+      regulatedPosture: 1,
+      kind: 'tool-executor',
+      name: descriptor.name,
+      ledger: true,
+      allowEnv,
+      bounds: { timeoutMs: bounds.timeoutMs, maxOutputBytes: bounds.maxOutputBytes },
+      isolation:
+        isolation.flavor === 'subprocess'
+          ? { flavor: 'subprocess', sandboxed: isolation.sandboxed === true }
+          : {
+              flavor: 'container',
+              network: String(isolation.network),
+              readOnlyRoot: isolation.readOnlyRoot === true,
+            },
+    };
+  }
   refuse(
     `construction['${descriptor.name}']`,
     `attests an unrecognized kind '${String((descriptor as { kind?: unknown }).kind)}'; ` +
-      "this floor can judge 'mcp-source' and 'ai-sdk-bridge'",
+      "this floor can judge 'mcp-source', 'ai-sdk-bridge', 'model-adapter' and " +
+      "'tool-executor'",
   );
 }
 
@@ -202,7 +309,10 @@ function wrapReasserting<T extends object>(construction: T, frozen: string): T {
   return new Proxy(construction, {
     get(target, prop): unknown {
       const value = Reflect.get(target, prop, target);
-      if ((prop === 'tools' || prop === 'stream') && typeof value === 'function') {
+      if (
+        (prop === 'tools' || prop === 'stream' || prop === 'run') &&
+        typeof value === 'function'
+      ) {
         return guard(String(prop), value as (...args: unknown[]) => unknown);
       }
       return value;
@@ -214,6 +324,17 @@ export function compileRegulatedProfile(input: {
   engine: CreateEngineOptions;
   run: RunOptions;
   orchestrate?: OrchestrateOptions;
+  /**
+   * The construction floor's strictness (RV4204). The default keeps
+   * the RV4101 posture: constructions exposing no descriptor are
+   * COUNTED into the hash as `unrecognized`, so the hash names its
+   * own blind spot. 'require-recognized' turns the count into a typed
+   * refusal naming the blind constructions: satisfiable since the
+   * first-party adapters and the reference executors attest (RV4204),
+   * so a compile with zero foreign constructions can now demand zero
+   * blind spots.
+   */
+  construction?: 'require-recognized';
 }): RegulatedProfile {
   const engine = { ...input.engine, defaults: { ...input.engine.defaults } };
   const run = { ...input.run };
@@ -249,7 +370,35 @@ export function compileRegulatedProfile(input: {
         'declares tools without a toolsetAttestation (pin the resolved hashes)',
       );
     }
+    // A legacy contract-only pin passes authority drift silently by
+    // its own documented posture (RV1802), which is a fine migration
+    // path everywhere except here (RV4204): the regulated floor took
+    // the pin as its attestation, so risk, needsApproval, executor,
+    // and executorSpec could all move beneath a hash that read as
+    // "attested".
+    if (
+      profile.toolsetAttestation !== undefined &&
+      profile.toolsetAttestation.authorityHash === undefined
+    ) {
+      refuse(
+        `defaults.profiles.${name}.toolsetAttestation`,
+        'is a legacy contract-only pin (RV4204): authority drift (risk, needsApproval, ' +
+          'executor, executorSpec) passes it silently; re-record the pin with ' +
+          'attestToolset() so authorityHash rides it',
+      );
+    }
   }
+  // The attestation floor (RV4204): a spawn resolving a non-empty
+  // toolset must run under a pinned profile, or refuse typed at spawn
+  // time; without this, a profile with no tools and no pin could ride
+  // per-call tools past every pin above.
+  if (defaults.requireToolsetAttestation === false) {
+    refuse(
+      'defaults.requireToolsetAttestation',
+      'must not be false (RV4204): a regulated spawn executes only pinned toolsets',
+    );
+  }
+  defaults.requireToolsetAttestation = true;
 
   // ---- Construction floor (RV4101). The postures the options cannot
   // express live on constructions: an mcp() source's drift and
@@ -270,6 +419,7 @@ export function compileRegulatedProfile(input: {
   const attested: RegulatedPostureDescriptor[] = [];
   const reasserted = new Map<object, object>();
   let unrecognized = 0;
+  const unrecognizedNames: string[] = [];
   const visit = (construction: unknown): void => {
     if (construction === null || typeof construction !== 'object' || walked.has(construction)) {
       return;
@@ -278,6 +428,15 @@ export function compileRegulatedProfile(input: {
     const probe = (construction as { describeRegulatedPosture?: unknown }).describeRegulatedPosture;
     if (typeof probe !== 'function') {
       unrecognized += 1;
+      // The blind construction's best available identity (RV4204), so
+      // a 'require-recognized' refusal can NAME what it refuses over
+      // instead of counting anonymously.
+      const id = (construction as { id?: unknown }).id;
+      unrecognizedNames.push(
+        typeof id === 'string' && id !== ''
+          ? id
+          : (construction.constructor?.name ?? 'anonymous'),
+      );
       return;
     }
     const judged = judgeDescriptor((probe as () => unknown).call(construction));
@@ -303,6 +462,22 @@ export function compileRegulatedProfile(input: {
   for (const profile of Object.values(defaults.profiles ?? {})) {
     visitTools(profile.tools);
   }
+  // The executors and the sandbox runner are constructions the options
+  // reach too (RV4204): the executors dispatch host-side effects, the
+  // runner executes compiled workflow source, and neither was even
+  // COUNTED before, so the hash implied a totality it did not have.
+  for (const executor of Object.values(engine.executors ?? {})) {
+    visit(executor);
+  }
+  visit(engine.runners?.sandbox);
+  if (input.construction === 'require-recognized' && unrecognized > 0) {
+    refuse(
+      'construction',
+      `must expose describeRegulatedPosture() on every construction under the ` +
+        `'require-recognized' floor (RV4204); ${String(unrecognized)} attested nothing: ` +
+        unrecognizedNames.slice(0, 8).join(', '),
+    );
+  }
   // The compiled options carry the re-asserting wrappers in place of
   // the attested originals (RV4102): same identity everywhere one
   // object appeared, strings and static ToolDefs untouched.
@@ -326,6 +501,14 @@ export function compileRegulatedProfile(input: {
           profile.tools === undefined ? profile : { ...profile, tools: profile.tools.map(swap) },
         ]),
       );
+    }
+    if (engine.executors !== undefined) {
+      engine.executors = Object.fromEntries(
+        Object.entries(engine.executors).map(([tag, executor]) => [tag, swap(executor)]),
+      );
+    }
+    if (engine.runners?.sandbox !== undefined) {
+      engine.runners = { ...engine.runners, sandbox: swap(engine.runners.sandbox) };
     }
   }
   const postureKeyOf = (entry: RegulatedPostureDescriptor): string => `${entry.kind} ${entry.name}`;
@@ -634,8 +817,14 @@ export function compileRegulatedProfile(input: {
     determinism: 'error',
     // The construction postures (RV4101): what attested, sorted for
     // determinism, and how many constructions attested NOTHING, so
-    // the hash carries its own blind-spot count.
-    construction: { attested, unrecognized },
+    // the hash carries its own blind-spot count. Under the RV4204
+    // 'require-recognized' floor the count is provably zero and the
+    // demanded strictness is itself part of the hashed posture.
+    construction: {
+      attested,
+      unrecognized,
+      ...(input.construction === undefined ? {} : { floor: input.construction }),
+    },
     strictPricing: run.strictPricing === true ? true : run.strictPricing,
     budgetPolicy: 'immutable-lifetime',
     budgetUsd: run.budgetUsd,

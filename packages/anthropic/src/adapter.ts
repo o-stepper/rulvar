@@ -12,6 +12,7 @@ import {
   sumUsage,
   type ChatEvent,
   type ChatRequest,
+  type ModelAdapterRegulatedPosture,
   type ModelCaps,
   type ProviderAdapter,
   type StreamHooks,
@@ -200,6 +201,41 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
     return { ...base, caps: { ...base.caps, ...patch } };
   }
 
+  // The construction-side posture attestation (RV4204): a PURE
+  // snapshot of what this construction chose, read at compile time by
+  // compileRegulatedProfile and folded into the hashed posture map.
+  // The adapter's risk seams are its egress (official endpoint, a
+  // declared base-URL override whose origin the hash pins, or a
+  // preconstructed client it cannot see through) and the caps-refresh
+  // pagination bound (RV2904).
+  const declaredBaseUrl = options.baseURL ?? options.sdkOptions?.baseURL;
+  const baseUrlOrigin =
+    declaredBaseUrl === undefined || declaredBaseUrl === null
+      ? undefined
+      : ((): string => {
+          try {
+            return new URL(declaredBaseUrl).origin;
+          } catch {
+            return declaredBaseUrl.slice(0, 128);
+          }
+        })();
+  const regulatedPosture: ModelAdapterRegulatedPosture = {
+    regulatedPosture: 1,
+    kind: 'model-adapter',
+    name: 'anthropic',
+    transport:
+      options.client !== undefined
+        ? 'preconstructed-client'
+        : baseUrlOrigin !== undefined
+          ? 'custom-base-url'
+          : 'official',
+    ...(options.client === undefined && baseUrlOrigin !== undefined ? { baseUrlOrigin } : {}),
+    capsBound: {
+      declared: capsMaxPages !== undefined,
+      ...(capsMaxPages === undefined ? {} : { maxPages: capsMaxPages }),
+    },
+  };
+
   return {
     id: 'anthropic',
     // Provider family for provider-raw matching and retention (M4-T02).
@@ -210,6 +246,8 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
     // of all three. Stamped so journals record the semantics alongside
     // the numbers (v1.20.0 review P1/P2-2).
     usageSemantics: 'anthropic-cache-additive-v1',
+
+    describeRegulatedPosture: () => regulatedPosture,
 
     caps(model: string): ModelCaps {
       return infoFor(model).caps;

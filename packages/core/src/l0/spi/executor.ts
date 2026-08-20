@@ -15,6 +15,7 @@
  * Full contract: https://docs.rulvar.com/guide/isolated-executor.
  */
 import type { Json } from '../json.js';
+import type { RegulatedPostureDescriptor } from './regulated-posture.js';
 import type { ToolExecutor } from './toolsource.js';
 
 /** The non-inprocess executor tags a provider can be registered under. */
@@ -79,6 +80,14 @@ export interface IsolatedExecRequest {
 export interface ToolExecutorProvider {
   /** Runs one dispatch to its JSON result; throws to signal tool failure. */
   run(request: IsolatedExecRequest): Promise<Json>;
+  /**
+   * The construction-side posture attestation (RV4204): a PURE
+   * snapshot of what the executor chose at construction (ledger,
+   * env allowlist, ceilings, isolation seam), read by
+   * `compileRegulatedProfile` and folded into the hashed posture map;
+   * see the `regulated-posture` module.
+   */
+  describeRegulatedPosture?(): RegulatedPostureDescriptor;
 }
 
 /**

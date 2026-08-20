@@ -381,3 +381,23 @@ describe.skipIf(!RUN_DOCKER)('containerExecutor (docker-gated, RV-216)', () => {
     expect(new ExecutorError('config', 'x')).toBeInstanceOf(Error);
   });
 });
+
+describe('describeRegulatedPosture (RV4204)', () => {
+  it('attests the ledger, the forwarded env, the ceilings, and the container isolation', () => {
+    const posture = containerExecutor({
+      image: 'node:22-alpine',
+      forwardEnv: ['CI'],
+      network: 'none',
+      timeoutMs: 10_000,
+    }).describeRegulatedPosture?.();
+    expect(posture).toEqual({
+      regulatedPosture: 1,
+      kind: 'tool-executor',
+      name: 'container',
+      ledger: false,
+      allowEnv: ['CI'],
+      bounds: { timeoutMs: 10_000, maxOutputBytes: 1024 * 1024 },
+      isolation: { flavor: 'container', network: 'none', readOnlyRoot: true },
+    });
+  });
+});

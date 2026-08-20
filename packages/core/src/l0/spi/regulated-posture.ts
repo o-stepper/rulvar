@@ -66,5 +66,72 @@ export interface AiSdkBridgeRegulatedPosture {
   providerExecutedTools: 'allow' | 'deny';
 }
 
+/**
+ * The posture a first-party model adapter chose at construction
+ * (RV4204, the sixth comparison experiment): before it, only mcp()
+ * and the AI SDK bridge attested, so `unrecognized >= 1` on nearly
+ * every real compile and a `require-recognized` floor was
+ * unsatisfiable by construction. The risk seams a model adapter
+ * actually owns are its egress (where the wire bytes go) and its
+ * caps-refresh pagination bound; both enter the hashed posture map,
+ * so a moved base URL or a dropped bound moves the fingerprint.
+ */
+export interface ModelAdapterRegulatedPosture {
+  /** Descriptor shape version; bumps when the meaning changes. */
+  regulatedPosture: 1;
+  kind: 'model-adapter';
+  /** The adapter id ('anthropic', 'openai'). */
+  name: string;
+  /**
+   * Where the adapter's wire bytes go: the provider's official
+   * endpoint, a declared base-URL override (its origin rides beside
+   * this value so the hash pins the egress), or a preconstructed
+   * client the adapter cannot see through, named honestly.
+   */
+  transport: 'official' | 'custom-base-url' | 'preconstructed-client';
+  /** Present exactly under 'custom-base-url': the override's origin. */
+  baseUrlOrigin?: string;
+  /**
+   * The caps-refresh pagination bound (RV2904), for adapters that
+   * expose one: `declared` mirrors whether the host capped the sweep,
+   * and the value rides beside it. Absent on adapters with no
+   * declarable bound.
+   */
+  capsBound?: { declared: boolean; maxPages?: number };
+}
+
+/**
+ * The posture an isolated tool executor chose at construction
+ * (RV4204). The executor is the one construction that dispatches
+ * HOST-SIDE effects, and the regulated floor requires its ledger: an
+ * effect no ledger records is an effect nobody can reconcile, the
+ * billingReceipts doctrine applied to tools.
+ */
+export interface ToolExecutorRegulatedPosture {
+  /** Descriptor shape version; bumps when the meaning changes. */
+  regulatedPosture: 1;
+  kind: 'tool-executor';
+  /** The reference flavor ('subprocess', 'container') or a host name. */
+  name: string;
+  /** Whether a ToolEffectLedger records every dispatch (intent first). */
+  ledger: boolean;
+  /** Host env names reaching the child, the exact allowlist. */
+  allowEnv: readonly string[];
+  /** The resolved per-call ceilings (defaults resolve at construction). */
+  bounds: { timeoutMs: number; maxOutputBytes: number };
+  /**
+   * The isolation seam, per flavor: a subprocess names whether a
+   * sandbox launcher wraps the command; a container names its network
+   * mode and root-filesystem posture.
+   */
+  isolation:
+    | { flavor: 'subprocess'; sandboxed: boolean }
+    | { flavor: 'container'; network: string; readOnlyRoot: boolean };
+}
+
 /** What `describeRegulatedPosture()` returns: one of the known shapes. */
-export type RegulatedPostureDescriptor = McpSourceRegulatedPosture | AiSdkBridgeRegulatedPosture;
+export type RegulatedPostureDescriptor =
+  | McpSourceRegulatedPosture
+  | AiSdkBridgeRegulatedPosture
+  | ModelAdapterRegulatedPosture
+  | ToolExecutorRegulatedPosture;

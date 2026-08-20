@@ -12,6 +12,7 @@ import {
   createCanonicalIdMinter,
   type ChatEvent,
   type ChatRequest,
+  type ModelAdapterRegulatedPosture,
   type ModelCaps,
   type ProviderAdapter,
 } from '@rulvar/core';
@@ -120,10 +121,43 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
   const client = resolveOpenAiClient(options);
   const ids = new OpenAiIdMap(createCanonicalIdMinter());
 
+  // The construction-side posture attestation (RV4204): a PURE
+  // snapshot of what this construction chose, read at compile time by
+  // compileRegulatedProfile and folded into the hashed posture map.
+  // The adapter's one risk seam is its egress: the official endpoint,
+  // a declared base-URL override whose origin the hash pins, or a
+  // preconstructed client it cannot see through. No caps pagination
+  // bound is declarable here, so no capsBound rides the descriptor.
+  const declaredBaseUrl = options.baseURL ?? options.sdkOptions?.baseURL;
+  const baseUrlOrigin =
+    declaredBaseUrl === undefined || declaredBaseUrl === null
+      ? undefined
+      : ((): string => {
+          try {
+            return new URL(declaredBaseUrl).origin;
+          } catch {
+            return declaredBaseUrl.slice(0, 128);
+          }
+        })();
+  const regulatedPosture: ModelAdapterRegulatedPosture = {
+    regulatedPosture: 1,
+    kind: 'model-adapter',
+    name: 'openai',
+    transport:
+      options.client !== undefined
+        ? 'preconstructed-client'
+        : baseUrlOrigin !== undefined
+          ? 'custom-base-url'
+          : 'official',
+    ...(options.client === undefined && baseUrlOrigin !== undefined ? { baseUrlOrigin } : {}),
+  };
+
   return {
     id: 'openai',
     // Provider family for provider-raw matching and retention (M4-T02).
     provider: 'openai',
+
+    describeRegulatedPosture: () => regulatedPosture,
     // v2 = the live-verified subset reading (v1.20.0): wire input_tokens
     // is the FULL prompt, cached_tokens and cache_write_tokens are
     // priced subsets passed through untouched. The never-stamped v1

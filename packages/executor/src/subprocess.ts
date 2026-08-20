@@ -130,6 +130,21 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
   const now = options.now ?? wallClock;
 
   return {
+    // The construction-side posture attestation (RV4204): a PURE
+    // snapshot of what this executor chose at construction, read at
+    // compile time by compileRegulatedProfile and folded into the
+    // hashed posture map (the regulated floor requires the ledger:
+    // an effect no ledger records is an effect nobody can reconcile).
+    describeRegulatedPosture: () => ({
+      regulatedPosture: 1,
+      kind: 'tool-executor',
+      name: 'subprocess',
+      ledger: options.ledger !== undefined,
+      allowEnv: [...(options.allowEnv ?? [])],
+      bounds: { timeoutMs, maxOutputBytes },
+      isolation: { flavor: 'subprocess', sandboxed: options.sandbox !== undefined },
+    }),
+
     async run(request) {
       const { command, args } = resolveCommand(request, options);
       const workdir = await mkdtemp(join(workdirBase, `rulvar-exec-${request.tool}-`));

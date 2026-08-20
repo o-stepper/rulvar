@@ -409,3 +409,29 @@ describe('workdir cleanup when the outcome record fails (RV503)', () => {
     expect(readdirSync(workdirBase)).toHaveLength(0);
   });
 });
+
+describe('describeRegulatedPosture (RV4204)', () => {
+  it('attests the ledger, the env allowlist, the ceilings, and the sandbox seam', () => {
+    const ledger = memoryEffectLedger();
+    const posture = subprocessExecutor({
+      ledger,
+      allowEnv: ['PATH'],
+      timeoutMs: 5_000,
+      sandbox: () => ['bwrap', '--unshare-net'],
+    }).describeRegulatedPosture?.();
+    expect(posture).toEqual({
+      regulatedPosture: 1,
+      kind: 'tool-executor',
+      name: 'subprocess',
+      ledger: true,
+      allowEnv: ['PATH'],
+      bounds: { timeoutMs: 5_000, maxOutputBytes: 1024 * 1024 },
+      isolation: { flavor: 'subprocess', sandboxed: true },
+    });
+    expect(subprocessExecutor({}).describeRegulatedPosture?.()).toMatchObject({
+      ledger: false,
+      allowEnv: [],
+      isolation: { flavor: 'subprocess', sandboxed: false },
+    });
+  });
+});

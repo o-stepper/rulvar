@@ -264,3 +264,45 @@ describe('refreshCaps pagination bounds (RV2904)', () => {
     );
   });
 });
+
+describe('describeRegulatedPosture (RV4204)', () => {
+  const mockClient: AnthropicClientLike = {
+    messages: {
+      create: () => Promise.reject(new Error('unused')),
+      countTokens: () => Promise.resolve({ input_tokens: 0 }),
+    },
+    models: { list: () => Promise.resolve({ data: [] }) },
+  };
+
+  it('attests the official transport and the caps bound', () => {
+    expect(anthropic({ apiKey: 'k', capsMaxPages: 4 }).describeRegulatedPosture?.()).toEqual({
+      regulatedPosture: 1,
+      kind: 'model-adapter',
+      name: 'anthropic',
+      transport: 'official',
+      capsBound: { declared: true, maxPages: 4 },
+    });
+    expect(anthropic({ apiKey: 'k' }).describeRegulatedPosture?.()).toMatchObject({
+      transport: 'official',
+      capsBound: { declared: false },
+    });
+  });
+
+  it('a declared base URL attests as a pinned egress origin', () => {
+    expect(
+      anthropic({
+        apiKey: 'k',
+        baseURL: 'https://proxy.corp.example:8443/v1/anthropic',
+      }).describeRegulatedPosture?.(),
+    ).toMatchObject({
+      transport: 'custom-base-url',
+      baseUrlOrigin: 'https://proxy.corp.example:8443',
+    });
+  });
+
+  it('a preconstructed client attests honestly as one', () => {
+    expect(anthropic({ client: mockClient }).describeRegulatedPosture?.()).toMatchObject({
+      transport: 'preconstructed-client',
+    });
+  });
+});

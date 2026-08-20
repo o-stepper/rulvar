@@ -5496,6 +5496,33 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/semantic-round.test.ts',
   },
   {
+    id: 'attestation-floor-binds-the-toolful-spawn',
+    doctrine:
+      'the attestation floor refuses an unpinned toolful spawn (RV4204): with the gate collapsed, a profile with no tools and no pin rides a whole toolset in per call and executes it unattested, past every pin the regulated compile enforced',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '      internals.defaults.requireToolsetAttestation === true &&',
+    replace: '      false &&',
+    test: 'packages/core/src/tools/attestation.test.ts',
+  },
+  {
+    id: 'regulated-executor-carries-a-ledger',
+    doctrine:
+      'the regulated floor requires the executor ledger (RV4204): with the refusal collapsed, a ledgerless executor compiles into the posture map and dispatches host-side effects nobody can reconcile, the billingReceipts doctrine broken exactly where the money is not the only effect',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '    if (executorPosture.ledger !== true) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-floor-refuses-the-legacy-pin',
+    doctrine:
+      'the regulated floor refuses a legacy contract-only pin (RV4204): with the refusal collapsed, authority drift (risk, needsApproval, executor, executorSpec) passes the pin silently by its own documented posture, beneath a hash that reads as attested',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '      profile.toolsetAttestation.authorityHash === undefined',
+    replace: '      false',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
     id: 'posture-map-hashes-the-semantic-postures',
     doctrine:
       'the profile hash distinguishes the semantic postures (RV4203): with the semantic fold dropped from the map, a fail-closed compile and a repair-armed compile carry the identical profileHash again, and the attestation cannot tell a diagnostic posture from a production one, the sixth comparison experiment exact blind spot',
