@@ -34,7 +34,7 @@ rulvar resume <runId> [--args JSON] [--store PATH] [--dry-run] [--allow-args-cha
 rulvar replay <runId> [--args JSON] [--store PATH] [--assert-no-live] [--compare-output-hash]
 rulvar runs ls [--store PATH]
 rulvar runs audit [--store PATH] [--repair] [--no-load-repair]
-rulvar inspect <runId> [--store PATH]
+rulvar inspect <runId> [--store PATH] [--candidates] [--candidate-bytes HASH]
 rulvar invoice <runId> [--store PATH] [--json]
 rulvar cost-audit [<runId>] [--store PATH] [--all] [--json]
 rulvar plan "<goal>" [--planning-budget-usd N] [--budget-usd N] [--allow-unbounded] [--dry-run]

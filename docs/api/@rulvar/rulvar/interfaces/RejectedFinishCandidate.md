@@ -28,6 +28,7 @@ validators that did it.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-bytesunavailablereason"></a> `bytesUnavailableReason?` | `"hash-only-persistence"` \| `"store-write-failed"` | Why the bytes are not retained (RV4207), when the run declared a `candidatePersistence`: 'hash-only-persistence' is the policy saying so on purpose, 'store-write-failed' a declared retention the store refused. Absent on undeclared configs, whose rows keep their exact bytes. | `packages/core/dist/index.d.ts` |
 | <a id="property-callid"></a> `callId` | `string` | The finish tool call this candidate arrived on. | `packages/core/dist/index.d.ts` |
 | <a id="property-chars"></a> `chars` | `number` | The candidate's length in characters, honest whether or not the bytes were retained. | `packages/core/dist/index.d.ts` |
 | <a id="property-failed"></a> `failed` | \{ `name`: `string`; `reasons`: `string`[]; \}[] | Each validator that rejected it, with its reasons: the diff. | `packages/core/dist/index.d.ts` |

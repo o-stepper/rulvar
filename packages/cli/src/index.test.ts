@@ -365,6 +365,111 @@ export default {
     expect(after.outLines.join('\n')).toContain('on branches the run ABANDONED: 1 (handle 1)');
   });
 
+  it('inspect --candidates renders the chain and --candidate-bytes answers by name (RV4207)', async () => {
+    // The sixth comparison experiment's auditor dug a rejected
+    // composition out of a binary transcript blob by hand; the chain
+    // and the recovery path are now one command each. The journal is
+    // hand-built because the shape under test is the JOURNAL's.
+    const cwd = writeFixtureProject();
+    const store = new JsonlFileStore({ dir: join(cwd, '.rulvar') });
+    const base = {
+      hashVersion: 2,
+      ordinal: 0,
+      spanId: 's',
+      startedAt: new Date(1_700_000_000_000).toISOString(),
+    } as const;
+    const rejectedHash = 'a'.repeat(64);
+    const acceptedHash = 'b'.repeat(64);
+    await store.append('CHAIN', {
+      ...base,
+      seq: 1,
+      scope: 'agent:1',
+      key: 'k1',
+      kind: 'agent',
+      status: 'running',
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.append('CHAIN', {
+      ...base,
+      seq: 2,
+      scope: 'agent:1',
+      key: 'fv-a',
+      kind: 'decision',
+      status: 'ok',
+      value: {
+        decisionType: 'orchestrator_finish_validation',
+        callId: 'call-a',
+        verdict: 'repair',
+        failed: [{ name: 'wants-marker', reasons: ['no MARKER'] }],
+        repairsUsed: 0,
+        maxRepairs: 1,
+        candidateHash: rejectedHash,
+        candidateChars: 18,
+        bytesUnavailableReason: 'hash-only-persistence',
+      },
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.append('CHAIN', {
+      ...base,
+      seq: 3,
+      scope: 'agent:1',
+      key: 'fv-b',
+      kind: 'decision',
+      status: 'ok',
+      value: {
+        decisionType: 'orchestrator_finish_validation',
+        callId: 'call-b',
+        verdict: 'accepted',
+        failed: [],
+        repairsUsed: 1,
+        maxRepairs: 1,
+        candidateHash: acceptedHash,
+        candidateChars: 24,
+      },
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.append('CHAIN', {
+      ...base,
+      seq: 4,
+      scope: 'agent:1',
+      key: 'k1',
+      kind: 'agent',
+      status: 'ok',
+      ref: 1,
+      endedAt: new Date(1_700_000_010_000).toISOString(),
+      costAttribution: { role: 'synthesize', label: 'final-composition' },
+    } as unknown as Parameters<typeof store.append>[1]);
+    await store.putMeta({ runId: 'CHAIN', status: 'ok', segments: 1, updatedAt: 'x' });
+
+    const chain = scriptedIo();
+    expect(await runCli(['inspect', 'CHAIN', '--candidates'], { cwd, io: chain })).toBe(0);
+    const text = chain.outLines.join('\n');
+    expect(text).toContain('finish candidates: 2 across 1 synthesis span(s)');
+    expect(text).toContain(`seq 2 repair: sha256 ${rejectedHash.slice(0, 12)}, 18 chars`);
+    expect(text).toContain('failed wants-marker');
+    expect(text).toContain('bytes unavailable: hash-only-persistence');
+    expect(text).toContain(`seq 3 accepted: sha256 ${acceptedHash.slice(0, 12)}, 24 chars`);
+    expect(text).toContain('recover bytes: rulvar inspect');
+
+    // Bytes absent BY POLICY answer by name, not by mystery.
+    const byPolicy = scriptedIo();
+    expect(
+      await runCli(['inspect', 'CHAIN', '--candidate-bytes', rejectedHash], {
+        cwd,
+        io: byPolicy,
+      }),
+    ).toBe(1);
+    expect(byPolicy.errLines.join('\n')).toContain('has no retained bytes');
+    expect(byPolicy.errLines.join('\n')).toContain('hash-only-persistence');
+
+    // An unknown hash names the remedy.
+    const unknown = scriptedIo();
+    expect(
+      await runCli(['inspect', 'CHAIN', '--candidate-bytes', 'c'.repeat(64)], {
+        cwd,
+        io: unknown,
+      }),
+    ).toBe(1);
+    expect(unknown.errLines.join('\n')).toContain('no finish candidate with hash');
+  });
+
   it('inspect prints the observed calibration and names the unpaired sides (RV3103)', async () => {
     // The RV3003 fold in operator output: one dispatch carrying both
     // the RV806 verdict and the RV3002 counter, one carrying the

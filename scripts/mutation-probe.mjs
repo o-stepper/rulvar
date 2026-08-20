@@ -4214,10 +4214,10 @@ export const MUTATIONS = [
   {
     id: 'rejected-candidate-bytes-are-opt-in',
     doctrine:
-      'a COPY of the rejected document is written only where the host declared retainRejectedCandidates (RV2507): storage is the one cost of this feature and every run that never asked for it must keep writing exactly the blobs it wrote before',
+      'a COPY of the rejected document is written only where the host declared retention (RV2507; the RV4207 persistence policy rides the same gate): storage is the one cost of this feature and every run that never asked for it must keep writing exactly the blobs it wrote before',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '        if (rejectedCandidate && validationSpec.retainRejectedCandidates === true) {',
-    replace: '        if (rejectedCandidate) {',
+    find: "          (validationSpec.retainRejectedCandidates === true || persistence === 'transcript')",
+    replace: '          true',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
@@ -5612,6 +5612,42 @@ export const MUTATIONS = [
     find: "    return 'orchestrator';",
     replace: "    return 'unknown';",
     test: 'packages/core/src/engine/agent-type-fill.test.ts',
+  },
+  {
+    id: 'candidate-persistence-is-a-closed-literal',
+    doctrine:
+      "candidatePersistence admits exactly 'transcript' and 'hash-only' (RV4207): with the literal gate collapsed, a plausible 'artifact' declares a policy nothing implements, the host believes bytes are being retained somewhere, and the first audit finds neither blobs nor a reason",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (persistence !== 'transcript' && persistence !== 'hash-only') {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/candidate-persistence.test.ts',
+  },
+  {
+    id: 'accepted-verdict-carries-its-identity',
+    doctrine:
+      'under a declared persistence the ACCEPTED verdict journals the candidate identity (RV4207): with the stamp collapsed, the chain ends at the last rejection and the shipped document has no journaled hash of its own, the sixth comparison audit re-derived it from raw bytes and source',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          ...(persistence !== undefined && !rejectedCandidate',
+    replace: '          ...(false && !rejectedCandidate',
+    test: 'packages/core/src/orchestrator/candidate-persistence.test.ts',
+  },
+  {
+    id: 'bytes-absent-by-policy-say-so',
+    doctrine:
+      "hash-only persistence stamps bytesUnavailableReason (RV4207): with the stamp collapsed, a declared no-retention policy is indistinguishable from a lost blob, and the auditor's 'not retained by policy' finding degrades back to a mystery",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "          bytesUnavailableReason = 'hash-only-persistence';",
+    replace: '',
+    test: 'packages/core/src/orchestrator/candidate-persistence.test.ts',
+  },
+  {
+    id: 'candidate-bytes-verify-the-recipe',
+    doctrine:
+      'verifyCandidateBytes tries the string document first (RV4207): with the branch collapsed, every retained string candidate fails verification against its own journaled hash, and the audit path calls sound blobs corrupt',
+    file: 'packages/core/src/stores/synthesis-candidates.ts',
+    find: '  if (candidateHashOf(text) === hash) {\n    return true;\n  }',
+    replace: '',
+    test: 'packages/core/src/orchestrator/candidate-persistence.test.ts',
   },
 ];
 

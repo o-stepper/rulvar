@@ -10,7 +10,7 @@
 function lastMechanicalRepairCostUsd(entries, priceUsd?): number | undefined;
 ```
 
-Defined in: [packages/core/src/stores/synthesis-candidates.ts:457](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L457)
+Defined in: [packages/core/src/stores/synthesis-candidates.ts:523](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L523)
 
 The observed price of the run's LAST mechanical repair turn
 (RV3802): the window of the candidate that FOLLOWED a 'repair'

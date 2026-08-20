@@ -93,7 +93,11 @@ export const GRAMMAR: {
     positionals: [],
     flags: [STORE, { name: 'repair' }, { name: 'no-load-repair' }],
   },
-  inspect: { command: 'inspect', positionals: ['<runId>'], flags: [STORE] },
+  inspect: {
+    command: 'inspect',
+    positionals: ['<runId>'],
+    flags: [STORE, { name: 'candidates' }, { name: 'candidate-bytes', placeholder: 'HASH' }],
+  },
   invoice: { command: 'invoice', positionals: ['<runId>'], flags: [STORE, { name: 'json' }] },
   'cost-audit': {
     command: 'cost-audit',
