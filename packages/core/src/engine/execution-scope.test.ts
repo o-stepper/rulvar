@@ -14,7 +14,12 @@ import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
 import { JsonlFileStore } from '../stores/jsonl.js';
-import { createEngine, executionScopeKey, normalizeExecutionScope } from './engine.js';
+import {
+  createEngine,
+  executionScopeDigest,
+  executionScopeKey,
+  normalizeExecutionScope,
+} from './engine.js';
 import { defineWorkflow } from './ctx.js';
 import { scriptedAdapter } from './test-harness.js';
 import { invoiceFromJournal } from './invoice.js';
@@ -124,5 +129,103 @@ describe('ExecutionScope intake (RV4007)', () => {
     expect(bare.status).toBe('ok');
     const meta = (await store.listRuns()).find((row) => row.runId === 'SC-RESUME');
     expect(meta?.scope).toEqual(SCOPE);
+  });
+});
+
+describe('scope dimensions v2 (RV4205)', () => {
+  const FULL = {
+    tenant: 'acme',
+    legalDomain: 'eu-gdpr',
+    region: 'eu-central-1',
+    providerAccount: 'ant-prod-7',
+  };
+
+  it('the named dimensions normalize, key, and digest deterministically', () => {
+    const copy = normalizeExecutionScope(FULL, 'RunOptions.scope');
+    expect(copy).toEqual(FULL);
+    expect(executionScopeKey(copy)).toBe(
+      '{"legalDomain":"eu-gdpr","providerAccount":"ant-prod-7",' +
+        '"region":"eu-central-1","tenant":"acme"}',
+    );
+    expect(executionScopeDigest(copy)).toMatch(/^[0-9a-f]{64}$/);
+    expect(
+      executionScopeDigest({
+        providerAccount: 'ant-prod-7',
+        region: 'eu-central-1',
+        legalDomain: 'eu-gdpr',
+        tenant: 'acme',
+      }),
+    ).toBe(executionScopeDigest(copy));
+  });
+
+  it('the drop default is PINNED: an unknown field silently leaves the copy (RV4107 bytes)', () => {
+    const copy = normalizeExecutionScope(
+      { tenant: 'acme', platformTeam: 'core' },
+      'RunOptions.scope',
+    );
+    expect(copy).toEqual({ tenant: 'acme' });
+    expect('platformTeam' in copy).toBe(false);
+  });
+
+  it("scopePolicy.unknown 'reject' refuses the unknown field by name", () => {
+    expect(() =>
+      normalizeExecutionScope({ tenant: 'acme', platformTeam: 'core' }, 'RunOptions.scope', {
+        unknown: 'reject',
+      }),
+    ).toThrow(/platformTeam is not a scope dimension/);
+    expect(() =>
+      normalizeExecutionScope({ tenant: 'acme', region: 'eu-central-1' }, 'RunOptions.scope', {
+        unknown: 'reject',
+      }),
+    ).not.toThrow();
+  });
+
+  it('the genesis decision and the invoice carry the digest', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-scope-digest-'));
+    const store = new JsonlFileStore({ dir });
+    const engine = createEngine({
+      adapters: [scriptedAdapter(() => ({ text: 'answer' }))],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await engine.run(wf, undefined, {
+      runId: 'SC-DIGEST',
+      budgetUsd: 5,
+      scope: FULL,
+    }).result;
+    expect(outcome.status).toBe('ok');
+    const entries = await store.load('SC-DIGEST');
+    const decision = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'execution_scope',
+    );
+    const digest = (decision?.value as { scopeDigest?: string } | undefined)?.scopeDigest;
+    expect(digest).toBe(executionScopeDigest(FULL));
+    const invoice = invoiceFromJournal(entries, () => 0.01);
+    expect(invoice.executionScope).toEqual(FULL);
+    expect(invoice.executionScopeDigest).toBe(digest);
+  });
+
+  it('RunOptions.scopePolicy governs the run intake: reject refuses, garbage refuses', () => {
+    const engine = createEngine({
+      adapters: [scriptedAdapter(() => ({ text: 'answer' }))],
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    // The refusal is a construction-time ConfigError, before any run
+    // handle exists, exactly like every other RunOptions intake rule.
+    expect(() =>
+      engine.run(wf, undefined, {
+        budgetUsd: 5,
+        scope: { tenant: 'acme', platformTeam: 'core' } as object,
+        scopePolicy: { unknown: 'reject' },
+      }),
+    ).toThrow(/platformTeam is not a scope dimension/);
+    expect(() =>
+      engine.run(wf, undefined, {
+        budgetUsd: 5,
+        scope: { tenant: 'acme' },
+        scopePolicy: { unknown: 'sometimes' } as never,
+      }),
+    ).toThrow(/scopePolicy\.unknown must be 'drop' or 'reject'/);
   });
 });

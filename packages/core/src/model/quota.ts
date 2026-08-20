@@ -54,6 +54,19 @@ export interface QuotaRule {
   provider?: string;
   model?: string;
   tenant?: string;
+  /**
+   * Scope-dimension pins (RV4205): a rule naming any of these matches
+   * only reservations whose run scope carries the same value, so a
+   * host caps by billing account, project, legal domain, region, or
+   * provider account without a limiter fork. A reservation with no
+   * scope (an unscoped run) matches none of them, exactly the tenant
+   * rule's semantics.
+   */
+  account?: string;
+  project?: string;
+  legalDomain?: string;
+  region?: string;
+  providerAccount?: string;
   /** Wire attempts admitted per window; the exact, hard cap. */
   requestsPerMinute?: number;
   /**
@@ -62,6 +75,15 @@ export interface QuotaRule {
    */
   tokensPerMinute?: number;
 }
+
+/** The scope-dimension keys a QuotaRule can pin (RV4205). */
+const RULE_SCOPE_DIMENSIONS = [
+  'account',
+  'project',
+  'legalDomain',
+  'region',
+  'providerAccount',
+] as const;
 
 /**
  * Validates a quota rule set as a typed ConfigError before any
@@ -83,7 +105,7 @@ export function validateQuotaRules(rules: readonly QuotaRule[], site = 'quota ru
       throw new ConfigError(`${at} must be a QuotaRule object`);
     }
     const rule = entry as Record<string, unknown>;
-    for (const dimension of ['provider', 'model', 'tenant'] as const) {
+    for (const dimension of ['provider', 'model', 'tenant', ...RULE_SCOPE_DIMENSIONS] as const) {
       const value = rule[dimension];
       if (value !== undefined && (typeof value !== 'string' || value === '')) {
         throw new ConfigError(`${at}.${dimension} must be a nonempty string when given`);
@@ -114,6 +136,15 @@ export function quotaRuleKey(rule: QuotaRule): string {
     provider: rule.provider ?? null,
     model: rule.model ?? null,
     tenant: rule.tenant ?? null,
+    // The scope dimensions (RV4205) join the key ONLY when pinned:
+    // a rule without them keeps its historical key byte for byte, so
+    // keyed-store buckets survive the upgrade, and two rules that
+    // differ only in a pinned dimension never share a bucket.
+    ...(rule.account === undefined ? {} : { account: rule.account }),
+    ...(rule.project === undefined ? {} : { project: rule.project }),
+    ...(rule.legalDomain === undefined ? {} : { legalDomain: rule.legalDomain }),
+    ...(rule.region === undefined ? {} : { region: rule.region }),
+    ...(rule.providerAccount === undefined ? {} : { providerAccount: rule.providerAccount }),
     requestsPerMinute: rule.requestsPerMinute ?? null,
     tokensPerMinute: rule.tokensPerMinute ?? null,
   });
@@ -162,6 +193,13 @@ export function snapshotQuotaRules(
         ...(rule.provider === undefined ? {} : { provider: rule.provider }),
         ...(rule.model === undefined ? {} : { model: rule.model }),
         ...(rule.tenant === undefined ? {} : { tenant: rule.tenant }),
+        ...(rule.account === undefined ? {} : { account: rule.account }),
+        ...(rule.project === undefined ? {} : { project: rule.project }),
+        ...(rule.legalDomain === undefined ? {} : { legalDomain: rule.legalDomain }),
+        ...(rule.region === undefined ? {} : { region: rule.region }),
+        ...(rule.providerAccount === undefined
+          ? {}
+          : { providerAccount: rule.providerAccount }),
         ...(rule.requestsPerMinute === undefined
           ? {}
           : { requestsPerMinute: rule.requestsPerMinute }),
@@ -176,7 +214,16 @@ export function quotaRuleMatches(rule: QuotaRule, request: QuotaReservationReque
   return (
     (rule.provider === undefined || rule.provider === request.provider) &&
     (rule.model === undefined || rule.model === request.model) &&
-    (rule.tenant === undefined || rule.tenant === request.tenant)
+    (rule.tenant === undefined || rule.tenant === request.tenant) &&
+    // The scope pins (RV4205): matched against the reservation's
+    // stamped scope; a reservation with no scope matches none of
+    // them, the tenant rule's own semantics.
+    (rule.account === undefined || rule.account === request.scope?.account) &&
+    (rule.project === undefined || rule.project === request.scope?.project) &&
+    (rule.legalDomain === undefined || rule.legalDomain === request.scope?.legalDomain) &&
+    (rule.region === undefined || rule.region === request.scope?.region) &&
+    (rule.providerAccount === undefined ||
+      rule.providerAccount === request.scope?.providerAccount)
   );
 }
 
@@ -466,6 +513,15 @@ export interface EngineQuotaConfig {
   /** Stamped on every reservation of this engine's runs. */
   tenant?: string;
   /**
+   * Where the reservation tenant comes from (RV4205). 'engine' (the
+   * default, historical bytes): the `tenant` above. 'scope': the
+   * RUN's recorded ExecutionScope.tenant, so one engine serving many
+   * tenants debits each run's reservations to the tenant the run
+   * declared; a run whose scope names no tenant reserves tenant-less,
+   * exactly like an engine that set none.
+   */
+  tenantFrom?: 'engine' | 'scope';
+  /**
    * What a limiter infrastructure FAILURE (reserve throwing) means:
    * 'deny' (default, fail closed) converts it into a retryable
    * transport-class denial; 'allow' logs a warning and dispatches
@@ -536,6 +592,8 @@ export const DEFAULT_MAX_QUOTA_DENIALS = 8;
 export interface EngineQuotaRuntime {
   limiter: QuotaLimiter;
   tenant?: string;
+  /** Where the reservation tenant comes from (RV4205); absent reads 'engine'. */
+  tenantFrom?: 'engine' | 'scope';
   onLimiterError: 'deny' | 'allow';
   /** Pre-wire continuation admission (RV1013); see {@link EngineQuotaConfig}. */
   reserveContinuations: boolean;
@@ -578,6 +636,10 @@ export function validateEngineQuotaConfig(
     (typeof candidate.tenant !== 'string' || candidate.tenant === '')
   ) {
     throw new ConfigError(`${site}.tenant must be a nonempty string when given`);
+  }
+  const tenantFrom = (candidate as { tenantFrom?: unknown }).tenantFrom;
+  if (tenantFrom !== undefined && tenantFrom !== 'engine' && tenantFrom !== 'scope') {
+    throw new ConfigError(`${site}.tenantFrom must be 'engine' or 'scope' when given`);
   }
   if (
     candidate.onLimiterError !== undefined &&

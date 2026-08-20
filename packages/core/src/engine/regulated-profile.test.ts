@@ -491,17 +491,23 @@ describe('the compile intake edges (RV4107)', () => {
     ).toThrow(/positive finite USD ceiling/);
   });
 
-  it('hashes the normalized scope: a junk field cannot move the hash, and the copy rides the run', () => {
+  it('hashes the normalized scope, and a junk field refuses by name since RV4205', () => {
     const clean = compileRegulatedProfile(BASE());
-    const junky = compileRegulatedProfile({
-      ...BASE(),
-      run: {
-        budgetUsd: 5,
-        scope: { tenant: 'acme', junk: 'x' } as unknown as RunOptions['scope'],
-      },
-    });
-    expect(junky.profileHash).toBe(clean.profileHash);
-    expect(junky.run.scope).toEqual({ tenant: 'acme' });
+    expect(clean.run.scope).toEqual({ tenant: 'acme' });
+    expect(clean.profileHash).toMatch(/^[0-9a-f]{64}$/);
+    // RV4107 dropped the junk so it could not move the hash; RV4205
+    // strengthens the same intent into a refusal: a dimension the
+    // engine cannot record refuses by name, so the question of it
+    // moving the hash no longer arises.
+    expect(() =>
+      compileRegulatedProfile({
+        ...BASE(),
+        run: {
+          budgetUsd: 5,
+          scope: { tenant: 'acme', junk: 'x' } as unknown as RunOptions['scope'],
+        },
+      }),
+    ).toThrow(/junk is not a scope dimension/);
   });
 
   it('an empty scope refuses at compile time, not at run intake', () => {
@@ -943,5 +949,36 @@ describe('the first-party construction descriptors (RV4204)', () => {
       },
     });
     expect(attestedOnly.profileHash).not.toBe(counted.profileHash);
+  });
+});
+
+describe('the regulated scope policy (RV4205)', () => {
+  it("fills 'reject', refuses an explicit 'drop', and refuses an unknown dimension at compile", () => {
+    const compiled = compileRegulatedProfile(BASE());
+    expect(compiled.run.scopePolicy).toEqual({ unknown: 'reject' });
+    expect(() =>
+      compileRegulatedProfile({
+        ...BASE(),
+        run: { ...BASE().run, scopePolicy: { unknown: 'drop' } },
+      }),
+    ).toThrow(/scopePolicy\.unknown must be 'reject' \(RV4205\)/);
+    expect(() =>
+      compileRegulatedProfile({
+        ...BASE(),
+        run: { budgetUsd: 5, scope: { tenant: 'acme', platformTeam: 'core' } as object },
+      }),
+    ).toThrow(/platformTeam is not a scope dimension/);
+  });
+
+  it('the named dimensions compile, and the policy is part of the hashed posture', () => {
+    const base = compileRegulatedProfile(BASE());
+    const dimensional = compileRegulatedProfile({
+      ...BASE(),
+      run: {
+        budgetUsd: 5,
+        scope: { tenant: 'acme', region: 'eu-central-1', legalDomain: 'eu-gdpr' },
+      },
+    });
+    expect(dimensional.profileHash).not.toBe(base.profileHash);
   });
 });

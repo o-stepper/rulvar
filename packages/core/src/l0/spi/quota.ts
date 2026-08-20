@@ -62,8 +62,25 @@ export interface QuotaReservationRequest {
   provider: string;
   /** The serving model, re-reserved per failover target. */
   model: string;
-  /** The engine's configured tenant; absent when the host set none. */
+  /**
+   * The tenant of the reservation: the engine's configured tenant, or
+   * the run scope's under `quota.tenantFrom: 'scope'` (RV4205);
+   * absent when neither names one.
+   */
   tenant?: string;
+  /**
+   * The run's execution scope dimensions (RV4205), stamped by the ctx
+   * completion so dimension-pinned QuotaRules can match them; absent
+   * on unscoped runs, byte identical to before the field.
+   */
+  scope?: {
+    tenant?: string;
+    account?: string;
+    project?: string;
+    legalDomain?: string;
+    region?: string;
+    providerAccount?: string;
+  };
   /** The run paying for the attempt; observability only. */
   runId?: string;
   estimate: QuotaEstimate;
