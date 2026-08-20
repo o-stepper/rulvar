@@ -10,4 +10,4 @@
 const DEFAULT_MAX_PAIR_EXCERPT_CHARS: 400 = 400;
 ```
 
-Defined in: [packages/core/src/orchestrator/consistency.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L142)
+Defined in: [packages/core/src/orchestrator/consistency.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L167)

@@ -52,12 +52,15 @@ export interface RepairLedgerRound {
   stage: 'draft' | 'composition' | 'round' | 'semantic';
   /**
    * What dispatched the semantic round (RV4105): 'claim' (the RV3307
-   * contradiction round) or 'citation' (the RV4004 entailment round),
-   * read from the `costAttribution.repairTrigger` stamped at dispatch.
-   * Absent on non-semantic rows and on journals written before the
-   * stamp shipped (absence means NOT RECORDED, RV1209).
+   * contradiction round), 'citation' (the RV4004 entailment round),
+   * 'coverage' (the RV4202 round armed by a non-'full' final grade
+   * alone), or 'combined' (one bounded round carrying more than one
+   * defect class, RV4202), read from the
+   * `costAttribution.repairTrigger` stamped at dispatch. Absent on
+   * non-semantic rows and on journals written before the stamp
+   * shipped (absence means NOT RECORDED, RV1209).
    */
-  trigger?: 'claim' | 'citation';
+  trigger?: 'claim' | 'citation' | 'coverage' | 'combined';
   /** The verdict decision's seq: the repair's address in the run. */
   seq: number;
   /** The finish call id the verdict was keyed by, when journaled. */
@@ -185,7 +188,12 @@ export function repairLedgerFromJournal(
           stage: 'semantic',
           seq: entry.seq,
           failedValidators: [],
-          ...(trigger === 'claim' || trigger === 'citation' ? { trigger } : {}),
+          ...(trigger === 'claim' ||
+          trigger === 'citation' ||
+          trigger === 'coverage' ||
+          trigger === 'combined'
+            ? { trigger }
+            : {}),
         };
         rounds.push(semanticRow);
         rowScopes.set(semanticRow, entry.scope);

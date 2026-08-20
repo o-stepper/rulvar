@@ -15,10 +15,11 @@ export interface CtxScopeState {
   phase?: string;
   /**
    * What dispatched the semantic repair round riding this scope
-   * (RV4105): stamped into the round invocation's costAttribution so
-   * the repair ledger attributes it without cross-reading metas.
+   * (RV4105; the RV4202 values ride the same channel): stamped into
+   * the round invocation's costAttribution so the repair ledger
+   * attributes it without cross-reading metas.
    */
-  repairTrigger?: 'claim' | 'citation';
+  repairTrigger?: 'claim' | 'citation' | 'coverage' | 'combined';
   signal?: AbortSignal;
   budgetScope?: string;
 }

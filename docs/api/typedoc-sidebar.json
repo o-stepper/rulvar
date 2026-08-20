@@ -1375,6 +1375,10 @@
             "link": "/api/@rulvar/core/interfaces/OrchestrateOptions.md"
           },
           {
+            "text": "OrchestrateSemanticAcceptance",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateSemanticAcceptance.md"
+          },
+          {
             "text": "OrchestrateSynthesis",
             "link": "/api/@rulvar/core/interfaces/OrchestrateSynthesis.md"
           },
@@ -2901,6 +2905,10 @@
           {
             "text": "MAX_TIMER_DELAY_MS",
             "link": "/api/@rulvar/core/variables/MAX_TIMER_DELAY_MS.md"
+          },
+          {
+            "text": "MAX_UNCOVERED_SENTENCES",
+            "link": "/api/@rulvar/core/variables/MAX_UNCOVERED_SENTENCES.md"
           },
           {
             "text": "ORCHESTRATE_WORKFLOW_NAME",
@@ -6661,6 +6669,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateOptions.md"
           },
           {
+            "text": "OrchestrateSemanticAcceptance",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateSemanticAcceptance.md"
+          },
+          {
             "text": "OrchestrateSynthesis",
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateSynthesis.md"
           },
@@ -8219,6 +8231,10 @@
           {
             "text": "MAX_TIMER_DELAY_MS",
             "link": "/api/@rulvar/rulvar/variables/MAX_TIMER_DELAY_MS.md"
+          },
+          {
+            "text": "MAX_UNCOVERED_SENTENCES",
+            "link": "/api/@rulvar/rulvar/variables/MAX_UNCOVERED_SENTENCES.md"
           },
           {
             "text": "OPENAI_MODELS",

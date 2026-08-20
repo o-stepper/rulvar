@@ -10,4 +10,4 @@
 const DEFAULT_MAX_CLAIM_PAIRS: 40 = 40;
 ```
 
-Defined in: [packages/core/src/orchestrator/consistency.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L140)
+Defined in: [packages/core/src/orchestrator/consistency.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L165)

@@ -403,7 +403,129 @@ export function compileRegulatedProfile(input: {
         );
       }
       claim.coveragePolicy = 'strict-final';
+      // The observing findings postures are refusals here (RV4201):
+      // 'report' observes and 'carry' composes the disagreement into
+      // prose, and neither stops a run over what its own judge found.
+      // The floor fills the strict 'fail' default and licenses an
+      // armed 'repair' (the bounded round), because both refuse to
+      // pass findings silently.
+      if (claim.onFound === 'report' || claim.onFound === 'carry') {
+        refuse(
+          'orchestrate.claimConsistency.onFound',
+          "must be 'repair' or 'fail' (RV4201): the observing postures let a run settle " +
+            'accepted over what its own judge found',
+        );
+      }
+      claim.onFound = claim.onFound ?? 'fail';
+      // Full coverage is the regulated grade (RV4201): a pass sized
+      // to a target below 1 can never grade 'full' on a citing
+      // document, so the declaration would be unsatisfiable.
+      if (claim.coverageTarget !== undefined && claim.coverageTarget !== 1) {
+        refuse(
+          'orchestrate.claimConsistency.coverageTarget',
+          "must be 1 or absent (RV4201): the regulated acceptance requires the 'full' " +
+            'grade, and a pass sized to cover less than everything can never reach it',
+        );
+      }
+      // The armed repair posture carries the coverage arm (RV4202):
+      // the one bounded round serves every armed defect class, so a
+      // regulated 'repair' that refuses coverage the same chance is
+      // not the posture it reads as.
+      if (claim.onFound === 'repair') {
+        if (claim.coverageRepair === false) {
+          refuse(
+            'orchestrate.claimConsistency.coverageRepair',
+            "must not be false beside onFound 'repair' (RV4201/RV4202): the one bounded " +
+              'round serves every armed defect class, coverage included',
+          );
+        }
+        claim.coverageRepair = true;
+      }
       orchestrate.claimConsistency = claim;
+      // The audit's observing posture is a refusal on the same terms
+      // (RV4201): the sixth experiment shipped five unsupported
+      // citations through 'report'.
+      const auditSpec = { ...orchestrate.citationAudit };
+      if (auditSpec.onFound === 'report') {
+        refuse(
+          'orchestrate.citationAudit.onFound',
+          "must be 'repair' or 'fail' (RV4201): 'report' let the sixth experiment settle " +
+            'accepted over five unsupported citations',
+        );
+      }
+      auditSpec.onFound = auditSpec.onFound ?? 'fail';
+      orchestrate.citationAudit = auditSpec;
+      // ---- The atomic acceptance declaration (RV4201). The floor
+      // writes it when absent, from the postures it just enforced,
+      // and judges a declared one for the mismatches orchestrate
+      // intake would refuse at run time (the RV4107 rule: the floor
+      // judges its own intake). A STANDING waiver is refused
+      // outright: regulated acceptance admits either no exception or
+      // the pinned-hash form, a signature under one reviewed
+      // document, never a blank cheque with an expiry.
+      const declared = orchestrate.semanticAcceptance;
+      const declaredPin =
+        declared !== undefined && typeof declared.waiver === 'object'
+          ? declared.waiver.judgedHash
+          : undefined;
+      if (claim.waiver !== undefined && declaredPin === undefined) {
+        refuse(
+          'orchestrate.claimConsistency.waiver',
+          'is a standing waiver (RV4201): regulated acceptance admits only the pinned-hash ' +
+            'form; declare semanticAcceptance.waiver { judgedHash } naming the one reviewed ' +
+            'document it licenses, or drop the waiver',
+        );
+      }
+      const wantContradictions = claim.onFound === 'repair' ? 'repair-once-then-fail' : 'fail';
+      const wantCitations = auditSpec.onFound === 'repair' ? 'repair-once-then-fail' : 'fail';
+      if (declared === undefined) {
+        orchestrate.semanticAcceptance = {
+          judgedStage: 'final',
+          claimCoverage: 'full',
+          contradictions: wantContradictions,
+          citations: wantCitations,
+          unresolved: 'fail',
+          waiver: 'forbid',
+        };
+      } else {
+        if (
+          declared.judgedStage !== 'final' ||
+          declared.claimCoverage !== 'full' ||
+          declared.unresolved !== 'fail'
+        ) {
+          refuse(
+            'orchestrate.semanticAcceptance',
+            "must declare judgedStage 'final', claimCoverage 'full' and unresolved 'fail'",
+          );
+        }
+        if (declared.contradictions !== wantContradictions) {
+          refuse(
+            'orchestrate.semanticAcceptance.contradictions',
+            `must be '${wantContradictions}' beside claimConsistency.onFound ` +
+              `'${String(claim.onFound)}'`,
+          );
+        }
+        if (declared.citations !== wantCitations) {
+          refuse(
+            'orchestrate.semanticAcceptance.citations',
+            `must be '${wantCitations}' beside citationAudit.onFound ` +
+              `'${String(auditSpec.onFound)}'`,
+          );
+        }
+        if (declared.waiver !== 'forbid' && declaredPin === undefined) {
+          refuse(
+            'orchestrate.semanticAcceptance.waiver',
+            "must be 'forbid' or { judgedHash } (RV4201)",
+          );
+        }
+        if (declaredPin !== undefined && claim.waiver === undefined) {
+          refuse(
+            'orchestrate.claimConsistency.waiver',
+            'must be declared beside the pinned semanticAcceptance.waiver: the pin licenses ' +
+              'a declared principal and reason',
+          );
+        }
+      }
     }
   }
 

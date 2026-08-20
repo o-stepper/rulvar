@@ -102,6 +102,18 @@ export interface ClaimPairOptions {
    * historical first-`max` selection, byte for byte.
    */
   targetCoverageShare?: number;
+  /**
+   * Collect the citing sentences the reported pairs left UNCOVERED
+   * (RV4202, the sixth comparison experiment): the coverage-armed
+   * repair round needs the sentences themselves for its prompt, not
+   * only their count, because "raise the coverage" is actionable to a
+   * composing model exactly when it can see which claims the pool
+   * never grounded. Distinct collapsed sentences, draft order, each
+   * cut to `maxExcerptChars`, capped at
+   * {@link MAX_UNCOVERED_SENTENCES}; the uncapped count rides beside
+   * the list. Unset = byte-identical fold output.
+   */
+  reportUncovered?: boolean;
 }
 
 /** What the fold produced, beside the pairs themselves. */
@@ -135,6 +147,19 @@ export interface ClaimPairsFold {
   criticalUncovered?: string[];
   /** The uncapped count behind `criticalUncovered`; present with it. */
   criticalUncoveredTotal?: number;
+  /**
+   * Present only when `reportUncovered` was set (RV4202): the distinct
+   * citing sentences with no reported pair, draft order, each cut to
+   * `maxExcerptChars`, capped at {@link MAX_UNCOVERED_SENTENCES}. A
+   * sentence lands here for any of the three uncovered causes (no
+   * intersecting pool reading, verbatim agreement dropped every
+   * reading, or a bound cut its candidates); telling them apart is the
+   * repair round's job, which is exactly why the sentences ride the
+   * prompt instead of a cause taxonomy riding the meta.
+   */
+  uncoveredSentences?: string[];
+  /** The uncapped count behind `uncoveredSentences`; present with it. */
+  uncoveredSentencesTotal?: number;
 }
 
 export const DEFAULT_MAX_CLAIM_PAIRS = 40;
@@ -142,6 +167,8 @@ export const DEFAULT_MAX_POOL_PER_PAIR = 3;
 export const DEFAULT_MAX_PAIR_EXCERPT_CHARS = 400;
 /** Bound on the reported uncovered-critical anchor list (RV1603). */
 export const MAX_CRITICAL_UNCOVERED = 32;
+/** Bound on the reported uncovered citing-sentence list (RV4202). */
+export const MAX_UNCOVERED_SENTENCES = 24;
 
 /** Splits an anchor into path, start, and optional end at the LAST colon. */
 const ANCHOR_TAIL = /^(.*):(\d+)(?:-(\d+))?$/u;
@@ -333,6 +360,11 @@ export function pairDraftClaims(
   let draftCitingSentences = 0;
   const criticalDraftAnchors: string[] = [];
   const seenCriticalAnchors = new Set<string>();
+  // The citing sentences themselves, distinct in draft order (RV4202):
+  // collected only under `reportUncovered`, so the unset fold does the
+  // exact historical work and returns the exact historical object.
+  const citingSentences: string[] = [];
+  const seenCitingSentences = new Set<string>();
   for (const sentence of sentencesOf(draftText)) {
     const anchors = anchorsOf(sentence, pattern);
     if (anchors.length === 0) {
@@ -340,6 +372,10 @@ export function pairDraftClaims(
     }
     draftCitingSentences += 1;
     const full = collapse(sentence);
+    if (options?.reportUncovered === true && !seenCitingSentences.has(full)) {
+      seenCitingSentences.add(full);
+      citingSentences.push(full);
+    }
     const draftExcerpt = full.slice(0, maxExcerptChars);
     for (const anchor of anchors) {
       const anchorCritical = critical !== undefined && isCritical(anchor);
@@ -447,6 +483,13 @@ export function pairDraftClaims(
     const uncovered = criticalDraftAnchors.filter((anchor) => !reportedAnchors.has(anchor));
     fold.criticalUncovered = uncovered.slice(0, MAX_CRITICAL_UNCOVERED);
     fold.criticalUncoveredTotal = uncovered.length;
+  }
+  if (options?.reportUncovered === true) {
+    const uncovered = citingSentences.filter((sentence) => !coveredSentences.has(sentence));
+    fold.uncoveredSentences = uncovered
+      .slice(0, MAX_UNCOVERED_SENTENCES)
+      .map((sentence) => sentence.slice(0, maxExcerptChars));
+    fold.uncoveredSentencesTotal = uncovered.length;
   }
   return fold;
 }

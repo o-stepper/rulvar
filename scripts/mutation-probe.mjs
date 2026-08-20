@@ -5117,8 +5117,9 @@ export const MUTATIONS = [
     doctrine:
       "the meta of a repaired verdict says it took two passes (RV3904): with the count forged to 1, findings 0 after a round reads as a clean first verdict, the fourth comparison run's exact ambiguity",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '            claimConsistencyMeta.passes = 2;',
-    replace: '            claimConsistencyMeta.passes = 1;',
+    find: '            claimConsistencyMeta.passes = 2;\n            claimConsistencyMeta.firstPassFindings = carried.length;',
+    replace:
+      '            claimConsistencyMeta.passes = 1;\n            claimConsistencyMeta.firstPassFindings = carried.length;',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
@@ -5292,8 +5293,8 @@ export const MUTATIONS = [
     doctrine:
       "the audit's bounded round re-audits the repaired document from its new hash (RV4004): with the second pass dropped, the lineage claims a clean second verdict nobody rendered, and a repaired document ships on the FIRST pass's stale findings",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "        await runCitationAudit(synthesizedFinal, 'round');",
-    replace: '',
+    find: "        await runCitationAudit(synthesizedFinal, 'round');\n        if (citationAuditMeta !== undefined) {",
+    replace: '        if (citationAuditMeta !== undefined) {',
     test: 'packages/core/src/orchestrator/citation-audit.test.ts',
   },
   {
@@ -5466,6 +5467,42 @@ export const MUTATIONS = [
     find: '        if (priorWaiveDecision !== undefined) {',
     replace: '        if (false) {',
     test: 'packages/core/src/orchestrator/coverage-policy.test.ts',
+  },
+  {
+    id: 'pinned-waiver-licenses-one-document',
+    doctrine:
+      'the pinned waiver licenses exactly the reviewed document (RV4201): with the pin mismatch collapsed, a waiver signed under one judgedHash licenses whatever bytes the re-run composed, and the signature under a specific document becomes the blank cheque the declaration exists to forbid',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '            pinnedJudgedHash !== undefined && claimConsistencyMeta?.judgedHash !== pinnedJudgedHash;',
+    replace: '            false;',
+    test: 'packages/core/src/orchestrator/semantic-acceptance.test.ts',
+  },
+  {
+    id: 'forbid-admits-no-journaled-exception',
+    doctrine:
+      "the 'forbid' waiver posture admits no exception at all (RV4201): with the forbid branch collapsed, a non-full grade under the declaration falls through to the ordinary waiver machinery, and a journaled waive decision from a foreign journal licenses what the signature forbids",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        if (acceptanceWaiver === 'forbid') {",
+    replace: '        if (false) {',
+    test: 'packages/core/src/orchestrator/semantic-acceptance.test.ts',
+  },
+  {
+    id: 'merged-round-rejudges-the-citations',
+    doctrine:
+      'both judges re-rule after the merged round (RV4202): with the post-round re-audit collapsed, the run ships a repaired document whose citation verdict describes the pre-round bytes, exactly the repair-moved-the-hash-without-a-rejudge class the shared round exists to close',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "          await runCitationAudit(synthesizedFinal, 'round');",
+    replace: '',
+    test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
+    id: 'coverage-arm-consumes-the-uncovered-grade',
+    doctrine:
+      "a non-full final grade arms the bounded round under coverageRepair (RV4202): with the coverage defect collapsed, the armed run skips the round it was promised and walks straight into the strict-final refusal, and the uncovered fraction stays the defect class no machinery can consume, the sixth experiment's exact dead end",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        const coverageDefect = (firstGrade ?? 'full') !== 'full';",
+    replace: '        const coverageDefect = false;',
+    test: 'packages/core/src/orchestrator/semantic-round.test.ts',
   },
 ];
 

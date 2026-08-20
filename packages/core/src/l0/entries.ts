@@ -214,14 +214,16 @@ export interface CostAttributionFacts {
   finalizeReserve?: boolean;
   /**
    * What dispatched a semantic repair round (RV4105): 'claim' (the
-   * RV3307 contradiction round) or 'citation' (the RV4004 entailment
-   * round), stamped at dispatch beside `phase: 'repair'`, so the
-   * repair ledger attributes the round without cross-reading two
-   * metas. Absent on every other dispatch and on journals written
-   * before it shipped (absence means NOT RECORDED, RV1209). Policy,
-   * never identity.
+   * RV3307 contradiction round), 'citation' (the RV4004 entailment
+   * round), 'coverage' (the RV4202 round armed by a non-'full' final
+   * grade alone), or 'combined' (one bounded round carrying more than
+   * one defect class, RV4202), stamped at dispatch beside
+   * `phase: 'repair'`, so the repair ledger attributes the round
+   * without cross-reading metas. Absent on every other dispatch and
+   * on journals written before it shipped (absence means NOT
+   * RECORDED, RV1209). Policy, never identity.
    */
-  repairTrigger?: 'claim' | 'citation';
+  repairTrigger?: 'claim' | 'citation' | 'coverage' | 'combined';
 }
 
 /**

@@ -13,7 +13,7 @@ function pairDraftClaims(
    options?): ClaimPairsFold;
 ```
 
-Defined in: [packages/core/src/orchestrator/consistency.ts:206](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L206)
+Defined in: [packages/core/src/orchestrator/consistency.ts:233](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L233)
 
 Folds the composed draft against the settled pool it composed from:
 every draft sentence citing an anchor is paired with the pool
