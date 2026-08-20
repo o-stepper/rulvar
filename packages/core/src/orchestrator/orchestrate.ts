@@ -65,7 +65,7 @@ import { emitSpawnAdmitted, emitSpawnRejected } from '../engine/spawn-events.js'
 import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
 import { lastRunSettle } from '../stores/reconcile.js';
-import { lastMechanicalRepairCostUsd } from '../stores/synthesis-candidates.js';
+import { candidateHashOf, lastMechanicalRepairCostUsd } from '../stores/synthesis-candidates.js';
 import { repairLedgerFromJournal } from '../stores/repair-ledger.js';
 import type { AgentOpts, AgentProfile, Ctx, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
@@ -573,6 +573,38 @@ export interface FinishValidationSpec {
    * its identity and drops its `ref`, and absence means NOT RECORDED.
    */
   retainRejectedCandidates?: boolean;
+  /**
+   * The candidate persistence policy (RV4207, the sixth comparison
+   * experiment): ONE declaration that closes the candidate lineage
+   * surface, superseding the boolean above (declaring both is a
+   * ConfigError; the boolean stays for existing configs).
+   *
+   * Declared (either mode), EVERY finish-validation decision carries
+   * the candidate identity, the ACCEPTED verdict included: the sha256
+   * over the canonical resolved document (the deterministic patch or
+   * the sectional splice applied first) and its char count, so the
+   * whole chain proposed/repaired/rejected/accepted reads off
+   * `synthesisCandidatesFromJournal` (and `rulvar inspect
+   * --candidates`) by hash, and the accepted hash is the same recipe
+   * the claim judge's `judgedHash` and the audit's `auditedHash` bind
+   * (`candidateHashOf`: sha256 over the JCS serialization; see
+   * `verifyCandidateBytes` for the audit recipe). Undeclared, the
+   * decisions keep their historical bytes exactly (identity on
+   * non-accepted verdicts only).
+   *
+   * `'transcript'` additionally retains each REJECTED candidate's
+   * bytes as its own addressable blob, byte for byte the
+   * `retainRejectedCandidates: true` behavior. `'hash-only'` retains
+   * no bytes ON PURPOSE and says so: every non-accepted decision
+   * carries `bytesUnavailableReason: 'hash-only-persistence'`, so an
+   * auditor finding no blob reads a policy, not an accident; a
+   * declared 'transcript' whose store write failed stamps
+   * `'store-write-failed'` the same way. The experiment's auditor
+   * recovered the rejected composition only by digging a binary
+   * transcript with no documented recipe; the reason field is the
+   * difference between "not retained by declared policy" and "lost".
+   */
+  candidatePersistence?: 'transcript' | 'hash-only';
   /**
    * The repair turn reserve (the v1.71 experiment review, P0.4; the
    * reserve RV-204 deliberately deferred). A nonnegative integer,
@@ -2051,6 +2083,21 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       throw new ConfigError(
         'orchestrate finishValidation.retainRejectedCandidates must be a boolean',
       );
+    }
+    const persistence = (fv as { candidatePersistence?: unknown }).candidatePersistence;
+    if (persistence !== undefined) {
+      if (persistence !== 'transcript' && persistence !== 'hash-only') {
+        throw new ConfigError(
+          "orchestrate finishValidation.candidatePersistence must be 'transcript' or " +
+            `'hash-only'; got ${JSON.stringify(persistence)}`,
+        );
+      }
+      if (retain !== undefined) {
+        throw new ConfigError(
+          'orchestrate finishValidation.candidatePersistence supersedes ' +
+            'retainRejectedCandidates: declare one, not both',
+        );
+      }
     }
     const draftPolicy = (fv as { draftPolicy?: unknown }).draftPolicy;
     if (draftPolicy !== undefined) {
@@ -5302,17 +5349,31 @@ export function makeOrchestratorWorkflow(
        */
       contractHash?: string;
       /**
-       * The rejected candidate's identity and address (RV2507),
-       * written on every NON-accepted verdict: the sha256 over the
-       * canonical candidate says WHICH document drew this verdict, the
-       * char count says how big it was, and `candidateRef` is the
-       * transcript blob holding the bytes verbatim, present only under
-       * `retainRejectedCandidates`. All three absent on an accepted
-       * verdict and on every decision journaled before RV2507.
+       * The candidate's identity and address (RV2507): the sha256
+       * over the canonical candidate (`candidateHashOf`) says WHICH
+       * document drew this verdict, the char count says how big it
+       * was, and `candidateRef` is the transcript blob holding the
+       * bytes verbatim, present only under retention. Written on
+       * every NON-accepted verdict since RV2507; under a declared
+       * `candidatePersistence` (RV4207) the ACCEPTED verdict carries
+       * the identity too, over the RESOLVED document (deterministic
+       * patch or sectional splice applied), so the chain reads whole
+       * by hash. Absent on decisions journaled before RV2507, and on
+       * accepted verdicts of undeclared configs, whose bytes hold.
        */
       candidateHash?: string;
       candidateChars?: number;
       candidateRef?: string;
+      /**
+       * Why the candidate's bytes are NOT retained (RV4207), written
+       * beside the identity on non-accepted verdicts under a declared
+       * `candidatePersistence`: 'hash-only-persistence' names the
+       * declared policy, 'store-write-failed' a declared retention
+       * the store refused. An auditor finding no blob reads a policy
+       * or a fault by name instead of guessing; absent everywhere a
+       * reason does not apply and on every earlier journal.
+       */
+      bytesUnavailableReason?: 'hash-only-persistence' | 'store-write-failed';
       /**
        * The deterministic host repair attempted on this call's
        * candidate (RV3801): present exactly when every failure of the
@@ -5939,8 +6000,17 @@ export function makeOrchestratorWorkflow(
         // must never cost a run its verdict: the ref stays absent, and
         // absence means NOT RECORDED (RV1209).
         const rejectedCandidate = failed.length > 0 && deterministicRepair?.outcome !== 'accepted';
+        // The declared persistence policy (RV4207): 'transcript'
+        // retains exactly as the boolean did, 'hash-only' retains
+        // nothing ON PURPOSE and stamps the reason, so an auditor
+        // finding no blob reads a policy instead of a loss.
+        const persistence = validationSpec.candidatePersistence;
         let candidateRef: string | undefined;
-        if (rejectedCandidate && validationSpec.retainRejectedCandidates === true) {
+        let bytesUnavailableReason: 'hash-only-persistence' | 'store-write-failed' | undefined;
+        if (
+          rejectedCandidate &&
+          (validationSpec.retainRejectedCandidates === true || persistence === 'transcript')
+        ) {
           const ref = `${internals.runId}/finish-rejected/${call.id}`;
           try {
             await internals.transcripts.put(
@@ -5950,6 +6020,9 @@ export function makeOrchestratorWorkflow(
             );
             candidateRef = ref;
           } catch (writeFailed) {
+            if (persistence === 'transcript') {
+              bytesUnavailableReason = 'store-write-failed';
+            }
             internals.events.emit(
               {
                 type: 'log',
@@ -5966,6 +6039,8 @@ export function makeOrchestratorWorkflow(
               callingState.spanId,
             );
           }
+        } else if (rejectedCandidate && persistence === 'hash-only') {
+          bytesUnavailableReason = 'hash-only-persistence';
         }
         decision = {
           decisionType: 'orchestrator_finish_validation',
@@ -5999,7 +6074,29 @@ export function makeOrchestratorWorkflow(
                   .digest('hex'),
                 candidateChars: input.text.length,
                 ...(candidateRef === undefined ? {} : { candidateRef }),
+                ...(bytesUnavailableReason === undefined ? {} : { bytesUnavailableReason }),
               }
+            : {}),
+          // The accepted document's identity (RV4207), under a
+          // declared persistence only so every existing config keeps
+          // its decision bytes: the hash names the RESOLVED document
+          // (the deterministic patch or the sectional splice applied),
+          // exactly the bytes the invocation returns and the terminal
+          // judges bind, so the chain closes on the same recipe end to
+          // end.
+          ...(persistence !== undefined && !rejectedCandidate
+            ? (() => {
+                const acceptedDoc =
+                  deterministicRepair?.outcome === 'accepted' && patchedResult !== undefined
+                    ? patchedResult
+                    : result;
+                const acceptedText =
+                  typeof acceptedDoc === 'string' ? acceptedDoc : JSON.stringify(acceptedDoc);
+                return {
+                  candidateHash: candidateHashOf(acceptedDoc),
+                  candidateChars: acceptedText.length,
+                };
+              })()
             : {}),
         };
         await internals.replayer.appendSinglePhase({
@@ -9706,6 +9803,11 @@ export function makeOrchestratorWorkflow(
           chars: decision.candidateChars ?? 0,
           failed: decision.failed,
           ...(decision.candidateRef === undefined ? {} : { ref: decision.candidateRef }),
+          // The declared reason bytes are absent (RV4207): policy or
+          // fault by name, straight off the decision.
+          ...(decision.bytesUnavailableReason === undefined
+            ? {}
+            : { bytesUnavailableReason: decision.bytesUnavailableReason }),
         }));
     const enrichSynthesisFailure = (
       thrown: unknown,

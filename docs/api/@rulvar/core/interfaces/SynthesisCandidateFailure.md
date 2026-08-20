@@ -6,7 +6,7 @@
 
 # Interface: SynthesisCandidateFailure
 
-Defined in: [packages/core/src/stores/synthesis-candidates.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L29)
+Defined in: [packages/core/src/stores/synthesis-candidates.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L75)
 
 One failed validator on a journaled finish verdict, verbatim.
 
@@ -14,5 +14,5 @@ One failed validator on a journaled finish verdict, verbatim.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-name"></a> `name` | `string` | [packages/core/src/stores/synthesis-candidates.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L30) |
-| <a id="property-reasons"></a> `reasons` | readonly `string`[] | [packages/core/src/stores/synthesis-candidates.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L31) |
+| <a id="property-name"></a> `name` | `string` | [packages/core/src/stores/synthesis-candidates.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L76) |
+| <a id="property-reasons"></a> `reasons` | readonly `string`[] | [packages/core/src/stores/synthesis-candidates.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L77) |

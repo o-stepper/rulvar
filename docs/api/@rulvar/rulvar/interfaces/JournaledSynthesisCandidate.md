@@ -14,9 +14,10 @@ One finish candidate, folded from its journaled verdict (RV2902).
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-bytesunavailablereason"></a> `bytesUnavailableReason?` | `string` | Why the candidate's BYTES are not retained (RV4207), from the decision itself: 'hash-only-persistence' names the declared policy, 'store-write-failed' a retention that was declared and refused by the store. Absent on journals written before the field, and everywhere no reason applies; a blob later deleted by retention leaves the hash and this field as the honest remainder. | `packages/core/dist/index.d.ts` |
 | <a id="property-callid"></a> `callId?` | `string` | The finish call id the verdict was keyed by. | `packages/core/dist/index.d.ts` |
 | <a id="property-candidatechars"></a> `candidateChars?` | `number` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-candidatehash"></a> `candidateHash?` | `string` | The non-accepted candidate's identity (RV2507), when journaled. | `packages/core/dist/index.d.ts` |
+| <a id="property-candidatehash"></a> `candidateHash?` | `string` | The candidate's identity (RV2507): the [candidateHashOf](/api/@rulvar/rulvar/functions/candidateHashOf.md) hash and the char count. Journaled on every non-accepted verdict since RV2507, and on the ACCEPTED verdict too under a declared `candidatePersistence` (RV4207), where it names the resolved document (deterministic patch or sectional splice applied), so the whole chain reads by hash. | `packages/core/dist/index.d.ts` |
 | <a id="property-candidateref"></a> `candidateRef?` | `string` | The rejected candidate's transcript blob, under retention. | `packages/core/dist/index.d.ts` |
 | <a id="property-contracthash"></a> `contractHash?` | `string` | The contract generation the verdict was rendered under. | `packages/core/dist/index.d.ts` |
 | <a id="property-costusd"></a> `costUsd?` | `number` | The window priced per call at the caller's table. Present only when a price function was given and it priced EVERY window wire; an unpriced model drops the field rather than shrinking it. | `packages/core/dist/index.d.ts` |

@@ -224,6 +224,14 @@ export interface RejectedFinishCandidate {
   failed: { name: string; reasons: string[] }[];
   /** Transcript ref holding the bytes; absent unless retention is on and the write succeeded. */
   ref?: string;
+  /**
+   * Why the bytes are not retained (RV4207), when the run declared a
+   * `candidatePersistence`: 'hash-only-persistence' is the policy
+   * saying so on purpose, 'store-write-failed' a declared retention
+   * the store refused. Absent on undeclared configs, whose rows keep
+   * their exact bytes.
+   */
+  bytesUnavailableReason?: 'hash-only-persistence' | 'store-write-failed';
 }
 
 /**
