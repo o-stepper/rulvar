@@ -35,6 +35,7 @@ attributed and are skipped, never guessed at.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-citationjudgems"></a> `citationJudgeMs` | `number` | The citation-judge share of `synthesisMs`, clipped (RV4206). | `packages/core/dist/index.d.ts` |
 | <a id="property-coordinationmodelms"></a> `coordinationModelMs` | `number` | Model activations of coordination spans inside the window. | `packages/core/dist/index.d.ts` |
 | <a id="property-coordinationmodelmsbyphase"></a> `coordinationModelMsByPhase` | `Record`\&lt;`string`, `number`\&gt; | The same bucket keyed by the activation's OWN invocation role ('orchestrate' for the coordinator's drafting and repair turns, 'summarize' for a compaction pass, 'extract' for a schema pass), so a tail spent compacting is distinguishable from a tail spent drafting (RV1211). A zero-duration activation inside the window still registers its role. The values sum to `coordinationModelMs` exactly. | `packages/core/dist/index.d.ts` |
 | <a id="property-coordinationmodelonlyms"></a> `coordinationModelOnlyMs` | `number` | Coordination activation wall with the tool executions NESTED inside it removed: the coordinator's own model time, exactly (RV1211). `coordinationModelMs` is activation wall, and a tool the activation called runs inside that wall, so the two buckets overlap by construction and reading the first as "thinking time" overstates it. This is the exact set difference of the two clipped unions, never a subtraction of sums, so overlapping activations cannot drive it negative. The sixteenth comparison experiment's 222.6-second tail is the number this field exists to split. | `packages/core/dist/index.d.ts` |
@@ -42,8 +43,9 @@ attributed and are skipped, never guessed at.
 | <a id="property-coordinationtoolms"></a> `coordinationToolMs` | `number` | Tool executions of coordination spans inside the window, summed. | `packages/core/dist/index.d.ts` |
 | <a id="property-coordinationtoolmsbyname"></a> `coordinationToolMsByName` | `Record`\&lt;`string`, `number`\&gt; | The same tool time keyed by tool name. A zero-duration execution inside the window still registers its name: sub-millisecond tools round to 0 on the wall clock but did run here. | `packages/core/dist/index.d.ts` |
 | <a id="property-coveredms"></a> `coveredMs` | `number` | Union length of every covered interval above. | `packages/core/dist/index.d.ts` |
-| <a id="property-finalcompositionms"></a> `finalCompositionMs` | `number` | The final-composition half of `synthesisMs`, clipped (RV1604). | `packages/core/dist/index.d.ts` |
+| <a id="property-finalcompositionms"></a> `finalCompositionMs` | `number` | The composition share of `synthesisMs`, clipped (RV1604; RV4206 classification). | `packages/core/dist/index.d.ts` |
 | <a id="property-residuems"></a> `residueMs` | `number` | postFanInMs minus coveredMs, floored at zero. | `packages/core/dist/index.d.ts` |
 | <a id="property-residueshare"></a> `residueShare?` | `number` | residueMs / postFanInMs when the window is longer than zero. | `packages/core/dist/index.d.ts` |
-| <a id="property-semanticjudgems"></a> `semanticJudgeMs` | `number` | The claim-judge half of `synthesisMs`, clipped (RV1604). | `packages/core/dist/index.d.ts` |
+| <a id="property-semanticjudgems"></a> `semanticJudgeMs` | `number` | The claim-judge share of `synthesisMs`, clipped (RV1604). | `packages/core/dist/index.d.ts` |
 | <a id="property-synthesisms"></a> `synthesisMs` | `number` | Completed 'synthesize' span wall clipped to the window. | `packages/core/dist/index.d.ts` |
+| <a id="property-unclassifiedsynthesisms"></a> `unclassifiedSynthesisMs` | `number` | The unclassified share of `synthesisMs`, clipped (RV4206): nonzero flags the itemization as a floor, exactly like the top-level counter. | `packages/core/dist/index.d.ts` |

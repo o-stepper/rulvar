@@ -10,7 +10,7 @@
 function criticalPathFromJournal(entries): JournaledCriticalPath;
 ```
 
-Defined in: [packages/core/src/stores/critical-path.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L174)
+Defined in: [packages/core/src/stores/critical-path.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/critical-path.ts#L201)
 
 Fold a run's critical path out of its journal.
 

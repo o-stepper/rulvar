@@ -10,7 +10,7 @@
 function unionOfIntervalsMs(intervals): number;
 ```
 
-Defined in: [packages/core/src/l0/telemetry-reduce.ts:470](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L470)
+Defined in: [packages/core/src/l0/telemetry-reduce.ts:581](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/telemetry-reduce.ts#L581)
 
 Total length of the union of possibly overlapping intervals, exported
 (RV3404) so the journal fold computes its window coverage through the

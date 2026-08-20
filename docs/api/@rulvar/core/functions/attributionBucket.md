@@ -10,7 +10,7 @@
 function attributionBucket(value): string;
 ```
 
-Defined in: [packages/core/src/engine/cost-report.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L65)
+Defined in: [packages/core/src/engine/cost-report.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L66)
 
 The named fallback bucket of the attribution folds (RV3604): an
 absent phase, an EMPTY phase and an empty agentType all fold under

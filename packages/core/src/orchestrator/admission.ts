@@ -453,10 +453,34 @@ export function formatAcceptanceTailTerms(terms: AcceptanceTailTerms): string {
   );
 }
 
-/** The declared wire counts of one orchestration plan (RV4005). */
+/**
+ * The declared wire counts of one orchestration plan (RV4005). Since
+ * RV4206 the intake is CLOSED: an unknown key is a typed ConfigError
+ * instead of a silent zero. The sixth comparison experiment's harness
+ * passed `repairRound` and `transportRetries` (plausible names this
+ * spec never had) and `childWires: 4` for four children of ten turns
+ * each; every unknown key was ignored and the estimate answered
+ * confidently for a plan nobody had declared.
+ */
 export interface WireCapacitySpec {
-  /** Fan-out provider dispatches: children times their turns. */
-  childWires: number;
+  /**
+   * Fan-out provider dispatches: children TIMES their turns, the
+   * total, not the child count. Optional since RV4206 when the
+   * structural pair below is given; declaring both is legal only when
+   * they agree (`childWires === children * turnsPerChild`), refused
+   * typed otherwise.
+   */
+  childWires?: number;
+  /**
+   * The structural fan-out declaration (RV4206): `children` workers of
+   * `turnsPerChild` provider dispatches each. Declare BOTH or neither;
+   * the pair exists because `childWires` invites passing the child
+   * count where the wire total belongs, the exact call the sixth
+   * comparison harness made.
+   */
+  children?: number;
+  /** See `children`; the two resolve to `children * turnsPerChild` fan-out wires. */
+  turnsPerChild?: number;
   /** Coordination loop dispatches, the finish exchanges included. */
   coordinationWires?: number;
   /** Composition invocations of the base plan (the initial synthesis). */
@@ -470,12 +494,30 @@ export interface WireCapacitySpec {
    * to read `repairRoundDeltaWires` as the whole round.
    */
   judgeWires?: number;
+  /**
+   * Citation entailment audit judge dispatches (RV4206): one per pass,
+   * so 1 unarmed and the UNARMED reading here too when you read
+   * `repairRoundDeltaWires` as the whole round. The audit's wires were
+   * previously unnameable in this spec while the acceptance tail
+   * priced their money: the sixth comparison run's capacity model
+   * simply lost them.
+   */
+  citationJudgeWires?: number;
   /** Separate extract dispatches, when the finish rides one (RV3908 spares the schema'd final). */
   extractWires?: number;
 }
 
 /** What one orchestration plan costs in wires, base and worst case (RV4005). */
 export interface WireCapacityEstimate {
+  /**
+   * What these numbers ARE (RV4206): a fold over the counts the
+   * caller DECLARED, never a measurement of a run. The literal exists
+   * so a capacity report that embeds the estimate carries its
+   * provenance on its face, the `CostReport.basis` precedent: the
+   * sixth comparison run's answer presented a declared estimate over
+   * a misdeclared plan as the runtime's own economics.
+   */
+  basis: 'declared-estimate';
   /** The plan's wire total with no repair of any kind. */
   baseWires: number;
   /**
@@ -507,19 +549,83 @@ export interface WireCapacityEstimate {
  * `1 + r`.
  */
 export function wireCapacityEstimate(spec: WireCapacitySpec): WireCapacityEstimate {
-  requireNonNegativeNumber(spec.childWires, 'wireCapacityEstimate childWires');
+  // The closed intake (RV4206): an unknown key used to be a silent
+  // zero, and the sixth comparison harness paid for exactly that
+  // (`repairRound`, `transportRetries`, and a child COUNT passed as
+  // the wire total all sailed through).
+  const known = [
+    'childWires',
+    'children',
+    'turnsPerChild',
+    'coordinationWires',
+    'synthesisWires',
+    'judgeWires',
+    'citationJudgeWires',
+    'extractWires',
+  ];
+  for (const key of Object.keys(spec)) {
+    if (!known.includes(key)) {
+      throw new ConfigError(
+        `wireCapacityEstimate does not know the key '${key}'; the declared vocabulary is ` +
+          `${known.join(', ')}. A repair round is priced by the estimate itself ` +
+          '(repairRoundDeltaWires), and retries by retryWireMultiplier; neither is an input.',
+      );
+    }
+  }
+  const structural = spec.children !== undefined || spec.turnsPerChild !== undefined;
+  if (structural) {
+    if (spec.children === undefined || spec.turnsPerChild === undefined) {
+      throw new ConfigError(
+        'wireCapacityEstimate children and turnsPerChild come as a pair: declare both, or ' +
+          'declare the childWires total alone',
+      );
+    }
+    requireNonNegativeNumber(spec.children, 'wireCapacityEstimate children');
+    requireNonNegativeNumber(spec.turnsPerChild, 'wireCapacityEstimate turnsPerChild');
+  } else if (spec.childWires === undefined) {
+    throw new ConfigError(
+      'wireCapacityEstimate needs the fan-out declared: childWires (children times their ' +
+        'turns), or the structural pair children and turnsPerChild',
+    );
+  }
+  if (spec.childWires !== undefined) {
+    requireNonNegativeNumber(spec.childWires, 'wireCapacityEstimate childWires');
+  }
+  // The typed hint the sixth comparison harness needed: childWires 4
+  // beside children 4 and turnsPerChild 10 is a child count passed
+  // where a wire total belongs, not a plan.
+  if (structural && spec.childWires !== undefined) {
+    const product = (spec.children ?? 0) * (spec.turnsPerChild ?? 0);
+    if (spec.childWires !== product) {
+      throw new ConfigError(
+        `wireCapacityEstimate childWires ${String(spec.childWires)} contradicts children ` +
+          `${String(spec.children)} x turnsPerChild ${String(spec.turnsPerChild)} = ` +
+          `${String(product)}: childWires is the fan-out wire TOTAL, not the child count; ` +
+          'declare one form, or make them agree',
+      );
+    }
+  }
+  const childWires = spec.childWires ?? (spec.children ?? 0) * (spec.turnsPerChild ?? 0);
   const coordinationWires = spec.coordinationWires ?? 0;
   const synthesisWires = spec.synthesisWires ?? 0;
   const judgeWires = spec.judgeWires ?? 0;
+  const citationJudgeWires = spec.citationJudgeWires ?? 0;
   const extractWires = spec.extractWires ?? 0;
   requireNonNegativeNumber(coordinationWires, 'wireCapacityEstimate coordinationWires');
   requireNonNegativeNumber(synthesisWires, 'wireCapacityEstimate synthesisWires');
   requireNonNegativeNumber(judgeWires, 'wireCapacityEstimate judgeWires');
+  requireNonNegativeNumber(citationJudgeWires, 'wireCapacityEstimate citationJudgeWires');
   requireNonNegativeNumber(extractWires, 'wireCapacityEstimate extractWires');
   const baseWires =
-    spec.childWires + coordinationWires + synthesisWires + judgeWires + extractWires;
+    childWires +
+    coordinationWires +
+    synthesisWires +
+    judgeWires +
+    citationJudgeWires +
+    extractWires;
   const repairRoundDeltaWires = 2;
   return {
+    basis: 'declared-estimate',
     baseWires,
     repairRoundDeltaWires,
     mechanicalRepairDeltaWires: 1,

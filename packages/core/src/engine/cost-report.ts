@@ -25,6 +25,7 @@
  * Unpriced models surface in `unpriced`, never as a silent zero.
  */
 import { buildAbandonFold } from '../journal/disposition.js';
+import { synthesizeSpanClassOf } from '../l0/telemetry-reduce.js';
 import { priceEntryBilling, type JournalEntry } from '../l0/entries.js';
 import { ROOT_ACCOUNT } from './budget.js';
 import { requireFiniteNumbersDeep } from '../l0/validate-numbers.js';
@@ -64,6 +65,46 @@ function isOrchestratorAccount(scope: string): boolean {
  */
 export function attributionBucket(value: string | undefined): string {
   return value === undefined || value === '' ? 'unknown' : value;
+}
+
+/**
+ * The byAgentType bucket of one attributed slice (RV4206, the RV3905
+ * vacuum-fill precedent carried to the agent-type table). A declared
+ * agentType always wins, verbatim. The vacuum, an absent or empty
+ * agentType, is FILLED from facts the journal already records instead
+ * of stamping new bytes: role 'orchestrate' names the bucket
+ * 'orchestrator' (the coordination loop and the forced-finish wake),
+ * and role 'synthesize' names it by the dispatch label through the
+ * ONE {@link synthesizeSpanClassOf} classifier: 'synthesizer' for
+ * compositions and notes, 'claim-judge' and 'citation-judge' for the
+ * two judges, with an unknown label keeping the honest 'unknown'.
+ * Because the derivation reads only recorded facts, the live report,
+ * the journal fold, and every ARCHIVED journal report the same named
+ * buckets: the sixth comparison run's report read byAgentType 100%
+ * 'unknown' over a run whose every dispatch had a nameable stage, and
+ * that same journal now folds to named rows retroactively. Both
+ * accumulation sites and the journal fold call this one function, the
+ * RV3302 no-drift doctrine.
+ */
+export function agentTypeBucket(
+  agentType: string | undefined,
+  role: string | undefined,
+  label: string | undefined,
+): string {
+  if (agentType !== undefined && agentType !== '') {
+    return agentType;
+  }
+  if (role === 'orchestrate') {
+    return 'orchestrator';
+  }
+  if (role === 'synthesize') {
+    const cls = synthesizeSpanClassOf(label);
+    if (cls === 'composition') {
+      return 'synthesizer';
+    }
+    return cls === 'unclassified' ? 'unknown' : cls;
+  }
+  return 'unknown';
 }
 
 /** {@link attributionBucket} over a whole live map, merging folded keys. */
@@ -272,7 +313,9 @@ export function costReportFromJournal(
       }
     }
     byPhase[phase] = (byPhase[phase] ?? 0) + phaseUsd;
-    const agentType = attributionBucket(facts?.agentType);
+    // The vacuum-filled agent-type bucket (RV4206): derived from the
+    // recorded facts, so archived journals gain the named rows too.
+    const agentType = agentTypeBucket(facts?.agentType, facts?.role, facts?.label);
     byAgentType[agentType] = (byAgentType[agentType] ?? 0) + priced.usd;
     // The scope rollup (RV3805): the same inclusion policy as the
     // total, accumulated beside it, so the bucket sum equals totalUsd

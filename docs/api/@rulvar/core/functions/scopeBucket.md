@@ -10,7 +10,7 @@
 function scopeBucket(scope): string;
 ```
 
-Defined in: [packages/core/src/engine/cost-report.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L88)
+Defined in: [packages/core/src/engine/cost-report.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L129)
 
 The scope key rule of the byScope rollup (RV3805). The root's OWN
 scope is the empty string BY CONSTRUCTION: present data whose string

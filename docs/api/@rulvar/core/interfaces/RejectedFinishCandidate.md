@@ -6,7 +6,7 @@
 
 # Interface: RejectedFinishCandidate
 
-Defined in: [packages/core/src/engine/run-handle.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L202)
+Defined in: [packages/core/src/engine/run-handle.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L214)
 
 One finish candidate the declared contract did NOT accept (RV2507).
 The 1.226.0 comparison run rejected three syntheses; nothing on its
@@ -28,9 +28,9 @@ validators that did it.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-callid"></a> `callId` | `string` | The finish tool call this candidate arrived on. | [packages/core/src/engine/run-handle.ts:204](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L204) |
-| <a id="property-chars"></a> `chars` | `number` | The candidate's length in characters, honest whether or not the bytes were retained. | [packages/core/src/engine/run-handle.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L210) |
-| <a id="property-failed"></a> `failed` | \{ `name`: `string`; `reasons`: `string`[]; \}[] | Each validator that rejected it, with its reasons: the diff. | [packages/core/src/engine/run-handle.ts:212](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L212) |
-| <a id="property-hash"></a> `hash` | `string` | sha256 over the canonical candidate; identity, not location. | [packages/core/src/engine/run-handle.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L208) |
-| <a id="property-ref"></a> `ref?` | `string` | Transcript ref holding the bytes; absent unless retention is on and the write succeeded. | [packages/core/src/engine/run-handle.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L214) |
-| <a id="property-verdict"></a> `verdict` | `"rejected"` \| `"repair"` | `'repair'` when another turn was granted, `'rejected'` when this was the last. | [packages/core/src/engine/run-handle.ts:206](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L206) |
+| <a id="property-callid"></a> `callId` | `string` | The finish tool call this candidate arrived on. | [packages/core/src/engine/run-handle.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L216) |
+| <a id="property-chars"></a> `chars` | `number` | The candidate's length in characters, honest whether or not the bytes were retained. | [packages/core/src/engine/run-handle.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L222) |
+| <a id="property-failed"></a> `failed` | \{ `name`: `string`; `reasons`: `string`[]; \}[] | Each validator that rejected it, with its reasons: the diff. | [packages/core/src/engine/run-handle.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L224) |
+| <a id="property-hash"></a> `hash` | `string` | sha256 over the canonical candidate; identity, not location. | [packages/core/src/engine/run-handle.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L220) |
+| <a id="property-ref"></a> `ref?` | `string` | Transcript ref holding the bytes; absent unless retention is on and the write succeeded. | [packages/core/src/engine/run-handle.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L226) |
+| <a id="property-verdict"></a> `verdict` | `"rejected"` \| `"repair"` | `'repair'` when another turn was granted, `'rejected'` when this was the last. | [packages/core/src/engine/run-handle.ts:218](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L218) |

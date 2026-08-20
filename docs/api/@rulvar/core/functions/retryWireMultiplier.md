@@ -10,7 +10,7 @@
 function retryWireMultiplier(baseWires, retries): number;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:537](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L537)
+Defined in: [packages/core/src/orchestrator/admission.ts:643](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L643)
 
 The retry share of a wire plan (RV4005): r retries over a base of B
 wires re-dispatch r of the B, so totals scale by `1 + r/B`. The
