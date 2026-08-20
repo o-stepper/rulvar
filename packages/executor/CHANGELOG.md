@@ -1,5 +1,24 @@
 # @rulvar/executor
 
+## 1.247.0
+
+### Minor Changes
+
+- b698726: The first-party surface attests, and the floor loses its holes (RV4204, the sixth comparison experiment). Before this, only `mcp()` and the AI SDK bridge exposed `describeRegulatedPosture()`, so `unrecognized >= 1` on nearly every real regulated compile and a zero-blind-spot floor was unsatisfiable by construction; and the floor checked toolset attestation only on `defaults.profiles`, accepted legacy contract-only pins that pass authority drift silently, and never walked the executors at all. Now: `anthropic()` and `openai()` attest their egress (`official`, a `custom-base-url` whose ORIGIN enters the hashed posture map, or a `preconstructed-client` named honestly) plus the caps pagination bound; `subprocessExecutor()` and `containerExecutor()` attest their ledger, env allowlist, resolved ceilings, and isolation seam; `compileRegulatedProfile` walks `engine.executors` and the sandbox runner beside adapters and toolsets, wraps attested executors so `run()` re-judges the posture at use (the RV4102 seam), refuses a regulated executor without a `ToolEffectLedger` by field name, refuses legacy contract-only pins (re-record with `attestToolset()`), and arms the new engine-wide `defaults.requireToolsetAttestation`, under which a spawn resolving a non-empty toolset with no pin binding it refuses typed at spawn time (the per-call-tools hole the profile pins could not see). The opt-in `construction: 'require-recognized'` compile floor turns the unrecognized count into a typed refusal naming the blind constructions, satisfiable now that the first-party surface attests.
+
+### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+
 ## 1.246.0
 
 ### Patch Changes

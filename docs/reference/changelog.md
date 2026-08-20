@@ -18,6 +18,25 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.247.0
+
+#### Minor Changes
+
+- b698726: The first-party surface attests, and the floor loses its holes (RV4204, the sixth comparison experiment). Before this, only `mcp()` and the AI SDK bridge exposed `describeRegulatedPosture()`, so `unrecognized >= 1` on nearly every real regulated compile and a zero-blind-spot floor was unsatisfiable by construction; and the floor checked toolset attestation only on `defaults.profiles`, accepted legacy contract-only pins that pass authority drift silently, and never walked the executors at all. Now: `anthropic()` and `openai()` attest their egress (`official`, a `custom-base-url` whose ORIGIN enters the hashed posture map, or a `preconstructed-client` named honestly) plus the caps pagination bound; `subprocessExecutor()` and `containerExecutor()` attest their ledger, env allowlist, resolved ceilings, and isolation seam; `compileRegulatedProfile` walks `engine.executors` and the sandbox runner beside adapters and toolsets, wraps attested executors so `run()` re-judges the posture at use (the RV4102 seam), refuses a regulated executor without a `ToolEffectLedger` by field name, refuses legacy contract-only pins (re-record with `attestToolset()`), and arms the new engine-wide `defaults.requireToolsetAttestation`, under which a spawn resolving a non-empty toolset with no pin binding it refuses typed at spawn time (the per-call-tools hole the profile pins could not see). The opt-in `construction: 'require-recognized'` compile floor turns the unrecognized count into a typed refusal naming the blind constructions, satisfiable now that the first-party surface attests.
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+
 ### 1.246.0
 
 #### Patch Changes
@@ -2276,6 +2295,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+
 ### 1.246.0
 
 #### Minor Changes
@@ -4333,6 +4367,26 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.247.0
+
+#### Minor Changes
+
+- 4b7197a: The candidate chain reads by hash, and absent bytes say why (RV4207, the sixth comparison experiment). `finishValidation.candidatePersistence: 'transcript' | 'hash-only'` supersedes `retainRejectedCandidates` (declaring both refuses typed): under a declared policy every finish-validation decision carries the candidate identity, the ACCEPTED verdict included (the hash names the resolved document, deterministic patch or sectional splice applied, on the same recipe the semantic judges bind), `'transcript'` retains rejected bytes exactly as the boolean did, and `'hash-only'` retains none on purpose, stamping `bytesUnavailableReason: 'hash-only-persistence'` on the decision, the fold, and the terminal row (a declared retention the store refused stamps `'store-write-failed'`), so an auditor finding no blob reads a policy or a fault by name. The hash recipe is exported and documented: `candidateHashOf` (sha256 over the JCS canonical value; a string document hashes as its JSON encoding, and a file export with a trailing newline changes the file's sha while this hash holds) with `verifyCandidateBytes(bytes, hash)` as the audit predicate. `rulvar inspect <runId> --candidates` renders the chain (verdict, hash, chars, window, wires, money, byte address or the named reason) and `--candidate-bytes <hash>` recovers a retained document to stdout, verified against the journaled hash, in one command; the experiment's auditor recovered the rejected 37,645 character composition by digging messages[3] out of a binary transcript blob and re-deriving the recipe from source. Undeclared configs keep every byte: identity on non-accepted verdicts only, exactly RV2507.
+- 16ff6b9: One word answers the production question, on every surface (RV4209, the sixth comparison experiment). The acceptance envelope now carries `semanticTerminalVerdict` whenever claim or citation machinery is configured: `'clean' | 'findings' | 'partial' | 'vacuous' | 'waived' | 'not-judged'` with the final hash, the counts (contradictions, unsupported and partial citations, repair rounds), the standing waiver, and the judge-failure codes, folded ONCE at the orchestrator settle (`semanticTerminalVerdictOf`, exported) with fail-closed precedence: a failed or declined judge, and a draft-stage grade the synthesis rewrote (RV3207), read `not-judged`; findings outrank the waiver; the waiver is never clean. The verdict is lifted onto the outcome, mirrored onto the terminal envelope (and through it the `run:end` event and the HTTP response), so every consumer reads the SAME derivation instead of re-deriving it from four fields. `productionAcceptable` is the exported fail-closed gate (only `'clean'` passes; absence reads `not-judged`), and `rulvar run --acceptance-policy production` (also on `resume`) applies it after `--strict`'s mechanical checks, refusing suspended runs as `unsettled`, with ONE stable JSON reason line on stderr per refusal. `--strict` itself stays byte identical, documented exits included: the experiment's run settled ok under a standing waiver with three unsupported citations, and the pipeline reading strict's exit shipped it.
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
 
 ### 1.246.0
 
@@ -6962,6 +7016,20 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.247.0
+
+#### Minor Changes
+
+- 1933ecc: The atomic production posture, and the one bounded round every defect class can ride (RV4201, RV4202; the sixth comparison experiment). The experiment's run was configured knob by knob into "observe and ship anyway": report postures, a standing waiver, no repair round, every choice individually legal, their sum a run that settled accepted over a partial coverage grade, a judged contradiction and five unsupported citations. RV4201: `semanticAcceptance` is the one declaration that says the opposite in full (`judgedStage: 'final'`, `claimCoverage: 'full'`, contradictions/citations `'repair-once-then-fail' | 'fail'`, `unresolved: 'fail'`, `waiver: 'forbid' | { judgedHash }`); intake fills nothing and refuses every underlying field that contradicts it, `'forbid'` refuses typed even over a journaled waive decision (a config/journal mismatch is not an authority), the pinned form licenses exactly one reviewed document by its claim `judgedHash`, and the terminal invariant asserts that the claim and audit verdicts describe the shipped bytes. `compileRegulatedProfile` enforces it: `onFound` `'report'`/`'carry'` refuse, `'fail'` fills, an armed `'repair'` gains `coverageRepair: true`, a `coverageTarget` below 1 refuses as unsatisfiable, a standing waiver refuses outright, and the declaration is written from the enforced postures when absent. RV4202: coverage joins the bounded round (`claimConsistency.coverageRepair`: a non-'full' FINAL grade arms the same one round, the uncovered citing sentences ride its prompt as the UNCOVERED CLAIMS block, the repaired document is re-graded from its new hash, and a persistent non-'full' meets the strict gate with the spent round named), and arming BOTH the claim and citation repairs is legal now: the pair grants the SAME one merged round, fired after the first audit pass with both defect lists on board, both judges re-rule on the new hash, survivors of either class fail typed, and the acceptance tail prices exactly one round composition and two passes per armed judge. The repair ledger's semantic rows gain the `'coverage'` and `'combined'` triggers.
+- db0a5f0: The posture map tells postures apart (RV4203, the sixth comparison experiment's headline finding). `compileRegulatedProfile` hashed NONE of the semantic postures: a run configured `report` findings beside a standing waiver and a run configured fail closed carried the identical `profileHash` and `configFingerprint`, so the attestation machinery could not distinguish a diagnostic posture from a production one, which is the exact blind spot the sixth experiment ran through. The v3 posture map (REGULATED_VERSION 3, fingerprint prefix `regulated:3:`) hashes the findings postures of all three passes (`claimConsistency.onFound`, `citationAudit.onFound`, `contradictions.onFound` when declared), the coverage arm and target, the waiver mode with its declared terms, the citation audit's sampling and judge parameters (`samplePerSection`, `maxSampled`, `window`, `pattern`, judge model and effort), the claim judge's model and effort, the `semanticAcceptance` declaration in full, and the declared toolset attestation pins (contract and authority hashes), so upgrading a contract-only pin to an authority-bearing one moves the fingerprint. A v2 hash can never collide with a v3 reading of the same options.
+- b698726: The first-party surface attests, and the floor loses its holes (RV4204, the sixth comparison experiment). Before this, only `mcp()` and the AI SDK bridge exposed `describeRegulatedPosture()`, so `unrecognized >= 1` on nearly every real regulated compile and a zero-blind-spot floor was unsatisfiable by construction; and the floor checked toolset attestation only on `defaults.profiles`, accepted legacy contract-only pins that pass authority drift silently, and never walked the executors at all. Now: `anthropic()` and `openai()` attest their egress (`official`, a `custom-base-url` whose ORIGIN enters the hashed posture map, or a `preconstructed-client` named honestly) plus the caps pagination bound; `subprocessExecutor()` and `containerExecutor()` attest their ledger, env allowlist, resolved ceilings, and isolation seam; `compileRegulatedProfile` walks `engine.executors` and the sandbox runner beside adapters and toolsets, wraps attested executors so `run()` re-judges the posture at use (the RV4102 seam), refuses a regulated executor without a `ToolEffectLedger` by field name, refuses legacy contract-only pins (re-record with `attestToolset()`), and arms the new engine-wide `defaults.requireToolsetAttestation`, under which a spawn resolving a non-empty toolset with no pin binding it refuses typed at spawn time (the per-call-tools hole the profile pins could not see). The opt-in `construction: 'require-recognized'` compile floor turns the unrecognized count into a typed refusal naming the blind constructions, satisfiable now that the first-party surface attests.
+- 48348d2: Scope dimensions v2, and the quota binds to the scope (RV4205, the sixth comparison experiment's P0.2). `ExecutionScope` gains the three named host dimensions (`legalDomain`, `region`, `providerAccount`) beside the tenant/account/project trio; the genesis `execution_scope` decision and the invoice header carry the canonical `scopeDigest` (sha256 over the normalized JCS bytes, a fixed-length join column for FinOps pipelines); `RunOptions.scopePolicy: { unknown: 'reject' }` turns the silent unknown-field drop into a typed refusal by name (the drop default is pinned byte for byte, and `compileRegulatedProfile` enforces the refusal plus hashes the policy). The quota seam binds to the scope: `quota.tenantFrom: 'scope'` debits each run's reservations to the tenant its own scope declared instead of the engine-wide name (a scopeless run reserves tenant-less), every reservation carries the run's scope dimensions, and a `QuotaRule` can pin `account`, `project`, `legalDomain`, `region`, or `providerAccount` beside provider/model/tenant, matching only reservations whose scope carries the same value. Dimension-less rules keep their storage bucket keys byte identical, so keyed-store windows survive the upgrade.
+- 4cfa1cc: The telemetry names every judge, and the capacity intake closes (RV4206, the sixth comparison experiment). Both critical-path reducers now classify every synthesize span through one exported `synthesizeSpanClassOf`: the citation entailment audit judge gets its own `citationJudgeMs` bucket (plus span counter) on the live fold, the journal fold, and both post-fan-in itemizations, instead of folding into `finalCompositionMs` (the run under audit read 368889 ms of "composition" that was 214870 against 154019, with `compositionSpans` faking a repair round's signature and `lastCandidateMs` overshooting the settled candidate by the verdict tail); a PRESENT synthesize label the classifier does not know lands in `unclassifiedSynthesisMs` with a nonzero span counter instead of silently reading as composition, and the candidate milestones anchor to composition spans only. `CostReport.byAgentType` gets the RV3905 vacuum fill: the orchestrator's own dispatches attribute as `orchestrator`, `synthesizer`, `claim-judge`, and `citation-judge` (attribution policy only; explicit agent types and spawned profiles always win, events and journal identity untouched). And `wireCapacityEstimate` closes its intake: unknown keys refuse typed (they were silently zero), the fan-out can be declared structurally as `children` times `turnsPerChild` with a typed hint when a contradicting `childWires` passes a child count where the wire total belongs, the citation audit judge's wires get their `citationJudgeWires` key, and the output stamps `basis: 'declared-estimate'`.
+- 4b7197a: The candidate chain reads by hash, and absent bytes say why (RV4207, the sixth comparison experiment). `finishValidation.candidatePersistence: 'transcript' | 'hash-only'` supersedes `retainRejectedCandidates` (declaring both refuses typed): under a declared policy every finish-validation decision carries the candidate identity, the ACCEPTED verdict included (the hash names the resolved document, deterministic patch or sectional splice applied, on the same recipe the semantic judges bind), `'transcript'` retains rejected bytes exactly as the boolean did, and `'hash-only'` retains none on purpose, stamping `bytesUnavailableReason: 'hash-only-persistence'` on the decision, the fold, and the terminal row (a declared retention the store refused stamps `'store-write-failed'`), so an auditor finding no blob reads a policy or a fault by name. The hash recipe is exported and documented: `candidateHashOf` (sha256 over the JCS canonical value; a string document hashes as its JSON encoding, and a file export with a trailing newline changes the file's sha while this hash holds) with `verifyCandidateBytes(bytes, hash)` as the audit predicate. `rulvar inspect <runId> --candidates` renders the chain (verdict, hash, chars, window, wires, money, byte address or the named reason) and `--candidate-bytes <hash>` recovers a retained document to stdout, verified against the journaled hash, in one command; the experiment's auditor recovered the rejected 37,645 character composition by digging messages[3] out of a binary transcript blob and re-deriving the recipe from source. Undeclared configs keep every byte: identity on non-accepted verdicts only, exactly RV2507.
+- 5ebc842: The citation excerpt reads the logical unit, and every anchor gets its row (RV4208, the sixth comparison experiment). The declared `citationAudit.resolver: 2` (default 1, byte identical for every existing config) excerpts the bounded LOGICAL UNIT the cited line belongs to instead of the fixed downward window: a heading brings its whole section to the next heading, a list item its continuation lines, a table row its header pair, a code comment its block plus the declaration it documents, anything else its paragraph expanded both ways; all capped at the existing 12 lines and 800 chars with a `truncated` flag and the unit type on the row (`citationUnitExcerptOf`, exported). Under the same opt-in the sampler audits EVERY anchor of a compound sentence as its own row (`anchorOrdinal`) against its nearest claim clause (`clauseAround`, on the row and in the judge prompt), and the audit meta stamps `resolverVersion: 2`. The experiment's confirmed false negatives were exactly window artifacts (a section heading whose support lives below the window; only a sentence's first anchor ever sampled), and its two GENUINE unsupported citations survive v2 untouched: the 24-row gold corpus pins both directions at 24/24. Explicit `path:start-end` ranges keep range semantics under either resolver.
+- 16ff6b9: One word answers the production question, on every surface (RV4209, the sixth comparison experiment). The acceptance envelope now carries `semanticTerminalVerdict` whenever claim or citation machinery is configured: `'clean' | 'findings' | 'partial' | 'vacuous' | 'waived' | 'not-judged'` with the final hash, the counts (contradictions, unsupported and partial citations, repair rounds), the standing waiver, and the judge-failure codes, folded ONCE at the orchestrator settle (`semanticTerminalVerdictOf`, exported) with fail-closed precedence: a failed or declined judge, and a draft-stage grade the synthesis rewrote (RV3207), read `not-judged`; findings outrank the waiver; the waiver is never clean. The verdict is lifted onto the outcome, mirrored onto the terminal envelope (and through it the `run:end` event and the HTTP response), so every consumer reads the SAME derivation instead of re-deriving it from four fields. `productionAcceptable` is the exported fail-closed gate (only `'clean'` passes; absence reads `not-judged`), and `rulvar run --acceptance-policy production` (also on `resume`) applies it after `--strict`'s mechanical checks, refusing suspended runs as `unsettled`, with ONE stable JSON reason line on stderr per refusal. `--strict` itself stays byte identical, documented exits included: the experiment's run settled ok under a standing waiver with three unsupported citations, and the pipeline reading strict's exit shipped it.
+- 0c9941d: The judge pair rules together, and the draft becomes a map (RV4210, the sixth comparison experiment). With NO round armed anywhere, the final claim pass and the citation audit's first pass now dispatch CONCURRENTLY on the same immutable document, with the verdicts processed in the historical order (the claim pass's typed refusals fire first), so every decision, meta stamp, and refusal reads exactly as the sequential path wrote it; the run under audit spent 100.8 seconds of its tail waiting for the claim judge before the citation judge could start, on two verdicts that read nothing of each other. Any armed round (claim repair, coverage arm, audit repair, merged) keeps the strict sequence byte for byte, because a round rewrites the document and the audit must read what ships; wire counts are unchanged, and the acceptance tail already funded both passes. And `finishValidation.draftPolicy: 'digest'` joins `'contract'`: for configurations that do not use `skipWhenDraftValid`, the coordination prompt asks up front for a compact structural evidence map (one list row per planned section naming its claims and evidence) and the gate enforces the inversion deterministically, at least one list row and at most `DIGEST_DRAFT_MAX_WORDS` (400) words, so the draft can neither stay prose nor decay back into it (the run's contract-policy draft cost 344.8 seconds of model output and was rewritten whole by the composition). A digest is never a shippable candidate: `skipWhenDraftValid` and `fallbackToValidDraft` refuse typed beside it.
 
 ### 1.246.0
 
@@ -9845,6 +9913,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.247.0
+
 ### 1.246.0
 
 ### 1.245.0
@@ -10441,6 +10511,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+  - @rulvar/anthropic@1.247.0
+  - @rulvar/openai@1.247.0
+  - @rulvar/plan@1.247.0
+  - @rulvar/testing@1.247.0
 
 ### 1.246.0
 
@@ -13330,6 +13419,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.247.0
+
+#### Minor Changes
+
+- b698726: The first-party surface attests, and the floor loses its holes (RV4204, the sixth comparison experiment). Before this, only `mcp()` and the AI SDK bridge exposed `describeRegulatedPosture()`, so `unrecognized >= 1` on nearly every real regulated compile and a zero-blind-spot floor was unsatisfiable by construction; and the floor checked toolset attestation only on `defaults.profiles`, accepted legacy contract-only pins that pass authority drift silently, and never walked the executors at all. Now: `anthropic()` and `openai()` attest their egress (`official`, a `custom-base-url` whose ORIGIN enters the hashed posture map, or a `preconstructed-client` named honestly) plus the caps pagination bound; `subprocessExecutor()` and `containerExecutor()` attest their ledger, env allowlist, resolved ceilings, and isolation seam; `compileRegulatedProfile` walks `engine.executors` and the sandbox runner beside adapters and toolsets, wraps attested executors so `run()` re-judges the posture at use (the RV4102 seam), refuses a regulated executor without a `ToolEffectLedger` by field name, refuses legacy contract-only pins (re-record with `attestToolset()`), and arms the new engine-wide `defaults.requireToolsetAttestation`, under which a spawn resolving a non-empty toolset with no pin binding it refuses typed at spawn time (the per-call-tools hole the profile pins could not see). The opt-in `construction: 'require-recognized'` compile floor turns the unrecognized count into a typed refusal naming the blind constructions, satisfiable now that the first-party surface attests.
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+
 ### 1.246.0
 
 #### Patch Changes
@@ -14794,6 +14902,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.247.0
+
+#### Minor Changes
+
+- b698726: The first-party surface attests, and the floor loses its holes (RV4204, the sixth comparison experiment). Before this, only `mcp()` and the AI SDK bridge exposed `describeRegulatedPosture()`, so `unrecognized >= 1` on nearly every real regulated compile and a zero-blind-spot floor was unsatisfiable by construction; and the floor checked toolset attestation only on `defaults.profiles`, accepted legacy contract-only pins that pass authority drift silently, and never walked the executors at all. Now: `anthropic()` and `openai()` attest their egress (`official`, a `custom-base-url` whose ORIGIN enters the hashed posture map, or a `preconstructed-client` named honestly) plus the caps pagination bound; `subprocessExecutor()` and `containerExecutor()` attest their ledger, env allowlist, resolved ceilings, and isolation seam; `compileRegulatedProfile` walks `engine.executors` and the sandbox runner beside adapters and toolsets, wraps attested executors so `run()` re-judges the posture at use (the RV4102 seam), refuses a regulated executor without a `ToolEffectLedger` by field name, refuses legacy contract-only pins (re-record with `attestToolset()`), and arms the new engine-wide `defaults.requireToolsetAttestation`, under which a spawn resolving a non-empty toolset with no pin binding it refuses typed at spawn time (the per-call-tools hole the profile pins could not see). The opt-in `construction: 'require-recognized'` compile floor turns the unrecognized count into a typed refusal naming the blind constructions, satisfiable now that the first-party surface attests.
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
 
 ### 1.246.0
 
@@ -17054,6 +17181,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+
 ### 1.246.0
 
 #### Patch Changes
@@ -19226,6 +19368,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+  - eslint-plugin-rulvar@1.247.0
 
 ### 1.246.0
 
@@ -21602,6 +21760,23 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+  - @rulvar/anthropic@1.247.0
+  - @rulvar/openai@1.247.0
 
 ### 1.246.0
 
@@ -24310,6 +24485,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+
 ### 1.246.0
 
 #### Patch Changes
@@ -26493,6 +26683,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+
 ### 1.246.0
 
 #### Patch Changes
@@ -27973,6 +28178,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
 
 ### 1.246.0
 
@@ -30085,6 +30305,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.247.0
+
+#### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
 
 ### 1.246.0
 
