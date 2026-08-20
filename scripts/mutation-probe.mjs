@@ -5453,9 +5453,9 @@ export const MUTATIONS = [
   {
     id: 'regulated-hash-reads-the-normalized-scope',
     doctrine:
-      'the profile hash reads the normalized scope (RV4107): with the normalization dropped, a junk field the engine discards downstream moves the hash while the effective posture stands still, and two identical postures stop sharing a fingerprint',
+      'the profile hash reads the normalized scope (RV4107; the RV4205 reject posture rides the same call): with the normalization dropped, a junk field enters the hash unjudged instead of refusing by name, and the compiled scope is whatever object the host happened to pass',
     file: 'packages/core/src/engine/regulated-profile.ts',
-    find: "  run.scope = normalizeExecutionScope(run.scope, 'compileRegulatedProfile run.scope');",
+    find: "  run.scope = normalizeExecutionScope(\n    run.scope,\n    'compileRegulatedProfile run.scope',\n    run.scopePolicy,\n  );",
     replace: '',
     test: 'packages/core/src/engine/regulated-profile.test.ts',
   },
@@ -5494,6 +5494,24 @@ export const MUTATIONS = [
     find: "          await runCitationAudit(synthesizedFinal, 'round');",
     replace: '',
     test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
+    id: 'scope-reject-refuses-the-unknown-dimension',
+    doctrine:
+      'the reject scope policy refuses an unknown dimension by name (RV4205): with the check collapsed, a dimension the engine cannot record silently drops under a policy that promised a refusal, and the host that declared it never learns nothing downstream can bind it',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      if (!(SCOPE_FIELDS as readonly string[]).includes(key)) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/execution-scope.test.ts',
+  },
+  {
+    id: 'quota-tenant-reads-the-run-scope',
+    doctrine:
+      "tenantFrom 'scope' debits the run's own tenant (RV4205): with the resolution collapsed to the engine tenant, one engine serving many tenants debits every run's reservations to a single configured name, and per-tenant caps cap nobody in particular",
+    file: 'packages/core/src/engine/ctx.ts',
+    find: "        quota.tenantFrom === 'scope' ? internals.executionScope?.tenant : quota.tenant;",
+    replace: '        quota.tenant;',
+    test: 'packages/core/src/engine/quota.test.ts',
   },
   {
     id: 'attestation-floor-binds-the-toolful-spawn',

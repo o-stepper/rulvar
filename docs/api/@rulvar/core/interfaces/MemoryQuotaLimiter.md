@@ -6,7 +6,7 @@
 
 # Interface: MemoryQuotaLimiter
 
-Defined in: [packages/core/src/model/quota.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L301)
+Defined in: [packages/core/src/model/quota.ts:345](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L345)
 
 The in-process reference QuotaLimiter returned by memoryQuotaLimiter.
 
@@ -25,7 +25,7 @@ reconcile(
 actual?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/quota.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L99)
+Defined in: [packages/core/src/l0/spi/quota.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L116)
 
 Settles a reservation against the attempt's actual usage. The
 optional `actual.requests` is the TRUE number of wire requests the
@@ -63,7 +63,7 @@ remain valid; they merely keep the historical undercount.
 release(reservationId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:305](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L305)
+Defined in: [packages/core/src/model/quota.ts:349](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L349)
 
 The reference limiter always implements release (RV1013).
 
@@ -89,7 +89,7 @@ The reference limiter always implements release (RV1013).
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/core/src/l0/spi/quota.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L86)
+Defined in: [packages/core/src/l0/spi/quota.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L103)
 
 #### Parameters
 
@@ -113,7 +113,7 @@ Defined in: [packages/core/src/l0/spi/quota.ts:86](https://github.com/o-stepper/
 snapshot(): QuotaWindowSnapshot[];
 ```
 
-Defined in: [packages/core/src/model/quota.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L303)
+Defined in: [packages/core/src/model/quota.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L347)
 
 Current-window counters per rule; rolled-over windows read as zero.
 

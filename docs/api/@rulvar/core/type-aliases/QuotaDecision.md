@@ -19,7 +19,7 @@ type QuotaDecision =
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/quota.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L80)
+Defined in: [packages/core/src/l0/spi/quota.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L97)
 
 The admission verdict. `retryAfterMs` on a denial is the
 provider-shaped hint the retry engine honors verbatim: the time

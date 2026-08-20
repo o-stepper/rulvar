@@ -856,6 +856,22 @@ export interface RunInternals {
    * absent = no shared quota, byte-identical to before the feature.
    */
   quota?: EngineQuotaRuntime;
+  /**
+   * The run's recorded execution scope (RV4205): the normalized copy
+   * genesis records, threaded so the quota completion can read the
+   * scope's tenant under `tenantFrom: 'scope'` and stamp the scope
+   * dimensions onto reservations for dimension-matched rules.
+   * Structural (not the engine's ExecutionScope named type) because
+   * ctx deliberately imports nothing from engine.ts.
+   */
+  executionScope?: {
+    tenant?: string;
+    account?: string;
+    project?: string;
+    legalDomain?: string;
+    region?: string;
+    providerAccount?: string;
+  };
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
   /** budgetDefaults.flatReserveUsd; last resort of the reserve formula. */
@@ -2797,13 +2813,19 @@ export function createCtx(
     if (internals.quota !== undefined) {
       const quota = internals.quota;
       // The ctx layer completes the reservation request with what the
-      // loop cannot know: the run id and the engine tenant.
+      // loop cannot know: the run id, the tenant (the engine's, or
+      // the run scope's under tenantFrom 'scope', RV4205), and the
+      // scope dimensions for dimension-matched rules.
+      const reservationTenant =
+        quota.tenantFrom === 'scope' ? internals.executionScope?.tenant : quota.tenant;
+      const reservationScope = internals.executionScope;
       runAgentOptions.quota = {
         reserve: (request) =>
           quota.limiter.reserve({
             ...request,
             runId: internals.runId,
-            ...(quota.tenant === undefined ? {} : { tenant: quota.tenant }),
+            ...(reservationTenant === undefined ? {} : { tenant: reservationTenant }),
+            ...(reservationScope === undefined ? {} : { scope: reservationScope }),
           }),
         reconcile: (reservationId, usage, actual) =>
           quota.limiter.reconcile(reservationId, usage, actual),
@@ -2880,10 +2902,19 @@ export function createCtx(
     const declaredRules = internals.quota?.declaredRules;
     if (declaredRules !== undefined && result.rateLimitObservations !== undefined) {
       for (const observation of result.rateLimitObservations) {
+        // The drift probe resolves its tenant exactly like the live
+        // reservation completion (RV4205): the engine's, or the run
+        // scope's under tenantFrom 'scope', and the scope rides it so
+        // dimension-matched rules join the comparison.
+        const probeTenant =
+          internals.quota?.tenantFrom === 'scope'
+            ? internals.executionScope?.tenant
+            : internals.quota?.tenant;
         const probe = {
           provider: observation.provider,
           model: observation.model,
-          ...(internals.quota?.tenant === undefined ? {} : { tenant: internals.quota.tenant }),
+          ...(probeTenant === undefined ? {} : { tenant: probeTenant }),
+          ...(internals.executionScope === undefined ? {} : { scope: internals.executionScope }),
           estimate: { requests: 1, inputTokens: 0 },
         };
         const matching = declaredRules.filter((rule) => quotaRuleMatches(rule, probe));

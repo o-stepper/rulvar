@@ -538,7 +538,23 @@ export function compileRegulatedProfile(input: {
   // The same call refuses an empty or malformed scope HERE, at compile
   // time, and the copy rides the compiled run, so later host mutation
   // of the passed object cannot move what genesis records.
-  run.scope = normalizeExecutionScope(run.scope, 'compileRegulatedProfile run.scope');
+  // A silently dropped dimension is a dimension nothing recorded
+  // (RV4205): the regulated scope refuses unknown fields by name
+  // instead of normalizing them away, so a host that declared a
+  // dimension the engine cannot bind learns at compile time.
+  if (run.scopePolicy?.unknown === 'drop') {
+    refuse(
+      'run.scopePolicy.unknown',
+      "must be 'reject' (RV4205): a silently dropped dimension is a dimension nothing " +
+        'downstream recorded or bound',
+    );
+  }
+  run.scopePolicy = { unknown: 'reject' };
+  run.scope = normalizeExecutionScope(
+    run.scope,
+    'compileRegulatedProfile run.scope',
+    run.scopePolicy,
+  );
 
   // ---- Orchestrate floor (when the run is a dynamic orchestration).
   if (orchestrate !== undefined) {
@@ -826,6 +842,7 @@ export function compileRegulatedProfile(input: {
     budgetPolicy: 'immutable-lifetime',
     budgetUsd: run.budgetUsd,
     scope: run.scope,
+    scopePolicy: 'reject',
     ...(Object.keys(toolsetAttestations).length === 0 ? {} : { toolsetAttestations }),
     ...semanticPosture,
     ...(run.configFingerprint === undefined ? {} : { hostFingerprint: run.configFingerprint }),

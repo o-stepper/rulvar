@@ -427,9 +427,18 @@ export interface RunOptions {
    * The bounded execution scope (RV4007): recorded at genesis into
    * RunMeta and a journal decision, immutable for the run's life (no
    * resume door), lifted onto the invoice header and carried by the
-   * export bundle. Attribution only: the library never interprets it.
+   * export bundle. Attribution only: the library never interprets it,
+   * with one declared exception since RV4205: a quota config with
+   * `tenantFrom: 'scope'` reads the scope's tenant into its
+   * reservations.
    */
   scope?: ExecutionScope;
+  /**
+   * What an unknown scope field does (RV4205): 'drop' (the default,
+   * the historical bytes, pinned) or 'reject' (typed refusal by
+   * name). `compileRegulatedProfile` enforces 'reject'.
+   */
+  scopePolicy?: ScopePolicy;
   /**
    * The opt-in in-flight exposure cap (RV711): bounds spent money plus
    * the summed worst-case estimates of live dispatches. The per-turn
@@ -805,20 +814,68 @@ export interface ExecutionScope {
   account?: string;
   /** The project or workload name. */
   project?: string;
+  /**
+   * The governing legal domain (RV4205, the sixth comparison
+   * experiment's P0.2): host-defined vocabulary (a jurisdiction, a
+   * regulatory regime), the first of the three named dimensions the
+   * experiment's question bound to routing and audit.
+   */
+  legalDomain?: string;
+  /** The deployment or data-residency region, host-defined (RV4205). */
+  region?: string;
+  /** The provider-side billing account identity, host-defined (RV4205). */
+  providerAccount?: string;
 }
 
-const SCOPE_FIELDS = ['tenant', 'account', 'project'] as const;
+const SCOPE_FIELDS = [
+  'tenant',
+  'account',
+  'project',
+  'legalDomain',
+  'region',
+  'providerAccount',
+] as const;
+
+/**
+ * What an UNKNOWN scope field does (RV4205). 'drop' (the default, the
+ * RV4007/RV4107 posture byte for byte) silently discards it from the
+ * normalized copy, which keeps junk fields from moving the recorded
+ * identity; 'reject' refuses it typed by name, because a dimension
+ * the engine cannot record is a dimension nothing downstream can bind
+ * to routing, quota, or audit, and a host that declared it meant it.
+ * `compileRegulatedProfile` enforces 'reject'.
+ */
+export interface ScopePolicy {
+  unknown?: 'drop' | 'reject';
+}
 
 /**
  * Validates and copies a declared scope (RV4007): own properties only
  * (the RV1205 doctrine: a prototype member must never resolve),
  * non-empty strings of at most 256 chars, at least one field, and the
  * copy is what gets recorded, so later host mutation of the passed
- * object cannot move the recorded identity.
+ * object cannot move the recorded identity. Under
+ * `policy.unknown: 'reject'` (RV4205) an own enumerable field outside
+ * the named dimensions refuses typed by name instead of dropping.
  */
-export function normalizeExecutionScope(value: unknown, site: string): ExecutionScope {
+export function normalizeExecutionScope(
+  value: unknown,
+  site: string,
+  policy?: ScopePolicy,
+): ExecutionScope {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new ConfigError(`${site} must be an object; got ${JSON.stringify(value)}`);
+  }
+  if (policy?.unknown === 'reject') {
+    for (const key of Object.keys(value)) {
+      if (!(SCOPE_FIELDS as readonly string[]).includes(key)) {
+        throw new ConfigError(
+          `${site}.${key} is not a scope dimension (scopePolicy.unknown 'reject'): the ` +
+            `named dimensions are ${SCOPE_FIELDS.join(', ')}; a field the engine cannot ` +
+            'record is a field nothing downstream can bind',
+        );
+      }
+    }
   }
   const copy: ExecutionScope = {};
   for (const field of SCOPE_FIELDS) {
@@ -836,7 +893,7 @@ export function normalizeExecutionScope(value: unknown, site: string): Execution
   }
   if (Object.keys(copy).length === 0) {
     throw new ConfigError(
-      `${site} must declare at least one of tenant, account, project; an empty scope ` +
+      `${site} must declare at least one of ${SCOPE_FIELDS.join(', ')}; an empty scope ` +
         'records nothing and asserts nothing',
     );
   }
@@ -846,6 +903,17 @@ export function normalizeExecutionScope(value: unknown, site: string): Execution
 /** The canonical identity string of a scope (RV4007): JCS bytes, total and deterministic. */
 export function executionScopeKey(scope: ExecutionScope): string {
   return jcsSerialize(scope);
+}
+
+/**
+ * The canonical digest of a scope (RV4205): sha256 over the JCS bytes
+ * of the NORMALIZED scope, a fixed-length identity for causal records
+ * (the genesis decision, the invoice header) and external joins, so a
+ * FinOps pipeline correlates runs by one column instead of comparing
+ * structured objects field by field.
+ */
+export function executionScopeDigest(scope: ExecutionScope): string {
+  return createHash('sha256').update(executionScopeKey(scope), 'utf8').digest('hex');
 }
 
 /** Validates a declared config fingerprint (RV3210): a non-empty string of at most 512 chars. */
@@ -1527,6 +1595,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
       : {
           limiter: options.quota.limiter,
           ...(options.quota.tenant === undefined ? {} : { tenant: options.quota.tenant }),
+          ...(options.quota.tenantFrom === undefined
+            ? {}
+            : { tenantFrom: options.quota.tenantFrom }),
           onLimiterError: options.quota.onLimiterError ?? 'deny',
           reserveContinuations: options.quota.reserveContinuations ?? false,
           maxDenials: options.quota.maxDenials ?? DEFAULT_MAX_QUOTA_DENIALS,
@@ -1718,10 +1789,21 @@ export function createEngine(options: CreateEngineOptions): Engine {
           JSON.stringify(opts.budgetPolicy),
       );
     }
+    if (
+      opts?.scopePolicy !== undefined &&
+      opts.scopePolicy.unknown !== undefined &&
+      opts.scopePolicy.unknown !== 'drop' &&
+      opts.scopePolicy.unknown !== 'reject'
+    ) {
+      throw new ConfigError(
+        "RunOptions.scopePolicy.unknown must be 'drop' or 'reject'; got " +
+          JSON.stringify(opts.scopePolicy.unknown),
+      );
+    }
     const declaredScope =
       opts?.scope === undefined
         ? undefined
-        : normalizeExecutionScope(opts.scope, 'RunOptions.scope');
+        : normalizeExecutionScope(opts.scope, 'RunOptions.scope', opts.scopePolicy);
     if (opts?.limits !== undefined) {
       validateUsageLimits(opts.limits, 'RunOptions.limits');
     }
@@ -2121,6 +2203,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       runSignal: controller.signal,
       ...(defaults.isolation === undefined ? {} : { isolation: defaults.isolation }),
       ...(options.executors === undefined ? {} : { executors: options.executors }),
+      ...(executionScope === undefined ? {} : { executionScope }),
       ...(execKey === undefined ? {} : { execKey }),
       ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),
       external,
@@ -2385,6 +2468,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
           value: {
             decisionType: 'execution_scope',
             scope: executionScope as unknown as Json,
+            // The canonical digest (RV4205): a fixed-length identity
+            // for external joins, derived from the same normalized
+            // bytes the assertion machinery compares.
+            scopeDigest: executionScopeDigest(executionScope),
           },
         });
       }

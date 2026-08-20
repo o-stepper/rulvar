@@ -332,9 +332,20 @@ export interface InvoiceExport {
    * genesis `execution_scope` decision: who this run executed for, as
    * the host named it, on the money document a FinOps pipeline
    * actually consumes. Absent on unscoped runs, so their exports keep
-   * their bytes.
+   * their bytes. The RV4205 dimensions ride the same object, and
+   * `executionScopeDigest` beside it is the fixed-length join column
+   * (present exactly when the genesis decision recorded one).
    */
-  executionScope?: { tenant?: string; account?: string; project?: string };
+  executionScope?: {
+    tenant?: string;
+    account?: string;
+    project?: string;
+    legalDomain?: string;
+    region?: string;
+    providerAccount?: string;
+  };
+  /** The canonical scope digest (RV4205), lifted from the same decision. */
+  executionScopeDigest?: string;
   /**
    * The unknown-outcome intent lane (RV4006): `provider-intent`
    * decisions (the 'intent' receipt posture journals one before every
@@ -961,10 +972,17 @@ export function invoiceFromJournal(
         if (entry.kind !== 'decision') {
           continue;
         }
-        const value = entry.value as { decisionType?: unknown; scope?: unknown } | undefined;
+        const value = entry.value as
+          { decisionType?: unknown; scope?: unknown; scopeDigest?: unknown } | undefined;
         if (value?.decisionType === 'execution_scope' && typeof value.scope === 'object') {
           return {
             executionScope: value.scope as NonNullable<InvoiceExport['executionScope']>,
+            // The digest travels verbatim (RV4205): absent on journals
+            // written before it shipped, never recomputed here, so the
+            // export says what the run recorded.
+            ...(typeof value.scopeDigest === 'string'
+              ? { executionScopeDigest: value.scopeDigest }
+              : {}),
           };
         }
       }

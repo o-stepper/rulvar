@@ -746,3 +746,76 @@ describe('quota:denied is the primary event for recoverable waits (RV1810)', () 
     ).toThrow(/telemetry\.quotaDeniedAgentError must be a boolean/);
   });
 });
+
+describe('the scope-bound reservation (RV4205)', () => {
+  it("tenantFrom 'scope' reads the run scope's tenant and stamps the dimensions", async () => {
+    const seen: QuotaReservationRequest[] = [];
+    const limiter: QuotaLimiter = {
+      reserve: (request) => {
+        seen.push(request);
+        return Promise.resolve({ granted: true, reservationId: 'r1' });
+      },
+      reconcile: () => Promise.resolve(),
+    };
+    const outcome = await engineWith(answeringAdapter(), {
+      limiter,
+      tenant: 'engine-tenant',
+      tenantFrom: 'scope',
+    }).run(askWf, undefined, {
+      scope: { tenant: 'run-tenant', region: 'eu-central-1', legalDomain: 'eu-gdpr' },
+    }).result;
+    expect(outcome.status).toBe('ok');
+    expect(seen[0]?.tenant).toBe('run-tenant');
+    expect(seen[0]?.scope).toEqual({
+      tenant: 'run-tenant',
+      region: 'eu-central-1',
+      legalDomain: 'eu-gdpr',
+    });
+  });
+
+  it("tenantFrom 'scope' on an unscoped run reserves tenant-less, never the engine's", async () => {
+    const seen: QuotaReservationRequest[] = [];
+    const limiter: QuotaLimiter = {
+      reserve: (request) => {
+        seen.push(request);
+        return Promise.resolve({ granted: true, reservationId: 'r1' });
+      },
+      reconcile: () => Promise.resolve(),
+    };
+    const outcome = await engineWith(answeringAdapter(), {
+      limiter,
+      tenant: 'engine-tenant',
+      tenantFrom: 'scope',
+    }).run(askWf, undefined).result;
+    expect(outcome.status).toBe('ok');
+    expect('tenant' in (seen[0] ?? {})).toBe(false);
+  });
+
+  it('the default keeps the engine tenant byte for byte, scope beside it', async () => {
+    const seen: QuotaReservationRequest[] = [];
+    const limiter: QuotaLimiter = {
+      reserve: (request) => {
+        seen.push(request);
+        return Promise.resolve({ granted: true, reservationId: 'r1' });
+      },
+      reconcile: () => Promise.resolve(),
+    };
+    await engineWith(answeringAdapter(), { limiter, tenant: 'acme' }).run(askWf, undefined, {
+      scope: { tenant: 'run-tenant', account: 'prod' },
+    }).result;
+    expect(seen[0]?.tenant).toBe('acme');
+    expect(seen[0]?.scope).toEqual({ tenant: 'run-tenant', account: 'prod' });
+  });
+
+  it('a garbage tenantFrom refuses typed at createEngine', () => {
+    expect(() =>
+      engineWith(answeringAdapter(), {
+        limiter: {
+          reserve: () => Promise.resolve({ granted: true, reservationId: 'x' }),
+          reconcile: () => Promise.resolve(),
+        },
+        tenantFrom: 'vibes' as never,
+      }),
+    ).toThrow(/tenantFrom must be 'engine' or 'scope'/);
+  });
+});

@@ -13,6 +13,7 @@ import {
   memoryQuotaLimiter,
   quotaRuleAdmission,
   quotaRuleKey,
+  quotaRuleMatches,
   snapshotQuotaRules,
   validateEngineQuotaConfig,
   validateQuotaRules,
@@ -406,5 +407,54 @@ describe('release: cancelling an unused admission (RV1013)', () => {
     );
     // The reconcile of a released id is the unknown-id no-op.
     expect(limiter.snapshot()[0]?.requests).toBe(0);
+  });
+});
+
+describe('scope-dimension rules (RV4205)', () => {
+  it('validates the pinned dimensions and keeps dimension-less rule keys byte identical', () => {
+    expect(() => validateQuotaRules([{ region: '', requestsPerMinute: 1 }] as never)).toThrow(
+      /region must be a nonempty string/,
+    );
+    const legacy = { provider: 'anthropic', requestsPerMinute: 10 };
+    expect(quotaRuleKey(legacy)).toBe(
+      JSON.stringify({
+        provider: 'anthropic',
+        model: null,
+        tenant: null,
+        requestsPerMinute: 10,
+        tokensPerMinute: null,
+      }),
+    );
+    const regional = { provider: 'anthropic', region: 'eu-central-1', requestsPerMinute: 10 };
+    expect(quotaRuleKey(regional)).not.toBe(quotaRuleKey(legacy));
+    expect(quotaRuleKey({ ...regional })).toBe(quotaRuleKey(regional));
+  });
+
+  it('matches pinned dimensions against the reservation scope, unscoped matches none', () => {
+    const rule = { region: 'eu-central-1', legalDomain: 'eu-gdpr', requestsPerMinute: 5 };
+    const base = { provider: 'anthropic', model: 'm', estimate: { requests: 1, inputTokens: 1 } };
+    expect(
+      quotaRuleMatches(rule, {
+        ...base,
+        scope: { region: 'eu-central-1', legalDomain: 'eu-gdpr' },
+      }),
+    ).toBe(true);
+    expect(
+      quotaRuleMatches(rule, { ...base, scope: { region: 'us-east-1', legalDomain: 'eu-gdpr' } }),
+    ).toBe(false);
+    expect(quotaRuleMatches(rule, base)).toBe(false);
+    // account and providerAccount pin the same way.
+    expect(
+      quotaRuleMatches(
+        { account: 'prod', requestsPerMinute: 1 },
+        { ...base, scope: { account: 'prod' } },
+      ),
+    ).toBe(true);
+    expect(
+      quotaRuleMatches(
+        { providerAccount: 'ant-7', requestsPerMinute: 1 },
+        { ...base, scope: { providerAccount: 'ant-8' } },
+      ),
+    ).toBe(false);
   });
 });

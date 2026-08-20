@@ -6,7 +6,7 @@
 
 # Interface: OpenWireIntent
 
-Defined in: [packages/core/src/engine/invoice.ts:589](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L589)
+Defined in: [packages/core/src/engine/invoice.ts:600](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L600)
 
 One open provider wire intent (RV4006).
 
@@ -14,10 +14,10 @@ One open provider wire intent (RV4006).
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-agentref"></a> `agentRef` | `number` | [packages/core/src/engine/invoice.ts:592](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L592) |
-| <a id="property-attempt"></a> `attempt` | `number` | [packages/core/src/engine/invoice.ts:594](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L594) |
-| <a id="property-ordinal"></a> `ordinal` | `number` | [packages/core/src/engine/invoice.ts:593](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L593) |
-| <a id="property-requestfingerprint"></a> `requestFingerprint?` | `string` | [packages/core/src/engine/invoice.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L596) |
-| <a id="property-scope"></a> `scope` | `string` | [packages/core/src/engine/invoice.ts:591](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L591) |
-| <a id="property-seq"></a> `seq` | `number` | [packages/core/src/engine/invoice.ts:590](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L590) |
-| <a id="property-servedby"></a> `servedBy` | `string` | [packages/core/src/engine/invoice.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L595) |
+| <a id="property-agentref"></a> `agentRef` | `number` | [packages/core/src/engine/invoice.ts:603](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L603) |
+| <a id="property-attempt"></a> `attempt` | `number` | [packages/core/src/engine/invoice.ts:605](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L605) |
+| <a id="property-ordinal"></a> `ordinal` | `number` | [packages/core/src/engine/invoice.ts:604](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L604) |
+| <a id="property-requestfingerprint"></a> `requestFingerprint?` | `string` | [packages/core/src/engine/invoice.ts:607](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L607) |
+| <a id="property-scope"></a> `scope` | `string` | [packages/core/src/engine/invoice.ts:602](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L602) |
+| <a id="property-seq"></a> `seq` | `number` | [packages/core/src/engine/invoice.ts:601](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L601) |
+| <a id="property-servedby"></a> `servedBy` | `string` | [packages/core/src/engine/invoice.ts:606](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L606) |
