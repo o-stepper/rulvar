@@ -1,5 +1,25 @@
 # @rulvar/cli
 
+## 1.247.0
+
+### Minor Changes
+
+- 4b7197a: The candidate chain reads by hash, and absent bytes say why (RV4207, the sixth comparison experiment). `finishValidation.candidatePersistence: 'transcript' | 'hash-only'` supersedes `retainRejectedCandidates` (declaring both refuses typed): under a declared policy every finish-validation decision carries the candidate identity, the ACCEPTED verdict included (the hash names the resolved document, deterministic patch or sectional splice applied, on the same recipe the semantic judges bind), `'transcript'` retains rejected bytes exactly as the boolean did, and `'hash-only'` retains none on purpose, stamping `bytesUnavailableReason: 'hash-only-persistence'` on the decision, the fold, and the terminal row (a declared retention the store refused stamps `'store-write-failed'`), so an auditor finding no blob reads a policy or a fault by name. The hash recipe is exported and documented: `candidateHashOf` (sha256 over the JCS canonical value; a string document hashes as its JSON encoding, and a file export with a trailing newline changes the file's sha while this hash holds) with `verifyCandidateBytes(bytes, hash)` as the audit predicate. `rulvar inspect <runId> --candidates` renders the chain (verdict, hash, chars, window, wires, money, byte address or the named reason) and `--candidate-bytes <hash>` recovers a retained document to stdout, verified against the journaled hash, in one command; the experiment's auditor recovered the rejected 37,645 character composition by digging messages[3] out of a binary transcript blob and re-deriving the recipe from source. Undeclared configs keep every byte: identity on non-accepted verdicts only, exactly RV2507.
+- 16ff6b9: One word answers the production question, on every surface (RV4209, the sixth comparison experiment). The acceptance envelope now carries `semanticTerminalVerdict` whenever claim or citation machinery is configured: `'clean' | 'findings' | 'partial' | 'vacuous' | 'waived' | 'not-judged'` with the final hash, the counts (contradictions, unsupported and partial citations, repair rounds), the standing waiver, and the judge-failure codes, folded ONCE at the orchestrator settle (`semanticTerminalVerdictOf`, exported) with fail-closed precedence: a failed or declined judge, and a draft-stage grade the synthesis rewrote (RV3207), read `not-judged`; findings outrank the waiver; the waiver is never clean. The verdict is lifted onto the outcome, mirrored onto the terminal envelope (and through it the `run:end` event and the HTTP response), so every consumer reads the SAME derivation instead of re-deriving it from four fields. `productionAcceptable` is the exported fail-closed gate (only `'clean'` passes; absence reads `not-judged`), and `rulvar run --acceptance-policy production` (also on `resume`) applies it after `--strict`'s mechanical checks, refusing suspended runs as `unsettled`, with ONE stable JSON reason line on stderr per refusal. `--strict` itself stays byte identical, documented exits included: the experiment's run settled ok under a standing waiver with three unsupported citations, and the pipeline reading strict's exit shipped it.
+
+### Patch Changes
+
+- Updated dependencies [1933ecc]
+- Updated dependencies [db0a5f0]
+- Updated dependencies [b698726]
+- Updated dependencies [48348d2]
+- Updated dependencies [4cfa1cc]
+- Updated dependencies [4b7197a]
+- Updated dependencies [5ebc842]
+- Updated dependencies [16ff6b9]
+- Updated dependencies [0c9941d]
+  - @rulvar/core@1.247.0
+
 ## 1.246.0
 
 ### Patch Changes
