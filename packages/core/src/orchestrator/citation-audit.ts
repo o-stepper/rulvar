@@ -45,12 +45,50 @@ export interface CitationAuditRow {
   /** The range end when the citation is `path:start-end`. */
   endLine?: number;
   /**
+   * Which anchor of a compound sentence this row audits (RV4208,
+   * resolver v2 only): zero-based, in sentence order. Resolver v1
+   * samples only a sentence's FIRST anchor, so the field is absent
+   * there and on every earlier row.
+   */
+  anchorOrdinal?: number;
+  /**
+   * The claim clause NEAREST this row's anchor (RV4208, resolver v2
+   * only): the sentence segment, split at clause boundaries, that
+   * contains the anchor. A compound sentence cites three files for
+   * three different claims; judging each anchor against the WHOLE
+   * sentence asks whether the lines entail claims they were never
+   * cited for.
+   */
+  clause?: string;
+  /**
    * The resolved lines, `L<n>: <text>` per line. Absent when the
    * FIRST cited line does not resolve in the host snapshot, which is
    * itself an unsupported verdict: a citation nothing resolves is not
    * provenance (the citedValueValidator doctrine).
    */
   excerpt?: string;
+  /**
+   * What resolver v2 excerpted (RV4208): the bounded logical unit's
+   * type, its line count, and whether the caps clipped it. Absent
+   * under resolver v1, whose window is fixed and self-describing.
+   */
+  unit?: CitationExcerptUnit;
+}
+
+/** The bounded logical unit resolver v2 excerpts (RV4208). */
+export interface CitationExcerptUnit {
+  /**
+   * 'section' a heading plus its body to the next heading; 'list-item'
+   * a list marker plus its continuation lines; 'table-row' a table row
+   * with its header pair when adjacent; 'comment-declaration' a code
+   * comment block plus the declaration it documents; 'paragraph' a
+   * blank-line-delimited run, the default.
+   */
+  type: 'section' | 'list-item' | 'table-row' | 'comment-declaration' | 'paragraph';
+  /** Lines the excerpt carries. */
+  lines: number;
+  /** Present when the line or char caps clipped the unit. */
+  truncated?: true;
 }
 
 /** One judged (or mechanically decided) non-supported citation. */
@@ -81,6 +119,20 @@ export interface CitationAuditPlanOptions {
   maxSampled?: number;
   /** Lines after the cited line an excerpt may carry; default 3. */
   window?: number;
+  /**
+   * The resolver generation (RV4208): 1, the default, is the fixed
+   * downward window above, byte identical for every existing config.
+   * 2 excerpts the bounded LOGICAL UNIT the cited line belongs to
+   * ({@link citationUnitExcerptOf}) and audits EVERY anchor of a
+   * compound sentence as its own row against its nearest claim
+   * clause. The sixth comparison experiment's false negatives were
+   * exactly window artifacts: a section heading whose support lives
+   * below the window, and only a sentence's first anchor ever
+   * sampled. Opt-in because the sample derives from the document
+   * hash: v2 changes which rows exist and what the judge reads, so a
+   * declared config must choose it.
+   */
+  resolver?: 1 | 2;
 }
 
 export const DEFAULT_CITATION_SAMPLE_PER_SECTION = 2;
@@ -104,7 +156,14 @@ export function resolveCitationAuditPlan(options: CitationAuditPlanOptions): {
   samplePerSection: number;
   maxSampled: number;
   window: number;
+  resolver: 1 | 2;
 } {
+  const resolver = options.resolver ?? 1;
+  if (resolver !== 1 && resolver !== 2) {
+    throw new ConfigError(
+      `citationAudit.resolver must be 1 or 2; got ${JSON.stringify(options.resolver)}`,
+    );
+  }
   const samplePerSection = options.samplePerSection ?? DEFAULT_CITATION_SAMPLE_PER_SECTION;
   if (!Number.isInteger(samplePerSection) || samplePerSection < 1) {
     throw new ConfigError(
@@ -142,7 +201,7 @@ export function resolveCitationAuditPlan(options: CitationAuditPlanOptions): {
         'anchoring it',
     );
   }
-  return { pattern, samplePerSection, maxSampled, window };
+  return { pattern, samplePerSection, maxSampled, window, resolver };
 }
 
 /** Splits a document into (section marker, body) runs in order. */
@@ -191,61 +250,64 @@ function pickIndexes(count: number, k: number, seedInput: string): number[] {
  */
 export function sampleCitationRows(
   document: string,
-  plan: { pattern: string; samplePerSection: number; maxSampled: number },
+  plan: { pattern: string; samplePerSection: number; maxSampled: number; resolver?: 1 | 2 },
   seed: string,
 ): Omit<CitationAuditRow, 'excerpt'>[] {
-  const perSection: Array<{
-    section: string;
-    picks: Array<{
-      sentence: string;
-      anchor: string;
-      path: string;
-      line: number;
-      endLine?: number;
-    }>;
-  }> = [];
+  const allAnchors = plan.resolver === 2;
+  interface AnchorCandidate {
+    sentence: string;
+    anchor: string;
+    path: string;
+    line: number;
+    endLine?: number;
+    anchorOrdinal?: number;
+    clause?: string;
+  }
+  const perSection: Array<{ section: string; picks: AnchorCandidate[][] }> = [];
   for (const { marker, body } of sectionsOfDocument(document)) {
-    const candidates: Array<{
-      sentence: string;
-      anchor: string;
-      path: string;
-      line: number;
-      endLine?: number;
-    }> = [];
+    // One candidate GROUP per citing sentence: resolver v1 keeps the
+    // sentence's first anchor only (byte identical to the original
+    // sampler), v2 audits every anchor as its own row (RV4208): the
+    // sixth comparison run's compound sentences cited three files for
+    // three claims and only the first was ever sampled.
+    const candidates: AnchorCandidate[][] = [];
     for (const sentence of sentencesOf(body)) {
       const probe = citationWithRange(plan.pattern);
-      const match = probe.exec(sentence);
-      if (match === null) {
-        continue;
+      const anchors: AnchorCandidate[] = [];
+      for (let match = probe.exec(sentence); match !== null; match = probe.exec(sentence)) {
+        // The line half may carry a `-end` range the base pattern
+        // does not capture; read the tail at the match site.
+        const tail = /^-(\d+)/u.exec(sentence.slice(match.index + match[0].length));
+        const anchorText = tail === null ? match[0] : `${match[0]}${tail[0]}`;
+        const parsed = RANGE_TAIL.exec(anchorText);
+        if (parsed === null) {
+          continue;
+        }
+        const path = parsed[1] ?? '';
+        const line = Number(parsed[2]);
+        const endLine = parsed[3] === undefined ? undefined : Number(parsed[3]);
+        if (path === '' || !Number.isInteger(line) || line < 1) {
+          continue;
+        }
+        anchors.push({
+          sentence,
+          anchor: anchorText,
+          path,
+          line,
+          ...(endLine !== undefined && Number.isInteger(endLine) && endLine >= line
+            ? { endLine }
+            : {}),
+          ...(allAnchors
+            ? { anchorOrdinal: anchors.length, clause: clauseAround(sentence, match.index) }
+            : {}),
+        });
+        if (!allAnchors) {
+          break;
+        }
       }
-      // The line half may carry a `-end` range the base pattern does
-      // not capture; read the widest range the sentence text carries
-      // at the match site.
-      const tailProbe = new RegExp(
-        `${match[0].replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}(?:-(\\d+))?`,
-        'u',
-      );
-      const widened = tailProbe.exec(sentence);
-      const anchorText = widened?.[0] ?? match[0];
-      const parsed = RANGE_TAIL.exec(anchorText);
-      if (parsed === null) {
-        continue;
+      if (anchors.length > 0) {
+        candidates.push(anchors);
       }
-      const path = parsed[1] ?? '';
-      const line = Number(parsed[2]);
-      const endLine = parsed[3] === undefined ? undefined : Number(parsed[3]);
-      if (path === '' || !Number.isInteger(line) || line < 1) {
-        continue;
-      }
-      candidates.push({
-        sentence,
-        anchor: anchorText,
-        path,
-        line,
-        ...(endLine !== undefined && Number.isInteger(endLine) && endLine >= line
-          ? { endLine }
-          : {}),
-      });
     }
     if (candidates.length === 0) {
       continue;
@@ -255,7 +317,9 @@ export function sampleCitationRows(
       .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== undefined);
     perSection.push({ section: marker, picks });
   }
-  // Cap by pick rank across sections: round-robin, document order.
+  // Cap by pick rank across sections: round-robin, document order. A
+  // v2 pick expands into its anchor rows in sentence order, under the
+  // same hard row ceiling.
   const rows: Omit<CitationAuditRow, 'excerpt'>[] = [];
   for (let rank = 0; rows.length < plan.maxSampled; rank += 1) {
     let any = false;
@@ -265,16 +329,37 @@ export function sampleCitationRows(
         continue;
       }
       any = true;
-      if (rows.length >= plan.maxSampled) {
-        break;
+      for (const anchor of pick) {
+        if (rows.length >= plan.maxSampled) {
+          break;
+        }
+        rows.push({ row: rows.length, section: bucket.section, ...anchor });
       }
-      rows.push({ row: rows.length, section: bucket.section, ...pick });
     }
     if (!any) {
       break;
     }
   }
   return rows;
+}
+
+/**
+ * The claim clause nearest an anchor (RV4208): the sentence segment,
+ * cut at clause boundaries (';' or ',' followed by whitespace), that
+ * contains the anchor position. Pure text arithmetic, no NLP: the
+ * point is to hand the judge the claim half the anchor was cited FOR
+ * instead of the whole compound sentence.
+ */
+export function clauseAround(sentence: string, anchorIndex: number): string {
+  let start = 0;
+  const cuts = /[;,]\s/gu;
+  for (let cut = cuts.exec(sentence); cut !== null; cut = cuts.exec(sentence)) {
+    if (cut.index >= anchorIndex) {
+      return sentence.slice(start, cut.index + 1).trim();
+    }
+    start = cut.index + 1;
+  }
+  return sentence.slice(start).trim();
 }
 
 /**
@@ -308,6 +393,142 @@ export function citationExcerptOf(
   return excerpt.length > MAX_CITATION_EXCERPT_CHARS
     ? `${excerpt.slice(0, MAX_CITATION_EXCERPT_CHARS)}…`
     : excerpt;
+}
+
+const HEADING = /^#{1,6}\s+\S/u;
+const LIST_ITEM = /^(\s*)(?:[-*+]|\d+[.)])\s+\S/u;
+const TABLE_ROW = /^\s*\|/u;
+const CODE_COMMENT = /^\s*(?:\/\/|#(?!#)|\*|\/\*|--)\s?/u;
+
+/**
+ * Resolver v2's excerpt: the bounded LOGICAL UNIT the cited line
+ * belongs to (RV4208), through the same pure line resolver v1 reads.
+ * The v1 window is a fixed downward slice, and the sixth comparison
+ * experiment's confirmed false negative was structural: a section
+ * heading cited as the anchor with its support three lines below the
+ * window. The unit rules, all bounded by {@link
+ * MAX_CITATION_EXCERPT_LINES} and {@link MAX_CITATION_EXCERPT_CHARS}
+ * with a `truncated` flag when clipped:
+ *
+ * - heading: the SECTION, the heading plus following lines to the
+ *   next heading;
+ * - table row: the row, with the header pair above it when adjacent;
+ * - list item: the marker line plus its more-indented continuation
+ *   lines;
+ * - code comment: the comment BLOCK (expanded upward to its start)
+ *   plus the declaration lines it documents, to the first blank line;
+ * - anything else: the paragraph, expanded upward and downward to the
+ *   nearest blank or heading line.
+ *
+ * An explicit `path:start-end` range keeps range semantics (the host
+ * cited exact lines; second-guessing them would audit a different
+ * citation): the ranged lines, clipped by the caps. The FIRST cited
+ * line failing to resolve returns undefined, the unsupported-by-
+ * doctrine verdict v1 renders.
+ */
+export function citationUnitExcerptOf(
+  resolve: (target: CitationTarget) => string | undefined,
+  row: Pick<CitationAuditRow, 'path' | 'line' | 'endLine'>,
+): { excerpt: string; unit: CitationExcerptUnit } | undefined {
+  const lineAt = (line: number): string | undefined =>
+    line < 1 ? undefined : resolve({ path: row.path, line });
+  const anchor = lineAt(row.line);
+  if (anchor === undefined) {
+    return undefined;
+  }
+  const collect = (
+    type: CitationExcerptUnit['type'],
+    firstLine: number,
+    include: (text: string, line: number) => boolean,
+  ): { excerpt: string; unit: CitationExcerptUnit } => {
+    const lines: string[] = [];
+    let truncated = false;
+    for (let line = firstLine; ; line += 1) {
+      if (lines.length >= MAX_CITATION_EXCERPT_LINES) {
+        truncated = true;
+        break;
+      }
+      const text = line === row.line ? anchor : lineAt(line);
+      if (text === undefined) {
+        break;
+      }
+      if (line !== firstLine && line !== row.line && !include(text, line)) {
+        break;
+      }
+      lines.push(`L${String(line)}: ${text}`);
+    }
+    let excerpt = lines.join('\n');
+    if (excerpt.length > MAX_CITATION_EXCERPT_CHARS) {
+      excerpt = `${excerpt.slice(0, MAX_CITATION_EXCERPT_CHARS)}…`;
+      truncated = true;
+    }
+    return {
+      excerpt,
+      unit: { type, lines: lines.length, ...(truncated ? { truncated: true as const } : {}) },
+    };
+  };
+  // An explicit range keeps range semantics: the host cited exact
+  // lines, and the unit detection must not audit a different span.
+  if (row.endLine !== undefined) {
+    const last = row.endLine;
+    return collect('paragraph', row.line, (_text, line) => line <= last);
+  }
+  if (HEADING.test(anchor)) {
+    return collect('section', row.line, (text) => !HEADING.test(text));
+  }
+  if (TABLE_ROW.test(anchor)) {
+    // The header pair above, when the row sits in a table body: the
+    // row alone names values with no column meanings.
+    const above = lineAt(row.line - 1);
+    const headerTop = lineAt(row.line - 2);
+    const first =
+      above !== undefined &&
+      headerTop !== undefined &&
+      /^\s*\|[\s:|-]+\|?\s*$/u.test(above) &&
+      TABLE_ROW.test(headerTop)
+        ? row.line - 2
+        : row.line;
+    return collect('table-row', first, (text, line) => line <= row.line && TABLE_ROW.test(text));
+  }
+  const listMatch = LIST_ITEM.exec(anchor);
+  if (listMatch !== null) {
+    const markerIndent = (listMatch[1] ?? '').length;
+    return collect('list-item', row.line, (text) => {
+      if (text.trim() === '' || HEADING.test(text) || LIST_ITEM.test(text)) {
+        return false;
+      }
+      const indent = /^(\s*)/u.exec(text)?.[1]?.length ?? 0;
+      return indent > markerIndent;
+    });
+  }
+  if (CODE_COMMENT.test(anchor)) {
+    // Expand UP to the comment block's start, bounded by half the
+    // line cap so the declaration below keeps room.
+    let first = row.line;
+    for (let line = row.line - 1; line >= 1 && row.line - line < 6; line -= 1) {
+      const text = lineAt(line);
+      if (text === undefined || !CODE_COMMENT.test(text)) {
+        break;
+      }
+      first = line;
+    }
+    return collect('comment-declaration', first, (text) => text.trim() !== '');
+  }
+  return collect(
+    'paragraph',
+    (() => {
+      let first = row.line;
+      for (let line = row.line - 1; line >= 1 && row.line - line < 6; line -= 1) {
+        const text = lineAt(line);
+        if (text === undefined || text.trim() === '' || HEADING.test(text)) {
+          break;
+        }
+        first = line;
+      }
+      return first;
+    })(),
+    (text) => text.trim() !== '' && !HEADING.test(text),
+  );
 }
 
 /** The audit judge's structured verdict schema (mirrors the claim judge). */

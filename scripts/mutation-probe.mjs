@@ -5649,6 +5649,42 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/orchestrator/candidate-persistence.test.ts',
   },
+  {
+    id: 'resolver-v2-excerpts-the-section',
+    doctrine:
+      "a cited heading excerpts its whole section under resolver 2 (RV4208): with the branch collapsed, the heading falls to the paragraph rule, the blank line below ends the excerpt at the heading alone, and the sixth comparison run's confirmed false negative (support below the fixed window) returns",
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: "  if (HEADING.test(anchor)) {\n    return collect('section', row.line, (text) => !HEADING.test(text));\n  }",
+    replace: '',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'resolver-v2-audits-every-anchor',
+    doctrine:
+      "resolver 2 samples every anchor of a compound sentence (RV4208): with the expansion collapsed to the first match, three claims citing three files audit only the first again, and the two uncovered anchors are exactly where the sixth comparison run's unsupported citations lived",
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '        if (!allAnchors) {\n          break;\n        }',
+    replace: '        break;',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'resolver-v2-hands-the-clause',
+    doctrine:
+      'a v2 row carries the claim clause nearest its anchor (RV4208): with the stamp collapsed, the judge rules each anchor against the WHOLE compound sentence and an anchor cited for one claim is judged on claims it never carried',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '            ? { anchorOrdinal: anchors.length, clause: clauseAround(sentence, match.index) }',
+    replace: '            ? { anchorOrdinal: anchors.length }',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'resolver-two-is-declared-never-assumed',
+    doctrine:
+      'resolver 2 is an opt-in, never the silent default (RV4208): with the gate collapsed, every existing v1 config re-samples per anchor, the sample no longer matches what the config declared, and replay-stable audits stop being stable across the upgrade',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '  const allAnchors = plan.resolver === 2;',
+    replace: '  const allAnchors = true;',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

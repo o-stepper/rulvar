@@ -10,7 +10,7 @@
 const FINISH_LESSON_CAP_CHARS: 2000 = 2000;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:456](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L456)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:457](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L457)
 
 Character cap of the HOST VALIDATION LESSONS prompt block (RV3603):
 the bounded repair round's prompt folds the run's journaled finish

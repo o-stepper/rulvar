@@ -112,6 +112,7 @@ import {
 import {
   CITATION_JUDGE_SCHEMA,
   citationExcerptOf,
+  citationUnitExcerptOf,
   parseCitationVerdicts,
   resolveCitationAuditPlan,
   sampleCitationRows,
@@ -994,6 +995,22 @@ export interface OrchestrateCitationAudit {
   maxSampled?: number;
   /** Lines after the cited line an excerpt may carry; default 3. */
   window?: number;
+  /**
+   * The resolver generation (RV4208). Default 1, the fixed downward
+   * window above, byte identical for every existing config. Declaring
+   * 2 excerpts the bounded LOGICAL UNIT the cited line belongs to
+   * (heading section, list item, table row with its header, code
+   * comment plus declaration, paragraph; `citationUnitExcerptOf`) and
+   * audits EVERY anchor of a compound sentence as its own row against
+   * its nearest claim clause, with the unit type and a truncation
+   * flag on the row and `resolverVersion: 2` on the meta. The sixth
+   * comparison experiment's confirmed false negatives were window
+   * artifacts: a section heading whose support lives below the fixed
+   * window, and only a sentence's first anchor ever sampled. Opt-in
+   * because the sample derives from the audited document's hash and
+   * v2 changes which rows exist and what the judge reads.
+   */
+  resolver?: 1 | 2;
   /** The judge invocation's knobs, exactly the claim judge's shape. */
   judge?: {
     model?: ModelSpec;
@@ -7858,6 +7875,8 @@ export function makeOrchestratorWorkflow(
           auditedHash: string;
           samplePerSection: number;
           maxSampled: number;
+          /** Present exactly under the declared resolver 2 (RV4208). */
+          resolverVersion?: 2;
           passes?: number;
           firstPassFindings?: number;
           citationRepairRounds?: number;
@@ -7885,6 +7904,14 @@ export function makeOrchestratorWorkflow(
         .digest('hex');
       const text = typeof document === 'string' ? document : JSON.stringify(document ?? null);
       const rows: CitationAuditRow[] = sampleCitationRows(text, plan, auditedHash).map((row) => {
+        // Resolver v2 (RV4208) excerpts the bounded logical unit; v1
+        // keeps the fixed window byte for byte.
+        if (plan.resolver === 2) {
+          const resolved = citationUnitExcerptOf(auditSpec.resolve, row);
+          return resolved === undefined
+            ? row
+            : { ...row, excerpt: resolved.excerpt, unit: resolved.unit };
+        }
         const excerpt = citationExcerptOf(auditSpec.resolve, row, plan.window);
         return excerpt === undefined ? row : { ...row, excerpt };
       });
@@ -7921,6 +7948,11 @@ export function makeOrchestratorWorkflow(
         auditedHash,
         samplePerSection: plan.samplePerSection,
         maxSampled: plan.maxSampled,
+        // The resolver generation on the meta (RV4208), stamped only
+        // under the opt-in so every v1 meta keeps its bytes: a
+        // verdict's consumer must know whether rows are first-anchor
+        // windows or per-anchor logical units.
+        ...(plan.resolver === 2 ? { resolverVersion: 2 as const } : {}),
       };
       const onFound = auditSpec.onFound ?? 'report';
       if (judgeRows.length === 0) {
@@ -7938,13 +7970,27 @@ export function makeOrchestratorWorkflow(
           'MEANING, not the mechanics: the location resolving, or sharing words with the ' +
           'sentence, is not entailment. Answer with { verdicts: [{ row, verdict, reason }] }, ' +
           'one verdict per row, reason one short sentence.',
+        ...(plan.resolver === 2
+          ? [
+              'Rows carrying a `clause` audit ONE anchor of a compound sentence: judge the ' +
+                'excerpt against that clause, the claim this anchor was cited for, not ' +
+                "against the sentence's other claims. The `unit` names the logical unit the " +
+                'excerpt covers; a truncated unit may end mid-thought, so judge what the ' +
+                'lines DO carry.',
+            ]
+          : []),
         `ROWS: ${JSON.stringify(
           judgeRows.map((row) => ({
             row: row.row,
             section: row.section,
             sentence: row.sentence,
             anchor: row.anchor,
+            // The nearest claim clause (RV4208, resolver v2 only):
+            // the judge rules on the claim half this anchor was cited
+            // FOR; v1 rows carry no field and the prompt bytes hold.
+            ...(row.clause === undefined ? {} : { clause: row.clause }),
             excerpt: row.excerpt,
+            ...(row.unit === undefined ? {} : { unit: row.unit }),
           })),
         )}`,
       ].join('\n');

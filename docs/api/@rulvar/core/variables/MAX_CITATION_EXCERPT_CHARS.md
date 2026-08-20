@@ -10,4 +10,4 @@
 const MAX_CITATION_EXCERPT_CHARS: 800 = 800;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L91)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L143)

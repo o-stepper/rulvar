@@ -10,12 +10,13 @@
 function resolveCitationAuditPlan(options): {
   maxSampled: number;
   pattern: string;
+  resolver: 1 | 2;
   samplePerSection: number;
   window: number;
 };
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L102)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L154)
 
 Validates the declared plan numbers; returns the resolved bounds.
 Garbage throws like every malformed intake.
@@ -32,6 +33,7 @@ Garbage throws like every malformed intake.
 {
   maxSampled: number;
   pattern: string;
+  resolver: 1 | 2;
   samplePerSection: number;
   window: number;
 }
@@ -39,7 +41,8 @@ Garbage throws like every malformed intake.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `maxSampled` | `number` | [packages/core/src/orchestrator/citation-audit.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L105) |
-| `pattern` | `string` | [packages/core/src/orchestrator/citation-audit.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L103) |
-| `samplePerSection` | `number` | [packages/core/src/orchestrator/citation-audit.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L104) |
-| `window` | `number` | [packages/core/src/orchestrator/citation-audit.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L106) |
+| `maxSampled` | `number` | [packages/core/src/orchestrator/citation-audit.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L157) |
+| `pattern` | `string` | [packages/core/src/orchestrator/citation-audit.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L155) |
+| `resolver` | `1` \| `2` | [packages/core/src/orchestrator/citation-audit.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L159) |
+| `samplePerSection` | `number` | [packages/core/src/orchestrator/citation-audit.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L156) |
+| `window` | `number` | [packages/core/src/orchestrator/citation-audit.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L158) |
