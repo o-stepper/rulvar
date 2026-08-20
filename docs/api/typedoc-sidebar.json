@@ -2779,6 +2779,10 @@
             "link": "/api/@rulvar/core/variables/deriverV2.md"
           },
           {
+            "text": "DIGEST_DRAFT_MAX_WORDS",
+            "link": "/api/@rulvar/core/variables/DIGEST_DRAFT_MAX_WORDS.md"
+          },
+          {
             "text": "EMIT_RESULT_TOOL",
             "link": "/api/@rulvar/core/variables/EMIT_RESULT_TOOL.md"
           },
@@ -8171,6 +8175,10 @@
           {
             "text": "deriverV2",
             "link": "/api/@rulvar/rulvar/variables/deriverV2.md"
+          },
+          {
+            "text": "DIGEST_DRAFT_MAX_WORDS",
+            "link": "/api/@rulvar/rulvar/variables/DIGEST_DRAFT_MAX_WORDS.md"
           },
           {
             "text": "EMIT_RESULT_TOOL",

@@ -357,6 +357,16 @@ export interface OrchestrateAcceptance {
 export const DEFAULT_FINISH_MAX_REPAIRS = 1;
 
 /**
+ * The word ceiling of a 'digest' coordination draft (RV4210): the
+ * digest is a structural evidence map the composing invocation writes
+ * prose FROM, and the ceiling is the teeth that keep it from decaying
+ * back into the full prose draft it exists to replace. The sixth
+ * comparison run's contract-policy draft cost 344.8 seconds of model
+ * output and was then rewritten whole by the composition.
+ */
+export const DIGEST_DRAFT_MAX_WORDS = 400;
+
+/**
  * The most hinted edits one deterministic repair attempt will apply
  * (RV3801): a validator caps its own hints well below this, so the
  * bound only guards against a custom validator flooding the journal
@@ -675,6 +685,24 @@ export interface FinishValidationSpec {
    * bound: validators that fold the children snapshot (the evidence
    * share) can still fail the pre-pass when a child settles between
    * the draft finish and synthesis; the pre-pass stays the authority.
+   *
+   * The sentinel `'digest'` (RV4210, the sixth comparison experiment)
+   * inverts the draft's economics for configurations that do NOT use
+   * `skipWhenDraftValid`: the harness under audit forced a full
+   * contract-valid prose draft (344.8 s of model output) that the
+   * composition then rewrote whole, because `draftPolicy: 'contract'`
+   * is priced for the skip gate it was built to feed. Under 'digest'
+   * the coordination prompt asks for a compact STRUCTURAL EVIDENCE
+   * MAP (one list row per planned section naming its claims and the
+   * evidence behind them) and the gate enforces the inversion
+   * deterministically: at least one list row, at most
+   * {@link DIGEST_DRAFT_MAX_WORDS} words, so the draft cannot decay
+   * back into the prose it replaces. The synthesis invocation embeds
+   * the digest exactly as it embeds any draft; wire counts are
+   * unchanged. Because a digest is NOT a candidate deliverable, the
+   * intake refuses the combinations that would ship or judge it as
+   * one: `synthesis.skipWhenDraftValid` and
+   * `synthesis.fallbackToValidDraft` are both ConfigError beside it.
    */
   draftPolicy?:
     | {
@@ -683,7 +711,8 @@ export interface FinishValidationSpec {
         /** Literal markers the draft text must contain. */
         requireSections?: string[];
       }
-    | 'contract';
+    | 'contract'
+    | 'digest';
   /**
    * Sectional bounded repair (RV808b). A rejected finish used to
    * resend the WHOLE document to fix one violated section: on the
@@ -2119,9 +2148,14 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     const draftPolicy = (fv as { draftPolicy?: unknown }).draftPolicy;
     if (draftPolicy !== undefined) {
-      if (draftPolicy !== 'contract' && (typeof draftPolicy !== 'object' || draftPolicy === null)) {
+      if (
+        draftPolicy !== 'contract' &&
+        draftPolicy !== 'digest' &&
+        (typeof draftPolicy !== 'object' || draftPolicy === null)
+      ) {
         throw new ConfigError(
-          "orchestrate finishValidation.draftPolicy must be an object or the sentinel 'contract'",
+          'orchestrate finishValidation.draftPolicy must be an object or one of the ' +
+            "sentinels 'contract' | 'digest'",
         );
       }
       if (opts.synthesis === undefined) {
@@ -2131,8 +2165,33 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
             'unvalidated draft to gate',
         );
       }
+      // A digest is not a candidate deliverable (RV4210): the two
+      // options that would SHIP the draft (the skip gate settles on
+      // it; the regression floor falls back to it) are refused beside
+      // it, because both judge the draft by the full contract a
+      // structural map is built to fail.
+      if (draftPolicy === 'digest') {
+        const synthesisShape = opts.synthesis as {
+          skipWhenDraftValid?: unknown;
+          fallbackToValidDraft?: unknown;
+        };
+        if (synthesisShape.skipWhenDraftValid === true) {
+          throw new ConfigError(
+            "orchestrate finishValidation.draftPolicy 'digest' refuses " +
+              'synthesis.skipWhenDraftValid: a digest is a structural evidence map, never a ' +
+              'shippable draft, and the skip gate exists to settle on one',
+          );
+        }
+        if (synthesisShape.fallbackToValidDraft === true) {
+          throw new ConfigError(
+            "orchestrate finishValidation.draftPolicy 'digest' refuses " +
+              'synthesis.fallbackToValidDraft: the regression floor ships the draft, and a ' +
+              'digest must never ship',
+          );
+        }
+      }
       const policy =
-        draftPolicy === 'contract'
+        draftPolicy === 'contract' || draftPolicy === 'digest'
           ? undefined
           : (draftPolicy as { minWords?: unknown; requireSections?: unknown });
       if (policy !== undefined) {
@@ -6348,6 +6407,47 @@ export function makeOrchestratorWorkflow(
           failed,
         );
       }
+      if (policy === 'digest') {
+        // The digest gate (RV4210): deterministic structural checks
+        // with TEETH IN BOTH DIRECTIONS, because the point is the
+        // inversion: a draft with no evidence rows is not a map, and
+        // a draft over the word ceiling is the prose the digest
+        // exists to replace. Same posture as the sibling policies:
+        // nothing journals on a clean accept, the durable exchange
+        // recounts identically, maxRepairs untouched.
+        const digestReasons: string[] = [];
+        const trimmed = text.trim();
+        const words = trimmed === '' ? 0 : trimmed.split(/\s+/).length;
+        const rows = text
+          .split('\n')
+          .filter((line) => /^\s*(?:[-*+]|\d+[.)])\s+\S/u.test(line)).length;
+        if (rows === 0) {
+          digestReasons.push(
+            'the digest carries no evidence rows: use one list row per planned section, ' +
+              'naming its claims and the evidence behind them',
+          );
+        }
+        if (words > DIGEST_DRAFT_MAX_WORDS) {
+          digestReasons.push(
+            `the digest carries ${String(words)} words, over the ` +
+              `${String(DIGEST_DRAFT_MAX_WORDS)} word ceiling: compress to the structural ` +
+              'map; the composing invocation writes the prose',
+          );
+        }
+        if (digestReasons.length === 0) {
+          return accept();
+        }
+        return reject(
+          {
+            error:
+              'the coordination draft failed the digest policy; repair the draft and call ' +
+              'finish again: the digest is the structural evidence map the composing ' +
+              'invocation writes prose from',
+            reasons: digestReasons,
+          },
+          [{ name: 'digest-policy', reasons: digestReasons }],
+        );
+      }
       const reasons: string[] = [];
       if (policy.minWords !== undefined) {
         const trimmed = text.trim();
@@ -9262,6 +9362,19 @@ export function makeOrchestratorWorkflow(
             'never probe a handle with get_child_result to discover whether it settled.',
           ]
         : []),
+      // The digest instruction (RV4210) rides ONLY under the declared
+      // 'digest' policy, so every other config keeps its exact prompt
+      // bytes: the map must be asked for up front, because a gate that
+      // teaches it by rejection first pays for the full prose draft
+      // the policy exists to avoid.
+      ...(validationSpec?.draftPolicy === 'digest'
+        ? [
+            'Your finish({ result }) draft is a DIGEST, not prose: a compact structural map',
+            'of the planned deliverable. One list row per planned section, each naming the',
+            'claims it will carry and the evidence behind them (citations, child findings).',
+            `Stay under ${String(DIGEST_DRAFT_MAX_WORDS)} words; the composing invocation writes the prose from this map.`,
+          ]
+        : []),
       // The sectional line rides the coordination prompt only when the
       // coordination finish actually carries the sectional schema
       // (RV808b): the validator-bound loop or the draft gate.
@@ -10715,6 +10828,29 @@ export function makeOrchestratorWorkflow(
         throw thrown;
       }
     };
+    // The parallel judge pair (RV4210, the sixth comparison
+    // experiment): with NO round armed, the final claim pass and the
+    // audit's first pass rule on the SAME immutable document, neither
+    // reads the other's verdict, and the historical sequence was pure
+    // wall time: the run under audit spent 100.8 s of its tail
+    // waiting for the claim judge before the citation judge could
+    // start. Both dispatch concurrently and the verdicts are
+    // PROCESSED in the historical order (the claim pass's typed
+    // throws fire first), so every decision, meta stamp, and refusal
+    // reads exactly as the sequential path wrote it. Any armed round
+    // keeps the strict sequence byte for byte: a round rewrites the
+    // document, and the audit must read what ships. The one honest
+    // cost: under a 'fail' posture both judges are already paid when
+    // one refuses, the price of the saved wall; the acceptance tail
+    // funded both passes either way.
+    const parallelJudges =
+      claimStage !== 'draft' &&
+      opts?.claimConsistency !== undefined &&
+      opts?.citationAudit !== undefined &&
+      !claimRepairArmed &&
+      !coverageRoundArmed &&
+      (opts.citationAudit.onFound ?? 'report') !== 'repair';
+    let parallelAuditRan = false;
     // The final gate (RV2509), strictly AFTER the synthesis and before
     // the envelope: the pass judges the document the run actually
     // ships, and its failure posture is the pass's own, so an armed
@@ -10723,7 +10859,21 @@ export function makeOrchestratorWorkflow(
     // preserved first, because this call overwrites the live one.
     if (claimStage !== 'draft') {
       claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;
-      await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+      if (parallelJudges) {
+        const [claimSettled, auditSettled] = await Promise.allSettled([
+          runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final'),
+          runCitationAudit(synthesizedFinal, 'first'),
+        ]);
+        parallelAuditRan = true;
+        if (claimSettled.status === 'rejected') {
+          throw claimSettled.reason;
+        }
+        if (auditSettled.status === 'rejected') {
+          throw auditSettled.reason;
+        }
+      } else {
+        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+      }
       // The verdict lineage under an armed round (RV3904, the fourth
       // comparison experiment): the terminal read findings 0 over a
       // lineage whose first pass had caught a real contradiction, and
@@ -11078,7 +11228,11 @@ export function makeOrchestratorWorkflow(
         createHash('sha256')
           .update(jcsSerialize(value ?? null), 'utf8')
           .digest('hex');
-      await runCitationAudit(synthesizedFinal, 'first');
+      // The parallel pair already ran the first pass (RV4210); every
+      // other path keeps the historical dispatch here, byte for byte.
+      if (!parallelAuditRan) {
+        await runCitationAudit(synthesizedFinal, 'first');
+      }
       const auditOnFound = opts.citationAudit.onFound ?? 'report';
       const unsupportedOf = (): CitationAuditFinding[] =>
         (citationFindingsFound ?? []).filter((finding) => finding.verdict === 'unsupported');

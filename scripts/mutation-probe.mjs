@@ -4253,9 +4253,9 @@ export const MUTATIONS = [
     doctrine:
       "claimConsistency.stage 'final' and 'both' judge the artifact the run SETTLES on (RV2509): re-judging the draft after the synthesis would spend a second judge to re-confirm the verdict the run already had",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "      claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;\n      await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');",
+    find: "      } else {\n        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');\n      }",
     replace:
-      "      claimConsistencyDraftMeta = claimStage === 'both' ? claimConsistencyMeta : undefined;\n      await runClaimConsistencyPass(result.output, acceptanceSnapshot, 'final');",
+      "      } else {\n        await runClaimConsistencyPass(result.output, acceptanceSnapshot, 'final');\n      }",
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
   {
@@ -5720,6 +5720,51 @@ export const MUTATIONS = [
     find: "  if (outcome.status === 'suspended') {",
     replace: '  if (false) {',
     test: 'packages/cli/src/acceptance-policy.test.ts',
+  },
+  {
+    id: 'judge-pair-parallel-when-unarmed',
+    doctrine:
+      "the unarmed judge pair dispatches concurrently (RV4210): with the gate collapsed, both verdicts over the same immutable document queue behind each other again and the sixth comparison run's 100.8 second tail wait returns as pure wall",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "    const parallelJudges =\n      claimStage !== 'draft' &&",
+    replace: '    const parallelJudges =\n      false &&',
+    test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
+  },
+  {
+    id: 'armed-round-keeps-the-sequence',
+    doctrine:
+      'an armed citation round keeps the strict judge sequence (RV4210): with the guard collapsed, the audit first pass dispatches beside a claim pass whose round may rewrite the document, and the audit verdict describes bytes that never ship, exactly the repair-moved-the-hash class the shared round exists to close',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      (opts.citationAudit.onFound ?? 'report') !== 'repair';",
+    replace: '      true;',
+    test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
+  },
+  {
+    id: 'claim-verdict-processes-first',
+    doctrine:
+      'the parallel pair processes the claim verdict first (RV4210): with the rethrow collapsed, a claim pass that refused typed under its fail posture is swallowed, the run settles ok over a judged contradiction, and the historical refusal order the sequential path guaranteed silently inverts',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        if (claimSettled.status === 'rejected') {\n          throw claimSettled.reason;\n        }",
+    replace: '',
+    test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
+  },
+  {
+    id: 'digest-never-ships',
+    doctrine:
+      'a digest draft is never a shippable candidate (RV4210): with the refusal collapsed, skipWhenDraftValid can settle the run on the structural map itself, and the deliverable is a bullet skeleton the full contract was never allowed to judge',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (synthesisShape.skipWhenDraftValid === true) {',
+    replace: '        if (false) {',
+    test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
+  },
+  {
+    id: 'digest-ceiling-has-teeth',
+    doctrine:
+      'the digest word ceiling rejects prose-sized drafts (RV4210): with the check collapsed, the digest policy accepts the full prose draft it exists to replace and the 344.8 second draft cost the sixth comparison run paid returns under a policy that promises the opposite',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (words > DIGEST_DRAFT_MAX_WORDS) {',
+    replace: '        if (false) {',
+    test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
   },
 ];
 
