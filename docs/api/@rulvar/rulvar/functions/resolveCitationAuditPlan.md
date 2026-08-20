@@ -10,6 +10,7 @@
 function resolveCitationAuditPlan(options): {
   maxSampled: number;
   pattern: string;
+  resolver: 1 | 2;
   samplePerSection: number;
   window: number;
 };
@@ -32,6 +33,7 @@ Garbage throws like every malformed intake.
 {
   maxSampled: number;
   pattern: string;
+  resolver: 1 | 2;
   samplePerSection: number;
   window: number;
 }
@@ -41,5 +43,6 @@ Garbage throws like every malformed intake.
 | ------ | ------ | ------ |
 | `maxSampled` | `number` | `packages/core/dist/index.d.ts` |
 | `pattern` | `string` | `packages/core/dist/index.d.ts` |
+| `resolver` | `1` \| `2` | `packages/core/dist/index.d.ts` |
 | `samplePerSection` | `number` | `packages/core/dist/index.d.ts` |
 | `window` | `number` | `packages/core/dist/index.d.ts` |

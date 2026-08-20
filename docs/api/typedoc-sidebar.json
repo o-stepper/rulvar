@@ -863,6 +863,10 @@
             "link": "/api/@rulvar/core/interfaces/CitationAuditSectionMeta.md"
           },
           {
+            "text": "CitationExcerptUnit",
+            "link": "/api/@rulvar/core/interfaces/CitationExcerptUnit.md"
+          },
+          {
             "text": "CitationTarget",
             "link": "/api/@rulvar/core/interfaces/CitationTarget.md"
           },
@@ -3201,6 +3205,10 @@
             "link": "/api/@rulvar/core/functions/citationTargetsValidator.md"
           },
           {
+            "text": "citationUnitExcerptOf",
+            "link": "/api/@rulvar/core/functions/citationUnitExcerptOf.md"
+          },
+          {
             "text": "citedValueValidator",
             "link": "/api/@rulvar/core/functions/citedValueValidator.md"
           },
@@ -3235,6 +3243,10 @@
           {
             "text": "classifyAttemptOutcome",
             "link": "/api/@rulvar/core/functions/classifyAttemptOutcome.md"
+          },
+          {
+            "text": "clauseAround",
+            "link": "/api/@rulvar/core/functions/clauseAround.md"
           },
           {
             "text": "collectDeclaredLadders",
@@ -6193,6 +6205,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/CitationAuditSectionMeta.md"
           },
           {
+            "text": "CitationExcerptUnit",
+            "link": "/api/@rulvar/rulvar/interfaces/CitationExcerptUnit.md"
+          },
+          {
             "text": "CitationTarget",
             "link": "/api/@rulvar/rulvar/interfaces/CitationTarget.md"
           },
@@ -8579,6 +8595,10 @@
             "link": "/api/@rulvar/rulvar/functions/citationTargetsValidator.md"
           },
           {
+            "text": "citationUnitExcerptOf",
+            "link": "/api/@rulvar/rulvar/functions/citationUnitExcerptOf.md"
+          },
+          {
             "text": "citedValueValidator",
             "link": "/api/@rulvar/rulvar/functions/citedValueValidator.md"
           },
@@ -8613,6 +8633,10 @@
           {
             "text": "classifyAttemptOutcome",
             "link": "/api/@rulvar/rulvar/functions/classifyAttemptOutcome.md"
+          },
+          {
+            "text": "clauseAround",
+            "link": "/api/@rulvar/rulvar/functions/clauseAround.md"
           },
           {
             "text": "collectDeclaredLadders",

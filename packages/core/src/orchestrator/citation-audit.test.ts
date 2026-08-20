@@ -73,6 +73,7 @@ describe('the deterministic sample (RV4004)', () => {
       samplePerSection: 2,
       maxSampled: 24,
       window: 3,
+      resolver: 1,
     });
   });
 
