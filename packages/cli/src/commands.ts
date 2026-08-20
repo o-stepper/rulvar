@@ -4,7 +4,7 @@
  *   rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--strict]
  *   rulvar resume <runId>  [--store PATH] [--strict]
  *   rulvar runs ls         [--store PATH]
- *   rulvar inspect <runId> [--store PATH]
+ *   rulvar inspect <runId> [--store PATH] [--candidates] [--candidate-bytes HASH]
  *
  * `plan` and `kb` land with M6+/M10. Every command builds strictly from
  * the public @rulvar/core API.
@@ -37,6 +37,8 @@ import {
   reconcileRunMeta,
   remeasureQueue,
   sanitizeTerminalText,
+  synthesisCandidatesFromJournal,
+  verifyCandidateBytes,
   type CreateEngineOptions,
   type DeterminismEvents,
   type EvidenceRef,
@@ -653,6 +655,60 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
     throw new ConfigError(`run '${runId}' not found in the store`);
   }
   const entries = await assembled.store.load(runId);
+  // The candidate-bytes recovery mode (RV4207): ONLY the bytes on
+  // stdout, so `rulvar inspect <run> --candidate-bytes <hash> >
+  // rejected.md` recovers a redline in one command instead of a
+  // binary-transcript dig; every diagnostic rides stderr. The sixth
+  // comparison experiment's auditor extracted the rejected
+  // composition from messages[3] of a raw transcript blob by hand.
+  const candidateBytesHash = parsed.values['candidate-bytes'] as string | undefined;
+  if (candidateBytesHash !== undefined) {
+    const chain = synthesisCandidatesFromJournal(entries);
+    const match = chain.candidates.find(
+      (candidate) => candidate.candidateHash === candidateBytesHash,
+    );
+    if (match === undefined) {
+      context.io.err(
+        `no finish candidate with hash ${sanitizeTerminalText(candidateBytesHash)} in this ` +
+          "journal; run with --candidates to list the chain's hashes",
+      );
+      return 1;
+    }
+    if (match.candidateRef === undefined) {
+      context.io.err(
+        `candidate ${candidateBytesHash.slice(0, 12)} has no retained bytes` +
+          (match.bytesUnavailableReason === undefined
+            ? " (retention was not declared; see finishValidation.candidatePersistence 'transcript')"
+            : ` (${sanitizeTerminalText(match.bytesUnavailableReason)})`),
+      );
+      return 1;
+    }
+    const blob = await assembled.engine.stores.transcripts.get(match.candidateRef);
+    if (blob === null) {
+      context.io.err(
+        `candidate ${candidateBytesHash.slice(0, 12)}: the transcript blob ` +
+          `${sanitizeTerminalText(match.candidateRef)} is not in this transcript store ` +
+          '(retention deleted it, or the assembled config declares no durable transcript ' +
+          'store); the hash and the journaled verdict remain the durable record',
+      );
+      return 1;
+    }
+    const text = new TextDecoder().decode(blob);
+    if (!verifyCandidateBytes(text, candidateBytesHash)) {
+      context.io.err(
+        `candidate ${candidateBytesHash.slice(0, 12)}: the retained bytes do NOT verify ` +
+          'against the journaled hash; treat the blob as corrupt',
+      );
+      return 1;
+    }
+    context.io.err(
+      `candidate ${candidateBytesHash.slice(0, 12)}: ${String(text.length)} chars, verified ` +
+        'against the journaled hash (note: the hash covers the exact value; a file with a ' +
+        'trailing newline hashes differently as a FILE)',
+    );
+    context.io.out(text);
+    return 0;
+  }
   context.io.out(`run ${meta.runId}: ${meta.status} (updated ${meta.updatedAt})`);
   if (meta.workflowName !== undefined) {
     context.io.out(`workflow: ${meta.workflowName}`);
@@ -949,6 +1005,57 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
         `quota drift: ${drift.provider ?? '?'}:${drift.model ?? '?'} ${drift.dimension ?? '?'} ` +
           `declared ${String(drift.declaredPerMinute ?? '?')}/min vs provider ` +
           `${String(drift.reportedPerMinute ?? '?')}/min (per-minute window, not cumulative)`,
+      );
+    }
+  }
+  // The candidate chain (RV4207): the RV2902 fold rendered as one
+  // section, so an auditor reads proposed/repaired/rejected/accepted
+  // by hash, with each candidate's window, wires, and money, and the
+  // byte address or the named reason bytes are absent.
+  if (parsed.values.candidates === true) {
+    const chain = synthesisCandidatesFromJournal(
+      entries,
+      inspectSnapshot === undefined
+        ? assembled.priceUsd
+        : inspectSnapshot.composedPriceUsd(assembled.priceUsd),
+    );
+    context.io.out(
+      `finish candidates: ${chain.candidates.length} across ${chain.synthesisSpans} ` +
+        `synthesis span(s)` +
+        (chain.unhostedVerdicts === 0 ? '' : `; ${chain.unhostedVerdicts} unhosted verdict(s)`) +
+        (chain.unattributedSpans === 0
+          ? ''
+          : `; ${chain.unattributedSpans} span(s) without wire attribution`),
+    );
+    for (const candidate of chain.candidates) {
+      const window = candidate.windowMs === undefined ? '' : ` ${candidate.windowMs}ms`;
+      const wires = candidate.wires === undefined ? '' : `, ${candidate.wires} wire(s)`;
+      const cost = candidate.costUsd === undefined ? '' : `, $${candidate.costUsd.toFixed(4)}`;
+      const bytes =
+        candidate.candidateRef !== undefined
+          ? ` (bytes at ${sanitizeTerminalText(candidate.candidateRef)})`
+          : candidate.bytesUnavailableReason !== undefined
+            ? ` (bytes unavailable: ${sanitizeTerminalText(candidate.bytesUnavailableReason)})`
+            : '';
+      context.io.out(
+        `  seq ${String(candidate.verdictSeq)} ${candidate.verdict}: ` +
+          (candidate.candidateHash === undefined
+            ? 'no identity (journaled before it shipped)'
+            : `sha256 ${candidate.candidateHash.slice(0, 12)}, ` +
+              `${String(candidate.candidateChars ?? '?')} chars`) +
+          `${window}${wires}${cost}` +
+          (candidate.failed.length === 0
+            ? ''
+            : `; failed ${candidate.failed
+                .map((failure) => sanitizeTerminalText(failure.name))
+                .join(', ')}`) +
+          bytes,
+      );
+    }
+    if (chain.candidates.length > 0) {
+      context.io.out(
+        '  recover bytes: rulvar inspect <runId> --candidate-bytes <full hash>  ' +
+          '(recipe: sha256 over the JCS canonical value; verifyCandidateBytes in @rulvar/core)',
       );
     }
   }

@@ -10,7 +10,7 @@
 function synthesisCandidatesFromJournal(entries, priceUsd?): JournaledSynthesisCandidateReport;
 ```
 
-Defined in: [packages/core/src/stores/synthesis-candidates.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L217)
+Defined in: [packages/core/src/stores/synthesis-candidates.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/synthesis-candidates.ts#L280)
 
 Fold the finish candidates (RV2902) out of a run's journal: each
 journaled validation verdict with the window of wall, wires, usage,

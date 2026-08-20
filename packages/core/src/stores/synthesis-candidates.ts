@@ -22,8 +22,54 @@
 // cover the terminal's own call records the span's candidates keep
 // their verdict facts and drop the money: a partial wire set cannot
 // price a window, only misprice it.
+import { createHash } from 'node:crypto';
+
 import type { JournalEntry, ProviderCallRecord } from '../l0/entries.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
+import { jcsSerialize } from '../l0/jcs.js';
+
+/**
+ * THE candidate hash recipe (RV4207), written down where the fold that
+ * reads it lives: sha256 (hex) over the JCS canonical serialization of
+ * the candidate VALUE, `null` for an absent one. This is the recipe
+ * behind every `candidateHash` a finish-validation decision journals,
+ * the claim judge's `judgedHash`, the citation audit's `auditedHash`,
+ * and `draftToFinal`'s pair, so one function answers "which document"
+ * across every surface. Two facts an auditor needs spelled out: a
+ * STRING document hashes as its JSON encoding (the quotes and escapes
+ * included), not as raw text bytes; and exporting the text to a file
+ * with a trailing newline changes the FILE's sha256 while this hash is
+ * unchanged, verify against the exact value, never the file. The sixth
+ * comparison experiment's auditor re-derived all of this from source
+ * because no exported function said it.
+ */
+export function candidateHashOf(candidate: unknown): string {
+  return createHash('sha256')
+    .update(jcsSerialize(candidate ?? null), 'utf8')
+    .digest('hex');
+}
+
+/**
+ * Verifies retained candidate bytes against a journaled candidateHash
+ * (RV4207). The retained blob holds the candidate's TEXT verbatim (the
+ * document itself for a string result, its JSON serialization
+ * otherwise), while the hash covers the canonical VALUE, so the check
+ * tries the value both ways: as the string document, then as parsed
+ * JSON. Returns false on any mismatch or unparsable bytes, never
+ * throws: the caller is an audit path, and a corrupt blob is a finding
+ * there, not a crash.
+ */
+export function verifyCandidateBytes(bytes: Uint8Array | string, hash: string): boolean {
+  const text = typeof bytes === 'string' ? bytes : new TextDecoder().decode(bytes);
+  if (candidateHashOf(text) === hash) {
+    return true;
+  }
+  try {
+    return candidateHashOf(JSON.parse(text)) === hash;
+  } catch {
+    return false;
+  }
+}
 
 /** One failed validator on a journaled finish verdict, verbatim. */
 export interface SynthesisCandidateFailure {
@@ -46,11 +92,27 @@ export interface JournaledSynthesisCandidate {
   maxRepairs?: number;
   /** The contract generation the verdict was rendered under. */
   contractHash?: string;
-  /** The non-accepted candidate's identity (RV2507), when journaled. */
+  /**
+   * The candidate's identity (RV2507): the {@link candidateHashOf}
+   * hash and the char count. Journaled on every non-accepted verdict
+   * since RV2507, and on the ACCEPTED verdict too under a declared
+   * `candidatePersistence` (RV4207), where it names the resolved
+   * document (deterministic patch or sectional splice applied), so
+   * the whole chain reads by hash.
+   */
   candidateHash?: string;
   candidateChars?: number;
   /** The rejected candidate's transcript blob, under retention. */
   candidateRef?: string;
+  /**
+   * Why the candidate's BYTES are not retained (RV4207), from the
+   * decision itself: 'hash-only-persistence' names the declared
+   * policy, 'store-write-failed' a retention that was declared and
+   * refused by the store. Absent on journals written before the
+   * field, and everywhere no reason applies; a blob later deleted by
+   * retention leaves the hash and this field as the honest remainder.
+   */
+  bytesUnavailableReason?: string;
   /** The failed validators with their reasons, verbatim. */
   failed: readonly SynthesisCandidateFailure[];
   /** The hosting span's dispatch label (RV2901), when journaled. */
@@ -124,6 +186,7 @@ interface VerdictValue {
   candidateHash?: unknown;
   candidateChars?: unknown;
   candidateRef?: unknown;
+  bytesUnavailableReason?: unknown;
 }
 
 interface WireValue {
@@ -386,6 +449,9 @@ export function synthesisCandidatesFromJournal(
       ...(typeof value.candidateHash === 'string' ? { candidateHash: value.candidateHash } : {}),
       ...(typeof value.candidateChars === 'number' ? { candidateChars: value.candidateChars } : {}),
       ...(typeof value.candidateRef === 'string' ? { candidateRef: value.candidateRef } : {}),
+      ...(typeof value.bytesUnavailableReason === 'string'
+        ? { bytesUnavailableReason: value.bytesUnavailableReason }
+        : {}),
       failed: Array.isArray(value.failed)
         ? (value.failed as { name?: unknown; reasons?: unknown }[])
             .filter((failure) => typeof failure.name === 'string')

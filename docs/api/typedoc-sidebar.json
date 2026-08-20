@@ -3145,6 +3145,10 @@
             "link": "/api/@rulvar/core/functions/buildToolContext.md"
           },
           {
+            "text": "candidateHashOf",
+            "link": "/api/@rulvar/core/functions/candidateHashOf.md"
+          },
+          {
             "text": "canonicalIsolationTag",
             "link": "/api/@rulvar/core/functions/canonicalIsolationTag.md"
           },
@@ -4127,6 +4131,10 @@
           {
             "text": "validateUsageLimits",
             "link": "/api/@rulvar/core/functions/validateUsageLimits.md"
+          },
+          {
+            "text": "verifyCandidateBytes",
+            "link": "/api/@rulvar/core/functions/verifyCandidateBytes.md"
           },
           {
             "text": "wireCapacityEstimate",
@@ -8515,6 +8523,10 @@
             "link": "/api/@rulvar/rulvar/functions/buildToolContext.md"
           },
           {
+            "text": "candidateHashOf",
+            "link": "/api/@rulvar/rulvar/functions/candidateHashOf.md"
+          },
+          {
             "text": "canonicalIsolationTag",
             "link": "/api/@rulvar/rulvar/functions/canonicalIsolationTag.md"
           },
@@ -9509,6 +9521,10 @@
           {
             "text": "validateUsageLimits",
             "link": "/api/@rulvar/rulvar/functions/validateUsageLimits.md"
+          },
+          {
+            "text": "verifyCandidateBytes",
+            "link": "/api/@rulvar/rulvar/functions/verifyCandidateBytes.md"
           },
           {
             "text": "wireCapacityEstimate",

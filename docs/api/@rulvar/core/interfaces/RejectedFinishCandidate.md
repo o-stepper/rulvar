@@ -28,6 +28,7 @@ validators that did it.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-bytesunavailablereason"></a> `bytesUnavailableReason?` | `"hash-only-persistence"` \| `"store-write-failed"` | Why the bytes are not retained (RV4207), when the run declared a `candidatePersistence`: 'hash-only-persistence' is the policy saying so on purpose, 'store-write-failed' a declared retention the store refused. Absent on undeclared configs, whose rows keep their exact bytes. | [packages/core/src/engine/run-handle.ts:234](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L234) |
 | <a id="property-callid"></a> `callId` | `string` | The finish tool call this candidate arrived on. | [packages/core/src/engine/run-handle.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L216) |
 | <a id="property-chars"></a> `chars` | `number` | The candidate's length in characters, honest whether or not the bytes were retained. | [packages/core/src/engine/run-handle.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L222) |
 | <a id="property-failed"></a> `failed` | \{ `name`: `string`; `reasons`: `string`[]; \}[] | Each validator that rejected it, with its reasons: the diff. | [packages/core/src/engine/run-handle.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L224) |
