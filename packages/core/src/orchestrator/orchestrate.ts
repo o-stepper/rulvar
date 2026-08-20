@@ -66,6 +66,7 @@ import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
 import { lastRunSettle } from '../stores/reconcile.js';
 import { candidateHashOf, lastMechanicalRepairCostUsd } from '../stores/synthesis-candidates.js';
+import { semanticTerminalVerdictOf } from './semantic-verdict.js';
 import { repairLedgerFromJournal } from '../stores/repair-ledger.js';
 import type { AgentOpts, AgentProfile, Ctx, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
@@ -11617,6 +11618,28 @@ export function makeOrchestratorWorkflow(
       }
     }
 
+    // The one-word semantic verdict (RV4209): folded ONCE here from
+    // the same facts the envelope carries, so the CLI gate, the HTTP
+    // response, and the event stream read the SAME verdict instead of
+    // three re-derivations. Present exactly when semantic machinery
+    // was configured, so every other envelope keeps its bytes.
+    const semanticTerminalVerdict =
+      opts?.claimConsistency !== undefined || opts?.citationAudit !== undefined
+        ? semanticTerminalVerdictOf({
+            ...(claimConsistencyMeta === undefined
+              ? {}
+              : {
+                  claimConsistencyMeta: claimConsistencyMeta as unknown as Record<string, unknown>,
+                }),
+            ...(citationAuditMeta === undefined ? {} : { citationAuditMeta: citationAuditMeta }),
+            ...(claimCoverageWaiver === undefined
+              ? {}
+              : { claimCoverageWaiver: claimCoverageWaiver }),
+            ...(draftToFinal === undefined
+              ? {}
+              : { draftToFinal: draftToFinal as unknown as Record<string, unknown> }),
+          })
+        : undefined;
     return {
       result: synthesizedFinal,
       completion: decision.completion,
@@ -11670,6 +11693,12 @@ export function makeOrchestratorWorkflow(
               : { citationFindings: citationFindingsFound as unknown as Json }),
             citationAuditMeta: citationAuditMeta as unknown as Json,
           }),
+      // The one-word semantic verdict (RV4209): present exactly when
+      // semantic machinery was configured, so every other envelope
+      // keeps its bytes.
+      ...(semanticTerminalVerdict === undefined
+        ? {}
+        : { semanticTerminalVerdict: semanticTerminalVerdict as unknown as Json }),
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
       ...(decision.salvagedPartialChildren === undefined

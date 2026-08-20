@@ -1739,6 +1739,14 @@
             "link": "/api/@rulvar/core/interfaces/SemanticPassSummary.md"
           },
           {
+            "text": "SemanticTerminalVerdict",
+            "link": "/api/@rulvar/core/interfaces/SemanticTerminalVerdict.md"
+          },
+          {
+            "text": "SemanticVerdictInput",
+            "link": "/api/@rulvar/core/interfaces/SemanticVerdictInput.md"
+          },
+          {
             "text": "SerializationHook",
             "link": "/api/@rulvar/core/interfaces/SerializationHook.md"
           },
@@ -3749,6 +3757,10 @@
             "link": "/api/@rulvar/core/functions/priceUsdOf.md"
           },
           {
+            "text": "productionAcceptable",
+            "link": "/api/@rulvar/core/functions/productionAcceptable.md"
+          },
+          {
             "text": "profileCard",
             "link": "/api/@rulvar/core/functions/profileCard.md"
           },
@@ -3983,6 +3995,10 @@
           {
             "text": "selfTestFinishValidation",
             "link": "/api/@rulvar/core/functions/selfTestFinishValidation.md"
+          },
+          {
+            "text": "semanticTerminalVerdictOf",
+            "link": "/api/@rulvar/core/functions/semanticTerminalVerdictOf.md"
           },
           {
             "text": "shouldCompact",
@@ -7105,6 +7121,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/SemanticPassSummary.md"
           },
           {
+            "text": "SemanticTerminalVerdict",
+            "link": "/api/@rulvar/rulvar/interfaces/SemanticTerminalVerdict.md"
+          },
+          {
+            "text": "SemanticVerdictInput",
+            "link": "/api/@rulvar/rulvar/interfaces/SemanticVerdictInput.md"
+          },
+          {
             "text": "SerializationHook",
             "link": "/api/@rulvar/rulvar/interfaces/SerializationHook.md"
           },
@@ -9143,6 +9167,10 @@
             "link": "/api/@rulvar/rulvar/functions/priceUsdOf.md"
           },
           {
+            "text": "productionAcceptable",
+            "link": "/api/@rulvar/rulvar/functions/productionAcceptable.md"
+          },
+          {
             "text": "profileCard",
             "link": "/api/@rulvar/rulvar/functions/profileCard.md"
           },
@@ -9385,6 +9413,10 @@
           {
             "text": "selfTestFinishValidation",
             "link": "/api/@rulvar/rulvar/functions/selfTestFinishValidation.md"
+          },
+          {
+            "text": "semanticTerminalVerdictOf",
+            "link": "/api/@rulvar/rulvar/functions/semanticTerminalVerdictOf.md"
           },
           {
             "text": "shouldCompact",

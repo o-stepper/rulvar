@@ -7,6 +7,8 @@
  */
 import {
   claimCoverageOf,
+  ConfigError,
+  productionAcceptable,
   sanitizeTerminalText,
   type ClaimCoverageGrade,
   type Engine,
@@ -14,6 +16,7 @@ import {
   type ResumeHandle,
   type RunHandle,
   type RunOutcome,
+  type SemanticTerminalVerdict,
   type Workflow,
 } from '@rulvar/core';
 
@@ -515,6 +518,70 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     );
   }
   return base;
+}
+
+/**
+ * `--acceptance-policy production` (RV4209, the sixth comparison
+ * experiment): the machine gate for consumers that ship the artifact.
+ * `--strict` stays byte identical and deliberately keeps exit 0 on
+ * `partial` and `vacuous` (they break no contract the pass declares);
+ * the experiment's run settled ok under a standing waiver with three
+ * unsupported citations inside the uncovered fraction, and a CI
+ * pipeline reading that exit shipped it. The production policy is
+ * FAIL CLOSED over the one derivation the envelope now carries
+ * (`semanticTerminalVerdict`, `productionAcceptable`): a suspended
+ * run, an absent verdict, and every verdict but 'clean' exit nonzero,
+ * each with ONE stable JSON reason line on stderr
+ * (`{"acceptancePolicy":"production","exit":1,"reason":...}`), so a
+ * pipeline parses the refusal instead of scraping prose. Runs
+ * strict's checks first: the completion, deliverable, coverage-floor,
+ * and rewritten-draft refusals all still fire, under the same JSON
+ * envelope. Nonzero base exits pass through untouched.
+ */
+export function acceptancePolicyExitCode(
+  policy: string,
+  outcome: RunOutcome<unknown>,
+  base: number,
+  io: CliIo,
+): number {
+  if (policy !== 'production') {
+    throw new ConfigError(
+      `unknown acceptance policy '${sanitizeTerminalText(policy)}'; the one shipped policy is ` +
+        "'production'",
+    );
+  }
+  const refuse = (reason: string, verdict?: SemanticTerminalVerdict): number => {
+    io.err(
+      JSON.stringify({
+        acceptancePolicy: 'production',
+        exit: 1,
+        reason,
+        ...(verdict === undefined ? {} : { verdict }),
+      }),
+    );
+    return 1;
+  };
+  if (base !== 0) {
+    return base;
+  }
+  if (outcome.status === 'suspended') {
+    // strict passes a suspended run through at exit 0 (the run may
+    // legitimately wait); production cannot ship a run that has not
+    // settled.
+    return refuse('unsettled: the run is suspended, nothing terminal to accept');
+  }
+  const strict = strictExitCode(outcome, base, io);
+  if (strict !== 0) {
+    return refuse('strict: a mechanical acceptance check refused (see the lines above)');
+  }
+  const verdict = (outcome.value as { semanticTerminalVerdict?: unknown } | null | undefined)
+    ?.semanticTerminalVerdict as SemanticTerminalVerdict | undefined;
+  const acceptable = productionAcceptable(verdict);
+  if (!acceptable.ok) {
+    return refuse(acceptable.reason ?? 'refused', verdict);
+  }
+  io.err('acceptance policy production: clean');
+  return 0;
 }
 
 /**

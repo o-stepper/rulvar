@@ -321,6 +321,18 @@ export type RunOutcome<R> = {
    */
   claimConsistencyMeta?: Record<string, unknown>;
   /**
+   * The one-word semantic verdict (RV4209), lifted from the same
+   * envelope or typed error data as the meta beside it: 'clean',
+   * 'findings', 'partial', 'vacuous', 'waived', or 'not-judged', with
+   * the counts and the waiver it was folded from
+   * (SemanticTerminalVerdict). One derivation at the orchestrator
+   * chokepoint instead of every consumer re-deriving the verdict from
+   * four fields; `productionAcceptable` is the exported gate over it.
+   * Absent when no claim or citation machinery was configured, and on
+   * every run recorded before it shipped.
+   */
+  semanticTerminalVerdict?: Record<string, unknown>;
+  /**
    * The judged contradictions themselves (RV3601), lifted from the
    * same envelope or typed error data as the meta beside them. RV3304
    * deliberately kept the details off this surface and let the meta's

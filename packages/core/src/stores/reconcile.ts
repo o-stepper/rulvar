@@ -359,6 +359,9 @@ export const TERMINAL_TELEMETRY_SCOPE: TerminalTelemetryScopes = Object.freeze({
   childrenAtFailure: 'cumulative',
   semanticPasses: 'terminal',
   claimConsistencyMeta: 'terminal',
+  // The one-word semantic verdict (RV4209): folded once at the settle
+  // from the terminal's own metas, so it scopes exactly like them.
+  semanticTerminalVerdict: 'terminal',
   // Terminal like the meta beside it (RV3601): the verdict describes
   // the document THIS terminal judged, never a fold across segments.
   claimContradictions: 'terminal',

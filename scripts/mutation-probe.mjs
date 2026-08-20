@@ -5685,6 +5685,42 @@ export const MUTATIONS = [
     replace: '  const allAnchors = true;',
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
+  {
+    id: 'semantic-verdict-findings-outrank-the-waiver',
+    doctrine:
+      "standing findings outrank every softer reading of the verdict (RV4209): with the branch collapsed, a run carrying judged contradictions under a waiver reads 'waived', the human exception launders the machine defects, and the production gate refuses for the wrong reason or not at all",
+    file: 'packages/core/src/orchestrator/semantic-verdict.ts',
+    find: "      : contradictions > 0 || unsupportedCitations > 0\n        ? 'findings'",
+    replace: "      : false\n        ? 'findings'",
+    test: 'packages/core/src/orchestrator/semantic-verdict.test.ts',
+  },
+  {
+    id: 'semantic-verdict-waived-is-never-clean',
+    doctrine:
+      "a waived acceptance reads 'waived', never clean (RV4209): with the branch collapsed, the sixth comparison run's exact shape (standing waiver over partial coverage) grades one notch too green and the production gate's refusal loses the name of who accepted the gap",
+    file: 'packages/core/src/orchestrator/semantic-verdict.ts',
+    find: "        : waiver !== undefined\n          ? 'waived'",
+    replace: "        : false\n          ? 'waived'",
+    test: 'packages/core/src/orchestrator/semantic-verdict.test.ts',
+  },
+  {
+    id: 'production-gate-clean-is-the-only-pass',
+    doctrine:
+      "productionAcceptable passes exactly the clean verdict (RV4209): with the gate collapsed to always-ok, partial, vacuous, waived, findings, and not-judged all ship, which is precisely the pipeline blindness the sixth comparison run demonstrated under --strict's documented exits",
+    file: 'packages/core/src/orchestrator/semantic-verdict.ts',
+    find: "  if (verdict.verdict === 'clean') {\n    return { ok: true };\n  }",
+    replace: '  return { ok: true };',
+    test: 'packages/core/src/orchestrator/semantic-verdict.test.ts',
+  },
+  {
+    id: 'production-policy-refuses-the-unsettled-run',
+    doctrine:
+      'the production policy refuses a suspended run as unsettled (RV4209): with the check collapsed, a run that has not settled falls through to the semantic verdict of whatever value it holds so far, and a pipeline ships an artifact whose run is still deciding',
+    file: 'packages/cli/src/drive.ts',
+    find: "  if (outcome.status === 'suspended') {",
+    replace: '  if (false) {',
+    test: 'packages/cli/src/acceptance-policy.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

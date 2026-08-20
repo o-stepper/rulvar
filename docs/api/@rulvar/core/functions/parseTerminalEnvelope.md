@@ -10,7 +10,7 @@
 function parseTerminalEnvelope(value): TerminalEnvelope;
 ```
 
-Defined in: [packages/core/src/l0/terminal-envelope.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/terminal-envelope.ts#L236)
+Defined in: [packages/core/src/l0/terminal-envelope.ts:245](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/terminal-envelope.ts#L245)
 
 The runtime gate over the terminal envelope contract (RV3903, the
 fourth comparison experiment). `terminalEnvelopeOf` is the ONE

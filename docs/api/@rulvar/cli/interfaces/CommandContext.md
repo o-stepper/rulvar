@@ -6,11 +6,11 @@
 
 # Interface: CommandContext
 
-Defined in: [packages/cli/src/commands.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L70)
+Defined in: [packages/cli/src/commands.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L76)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-cwd"></a> `cwd` | `string` | [packages/cli/src/commands.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L71) |
-| <a id="property-io"></a> `io` | [`CliIo`](/api/@rulvar/cli/interfaces/CliIo.md) | [packages/cli/src/commands.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L72) |
+| <a id="property-cwd"></a> `cwd` | `string` | [packages/cli/src/commands.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L77) |
+| <a id="property-io"></a> `io` | [`CliIo`](/api/@rulvar/cli/interfaces/CliIo.md) | [packages/cli/src/commands.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L78) |

@@ -114,6 +114,7 @@ export * from './orchestrator/claims.js';
 export * from './orchestrator/contradictions.js';
 export * from './orchestrator/citation-audit.js';
 export * from './orchestrator/consistency.js';
+export * from './orchestrator/semantic-verdict.js';
 export * from './orchestrator/wake.js';
 export * from './engine/ctx.js';
 export type { ExecKeyDerivation } from './runtime/executor.js';

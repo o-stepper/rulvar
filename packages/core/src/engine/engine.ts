@@ -1028,6 +1028,7 @@ function liftRunCompletion(candidate: unknown):
       acceptanceChildren?: AcceptanceChildSummary[];
       semanticPasses?: SemanticPassesSummary;
       claimConsistencyMeta?: Record<string, unknown>;
+      semanticTerminalVerdict?: Record<string, unknown>;
       claimContradictions?: Record<string, unknown>[];
       synthesisSkipped?: boolean | string;
       deliverableAccepted?: boolean;
@@ -1053,6 +1054,7 @@ function liftRunCompletion(candidate: unknown):
     acceptanceChildren?: AcceptanceChildSummary[];
     semanticPasses?: SemanticPassesSummary;
     claimConsistencyMeta?: Record<string, unknown>;
+    semanticTerminalVerdict?: Record<string, unknown>;
     claimContradictions?: Record<string, unknown>[];
     synthesisSkipped?: boolean | string;
     deliverableAccepted?: boolean;
@@ -1188,6 +1190,19 @@ function liftRunCompletion(candidate: unknown):
     !Array.isArray(metaCandidate)
   ) {
     lifted.claimConsistencyMeta = { ...(metaCandidate as Record<string, unknown>) };
+  }
+  // The one-word semantic verdict (RV4209), same posture as the meta
+  // beside it: a valid object mirrors shallowly, anything malformed
+  // drops silently, and the CLI's production gate reads it fail
+  // closed either way.
+  const verdictCandidate = (candidate as { semanticTerminalVerdict?: unknown })
+    .semanticTerminalVerdict;
+  if (
+    typeof verdictCandidate === 'object' &&
+    verdictCandidate !== null &&
+    !Array.isArray(verdictCandidate)
+  ) {
+    lifted.semanticTerminalVerdict = { ...(verdictCandidate as Record<string, unknown>) };
   }
   // The judged findings beside their meta (RV3601), same posture: the
   // third comparison run failed typed with the contradictions inside
@@ -2820,6 +2835,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.claimConsistencyMeta !== undefined) {
           outcomeFacts.claimConsistencyMeta = lifted.claimConsistencyMeta;
+        }
+        if (lifted.semanticTerminalVerdict !== undefined) {
+          outcomeFacts.semanticTerminalVerdict = lifted.semanticTerminalVerdict;
         }
         if (lifted.claimContradictions !== undefined) {
           outcomeFacts.claimContradictions = lifted.claimContradictions;

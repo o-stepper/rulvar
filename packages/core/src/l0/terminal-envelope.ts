@@ -117,6 +117,15 @@ export interface TerminalEnvelope {
    */
   claimConsistencyMeta?: Record<string, unknown>;
   /**
+   * The one-word semantic verdict (RV4209), mirrored beside the meta
+   * it was folded from: 'clean' | 'findings' | 'partial' | 'vacuous'
+   * | 'waived' | 'not-judged' plus the counts and the waiver
+   * (SemanticTerminalVerdict), so an event-only or HTTP consumer
+   * gates on the same one derivation the CLI reads. Absent when no
+   * semantic machinery was configured; absence means NOT RECORDED.
+   */
+  semanticTerminalVerdict?: Record<string, unknown>;
+  /**
    * The host declared config identity the run was started under
    * (RV3210), echoed here since RV3304 so a decision consumer binds
    * the verdict above to the configuration that produced it without a
@@ -317,6 +326,16 @@ export function parseTerminalEnvelope(value: unknown): TerminalEnvelope {
   }
   if (value.claimConsistencyMeta !== undefined && !isPlainObject(value.claimConsistencyMeta)) {
     refuseEnvelope('claimConsistencyMeta', 'an object when present', value.claimConsistencyMeta);
+  }
+  if (
+    value.semanticTerminalVerdict !== undefined &&
+    !isPlainObject(value.semanticTerminalVerdict)
+  ) {
+    refuseEnvelope(
+      'semanticTerminalVerdict',
+      'an object when present',
+      value.semanticTerminalVerdict,
+    );
   }
   if (value.configFingerprint !== undefined) {
     requireNonEmptyString(value.configFingerprint, 'configFingerprint');
