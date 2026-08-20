@@ -30,8 +30,13 @@ mind; the semantics are pinned as intended, not scheduled to change.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-account"></a> `account?` | `string` | Scope-dimension pins (RV4205): a rule naming any of these matches only reservations whose run scope carries the same value, so a host caps by billing account, project, legal domain, region, or provider account without a limiter fork. A reservation with no scope (an unscoped run) matches none of them, exactly the tenant rule's semantics. | [packages/core/src/model/quota.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L65) |
+| <a id="property-legaldomain"></a> `legalDomain?` | `string` | - | [packages/core/src/model/quota.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L67) |
 | <a id="property-model"></a> `model?` | `string` | - | [packages/core/src/model/quota.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L55) |
+| <a id="property-project"></a> `project?` | `string` | - | [packages/core/src/model/quota.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L66) |
 | <a id="property-provider"></a> `provider?` | `string` | Adapter id, as in `concurrency.perProvider` keys. | [packages/core/src/model/quota.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L54) |
-| <a id="property-requestsperminute"></a> `requestsPerMinute?` | `number` | Wire attempts admitted per window; the exact, hard cap. | [packages/core/src/model/quota.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L58) |
+| <a id="property-provideraccount"></a> `providerAccount?` | `string` | - | [packages/core/src/model/quota.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L69) |
+| <a id="property-region"></a> `region?` | `string` | - | [packages/core/src/model/quota.ts:68](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L68) |
+| <a id="property-requestsperminute"></a> `requestsPerMinute?` | `number` | Wire attempts admitted per window; the exact, hard cap. | [packages/core/src/model/quota.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L71) |
 | <a id="property-tenant"></a> `tenant?` | `string` | - | [packages/core/src/model/quota.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L56) |
-| <a id="property-tokensperminute"></a> `tokensPerMinute?` | `number` | Input plus output tokens admitted per window: estimated at admission, reconciled to actual usage. | [packages/core/src/model/quota.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L63) |
+| <a id="property-tokensperminute"></a> `tokensPerMinute?` | `number` | Input plus output tokens admitted per window: estimated at admission, reconciled to actual usage. | [packages/core/src/model/quota.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L76) |

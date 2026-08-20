@@ -10,7 +10,7 @@
 function quotaRuleMatches(rule, request): boolean;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L175)
+Defined in: [packages/core/src/model/quota.ts:211](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L211)
 
 True when every dimension the rule pins matches the request.
 

@@ -21,5 +21,8 @@ decisions: this is an attribution envelope, not IAM.
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-account"></a> `account?` | `string` | The billing account within the tenant. | `packages/core/dist/index.d.ts` |
+| <a id="property-legaldomain"></a> `legalDomain?` | `string` | The governing legal domain (RV4205, the sixth comparison experiment's P0.2): host-defined vocabulary (a jurisdiction, a regulatory regime), the first of the three named dimensions the experiment's question bound to routing and audit. | `packages/core/dist/index.d.ts` |
 | <a id="property-project"></a> `project?` | `string` | The project or workload name. | `packages/core/dist/index.d.ts` |
+| <a id="property-provideraccount"></a> `providerAccount?` | `string` | The provider-side billing account identity, host-defined (RV4205). | `packages/core/dist/index.d.ts` |
+| <a id="property-region"></a> `region?` | `string` | The deployment or data-residency region, host-defined (RV4205). | `packages/core/dist/index.d.ts` |
 | <a id="property-tenant"></a> `tenant?` | `string` | The owning tenant or organization, host-defined. | `packages/core/dist/index.d.ts` |

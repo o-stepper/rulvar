@@ -973,8 +973,7 @@ export function invoiceFromJournal(
           continue;
         }
         const value = entry.value as
-          | { decisionType?: unknown; scope?: unknown; scopeDigest?: unknown }
-          | undefined;
+          { decisionType?: unknown; scope?: unknown; scopeDigest?: unknown } | undefined;
         if (value?.decisionType === 'execution_scope' && typeof value.scope === 'object') {
           return {
             executionScope: value.scope as NonNullable<InvoiceExport['executionScope']>,

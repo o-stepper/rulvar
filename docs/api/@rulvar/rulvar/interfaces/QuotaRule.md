@@ -30,8 +30,13 @@ mind; the semantics are pinned as intended, not scheduled to change.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-account"></a> `account?` | `string` | Scope-dimension pins (RV4205): a rule naming any of these matches only reservations whose run scope carries the same value, so a host caps by billing account, project, legal domain, region, or provider account without a limiter fork. A reservation with no scope (an unscoped run) matches none of them, exactly the tenant rule's semantics. | `packages/core/dist/index.d.ts` |
+| <a id="property-legaldomain"></a> `legalDomain?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-model"></a> `model?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-project"></a> `project?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-provider"></a> `provider?` | `string` | Adapter id, as in `concurrency.perProvider` keys. | `packages/core/dist/index.d.ts` |
+| <a id="property-provideraccount"></a> `providerAccount?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-region"></a> `region?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-requestsperminute"></a> `requestsPerMinute?` | `number` | Wire attempts admitted per window; the exact, hard cap. | `packages/core/dist/index.d.ts` |
 | <a id="property-tenant"></a> `tenant?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-tokensperminute"></a> `tokensPerMinute?` | `number` | Input plus output tokens admitted per window: estimated at admission, reconciled to actual usage. | `packages/core/dist/index.d.ts` |

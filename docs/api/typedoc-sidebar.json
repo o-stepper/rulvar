@@ -1703,6 +1703,10 @@
             "link": "/api/@rulvar/core/interfaces/SandboxBridgeOptions.md"
           },
           {
+            "text": "ScopePolicy",
+            "link": "/api/@rulvar/core/interfaces/ScopePolicy.md"
+          },
+          {
             "text": "ScriptRunner",
             "link": "/api/@rulvar/core/interfaces/ScriptRunner.md"
           },
@@ -3363,6 +3367,10 @@
           {
             "text": "executionFactsOf",
             "link": "/api/@rulvar/core/functions/executionFactsOf.md"
+          },
+          {
+            "text": "executionScopeDigest",
+            "link": "/api/@rulvar/core/functions/executionScopeDigest.md"
           },
           {
             "text": "executionScopeKey",
@@ -7025,6 +7033,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/SandboxBridgeOptions.md"
           },
           {
+            "text": "ScopePolicy",
+            "link": "/api/@rulvar/rulvar/interfaces/ScopePolicy.md"
+          },
+          {
             "text": "ScriptRunner",
             "link": "/api/@rulvar/rulvar/interfaces/ScriptRunner.md"
           },
@@ -8709,6 +8721,10 @@
           {
             "text": "executionFactsOf",
             "link": "/api/@rulvar/rulvar/functions/executionFactsOf.md"
+          },
+          {
+            "text": "executionScopeDigest",
+            "link": "/api/@rulvar/rulvar/functions/executionScopeDigest.md"
           },
           {
             "text": "executionScopeKey",

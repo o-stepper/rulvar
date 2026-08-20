@@ -5498,7 +5498,7 @@ export const MUTATIONS = [
   {
     id: 'scope-reject-refuses-the-unknown-dimension',
     doctrine:
-      "the reject scope policy refuses an unknown dimension by name (RV4205): with the check collapsed, a dimension the engine cannot record silently drops under a policy that promised a refusal, and the host that declared it never learns nothing downstream can bind it",
+      'the reject scope policy refuses an unknown dimension by name (RV4205): with the check collapsed, a dimension the engine cannot record silently drops under a policy that promised a refusal, and the host that declared it never learns nothing downstream can bind it',
     file: 'packages/core/src/engine/engine.ts',
     find: '      if (!(SCOPE_FIELDS as readonly string[]).includes(key)) {',
     replace: '      if (false) {',

@@ -197,9 +197,7 @@ export function snapshotQuotaRules(
         ...(rule.project === undefined ? {} : { project: rule.project }),
         ...(rule.legalDomain === undefined ? {} : { legalDomain: rule.legalDomain }),
         ...(rule.region === undefined ? {} : { region: rule.region }),
-        ...(rule.providerAccount === undefined
-          ? {}
-          : { providerAccount: rule.providerAccount }),
+        ...(rule.providerAccount === undefined ? {} : { providerAccount: rule.providerAccount }),
         ...(rule.requestsPerMinute === undefined
           ? {}
           : { requestsPerMinute: rule.requestsPerMinute }),
@@ -222,8 +220,7 @@ export function quotaRuleMatches(rule: QuotaRule, request: QuotaReservationReque
     (rule.project === undefined || rule.project === request.scope?.project) &&
     (rule.legalDomain === undefined || rule.legalDomain === request.scope?.legalDomain) &&
     (rule.region === undefined || rule.region === request.scope?.region) &&
-    (rule.providerAccount === undefined ||
-      rule.providerAccount === request.scope?.providerAccount)
+    (rule.providerAccount === undefined || rule.providerAccount === request.scope?.providerAccount)
   );
 }
 

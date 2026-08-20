@@ -412,9 +412,9 @@ describe('release: cancelling an unused admission (RV1013)', () => {
 
 describe('scope-dimension rules (RV4205)', () => {
   it('validates the pinned dimensions and keeps dimension-less rule keys byte identical', () => {
-    expect(() =>
-      validateQuotaRules([{ region: '', requestsPerMinute: 1 }] as never),
-    ).toThrow(/region must be a nonempty string/);
+    expect(() => validateQuotaRules([{ region: '', requestsPerMinute: 1 }] as never)).toThrow(
+      /region must be a nonempty string/,
+    );
     const legacy = { provider: 'anthropic', requestsPerMinute: 10 };
     expect(quotaRuleKey(legacy)).toBe(
       JSON.stringify({

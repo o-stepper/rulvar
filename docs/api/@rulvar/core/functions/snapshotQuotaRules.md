@@ -10,7 +10,7 @@
 function snapshotQuotaRules(rules, site?): readonly QuotaRule[];
 ```
 
-Defined in: [packages/core/src/model/quota.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L140)
+Defined in: [packages/core/src/model/quota.ts:171](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L171)
 
 Validates a rule set and returns the immutable snapshot every
 reference limiter admits under (RV608): a fresh array of fresh

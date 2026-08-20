@@ -791,7 +791,7 @@ describe('the scope-bound reservation (RV4205)', () => {
     expect('tenant' in (seen[0] ?? {})).toBe(false);
   });
 
-  it("the default keeps the engine tenant byte for byte, scope beside it", async () => {
+  it('the default keeps the engine tenant byte for byte, scope beside it', async () => {
     const seen: QuotaReservationRequest[] = [];
     const limiter: QuotaLimiter = {
       reserve: (request) => {
@@ -810,7 +810,10 @@ describe('the scope-bound reservation (RV4205)', () => {
   it('a garbage tenantFrom refuses typed at createEngine', () => {
     expect(() =>
       engineWith(answeringAdapter(), {
-        limiter: { reserve: () => Promise.resolve({ granted: true, reservationId: 'x' }), reconcile: () => Promise.resolve() },
+        limiter: {
+          reserve: () => Promise.resolve({ granted: true, reservationId: 'x' }),
+          reconcile: () => Promise.resolve(),
+        },
         tenantFrom: 'vibes' as never,
       }),
     ).toThrow(/tenantFrom must be 'engine' or 'scope'/);

@@ -10,7 +10,7 @@
 function validateQuotaRules(rules, site?): void;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L72)
+Defined in: [packages/core/src/model/quota.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L94)
 
 Validates a quota rule set as a typed ConfigError before any
 limiter can admit under it: a non-array or empty set, a rule
