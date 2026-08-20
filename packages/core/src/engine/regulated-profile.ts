@@ -62,11 +62,20 @@ export interface RegulatedProfile {
   profileHash: string;
 }
 
-// 2 since RV4101: the hashed map gained the `construction` key (the
-// sorted attested descriptors plus the unrecognized count), so the
-// meaning of the map changed and a v1 hash must never collide with a
-// v2 reading of the same options.
-const REGULATED_VERSION = 2;
+// 2 since RV4101 (the map gained the `construction` key); 3 since
+// RV4203, the sixth comparison experiment's headline finding: the v2
+// map hashed NONE of the semantic postures, so a run configured
+// `report` beside a standing waiver and a run configured fail closed
+// carried the identical profileHash, and the attestation could not
+// tell a diagnostic posture from a production one. The v3 map hashes
+// the findings postures of all three passes, the waiver (mode and
+// declared terms), the citation audit's sampling and judge
+// parameters, the `semanticAcceptance` declaration in full, and the
+// declared toolset attestation pins (contract and authority hashes),
+// so an upgraded pin moves the fingerprint. The meaning of the map
+// changed, and a v2 hash must never collide with a v3 reading of the
+// same options.
+const REGULATED_VERSION = 3;
 
 function refuse(field: string, requirement: string): never {
   throw new ConfigError(
@@ -529,6 +538,95 @@ export function compileRegulatedProfile(input: {
     }
   }
 
+  // The declared attestation pins enter the map (RV4203): an upgraded
+  // pin (a contract-only pin re-recorded with its authority hash) is a
+  // different posture and must move the fingerprint; the sorted object
+  // keys make the fold deterministic under jcsSerialize.
+  const toolsetAttestations = Object.fromEntries(
+    Object.entries(defaults.profiles ?? {}).flatMap(
+      ([name, profile]): Array<[string, { hash: string; authorityHash?: string }]> => {
+        const pin = profile.toolsetAttestation;
+        if (pin === undefined) {
+          return [];
+        }
+        return [
+          [
+            name,
+            {
+              hash: pin.hash,
+              ...(pin.authorityHash === undefined ? {} : { authorityHash: pin.authorityHash }),
+            },
+          ],
+        ];
+      },
+    ),
+  );
+  // The semantic postures enter the map (RV4203). Everything read
+  // here is the FILLED copy the floor produced above, so the map
+  // records what will actually run, never the host's elisions; the
+  // claimConsistency branch is total when orchestrate is (the floor
+  // refused its absence), and the guard only narrows types.
+  const semanticPosture =
+    orchestrate === undefined || orchestrate.claimConsistency === undefined
+      ? {}
+      : {
+          acceptanceReserve: 'require',
+          coveragePolicy: 'strict-final',
+          claimStage: orchestrate.claimConsistency.stage,
+          claimOnFound: orchestrate.claimConsistency.onFound,
+          ...(orchestrate.claimConsistency.coverageRepair === true
+            ? { claimCoverageRepair: true }
+            : {}),
+          ...(orchestrate.claimConsistency.coverageTarget === undefined
+            ? {}
+            : { claimCoverageTarget: orchestrate.claimConsistency.coverageTarget }),
+          ...(orchestrate.claimConsistency.judge === undefined
+            ? {}
+            : {
+                claimJudge: {
+                  ...(orchestrate.claimConsistency.judge.model === undefined
+                    ? {}
+                    : { model: orchestrate.claimConsistency.judge.model }),
+                  ...(orchestrate.claimConsistency.judge.effort === undefined
+                    ? {}
+                    : { effort: orchestrate.claimConsistency.judge.effort }),
+                },
+              }),
+          ...(orchestrate.claimConsistency.waiver === undefined
+            ? {}
+            : { claimWaiver: orchestrate.claimConsistency.waiver }),
+          ...(orchestrate.contradictions?.onFound === undefined
+            ? {}
+            : { contradictionsOnFound: orchestrate.contradictions.onFound }),
+          citationAudit: {
+            onFound: orchestrate.citationAudit?.onFound,
+            ...(orchestrate.citationAudit?.samplePerSection === undefined
+              ? {}
+              : { samplePerSection: orchestrate.citationAudit.samplePerSection }),
+            ...(orchestrate.citationAudit?.maxSampled === undefined
+              ? {}
+              : { maxSampled: orchestrate.citationAudit.maxSampled }),
+            ...(orchestrate.citationAudit?.window === undefined
+              ? {}
+              : { window: orchestrate.citationAudit.window }),
+            ...(orchestrate.citationAudit?.pattern === undefined
+              ? {}
+              : { pattern: orchestrate.citationAudit.pattern }),
+            ...(orchestrate.citationAudit?.judge === undefined
+              ? {}
+              : {
+                  judge: {
+                    ...(orchestrate.citationAudit.judge.model === undefined
+                      ? {}
+                      : { model: orchestrate.citationAudit.judge.model }),
+                    ...(orchestrate.citationAudit.judge.effort === undefined
+                      ? {}
+                      : { effort: orchestrate.citationAudit.judge.effort }),
+                  },
+                }),
+          },
+          semanticAcceptance: orchestrate.semanticAcceptance,
+        };
   const posture = {
     regulated: REGULATED_VERSION,
     strictApprovals: true,
@@ -542,15 +640,8 @@ export function compileRegulatedProfile(input: {
     budgetPolicy: 'immutable-lifetime',
     budgetUsd: run.budgetUsd,
     scope: run.scope,
-    ...(orchestrate === undefined
-      ? {}
-      : {
-          acceptanceReserve: 'require',
-          citationAudit: true,
-          ...(orchestrate.claimConsistency === undefined
-            ? {}
-            : { coveragePolicy: 'strict-final', claimStage: orchestrate.claimConsistency.stage }),
-        }),
+    ...(Object.keys(toolsetAttestations).length === 0 ? {} : { toolsetAttestations }),
+    ...semanticPosture,
     ...(run.configFingerprint === undefined ? {} : { hostFingerprint: run.configFingerprint }),
   };
   const profileHash = createHash('sha256').update(jcsSerialize(posture), 'utf8').digest('hex');

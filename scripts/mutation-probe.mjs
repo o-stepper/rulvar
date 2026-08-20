@@ -5496,6 +5496,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/semantic-round.test.ts',
   },
   {
+    id: 'posture-map-hashes-the-semantic-postures',
+    doctrine:
+      'the profile hash distinguishes the semantic postures (RV4203): with the semantic fold dropped from the map, a fail-closed compile and a repair-armed compile carry the identical profileHash again, and the attestation cannot tell a diagnostic posture from a production one, the sixth comparison experiment exact blind spot',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '    ...semanticPosture,',
+    replace: '',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'posture-map-hashes-the-attestation-pins',
+    doctrine:
+      'an upgraded toolset pin moves the fingerprint (RV4203): with the pins dropped from the map, a contract-only pin re-recorded with its authority hash compiles to the same profileHash, and the posture that started refusing authority drift is indistinguishable from the one that never did',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '    ...(Object.keys(toolsetAttestations).length === 0 ? {} : { toolsetAttestations }),',
+    replace: '',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
     id: 'coverage-arm-consumes-the-uncovered-grade',
     doctrine:
       "a non-full final grade arms the bounded round under coverageRepair (RV4202): with the coverage defect collapsed, the armed run skips the round it was promised and walks straight into the strict-final refusal, and the uncovered fraction stays the defect class no machinery can consume, the sixth experiment's exact dead end",
