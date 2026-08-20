@@ -1,8 +1,8 @@
 /**
  * The four M5 commands of the canonical CLI grammar (no aliases in v1):
  *
- *   rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--strict]
- *   rulvar resume <runId>  [--store PATH] [--strict]
+ *   rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--strict] [--acceptance-policy POLICY]
+ *   rulvar resume <runId>  [--store PATH] [--strict] [--acceptance-policy POLICY]
  *   rulvar runs ls         [--store PATH]
  *   rulvar inspect <runId> [--store PATH] [--candidates] [--candidate-bytes HASH]
  *
@@ -63,7 +63,13 @@ import {
 
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
 import { applyRunProfile, assembleEngine } from './engine-assembly.js';
-import { driveRun, reportDryRun, reportOutcome, strictExitCode } from './drive.js';
+import {
+  acceptancePolicyExitCode,
+  driveRun,
+  reportDryRun,
+  reportOutcome,
+  strictExitCode,
+} from './drive.js';
 import { GRAMMAR, KB_FAMILY_USAGE, parseBudgetValue, parseCommand, usageOf } from './grammar.js';
 import type { CliIo } from './io.js';
 
@@ -204,6 +210,12 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     args,
   });
   const base = reportOutcome(outcome, context.io);
+  const policy = parsed.values['acceptance-policy'] as string | undefined;
+  if (policy !== undefined) {
+    // The production gate (RV4209) SUBSUMES strict: it runs strict's
+    // checks first, then the semantic verdict, fail closed.
+    return acceptancePolicyExitCode(policy, outcome, base, context.io);
+  }
   return parsed.values.strict === true ? strictExitCode(outcome, base, context.io) : base;
 }
 
@@ -390,6 +402,12 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
     args,
   });
   const base = reportOutcome(outcome, context.io);
+  const policy = parsed.values['acceptance-policy'] as string | undefined;
+  if (policy !== undefined) {
+    // The production gate (RV4209) SUBSUMES strict: it runs strict's
+    // checks first, then the semantic verdict, fail closed.
+    return acceptancePolicyExitCode(policy, outcome, base, context.io);
+  }
   return parsed.values.strict === true ? strictExitCode(outcome, base, context.io) : base;
 }
 

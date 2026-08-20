@@ -14,7 +14,8 @@ type TerminalOutcomeFacts = Pick<RunOutcome<unknown>,
   | "deliverableAccepted"
   | "resultAvailable"
   | "acceptedArtifactRef"
-  | "claimConsistencyMeta"> & {
+  | "claimConsistencyMeta"
+  | "semanticTerminalVerdict"> & {
   cost: Pick<RunOutcome<unknown>["cost"], "totalUsd" | "grossUsd" | "byModel"> & {
      usageApprox?: boolean;
      wireRequests?: number;
@@ -31,5 +32,5 @@ The outcome facts the assembler reads; a structural subset of RunOutcome.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `cost` | `Pick`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"cost"`\], `"totalUsd"` \| `"grossUsd"` \| `"byModel"`\&gt; & \{ `usageApprox?`: `boolean`; `wireRequests?`: `number`; \} | [packages/core/src/engine/terminal-envelope.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L44) |
-| `usage` | [`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"usage"`\] | [packages/core/src/engine/terminal-envelope.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L43) |
+| `cost` | `Pick`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"cost"`\], `"totalUsd"` \| `"grossUsd"` \| `"byModel"`\&gt; & \{ `usageApprox?`: `boolean`; `wireRequests?`: `number`; \} | [packages/core/src/engine/terminal-envelope.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L45) |
+| `usage` | [`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`unknown`\&gt;\[`"usage"`\] | [packages/core/src/engine/terminal-envelope.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L44) |

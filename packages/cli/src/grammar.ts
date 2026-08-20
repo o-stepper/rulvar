@@ -75,12 +75,20 @@ export const GRAMMAR: {
       { name: 'budget-usd', placeholder: 'N' },
       { name: 'profile', placeholder: 'NAME' },
       { name: 'strict' },
+      { name: 'acceptance-policy', placeholder: 'POLICY' },
     ],
   },
   resume: {
     command: 'resume',
     positionals: ['<runId>'],
-    flags: [ARGS, STORE, { name: 'dry-run' }, { name: 'allow-args-change' }, { name: 'strict' }],
+    flags: [
+      ARGS,
+      STORE,
+      { name: 'dry-run' },
+      { name: 'allow-args-change' },
+      { name: 'strict' },
+      { name: 'acceptance-policy', placeholder: 'POLICY' },
+    ],
   },
   replay: {
     command: 'replay',

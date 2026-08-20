@@ -10,7 +10,7 @@
 function terminalEnvelopeOf(input): TerminalEnvelope;
 ```
 
-Defined in: [packages/core/src/engine/terminal-envelope.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L78)
+Defined in: [packages/core/src/engine/terminal-envelope.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/terminal-envelope.ts#L79)
 
 Assembles one terminal envelope (RV1105). `settlement` present means
 nothing durable records the terminal: `settled` reads false, and the

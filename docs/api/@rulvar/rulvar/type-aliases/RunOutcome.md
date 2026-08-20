@@ -28,6 +28,7 @@ type RunOutcome<R> = {
   salvagedPartialChildren?: string[];
   salvagedTerminalOutputChildren?: string[];
   semanticPasses?: SemanticPassesSummary;
+  semanticTerminalVerdict?: Record<string, unknown>;
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   synthesisSkipped?: boolean | string;
   usage: Usage;
@@ -376,6 +377,26 @@ optional semanticPasses?: SemanticPassesSummary;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### semanticTerminalVerdict?
+
+```ts
+optional semanticTerminalVerdict?: Record<string, unknown>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The one-word semantic verdict (RV4209), lifted from the same
+envelope or typed error data as the meta beside it: 'clean',
+'findings', 'partial', 'vacuous', 'waived', or 'not-judged', with
+the counts and the waiver it was folded from
+(SemanticTerminalVerdict). One derivation at the orchestrator
+chokepoint instead of every consumer re-deriving the verdict from
+four fields; `productionAcceptable` is the exported gate over it.
+Absent when no claim or citation machinery was configured, and on
+every run recorded before it shipped.
 
 ***
 

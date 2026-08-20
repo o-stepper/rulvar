@@ -39,6 +39,7 @@ export type TerminalOutcomeFacts = Pick<
   | 'resultAvailable'
   | 'acceptedArtifactRef'
   | 'claimConsistencyMeta'
+  | 'semanticTerminalVerdict'
 > & {
   usage: RunOutcome<unknown>['usage'];
   cost: Pick<RunOutcome<unknown>['cost'], 'totalUsd' | 'grossUsd' | 'byModel'> & {
@@ -129,6 +130,11 @@ export function terminalEnvelopeOf(input: {
   }
   if (outcome.claimConsistencyMeta !== undefined) {
     envelope.claimConsistencyMeta = detachedMeta(outcome.claimConsistencyMeta);
+  }
+  // The one-word verdict rides beside the meta it was folded from
+  // (RV4209), the same detached posture.
+  if (outcome.semanticTerminalVerdict !== undefined) {
+    envelope.semanticTerminalVerdict = detachedMeta(outcome.semanticTerminalVerdict);
   }
   if (input.configFingerprint !== undefined) {
     envelope.configFingerprint = input.configFingerprint;
