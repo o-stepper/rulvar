@@ -10,7 +10,7 @@
 type OpenAiSdkOptions = Omit<OpenAiClientOptions, "maxRetries">;
 ```
 
-Defined in: [packages/openai/src/adapter.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/adapter.ts#L51)
+Defined in: [packages/openai/src/adapter.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/adapter.ts#L52)
 
 Official SDK construction options forwarded verbatim to
 `new OpenAI(...)`, minus `maxRetries`: Rulvar owns retries and

@@ -10,7 +10,7 @@
 function openai(options?): ProviderAdapter;
 ```
 
-Defined in: [packages/openai/src/adapter.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/adapter.ts#L119)
+Defined in: [packages/openai/src/adapter.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/adapter.ts#L120)
 
 Creates the first-class OpenAI adapter (id 'openai'); maxRetries 0.
 

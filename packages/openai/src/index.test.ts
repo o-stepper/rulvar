@@ -1764,3 +1764,35 @@ describe('the provider output floor and raw projection (the v1.74 experiment rev
     expect(toolCalls[0]?.function.arguments).toBe(raw);
   });
 });
+
+describe('describeRegulatedPosture (RV4204)', () => {
+  const mockClient: OpenAiClientLike = {
+    responses: { create: () => Promise.reject(new Error('unused')) },
+    chat: { completions: { create: () => Promise.reject(new Error('unused')) } },
+  };
+
+  it('attests the official transport with no declarable caps bound', () => {
+    const posture = openai({ apiKey: 'k' }).describeRegulatedPosture?.();
+    expect(posture).toEqual({
+      regulatedPosture: 1,
+      kind: 'model-adapter',
+      name: 'openai',
+      transport: 'official',
+    });
+  });
+
+  it('a declared base URL attests as a pinned egress origin', () => {
+    expect(
+      openai({ apiKey: 'k', baseURL: 'https://gw.example.net/v1' }).describeRegulatedPosture?.(),
+    ).toMatchObject({
+      transport: 'custom-base-url',
+      baseUrlOrigin: 'https://gw.example.net',
+    });
+  });
+
+  it('a preconstructed client attests honestly as one', () => {
+    expect(openai({ client: mockClient }).describeRegulatedPosture?.()).toMatchObject({
+      transport: 'preconstructed-client',
+    });
+  });
+});

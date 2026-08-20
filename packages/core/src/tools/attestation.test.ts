@@ -203,3 +203,58 @@ describe('createEngine validates the attestation shape (RV1514)', () => {
     ).toThrow(/toolsetAttestation\.tools\['bad name!'\]/u);
   });
 });
+
+describe('the toolset attestation floor (RV4204)', () => {
+  it('a spawn resolving tools under an unpinned profile refuses typed when the floor is armed', async () => {
+    const adapter = finishAdapter();
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      profiles: { bare: { description: 'no tools, no pin' } },
+      requireToolsetAttestation: true,
+    });
+    const spawn = createCtx(internals).agent('go', { agentType: 'bare', tools: [fetchTool()] });
+    await expect(spawn).rejects.toThrow(ConfigError);
+    await expect(spawn).rejects.toThrow(/requireToolsetAttestation/u);
+    // Refused BEFORE any provider call, exactly where the pin refuses.
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('a toolless spawn passes under the floor: nothing resolved, nothing to pin', async () => {
+    const { internals } = makeInternals({
+      adapters: [finishAdapter()],
+      routing: { loop: 'fake:model' },
+      profiles: { bare: { description: 'no tools' } },
+      requireToolsetAttestation: true,
+    });
+    await expect(createCtx(internals).agent('go', { agentType: 'bare' })).resolves.toBe('done');
+  });
+
+  it('an attested profile passes under the floor exactly as before', async () => {
+    const attestation = attestToolset(await resolved([searchTool('finds things')]));
+    const { internals } = makeInternals({
+      adapters: [finishAdapter()],
+      routing: { loop: 'fake:model' },
+      profiles: {
+        pinned: {
+          description: 'a pinned profile',
+          tools: [searchTool('finds things')],
+          toolsetAttestation: attestation,
+        },
+      },
+      requireToolsetAttestation: true,
+    });
+    await expect(createCtx(internals).agent('go', { agentType: 'pinned' })).resolves.toBe('done');
+  });
+
+  it('the unset floor keeps the historical bytes: an unpinned toolful spawn still runs', async () => {
+    const { internals } = makeInternals({
+      adapters: [finishAdapter()],
+      routing: { loop: 'fake:model' },
+      profiles: { bare: { description: 'no pin' } },
+    });
+    await expect(
+      createCtx(internals).agent('go', { agentType: 'bare', tools: [fetchTool()] }),
+    ).resolves.toBe('done');
+  });
+});

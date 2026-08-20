@@ -211,6 +211,8 @@ export interface TestInternalsOptions {
   /** The engine-default transport RetryPolicy (call > profile > engine). */
   retry?: RetryPolicy;
   permissions?: PermissionConfig;
+  /** The toolset attestation floor (RV4204). */
+  requireToolsetAttestation?: boolean;
   isolation?: IsolationProvider;
   onEscalation?: (
     result: EscalatedResult<unknown>,
@@ -367,6 +369,9 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       ...(options.limits === undefined ? {} : { limits: options.limits }),
       ...(options.retry === undefined ? {} : { retry: options.retry }),
       ...(options.permissions === undefined ? {} : { permissions: options.permissions }),
+      ...(options.requireToolsetAttestation === undefined
+        ? {}
+        : { requireToolsetAttestation: options.requireToolsetAttestation }),
     },
     errorPolicy: options.errorPolicy ?? 'strict',
     pricingOf,

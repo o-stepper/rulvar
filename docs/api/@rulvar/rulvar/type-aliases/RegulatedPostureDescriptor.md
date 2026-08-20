@@ -9,7 +9,9 @@
 ```ts
 type RegulatedPostureDescriptor = 
   | McpSourceRegulatedPosture
-  | AiSdkBridgeRegulatedPosture;
+  | AiSdkBridgeRegulatedPosture
+  | ModelAdapterRegulatedPosture
+  | ToolExecutorRegulatedPosture;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`

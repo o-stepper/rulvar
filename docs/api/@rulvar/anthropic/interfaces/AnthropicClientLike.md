@@ -6,7 +6,7 @@
 
 # Interface: AnthropicClientLike
 
-Defined in: [packages/anthropic/src/adapter.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L35)
+Defined in: [packages/anthropic/src/adapter.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L36)
 
 The client sub-surface the adapter consumes; injectable for tests.
 
@@ -14,8 +14,8 @@ The client sub-surface the adapter consumes; injectable for tests.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-messages"></a> `messages` | \{ `countTokens`: `Promise`\&lt;\{ `input_tokens`: `number`; \}\&gt;; `create`: `Promise`\&lt;`unknown`\&gt;; \} | [packages/anthropic/src/adapter.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L36) |
-| `messages.countTokens` | `Promise`\&lt;\{ `input_tokens`: `number`; \}\&gt; | [packages/anthropic/src/adapter.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L38) |
-| `messages.create` | `Promise`\&lt;`unknown`\&gt; | [packages/anthropic/src/adapter.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L37) |
-| <a id="property-models"></a> `models` | \{ `list`: `Promise`\&lt;\{ `data`: `Record`\&lt;`string`, `unknown`\&gt;[]; `has_more?`: `boolean`; `last_id?`: `string`; \}\&gt;; \} | [packages/anthropic/src/adapter.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L43) |
-| `models.list` | `Promise`\&lt;\{ `data`: `Record`\&lt;`string`, `unknown`\&gt;[]; `has_more?`: `boolean`; `last_id?`: `string`; \}\&gt; | [packages/anthropic/src/adapter.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L44) |
+| <a id="property-messages"></a> `messages` | \{ `countTokens`: `Promise`\&lt;\{ `input_tokens`: `number`; \}\&gt;; `create`: `Promise`\&lt;`unknown`\&gt;; \} | [packages/anthropic/src/adapter.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L37) |
+| `messages.countTokens` | `Promise`\&lt;\{ `input_tokens`: `number`; \}\&gt; | [packages/anthropic/src/adapter.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L39) |
+| `messages.create` | `Promise`\&lt;`unknown`\&gt; | [packages/anthropic/src/adapter.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L38) |
+| <a id="property-models"></a> `models` | \{ `list`: `Promise`\&lt;\{ `data`: `Record`\&lt;`string`, `unknown`\&gt;[]; `has_more?`: `boolean`; `last_id?`: `string`; \}\&gt;; \} | [packages/anthropic/src/adapter.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L44) |
+| `models.list` | `Promise`\&lt;\{ `data`: `Record`\&lt;`string`, `unknown`\&gt;[]; `has_more?`: `boolean`; `last_id?`: `string`; \}\&gt; | [packages/anthropic/src/adapter.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L45) |

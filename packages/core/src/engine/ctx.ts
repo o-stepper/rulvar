@@ -835,6 +835,8 @@ export interface RunInternals {
     gates?: Record<string, MechanicalGateProfile>;
     /** Engine-wide admission countTokens policy (RV1804); default 'allow'. */
     countTokens?: 'allow' | 'deny';
+    /** The toolset attestation floor (RV4204); default off. */
+    requireToolsetAttestation?: boolean;
     /** The engine-wide prompt-cache policy (RV2006); profile and call opts win. */
     cache?: CachePolicy;
     /** The receipt posture of the billing seam (RV3405); default 'async'. */
@@ -1323,6 +1325,22 @@ export function createCtx(
       // the attested resolution refuses here, before any provider call
       // or budget admission.
       enforceToolsetAttestation(agentType, profile.toolsetAttestation, toolset);
+    } else if (
+      internals.defaults.requireToolsetAttestation === true &&
+      toolset.contracts.length > 0
+    ) {
+      // The attestation floor (RV4204): the pin above binds attested
+      // profiles, overrides included, but a spawn riding a profile
+      // with no tools and no pin could still bring a whole toolset in
+      // per call and execute it unattested. Under the floor that
+      // spawn refuses HERE, typed, before any provider call, exactly
+      // where the pin itself refuses drift.
+      throw new ConfigError(
+        `agentType '${agentType}' resolves ${String(toolset.contracts.length)} tool(s) with ` +
+          'no toolsetAttestation binding them (requireToolsetAttestation): a regulated ' +
+          'spawn executes only pinned toolsets; record the pin with attestToolset() on the ' +
+          'profile, or drop the tools',
+      );
     }
 
     // Role trigger protocol (M4-T01; predicates in model/roles.ts):

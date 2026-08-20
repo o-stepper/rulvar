@@ -713,9 +713,9 @@ describe('the regulated semantic acceptance (RV4201)', () => {
     expect(otherJudge.profileHash).not.toBe(widerSample.profileHash);
   });
 
-  it('an upgraded toolset pin moves the hash: authority joins the contract (RV4203)', () => {
+  it('the toolset pin is hashed, and a legacy contract-only pin refuses outright (RV4203/RV4204)', () => {
     const contractHash = 'c'.repeat(64);
-    const withPin = (authorityHash?: string) =>
+    const withPin = (authorityHash?: string) => () =>
       compileRegulatedProfile({
         ...BASE(),
         engine: {
@@ -735,9 +735,28 @@ describe('the regulated semantic acceptance (RV4201)', () => {
           },
         },
       });
-    const contractOnly = withPin();
-    const upgraded = withPin('d'.repeat(64));
-    expect(upgraded.profileHash).not.toBe(contractOnly.profileHash);
+    // The legacy pin passes authority drift silently by its own
+    // documented posture, which the regulated floor refuses (RV4204).
+    expect(withPin()).toThrow(ConfigError);
+    expect(withPin()).toThrow(/legacy contract-only pin \(RV4204\)/);
+    // Two full pins whose authority differs are two postures (RV4203).
+    const authorityA = withPin('d'.repeat(64))();
+    const authorityB = withPin('e'.repeat(64))();
+    expect(authorityB.profileHash).not.toBe(authorityA.profileHash);
+  });
+
+  it('the attestation floor arms on the compiled defaults (RV4204)', () => {
+    const compiled = compileRegulatedProfile(BASE());
+    expect(compiled.engine.defaults?.requireToolsetAttestation).toBe(true);
+    expect(() =>
+      compileRegulatedProfile({
+        ...BASE(),
+        engine: {
+          ...BASE().engine,
+          defaults: { routing: { loop: 'fake:model' }, requireToolsetAttestation: false },
+        },
+      }),
+    ).toThrow(/requireToolsetAttestation/);
   });
 
   it('the pinned-hash waiver is the one exception the floor admits', () => {
@@ -766,5 +785,163 @@ describe('the regulated semantic acceptance (RV4201)', () => {
       principal: 'release-owner',
       reason: 'reviewed dossier 42',
     });
+  });
+});
+
+describe('the first-party construction descriptors (RV4204)', () => {
+  const tightExecutor = (posture?: Partial<Record<string, unknown>>) => ({
+    run: () => Promise.resolve(null),
+    describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+      regulatedPosture: 1,
+      kind: 'tool-executor',
+      name: 'subprocess',
+      ledger: true,
+      allowEnv: ['PATH'],
+      bounds: { timeoutMs: 30_000, maxOutputBytes: 1_048_576 },
+      isolation: { flavor: 'subprocess', sandboxed: true },
+      ...posture,
+    }),
+  });
+
+  it('a model-adapter descriptor is judged, folded, and pins the egress', () => {
+    const adapter = {
+      ...scriptedAdapter(() => ({ text: 'x' })),
+      describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+        regulatedPosture: 1,
+        kind: 'model-adapter',
+        name: 'anthropic',
+        transport: 'custom-base-url',
+        baseUrlOrigin: 'https://proxy.example.com',
+        capsBound: { declared: true, maxPages: 4 },
+      }),
+    };
+    const compiled = compileRegulatedProfile({
+      ...BASE(),
+      engine: { ...BASE().engine, adapters: [adapter] },
+    });
+    expect(compiled.profileHash).toMatch(/^[0-9a-f]{64}$/);
+    const official = {
+      ...scriptedAdapter(() => ({ text: 'x' })),
+      describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+        regulatedPosture: 1,
+        kind: 'model-adapter',
+        name: 'anthropic',
+        transport: 'official',
+        capsBound: { declared: true, maxPages: 4 },
+      }),
+    };
+    const moved = compileRegulatedProfile({
+      ...BASE(),
+      engine: { ...BASE().engine, adapters: [official] },
+    });
+    expect(moved.profileHash).not.toBe(compiled.profileHash);
+  });
+
+  it('a custom-base-url descriptor with no origin refuses: an egress the hash cannot pin', () => {
+    const adapter = {
+      ...scriptedAdapter(() => ({ text: 'x' })),
+      describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+        regulatedPosture: 1,
+        kind: 'model-adapter',
+        name: 'anthropic',
+        transport: 'custom-base-url',
+      }),
+    };
+    expect(() =>
+      compileRegulatedProfile({ ...BASE(), engine: { ...BASE().engine, adapters: [adapter] } }),
+    ).toThrow(/baseUrlOrigin/);
+  });
+
+  it('the executor registry is walked: a ledgerless executor refuses by field name', () => {
+    expect(() =>
+      compileRegulatedProfile({
+        ...BASE(),
+        engine: { ...BASE().engine, executors: { subprocess: tightExecutor({ ledger: false }) } },
+      }),
+    ).toThrow(/construction\['subprocess'\]\.ledger/);
+    const compiled = compileRegulatedProfile({
+      ...BASE(),
+      engine: { ...BASE().engine, executors: { subprocess: tightExecutor() } },
+    });
+    expect(compiled.profileHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('the compiled executor re-judges its posture at run() (RV4102 seam)', async () => {
+    let ledgerArmed = true;
+    let name = 'subprocess';
+    const shifty = {
+      run: () => Promise.resolve(null),
+      describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+        regulatedPosture: 1,
+        kind: 'tool-executor',
+        name,
+        ledger: ledgerArmed,
+        allowEnv: [],
+        bounds: { timeoutMs: 30_000, maxOutputBytes: 1_048_576 },
+        isolation: { flavor: 'subprocess', sandboxed: false },
+      }),
+    };
+    const compiled = compileRegulatedProfile({
+      ...BASE(),
+      engine: { ...BASE().engine, executors: { subprocess: shifty } },
+    });
+    const wrapped = compiled.engine.executors?.subprocess;
+    // A LOOSENING refuses with the compile-time field-named error.
+    ledgerArmed = false;
+    await expect(
+      Promise.resolve().then(() =>
+        wrapped?.run({ tool: 't', args: {}, callId: 'c', runId: 'r' } as never),
+      ),
+    ).rejects.toThrow(/construction\['subprocess'\]\.ledger must be armed/);
+    // Any other movement refuses naming the drift.
+    ledgerArmed = true;
+    name = 'renamed';
+    await expect(
+      Promise.resolve().then(() =>
+        wrapped?.run({ tool: 't', args: {}, callId: 'c', runId: 'r' } as never),
+      ),
+    ).rejects.toThrow(/posture moved between compile time and run\(\)/);
+  });
+
+  it("'require-recognized' refuses a blind construction by name, and enters the hash", () => {
+    expect(() =>
+      compileRegulatedProfile({ ...BASE(), construction: 'require-recognized' }),
+    ).toThrow(/attested nothing: fake/);
+    const attestedOnly = compileRegulatedProfile({
+      ...BASE(),
+      engine: {
+        adapters: [
+          {
+            ...scriptedAdapter(() => ({ text: 'x' })),
+            describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+              regulatedPosture: 1,
+              kind: 'model-adapter',
+              name: 'fake',
+              transport: 'official',
+            }),
+          },
+        ],
+        defaults: { routing: { loop: 'fake:model' } },
+      },
+      construction: 'require-recognized',
+    });
+    const counted = compileRegulatedProfile({
+      ...BASE(),
+      engine: {
+        adapters: [
+          {
+            ...scriptedAdapter(() => ({ text: 'x' })),
+            describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+              regulatedPosture: 1,
+              kind: 'model-adapter',
+              name: 'fake',
+              transport: 'official',
+            }),
+          },
+        ],
+        defaults: { routing: { loop: 'fake:model' } },
+      },
+    });
+    expect(attestedOnly.profileHash).not.toBe(counted.profileHash);
   });
 });

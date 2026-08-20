@@ -110,6 +110,21 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
   const now = options.now ?? wallClock;
 
   return {
+    // The construction-side posture attestation (RV4204): a PURE
+    // snapshot of what this executor chose at construction, read at
+    // compile time by compileRegulatedProfile and folded into the
+    // hashed posture map (the regulated floor requires the ledger:
+    // an effect no ledger records is an effect nobody can reconcile).
+    describeRegulatedPosture: () => ({
+      regulatedPosture: 1,
+      kind: 'tool-executor',
+      name: 'container',
+      ledger: options.ledger !== undefined,
+      allowEnv: [...(options.forwardEnv ?? [])],
+      bounds: { timeoutMs, maxOutputBytes },
+      isolation: { flavor: 'container', network, readOnlyRoot: readOnly },
+    }),
+
     async run(request) {
       const spec = (request.spec ?? {}) as { command?: unknown; args?: unknown };
       const command = typeof spec.command === 'string' ? spec.command : options.command;

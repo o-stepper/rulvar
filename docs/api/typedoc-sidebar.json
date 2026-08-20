@@ -1311,6 +1311,10 @@
             "link": "/api/@rulvar/core/interfaces/MetaLookupStore.md"
           },
           {
+            "text": "ModelAdapterRegulatedPosture",
+            "link": "/api/@rulvar/core/interfaces/ModelAdapterRegulatedPosture.md"
+          },
+          {
             "text": "ModelChoice",
             "link": "/api/@rulvar/core/interfaces/ModelChoice.md"
           },
@@ -1881,6 +1885,10 @@
           {
             "text": "ToolExecutorProvider",
             "link": "/api/@rulvar/core/interfaces/ToolExecutorProvider.md"
+          },
+          {
+            "text": "ToolExecutorRegulatedPosture",
+            "link": "/api/@rulvar/core/interfaces/ToolExecutorRegulatedPosture.md"
           },
           {
             "text": "ToolInit",
@@ -6601,6 +6609,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/MetaLookupStore.md"
           },
           {
+            "text": "ModelAdapterRegulatedPosture",
+            "link": "/api/@rulvar/rulvar/interfaces/ModelAdapterRegulatedPosture.md"
+          },
+          {
             "text": "ModelChoice",
             "link": "/api/@rulvar/rulvar/interfaces/ModelChoice.md"
           },
@@ -7195,6 +7207,10 @@
           {
             "text": "ToolExecutorProvider",
             "link": "/api/@rulvar/rulvar/interfaces/ToolExecutorProvider.md"
+          },
+          {
+            "text": "ToolExecutorRegulatedPosture",
+            "link": "/api/@rulvar/rulvar/interfaces/ToolExecutorRegulatedPosture.md"
           },
           {
             "text": "ToolInit",

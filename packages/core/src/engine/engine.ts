@@ -157,6 +157,18 @@ export interface EngineDefaults {
    */
   countTokens?: 'allow' | 'deny';
   /**
+   * The toolset attestation floor (RV4204, the sixth comparison
+   * experiment): with this set, a spawn that resolves a NON-EMPTY
+   * toolset must run under a profile whose `toolsetAttestation` pins
+   * it, or it refuses typed at spawn time, before any provider call.
+   * The pin already binds call-level tool overrides and registered
+   * names for attested profiles (RV1514); what it could not bind was
+   * a spawn riding a profile that declared no tools and no pin, with
+   * the tools arriving per call. Off by default: every existing
+   * config keeps its bytes. `compileRegulatedProfile` arms it.
+   */
+  requireToolsetAttestation?: boolean;
+  /**
    * The engine-wide prompt-cache policy (RV2006). Absent means 'auto':
    * the agent loop attaches CacheHint breakpoints (after tools, after
    * system, and the sliding deepest message, TTL '5m') on every turn
@@ -2084,6 +2096,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(defaults.toolsets === undefined ? {} : { toolsets: defaults.toolsets }),
         ...(defaults.gates === undefined ? {} : { gates: defaults.gates }),
         ...(defaults.countTokens === undefined ? {} : { countTokens: defaults.countTokens }),
+        ...(defaults.requireToolsetAttestation === undefined
+          ? {}
+          : { requireToolsetAttestation: defaults.requireToolsetAttestation }),
         ...(defaults.cache === undefined ? {} : { cache: defaults.cache }),
         ...(defaults.billingReceipts === undefined
           ? {}
