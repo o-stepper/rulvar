@@ -232,7 +232,7 @@ const AUDIT_BASE = {
 };
 
 describe('the audit wired into the orchestrator (RV4004)', () => {
-  it("intake refuses garbage postures, a missing resolver, and double-armed 'repair'", () => {
+  it("intake refuses garbage postures and a missing resolver; double-armed 'repair' merges (RV4202)", () => {
     expect(() =>
       makeOrchestratorWorkflow('g', {
         citationAudit: { resolve: resolveSnapshot, onFound: 'shout' as unknown as 'report' },
@@ -248,13 +248,15 @@ describe('the audit wired into the orchestrator (RV4004)', () => {
         citationAudit: { resolve: resolveSnapshot, onFound: 'repair' },
       }),
     ).toThrow(/requires synthesis/);
+    // Arming BOTH repairs is legal since RV4202: the pair grants the
+    // SAME one bounded round, merged, so intake no longer refuses it.
     expect(() =>
       makeOrchestratorWorkflow('g', {
         synthesis: {},
         claimConsistency: { stage: 'final', onFound: 'repair' },
         citationAudit: { resolve: resolveSnapshot, onFound: 'repair' },
       }),
-    ).toThrow(/cannot pair with claimConsistency.onFound 'repair'/);
+    ).not.toThrow();
     expect(() =>
       makeOrchestratorWorkflow('g', {
         citationAudit: { resolve: resolveSnapshot, judge: { estCost: -1 } },

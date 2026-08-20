@@ -925,6 +925,17 @@ export interface OrchestrateOptions {
    * method, internalized. See {@link OrchestrateCitationAudit}.
    */
   citationAudit?: OrchestrateCitationAudit;
+  /**
+   * The atomic production posture (RV4201, the sixth comparison
+   * experiment): one declaration that a run may settle accepted only
+   * clean (full final coverage, zero surviving contradictions, zero
+   * surviving unsupported citations, no waiver, or exactly the one
+   * pinned-hash waiver). Intake refuses any `claimConsistency` /
+   * `citationAudit` field that contradicts it, so the observing
+   * postures the sixth experiment shipped under cannot coexist with
+   * the declaration. See {@link OrchestrateSemanticAcceptance}.
+   */
+  semanticAcceptance?: OrchestrateSemanticAcceptance;
 }
 
 /**
@@ -970,10 +981,15 @@ export interface OrchestrateCitationAudit {
    * composition, the repaired document is re-audited (a fresh sample
    * from its new hash), a configured claim pass past the draft
    * rejudges the rewritten document, and unsupported rows that
-   * survive fail the run typed. One round exactly; arming BOTH this
-   * 'repair' and `claimConsistency.onFound: 'repair'` is a
-   * ConfigError, because the run grants one bounded repair round and
-   * two consumers of it would pay two extra compositions.
+   * survive fail the run typed. One round exactly, shared (RV4202):
+   * arming BOTH this 'repair' and `claimConsistency.onFound:
+   * 'repair'` grants the same ONE bounded round, which then fires
+   * after the first audit pass carrying both defect lists (the judged
+   * claim contradictions and the unsupported citations, plus the
+   * uncovered sentences when `coverageRepair` is armed), and BOTH
+   * judges re-rule on the repaired document's new hash before
+   * survivors of either class fail the run typed. The budget never
+   * grows past one extra composition.
    */
   onFound?: 'report' | 'repair' | 'fail';
 }
@@ -1241,6 +1257,101 @@ export interface OrchestrateClaimConsistency {
    * grade is a signature over nothing.
    */
   waiver?: { principal: string; reason: string; expiresAt?: string };
+  /**
+   * Coverage joins the bounded repair round (RV4202, the sixth
+   * comparison experiment). The experiment's run reached its
+   * strict-final gate with a 'partial' grade and had exactly two
+   * doors: a typed refusal or the standing waiver, because the round
+   * armed on FINDINGS alone; the uncovered 27 percent of its citing
+   * sentences was a defect class no machinery could consume. With
+   * this set, a final grade that is not 'full' arms the same ONE
+   * bounded round (RV3307): the still-uncovered citing sentences ride
+   * the round's prompt as the UNCOVERED CLAIMS block (ground each
+   * claim in material the pool actually read, or drop the citation),
+   * the repaired document is re-paired and re-judged from its new
+   * hash, and a grade that is STILL not 'full' after the round meets
+   * the strict-final gate exactly as before (the typed refusal, or a
+   * waiver where the posture allows one). Requires `onFound:
+   * 'repair'` (the round is that posture's machinery) and
+   * `coveragePolicy: 'strict-final'` (the gate whose refusal the
+   * round averts); a ConfigError otherwise. Off by default: every
+   * existing config keeps its bytes, round triggers included.
+   */
+  coverageRepair?: boolean;
+}
+
+/**
+ * The atomic production posture (RV4201, the sixth comparison
+ * experiment). The experiment's run was configured knob by knob:
+ * `report` findings postures, a standing waiver, no repair round, and
+ * every one of those choices was individually legal while their SUM
+ * quietly meant "observe and ship anyway"; the run then settled
+ * accepted over a partial grade, a judged contradiction, and five
+ * unsupported citations. This declaration is the one object that says
+ * the opposite, in full, and intake REFUSES any underlying field that
+ * contradicts it (nothing is filled: a signature has no blanks, so
+ * the host writes the machinery the declaration binds). Under it a
+ * run can settle accepted only when the FINAL document's claim
+ * coverage graded 'full', zero judged contradictions and zero
+ * unsupported (unresolved included) sampled citations survived the
+ * one bounded round where the posture arms it, and no waiver stood,
+ * except the pinned-hash form, which licenses exactly one reviewed
+ * document. `compileRegulatedProfile` fills and enforces this
+ * declaration for regulated runs (RV4201); plain orchestrations opt
+ * in by declaring it.
+ */
+export interface OrchestrateSemanticAcceptance {
+  /**
+   * The document the verdicts must describe: the FINAL one, always.
+   * Requires `claimConsistency.stage` 'final' or 'both'; the literal
+   * exists so the signature spells its object out.
+   */
+  judgedStage: 'final';
+  /**
+   * The only acceptable final coverage grade. Requires
+   * `claimConsistency.coveragePolicy: 'strict-final'`, and refuses a
+   * declared `coverageTarget` below 1, because a pass sized to cover
+   * less than everything can never grade 'full' on a citing document:
+   * the declaration would be unsatisfiable by construction.
+   */
+  claimCoverage: 'full';
+  /**
+   * What a judged claim contradiction does: 'repair-once-then-fail'
+   * requires `claimConsistency.onFound: 'repair'` (survivors of the
+   * bounded round already fail typed) plus `coverageRepair: true` (the
+   * one round serves every armed defect class, coverage included);
+   * 'fail' requires `onFound: 'fail'`. The observing postures
+   * ('report', 'carry') refuse at intake.
+   */
+  contradictions: 'repair-once-then-fail' | 'fail';
+  /**
+   * What an unsupported sampled citation does, same mapping onto
+   * `citationAudit.onFound`; 'report' refuses at intake.
+   */
+  citations: 'repair-once-then-fail' | 'fail';
+  /**
+   * What a sampled citation that resolves NOTHING does. Mechanically
+   * unresolved rows are unsupported findings already (the
+   * citedValueValidator doctrine), so the field binds no new
+   * machinery; it exists because a signature that is silent about the
+   * rows no judge ever saw would be a blank exactly where the sixth
+   * experiment's audit found its five.
+   */
+  unresolved: 'fail';
+  /**
+   * The waiver posture. 'forbid': `claimConsistency.waiver` must be
+   * absent, and a journaled `claim_coverage_waived` decision
+   * surfacing under this declaration refuses typed (a journal that
+   * waived under a config that forbids waivers is a config/journal
+   * mismatch, not an authority). The pinned form carries the sha256
+   * of the ONE document the waiver may license (the claim meta's
+   * `judgedHash`, 64 hex chars): a signature under a reviewed
+   * document, never a blank cheque, so a re-run that composes any
+   * other bytes refuses exactly as if no waiver stood. Requires a
+   * declared `claimConsistency.waiver` naming the principal and the
+   * reason.
+   */
+  waiver: 'forbid' | { judgedHash: string };
 }
 
 /** One judged contradiction: the pair plus the judge's one-sentence reason. */
@@ -1388,6 +1499,14 @@ export interface OrchestrateClaimConsistencyMeta {
    * finding" reads off the envelope instead of the journal.
    */
   firstPassFindings?: number;
+  /**
+   * The coverage grade of the FIRST pass (RV4202), present exactly
+   * when a coverage-armed round ran (`passes` exceeds 1 under
+   * `coverageRepair`): the meta above always describes the LAST pass,
+   * so without this field a 'full' grade earned through the round
+   * would be indistinguishable from a clean first verdict.
+   */
+  firstPassCoverage?: ClaimCoverageGrade;
   /**
    * Bounded semantic repair rounds actually dispatched at this stage
    * (RV3904); today 0 or 1, the evidence-grade precedent. Distinct
@@ -2721,6 +2840,31 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         );
       }
     }
+    // Coverage joining the bounded round (RV4202): the flag arms the
+    // round on a non-'full' final grade, so it needs the round's own
+    // posture and the gate whose refusal it averts; anything else is a
+    // trigger wired to machinery that does not exist.
+    const coverageRepair = (consistency as { coverageRepair?: unknown }).coverageRepair;
+    if (coverageRepair !== undefined && typeof coverageRepair !== 'boolean') {
+      throw new ConfigError(
+        `orchestrate claimConsistency.coverageRepair must be a boolean; got ` +
+          `${typeof coverageRepair}`,
+      );
+    }
+    if (coverageRepair === true && onFound !== 'repair') {
+      throw new ConfigError(
+        "orchestrate claimConsistency.coverageRepair requires onFound 'repair': the bounded " +
+          'repair round is the machinery of that posture, and coverage can only join a ' +
+          'round that exists',
+      );
+    }
+    if (coverageRepair === true && coveragePolicy !== 'strict-final') {
+      throw new ConfigError(
+        "orchestrate claimConsistency.coverageRepair requires coveragePolicy 'strict-final': " +
+          'the round averts exactly the refusal of that gate, and repairing an unenforced ' +
+          'grade would spend a composition on nothing',
+      );
+    }
     if (consistency.judge !== undefined) {
       const judge = consistency.judge as {
         effort?: unknown;
@@ -2765,10 +2909,9 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     );
   }
   // The citation entailment audit's intake (RV4004): the resolver is
-  // the pass's whole evidence channel, the numeric plan validates in
-  // its own module, and the round exclusivity is refused HERE because
-  // the run grants one bounded repair round and two armed consumers
-  // would pay two extra compositions.
+  // the pass's whole evidence channel and the numeric plan validates
+  // in its own module. Arming this repair beside the claim repair is
+  // legal since RV4202: both consume the SAME one bounded round.
   const audit = opts?.citationAudit;
   if (audit !== undefined) {
     if (typeof audit !== 'object' || audit === null || Array.isArray(audit)) {
@@ -2804,13 +2947,186 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
             'is one more composition, and without one there is nothing to repair with',
         );
       }
-      if (opts?.claimConsistency?.onFound === 'repair') {
+      // Arming this 'repair' beside claimConsistency.onFound 'repair'
+      // used to refuse here (one bounded round, two consumers). Since
+      // RV4202 the pair is legal and grants the SAME one round: it
+      // fires after the first audit pass carrying both defect lists,
+      // and both judges re-rule on the repaired document, so the
+      // budget still never grows past one extra composition.
+    }
+  }
+  // The atomic production posture's intake (RV4201): the declaration
+  // is a SIGNATURE, so nothing is filled here; every underlying field
+  // must be DECLARED and must match it, and any observing posture
+  // beside it refuses by field name. compileRegulatedProfile writes a
+  // consistent pair for regulated runs; a plain host writes both
+  // halves itself.
+  const acceptance = opts.semanticAcceptance;
+  if (acceptance !== undefined) {
+    if (typeof acceptance !== 'object' || acceptance === null || Array.isArray(acceptance)) {
+      throw new ConfigError(
+        `orchestrate semanticAcceptance must be an object; got ${JSON.stringify(acceptance)}`,
+      );
+    }
+    const knownKeys = [
+      'judgedStage',
+      'claimCoverage',
+      'contradictions',
+      'citations',
+      'unresolved',
+      'waiver',
+    ];
+    for (const key of Object.keys(acceptance)) {
+      if (!knownKeys.includes(key)) {
         throw new ConfigError(
-          "orchestrate citationAudit.onFound 'repair' cannot pair with " +
-            "claimConsistency.onFound 'repair': the run grants ONE bounded repair round " +
-            "(RV3307), so arm one consumer and give the other 'report' or 'fail'",
+          `orchestrate semanticAcceptance carries unknown key '${key}'; the signature holds ` +
+            'exactly judgedStage, claimCoverage, contradictions, citations, unresolved and ' +
+            'waiver',
         );
       }
+    }
+    const shaped = acceptance as {
+      judgedStage?: unknown;
+      claimCoverage?: unknown;
+      contradictions?: unknown;
+      citations?: unknown;
+      unresolved?: unknown;
+      waiver?: unknown;
+    };
+    if (shaped.judgedStage !== 'final') {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.judgedStage must be the literal 'final'; got " +
+          JSON.stringify(shaped.judgedStage),
+      );
+    }
+    if (shaped.claimCoverage !== 'full') {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.claimCoverage must be the literal 'full'; got " +
+          JSON.stringify(shaped.claimCoverage),
+      );
+    }
+    if (shaped.contradictions !== 'repair-once-then-fail' && shaped.contradictions !== 'fail') {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.contradictions must be 'repair-once-then-fail' or " +
+          `'fail'; got ${JSON.stringify(shaped.contradictions)}`,
+      );
+    }
+    if (shaped.citations !== 'repair-once-then-fail' && shaped.citations !== 'fail') {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.citations must be 'repair-once-then-fail' or " +
+          `'fail'; got ${JSON.stringify(shaped.citations)}`,
+      );
+    }
+    if (shaped.unresolved !== 'fail') {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.unresolved must be the literal 'fail'; got " +
+          JSON.stringify(shaped.unresolved),
+      );
+    }
+    const pinnedWaiver =
+      typeof shaped.waiver === 'object' && shaped.waiver !== null && !Array.isArray(shaped.waiver)
+        ? (shaped.waiver as { judgedHash?: unknown })
+        : undefined;
+    if (shaped.waiver !== 'forbid' && pinnedWaiver === undefined) {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.waiver must be 'forbid' or { judgedHash }; got " +
+          JSON.stringify(shaped.waiver),
+      );
+    }
+    if (pinnedWaiver !== undefined) {
+      for (const key of Object.keys(pinnedWaiver)) {
+        if (key !== 'judgedHash') {
+          throw new ConfigError(
+            `orchestrate semanticAcceptance.waiver carries unknown key '${key}'; the pinned ` +
+              'form holds exactly judgedHash',
+          );
+        }
+      }
+      if (
+        typeof pinnedWaiver.judgedHash !== 'string' ||
+        !/^[0-9a-f]{64}$/u.test(pinnedWaiver.judgedHash)
+      ) {
+        throw new ConfigError(
+          'orchestrate semanticAcceptance.waiver.judgedHash must be 64 lowercase hex chars ' +
+            '(the claim meta judgedHash of the reviewed document); got ' +
+            JSON.stringify(pinnedWaiver.judgedHash),
+        );
+      }
+    }
+    const boundClaim = opts.claimConsistency;
+    if (boundClaim === undefined) {
+      throw new ConfigError(
+        'orchestrate semanticAcceptance requires claimConsistency: the declaration binds ' +
+          'that machinery, and omitting the pass entirely is the deepest loosening (RV4103)',
+      );
+    }
+    if (audit === undefined) {
+      throw new ConfigError(
+        'orchestrate semanticAcceptance requires citationAudit: the declaration binds the ' +
+          'entailment machinery, and omitting the audit entirely is the loosening the sixth ' +
+          'experiment shipped five unsupported citations through',
+      );
+    }
+    if (boundClaim.stage !== 'final' && boundClaim.stage !== 'both') {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance requires claimConsistency.stage 'final' or 'both', " +
+          'declared: the signature judges the shipped document, and the default ' +
+          "'draft' judges the one the synthesis replaces; got " +
+          JSON.stringify(boundClaim.stage),
+      );
+    }
+    if (boundClaim.coveragePolicy !== 'strict-final') {
+      throw new ConfigError(
+        'orchestrate semanticAcceptance requires claimConsistency.coveragePolicy ' +
+          "'strict-final', declared; got " +
+          JSON.stringify(boundClaim.coveragePolicy),
+      );
+    }
+    if (boundClaim.coverageTarget !== undefined && boundClaim.coverageTarget !== 1) {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.claimCoverage 'full' refuses coverageTarget " +
+          `${JSON.stringify(boundClaim.coverageTarget)}: a pass sized to cover less than ` +
+          "everything can never grade 'full' on a citing document, so the declaration " +
+          'would be unsatisfiable by construction; raise the target to 1 or drop it',
+      );
+    }
+    const wantClaimOnFound = shaped.contradictions === 'fail' ? 'fail' : 'repair';
+    if (boundClaim.onFound !== wantClaimOnFound) {
+      throw new ConfigError(
+        `orchestrate semanticAcceptance.contradictions '${String(shaped.contradictions)}' ` +
+          `requires claimConsistency.onFound '${wantClaimOnFound}', declared; got ` +
+          JSON.stringify(boundClaim.onFound),
+      );
+    }
+    if (shaped.contradictions === 'repair-once-then-fail' && boundClaim.coverageRepair !== true) {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.contradictions 'repair-once-then-fail' requires " +
+          'claimConsistency.coverageRepair: true: the one bounded round serves every armed ' +
+          'defect class, coverage included, and a declaration that repairs findings while ' +
+          'refusing coverage the same chance is not the posture it reads as',
+      );
+    }
+    const wantCitationOnFound = shaped.citations === 'fail' ? 'fail' : 'repair';
+    if (audit.onFound !== wantCitationOnFound) {
+      throw new ConfigError(
+        `orchestrate semanticAcceptance.citations '${String(shaped.citations)}' requires ` +
+          `citationAudit.onFound '${wantCitationOnFound}', declared; got ` +
+          JSON.stringify(audit.onFound),
+      );
+    }
+    if (shaped.waiver === 'forbid' && boundClaim.waiver !== undefined) {
+      throw new ConfigError(
+        "orchestrate semanticAcceptance.waiver 'forbid' refuses a declared " +
+          'claimConsistency.waiver: a standing exception cannot ride a declaration that ' +
+          'forbids exceptions',
+      );
+    }
+    if (pinnedWaiver !== undefined && boundClaim.waiver === undefined) {
+      throw new ConfigError(
+        'orchestrate semanticAcceptance.waiver pins a hash but claimConsistency.waiver is ' +
+          'absent: the pin licenses a DECLARED waiver (principal and reason), so declare ' +
+          'the waiver it pins',
+      );
     }
   }
   const spec = opts.budget;
@@ -6694,6 +7010,27 @@ export function makeOrchestratorWorkflow(
      */
     let carriedCitationFindings: CitationAuditFinding[] | undefined;
     /**
+     * The uncovered citing sentences riding a coverage-armed round's
+     * prompt (RV4202): set exactly while such a round's composition
+     * dispatches, mirroring `carriedCitationFindings`, so every other
+     * synthesis prompt keeps its bytes.
+     */
+    let carriedUncoveredSentences: string[] | undefined;
+    /**
+     * The last FINAL pass's uncovered citing sentences (RV4202),
+     * captured only under `coverageRepair` (the fold collects them
+     * only then): what the coverage-armed round carries, beside the
+     * uncapped count for the round's own log line.
+     */
+    let lastFinalUncovered: { sentences: string[]; total: number } | undefined;
+    /**
+     * The one semantic round's dispatch facts (RV4202), set when a
+     * coverage-armed or merged round actually dispatched: the
+     * strict-final refusal past a spent round names the round it
+     * already consumed instead of implying none existed.
+     */
+    let semanticRoundSpent: { trigger: string; preRepairHash: string } | undefined;
+    /**
      * The observed price of this run's own latest post draft claim
      * judge pass (RV3701): the fallback sizing of the repair round's
      * convergence hold when the host declared no `judge.estCost`. By
@@ -6958,7 +7295,20 @@ export function makeOrchestratorWorkflow(
         // coverage-first; without it the historical first-max pairing
         // reproduces byte for byte.
         ...(spec.coverageTarget === undefined ? {} : { targetCoverageShare: spec.coverageTarget }),
+        // The coverage-armed round's raw material (RV4202): collected
+        // only under the flag, so every other fold does the exact
+        // historical work; selection is untouched either way.
+        ...(spec.coverageRepair === true ? { reportUncovered: true } : {}),
       });
+      // What the coverage-armed round would carry (RV4202): the FINAL
+      // pass's uncovered sentences, refreshed on every final pass so
+      // the post-round capture describes the repaired document.
+      if (stage === 'final' && spec.coverageRepair === true) {
+        lastFinalUncovered = {
+          sentences: fold.uncoveredSentences ?? [],
+          total: fold.uncoveredSentencesTotal ?? 0,
+        };
+      }
       const runFold =
         spec.runFacts === true
           ? pairRunFactClaims(
@@ -7677,8 +8027,10 @@ export function makeOrchestratorWorkflow(
       stagePhase: 'composition' | 'repair' = 'composition',
       // Who dispatched the repair round (RV4105): stamped into the
       // round's costAttribution beside the phase, so the repair ledger
-      // attributes 'claim' vs 'citation' without cross-reading metas.
-      repairTrigger?: 'claim' | 'citation',
+      // attributes the round without cross-reading metas. Since RV4202
+      // 'coverage' names a round armed by a non-'full' grade alone and
+      // 'combined' one carrying more than one defect class.
+      repairTrigger?: 'claim' | 'citation' | 'coverage' | 'combined',
     ): Promise<unknown> => {
       const spec = opts?.synthesis;
       if (spec === undefined) {
@@ -8192,6 +8544,20 @@ export function makeOrchestratorWorkflow(
                 'actually carry the claim or rewrite the sentence to claim what the cited ' +
                 'lines say, and keep every other sentence byte identical. ' +
                 JSON.stringify(carriedCitationFindings),
+            ]),
+        // The uncovered citing sentences riding a coverage-armed round
+        // (RV4202): present exactly while such a round's composition
+        // dispatches, so every other prompt keeps its bytes.
+        ...(carriedUncoveredSentences === undefined || carriedUncoveredSentences.length === 0
+          ? []
+          : [
+              'UNCOVERED CLAIMS: these citing sentences could not be verified against the ' +
+                'settled child pool (no pool reading covers their cited spans, or the only ' +
+                'readings restate them verbatim); for each, either ground the claim in ' +
+                'material the pool actually read (cite spans the children cited), or drop ' +
+                'the unverifiable citation and state only what the pool carries, and keep ' +
+                'every other sentence byte identical. ' +
+                JSON.stringify(carriedUncoveredSentences),
             ]),
         // The sectional round block (RV3803), present exactly when the
         // round armed an exact plan: the retained accepted document
@@ -9963,6 +10329,240 @@ export function makeOrchestratorWorkflow(
         });
       }
     }
+    // The round arming facts (RV4202), read once: which machineries
+    // may consume the one bounded round, and whether the two repair
+    // postures merged into the shared round that fires after the
+    // first audit pass. The historical single-armed paths below keep
+    // their bytes exactly; only the previously refused combination
+    // and the new coverage arm route through the shared dispatcher.
+    const claimRepairArmed = (opts?.claimConsistency?.onFound ?? 'report') === 'repair';
+    const coverageRoundArmed = opts?.claimConsistency?.coverageRepair === true;
+    const mergedRoundArmed = claimRepairArmed && opts?.citationAudit?.onFound === 'repair';
+    const jcsHashOf = (value: unknown): string =>
+      createHash('sha256')
+        .update(jcsSerialize(value ?? null), 'utf8')
+        .digest('hex');
+    /** One line naming what a round carried, for its death messages. */
+    const describeCarried = (round: {
+      carriedClaims: readonly ClaimContradictionFinding[];
+      carriedCitations: readonly CitationAuditFinding[];
+      uncovered: readonly string[];
+    }): string => {
+      const parts: string[] = [];
+      if (round.carriedClaims.length > 0) {
+        parts.push(
+          `${String(round.carriedClaims.length)} judged contradiction` +
+            `${round.carriedClaims.length === 1 ? '' : 's'}`,
+        );
+      }
+      if (round.carriedCitations.length > 0) {
+        parts.push(
+          `${String(round.carriedCitations.length)} unsupported citation` +
+            `${round.carriedCitations.length === 1 ? '' : 's'}`,
+        );
+      }
+      if (round.uncovered.length > 0) {
+        parts.push(
+          `${String(round.uncovered.length)} uncovered citing sentence` +
+            `${round.uncovered.length === 1 ? '' : 's'}`,
+        );
+      }
+      return parts.join(' and ');
+    };
+    /**
+     * The ONE bounded semantic round, shared (RV4202): dispatches the
+     * repair composition carrying whatever defect classes armed it
+     * (the judged claim contradictions fold from the live findings,
+     * the unsupported citations and the uncovered sentences ride the
+     * carried state), under the same two-leg budget bargain as the
+     * RV3307 round (the convergence hold funds the re-judging passes,
+     * the mechanical leg funds the round's own repair turn) and the
+     * same dispatch deaths, each naming everything it carried. Returns
+     * the repaired candidate; the CALL SITE re-runs the judges and
+     * rules on survivors, because which judges must re-rule differs by
+     * mode. The historical single-armed rounds keep their own blocks
+     * byte for byte.
+     */
+    const dispatchSemanticRound = async (round: {
+      carriedClaims: ClaimContradictionFinding[];
+      carriedCitations: CitationAuditFinding[];
+      uncovered: string[];
+      trigger: 'claim' | 'citation' | 'coverage' | 'combined';
+      rejudgeHoldUsd: number;
+      source: 'orchestrator_claim_consistency' | 'orchestrator_citation_audit';
+    }): Promise<unknown> => {
+      const preRepairHash = jcsHashOf(synthesizedFinal);
+      const holdScope = orchestratorAccount ?? ROOT_ACCOUNT;
+      if (round.rejudgeHoldUsd > 0) {
+        internals.budget.commitConvergenceReserve(holdScope, round.rejudgeHoldUsd);
+      }
+      // The mechanical leg (RV3802), byte for byte the single-armed
+      // rounds' sizing ladder.
+      const mechanicalHoldUsd =
+        validationSpec === undefined
+          ? 0
+          : (validationSpec.estRepairCostUsd ??
+            lastMechanicalRepairCostUsd(internals.replayer.snapshot(), (servedBy, usage) =>
+              internals.priceUsd(servedBy, usage),
+            ) ??
+            0);
+      if (mechanicalHoldUsd > 0) {
+        internals.budget.commitRepairReserve(holdScope, mechanicalHoldUsd);
+        releaseRepairLeg = () => {
+          releaseRepairLeg = undefined;
+          internals.budget.releaseRepairReserve(holdScope);
+        };
+      }
+      // The sectional plan (RV3803) targets every carried defect's
+      // sentence, whichever class it came from.
+      const roundPlan =
+        validationSpec !== undefined && typeof synthesizedFinal === 'string'
+          ? sectionalRoundPlan(synthesizedFinal, [
+              ...round.carriedClaims.map((finding) => finding.draftExcerpt),
+              ...round.carriedCitations.map((finding) => finding.sentence),
+              ...round.uncovered,
+            ])
+          : undefined;
+      if (roundPlan !== undefined) {
+        sectionalRoundContext = { base: synthesizedFinal as string, ...roundPlan };
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'debug',
+            msg: 'orchestrator sectional round armed',
+            data: { targets: roundPlan.targets, sections: roundPlan.sections.length },
+          },
+          callingState.spanId,
+        );
+      }
+      if (round.carriedCitations.length > 0) {
+        carriedCitationFindings = round.carriedCitations;
+      }
+      if (round.uncovered.length > 0) {
+        carriedUncoveredSentences = round.uncovered;
+      }
+      try {
+        const repaired = await runSynthesis(result.output, 'repair', round.trigger);
+        semanticRoundSpent = { trigger: round.trigger, preRepairHash };
+        return repaired;
+      } catch (thrown) {
+        await journalSynthesisAdmissionDecline(thrown);
+        const thrownSource =
+          thrown instanceof FailRunError &&
+          typeof thrown.data === 'object' &&
+          thrown.data !== null &&
+          !Array.isArray(thrown.data)
+            ? (thrown.data as { source?: unknown }).source
+            : undefined;
+        const hostRejection =
+          thrownSource === 'orchestrator_finish_validation'
+            ? ((thrown as FailRunError).data as Record<string, Json | undefined>)
+            : undefined;
+        const carriedLine = describeCarried(round);
+        throw new FailRunError(
+          (hostRejection !== undefined
+            ? 'the semantic repair round dispatched and its repaired candidate failed ' +
+              'host validation '
+            : 'the semantic repair round could not dispatch ') +
+            `(${thrown instanceof Error ? thrown.message.slice(0, 300) : String(thrown)}); ` +
+            `${carriedLine} stand unconsumed and a gate armed to repair must not pass silently`,
+          {
+            data: {
+              source: round.source,
+              ...(round.carriedClaims.length === 0
+                ? {}
+                : { claimContradictions: round.carriedClaims as unknown as Json }),
+              ...(round.carriedCitations.length === 0
+                ? {}
+                : { citationFindings: round.carriedCitations as unknown as Json }),
+              ...(round.uncovered.length === 0
+                ? {}
+                : { uncoveredSentences: round.uncovered as unknown as Json }),
+              ...(claimConsistencyMeta === undefined
+                ? {}
+                : { claimConsistencyMeta: claimConsistencyMeta as unknown as Json }),
+              ...(citationAuditMeta === undefined
+                ? {}
+                : { citationAuditMeta: citationAuditMeta as unknown as Json }),
+              repairsUsed: hostRejection !== undefined ? 1 : 0,
+              roundDispatched: hostRejection !== undefined,
+              preRepairHash,
+              ...(hostRejection === undefined
+                ? {}
+                : {
+                    finishValidation: {
+                      ...(hostRejection.callId === undefined
+                        ? {}
+                        : { callId: hostRejection.callId }),
+                      ...(hostRejection.failed === undefined
+                        ? {}
+                        : { failed: hostRejection.failed }),
+                      ...(hostRejection.repairsUsed === undefined
+                        ? {}
+                        : { repairsUsed: hostRejection.repairsUsed }),
+                      ...(hostRejection.maxRepairs === undefined
+                        ? {}
+                        : { maxRepairs: hostRejection.maxRepairs }),
+                      ...(hostRejection.candidateHash === undefined
+                        ? {}
+                        : { candidateHash: hostRejection.candidateHash }),
+                      ...(hostRejection.candidateChars === undefined
+                        ? {}
+                        : { candidateChars: hostRejection.candidateChars }),
+                    } as unknown as Json,
+                  }),
+              ...(acceptanceSnapshot as unknown as Record<string, Json>),
+            },
+          },
+        );
+      } finally {
+        carriedCitationFindings = undefined;
+        carriedUncoveredSentences = undefined;
+        sectionalRoundContext = undefined;
+        releaseRepairLeg = undefined;
+        if (mechanicalHoldUsd > 0) {
+          internals.budget.releaseRepairReserve(holdScope);
+        }
+        if (round.rejudgeHoldUsd > 0) {
+          internals.budget.releaseConvergenceReserve(holdScope);
+        }
+      }
+    };
+    /**
+     * The re-judging claim pass after a shared round (RV4202): the
+     * typed claim throws below the judge cannot know they fired inside
+     * the round, so the round context rides the same data, exactly the
+     * RV3701 wrap of the single-armed block.
+     */
+    const rejudgeClaimsAfterRound = async (carried: ClaimContradictionFinding[]): Promise<void> => {
+      try {
+        await runClaimConsistencyPass(synthesizedFinal, acceptanceSnapshot, 'final');
+      } catch (thrown) {
+        if (
+          thrown instanceof FailRunError &&
+          typeof thrown.data === 'object' &&
+          thrown.data !== null &&
+          !Array.isArray(thrown.data) &&
+          (thrown.data as { source?: unknown }).source === 'orchestrator_claim_consistency'
+        ) {
+          throw new FailRunError(thrown.message, {
+            data: {
+              ...(thrown.data as Record<string, Json | undefined>),
+              ...((thrown.data as { claimContradictions?: unknown }).claimContradictions ===
+              undefined
+                ? { claimContradictions: carried as unknown as Json }
+                : {}),
+              roundDispatched: true,
+              repairsUsed: 1,
+              ...(semanticRoundSpent === undefined
+                ? {}
+                : { preRepairHash: semanticRoundSpent.preRepairHash }),
+            },
+          });
+        }
+        throw thrown;
+      }
+    };
     // The final gate (RV2509), strictly AFTER the synthesis and before
     // the envelope: the pass judges the document the run actually
     // ships, and its failure posture is the pass's own, so an armed
@@ -9995,8 +10595,14 @@ export function makeOrchestratorWorkflow(
       // findings that survive the round fail the run typed: a gate
       // armed to repair must not pass silently when the repair did
       // not take. One round exactly, the evidence grade precedent.
+      // Excluded when the round merged with the citation audit's or
+      // gained the coverage arm (RV4202): those routes fire the SAME
+      // one round through the shared dispatcher below, so this block
+      // keeps its historical bytes for the historical configs.
       if (
-        (opts?.claimConsistency?.onFound ?? 'report') === 'repair' &&
+        claimRepairArmed &&
+        !mergedRoundArmed &&
+        !coverageRoundArmed &&
         claimFindingsFound !== undefined &&
         claimFindingsFound.length > 0
       ) {
@@ -10244,17 +10850,77 @@ export function makeOrchestratorWorkflow(
           );
         }
       }
+      // The coverage-armed round without a merged audit (RV4202): the
+      // one bounded round fires here, before the audit reads the
+      // document, when the final pass judged contradictions OR graded
+      // coverage below 'full'; the audit below then reads the repaired
+      // document as its ordinary first pass. Merged arming instead
+      // defers the round past that first audit pass, so it can carry
+      // the unsupported rows too.
+      if (claimRepairArmed && !mergedRoundArmed && coverageRoundArmed) {
+        const carriedClaims = claimFindingsFound ?? [];
+        const firstGrade = claimConsistencyMeta?.coverage;
+        const coverageDefect = (firstGrade ?? 'full') !== 'full';
+        if (carriedClaims.length > 0 || coverageDefect) {
+          const uncovered = coverageDefect ? (lastFinalUncovered?.sentences ?? []) : [];
+          const trigger =
+            carriedClaims.length > 0 && coverageDefect
+              ? 'combined'
+              : carriedClaims.length > 0
+                ? 'claim'
+                : 'coverage';
+          synthesizedFinal = await dispatchSemanticRound({
+            carriedClaims,
+            carriedCitations: [],
+            uncovered,
+            trigger,
+            rejudgeHoldUsd:
+              opts?.claimConsistency?.judge?.estCost ?? observedFinalJudgeCostUsd ?? 0,
+            source: 'orchestrator_claim_consistency',
+          });
+          await rejudgeClaimsAfterRound(carriedClaims);
+          if (claimConsistencyMeta !== undefined) {
+            claimConsistencyMeta.passes = 2;
+            claimConsistencyMeta.firstPassFindings = carriedClaims.length;
+            if (firstGrade !== undefined) {
+              claimConsistencyMeta.firstPassCoverage = firstGrade;
+            }
+            claimConsistencyMeta.semanticRepairRounds = 1;
+          }
+          if (claimFindingsFound !== undefined && claimFindingsFound.length > 0) {
+            throw new FailRunError(
+              `the claim-consistency judge still found ${String(claimFindingsFound.length)} ` +
+                `contradiction${claimFindingsFound.length === 1 ? '' : 's'} after the bounded ` +
+                'repair round: the repaired composition keeps contradicting the settled pool',
+              {
+                data: {
+                  source: 'orchestrator_claim_consistency',
+                  claimContradictions: claimFindingsFound as unknown as Json,
+                  claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+                  repairsUsed: 1,
+                  ...(semanticRoundSpent === undefined
+                    ? {}
+                    : { preRepairHash: semanticRoundSpent.preRepairHash }),
+                  repairedHash: jcsHashOf(synthesizedFinal),
+                  ...(acceptanceSnapshot as unknown as Record<string, Json>),
+                },
+              },
+            );
+          }
+        }
+      }
     }
     // The citation entailment audit (RV4004), strictly AFTER the claim
-    // machinery (its round included) and before the envelope: the
-    // audit judges the document the run actually ships. Under 'fail',
-    // any UNSUPPORTED sampled citation stops the run typed; under
-    // 'repair', the unsupported rows ride the one bounded round
-    // (RV3307; intake refuses arming it beside the claim round), the
-    // repaired document is re-audited from its new hash, a configured
-    // claim pass past the draft rejudges the rewritten document, and
-    // survivors stop the run typed. Partial verdicts report in every
-    // posture: a half-carried claim is a finding, not a stop.
+    // machinery (its single-armed round included) and before the
+    // envelope: the audit judges the document the run actually ships.
+    // Under 'fail', any UNSUPPORTED sampled citation stops the run
+    // typed; under 'repair', the unsupported rows ride the one bounded
+    // round (RV3307; merged with the claim round when both are armed,
+    // RV4202), the repaired document is re-audited from its new hash,
+    // a configured claim pass past the draft rejudges the rewritten
+    // document, and survivors stop the run typed. Partial verdicts
+    // report in every posture: a half-carried claim is a finding, not
+    // a stop.
     if (opts?.citationAudit !== undefined) {
       const hashOfDocument = (value: unknown): string =>
         createHash('sha256')
@@ -10284,7 +10950,7 @@ export function makeOrchestratorWorkflow(
         citationAuditMeta.passes = 1;
         citationAuditMeta.citationRepairRounds = 0;
       }
-      if (auditOnFound === 'repair' && firstUnsupported.length > 0) {
+      if (auditOnFound === 'repair' && !mergedRoundArmed && firstUnsupported.length > 0) {
         const preRepairHash = hashOfDocument(synthesizedFinal);
         const carried = firstUnsupported;
         // The convergence hold (RV3701): the audit's round is the same
@@ -10413,6 +11079,111 @@ export function makeOrchestratorWorkflow(
           );
         }
       }
+      // The merged round (RV4202): both repair postures armed grants
+      // the SAME one bounded round, fired HERE, after the first audit
+      // pass, so it can carry every defect class at once: the judged
+      // claim contradictions, the unsupported sampled citations, and
+      // the uncovered citing sentences when the coverage arm is set.
+      // Both judges then re-rule on the repaired document's new hash,
+      // and survivors of either class fail the run typed.
+      if (mergedRoundArmed) {
+        const carriedClaims = claimFindingsFound ?? [];
+        const carriedCitations = firstUnsupported;
+        const firstGrade = claimConsistencyMeta?.coverage;
+        const coverageDefect = coverageRoundArmed && (firstGrade ?? 'full') !== 'full';
+        const defectClasses =
+          (carriedClaims.length > 0 ? 1 : 0) +
+          (carriedCitations.length > 0 ? 1 : 0) +
+          (coverageDefect ? 1 : 0);
+        if (defectClasses > 0) {
+          const uncovered = coverageDefect ? (lastFinalUncovered?.sentences ?? []) : [];
+          const trigger =
+            defectClasses > 1
+              ? 'combined'
+              : carriedClaims.length > 0
+                ? 'claim'
+                : carriedCitations.length > 0
+                  ? 'citation'
+                  : 'coverage';
+          synthesizedFinal = await dispatchSemanticRound({
+            carriedClaims,
+            carriedCitations,
+            uncovered,
+            trigger,
+            // Both judges re-rule after the merged round, so the hold
+            // prices both re-passes: the claim judge from its declared
+            // estimate or this run's own observed price, the audit
+            // judge from its declared estimate.
+            rejudgeHoldUsd:
+              (opts?.claimConsistency?.judge?.estCost ?? observedFinalJudgeCostUsd ?? 0) +
+              (opts.citationAudit.judge?.estCost ?? 0),
+            source:
+              carriedClaims.length > 0 || coverageDefect
+                ? 'orchestrator_claim_consistency'
+                : 'orchestrator_citation_audit',
+          });
+          await rejudgeClaimsAfterRound(carriedClaims);
+          if (claimConsistencyMeta !== undefined) {
+            claimConsistencyMeta.passes = 2;
+            claimConsistencyMeta.firstPassFindings = carriedClaims.length;
+            if (coverageRoundArmed && firstGrade !== undefined) {
+              claimConsistencyMeta.firstPassCoverage = firstGrade;
+            }
+            claimConsistencyMeta.semanticRepairRounds = 1;
+          }
+          await runCitationAudit(synthesizedFinal, 'round');
+          if (citationAuditMeta !== undefined) {
+            citationAuditMeta.passes = 2;
+            citationAuditMeta.firstPassFindings = carriedCitations.length;
+            citationAuditMeta.citationRepairRounds = 1;
+          }
+          if (claimFindingsFound !== undefined && claimFindingsFound.length > 0) {
+            throw new FailRunError(
+              `the claim-consistency judge still found ${String(claimFindingsFound.length)} ` +
+                `contradiction${claimFindingsFound.length === 1 ? '' : 's'} after the bounded ` +
+                'repair round: the repaired composition keeps contradicting the settled pool',
+              {
+                data: {
+                  source: 'orchestrator_claim_consistency',
+                  claimContradictions: claimFindingsFound as unknown as Json,
+                  claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
+                  ...(citationAuditMeta === undefined
+                    ? {}
+                    : { citationAuditMeta: citationAuditMeta as unknown as Json }),
+                  repairsUsed: 1,
+                  ...(semanticRoundSpent === undefined
+                    ? {}
+                    : { preRepairHash: semanticRoundSpent.preRepairHash }),
+                  repairedHash: hashOfDocument(synthesizedFinal),
+                  ...(acceptanceSnapshot as unknown as Record<string, Json>),
+                },
+              },
+            );
+          }
+          const mergedSurvivors = unsupportedOf();
+          if (mergedSurvivors.length > 0) {
+            throw new FailRunError(
+              `the citation audit still judged ${String(mergedSurvivors.length)} sampled ` +
+                `citation${mergedSurvivors.length === 1 ? '' : 's'} UNSUPPORTED after the ` +
+                'bounded repair round: the repaired document keeps citing lines that do ' +
+                'not carry its claims',
+              {
+                data: {
+                  source: 'orchestrator_citation_audit',
+                  citationFindings: citationFindingsFound as unknown as Json,
+                  citationAuditMeta: citationAuditMeta as unknown as Json,
+                  repairsUsed: 1,
+                  ...(semanticRoundSpent === undefined
+                    ? {}
+                    : { preRepairHash: semanticRoundSpent.preRepairHash }),
+                  repairedHash: hashOfDocument(synthesizedFinal),
+                  ...(acceptanceSnapshot as unknown as Record<string, Json>),
+                },
+              },
+            );
+          }
+        }
+      }
     }
     const envelopeSchemaRecovered =
       (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;
@@ -10490,6 +11261,12 @@ export function makeOrchestratorWorkflow(
     if (opts?.claimConsistency?.coveragePolicy === 'strict-final') {
       const grade = claimConsistencyMeta?.coverage ?? 'not-judged';
       if (grade !== 'full') {
+        // The declared acceptance's waiver posture (RV4201): 'forbid'
+        // admits no exception at all, and the pinned form licenses
+        // exactly one reviewed document by its judgedHash.
+        const acceptanceWaiver = opts?.semanticAcceptance?.waiver;
+        const pinnedJudgedHash =
+          typeof acceptanceWaiver === 'object' ? acceptanceWaiver.judgedHash : undefined;
         // The journaled waive decision is the authority on resume
         // (RV4104; the skip and cap precedents, and what the waiver's
         // own TSDoc has promised since RV4003): the exception was
@@ -10499,18 +11276,69 @@ export function makeOrchestratorWorkflow(
         // the run whose exception is already on the record becomes
         // unfinishable. Bound like the RV603 skip: an entry carrying
         // a judgedHash licenses exactly the document it judged, and
-        // entries written before the field existed stay reusable.
+        // entries written before the field existed stay reusable,
+        // EXCEPT under a pinned declaration (RV4201), which honors
+        // only an entry carrying exactly the pinned hash: the pin is
+        // a signature under one document, and an unhashed entry
+        // cannot prove it is that one.
         const priorWaiveDecision = internals.replayer.snapshot().find((entry) => {
           if (entry.kind !== 'decision' || entry.scope !== callingState.scope) {
             return false;
           }
           const value = entry.value as { decisionType?: string; judgedHash?: string } | undefined;
+          if (value?.decisionType !== 'claim_coverage_waived') {
+            return false;
+          }
+          if (pinnedJudgedHash !== undefined) {
+            return (
+              value.judgedHash === pinnedJudgedHash &&
+              value.judgedHash === claimConsistencyMeta?.judgedHash
+            );
+          }
           return (
-            value?.decisionType === 'claim_coverage_waived' &&
-            (value.judgedHash === undefined ||
-              value.judgedHash === claimConsistencyMeta?.judgedHash)
+            value.judgedHash === undefined || value.judgedHash === claimConsistencyMeta?.judgedHash
           );
         });
+        if (acceptanceWaiver === 'forbid') {
+          // Intake refused any declared waiver, so reaching this grade
+          // under 'forbid' is always a typed refusal; a journaled
+          // waive decision surfacing anyway is a config/journal
+          // mismatch (a journal that waived under a config that
+          // forbids waivers), and honoring it would let a foreign
+          // journal license what the declaration forbids.
+          throw new FailRunError(
+            `semanticAcceptance.waiver 'forbid': the final coverage grade is '${grade}', ` +
+              "not 'full', and the declared acceptance admits no waiver" +
+              (priorWaiveDecision === undefined
+                ? ''
+                : `; a journaled claim_coverage_waived decision (seq ` +
+                  `${String(priorWaiveDecision.seq)}) exists under a config that forbids ` +
+                  'waivers, which is a config/journal mismatch, not an authority') +
+              '; raise the coverage (pairs, targets, critical anchors) or ship a clean ' +
+              'document',
+            {
+              data: {
+                source: 'orchestrator_claim_consistency',
+                coveragePolicy: 'strict-final',
+                coverage: grade,
+                semanticAcceptanceWaiver: 'forbid',
+                ...(priorWaiveDecision === undefined
+                  ? {}
+                  : { conflictingWaiveDecisionRef: priorWaiveDecision.seq }),
+                ...(semanticRoundSpent === undefined
+                  ? {}
+                  : {
+                      repairsUsed: 1,
+                      roundTrigger: semanticRoundSpent.trigger,
+                      preRepairHash: semanticRoundSpent.preRepairHash,
+                    }),
+                ...(claimConsistencyMeta === undefined
+                  ? {}
+                  : { claimConsistencyMeta: claimConsistencyMeta as unknown as Json }),
+              },
+            },
+          );
+        }
         if (priorWaiveDecision !== undefined) {
           const frozen = priorWaiveDecision.value as {
             principal: string;
@@ -10529,13 +11357,22 @@ export function makeOrchestratorWorkflow(
           const expired =
             waiverSpec?.expiresAt !== undefined &&
             Date.parse(waiverSpec.expiresAt) < internals.now();
-          if (waiverSpec === undefined || expired) {
+          // The pinned declaration licenses exactly the reviewed
+          // document (RV4201): any other judged hash refuses exactly
+          // as if no waiver stood, naming both hashes.
+          const pinMismatch =
+            pinnedJudgedHash !== undefined && claimConsistencyMeta?.judgedHash !== pinnedJudgedHash;
+          if (waiverSpec === undefined || expired || pinMismatch) {
             throw new FailRunError(
               `claimConsistency.coveragePolicy 'strict-final': the final coverage grade is ` +
                 `'${grade}', not 'full', and ` +
                 (waiverSpec === undefined
                   ? 'no waiver is declared'
-                  : `the declared waiver expired at ${String(waiverSpec.expiresAt)}`) +
+                  : expired
+                    ? `the declared waiver expired at ${String(waiverSpec.expiresAt)}`
+                    : `the declared waiver is pinned to judgedHash ` +
+                      `${String(pinnedJudgedHash)} and this run judged ` +
+                      `${String(claimConsistencyMeta?.judgedHash)}, a different document`) +
                 '; raise the coverage (pairs, targets, critical anchors) or record a waiver ' +
                 'naming who accepts the gap and why',
               {
@@ -10543,9 +11380,24 @@ export function makeOrchestratorWorkflow(
                   source: 'orchestrator_claim_consistency',
                   coveragePolicy: 'strict-final',
                   coverage: grade,
-                  ...(waiverSpec === undefined
+                  ...(waiverSpec === undefined || !expired
                     ? {}
                     : { waiverExpiredAt: waiverSpec.expiresAt ?? null }),
+                  ...(pinMismatch
+                    ? {
+                        waiverPinnedHash: pinnedJudgedHash,
+                        ...(claimConsistencyMeta?.judgedHash === undefined
+                          ? {}
+                          : { judgedHash: claimConsistencyMeta.judgedHash }),
+                      }
+                    : {}),
+                  ...(semanticRoundSpent === undefined
+                    ? {}
+                    : {
+                        repairsUsed: 1,
+                        roundTrigger: semanticRoundSpent.trigger,
+                        preRepairHash: semanticRoundSpent.preRepairHash,
+                      }),
                   ...(claimConsistencyMeta === undefined
                     ? {}
                     : { claimConsistencyMeta: claimConsistencyMeta as unknown as Json }),
@@ -10575,6 +11427,42 @@ export function makeOrchestratorWorkflow(
             },
           });
         }
+      }
+    }
+    // The declared acceptance's terminal invariant (RV4201): every
+    // verdict on the envelope must describe the exact bytes the run is
+    // about to ship. Structurally guaranteed by the re-judging above
+    // (every round re-runs both passes on the repaired document); this
+    // assertion is the cheap proof that no future path forgets it,
+    // because "repair moved the hash without a rejudge" is precisely
+    // the class the declaration exists to make impossible.
+    if (opts?.semanticAcceptance !== undefined) {
+      const shippedHash = draftToFinal?.finalHash ?? jcsHashOf(synthesizedFinal);
+      const staleClaim =
+        claimConsistencyMeta !== undefined && claimConsistencyMeta.judgedHash !== shippedHash;
+      const staleAudit =
+        citationAuditMeta !== undefined && citationAuditMeta.auditedHash !== shippedHash;
+      if (staleClaim || staleAudit) {
+        throw new FailRunError(
+          'semanticAcceptance invariant violated: a terminal verdict describes a document ' +
+            'other than the one shipping (' +
+            (staleClaim
+              ? `claim judgedHash ${String(claimConsistencyMeta?.judgedHash)}`
+              : `audit auditedHash ${String(citationAuditMeta?.auditedHash)}`) +
+            ` against shipped ${shippedHash}); this is an engine invariant, not a host error`,
+          {
+            data: {
+              source: 'orchestrator_claim_consistency',
+              shippedHash,
+              ...(claimConsistencyMeta === undefined
+                ? {}
+                : { judgedHash: claimConsistencyMeta.judgedHash }),
+              ...(citationAuditMeta === undefined
+                ? {}
+                : { auditedHash: citationAuditMeta.auditedHash }),
+            },
+          },
+        );
       }
     }
 

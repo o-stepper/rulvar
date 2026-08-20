@@ -10,7 +10,7 @@
 function repairLedgerFromJournal(entries, priceUsd?): RepairLedger;
 ```
 
-Defined in: [packages/core/src/stores/repair-ledger.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/repair-ledger.ts#L156)
+Defined in: [packages/core/src/stores/repair-ledger.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/repair-ledger.ts#L159)
 
 Folds the workflow-wide repair ledger from a journal (RV4002). Pure
 over the entries, so the acceptance envelope's live aggregate

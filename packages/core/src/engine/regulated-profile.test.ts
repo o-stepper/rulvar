@@ -525,3 +525,160 @@ describe('the compile intake edges (RV4107)', () => {
     ).toThrow(/citationAudit\.resolve/);
   });
 });
+
+describe('the regulated semantic acceptance (RV4201)', () => {
+  const ORCH = (): OrchestrateOptions => ({
+    citationAudit: { resolve: RESOLVE },
+    claimConsistency: { judge: { model: 'judge:model' }, stage: 'final' },
+  });
+
+  it("fills the fail-closed pair and the declaration: onFound 'fail' twice, waiver 'forbid'", () => {
+    const compiled = compileRegulatedProfile({ ...BASE(), orchestrate: ORCH() });
+    expect(compiled.orchestrate?.claimConsistency?.onFound).toBe('fail');
+    expect(compiled.orchestrate?.citationAudit?.onFound).toBe('fail');
+    expect(compiled.orchestrate?.semanticAcceptance).toEqual({
+      judgedStage: 'final',
+      claimCoverage: 'full',
+      contradictions: 'fail',
+      citations: 'fail',
+      unresolved: 'fail',
+      waiver: 'forbid',
+    });
+  });
+
+  it("licenses the armed repair: coverageRepair fills true, the declaration says 'repair-once-then-fail'", () => {
+    const compiled = compileRegulatedProfile({
+      ...BASE(),
+      orchestrate: {
+        synthesis: {},
+        citationAudit: { resolve: RESOLVE, onFound: 'repair' },
+        claimConsistency: { judge: { model: 'judge:model' }, stage: 'final', onFound: 'repair' },
+      },
+    });
+    expect(compiled.orchestrate?.claimConsistency?.coverageRepair).toBe(true);
+    expect(compiled.orchestrate?.semanticAcceptance).toMatchObject({
+      contradictions: 'repair-once-then-fail',
+      citations: 'repair-once-then-fail',
+      waiver: 'forbid',
+    });
+  });
+
+  it('refuses every observing or unsatisfiable semantic posture, naming the field', () => {
+    const cases: Array<[string, OrchestrateOptions, RegExp]> = [
+      [
+        'claim report',
+        { ...ORCH(), claimConsistency: { ...ORCH().claimConsistency, onFound: 'report' } },
+        /claimConsistency\.onFound must be 'repair' or 'fail' \(RV4201\)/,
+      ],
+      [
+        'claim carry',
+        {
+          ...ORCH(),
+          synthesis: {},
+          claimConsistency: { ...ORCH().claimConsistency, stage: 'both', onFound: 'carry' },
+        },
+        /claimConsistency\.onFound must be 'repair' or 'fail' \(RV4201\)/,
+      ],
+      [
+        'audit report',
+        { ...ORCH(), citationAudit: { resolve: RESOLVE, onFound: 'report' } },
+        /citationAudit\.onFound must be 'repair' or 'fail' \(RV4201\)/,
+      ],
+      [
+        'a coverage target below 1',
+        {
+          ...ORCH(),
+          claimConsistency: { ...ORCH().claimConsistency, coverageTarget: 0.72 },
+        },
+        /coverageTarget must be 1 or absent \(RV4201\)/,
+      ],
+      [
+        'coverageRepair disarmed beside repair',
+        {
+          ...ORCH(),
+          synthesis: {},
+          claimConsistency: {
+            ...ORCH().claimConsistency,
+            onFound: 'repair',
+            coverageRepair: false,
+          },
+        },
+        /coverageRepair must not be false/,
+      ],
+      [
+        'a standing waiver',
+        {
+          ...ORCH(),
+          claimConsistency: {
+            ...ORCH().claimConsistency,
+            waiver: { principal: 'ops', reason: 'known gap', expiresAt: '2100-01-01' },
+          },
+        },
+        /standing waiver \(RV4201\)/,
+      ],
+      [
+        'a declaration that contradicts the compiled postures',
+        {
+          ...ORCH(),
+          semanticAcceptance: {
+            judgedStage: 'final',
+            claimCoverage: 'full',
+            contradictions: 'repair-once-then-fail',
+            citations: 'fail',
+            unresolved: 'fail',
+            waiver: 'forbid',
+          },
+        },
+        /semanticAcceptance\.contradictions must be 'fail'/,
+      ],
+      [
+        'a pinned waiver with no declared principal',
+        {
+          ...ORCH(),
+          semanticAcceptance: {
+            judgedStage: 'final',
+            claimCoverage: 'full',
+            contradictions: 'fail',
+            citations: 'fail',
+            unresolved: 'fail',
+            waiver: { judgedHash: 'a'.repeat(64) },
+          },
+        },
+        /must be declared beside the pinned semanticAcceptance\.waiver/,
+      ],
+    ];
+    for (const [label, orchestrate, pattern] of cases) {
+      const thunk = (): unknown => compileRegulatedProfile({ ...BASE(), orchestrate });
+      expect(thunk, label).toThrow(ConfigError);
+      expect(thunk, label).toThrow(pattern);
+    }
+  });
+
+  it('the pinned-hash waiver is the one exception the floor admits', () => {
+    const compiled = compileRegulatedProfile({
+      ...BASE(),
+      orchestrate: {
+        ...ORCH(),
+        claimConsistency: {
+          ...ORCH().claimConsistency,
+          waiver: { principal: 'release-owner', reason: 'reviewed dossier 42' },
+        },
+        semanticAcceptance: {
+          judgedStage: 'final',
+          claimCoverage: 'full',
+          contradictions: 'fail',
+          citations: 'fail',
+          unresolved: 'fail',
+          waiver: { judgedHash: 'a'.repeat(64) },
+        },
+      },
+    });
+    expect(compiled.orchestrate?.semanticAcceptance?.waiver).toEqual({
+      judgedHash: 'a'.repeat(64),
+    });
+    expect(compiled.orchestrate?.claimConsistency?.waiver).toEqual({
+      principal: 'release-owner',
+      reason: 'reviewed dossier 42',
+    });
+  });
+});

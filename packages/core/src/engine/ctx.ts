@@ -744,9 +744,10 @@ interface ScopeState {
   phase?: string;
   /**
    * What dispatched the semantic repair round riding this scope
-   * (RV4105): copied into the round invocation's costAttribution.
+   * (RV4105; the RV4202 values ride the same channel): copied into
+   * the round invocation's costAttribution.
    */
-  repairTrigger?: 'claim' | 'citation';
+  repairTrigger?: 'claim' | 'citation' | 'coverage' | 'combined';
   signal?: AbortSignal;
   /** The nearest enclosing budget account; the run root when absent (M6-T06). */
   budgetScope?: string;

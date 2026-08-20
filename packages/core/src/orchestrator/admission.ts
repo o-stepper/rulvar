@@ -384,17 +384,25 @@ export function acceptanceTailRequiredUsd(spec: AcceptanceTailSpec): {
 } {
   const stage = spec.claimStage ?? 'draft';
   const onFound = spec.claimOnFound ?? 'report';
-  // Either round (the claim pass's or the citation audit's; intake
-  // refuses arming both) buys one more composition.
+  // Any armed round buys one more composition, and arming BOTH the
+  // claim and the citation repair buys exactly the same one (RV4202):
+  // the run still grants ONE bounded round, which then carries both
+  // defect lists, so the composition term never doubles.
   const citationDeclared =
     spec.citationJudgeEstCostUsd !== undefined || spec.citationOnFound !== undefined;
   const citationRoundArmed = spec.citationOnFound === 'repair';
-  const roundArmed = (onFound === 'repair' && stage !== 'draft') || citationRoundArmed;
+  const claimRoundArmed = onFound === 'repair' && stage !== 'draft';
+  const roundArmed = claimRoundArmed || citationRoundArmed;
   // A citation round rewrites the shipped document, so a configured
-  // claim pass past the draft rejudges it: one more claim pass.
+  // claim pass past the draft rejudges it: one more claim pass. With
+  // the claim round ALSO armed (RV4202) the two are the same merged
+  // round and acceptanceJudgePasses already priced its rejudge, so
+  // the term must not count the same pass twice.
   const judgePasses =
     acceptanceJudgePasses(spec.claimStage, spec.claimOnFound) +
-    (citationRoundArmed && spec.claimConfigured === true && stage !== 'draft' ? 1 : 0);
+    (citationRoundArmed && !claimRoundArmed && spec.claimConfigured === true && stage !== 'draft'
+      ? 1
+      : 0);
   const citationJudgePasses = citationDeclared ? 1 + (citationRoundArmed ? 1 : 0) : 0;
   const citationJudgeEstUsd = spec.citationJudgeEstCostUsd ?? 0;
   const terms: AcceptanceTailTerms = {
