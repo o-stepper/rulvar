@@ -10,6 +10,6 @@
 const FINISH_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:151](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L151)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L152)
 
 finish; result validates against the declared output schema.

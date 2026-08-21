@@ -17,6 +17,7 @@ import { RulvarError } from '../l0/errors.js';
 import type { SchemaSpec } from '../l0/schema.js';
 import { tool } from '../tools/tool.js';
 import type { ToolDef } from '../l0/spi/toolsource.js';
+import { CLAIM_MAP_ROWS_SCHEMA } from './claim-map.js';
 import type { OrchestratorRuntime } from './handles.js';
 import { WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME } from './wake.js';
 
@@ -195,6 +196,30 @@ export const FINISH_SECTIONAL_SCHEMA: SchemaSpec = {
   },
 };
 
+/**
+ * The finish schema under the claim map opt-in (RV4305):
+ * `synthesis.claimMap: true` makes the map a REQUIRED companion of the
+ * composed result, so a composition cannot ship without declaring what
+ * it claims and on what evidence. Swapped in only for the synthesis
+ * invocation under the opt-in, so the default toolset hash never
+ * moves; under the opt-in it moves BY DESIGN (the sectional
+ * precedent): the contract of the finish call changed.
+ */
+export const FINISH_CLAIM_MAP_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['result', 'claimMap'],
+  properties: {
+    result: {
+      $comment:
+        'validated against the declared output SchemaSpec of the orchestrate call; ' +
+        'free-form JSON when none is declared',
+    },
+    summary: { type: 'string' },
+    claimMap: CLAIM_MAP_ROWS_SCHEMA as Record<string, unknown>,
+  },
+};
+
 /** The spawn parameters as validated JSON (a TaskSpec subset). */
 export interface SpawnAgentParams {
   agentType: string;
@@ -219,6 +244,12 @@ export function buildOrchestratorTools(
   options?: {
     childResultTools?: boolean;
     sectionalFinish?: boolean;
+    /**
+     * The claim map finish (RV4305): the synthesis invocation's finish
+     * requires a typed claimMap beside the result. Mutually exclusive
+     * with sectionalFinish by orchestrate intake.
+     */
+    claimMapFinish?: boolean;
     /**
      * The bulk settled-set read (RV1807), its own opt-in: adding a tool
      * under the existing childResultTools flag would move every
@@ -405,16 +436,29 @@ export function buildOrchestratorTools(
   });
   // The sectional vocabulary exists only under the opt-in (RV808b):
   // the description enters the toolset hash exactly like the schema,
-  // so both move together and never for a run that stays plain.
+  // so both move together and never for a run that stays plain. The
+  // claim map vocabulary (RV4305) is its own opt-in on the same terms,
+  // and the two are mutually exclusive by intake, so the ternary
+  // below never has to choose between them.
   const sectional = options?.sectionalFinish === true;
+  const claimMap = options?.claimMapFinish === true;
   const finish = tool({
     name: FINISH_TOOL_NAME,
-    description: sectional
-      ? 'Terminate the orchestration with a result (run outcome ok). After a REJECTED ' +
-        'attempt, sections may resubmit only the repaired sections; the host splices them ' +
-        'into the retained attempt and validates the whole document.'
-      : 'Terminate the orchestration with a result (run outcome ok).',
-    parameters: sectional ? FINISH_SECTIONAL_SCHEMA : FINISH_SCHEMA,
+    description: claimMap
+      ? 'Terminate the orchestration with a result (run outcome ok). claimMap is REQUIRED ' +
+        'beside it: one row per material claim of the result, each with its evidentiary ' +
+        'grade (source, inference, assumption, live-observed) and the source anchors it ' +
+        'rests on.'
+      : sectional
+        ? 'Terminate the orchestration with a result (run outcome ok). After a REJECTED ' +
+          'attempt, sections may resubmit only the repaired sections; the host splices them ' +
+          'into the retained attempt and validates the whole document.'
+        : 'Terminate the orchestration with a result (run outcome ok).',
+    parameters: claimMap
+      ? FINISH_CLAIM_MAP_SCHEMA
+      : sectional
+        ? FINISH_SECTIONAL_SCHEMA
+        : FINISH_SCHEMA,
     execute: () => {
       throw new Error('finish is intercepted by the agent runtime, never executed');
     },

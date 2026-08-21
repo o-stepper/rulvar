@@ -66,6 +66,12 @@ import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
 import { lastRunSettle } from '../stores/reconcile.js';
 import { candidateHashOf, lastMechanicalRepairCostUsd } from '../stores/synthesis-candidates.js';
+import {
+  canonicalClaimMap,
+  claimMapHashOf,
+  validateClaimMapStructure,
+  type ClaimMapRow,
+} from './claim-map.js';
 import { semanticTerminalVerdictOf } from './semantic-verdict.js';
 import { repairLedgerFromJournal } from '../stores/repair-ledger.js';
 import type { AgentOpts, AgentProfile, Ctx, Workflow } from '../engine/ctx.js';
@@ -1877,6 +1883,35 @@ export interface OrchestrateSynthesis {
    * ConfigError. Absent = the prompt stays byte identical.
    */
   evidenceIndex?: true | { pattern?: string; flags?: string };
+  /**
+   * The atomic claim map of the composition (RV4305, P2.1). With
+   * `true`, the synthesis invocation's finish REQUIRES a typed
+   * `claimMap` beside the result: one row per material claim, each
+   * with its evidentiary grade (`source`, `inference`, `assumption`,
+   * `live-observed`), the source anchors it rests on, the inference
+   * bridge on inference rows, and the run evidence on live-observed
+   * rows. The finish tool's schema and description change under the
+   * opt-in, so the synthesis toolset hash moves BY DESIGN (the
+   * sectional precedent). Deterministic validation is STRUCTURAL
+   * only: every document anchor covered by the map and every map
+   * anchor present in the document (both directions), at most one
+   * non-source row per anchor (a row count, never a semantic
+   * verdict), per-grade required blocks, unique ids; a structural
+   * failure spends the ordinary finish repair bound like any
+   * validator rejection. Semantic truth stays with the judges: the
+   * accepted map is journaled beside the accepted candidate (linked
+   * by `candidateHashOf`) and fed into the existing claim judge's
+   * prompt under this same opt-in; no new judge and no new rounds
+   * exist. Requires `finishValidation`; refuses beside
+   * `skipWhenDraftValid` and `fallbackToValidDraft` (both can ship a
+   * DRAFT that never carried a map) and beside
+   * `finishValidation.sectionalRepair` (a sectional resubmission
+   * would splice a document out from under its map); an armed repair
+   * round resubmits the full document with a full map instead of
+   * arming the sectional shortcut. Absent, every byte holds: prompt,
+   * toolset hash, journal, envelope.
+   */
+  claimMap?: true;
 }
 
 /**
@@ -2403,6 +2438,43 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         throw new ConfigError(
           'orchestrate synthesis.carryDraftGaps requires skipWhenDraftValid: the gaps ARE the ' +
             'failed pre-pass verdict, and without the pre-pass there is nothing to carry',
+        );
+      }
+    }
+    const mapOptIn = (synthesis as { claimMap?: unknown }).claimMap;
+    if (mapOptIn !== undefined) {
+      if (mapOptIn !== true) {
+        throw new ConfigError(
+          'orchestrate synthesis.claimMap must be true or absent; got ' + JSON.stringify(mapOptIn),
+        );
+      }
+      if (opts.finishValidation === undefined) {
+        throw new ConfigError(
+          'orchestrate synthesis.claimMap requires finishValidation: the structural map ' +
+            'verdicts ride the finish-validation machinery, and without a contract there ' +
+            'is no accepted candidate for the map to bind',
+        );
+      }
+      // Mode 'incremental' is refused transitively: claimMap requires
+      // finishValidation, which 'incremental' already refuses above.
+      if (conditional.skipWhenDraftValid === true) {
+        throw new ConfigError(
+          'orchestrate synthesis.claimMap refuses synthesis.skipWhenDraftValid: a skipped ' +
+            'synthesis ships the DRAFT, which never carried a map, and the contract the ' +
+            'opt-in declares would silently not apply to the shipped document',
+        );
+      }
+      if ((synthesis as { fallbackToValidDraft?: unknown }).fallbackToValidDraft === true) {
+        throw new ConfigError(
+          'orchestrate synthesis.claimMap refuses synthesis.fallbackToValidDraft: the ' +
+            'fallback ships the DRAFT, which never carried a map',
+        );
+      }
+      if (opts.finishValidation.sectionalRepair !== undefined) {
+        throw new ConfigError(
+          'orchestrate synthesis.claimMap refuses finishValidation.sectionalRepair: a ' +
+            'sectional resubmission splices a document out from under its map; an armed ' +
+            'repair round resubmits the full document with a full map instead',
         );
       }
     }
@@ -5320,6 +5392,13 @@ export function makeOrchestratorWorkflow(
       opts?.finishValidation?.sectionalRepair !== undefined &&
       (opts.synthesis === undefined || opts.finishValidation.draftPolicy !== undefined);
     const synthSectionalFinish = opts?.finishValidation?.sectionalRepair !== undefined;
+    // The claim map opt-in (RV4305): intake refused every sectional
+    // combination, so this flag and the sectional ones are never both
+    // set. The pattern is the audit's own, so map anchors and sampled
+    // anchors speak one vocabulary.
+    const claimMapArmed =
+      opts?.synthesis !== undefined && (opts.synthesis as { claimMap?: unknown }).claimMap === true;
+    const claimMapPattern = opts?.citationAudit?.pattern;
     const tools = [
       ...buildOrchestratorTools(orchestratorRuntime, fullCardText, {
         childResultTools: opts?.exposeChildResultTools === true,
@@ -5943,6 +6022,35 @@ export function makeOrchestratorWorkflow(
         };
         const failed: { name: string; reasons: string[] }[] = [];
         const failureHints: (readonly FinishRepairHint[] | undefined)[] = [];
+        // The structural claim map verdict (RV4305), first and
+        // engine-owned: a schema-valid map whose relations are broken
+        // (uncovered anchors, phantom anchors, two non-source rows on
+        // one anchor, a grade without its required block) rejects
+        // exactly like a host validator and spends the same repair
+        // bound. Deliberately STRUCTURAL only: whether a grade is
+        // true is the claim judge's question, and the accepted map is
+        // fed to it under the same opt-in.
+        if (claimMapArmed) {
+          const rawRows = ((call.args ?? {}) as { claimMap?: unknown }).claimMap;
+          const structural =
+            rawRows === undefined
+              ? {
+                  ok: false as const,
+                  reasons: [
+                    'finish must carry claimMap beside the result: one row per material ' +
+                      'claim, each with its grade and source anchors',
+                  ],
+                }
+              : validateClaimMapStructure(
+                  rawRows as ClaimMapRow[],
+                  typeof result === 'string' ? result : JSON.stringify(result),
+                  claimMapPattern,
+                );
+          if (!structural.ok) {
+            failed.push({ name: 'claim-map-structure', reasons: structural.reasons });
+            failureHints.push(undefined);
+          }
+        }
         for (const validator of validationSpec.validators) {
           let verdict: FinishValidationVerdict;
           try {
@@ -6189,6 +6297,40 @@ export function makeOrchestratorWorkflow(
         // verdict is the moment the mechanical leg's purpose resolves,
         // whichever way it resolved; fires at most once.
         releaseRepairLeg?.();
+        // The accepted map decision (RV4305): journaled beside the
+        // accepted candidate and linked by the SAME hash recipe the
+        // claim judge's judgedHash and the audit's auditedHash bind
+        // (candidateHashOf), so the chain document, map, verdict
+        // closes by hash. Fresh branch only: on resume the replayed
+        // decision IS the record, and the judge prompt derives the
+        // map from the journal, never from live state.
+        if (claimMapArmed && decision.verdict === 'accepted') {
+          const rawRows = ((call.args ?? {}) as { claimMap?: unknown }).claimMap as
+            ClaimMapRow[] | undefined;
+          if (rawRows !== undefined) {
+            const acceptedDoc =
+              deterministicRepair?.outcome === 'accepted' && patchedResult !== undefined
+                ? patchedResult
+                : result;
+            const canonical = canonicalClaimMap(rawRows);
+            await internals.replayer.appendSinglePhase({
+              scope: callingState.scope,
+              key: `claim-map:${call.id}`,
+              kind: 'decision',
+              status: 'ok',
+              spanId: internals.spans.mint(callingState.spanId),
+              site: 'orchestrator-claim-map',
+              value: {
+                decisionType: 'orchestrator_claim_map',
+                callId: call.id,
+                candidateHash: candidateHashOf(acceptedDoc),
+                mapHash: claimMapHashOf(canonical),
+                claims: canonical.length,
+                map: canonical as unknown as Json,
+              },
+            });
+          }
+        }
       }
       if (decision.verdict === 'accepted') {
         // An accepted PATCHED call resolves the invocation output to
@@ -6716,9 +6858,13 @@ export function makeOrchestratorWorkflow(
       const capEntry = internals.replayer.snapshot().find((entry) => entry.seq === capDecisionRef);
       const capValue = capEntry?.value as
         { snapshot?: { planHash?: string; wakeOrdinal?: number } } | undefined;
-      const finishOnly = buildOrchestratorTools(orchestratorRuntime, fullCardText).filter(
-        (tool) => tool.name === FINISH_TOOL_NAME,
-      );
+      const finishOnly = buildOrchestratorTools(orchestratorRuntime, fullCardText, {
+        // The claim map contract binds the reserved finalizer too
+        // (RV4305): its finish is the run's final output, and a
+        // schema that FORBADE the map while the validators demanded
+        // it would make every capped finalize a guaranteed fallback.
+        claimMapFinish: claimMapArmed,
+      }).filter((tool) => tool.name === FINISH_TOOL_NAME);
       internals.cost.orchestrator.forcedFinish = true;
       /**
        * The journaled finalize effects roll forward (RV906): the
@@ -6808,6 +6954,17 @@ export function makeOrchestratorWorkflow(
                 `${String(capDecisionRef ?? -1)}). The plan is frozen; admitted work has ` +
                 'settled. Produce the FINAL result of the run from the digest below by ' +
                 'calling finish({ result }) EXACTLY once. No other tool exists.',
+              // The claim map contract binds the finalizer under the
+              // opt-in (RV4305); absent, the prompt bytes hold.
+              ...(claimMapArmed
+                ? [
+                    'CLAIM MAP: finish REQUIRES claimMap beside result: one row per ' +
+                      'material claim, each with a unique id, its grade (source, ' +
+                      'inference, assumption, live-observed), and sourceAnchors covering ' +
+                      'every anchor the result cites; unanchored claims declare ' +
+                      "'assumption'.",
+                  ]
+                : []),
               `PLAN HASH: ${capValue?.snapshot?.planHash ?? ''}`,
               `DIGEST: ${JSON.stringify(digest)}`,
             ].join('\n'),
@@ -7743,6 +7900,37 @@ export function makeOrchestratorWorkflow(
                 'contradiction on the same terms.',
             ]
           : []),
+        // The composed claim map (RV4305): derived from the JOURNAL
+        // decision, never live state, so a live pass and a resumed
+        // pass render identical prompt bytes; absent (the draft pass,
+        // or no accepted map yet), the bytes hold. Input to the SAME
+        // judge under the same schema: the map informs the pair
+        // verdicts, and no new judge and no new rounds exist.
+        ...(claimMapArmed
+          ? (() => {
+              const mapDecision = internals.replayer
+                .snapshot()
+                .filter(
+                  (entry) =>
+                    entry.kind === 'decision' &&
+                    (entry.value as { decisionType?: unknown } | undefined)?.decisionType ===
+                      'orchestrator_claim_map',
+                )
+                .at(-1);
+              const rows = (mapDecision?.value as { map?: unknown } | undefined)?.map;
+              return rows === undefined
+                ? []
+                : [
+                    'The composition declared a CLAIM MAP below: each row grades one ' +
+                      'material claim (source, inference, assumption, live-observed) and ' +
+                      'names the anchors it rests on. Judge the PAIRS as before, and use ' +
+                      'the map as evidence: a pair whose draft sentence contradicts what ' +
+                      'its own map row declares (a source-graded claim the cited pool ' +
+                      'reading denies) is a contradiction on the same terms.',
+                    `CLAIM MAP: ${JSON.stringify(rows)}`,
+                  ];
+            })()
+          : []),
         `PAIRS: ${JSON.stringify(
           allPairs.map((pair, index) => ({
             pair: index,
@@ -8575,8 +8763,12 @@ export function makeOrchestratorWorkflow(
         // The sections argument exists on the finish tool exactly when
         // something can splice it: the declared vocabulary (RV808b) or
         // the armed sectional round (RV3803). Deterministic on resume:
-        // the round context re-derives from replayed material.
+        // the round context re-derives from replayed material. Under
+        // the claim map opt-in (RV4305) neither can arm (intake
+        // refused the declared form; the round skips the sectional
+        // shortcut), and the finish requires the map instead.
         sectionalFinish: synthSectionalFinish || sectionalRoundContext !== undefined,
+        claimMapFinish: claimMapArmed,
       }).filter((tool) => synthesisToolNames.has(tool.name));
       if (finishSectional !== undefined && synthSectionalFinish) {
         // The synthesis invocation is SEEDED with the coordination
@@ -8723,6 +8915,23 @@ export function makeOrchestratorWorkflow(
                   : '.'),
             ]),
         ...(spec.instructions === undefined ? [] : [spec.instructions]),
+        // The claim map contract (RV4305): rides only under the
+        // opt-in; prompt bytes are journal identity for every run
+        // that never opts in.
+        ...(claimMapArmed
+          ? [
+              'CLAIM MAP: finish REQUIRES claimMap beside result: one row per material ' +
+                'claim of the result, atomic (never a compound sentence), each with a ' +
+                "unique id, its grade ('source' restates cited evidence; 'inference' " +
+                'derives from it and carries the bridge in inference.premises and ' +
+                "inference.reasoning; 'assumption' is unanchored and carries no anchors; " +
+                "'live-observed' cites this run's own recorded facts in runEvidence), and " +
+                'sourceAnchors listing every document anchor the claim rests on. Every ' +
+                'anchor cited by the document must appear in some row, every row anchor ' +
+                'must appear in the document, and at most one non-source row may lean on ' +
+                'one anchor.',
+            ]
+          : []),
         ...finishValidationPromptLines(
           validationSpec,
           synthSectionalFinish ? 'draft-base' : undefined,
@@ -10681,7 +10890,7 @@ export function makeOrchestratorWorkflow(
       // The sectional plan (RV3803) targets every carried defect's
       // sentence, whichever class it came from.
       const roundPlan =
-        validationSpec !== undefined && typeof synthesizedFinal === 'string'
+        validationSpec !== undefined && !claimMapArmed && typeof synthesizedFinal === 'string'
           ? sectionalRoundPlan(synthesizedFinal, [
               ...round.carriedClaims.map((finding) => finding.draftExcerpt),
               ...round.carriedCitations.map((finding) => finding.sentence),
@@ -10969,8 +11178,11 @@ export function makeOrchestratorWorkflow(
         // only: without a finish contract there is no resolution hook
         // to splice through, and the round regenerates in full as it
         // always did.
+        // Under the claim map opt-in the round resubmits the FULL
+        // document with a full map (RV4305): a sectional splice would
+        // move the document out from under its map.
         const roundPlan =
-          validationSpec !== undefined && typeof synthesizedFinal === 'string'
+          validationSpec !== undefined && !claimMapArmed && typeof synthesizedFinal === 'string'
             ? sectionalRoundPlan(
                 synthesizedFinal,
                 carried.map((finding) => finding.draftExcerpt),

@@ -5893,6 +5893,45 @@ export const MUTATIONS = [
     replace: '  if (concurrency !== undefined || serviceTime !== undefined) {',
     test: 'packages/core/src/orchestrator/capacity-sheet.test.ts',
   },
+  {
+    id: 'claim-map-covers-both-directions',
+    doctrine:
+      'the map and the document describe one evidence set, in both directions (RV4305): with the uncovered-anchor check collapsed, a composition can cite anchors its own map never grades, and the atomic-claims contract quietly stops covering exactly the sentences the sixth experiment shipped compound',
+    file: 'packages/core/src/orchestrator/claim-map.ts',
+    find: '  const uncovered = documentAnchors.filter((anchor) => !mapAnchors.has(anchor));\n  if (uncovered.length > 0) {',
+    replace:
+      '  const uncovered = documentAnchors.filter((anchor) => !mapAnchors.has(anchor));\n  if (false) {',
+    test: 'packages/core/src/orchestrator/claim-map.test.ts',
+  },
+  {
+    id: 'claim-map-one-non-source-row-per-anchor',
+    doctrine:
+      'at most one non-source row leans on one anchor, a STRUCTURAL count (RV4305): with the check collapsed, two inferences can stack on one citation and the map stops resolving compound phrases into atomic claims, which is the P2.1 defect the validator exists to refuse; the count is rows, never truth, and truth stays with the judges',
+    file: 'packages/core/src/orchestrator/claim-map.ts',
+    find: '  const overloaded = [...nonSourceByAnchor.entries()].filter(([, holders]) => holders.length > 1);\n  if (overloaded.length > 0) {',
+    replace:
+      '  const overloaded = [...nonSourceByAnchor.entries()].filter(([, holders]) => holders.length > 1);\n  if (false) {',
+    test: 'packages/core/src/orchestrator/claim-map.test.ts',
+  },
+  {
+    id: 'claim-map-inference-carries-the-bridge',
+    doctrine:
+      "grade 'inference' requires the inference block, the bridge lives in it and the grade never replaces it (RV4305): with the requirement collapsed, an inference row is a bare label, the judge receives a derivation with no premises to check, and inference quietly becomes source assertion with extra steps",
+    file: 'packages/core/src/orchestrator/claim-map.ts',
+    find: '  if (inferenceMissing.length > 0) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/orchestrator/claim-map.test.ts',
+  },
+  {
+    id: 'claim-map-links-by-candidate-hash',
+    doctrine:
+      'the accepted map decision links to the accepted candidate by the SAME hash recipe the judges bind (RV4305): with the link mutated, the journal holds a map for a document nobody can identify, and the chain document, map, verdict that candidatePersistence built breaks at its newest joint',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '                candidateHash: candidateHashOf(acceptedDoc),\n                mapHash: claimMapHashOf(canonical),',
+    replace:
+      "                candidateHash: candidateHashOf('mutated'),\n                mapHash: claimMapHashOf(canonical),",
+    test: 'packages/core/src/orchestrator/claim-map-finish.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

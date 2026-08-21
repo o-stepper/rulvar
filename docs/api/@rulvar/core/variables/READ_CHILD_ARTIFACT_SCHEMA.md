@@ -10,4 +10,4 @@
 const READ_CHILD_ARTIFACT_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L119)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L120)

@@ -10,4 +10,4 @@
 const READ_CHILD_ARTIFACT_TOOL_NAME: "read_child_artifact" = 'read_child_artifact';
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L131)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L132)

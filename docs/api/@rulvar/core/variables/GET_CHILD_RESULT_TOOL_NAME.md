@@ -10,4 +10,4 @@
 const GET_CHILD_RESULT_TOOL_NAME: "get_child_result" = 'get_child_result';
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L130)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L131)
