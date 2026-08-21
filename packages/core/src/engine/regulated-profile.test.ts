@@ -18,6 +18,10 @@ import { compileRegulatedProfile } from './regulated-profile.js';
 
 const RESOLVE = (): string | undefined => undefined;
 
+const FINISH = (): NonNullable<OrchestrateOptions['finishValidation']> => ({
+  validators: [{ name: 'contract', validate: () => ({ ok: true }) }],
+});
+
 const BASE = (): { engine: CreateEngineOptions; run: RunOptions } => ({
   engine: {
     adapters: [scriptedAdapter(() => ({ text: 'x' }))],
@@ -37,7 +41,7 @@ describe('compileRegulatedProfile (RV4009)', () => {
     expect(compiled.engine.determinism?.mode).toBe('error');
     expect(compiled.run.budgetPolicy).toBe('immutable-lifetime');
     expect(compiled.run.strictPricing).toBe(true);
-    expect(compiled.run.configFingerprint).toMatch(/^regulated:3:[0-9a-f]{64}$/);
+    expect(compiled.run.configFingerprint).toMatch(/^regulated:4:[0-9a-f]{64}$/);
     expect(compiled.profileHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -536,6 +540,7 @@ describe('the regulated semantic acceptance (RV4201)', () => {
   const ORCH = (): OrchestrateOptions => ({
     citationAudit: { resolve: RESOLVE },
     claimConsistency: { judge: { model: 'judge:model' }, stage: 'final' },
+    finishValidation: FINISH(),
   });
 
   it("fills the fail-closed pair and the declaration: onFound 'fail' twice, waiver 'forbid'", () => {
@@ -559,6 +564,7 @@ describe('the regulated semantic acceptance (RV4201)', () => {
         synthesis: {},
         citationAudit: { resolve: RESOLVE, onFound: 'repair' },
         claimConsistency: { judge: { model: 'judge:model' }, stage: 'final', onFound: 'repair' },
+        finishValidation: FINISH(),
       },
     });
     expect(compiled.orchestrate?.claimConsistency?.coverageRepair).toBe(true);
@@ -668,10 +674,11 @@ describe('the regulated semantic acceptance (RV4201)', () => {
         synthesis: {},
         citationAudit: { resolve: RESOLVE, onFound: 'repair' },
         claimConsistency: { judge: { model: 'judge:model' }, stage: 'final', onFound: 'repair' },
+        finishValidation: FINISH(),
       },
     });
     expect(repairArmed.profileHash).not.toBe(failClosed.profileHash);
-    expect(failClosed.run.configFingerprint).toMatch(/^regulated:3:/);
+    expect(failClosed.run.configFingerprint).toMatch(/^regulated:4:/);
   });
 
   it('the waiver terms move the hash: forbid, a pin, and a different pin are three postures (RV4203)', () => {
@@ -1016,5 +1023,84 @@ describe('the regulated scope policy (RV4205)', () => {
     });
     expect(withTable.run.scope).toEqual(without.run.scope);
     expect(withTable.profileHash).not.toBe(without.profileHash);
+  });
+});
+
+describe('the regulated deliverable contract (RV4303, v4)', () => {
+  const ORCH = (): OrchestrateOptions => ({
+    citationAudit: { resolve: RESOLVE },
+    claimConsistency: { judge: { model: 'judge:model' }, stage: 'final' },
+    finishValidation: FINISH(),
+  });
+
+  it('requires a declared finishValidation by name: no contract, no deliverable verdict', () => {
+    const { finishValidation: dropped, ...rest } = ORCH();
+    void dropped;
+    expect(() => compileRegulatedProfile({ ...BASE(), orchestrate: rest })).toThrow(ConfigError);
+    expect(() => compileRegulatedProfile({ ...BASE(), orchestrate: rest })).toThrow(
+      /orchestrate\.finishValidation must be declared with the host validators \(RV4303\)/,
+    );
+  });
+
+  it("fills candidatePersistence 'hash-only' and preserves a declared 'transcript'", () => {
+    const filled = compileRegulatedProfile({ ...BASE(), orchestrate: ORCH() });
+    expect(filled.orchestrate?.finishValidation?.candidatePersistence).toBe('hash-only');
+    const declared = compileRegulatedProfile({
+      ...BASE(),
+      orchestrate: {
+        ...ORCH(),
+        finishValidation: { ...FINISH(), candidatePersistence: 'transcript' },
+      },
+    });
+    expect(declared.orchestrate?.finishValidation?.candidatePersistence).toBe('transcript');
+    // The persistence mode is a hashed posture: same contract, same
+    // values, different lineage declaration, different fingerprint.
+    expect(declared.profileHash).not.toBe(filled.profileHash);
+  });
+
+  it('refuses the legacy retainRejectedCandidates boolean at BOTH values', () => {
+    for (const value of [true, false]) {
+      const thunk = (): unknown =>
+        compileRegulatedProfile({
+          ...BASE(),
+          orchestrate: {
+            ...ORCH(),
+            finishValidation: { ...FINISH(), retainRejectedCandidates: value },
+          },
+        });
+      expect(thunk).toThrow(ConfigError);
+      expect(thunk).toThrow(/retainRejectedCandidates.*is the legacy boolean \(RV4303\)/);
+    }
+  });
+
+  it('fills citationAudit.resolver 2 and refuses the explicit diagnostic 1', () => {
+    const filled = compileRegulatedProfile({ ...BASE(), orchestrate: ORCH() });
+    expect(filled.orchestrate?.citationAudit?.resolver).toBe(2);
+    // Declaring 2 compiles to the same posture the fill produces: the
+    // map records what runs, not what was typed.
+    const declared = compileRegulatedProfile({
+      ...BASE(),
+      orchestrate: { ...ORCH(), citationAudit: { resolve: RESOLVE, resolver: 2 } },
+    });
+    expect(declared.profileHash).toBe(filled.profileHash);
+    expect(() =>
+      compileRegulatedProfile({
+        ...BASE(),
+        orchestrate: { ...ORCH(), citationAudit: { resolve: RESOLVE, resolver: 1 } },
+      }),
+    ).toThrow(/citationAudit\.resolver must be 2 or absent \(RV4303\)/);
+  });
+
+  it('the golden posture hash: the v4 map bytes are pinned, every key on purpose', () => {
+    // An absolute pin, deliberately: the profileHash is a versioned
+    // attestation surface, so ANY movement of the hashed map must be a
+    // conscious edit of this literal beside a REGULATED_VERSION
+    // thought, never an accident a relative inequality would miss.
+    // Everything below is deterministic (no clocks, no randomness).
+    const compiled = compileRegulatedProfile({ ...BASE(), orchestrate: ORCH() });
+    expect(compiled.profileHash).toBe(
+      '0fdf65cd4f31b18ea6bd9e0403dc9c094cb5826d3b55959d79a91c447b181913',
+    );
+    expect(compiled.run.configFingerprint).toBe(`regulated:4:${compiled.profileHash}`);
   });
 });
