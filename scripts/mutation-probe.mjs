@@ -5803,6 +5803,60 @@ export const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/engine/regulated-profile.test.ts',
   },
+  {
+    id: 'regulated-v4-requires-the-contract',
+    doctrine:
+      'the v4 floor requires a declared finishValidation by name (RV4303): with the refusal collapsed, a regulated orchestration compiles with no deliverable verdict, no candidate chain, and nothing for the filled candidatePersistence to attach to, which is the hole that forced the version bump in the first place',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '    if (orchestrate.finishValidation === undefined) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-v4-fills-hash-only-persistence',
+    doctrine:
+      "the v4 floor fills candidatePersistence 'hash-only' inside the required contract (RV4303): with the fill collapsed, a regulated run keeps the historical identity-on-rejection-only bytes, the accepted verdict carries no candidate hash, and the auditor is back to digging a binary transcript with no documented recipe, the exact RV4207 gap",
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: "      contract.candidatePersistence = contract.candidatePersistence ?? 'hash-only';",
+    replace: '      contract.candidatePersistence = contract.candidatePersistence ?? undefined;',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-v4-refuses-the-legacy-boolean',
+    doctrine:
+      'the v4 floor refuses retainRejectedCandidates at both values (RV4303): with the refusal collapsed, the legacy boolean rides beside the filled declaration, orchestrate intake then refuses the pair at run time or the boolean silently shadows the declared posture, and the fail-closed migration the RV4204 legacy-pin precedent demands becomes a silent rewrite',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '      if (contract.retainRejectedCandidates !== undefined) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-v4-fills-resolver-two',
+    doctrine:
+      'the v4 floor fills citationAudit.resolver 2 (RV4303): with the fill collapsed, the regulated audit runs the fixed four-line diagnostic window whose truncation manufactured the sixth comparison experiment false negatives, while the posture map claims the production resolver',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '      auditSpec.resolver = auditSpec.resolver ?? 2;',
+    replace: '      auditSpec.resolver = auditSpec.resolver ?? undefined;',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-v4-refuses-resolver-one',
+    doctrine:
+      'the v4 floor refuses the explicit diagnostic resolver (RV4303): with the refusal collapsed, a host can declare generation 1 into a regulated compile and the floor blesses the exact truncation class the production resolver exists to close',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '      if (auditSpec.resolver === 1) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-v4-hash-covers-the-contract',
+    doctrine:
+      'the required contract and its persistence mode enter the hashed map (RV4303): with the key dropped, a hash-only compile and a transcript compile carry the identical profileHash, and the attestation cannot tell one lineage posture from another, the exact profileHash blindness the sixth experiment named as its headline',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '          deliverableContract: {\n            required: true,\n            candidatePersistence: orchestrate.finishValidation?.candidatePersistence,\n          },',
+    replace: '',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

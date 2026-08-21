@@ -77,7 +77,28 @@ export interface RegulatedProfile {
 // so an upgraded pin moves the fingerprint. The meaning of the map
 // changed, and a v2 hash must never collide with a v3 reading of the
 // same options.
-const REGULATED_VERSION = 3;
+//
+// 4 since RV4303 (plan 43): the floor absorbed the plan 42 knobs it
+// had no opinion on, and the absorption exposed a hole the v3 floor
+// could not close: `candidatePersistence` lives INSIDE
+// `finishValidation`, which v3 never required, so a regulated
+// orchestration without a finish contract had no deliverable verdict,
+// no candidate chain, and nothing for a lineage policy to attach to.
+// The v4 floor REQUIRES a declared `finishValidation` (the RV4103
+// doctrine: the validators are the host's, and a floor that invents
+// billable defaults is a different hazard, so the requirement is a
+// refusal on omission, symmetric with claimConsistency), fills
+// `candidatePersistence: 'hash-only'` inside it (the auditability
+// minimum; 'transcript' is legal), refuses the legacy
+// `retainRejectedCandidates` boolean at BOTH values (the fail-closed
+// migration, the RV4204 legacy-pin precedent: a silent canonical
+// rewrite would compile a posture the host never wrote), fills
+// `citationAudit.resolver: 2` and refuses an explicit 1 (the fixed
+// window is the diagnostic resolver, not the production one), and
+// hashes the resolver generation, the persistence mode, and the
+// required-contract fact into the map. The meaning of the map changed
+// again, and a v3 hash must never collide with a v4 reading.
+const REGULATED_VERSION = 4;
 
 function refuse(field: string, requirement: string): never {
   throw new ConfigError(
@@ -667,6 +688,19 @@ export function compileRegulatedProfile(input: {
         );
       }
       auditSpec.onFound = auditSpec.onFound ?? 'fail';
+      // The resolver generation (RV4303): generation 1 is the fixed
+      // four-line window that produced the sixth experiment's false
+      // negatives, kept as the diagnostic default; the production
+      // floor reads the logical unit (RV4208) or nothing.
+      if (auditSpec.resolver === 1) {
+        refuse(
+          'orchestrate.citationAudit.resolver',
+          'must be 2 or absent (RV4303): generation 1 is the fixed diagnostic window whose ' +
+            'truncation manufactured the false negatives of the sixth comparison run, and a ' +
+            'regulated audit reads the bounded logical unit',
+        );
+      }
+      auditSpec.resolver = auditSpec.resolver ?? 2;
       orchestrate.citationAudit = auditSpec;
       // ---- The atomic acceptance declaration (RV4201). The floor
       // writes it when absent, from the postures it just enforced,
@@ -740,6 +774,44 @@ export function compileRegulatedProfile(input: {
         }
       }
     }
+    // ---- The deliverable contract (RV4303, v4). Absence is the
+    // loosest deliverable posture there is: with no finishValidation
+    // there is no deliverable verdict, no candidate chain, and nothing
+    // for a lineage policy to attach to, a loosening deeper than any
+    // field this floor already refuses. The floor does not autofill
+    // it either (the RV4103 rule: the validators are the host's own
+    // acceptance criteria, and a floor that invents them invents the
+    // contract), so the requirement is a refusal on omission,
+    // symmetric with claimConsistency above.
+    if (orchestrate.finishValidation === undefined) {
+      refuse(
+        'orchestrate.finishValidation',
+        'must be declared with the host validators (RV4303): without the contract there is ' +
+          'no deliverable verdict and no candidate chain, and the floor does not invent ' +
+          'acceptance criteria',
+      );
+    }
+    if (orchestrate.finishValidation !== undefined) {
+      const contract = { ...orchestrate.finishValidation };
+      // The fail-closed migration (RV4303, the RV4204 legacy-pin
+      // precedent): the legacy boolean refuses at BOTH values, because
+      // a silent canonical rewrite would compile a lineage posture the
+      // host never wrote, and `false` under a floor that fills
+      // 'hash-only' is a contradiction only the host can resolve.
+      if (contract.retainRejectedCandidates !== undefined) {
+        refuse(
+          'orchestrate.finishValidation.retainRejectedCandidates',
+          "is the legacy boolean (RV4303): declare candidatePersistence 'transcript' or " +
+            "'hash-only' instead; the regulated lineage posture is the declaration, never " +
+            'the boolean',
+        );
+      }
+      // The auditability minimum (RV4207): every verdict carries the
+      // candidate identity, and an absent blob reads as policy, not
+      // accident. 'transcript' is the legal richer declaration.
+      contract.candidatePersistence = contract.candidatePersistence ?? 'hash-only';
+      orchestrate.finishValidation = contract;
+    }
   }
 
   // The declared attestation pins enter the map (RV4203): an upgraded
@@ -804,6 +876,9 @@ export function compileRegulatedProfile(input: {
             : { contradictionsOnFound: orchestrate.contradictions.onFound }),
           citationAudit: {
             onFound: orchestrate.citationAudit?.onFound,
+            // The resolver generation (RV4303): always the FILLED
+            // value, so the map records what will run.
+            resolver: orchestrate.citationAudit?.resolver,
             ...(orchestrate.citationAudit?.samplePerSection === undefined
               ? {}
               : { samplePerSection: orchestrate.citationAudit.samplePerSection }),
@@ -830,6 +905,14 @@ export function compileRegulatedProfile(input: {
                 }),
           },
           semanticAcceptance: orchestrate.semanticAcceptance,
+          // The deliverable contract fact (RV4303): the v4 floor
+          // required it and filled the persistence, so the hash
+          // carries both, and a compile that differs only in the
+          // persistence mode carries a different fingerprint.
+          deliverableContract: {
+            required: true,
+            candidatePersistence: orchestrate.finishValidation?.candidatePersistence,
+          },
         };
   const posture = {
     regulated: REGULATED_VERSION,
