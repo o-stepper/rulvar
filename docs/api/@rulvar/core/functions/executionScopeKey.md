@@ -10,7 +10,7 @@
 function executionScopeKey(scope): string;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:1062](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L1062)
+Defined in: [packages/core/src/engine/engine.ts:1057](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L1057)
 
 The canonical identity string of a scope (RV4007): JCS bytes, total and deterministic.
 
