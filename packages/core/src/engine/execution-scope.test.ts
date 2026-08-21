@@ -229,3 +229,141 @@ describe('scope dimensions v2 (RV4205)', () => {
     ).toThrow(/scopePolicy\.unknown must be 'drop' or 'reject'/);
   });
 });
+
+describe('scope value normalization (RV4302)', () => {
+  const TABLE = { version: 1, fields: { region: ['trim', 'lowercase'] } } as const;
+
+  it('validates the declared table: version, dimensions, vocabulary, shapes', () => {
+    const at = (normalize: unknown): (() => unknown) => {
+      return () =>
+        normalizeExecutionScope({ region: 'EU' }, 'RunOptions.scope', {
+          normalize: normalize as never,
+        });
+    };
+    expect(at('lowercase')).toThrow(/normalize must be an object/);
+    expect(at({ version: 2, fields: { region: ['trim'] } })).toThrow(/version must be 1/);
+    expect(at({ version: 1, fields: {} })).toThrow(/at least one scope dimension/);
+    expect(at({ version: 1, fields: { platformTeam: ['trim'] } })).toThrow(
+      /platformTeam is not a scope dimension/,
+    );
+    expect(at({ version: 1, fields: { region: [] } })).toThrow(/non-empty array of operations/);
+    expect(at({ version: 1, fields: { region: ['uppercase'] } })).toThrow(
+      /unknown operation "uppercase"; the vocabulary is trim, lowercase, nfc/,
+    );
+  });
+
+  it('applies the ops in declared order, after input validation, and only to named fields', () => {
+    const copy = normalizeExecutionScope(
+      { region: '  EU-West-1  ', tenant: 'Acme' },
+      'RunOptions.scope',
+      { normalize: TABLE },
+    );
+    expect(copy).toEqual({ region: 'eu-west-1', tenant: 'Acme' });
+    // NFC folds the decomposed sequence onto the composed identity.
+    const nfc = normalizeExecutionScope({ tenant: 'café' }, 'RunOptions.scope', {
+      normalize: { version: 1, fields: { tenant: ['nfc'] } },
+    });
+    expect(nfc.tenant).toBe('café');
+    // An invalid input still refuses BEFORE any op runs: the table
+    // canonicalizes valid declarations, it never launders junk in.
+    expect(() =>
+      normalizeExecutionScope({ region: 42 }, 'RunOptions.scope', { normalize: TABLE }),
+    ).toThrow(/region must be a non-empty string/);
+  });
+
+  it('re-validates the result by the same rule: all-whitespace trims to a typed refusal', () => {
+    expect(() =>
+      normalizeExecutionScope({ region: '   ' }, 'RunOptions.scope', { normalize: TABLE }),
+    ).toThrow(/region normalizes to "" under the declared scopePolicy\.normalize table/);
+  });
+
+  it('one identity on every surface: genesis decision, digest, invoice, meta, resume', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-scope-normalize-'));
+    const store = new JsonlFileStore({ dir });
+    const makeEngine = (): ReturnType<typeof createEngine> =>
+      createEngine({
+        adapters: [scriptedAdapter(() => ({ text: 'answer' }))],
+        stores: { journal: store },
+        defaults: { routing: { loop: 'fake:model' } },
+      });
+    const outcome = await makeEngine().run(wf, undefined, {
+      runId: 'SC-NORM',
+      budgetUsd: 5,
+      scope: { tenant: 'acme', region: '  EU-West-1  ' },
+      scopePolicy: { normalize: TABLE },
+    }).result;
+    expect(outcome.status).toBe('ok');
+    const normalized = { tenant: 'acme', region: 'eu-west-1' };
+    const meta = (await store.listRuns()).find((row) => row.runId === 'SC-NORM');
+    expect(meta?.scope).toEqual(normalized);
+    expect(meta?.scopeNormalize).toEqual(TABLE);
+    const entries = await store.load('SC-NORM');
+    const decision = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'execution_scope',
+    );
+    const value = decision?.value as
+      { scope?: unknown; scopeDigest?: string; normalize?: unknown } | undefined;
+    expect(value?.scope).toEqual(normalized);
+    expect(value?.scopeDigest).toBe(executionScopeDigest(normalized));
+    expect(value?.normalize).toEqual(TABLE);
+    const invoice = invoiceFromJournal(entries, () => 0.01);
+    expect(invoice.executionScope).toEqual(normalized);
+    expect(invoice.executionScopeDigest).toBe(executionScopeDigest(normalized));
+    // Resume with the RAW values the run started with: the RECORDED
+    // table shapes the supplied copy before comparison, so the
+    // assertion holds without the host re-normalizing anything.
+    const resumed = await makeEngine().resume('SC-NORM', wf, {
+      scope: { tenant: 'acme', region: '  EU-West-1  ' },
+    }).result;
+    expect(resumed.status).toBe('ok');
+    // A conflicting re-supplied table refuses typed (the args-binding
+    // rule): the journal is the table's authority, not the host.
+    await expect(
+      makeEngine().resume('SC-NORM', wf, {
+        scopePolicy: { normalize: { version: 1, fields: { region: ['trim'] } } },
+      }).result,
+    ).rejects.toThrow(/scopePolicy\.normalize table does not match the one run 'SC-NORM'/);
+    // The matching table asserts true, and the resume segment's meta
+    // write preserves the recorded table verbatim.
+    const matched = await makeEngine().resume('SC-NORM', wf, {
+      scopePolicy: { normalize: TABLE },
+    }).result;
+    expect(matched.status).toBe('ok');
+    const after = (await store.listRuns()).find((row) => row.runId === 'SC-NORM');
+    expect(after?.scopeNormalize).toEqual(TABLE);
+  });
+
+  it('a table supplied over a run that recorded none is asserted UNRECORDED and never applied', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-scope-norm-off-'));
+    const store = new JsonlFileStore({ dir });
+    const makeEngine = (): ReturnType<typeof createEngine> =>
+      createEngine({
+        adapters: [scriptedAdapter(() => ({ text: 'answer' }))],
+        stores: { journal: store },
+        defaults: { routing: { loop: 'fake:model' } },
+      });
+    await makeEngine().run(wf, undefined, {
+      runId: 'SC-NORM-OFF',
+      budgetUsd: 5,
+      scope: { tenant: 'Acme' },
+    }).result;
+    // No table recorded, none declared: byte posture pinned.
+    const meta = (await store.listRuns()).find((row) => row.runId === 'SC-NORM-OFF');
+    expect(meta !== undefined && 'scopeNormalize' in meta).toBe(false);
+    const entries = await store.load('SC-NORM-OFF');
+    const decision = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'execution_scope',
+    );
+    expect('normalize' in ((decision?.value ?? {}) as object)).toBe(false);
+    // If the supplied lowercase table were APPLIED, 'Acme' would fold
+    // to 'acme' and mismatch the recorded 'Acme'; resolving proves the
+    // unrecorded table is an unverifiable assertion, never a policy.
+    const resumed = await makeEngine().resume('SC-NORM-OFF', wf, {
+      scope: { tenant: 'Acme' },
+      scopePolicy: { normalize: { version: 1, fields: { tenant: ['lowercase'] } } },
+    }).result;
+    expect(resumed.status).toBe('ok');
+  });
+});

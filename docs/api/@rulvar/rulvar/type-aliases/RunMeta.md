@@ -25,6 +25,10 @@ type RunMeta = {
      project?: string;
      tenant?: string;
   };
+  scopeNormalize?: {
+     fields: Partial<Record<string, readonly string[]>>;
+     version: number;
+  };
   segments?: number;
   status: string;
   strictPricing?: {
@@ -289,6 +293,40 @@ optional project?: string;
 
 ```ts
 optional tenant?: string;
+```
+
+***
+
+### scopeNormalize?
+
+```ts
+optional scopeNormalize?: {
+  fields: Partial<Record<string, readonly string[]>>;
+  version: number;
+};
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The declarative scope value normalization table (RV4302), recorded
+at genesis beside the scope it shaped and immutable for the run's
+life: the same table is journaled in the `execution_scope` genesis
+decision (the fold's authority), and this mirror is what the
+resume assertion reads before the journal loads. Stores must
+round-trip the field (the conformance kit checks); a store that
+drops it degrades the resume assertion to comparing raw supplied
+values, never to an invented identity.
+
+#### fields
+
+```ts
+fields: Partial<Record<string, readonly string[]>>;
+```
+
+#### version
+
+```ts
+version: number;
 ```
 
 ***

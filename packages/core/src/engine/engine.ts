@@ -621,9 +621,24 @@ export interface ResumeOptions {
    * supplied scope that differs from the recorded one refuses the
    * resume typed before ownership; a supplied scope over a run that
    * recorded none warns (absence means NOT RECORDED); a recorded
-   * scope resumes verbatim whether or not it is re-asserted.
+   * scope resumes verbatim whether or not it is re-asserted. The
+   * comparison normalizes the supplied scope under the RECORDED
+   * normalization table first (RV4302), so a host that re-supplies
+   * the same raw values it started with asserts successfully.
    */
   scope?: ExecutionScope;
+  /**
+   * The scope policy assertion (RV4302). The recorded normalization
+   * table is the journal's, never this option's: a supplied
+   * `normalize` table is compared against the recorded one by
+   * canonical bytes, and a conflict refuses typed before ownership
+   * (the args-binding rule: recorded at genesis, asserted on resume).
+   * A table supplied over a run that recorded none warns and is NOT
+   * applied (applying it would let a resume move the recorded
+   * identity). `unknown` applies to the supplied copy's own intake
+   * only.
+   */
+  scopePolicy?: ScopePolicy;
   /**
    * The unknown-outcome acknowledgment (RV4006): a run under the
    * 'intent' receipt posture that crashed between a wire's journaled
@@ -827,6 +842,15 @@ export interface ExecutionScope {
   providerAccount?: string;
 }
 
+/** One of the named scope dimensions (RV4007/RV4205). */
+export type ExecutionScopeField =
+  | 'tenant'
+  | 'account'
+  | 'project'
+  | 'legalDomain'
+  | 'region'
+  | 'providerAccount';
+
 const SCOPE_FIELDS = [
   'tenant',
   'account',
@@ -834,7 +858,34 @@ const SCOPE_FIELDS = [
   'legalDomain',
   'region',
   'providerAccount',
-] as const;
+] as const satisfies readonly ExecutionScopeField[];
+
+/**
+ * One value-normalization operation of the declarative table (RV4302):
+ * a CLOSED vocabulary on purpose. A host callback would not be replay
+ * stable (it is not journalable, and it may read locale or time), so
+ * the policy is data: each operation is a named pure function of the
+ * string alone, all three idempotent, applied in the declared order.
+ */
+export type ScopeNormalizeOp = 'trim' | 'lowercase' | 'nfc';
+
+const SCOPE_NORMALIZE_OPS = ['trim', 'lowercase', 'nfc'] as const;
+
+/**
+ * The declarative scope value normalization table (RV4302, deferred
+ * from RV4205): without it, `Region` and `region` values produce two
+ * digests for one identity, splitting quota buckets and FinOps joins.
+ * Versioned so a future vocabulary is a new declared shape, never a
+ * silent reinterpretation; JCS-serializable by construction, so the
+ * genesis decision journals it verbatim and resume compares canonical
+ * bytes. Applied strictly AFTER the existing per-field validation,
+ * with the result re-validated by the same rule.
+ */
+export interface ScopeNormalizeTable {
+  version: 1;
+  /** Per-dimension operation lists, applied in array order. */
+  fields: Partial<Record<ExecutionScopeField, readonly ScopeNormalizeOp[]>>;
+}
 
 /**
  * What an UNKNOWN scope field does (RV4205). 'drop' (the default, the
@@ -843,10 +894,91 @@ const SCOPE_FIELDS = [
  * identity; 'reject' refuses it typed by name, because a dimension
  * the engine cannot record is a dimension nothing downstream can bind
  * to routing, quota, or audit, and a host that declared it meant it.
- * `compileRegulatedProfile` enforces 'reject'.
+ * `compileRegulatedProfile` enforces 'reject'. `normalize` (RV4302)
+ * canonicalizes VALUES before the identity exists anywhere: the table
+ * is journaled in the genesis `execution_scope` decision and mirrored
+ * in RunMeta, and resume reads the RECORDED table, never a re-supplied
+ * one (a conflicting resupply refuses typed, the args-binding rule).
  */
 export interface ScopePolicy {
   unknown?: 'drop' | 'reject';
+  normalize?: ScopeNormalizeTable;
+}
+
+/**
+ * Validates a declared normalization table (RV4302): version 1 exactly,
+ * at least one field, every field a known scope dimension, every op
+ * list a non-empty array over the closed vocabulary. One validator for
+ * every path (run intake, resume assertion, regulated compile, direct
+ * callers of normalizeExecutionScope), so a malformed table refuses
+ * with the same words everywhere.
+ */
+function validateScopeNormalizeTable(
+  value: unknown,
+  site: string,
+): asserts value is ScopeNormalizeTable {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new ConfigError(`${site} must be an object; got ${JSON.stringify(value)}`);
+  }
+  const table = value as { version?: unknown; fields?: unknown };
+  if (table.version !== 1) {
+    throw new ConfigError(
+      `${site}.version must be 1 (the only shipped vocabulary); got ` +
+        JSON.stringify(table.version),
+    );
+  }
+  if (typeof table.fields !== 'object' || table.fields === null || Array.isArray(table.fields)) {
+    throw new ConfigError(`${site}.fields must be an object of per-dimension op lists`);
+  }
+  const keys = Object.keys(table.fields);
+  if (keys.length === 0) {
+    throw new ConfigError(`${site}.fields must name at least one scope dimension`);
+  }
+  for (const key of keys) {
+    if (!(SCOPE_FIELDS as readonly string[]).includes(key)) {
+      throw new ConfigError(
+        `${site}.fields.${key} is not a scope dimension; the named dimensions are ` +
+          SCOPE_FIELDS.join(', '),
+      );
+    }
+    const ops = (table.fields as Record<string, unknown>)[key];
+    if (!Array.isArray(ops) || ops.length === 0) {
+      throw new ConfigError(`${site}.fields.${key} must be a non-empty array of operations`);
+    }
+    for (const op of ops) {
+      if (!(SCOPE_NORMALIZE_OPS as readonly unknown[]).includes(op)) {
+        throw new ConfigError(
+          `${site}.fields.${key} holds an unknown operation ${JSON.stringify(op)}; the ` +
+            `vocabulary is ${SCOPE_NORMALIZE_OPS.join(', ')}`,
+        );
+      }
+    }
+  }
+}
+
+/** Validates a declared ScopePolicy (both knobs) with one set of words. */
+function validateScopePolicy(policy: ScopePolicy, site: string): void {
+  if (policy.unknown !== undefined && policy.unknown !== 'drop' && policy.unknown !== 'reject') {
+    throw new ConfigError(
+      `${site}.unknown must be 'drop' or 'reject'; got ` + JSON.stringify(policy.unknown),
+    );
+  }
+  if (policy.normalize !== undefined) {
+    validateScopeNormalizeTable(policy.normalize, `${site}.normalize`);
+  }
+}
+
+/** Applies one closed-vocabulary op; every op is pure and idempotent. */
+function applyScopeNormalizeOp(value: string, op: ScopeNormalizeOp): string {
+  if (op === 'trim') {
+    return value.trim();
+  }
+  if (op === 'lowercase') {
+    // Locale-independent by construction (never toLocaleLowerCase):
+    // the table must fold identically on every host.
+    return value.toLowerCase();
+  }
+  return value.normalize('NFC');
 }
 
 /**
@@ -865,6 +997,12 @@ export function normalizeExecutionScope(
 ): ExecutionScope {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new ConfigError(`${site} must be an object; got ${JSON.stringify(value)}`);
+  }
+  if (policy?.normalize !== undefined) {
+    // Every path validates the table HERE (RV4302), so a direct caller
+    // of the exported function refuses a malformed table with the same
+    // words the run intake uses.
+    validateScopeNormalizeTable(policy.normalize, `${site}Policy.normalize`);
   }
   if (policy?.unknown === 'reject') {
     for (const key of Object.keys(value)) {
@@ -889,7 +1027,27 @@ export function normalizeExecutionScope(
           JSON.stringify(declared),
       );
     }
-    copy[field] = declared;
+    // The declarative value normalization (RV4302), strictly AFTER the
+    // input validation above: the table canonicalizes what a valid
+    // declaration MEANS, it never launders an invalid one in.
+    const ops = policy?.normalize?.fields[field];
+    let normalized = declared;
+    if (ops !== undefined) {
+      for (const op of ops) {
+        normalized = applyScopeNormalizeOp(normalized, op);
+      }
+      // Re-validated by the SAME rule: a value the table folded to
+      // empty (all-whitespace under 'trim') is an identity that
+      // records nothing, and it refuses typed instead of recording it.
+      if (normalized.length === 0 || normalized.length > 256) {
+        throw new ConfigError(
+          `${site}.${field} normalizes to ${JSON.stringify(normalized)} under the declared ` +
+            `scopePolicy.normalize table (ops: ${ops.join(', ')}), which is not a non-empty ` +
+            'string of at most 256 characters',
+        );
+      }
+    }
+    copy[field] = normalized;
   }
   if (Object.keys(copy).length === 0) {
     throw new ConfigError(
@@ -1740,6 +1898,14 @@ export function createEngine(options: CreateEngineOptions): Engine {
     /** The RunMeta-recorded execution scope (RV4007), restored verbatim; absence stays absent. */
     scope?: ExecutionScope;
     /**
+     * The RunMeta-recorded scope value normalization table (RV4302),
+     * restored verbatim so the resume segment's meta write preserves
+     * it; absence stays absent. Never a re-supplied table: engine.resume
+     * refused any conflicting ResumeOptions.scopePolicy.normalize
+     * before this context was built.
+     */
+    scopeNormalize?: ScopeNormalizeTable;
+    /**
      * Open provider wire intents the host explicitly acknowledged
      * (RV4006): the count travels in so the segment journals the
      * acknowledgment beside the run_budget_override precedent.
@@ -1804,16 +1970,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
           JSON.stringify(opts.budgetPolicy),
       );
     }
-    if (
-      opts?.scopePolicy !== undefined &&
-      opts.scopePolicy.unknown !== undefined &&
-      opts.scopePolicy.unknown !== 'drop' &&
-      opts.scopePolicy.unknown !== 'reject'
-    ) {
-      throw new ConfigError(
-        "RunOptions.scopePolicy.unknown must be 'drop' or 'reject'; got " +
-          JSON.stringify(opts.scopePolicy.unknown),
-      );
+    if (opts?.scopePolicy !== undefined) {
+      // Both knobs validate at intake (RV4302), scope or no scope: a
+      // malformed policy is a declaration the engine cannot honor.
+      validateScopePolicy(opts.scopePolicy, 'RunOptions.scopePolicy');
     }
     const declaredScope =
       opts?.scope === undefined
@@ -1947,6 +2107,17 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // The recorded scope travels back in verbatim (RV4007); genesis
     // declares it once, and there is no resume door.
     const executionScope = declaredScope ?? resumeCtx?.scope;
+    // The declared normalization table travels with the identity it
+    // shaped (RV4302): fresh runs record the declared table, resume
+    // segments write back the RECORDED one verbatim (never a
+    // re-supplied table; engine.resume already refused a conflict).
+    // Without a scope there is no identity and nothing records.
+    const scopeNormalize =
+      executionScope === undefined
+        ? undefined
+        : resumeCtx !== undefined
+          ? resumeCtx.scopeNormalize
+          : opts?.scopePolicy?.normalize;
     const makeBudget = (): RunBudget =>
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
@@ -2286,6 +2457,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
               ...(budgetPolicy === 'immutable-lifetime' ? { budgetPolicy } : {}),
               ...(configFingerprint === undefined ? {} : { configFingerprint }),
               ...(executionScope === undefined ? {} : { scope: executionScope }),
+              ...(scopeNormalize === undefined ? {} : { scopeNormalize }),
               ...(argsBinding.argsProvided === undefined
                 ? {}
                 : { argsProvided: argsBinding.argsProvided }),
@@ -2487,6 +2659,14 @@ export function createEngine(options: CreateEngineOptions): Engine {
             // for external joins, derived from the same normalized
             // bytes the assertion machinery compares.
             scopeDigest: executionScopeDigest(executionScope),
+            // The value normalization table (RV4302), journaled beside
+            // the identity it produced: the journal is the authority a
+            // resume reads the table from, and an audit reads WHY the
+            // recorded values are canonical. Absent when undeclared,
+            // byte for byte the RV4205 decision.
+            ...(scopeNormalize === undefined
+              ? {}
+              : { normalize: scopeNormalize as unknown as Json }),
           },
         });
       }
@@ -3296,10 +3476,66 @@ export function createEngine(options: CreateEngineOptions): Engine {
       }
       // The scope assertion (RV4007), the configFingerprint semantics.
       {
+        // The recorded value normalization table (RV4302): the genesis
+        // journal decision is the authority and RunMeta mirrors it for
+        // this pre-load assertion, the scope's own pattern. A recorded
+        // table that does not validate is corrupt store bytes and
+        // refuses typed (the RV1204 corrupt-deadline rule), because a
+        // mangled table would turn the assertion into a coin flip.
+        const recordedNormalize = meta?.scopeNormalize as ScopeNormalizeTable | undefined;
+        if (recordedNormalize !== undefined) {
+          try {
+            validateScopeNormalizeTable(recordedNormalize, 'RunMeta.scopeNormalize');
+          } catch (cause) {
+            throw new ConfigError(
+              `resume: run '${runId}' recorded a scopeNormalize table that does not ` +
+                'validate; the store bytes are corrupt: ' +
+                (cause instanceof Error ? cause.message : String(cause)),
+            );
+          }
+        }
+        // The table assertion (RV4302), the args-binding rule: the
+        // RECORDED table is what applies; a re-supplied one is only an
+        // assertion. Conflict refuses typed before ownership; a table
+        // supplied over a run that recorded none warns and is NOT
+        // applied, because applying host input here would let a resume
+        // move the recorded identity.
+        const suppliedPolicy = resumeOptions?.scopePolicy;
+        if (suppliedPolicy !== undefined) {
+          validateScopePolicy(suppliedPolicy, 'ResumeOptions.scopePolicy');
+          const suppliedTable = suppliedPolicy.normalize;
+          if (
+            suppliedTable !== undefined &&
+            recordedNormalize !== undefined &&
+            jcsSerialize(suppliedTable) !== jcsSerialize(recordedNormalize)
+          ) {
+            throw new ConfigError(
+              `resume: the supplied scopePolicy.normalize table does not match the one run ` +
+                `'${runId}' recorded at genesis; the normalization table is immutable for ` +
+                'the life of the run, and the journal is its authority',
+            );
+          }
+          if (suppliedTable !== undefined && recordedNormalize === undefined) {
+            process.emitWarning(
+              `resume: a scopePolicy.normalize table was supplied but run '${runId}' never ` +
+                'recorded one; the assertion cannot be verified and the table is NOT applied ' +
+                '(absence means NOT RECORDED)',
+              { code: 'RULVAR_RESUME_SCOPE_NORMALIZE_UNRECORDED', type: 'RulvarWarning' },
+            );
+          }
+        }
         const supplied =
           resumeOptions?.scope === undefined
             ? undefined
-            : normalizeExecutionScope(resumeOptions.scope, 'ResumeOptions.scope');
+            : normalizeExecutionScope(resumeOptions.scope, 'ResumeOptions.scope', {
+                ...(suppliedPolicy?.unknown === undefined
+                  ? {}
+                  : { unknown: suppliedPolicy.unknown }),
+                // The RECORDED table shapes the supplied copy before
+                // any comparison (RV4302), so re-supplying the same
+                // raw values the run started with asserts true.
+                ...(recordedNormalize === undefined ? {} : { normalize: recordedNormalize }),
+              });
         const recorded =
           typeof meta?.scope === 'object' && meta.scope !== null ? meta.scope : undefined;
         if (
@@ -3434,6 +3670,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // The recorded execution scope travels back in verbatim
         // (RV4007); absence stays absent.
         ...(typeof meta?.scope === 'object' && meta.scope !== null ? { scope: meta.scope } : {}),
+        // The recorded normalization table travels back in verbatim
+        // (RV4302); absence stays absent. Validated above: a corrupt
+        // recorded table refused this resume before ownership.
+        ...(meta?.scopeNormalize === undefined
+          ? {}
+          : { scopeNormalize: meta.scopeNormalize as ScopeNormalizeTable }),
         // The recorded ceiling-override posture travels back in
         // (RV3902); only the exact literal counts, so a store that
         // mangles the field degrades to 'segment', never to an

@@ -25,6 +25,10 @@ type RunMeta = {
      project?: string;
      tenant?: string;
   };
+  scopeNormalize?: {
+     fields: Partial<Record<string, readonly string[]>>;
+     version: number;
+  };
   segments?: number;
   status: string;
   strictPricing?: {
@@ -53,7 +57,7 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L146)
+Defined in: [packages/core/src/l0/spi/store.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L157)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
@@ -80,7 +84,7 @@ checks).
 optional argsProvided?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L127)
+Defined in: [packages/core/src/l0/spi/store.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L138)
 
 Whether the run started with defined args. Engine-recorded at
 genesis and preserved verbatim by every later segment (a resume
@@ -137,7 +141,7 @@ drops it degrades a resumed run to uncapped.
 optional configFingerprint?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L103)
+Defined in: [packages/core/src/l0/spi/store.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L114)
 
 The host-declared config identity (RunOptions.configFingerprint,
 RV3210): an opaque pin over what the workflow body closes over,
@@ -154,7 +158,7 @@ or a false refusal (absence means NOT RECORDED).
 optional execKeyDerivation?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L176)
+Defined in: [packages/core/src/l0/spi/store.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L187)
 
 Which isolated-executor idempotency key derivation this run uses
 (RV403), for its WHOLE life: stamped at the fresh start by the
@@ -180,7 +184,7 @@ at-least-once fold of a redispatched call for a version 2 run.
 optional genesis?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L158)
+Defined in: [packages/core/src/l0/spi/store.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L169)
 
 Unique token minted at the run's fresh start (genesis) and preserved
 verbatim by every later segment, so two runs that reuse the same
@@ -220,7 +224,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:35](https://github.com/o-stepper/
 optional maxInFlightExposureUsd?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L84)
+Defined in: [packages/core/src/l0/spi/store.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L95)
 
 The opt-in in-flight exposure cap
 (RunOptions.maxInFlightExposureUsd), recorded at genesis so resume
@@ -293,13 +297,47 @@ optional tenant?: string;
 
 ***
 
+### scopeNormalize?
+
+```ts
+optional scopeNormalize?: {
+  fields: Partial<Record<string, readonly string[]>>;
+  version: number;
+};
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L83)
+
+The declarative scope value normalization table (RV4302), recorded
+at genesis beside the scope it shaped and immutable for the run's
+life: the same table is journaled in the `execution_scope` genesis
+decision (the fold's authority), and this mirror is what the
+resume assertion reads before the journal loads. Stores must
+round-trip the field (the conformance kit checks); a store that
+drops it degrades the resume assertion to comparing raw supplied
+values, never to an invented identity.
+
+#### fields
+
+```ts
+fields: Partial<Record<string, readonly string[]>>;
+```
+
+#### version
+
+```ts
+version: number;
+```
+
+***
+
 ### segments?
 
 ```ts
 optional segments?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L115)
+Defined in: [packages/core/src/l0/spi/store.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L126)
 
 Count of execution segments this run has STARTED (a fresh start
 writes 1; every resume writes prior + 1, durably, BEFORE the
@@ -332,7 +370,7 @@ optional strictPricing?: {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L94)
+Defined in: [packages/core/src/l0/spi/store.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L105)
 
 The opt-in strict pre-egress pricing gate
 (RunOptions.strictPricing canonicalized, RV1508), recorded at

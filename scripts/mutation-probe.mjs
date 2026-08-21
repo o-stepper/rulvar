@@ -5766,6 +5766,43 @@ export const MUTATIONS = [
     replace: '        if (false) {',
     test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
   },
+  {
+    id: 'scope-normalize-applies-before-digest',
+    doctrine:
+      "the declared normalization table shapes the scope BEFORE any identity exists (RV4302): with the application collapsed, ' EU-West ' and 'eu-west' record two digests for one tenant, quota buckets split, FinOps joins miss, and the genesis decision journals a table it never honored",
+    file: 'packages/core/src/engine/engine.ts',
+    find: '    const ops = policy?.normalize?.fields[field];\n    let normalized = declared;\n    if (ops !== undefined) {',
+    replace:
+      '    const ops = policy?.normalize?.fields[field];\n    let normalized = declared;\n    if (false) {',
+    test: 'packages/core/src/engine/execution-scope.test.ts',
+  },
+  {
+    id: 'scope-normalize-revalidates-the-result',
+    doctrine:
+      'the normalized value re-validates by the SAME rule as the input (RV4302): with the recheck collapsed, an all-whitespace region trims to the empty string and genesis records an identity that asserts nothing, exactly the empty-scope class the RV4007 intake refuses',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '      if (normalized.length === 0 || normalized.length > 256) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/execution-scope.test.ts',
+  },
+  {
+    id: 'scope-normalize-resume-reads-the-journal',
+    doctrine:
+      'resume normalizes the supplied scope under the RECORDED table, never a re-supplied one (RV4302): with the recorded table dropped from the assertion, a host re-supplying the exact raw values it started with false-refuses, and the only way past is re-supplying pre-normalized values by hand, which is the divergence door the journal authority exists to close',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '                ...(recordedNormalize === undefined ? {} : { normalize: recordedNormalize }),',
+    replace: '',
+    test: 'packages/core/src/engine/execution-scope.test.ts',
+  },
+  {
+    id: 'scope-normalize-hash-enters-the-fingerprint',
+    doctrine:
+      'the declared table is part of the hashed regulated posture (RV4302): with the key dropped, a compile that canonicalizes values and one that records raw declarations verbatim carry the identical profileHash, and the attestation cannot tell one identity discipline from its absence, the profileHash blindness class the sixth experiment named',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '    ...(run.scopePolicy?.normalize === undefined\n      ? {}\n      : { scopeNormalize: run.scopePolicy.normalize }),',
+    replace: '',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

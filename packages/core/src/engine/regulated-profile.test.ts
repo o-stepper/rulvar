@@ -981,4 +981,40 @@ describe('the regulated scope policy (RV4205)', () => {
     });
     expect(dimensional.profileHash).not.toBe(base.profileHash);
   });
+
+  it('preserves the declared normalization table and normalizes at compile (RV4302)', () => {
+    const compiled = compileRegulatedProfile({
+      ...BASE(),
+      run: {
+        budgetUsd: 5,
+        scope: { tenant: 'acme', region: '  EU-West-1  ' },
+        scopePolicy: { normalize: { version: 1, fields: { region: ['trim', 'lowercase'] } } },
+      },
+    });
+    expect(compiled.run.scopePolicy).toEqual({
+      unknown: 'reject',
+      normalize: { version: 1, fields: { region: ['trim', 'lowercase'] } },
+    });
+    expect(compiled.run.scope).toEqual({ tenant: 'acme', region: 'eu-west-1' });
+  });
+
+  it('the declared table enters the hashed posture even when it moves no value (RV4302)', () => {
+    // The scope values are already canonical, so both compiles record
+    // the identical normalized scope; the DECLARED table is still a
+    // different posture and must move the hash.
+    const without = compileRegulatedProfile({
+      ...BASE(),
+      run: { budgetUsd: 5, scope: { tenant: 'acme', region: 'eu-west-1' } },
+    });
+    const withTable = compileRegulatedProfile({
+      ...BASE(),
+      run: {
+        budgetUsd: 5,
+        scope: { tenant: 'acme', region: 'eu-west-1' },
+        scopePolicy: { normalize: { version: 1, fields: { region: ['trim', 'lowercase'] } } },
+      },
+    });
+    expect(withTable.run.scope).toEqual(without.run.scope);
+    expect(withTable.profileHash).not.toBe(without.profileHash);
+  });
 });

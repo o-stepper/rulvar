@@ -415,6 +415,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             genesis: 'g'.repeat(26),
             execKeyDerivation: 2,
             scope: { tenant: 'acme', account: 'prod-billing', project: 'audit' },
+            scopeNormalize: { version: 1, fields: { tenant: ['trim', 'lowercase'] } },
           }),
         );
         const roundTripped = (await store.listRuns()).find((candidate) => candidate.runId === RUN);
@@ -448,6 +449,19 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             roundTripped.scope.project === 'audit',
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (scope)',
+        );
+        // The scope value normalization table (RV4302): a store that
+        // drops it degrades the resume assertion to comparing raw
+        // supplied values, so a host re-supplying the raw scope it
+        // started with false-refuses; a store that mangles it refuses
+        // the resume typed as corrupt bytes.
+        ensure(
+          roundTripped?.scopeNormalize?.version === 1 &&
+            roundTripped.scopeNormalize.fields.tenant?.length === 2 &&
+            roundTripped.scopeNormalize.fields.tenant[0] === 'trim' &&
+            roundTripped.scopeNormalize.fields.tenant[1] === 'lowercase',
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (scopeNormalize)',
         );
         // The pricing gate (RV1508): a store that drops it degrades a
         // resumed run to unpriced dispatch, the same silent-loosening

@@ -10,7 +10,7 @@
 function executionScopeDigest(scope): string;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:915](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L915)
+Defined in: [packages/core/src/engine/engine.ts:1073](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L1073)
 
 The canonical digest of a scope (RV4205): sha256 over the JCS bytes
 of the NORMALIZED scope, a fixed-length identity for causal records

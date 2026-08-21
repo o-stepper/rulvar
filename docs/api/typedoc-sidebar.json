@@ -1707,6 +1707,10 @@
             "link": "/api/@rulvar/core/interfaces/SandboxBridgeOptions.md"
           },
           {
+            "text": "ScopeNormalizeTable",
+            "link": "/api/@rulvar/core/interfaces/ScopeNormalizeTable.md"
+          },
+          {
             "text": "ScopePolicy",
             "link": "/api/@rulvar/core/interfaces/ScopePolicy.md"
           },
@@ -2153,6 +2157,10 @@
             "link": "/api/@rulvar/core/type-aliases/ExecKeyDerivation.md"
           },
           {
+            "text": "ExecutionScopeField",
+            "link": "/api/@rulvar/core/type-aliases/ExecutionScopeField.md"
+          },
+          {
             "text": "ExecutorRegistry",
             "link": "/api/@rulvar/core/type-aliases/ExecutorRegistry.md"
           },
@@ -2439,6 +2447,10 @@
           {
             "text": "SchemaValidationResult",
             "link": "/api/@rulvar/core/type-aliases/SchemaValidationResult.md"
+          },
+          {
+            "text": "ScopeNormalizeOp",
+            "link": "/api/@rulvar/core/type-aliases/ScopeNormalizeOp.md"
           },
           {
             "text": "ScopeSegment",
@@ -7093,6 +7105,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/SandboxBridgeOptions.md"
           },
           {
+            "text": "ScopeNormalizeTable",
+            "link": "/api/@rulvar/rulvar/interfaces/ScopeNormalizeTable.md"
+          },
+          {
             "text": "ScopePolicy",
             "link": "/api/@rulvar/rulvar/interfaces/ScopePolicy.md"
           },
@@ -7539,6 +7555,10 @@
             "link": "/api/@rulvar/rulvar/type-aliases/ExecKeyDerivation.md"
           },
           {
+            "text": "ExecutionScopeField",
+            "link": "/api/@rulvar/rulvar/type-aliases/ExecutionScopeField.md"
+          },
+          {
             "text": "ExecutorRegistry",
             "link": "/api/@rulvar/rulvar/type-aliases/ExecutorRegistry.md"
           },
@@ -7833,6 +7853,10 @@
           {
             "text": "SchemaValidationResult",
             "link": "/api/@rulvar/rulvar/type-aliases/SchemaValidationResult.md"
+          },
+          {
+            "text": "ScopeNormalizeOp",
+            "link": "/api/@rulvar/rulvar/type-aliases/ScopeNormalizeOp.md"
           },
           {
             "text": "ScopeSegment",
