@@ -10,7 +10,7 @@
 function formatAcceptanceTailTerms(terms): string;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:434](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L434)
+Defined in: [packages/core/src/orchestrator/admission.ts:478](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L478)
 
 The one rendering of the tail arithmetic (RV4001): the runtime
 refusal message and the preflight finding print this same string, so

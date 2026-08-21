@@ -5240,8 +5240,8 @@ export const MUTATIONS = [
     doctrine:
       "the armed repair round is TWO wires past the plan, its composition plus the rejudge (RV4005): collapsed to one, the exported estimator reproduces the fifth comparison answer's decisive arithmetic error against this very runtime",
     file: 'packages/core/src/orchestrator/admission.ts',
-    find: '  const repairRoundDeltaWires = 2;',
-    replace: '  const repairRoundDeltaWires = 1;',
+    find: '    repairRoundDeltaWires = 2;',
+    replace: '    repairRoundDeltaWires = 1;',
     test: 'packages/core/src/orchestrator/admission.test.ts',
   },
   {
@@ -5856,6 +5856,42 @@ export const MUTATIONS = [
     find: '          deliverableContract: {\n            required: true,\n            candidatePersistence: orchestrate.finishValidation?.candidatePersistence,\n          },',
     replace: '',
     test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'capacity-round-delta-counts-the-merged-round',
+    doctrine:
+      'the posture-derived round delta counts every rejudge the arming names (RV4304): with the citation term collapsed, the merged round prices 2 wires where it dispatches 3 and the lone citation round prices 1, which is byte for byte the constant-2 blindness the sixth comparison run shipped as its own economics',
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '        (arming.citationRoundArmed ? 1 : 0) +\n        (arming.citationRoundRejudgesClaim ? 1 : 0)',
+    replace: '        0 +\n        (arming.citationRoundRejudgesClaim ? 1 : 0)',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
+  {
+    id: 'capacity-refuses-the-double-booked-judge',
+    doctrine:
+      'a hand-declared judge count beside the declared posture must agree or refuse with the hint (RV4304): with the refusal collapsed, a hand-widened judgeWires double-books the rejudges the delta already prices, and the estimate answers confidently for a plan that pays its judges twice',
+    file: 'packages/core/src/orchestrator/admission.ts',
+    find: '    if (spec.judgeWires !== undefined && spec.judgeWires !== computedJudgeWires) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/orchestrator/admission.test.ts',
+  },
+  {
+    id: 'capacity-sheet-observed-stays-observed',
+    doctrine:
+      "an observed measurement never dresses as a derived figure (RV4304): with the provenance collapsed, the invoice's 122 physical wires render with the same label as the declared arithmetic, and a reader quoting one line quotes the sixth comparison run's exact confusion back into a report",
+    file: 'packages/core/src/orchestrator/capacity-sheet.ts',
+    find: "          provenance: 'observed',",
+    replace: "          provenance: 'derived',",
+    test: 'packages/core/src/orchestrator/capacity-sheet.test.ts',
+  },
+  {
+    id: 'capacity-sheet-throughput-needs-both-inputs',
+    doctrine:
+      'throughput derives only when concurrency AND service time are both given (RV4304): with the conjunction collapsed, a half-declared service model derives a number from one input and nothing, and the sheet invents the per-unit-time bound that wire counts alone cannot support',
+    file: 'packages/core/src/orchestrator/capacity-sheet.ts',
+    find: '  if (concurrency !== undefined && serviceTime !== undefined && concurrency > 0 && serviceTime > 0) {',
+    replace: '  if (concurrency !== undefined || serviceTime !== undefined) {',
+    test: 'packages/core/src/orchestrator/capacity-sheet.test.ts',
   },
 ];
 

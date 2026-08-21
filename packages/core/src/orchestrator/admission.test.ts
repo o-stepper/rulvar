@@ -11,6 +11,7 @@ import {
   dispatchProjectionReserveUsd,
   formatAcceptanceTailTerms,
   retryWireMultiplier,
+  semanticRoundArming,
   spawnDepthOf,
   wireCapacityEstimate,
 } from './admission.js';
@@ -758,6 +759,114 @@ describe('the wire capacity estimator (RV4005, the fifth comparison experiment)'
     // Agreement is legal: the redundant declaration is a cross-check.
     expect(wireCapacityEstimate({ childWires: 40, children: 4, turnsPerChild: 10 }).baseWires).toBe(
       40,
+    );
+  });
+});
+
+describe('the posture-derived round delta (RV4304, plan 43)', () => {
+  it('derives the delta from the declared posture by the SAME arming the tail prices', () => {
+    // (posture) -> [judgeWires, citationJudgeWires, delta]
+    const grid: Array<
+      [Parameters<typeof semanticRoundArming>[0] & object, number, number, number, string]
+    > = [
+      [{ claimStage: 'final', claimOnFound: 'fail' }, 1, 0, 0, 'nothing armed'],
+      [{ claimStage: 'final', claimOnFound: 'repair' }, 1, 0, 2, 'lone claim round'],
+      [{ citationOnFound: 'repair' }, 0, 1, 2, 'lone citation round, no claim pass'],
+      [
+        { citationOnFound: 'repair', claimConfigured: true, claimStage: 'final' },
+        1,
+        1,
+        3,
+        'citation round rejudges the configured claim pass',
+      ],
+      [
+        { claimStage: 'final', claimOnFound: 'repair', citationOnFound: 'repair' },
+        1,
+        1,
+        3,
+        'the merged round',
+      ],
+      [
+        { claimStage: 'both', claimOnFound: 'fail', citationOnFound: 'fail' },
+        2,
+        1,
+        0,
+        'both unarmed',
+      ],
+      [
+        { claimStage: 'both', claimOnFound: 'repair', citationOnFound: 'repair' },
+        2,
+        1,
+        3,
+        'merged round at stage both',
+      ],
+    ];
+    for (const [posture, judge, citation, delta, label] of grid) {
+      const estimate = wireCapacityEstimate({ childWires: 24, synthesisWires: 1, ...posture });
+      expect(estimate.baseWires, label).toBe(25 + judge + citation);
+      expect(estimate.repairRoundDeltaWires, label).toBe(delta);
+      expect(estimate.wiresWithRound, label).toBe(estimate.baseWires + delta);
+      // The parity that makes the delta trustworthy: the tail's money
+      // arms on the SAME derivation, so a posture that prices N judge
+      // dispatches in dollars counts the same N in wires.
+      const arming = semanticRoundArming(posture);
+      expect(
+        arming.roundArmed
+          ? 1 +
+              (arming.claimRoundArmed ? 1 : 0) +
+              (arming.citationRoundArmed ? 1 : 0) +
+              (arming.citationRoundRejudgesClaim ? 1 : 0)
+          : 0,
+        label,
+      ).toBe(delta);
+    }
+  });
+
+  it('absence of every posture field keeps the legacy constant 2 byte for byte', () => {
+    const legacy = wireCapacityEstimate({ childWires: 24, synthesisWires: 1, judgeWires: 1 });
+    expect(legacy.repairRoundDeltaWires).toBe(2);
+    expect(legacy.wiresWithRound).toBe(28);
+  });
+
+  it('a hand-declared judge count beside the posture must agree or refuses with the hint', () => {
+    // Agreement is legal: the redundant declaration is a cross-check.
+    expect(
+      wireCapacityEstimate({
+        childWires: 24,
+        claimStage: 'final',
+        claimOnFound: 'repair',
+        judgeWires: 1,
+      }).baseWires,
+    ).toBe(25);
+    expect(() =>
+      wireCapacityEstimate({
+        childWires: 24,
+        claimStage: 'final',
+        claimOnFound: 'repair',
+        judgeWires: 3,
+      }),
+    ).toThrow(/judgeWires 3 contradicts the declared posture/);
+    expect(() =>
+      wireCapacityEstimate({
+        childWires: 24,
+        citationOnFound: 'repair',
+        citationJudgeWires: 2,
+      }),
+    ).toThrow(/citationJudgeWires 2 contradicts the declared posture/);
+  });
+
+  it('junk posture values refuse typed instead of silently disarming a round', () => {
+    expect(() => wireCapacityEstimate({ childWires: 1, claimStage: 'banana' as never })).toThrow(
+      /claimStage must be 'draft', 'final' or 'both'/,
+    );
+    expect(() => wireCapacityEstimate({ childWires: 1, claimOnFound: 'observe' as never })).toThrow(
+      /claimOnFound/,
+    );
+    expect(() => wireCapacityEstimate({ childWires: 1, citationOnFound: 'warn' as never })).toThrow(
+      /citationOnFound/,
+    );
+    expect(() => wireCapacityEstimate({ childWires: 1, claimConfigured: 'yes' as never })).toThrow(
+      /claimConfigured must be a boolean/,
     );
   });
 });
