@@ -94,11 +94,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Every gate artifact lands in RUNNER_TEMP, never the work
+          # tree: pnpm publish refuses an unclean tree, and an
+          # untracked notes file is exactly that (the first plan-43
+          # train failed on it).
           if [ "${{ vars.CONTRACT_TESTS_ENABLED }}" = "true" ]; then
-            node scripts/release-contract-gate.mjs --notes-out contract-notes.txt \
+            node scripts/release-contract-gate.mjs --notes-out "$RUNNER_TEMP/contract-notes.txt" \
               --max-age-days "${{ vars.CONTRACT_RESULT_MAX_AGE_DAYS || 8 }}"
           else
-            node scripts/release-contract-gate.mjs --disabled --notes-out contract-notes.txt
+            node scripts/release-contract-gate.mjs --disabled --notes-out "$RUNNER_TEMP/contract-notes.txt"
           fi
       # A release must never ship a compat whose pack drifted from the
       # published artifact of the same version (v1.16.1 review P3);
@@ -195,17 +199,17 @@ jobs:
             # field, and bound to commit and tag in the notes. The
             # contract classification lines from the gate step ride the
             # same notes.
-            notes_file="release-notes.txt"
+            notes_file="$RUNNER_TEMP/release-notes.txt"
             echo "Changelog: https://docs.rulvar.com/reference/changelog" > "${notes_file}"
             if [ "${PUBLISH_SHAPED}" = "true" ]; then
               echo "" >> "${notes_file}"
               node scripts/release-registry-digests.mjs --version "${version}" \
-                --out registry-digests.txt --commit "${GITHUB_SHA}" --tag "${tag}"
+                --out "$RUNNER_TEMP/registry-digests.txt" --commit "${GITHUB_SHA}" --tag "${tag}"
               echo "Registry tarball digests:" >> "${notes_file}"
-              cat registry-digests.txt >> "${notes_file}"
-              if [ -f contract-notes.txt ]; then
+              cat "$RUNNER_TEMP/registry-digests.txt" >> "${notes_file}"
+              if [ -f "$RUNNER_TEMP/contract-notes.txt" ]; then
                 echo "" >> "${notes_file}"
-                cat contract-notes.txt >> "${notes_file}"
+                cat "$RUNNER_TEMP/contract-notes.txt" >> "${notes_file}"
               fi
             fi
             gh release create "${tag}" --title "${tag}" --notes-file "${notes_file}"
