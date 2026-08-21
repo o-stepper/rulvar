@@ -18,6 +18,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+
 ### 1.247.0
 
 #### Minor Changes
@@ -2295,6 +2305,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+
 ### 1.247.0
 
 #### Patch Changes
@@ -4367,6 +4387,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
 
 ### 1.247.0
 
@@ -7016,6 +7046,15 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.248.0
+
+#### Minor Changes
+
+- 8d0cd69: Capacity stops being a constant and becomes an artifact (RV4304, plan 43; P2.2 of the sixth comparison experiment's improvement plan). `wireCapacityEstimate` takes the SAME four posture declarations the acceptance tail prices (`claimStage`, `claimOnFound`, `citationOnFound`, `claimConfigured`), and both derive their arming from one new exported function, `semanticRoundArming`, the dispatchProjectionReserveUsd precedent: money and wires cannot disagree about which rounds a declared posture arms. With the posture declared, the judge wire counts are COMPUTED from it (a hand-declared `judgeWires`/`citationJudgeWires` must agree or refuses typed with the childWires-contradiction hint, because a hand-widened count double-books the rejudges the delta already prices), and `repairRoundDeltaWires` is derived: 0 with nothing armed, 2 for a lone claim or citation round, 3 for the merged round or a citation round that rejudges a configured claim pass, the case the sixth run's constant 2 could not express. With no posture declared the historical bytes hold exactly: the delta is the documented legacy constant 2. And the new `capacitySheet(spec)` plus `renderCapacitySheetMarkdown` turn the estimate into a structured artifact with EVERY figure labeled `given`, `derived`, `assumption`, or `observed`: an undeclared coordination term is a NAMED assumption instead of a silent zero, throughput derives only when concurrency AND service time are both given (wire counts alone bound nothing per unit time), the worst-case envelope calls itself a shaped bound and never a percentile, and observed run measurements (the invoice's 122 physical wires) render in their own section with their source on every row, never folded into the declared arithmetic, so a reader who quotes any single line quotes its provenance with it.
+- 81065e4: The composition declares its claims, and structure is all the machine judges (RV4305, plan 43; P2.1 of the sixth comparison experiment's improvement plan). Under the opt-in `synthesis.claimMap: true` the synthesis invocation's finish REQUIRES a typed `claimMap` beside the result: one row per material claim, atomic, each with a unique id, its evidentiary grade (`source`, `inference`, `assumption`, `live-observed`), and the source anchors it rests on; the finish tool's schema and description move BY DESIGN under the opt-in (the sectional precedent), and the reserved finalizer carries the same contract so a capped run is never schema-blocked from complying. The layer split is the design: deterministic validation is STRUCTURAL only, every document anchor covered by the map and every map anchor present in the document (both directions), at most one non-source row per anchor (a row count, never a semantic verdict), the inference bridge required on inference rows (premises and reasoning; the grade never replaces it), run evidence required on live-observed rows, unanchored claims forced to declare `assumption`, unique ids, and schema-carried bounds; a structural failure rejects like any host validator and spends the ordinary finish repair bound. Semantic truth stays with the judges: the accepted map journals as an `orchestrator_claim_map` decision beside the accepted candidate, linked by the exact `candidateHashOf` recipe the claim judge's `judgedHash` binds, and the claim judge's prompt gains the map from the JOURNAL (never live state, so live and resumed passes render identical bytes) under this same opt-in; no new judge, no new rounds, no wire growth. The sectional machinery is refused beside the opt-in (a splice would move the document out from under its map), and an armed repair round resubmits the full document with a full map instead of arming the sectional shortcut. Absent, every byte holds: prompt, toolset hash, journal, envelope.
+- 8573f20: REGULATED_VERSION 4: the floor requires the deliverable contract and absorbs the plan 42 knobs (RV4303, plan 43). The v3 floor never required `finishValidation`, so a regulated orchestration could compile with no deliverable verdict, no candidate chain, and nothing for a lineage policy to attach to, a loosening deeper than any field the floor already refused. The v4 compile refuses its omission by name (the RV4103 doctrine: the validators are the host's own acceptance criteria, and a floor that invents them invents the contract), fills `candidatePersistence: 'hash-only'` inside the declared contract (the auditability minimum; `'transcript'` is the legal richer declaration, and the two compile to different profileHashes), and refuses the legacy `retainRejectedCandidates` boolean at BOTH values, the fail-closed migration: a silent canonical rewrite would compile a lineage posture the host never wrote. The citation audit's resolver generation is pinned the same way: `citationAudit.resolver` fills `2` (the bounded logical-unit resolver) and an explicit `1` refuses, because the fixed four-line window is the diagnostic resolver whose truncation manufactured the sixth comparison run's false negatives. The hashed map gains the resolver generation, the persistence mode, and the required-contract fact; the fingerprint prefix moves to `regulated:4:`, a v3 hash never collides with a v4 reading, and the map bytes are now pinned by a golden-hash test so any movement of the hashed posture is a conscious edit beside a version thought. The new `claimMap` (RV4305) is deliberately NOT absorbed: the knob matures a cycle first, a candidate for v5.
+- 95f6a5e: The scope identity gains a declarative value normalization table, and the journal is its authority (RV4302, plan 43). `scopePolicy.normalize` is a versioned table over a closed vocabulary (`trim`, `lowercase`, `nfc`, applied per dimension in declared order), deliberately data and not a callback: a host function is not replay stable, not journalable, and free to read locale or time. The table applies in `normalizeExecutionScope` strictly AFTER the existing input validation, the result re-validates by the same rule (an all-whitespace value that trims to empty refuses typed instead of recording an identity that asserts nothing), and the canonical values exist BEFORE any digest does, so `' EU-West '` and `'eu-west'` stop splitting one tenant's quota buckets and FinOps joins across two identities. The table is journaled in the genesis `execution_scope` decision beside the scope and digest it shaped, mirrored in `RunMeta.scopeNormalize` (stores must round-trip it; the conformance kit checks), and on resume the RECORDED table is what normalizes the supplied scope before any comparison, so a host that re-supplies the raw values it started with asserts true; a conflicting re-supplied table refuses typed (the args-binding rule), and a table supplied over a run that recorded none warns and is never applied. `compileRegulatedProfile` preserves a declared table under its pinned `unknown: 'reject'` and hashes it into the posture, so two compiles over the same canonical values with different declared tables carry different profileHashes; absence keeps every undeclared config byte for byte, hash included. Beside the code, `rfcs/admission.md` records the accepted design for the durable fairness and admission SPI (P1.4): the split from the live-only `QuotaLimiter`, hierarchical buckets over the resolved effective tenant, start time fair queuing with reserved wires as the one scheduler unit, conditional-create tickets with lease-fenced consumption covers, and the conformance matrix, hardened by adversarial review to the final verdict closed.
 
 ### 1.247.0
 
@@ -9913,6 +9952,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.248.0
+
 ### 1.247.0
 
 ### 1.246.0
@@ -10511,6 +10552,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+  - @rulvar/anthropic@1.248.0
+  - @rulvar/openai@1.248.0
+  - @rulvar/plan@1.248.0
+  - @rulvar/testing@1.248.0
 
 ### 1.247.0
 
@@ -13419,6 +13474,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+
 ### 1.247.0
 
 #### Minor Changes
@@ -14902,6 +14967,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
 
 ### 1.247.0
 
@@ -17181,6 +17256,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+
 ### 1.247.0
 
 #### Patch Changes
@@ -19368,6 +19453,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+  - eslint-plugin-rulvar@1.248.0
 
 ### 1.247.0
 
@@ -21760,6 +21856,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+  - @rulvar/anthropic@1.248.0
+  - @rulvar/openai@1.248.0
 
 ### 1.247.0
 
@@ -24485,6 +24593,20 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.248.0
+
+#### Minor Changes
+
+- 95f6a5e: The scope identity gains a declarative value normalization table, and the journal is its authority (RV4302, plan 43). `scopePolicy.normalize` is a versioned table over a closed vocabulary (`trim`, `lowercase`, `nfc`, applied per dimension in declared order), deliberately data and not a callback: a host function is not replay stable, not journalable, and free to read locale or time. The table applies in `normalizeExecutionScope` strictly AFTER the existing input validation, the result re-validates by the same rule (an all-whitespace value that trims to empty refuses typed instead of recording an identity that asserts nothing), and the canonical values exist BEFORE any digest does, so `' EU-West '` and `'eu-west'` stop splitting one tenant's quota buckets and FinOps joins across two identities. The table is journaled in the genesis `execution_scope` decision beside the scope and digest it shaped, mirrored in `RunMeta.scopeNormalize` (stores must round-trip it; the conformance kit checks), and on resume the RECORDED table is what normalizes the supplied scope before any comparison, so a host that re-supplies the raw values it started with asserts true; a conflicting re-supplied table refuses typed (the args-binding rule), and a table supplied over a run that recorded none warns and is never applied. `compileRegulatedProfile` preserves a declared table under its pinned `unknown: 'reject'` and hashes it into the posture, so two compiles over the same canonical values with different declared tables carry different profileHashes; absence keeps every undeclared config byte for byte, hash included. Beside the code, `rfcs/admission.md` records the accepted design for the durable fairness and admission SPI (P1.4): the split from the live-only `QuotaLimiter`, hierarchical buckets over the resolved effective tenant, start time fair queuing with reserved wires as the one scheduler unit, conditional-create tickets with lease-fenced consumption covers, and the conformance matrix, hardened by adversarial review to the final verdict closed.
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+
 ### 1.247.0
 
 #### Patch Changes
@@ -26683,6 +26805,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
+
 ### 1.247.0
 
 #### Patch Changes
@@ -28178,6 +28310,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
 
 ### 1.247.0
 
@@ -30305,6 +30447,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.248.0
+
+#### Patch Changes
+
+- Updated dependencies [8d0cd69]
+- Updated dependencies [81065e4]
+- Updated dependencies [8573f20]
+- Updated dependencies [95f6a5e]
+  - @rulvar/core@1.248.0
 
 ### 1.247.0
 
