@@ -24,6 +24,23 @@ jobs:
   release:
     name: Version packages or publish
     runs-on: ubuntu-latest
+    # The postgres rig, exactly the ci.yml Test job's (RV4306): the
+    # release's own coverage gate below must judge the same program CI
+    # tests, and without the service the store-postgres suites skip.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: rulvar
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    env:
+      RULVAR_POSTGRES_URL: postgres://postgres:rulvar@127.0.0.1:5432/postgres
     steps:
       # The token here is what actually matters, and it is easy to get
       # wrong: giving RELEASE_PAT to the changesets action alone only
@@ -52,15 +69,36 @@ jobs:
       # the release's own gate, instead of relying on branch protection
       # alone. Pushes that still carry changesets only refresh the
       # Version Packages PR and are already covered by the CI workflow.
-      - name: Test before a publish-shaped push
+      # The full suite runs UNDER COVERAGE on the publish-shaped path
+      # (RV4306): the thresholds in vitest.config.ts are the release's
+      # own gate now, and a threshold regression turns the train red
+      # HERE, strictly before the changesets/action publish step below.
+      - name: Test with coverage thresholds before a publish-shaped push
         id: shape
         run: |
           if ls .changeset/*.md 2>/dev/null | grep -v README >/dev/null; then
             echo "pending changesets present; version PR path, tests covered by CI"
             echo "publish_shaped=false" >> "$GITHUB_OUTPUT"
           else
-            pnpm exec vitest run
+            pnpm exec vitest run --coverage
             echo "publish_shaped=true" >> "$GITHUB_OUTPUT"
+          fi
+      # The live-contract gate (RV4306), publish-shaped only and READ
+      # ONLY: the release never launches a paid contract run; it reads
+      # the latest completed classification strictly (workflow identity,
+      # main, age, schema, sha ancestry) and refuses on failed, missing,
+      # stale, or cancelled, with the remediation naming the manual
+      # owner decision. Skipped rows land in the release notes below.
+      - name: Read the live-contract classification (never launch)
+        if: steps.shape.outputs.publish_shaped == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ vars.CONTRACT_TESTS_ENABLED }}" = "true" ]; then
+            node scripts/release-contract-gate.mjs --notes-out contract-notes.txt \
+              --max-age-days "${{ vars.CONTRACT_RESULT_MAX_AGE_DAYS || 8 }}"
+          else
+            node scripts/release-contract-gate.mjs --disabled --notes-out contract-notes.txt
           fi
       # A release must never ship a compat whose pack drifted from the
       # published artifact of the same version (v1.16.1 review P3);
@@ -151,6 +189,24 @@ jobs:
           # that really shipped, so this can never mint a release for the
           # version a Version Packages PR merely proposes.
           if [ -n "${tagged}" ] && ! gh release view "${tag}" >/dev/null 2>&1; then
-            gh release create "${tag}" --title "${tag}" \
-              --notes "Changelog: https://docs.rulvar.com/reference/changelog"
+            # Registry tarball digests (RV4306): computed from the bytes
+            # the REGISTRY serves (a local pack proves nothing about the
+            # published artifact), verified against npm's own integrity
+            # field, and bound to commit and tag in the notes. The
+            # contract classification lines from the gate step ride the
+            # same notes.
+            notes_file="release-notes.txt"
+            echo "Changelog: https://docs.rulvar.com/reference/changelog" > "${notes_file}"
+            if [ "${PUBLISH_SHAPED}" = "true" ]; then
+              echo "" >> "${notes_file}"
+              node scripts/release-registry-digests.mjs --version "${version}" \
+                --out registry-digests.txt --commit "${GITHUB_SHA}" --tag "${tag}"
+              echo "Registry tarball digests:" >> "${notes_file}"
+              cat registry-digests.txt >> "${notes_file}"
+              if [ -f contract-notes.txt ]; then
+                echo "" >> "${notes_file}"
+                cat contract-notes.txt >> "${notes_file}"
+              fi
+            fi
+            gh release create "${tag}" --title "${tag}" --notes-file "${notes_file}"
           fi

@@ -1,0 +1,59 @@
+# The coverage workflow (RV4306, P1.6): the thresholds in
+# vitest.config.ts were configured and enforced by NOTHING, because
+# neither ci.yml nor release.yml ever passed --coverage. This workflow
+# runs the full suite under coverage on a schedule and on demand, its
+# OWN workflow deliberately: a schedule on ci.yml would re-run the whole
+# expensive matrix for one number. The release train enforces the same
+# thresholds strictly BEFORE the publish step (release.yml runs
+# `vitest run --coverage` on publish-shaped pushes), so this workflow is
+# the trend line and the release step is the gate.
+name: Coverage
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Full suite under coverage thresholds
+    runs-on: ubuntu-latest
+    # The postgres rig, exactly the ci.yml Test job's: without it the
+    # store-postgres suites skip and the global thresholds judge a
+    # smaller program than the one that ships.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: rulvar
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    env:
+      RULVAR_POSTGRES_URL: postgres://postgres:rulvar@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/turbo-retry.mjs build
+      - name: Run the full suite under the configured thresholds
+        run: pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=json-summary
+      - name: Publish the summary
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node -e "const s=require('./coverage/coverage-summary.json').total; console.log(['Coverage: statements '+s.statements.pct+'%','branches '+s.branches.pct+'%','functions '+s.functions.pct+'%','lines '+s.lines.pct+'%'].join(', '))" > coverage-line.txt
+            cat coverage-line.txt
+            cat coverage-line.txt >> "$GITHUB_STEP_SUMMARY"
+          fi

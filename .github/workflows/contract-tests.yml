@@ -3,12 +3,20 @@
 #
 # Weekly cron, NON-BLOCKING for merges: provider drift turns THIS run red
 # and opens an issue; it never turns a PR red and never rerecords
-# automatically (rerecording is a deliberate fixtures update). The job is
-# gated on the CONTRACT_TESTS_ENABLED repository variable and on provider
-# keys in repository secrets; spend and key custody are the founder
-# budget item (docs/14, section "Founder-only decisions"). Until keys and
-# provider cassettes exist, an enabled run reports "nothing to test" and
-# exits green.
+# automatically (rerecording is a deliberate fixtures update). Spend and
+# key custody are the founder budget item (docs/14, section "Founder-only
+# decisions").
+#
+# The classification (RV4306): the job ALWAYS runs and always uploads a
+# machine-readable per-suite per-provider classification artifact
+# (scripts/contract-classification.mjs; outcomes passed | failed |
+# skipped-missing-secret | skipped-disabled | skipped-no-fixtures;
+# 'cancelled' is stamped by the READER for cancelled runs). The old
+# job-level enablement `if` is deliberately gone: a disabled program
+# used to leave NO record at all, indistinguishable from a broken cron,
+# and the release gate (scripts/release-contract-gate.mjs) needs a
+# named reality either way. The heavy paid steps stay behind the
+# variable at step level, so a disabled run costs seconds and zero spend.
 name: Contract tests (live)
 
 on:
@@ -23,31 +31,55 @@ permissions:
 jobs:
   contract:
     name: Live adapter contract tests
-    if: vars.CONTRACT_TESTS_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: corepack enable
-      - run: corepack pnpm install --frozen-lockfile
-      - run: corepack pnpm exec turbo build
+      - name: Initialize the classification
+        run: |
+          node scripts/contract-classification.mjs init \
+            --out contract-classification.json \
+            --sha "$GITHUB_SHA" \
+            --enabled "${{ vars.CONTRACT_TESTS_ENABLED == 'true' }}"
+      - if: vars.CONTRACT_TESTS_ENABLED == 'true'
+        run: corepack enable
+      - if: vars.CONTRACT_TESTS_ENABLED == 'true'
+        run: corepack pnpm install --frozen-lockfile
+      - if: vars.CONTRACT_TESTS_ENABLED == 'true'
+        run: corepack pnpm exec turbo build
       - name: Replay provider cassettes against live APIs
+        if: vars.CONTRACT_TESTS_ENABLED == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: node scripts/contract-tests.mjs
+        run: node scripts/contract-tests.mjs --classification-out contract-classification.json
       # Static seed caps drift audit (the v1.16.1 review P2): compares the
       # committed caps-snapshot.json against GET /v1/models. Model
       # metadata only, no completion spend; a mismatch fails this run and
       # pages via the drift issue below.
       - name: Audit the committed caps snapshot against the live model list
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && vars.CONTRACT_TESTS_ENABLED == 'true' }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RULVAR_LIVE_TESTS: '1'
-        run: corepack pnpm exec vitest run --project @rulvar/anthropic -t 'live caps audit'
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            node scripts/contract-classification.mjs record --out contract-classification.json \
+              --suite caps-audit --provider anthropic --outcome skipped-missing-secret \
+              --detail "ANTHROPIC_API_KEY absent from repository secrets"
+            exit 0
+          fi
+          if corepack pnpm exec vitest run --project @rulvar/anthropic -t 'live caps audit'; then
+            node scripts/contract-classification.mjs record --out contract-classification.json \
+              --suite caps-audit --provider anthropic --outcome passed
+          else
+            node scripts/contract-classification.mjs record --out contract-classification.json \
+              --suite caps-audit --provider anthropic --outcome failed \
+              --detail "the committed caps snapshot drifted from the live model list"
+            exit 1
+          fi
       # Documented-rates drift audit (RV813): the pricing seeds against
       # the provider docs pages the caps comments cite. Documentation
       # only, never billing (billing truth is reconcileStatement over
@@ -56,8 +88,32 @@ jobs:
       # corrected only by a deliberate release with a changeset. No
       # provider keys and no completion spend: the pages are public.
       - name: Audit the pricing seeds against the documented rate pages
+        if: ${{ !cancelled() && vars.CONTRACT_TESTS_ENABLED == 'true' }}
+        run: |
+          if node scripts/rates-audit.mjs; then
+            node scripts/contract-classification.mjs record --out contract-classification.json \
+              --suite rates-audit --provider docs-pages --outcome passed
+          else
+            node scripts/contract-classification.mjs record --out contract-classification.json \
+              --suite rates-audit --provider docs-pages --outcome failed \
+              --detail "the pricing seeds diverged from the documented rate pages"
+            exit 1
+          fi
+      - name: Render the classification into the step summary
         if: ${{ !cancelled() }}
-        run: node scripts/rates-audit.mjs
+        # No pipeline around the node invocation (the gates.sh lesson:
+        # a pipe masks the exit code).
+        run: |
+          node scripts/contract-classification.mjs summary \
+            --file contract-classification.json > classification-summary.txt
+          cat classification-summary.txt
+          cat classification-summary.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the classification artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-classification
+          path: contract-classification.json
       - name: Page on drift (issue, never a silent rerecord)
         if: failure()
         uses: actions/github-script@v7

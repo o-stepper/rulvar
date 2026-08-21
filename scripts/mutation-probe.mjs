@@ -5932,6 +5932,15 @@ export const MUTATIONS = [
       "                candidateHash: candidateHashOf('mutated'),\n                mapHash: claimMapHashOf(canonical),",
     test: 'packages/core/src/orchestrator/claim-map-finish.test.ts',
   },
+  {
+    id: 'contract-partial-never-greens',
+    doctrine:
+      "one key of two is a NAMED partial, never a green run (RV4306): with the skip branch collapsed, the aggregate reads 'passed' over lanes that never executed, which is byte for byte the scheduled-run reality this classification exists to stop laundering",
+    file: 'scripts/contract-classification.mjs',
+    find: '  if (skipped.length > 0) {',
+    replace: '  if (false) {',
+    test: 'scripts/contract-classification.test.mjs',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
