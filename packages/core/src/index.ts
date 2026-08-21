@@ -105,6 +105,7 @@ export * from './engine/budget.js';
 export * from './engine/scheduler.js';
 export * from './orchestrator/admission.js';
 export * from './orchestrator/capacity-sheet.js';
+export * from './orchestrator/claim-map.js';
 export * from './orchestrator/extension.js';
 export * from './orchestrator/finish-validators.js';
 export * from './orchestrator/output-contract.js';

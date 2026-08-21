@@ -10,7 +10,7 @@
 const DIGEST_DRAFT_MAX_WORDS: 400 = 400;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:367](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L367)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:373](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L373)
 
 The word ceiling of a 'digest' coordination draft (RV4210): the
 digest is a structural evidence map the composing invocation writes

@@ -10,7 +10,7 @@
 const FINISH_SECTIONAL_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:177](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L177)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L178)
 
 The finish schema under sectional repair (RV808b): `result` OR
 `sections`, host-enforced as exactly one (a JSON schema union would
