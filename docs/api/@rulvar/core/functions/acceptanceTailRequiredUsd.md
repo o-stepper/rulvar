@@ -13,7 +13,7 @@ function acceptanceTailRequiredUsd(spec): {
 };
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:381](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L381)
+Defined in: [packages/core/src/orchestrator/admission.ts:431](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L431)
 
 The ONE acceptance-tail formula (RV4001, the fifth comparison
 experiment): what the effective cap must cover, at exact fill or
@@ -51,5 +51,5 @@ the declared `synthesis.estCost`.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `requiredUsd` | `number` | [packages/core/src/orchestrator/admission.ts:382](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L382) |
-| `terms` | [`AcceptanceTailTerms`](/api/@rulvar/core/interfaces/AcceptanceTailTerms.md) | [packages/core/src/orchestrator/admission.ts:383](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L383) |
+| `requiredUsd` | `number` | [packages/core/src/orchestrator/admission.ts:432](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L432) |
+| `terms` | [`AcceptanceTailTerms`](/api/@rulvar/core/interfaces/AcceptanceTailTerms.md) | [packages/core/src/orchestrator/admission.ts:433](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L433) |

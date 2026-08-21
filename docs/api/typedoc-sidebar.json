@@ -819,6 +819,22 @@
             "link": "/api/@rulvar/core/interfaces/CanonicalLadderSpec.md"
           },
           {
+            "text": "CapacitySheet",
+            "link": "/api/@rulvar/core/interfaces/CapacitySheet.md"
+          },
+          {
+            "text": "CapacitySheetFigure",
+            "link": "/api/@rulvar/core/interfaces/CapacitySheetFigure.md"
+          },
+          {
+            "text": "CapacitySheetSection",
+            "link": "/api/@rulvar/core/interfaces/CapacitySheetSection.md"
+          },
+          {
+            "text": "CapacitySheetSpec",
+            "link": "/api/@rulvar/core/interfaces/CapacitySheetSpec.md"
+          },
+          {
             "text": "ChatRequest",
             "link": "/api/@rulvar/core/interfaces/ChatRequest.md"
           },
@@ -1743,6 +1759,14 @@
             "link": "/api/@rulvar/core/interfaces/SemanticPassSummary.md"
           },
           {
+            "text": "SemanticRoundArming",
+            "link": "/api/@rulvar/core/interfaces/SemanticRoundArming.md"
+          },
+          {
+            "text": "SemanticRoundPosture",
+            "link": "/api/@rulvar/core/interfaces/SemanticRoundPosture.md"
+          },
+          {
             "text": "SemanticTerminalVerdict",
             "link": "/api/@rulvar/core/interfaces/SemanticTerminalVerdict.md"
           },
@@ -2051,6 +2075,10 @@
           {
             "text": "CanUseTool",
             "link": "/api/@rulvar/core/type-aliases/CanUseTool.md"
+          },
+          {
+            "text": "CapacitySheetUnit",
+            "link": "/api/@rulvar/core/type-aliases/CapacitySheetUnit.md"
           },
           {
             "text": "ChatEvent",
@@ -3193,6 +3221,10 @@
             "link": "/api/@rulvar/core/functions/canRideLoopTurn.md"
           },
           {
+            "text": "capacitySheet",
+            "link": "/api/@rulvar/core/functions/capacitySheet.md"
+          },
+          {
             "text": "capIssues",
             "link": "/api/@rulvar/core/functions/capIssues.md"
           },
@@ -3873,6 +3905,10 @@
             "link": "/api/@rulvar/core/functions/remeasureQueue.md"
           },
           {
+            "text": "renderCapacitySheetMarkdown",
+            "link": "/api/@rulvar/core/functions/renderCapacitySheetMarkdown.md"
+          },
+          {
             "text": "renderContractRequirements",
             "link": "/api/@rulvar/core/functions/renderContractRequirements.md"
           },
@@ -4011,6 +4047,10 @@
           {
             "text": "selfTestFinishValidation",
             "link": "/api/@rulvar/core/functions/selfTestFinishValidation.md"
+          },
+          {
+            "text": "semanticRoundArming",
+            "link": "/api/@rulvar/core/functions/semanticRoundArming.md"
           },
           {
             "text": "semanticTerminalVerdictOf",
@@ -6193,6 +6233,22 @@
             "link": "/api/@rulvar/rulvar/interfaces/CanonicalLadderSpec.md"
           },
           {
+            "text": "CapacitySheet",
+            "link": "/api/@rulvar/rulvar/interfaces/CapacitySheet.md"
+          },
+          {
+            "text": "CapacitySheetFigure",
+            "link": "/api/@rulvar/rulvar/interfaces/CapacitySheetFigure.md"
+          },
+          {
+            "text": "CapacitySheetSection",
+            "link": "/api/@rulvar/rulvar/interfaces/CapacitySheetSection.md"
+          },
+          {
+            "text": "CapacitySheetSpec",
+            "link": "/api/@rulvar/rulvar/interfaces/CapacitySheetSpec.md"
+          },
+          {
             "text": "ChatRequest",
             "link": "/api/@rulvar/rulvar/interfaces/ChatRequest.md"
           },
@@ -7141,6 +7197,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/SemanticPassSummary.md"
           },
           {
+            "text": "SemanticRoundArming",
+            "link": "/api/@rulvar/rulvar/interfaces/SemanticRoundArming.md"
+          },
+          {
+            "text": "SemanticRoundPosture",
+            "link": "/api/@rulvar/rulvar/interfaces/SemanticRoundPosture.md"
+          },
+          {
             "text": "SemanticTerminalVerdict",
             "link": "/api/@rulvar/rulvar/interfaces/SemanticTerminalVerdict.md"
           },
@@ -7449,6 +7513,10 @@
           {
             "text": "CanUseTool",
             "link": "/api/@rulvar/rulvar/type-aliases/CanUseTool.md"
+          },
+          {
+            "text": "CapacitySheetUnit",
+            "link": "/api/@rulvar/rulvar/type-aliases/CapacitySheetUnit.md"
           },
           {
             "text": "ChatEvent",
@@ -8615,6 +8683,10 @@
             "link": "/api/@rulvar/rulvar/functions/canRideLoopTurn.md"
           },
           {
+            "text": "capacitySheet",
+            "link": "/api/@rulvar/rulvar/functions/capacitySheet.md"
+          },
+          {
             "text": "capIssues",
             "link": "/api/@rulvar/rulvar/functions/capIssues.md"
           },
@@ -9303,6 +9375,10 @@
             "link": "/api/@rulvar/rulvar/functions/remeasureQueue.md"
           },
           {
+            "text": "renderCapacitySheetMarkdown",
+            "link": "/api/@rulvar/rulvar/functions/renderCapacitySheetMarkdown.md"
+          },
+          {
             "text": "renderContractRequirements",
             "link": "/api/@rulvar/rulvar/functions/renderContractRequirements.md"
           },
@@ -9445,6 +9521,10 @@
           {
             "text": "selfTestFinishValidation",
             "link": "/api/@rulvar/rulvar/functions/selfTestFinishValidation.md"
+          },
+          {
+            "text": "semanticRoundArming",
+            "link": "/api/@rulvar/rulvar/functions/semanticRoundArming.md"
           },
           {
             "text": "semanticTerminalVerdictOf",

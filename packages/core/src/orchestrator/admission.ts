@@ -306,14 +306,68 @@ export function acceptanceJudgePasses(
   return (resolvedStage === 'both' ? 2 : 1) + (roundArmed ? 1 : 0);
 }
 
-/** The declared inputs of the acceptance tail (RV4001); undeclared estimates are zero. */
-export interface AcceptanceTailSpec {
-  /** The held synthesis payload reserve, exactly budget.synthesisReserveUsd. */
-  synthesisReserveUsd?: number;
+/**
+ * The declared semantic posture the round arithmetic reads (RV4304):
+ * the SAME four declarations the acceptance tail already took, named
+ * as one shape so money and wires derive from one arming function.
+ */
+export interface SemanticRoundPosture {
   /** Mirrors OrchestrateClaimConsistency.stage; absent reads 'draft'. */
   claimStage?: 'draft' | 'final' | 'both';
   /** Mirrors OrchestrateClaimConsistency.onFound; absent reads 'report'. */
   claimOnFound?: 'report' | 'carry' | 'fail' | 'repair';
+  /** Mirrors OrchestrateCitationAudit.onFound; 'repair' arms the audit's round. */
+  citationOnFound?: 'report' | 'repair' | 'fail';
+  /** True when a claim-consistency pass is declared. */
+  claimConfigured?: boolean;
+}
+
+/** What the declared posture arms (RV4304): the one derivation. */
+export interface SemanticRoundArming {
+  /** The claim pass's own bounded round ('repair', never at 'draft'). */
+  claimRoundArmed: boolean;
+  /** The citation audit's bounded round. */
+  citationRoundArmed: boolean;
+  /** Any armed round: exactly one composition is bought either way (RV4202). */
+  roundArmed: boolean;
+  /**
+   * The citation round rewrote the shipped document, so a configured
+   * claim pass past the draft rejudges it, ONE more claim pass; with
+   * the claim round ALSO armed the two are the same merged round and
+   * its own rejudge already counts, so this is false there (RV4202).
+   */
+  citationRoundRejudgesClaim: boolean;
+}
+
+/**
+ * The ONE arming derivation (RV4304): the acceptance tail's money and
+ * the capacity estimate's wires both read it, the
+ * {@link dispatchProjectionReserveUsd} precedent, so the two cannot
+ * disagree about which rounds a declared posture arms. The sixth
+ * comparison run's capacity model priced the round as a constant 2
+ * while the merged round (RV4202) dispatches 3 wires; this function is
+ * where that distinction lives now.
+ */
+export function semanticRoundArming(posture: SemanticRoundPosture): SemanticRoundArming {
+  const stage = posture.claimStage ?? 'draft';
+  const claimRoundArmed = posture.claimOnFound === 'repair' && stage !== 'draft';
+  const citationRoundArmed = posture.citationOnFound === 'repair';
+  return {
+    claimRoundArmed,
+    citationRoundArmed,
+    roundArmed: claimRoundArmed || citationRoundArmed,
+    citationRoundRejudgesClaim:
+      citationRoundArmed &&
+      !claimRoundArmed &&
+      posture.claimConfigured === true &&
+      stage !== 'draft',
+  };
+}
+
+/** The declared inputs of the acceptance tail (RV4001); undeclared estimates are zero. */
+export interface AcceptanceTailSpec extends SemanticRoundPosture {
+  /** The held synthesis payload reserve, exactly budget.synthesisReserveUsd. */
+  synthesisReserveUsd?: number;
   /** The claim judge's declared admission estimate, claimConsistency.judge.estCost. */
   claimJudgeEstCostUsd?: number;
   /** The mechanical repair turn's declared price, finishValidation.estRepairCostUsd. */
@@ -329,10 +383,6 @@ export interface AcceptanceTailSpec {
    * the claim terms, declared or zero.
    */
   citationJudgeEstCostUsd?: number;
-  /** Mirrors OrchestrateCitationAudit.onFound; 'repair' arms the audit's round. */
-  citationOnFound?: 'report' | 'repair' | 'fail';
-  /** True when a claim-consistency pass is declared (its rejudge after a citation round is priced). */
-  claimConfigured?: boolean;
   /** One coordination turn floor: the resolved flat reserve of the run. */
   workingRoomUsd: number;
 }
@@ -382,28 +432,22 @@ export function acceptanceTailRequiredUsd(spec: AcceptanceTailSpec): {
   requiredUsd: number;
   terms: AcceptanceTailTerms;
 } {
-  const stage = spec.claimStage ?? 'draft';
-  const onFound = spec.claimOnFound ?? 'report';
-  // Any armed round buys one more composition, and arming BOTH the
-  // claim and the citation repair buys exactly the same one (RV4202):
-  // the run still grants ONE bounded round, which then carries both
-  // defect lists, so the composition term never doubles.
+  // The one arming derivation (RV4304): what a declared posture arms
+  // is decided in semanticRoundArming, shared with the wire capacity
+  // estimate, so the tail's money and the estimate's wires cannot
+  // disagree. Any armed round buys one more composition, and arming
+  // BOTH the claim and the citation repair buys exactly the same one
+  // (RV4202): the run still grants ONE bounded round, which then
+  // carries both defect lists, so the composition term never doubles;
+  // the rejudge term likewise counts once, on the arming's own flag.
+  const arming = semanticRoundArming(spec);
   const citationDeclared =
     spec.citationJudgeEstCostUsd !== undefined || spec.citationOnFound !== undefined;
-  const citationRoundArmed = spec.citationOnFound === 'repair';
-  const claimRoundArmed = onFound === 'repair' && stage !== 'draft';
-  const roundArmed = claimRoundArmed || citationRoundArmed;
-  // A citation round rewrites the shipped document, so a configured
-  // claim pass past the draft rejudges it: one more claim pass. With
-  // the claim round ALSO armed (RV4202) the two are the same merged
-  // round and acceptanceJudgePasses already priced its rejudge, so
-  // the term must not count the same pass twice.
+  const roundArmed = arming.roundArmed;
   const judgePasses =
     acceptanceJudgePasses(spec.claimStage, spec.claimOnFound) +
-    (citationRoundArmed && !claimRoundArmed && spec.claimConfigured === true && stage !== 'draft'
-      ? 1
-      : 0);
-  const citationJudgePasses = citationDeclared ? 1 + (citationRoundArmed ? 1 : 0) : 0;
+    (arming.citationRoundRejudgesClaim ? 1 : 0);
+  const citationJudgePasses = citationDeclared ? 1 + (arming.citationRoundArmed ? 1 : 0) : 0;
   const citationJudgeEstUsd = spec.citationJudgeEstCostUsd ?? 0;
   const terms: AcceptanceTailTerms = {
     synthesisReserveUsd: spec.synthesisReserveUsd ?? 0,
@@ -462,13 +506,27 @@ export function formatAcceptanceTailTerms(terms: AcceptanceTailTerms): string {
  * each; every unknown key was ignored and the estimate answered
  * confidently for a plan nobody had declared.
  */
-export interface WireCapacitySpec {
+export interface WireCapacitySpec extends SemanticRoundPosture {
   /**
    * Fan-out provider dispatches: children TIMES their turns, the
    * total, not the child count. Optional since RV4206 when the
    * structural pair below is given; declaring both is legal only when
    * they agree (`childWires === children * turnsPerChild`), refused
    * typed otherwise.
+   *
+   * The semantic posture fields inherited from
+   * {@link SemanticRoundPosture} (RV4304) switch the estimate from the
+   * legacy constant round to the declared arithmetic: with ANY of them
+   * declared, the judge wire counts are COMPUTED from the posture
+   * (a manually declared `judgeWires`/`citationJudgeWires` must agree
+   * or refuses typed, the childWires-contradiction symmetry), and
+   * `repairRoundDeltaWires` is derived by the same
+   * {@link semanticRoundArming} the acceptance tail prices, so money
+   * and wires cannot disagree: 0 with nothing armed, 2 for a lone
+   * claim or citation round, 3 for the merged round or a citation
+   * round that rejudges a configured claim pass. With none of them
+   * declared the historical bytes hold exactly: the delta is the
+   * documented legacy constant 2 (assume one single-judge round).
    */
   childWires?: number;
   /**
@@ -521,10 +579,15 @@ export interface WireCapacityEstimate {
   /** The plan's wire total with no repair of any kind. */
   baseWires: number;
   /**
-   * The armed semantic repair round's delta: ONE more composition
-   * PLUS ONE more judge pass (RV3307), never one. The fifth
-   * comparison run's own answer modeled 34 to 35 and lost the
-   * decisive correctness point to exactly this constant.
+   * The armed semantic repair round's delta. With no posture declared:
+   * the legacy constant 2, ONE more composition PLUS ONE more judge
+   * pass (RV3307; the fifth comparison run modeled 34 to 35 and lost
+   * the decisive correctness point to exactly this). With the posture
+   * declared (RV4304): derived by the same {@link semanticRoundArming}
+   * the acceptance tail prices, so 0 with nothing armed, 2 for a lone
+   * round, and 3 for the merged round or a citation round that
+   * rejudges a configured claim pass, which the sixth comparison
+   * run's constant could not express.
    */
   repairRoundDeltaWires: number;
   /** Each granted mechanical repair turn is one more wire on its invocation. */
@@ -562,6 +625,10 @@ export function wireCapacityEstimate(spec: WireCapacitySpec): WireCapacityEstima
     'judgeWires',
     'citationJudgeWires',
     'extractWires',
+    'claimStage',
+    'claimOnFound',
+    'citationOnFound',
+    'claimConfigured',
   ];
   for (const key of Object.keys(spec)) {
     if (!known.includes(key)) {
@@ -608,14 +675,118 @@ export function wireCapacityEstimate(spec: WireCapacitySpec): WireCapacityEstima
   const childWires = spec.childWires ?? (spec.children ?? 0) * (spec.turnsPerChild ?? 0);
   const coordinationWires = spec.coordinationWires ?? 0;
   const synthesisWires = spec.synthesisWires ?? 0;
-  const judgeWires = spec.judgeWires ?? 0;
-  const citationJudgeWires = spec.citationJudgeWires ?? 0;
   const extractWires = spec.extractWires ?? 0;
   requireNonNegativeNumber(coordinationWires, 'wireCapacityEstimate coordinationWires');
   requireNonNegativeNumber(synthesisWires, 'wireCapacityEstimate synthesisWires');
-  requireNonNegativeNumber(judgeWires, 'wireCapacityEstimate judgeWires');
-  requireNonNegativeNumber(citationJudgeWires, 'wireCapacityEstimate citationJudgeWires');
   requireNonNegativeNumber(extractWires, 'wireCapacityEstimate extractWires');
+  // The declared posture switches the round arithmetic (RV4304): the
+  // sixth comparison run's model priced the round as a constant while
+  // the merged round dispatches 3 wires, and its judge counts were
+  // hand-maintained beside the posture that determines them.
+  const postureDeclared =
+    spec.claimStage !== undefined ||
+    spec.claimOnFound !== undefined ||
+    spec.citationOnFound !== undefined ||
+    spec.claimConfigured !== undefined;
+  let judgeWires: number;
+  let citationJudgeWires: number;
+  let repairRoundDeltaWires: number;
+  if (postureDeclared) {
+    // The closed posture vocabulary (the RV4206 intake doctrine): a
+    // junk value would silently disarm or arm a round.
+    if (
+      spec.claimStage !== undefined &&
+      spec.claimStage !== 'draft' &&
+      spec.claimStage !== 'final' &&
+      spec.claimStage !== 'both'
+    ) {
+      throw new ConfigError(
+        `wireCapacityEstimate claimStage must be 'draft', 'final' or 'both'; got ` +
+          JSON.stringify(spec.claimStage),
+      );
+    }
+    if (
+      spec.claimOnFound !== undefined &&
+      !['report', 'carry', 'fail', 'repair'].includes(spec.claimOnFound)
+    ) {
+      throw new ConfigError(
+        `wireCapacityEstimate claimOnFound must be 'report', 'carry', 'fail' or 'repair'; ` +
+          `got ${JSON.stringify(spec.claimOnFound)}`,
+      );
+    }
+    if (
+      spec.citationOnFound !== undefined &&
+      !['report', 'repair', 'fail'].includes(spec.citationOnFound)
+    ) {
+      throw new ConfigError(
+        `wireCapacityEstimate citationOnFound must be 'report', 'repair' or 'fail'; got ` +
+          JSON.stringify(spec.citationOnFound),
+      );
+    }
+    if (spec.claimConfigured !== undefined && typeof spec.claimConfigured !== 'boolean') {
+      throw new ConfigError(
+        `wireCapacityEstimate claimConfigured must be a boolean; got ` +
+          JSON.stringify(spec.claimConfigured),
+      );
+    }
+    const arming = semanticRoundArming(spec);
+    // The claim pass is configured when the posture says so, or when
+    // its own declarations are present; the UNARMED pass counts are
+    // computed here, and the armed round's rejudges live in the delta.
+    const claimConfigured =
+      spec.claimConfigured === true ||
+      spec.claimStage !== undefined ||
+      spec.claimOnFound !== undefined;
+    const computedJudgeWires = claimConfigured ? (spec.claimStage === 'both' ? 2 : 1) : 0;
+    const computedCitationJudgeWires = spec.citationOnFound === undefined ? 0 : 1;
+    // The childWires-contradiction symmetry (RV4206): a manual judge
+    // count beside the declared posture is legal only in agreement,
+    // because a hand-widened count double-books the wires the delta
+    // already prices.
+    if (spec.judgeWires !== undefined && spec.judgeWires !== computedJudgeWires) {
+      throw new ConfigError(
+        `wireCapacityEstimate judgeWires ${String(spec.judgeWires)} contradicts the declared ` +
+          `posture (claimConfigured ${String(claimConfigured)}, claimStage ` +
+          `${spec.claimStage ?? 'draft'} computes ${String(computedJudgeWires)} unarmed ` +
+          'pass(es)): the armed rejudges are priced by repairRoundDeltaWires, not by hand; ' +
+          'drop judgeWires, or make them agree',
+      );
+    }
+    if (
+      spec.citationJudgeWires !== undefined &&
+      spec.citationJudgeWires !== computedCitationJudgeWires
+    ) {
+      throw new ConfigError(
+        `wireCapacityEstimate citationJudgeWires ${String(spec.citationJudgeWires)} ` +
+          `contradicts the declared posture (citationOnFound ` +
+          `${spec.citationOnFound ?? 'undeclared'} computes ` +
+          `${String(computedCitationJudgeWires)} unarmed pass(es)): the armed rejudges are ` +
+          'priced by repairRoundDeltaWires, not by hand; drop citationJudgeWires, or make ' +
+          'them agree',
+      );
+    }
+    judgeWires = computedJudgeWires;
+    citationJudgeWires = computedCitationJudgeWires;
+    // One composition, plus every rejudge the arming names: 2 for a
+    // lone round, 3 for the merged round or a citation round that
+    // rejudges a configured claim pass, 0 with nothing armed. The
+    // SAME arming the acceptance tail prices (RV4304).
+    repairRoundDeltaWires = arming.roundArmed
+      ? 1 +
+        (arming.claimRoundArmed ? 1 : 0) +
+        (arming.citationRoundArmed ? 1 : 0) +
+        (arming.citationRoundRejudgesClaim ? 1 : 0)
+      : 0;
+  } else {
+    judgeWires = spec.judgeWires ?? 0;
+    citationJudgeWires = spec.citationJudgeWires ?? 0;
+    requireNonNegativeNumber(judgeWires, 'wireCapacityEstimate judgeWires');
+    requireNonNegativeNumber(citationJudgeWires, 'wireCapacityEstimate citationJudgeWires');
+    // The legacy constant (pre-RV4304 bytes, documented): with no
+    // posture declared the estimate assumes ONE single-judge round,
+    // its composition plus one rejudge.
+    repairRoundDeltaWires = 2;
+  }
   const baseWires =
     childWires +
     coordinationWires +
@@ -623,7 +794,6 @@ export function wireCapacityEstimate(spec: WireCapacitySpec): WireCapacityEstima
     judgeWires +
     citationJudgeWires +
     extractWires;
-  const repairRoundDeltaWires = 2;
   return {
     basis: 'declared-estimate',
     baseWires,
