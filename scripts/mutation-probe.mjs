@@ -5889,7 +5889,7 @@ export const MUTATIONS = [
     doctrine:
       'throughput derives only when concurrency AND service time are both given (RV4304): with the conjunction collapsed, a half-declared service model derives a number from one input and nothing, and the sheet invents the per-unit-time bound that wire counts alone cannot support',
     file: 'packages/core/src/orchestrator/capacity-sheet.ts',
-    find: '  if (concurrency !== undefined && serviceTime !== undefined && concurrency > 0 && serviceTime > 0) {',
+    find: '  if (\n    concurrency !== undefined &&\n    serviceTime !== undefined &&\n    concurrency > 0 &&\n    serviceTime > 0\n  ) {',
     replace: '  if (concurrency !== undefined || serviceTime !== undefined) {',
     test: 'packages/core/src/orchestrator/capacity-sheet.test.ts',
   },
