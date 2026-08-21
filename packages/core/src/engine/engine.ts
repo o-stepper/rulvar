@@ -844,12 +844,7 @@ export interface ExecutionScope {
 
 /** One of the named scope dimensions (RV4007/RV4205). */
 export type ExecutionScopeField =
-  | 'tenant'
-  | 'account'
-  | 'project'
-  | 'legalDomain'
-  | 'region'
-  | 'providerAccount';
+  'tenant' | 'account' | 'project' | 'legalDomain' | 'region' | 'providerAccount';
 
 const SCOPE_FIELDS = [
   'tenant',
