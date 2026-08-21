@@ -549,7 +549,15 @@ export function compileRegulatedProfile(input: {
         'downstream recorded or bound',
     );
   }
-  run.scopePolicy = { unknown: 'reject' };
+  // The declared value normalization table rides through (RV4302): the
+  // floor pins `unknown` and PRESERVES `normalize`, because the table
+  // is a tightening (one canonical identity), never a loosening, and
+  // clobbering it here would compile a different identity than the
+  // host declared. normalizeExecutionScope validates the table.
+  run.scopePolicy = {
+    ...(run.scopePolicy?.normalize === undefined ? {} : { normalize: run.scopePolicy.normalize }),
+    unknown: 'reject',
+  };
   run.scope = normalizeExecutionScope(
     run.scope,
     'compileRegulatedProfile run.scope',
@@ -843,6 +851,13 @@ export function compileRegulatedProfile(input: {
     budgetUsd: run.budgetUsd,
     scope: run.scope,
     scopePolicy: 'reject',
+    // The normalization table enters the hashed posture (RV4302): two
+    // compiles over the same canonical values but different declared
+    // tables are different postures, and the absent key keeps every
+    // undeclared config's hash byte for byte.
+    ...(run.scopePolicy?.normalize === undefined
+      ? {}
+      : { scopeNormalize: run.scopePolicy.normalize }),
     ...(Object.keys(toolsetAttestations).length === 0 ? {} : { toolsetAttestations }),
     ...semanticPosture,
     ...(run.configFingerprint === undefined ? {} : { hostFingerprint: run.configFingerprint }),

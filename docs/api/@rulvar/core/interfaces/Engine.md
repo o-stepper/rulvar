@@ -6,15 +6,15 @@
 
 # Interface: Engine
 
-Defined in: [packages/core/src/engine/engine.ts:700](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L700)
+Defined in: [packages/core/src/engine/engine.ts:715](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L715)
 
 ## Properties
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-stores"></a> `stores` | `readonly` | \{ `journal`: [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md); `transcripts`: [`TranscriptStore`](/api/@rulvar/core/interfaces/TranscriptStore.md); \} | The engine's configured stores, exposed for shells and hosts (M8 entry amendment: the journal store comes from the engine). Exactly the instances createEngine received, or the defaults it built; no store contract widens through this accessor. With a serialization hook configured these are the HOOKED wrappers, so every reader passes the one policy point (M8-T04). | [packages/core/src/engine/engine.ts:738](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L738) |
-| `stores.journal` | `public` | [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md) | - | [packages/core/src/engine/engine.ts:738](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L738) |
-| `stores.transcripts` | `public` | [`TranscriptStore`](/api/@rulvar/core/interfaces/TranscriptStore.md) | - | [packages/core/src/engine/engine.ts:738](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L738) |
+| <a id="property-stores"></a> `stores` | `readonly` | \{ `journal`: [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md); `transcripts`: [`TranscriptStore`](/api/@rulvar/core/interfaces/TranscriptStore.md); \} | The engine's configured stores, exposed for shells and hosts (M8 entry amendment: the journal store comes from the engine). Exactly the instances createEngine received, or the defaults it built; no store contract widens through this accessor. With a serialization hook configured these are the HOOKED wrappers, so every reader passes the one policy point (M8-T04). | [packages/core/src/engine/engine.ts:753](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L753) |
+| `stores.journal` | `public` | [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md) | - | [packages/core/src/engine/engine.ts:753](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L753) |
+| `stores.transcripts` | `public` | [`TranscriptStore`](/api/@rulvar/core/interfaces/TranscriptStore.md) | - | [packages/core/src/engine/engine.ts:753](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L753) |
 
 ## Methods
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/engine/engine.ts:700](https://github.com/o-steppe
 deleteRun(runId, opts?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:748](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L748)
+Defined in: [packages/core/src/engine/engine.ts:763](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L763)
 
 Retention (OQ-20 executed at M8-T04): deletes every
 blob transcripts.list(runId) returns, then the journal; no orphan
@@ -54,7 +54,7 @@ deletes assert the single-writer precondition as before.
 exportRun(runId): Promise<RunExport>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:766](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L766)
+Defined in: [packages/core/src/engine/engine.ts:781](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L781)
 
 Portable run export (RV-217): the meta record, every journal
 entry, and every transcript blob, read through Engine.stores (the
@@ -83,7 +83,7 @@ importRun(bundle, options?): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:786](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L786)
+Defined in: [packages/core/src/engine/engine.ts:801](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L801)
 
 Imports an exportRun bundle into this engine's stores. Returns the
 closure report (RV1511): every transcript, checkpoint, artifact,
@@ -117,7 +117,7 @@ is not an import.
 profileCard(names?): string;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:728](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L728)
+Defined in: [packages/core/src/engine/engine.ts:743](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L743)
 
 Renders the registered agent profiles into the shared vocabulary
 card, optionally filtered to `names`; the registry itself stays
@@ -141,7 +141,7 @@ private to the engine (M6-T05 amendment). Unknown names are ignored.
 pruneRun(runId, opts?): Promise<number>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:757](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L757)
+Defined in: [packages/core/src/engine/engine.ts:772](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L772)
 
 Checkpoint pruning (OQ-20 executed at M8-T04):
 deletes checkpoint blobs of ok-terminal attempts that no other
@@ -173,7 +173,7 @@ resume<A, R>(
 options?): ResumeHandle<R>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:718](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L718)
+Defined in: [packages/core/src/engine/engine.ts:733](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L733)
 
 Rebinds a journal to a workflow definition and resumes. Requires wf
 for in-process workflows;
@@ -220,7 +220,7 @@ run<A, R>(
 opts?): RunHandle<R>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:701](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L701)
+Defined in: [packages/core/src/engine/engine.ts:716](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L716)
 
 #### Type Parameters
 
