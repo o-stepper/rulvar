@@ -64,6 +64,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Isolated executor', link: '/guide/isolated-executor' },
       { text: 'Production profiles', link: '/guide/production-profiles' },
       { text: 'The operational host', link: '/guide/operational-host' },
+      { text: 'The production host reference', link: '/guide/production-host' },
     ],
   },
   {
