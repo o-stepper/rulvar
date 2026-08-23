@@ -53,6 +53,9 @@ const CLEAN_FINAL = 'final: an audit-write failure does not mask success [src/ex
 function judgesHarness(options: {
   claimHangMs: number;
   claimVerdict?: ScriptedTurn;
+  /** Per-claim-call scripting (RV4405): the rejudge case needs a dirty
+   * first pass and a clean second; wins over claimVerdict when set. */
+  claimVerdictAt?: (claimCall: number) => ScriptedTurn;
   finals?: string[];
 }) {
   let orchTurn = 0;
@@ -83,9 +86,11 @@ function judgesHarness(options: {
         return { text: JSON.stringify({ verdicts }) };
       }
       judgeCallsAt.push({ kind: 'claim', at: Date.now() });
+      const claimCall = judgeCallsAt.filter((call) => call.kind === 'claim').length;
       return {
         hangMs: options.claimHangMs,
-        ...(options.claimVerdict ?? { text: JSON.stringify({ contradictions: [] }) }),
+        ...(options.claimVerdictAt?.(claimCall) ??
+          options.claimVerdict ?? { text: JSON.stringify({ contradictions: [] }) }),
       };
     },
     { id: 'judge' },
@@ -172,6 +177,65 @@ describe('the unarmed judge pair dispatches in parallel (RV4210)', () => {
       undefined,
     );
     expect(judge.calls).toHaveLength(2);
+  });
+
+  it('the MERGED arming dispatches both first passes together (RV4405)', async () => {
+    // The seventh comparison experiment's exact posture: both repair
+    // postures armed. No single-class round can rewrite the document
+    // between the two first passes (the one merged round fires
+    // strictly after both), so the sequential judge wall was pure
+    // wait.
+    const { internals, judgeCallsAt } = judgesHarness({ claimHangMs: 300 });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('goal', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { limits: { maxTurns: 3 } },
+        claimConsistency: { stage: 'final', onFound: 'repair', judge: { model: 'judge:model' } },
+        citationAudit: { ...AUDIT, onFound: 'repair' },
+      }),
+      undefined,
+    )) as Record<string, unknown>;
+    expect((outcome.semanticTerminalVerdict as Record<string, unknown>).verdict).toBe('clean');
+    const [first, second] = judgeCallsAt;
+    expect(judgeCallsAt).toHaveLength(2);
+    expect(Math.abs((second?.at ?? 0) - (first?.at ?? 0))).toBeLessThan(150);
+  });
+
+  it('the post-round rejudges dispatch together and process in order (RV4405)', async () => {
+    const { internals, judgeCallsAt } = judgesHarness({
+      claimHangMs: 300,
+      claimVerdictAt: (claimCall) =>
+        claimCall === 1
+          ? {
+              text: JSON.stringify({
+                contradictions: [{ pair: 0, reason: 'the final inverts the recorded reading' }],
+              }),
+            }
+          : { text: JSON.stringify({ contradictions: [] }) },
+      finals: [CLEAN_FINAL, CLEAN_FINAL],
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('goal', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { limits: { maxTurns: 3 } },
+        claimConsistency: { stage: 'final', onFound: 'repair', judge: { model: 'judge:model' } },
+        citationAudit: { ...AUDIT, onFound: 'repair' },
+      }),
+      undefined,
+    )) as Record<string, unknown>;
+    // The merged round consumed the finding; the repaired document is
+    // clean and both metas carry the two passes.
+    expect((outcome.claimConsistencyMeta as Record<string, unknown>).passes).toBe(2);
+    expect((outcome.citationAuditMeta as Record<string, unknown>).passes).toBe(2);
+    // Four judge dispatches: the parallel first pair, then the
+    // parallel rejudge pair; within EACH pair the gap is a scheduling
+    // tick, not the 300 ms claim hang.
+    expect(judgeCallsAt).toHaveLength(4);
+    const [f1, f2, r1, r2] = judgeCallsAt;
+    expect(Math.abs((f2?.at ?? 0) - (f1?.at ?? 0))).toBeLessThan(150);
+    expect(Math.abs((r2?.at ?? 0) - (r1?.at ?? 0))).toBeLessThan(150);
   });
 
   it("the claim pass's typed refusal fires first even with both verdicts in hand", async () => {

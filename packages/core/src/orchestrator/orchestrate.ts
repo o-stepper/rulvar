@@ -11310,19 +11310,26 @@ export function makeOrchestratorWorkflow(
     // start. Both dispatch concurrently and the verdicts are
     // PROCESSED in the historical order (the claim pass's typed
     // throws fire first), so every decision, meta stamp, and refusal
-    // reads exactly as the sequential path wrote it. Any armed round
-    // keeps the strict sequence byte for byte: a round rewrites the
-    // document, and the audit must read what ships. The one honest
-    // cost: under a 'fail' posture both judges are already paid when
-    // one refuses, the price of the saved wall; the acceptance tail
-    // funded both passes either way.
+    // reads exactly as the sequential path wrote it. The MERGED
+    // arming joins the parallel pair (RV4405, the seventh comparison
+    // experiment's exact posture): with BOTH repair postures armed,
+    // no single-class round can rewrite the document between the two
+    // first passes (the one merged round fires strictly after both),
+    // so both passes read the same immutable bytes and the seventh
+    // run's sequential judge wall was pure wait. A SINGLE armed round
+    // keeps the strict sequence byte for byte: its round rewrites the
+    // document between the passes, and the audit must read what
+    // ships. The one honest cost: under a 'fail' posture both judges
+    // are already paid when one refuses, the price of the saved wall;
+    // the acceptance tail funded both passes either way.
     const parallelJudges =
       claimStage !== 'draft' &&
       opts?.claimConsistency !== undefined &&
       opts?.citationAudit !== undefined &&
-      !claimRepairArmed &&
-      !coverageRoundArmed &&
-      (opts.citationAudit.onFound ?? 'report') !== 'repair';
+      ((!claimRepairArmed &&
+        !coverageRoundArmed &&
+        (opts.citationAudit.onFound ?? 'report') !== 'repair') ||
+        mergedRoundArmed);
     let parallelAuditRan = false;
     // The final gate (RV2509), strictly AFTER the synthesis and before
     // the envelope: the pass judges the document the run actually
@@ -11911,7 +11918,19 @@ export function makeOrchestratorWorkflow(
                 ? 'orchestrator_claim_consistency'
                 : 'orchestrator_citation_audit',
           });
-          await rejudgeClaimsAfterRound(carriedClaims);
+          // Both re-passes judge the SAME repaired bytes (RV4405):
+          // the round already rewrote the document, nothing between
+          // the two rejudges can move it again, so they dispatch
+          // concurrently and their verdicts process in the
+          // historical order (the claim rejudge's typed throws
+          // first), exactly the RV4210 discipline.
+          const [rejudgeSettled, auditRoundSettled] = await Promise.allSettled([
+            rejudgeClaimsAfterRound(carriedClaims),
+            runCitationAudit(synthesizedFinal, 'round'),
+          ]);
+          if (rejudgeSettled.status === 'rejected') {
+            throw rejudgeSettled.reason;
+          }
           if (claimConsistencyMeta !== undefined) {
             claimConsistencyMeta.passes = 2;
             claimConsistencyMeta.firstPassFindings = carriedClaims.length;
@@ -11920,7 +11939,9 @@ export function makeOrchestratorWorkflow(
             }
             claimConsistencyMeta.semanticRepairRounds = 1;
           }
-          await runCitationAudit(synthesizedFinal, 'round');
+          if (auditRoundSettled.status === 'rejected') {
+            throw auditRoundSettled.reason;
+          }
           if (citationAuditMeta !== undefined) {
             citationAuditMeta.passes = 2;
             citationAuditMeta.firstPassFindings = carriedCitations.length;

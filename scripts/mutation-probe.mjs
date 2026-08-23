@@ -5493,8 +5493,8 @@ export const MUTATIONS = [
     doctrine:
       'both judges re-rule after the merged round (RV4202): with the post-round re-audit collapsed, the run ships a repaired document whose citation verdict describes the pre-round bytes, exactly the repair-moved-the-hash-without-a-rejudge class the shared round exists to close',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "          await runCitationAudit(synthesizedFinal, 'round');",
-    replace: '',
+    find: "            runCitationAudit(synthesizedFinal, 'round'),",
+    replace: '            Promise.resolve(undefined),',
     test: 'packages/core/src/orchestrator/semantic-round.test.ts',
   },
   {
@@ -5734,6 +5734,25 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
   {
+    id: 'merged-first-passes-dispatch-together',
+    doctrine:
+      "the MERGED arming joins the parallel judge pair (RV4405): with the arm dropped, both repair postures fall back to the sequential dispatch and the seventh comparison run's exact posture waits out the full claim judge wall before the citation judge can start, on two verdicts over the same immutable bytes",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "        (opts.citationAudit.onFound ?? 'report') !== 'repair') ||\n        mergedRoundArmed);",
+    replace: "        (opts.citationAudit.onFound ?? 'report') !== 'repair'));",
+    test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
+  },
+  {
+    id: 'post-round-rejudges-dispatch-together',
+    doctrine:
+      'both post-round re-passes judge the SAME repaired bytes and dispatch together (RV4405): serialized again, the rejudge pair pays the full claim wall in sequence for two verdicts nothing orders, and the verdicts still process claim first either way',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "          const [rejudgeSettled, auditRoundSettled] = await Promise.allSettled([\n            rejudgeClaimsAfterRound(carriedClaims),\n            runCitationAudit(synthesizedFinal, 'round'),\n          ]);\n          if (rejudgeSettled.status === 'rejected') {\n            throw rejudgeSettled.reason;\n          }",
+    replace:
+      "          await rejudgeClaimsAfterRound(carriedClaims);\n          const auditRoundSettled = await Promise.allSettled([\n            runCitationAudit(synthesizedFinal, 'round'),\n          ]).then((settled) => settled[0]);",
+    test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
+  },
+  {
     id: 'checkpoint-refuses-before-the-stage-pays',
     doctrine:
       "the 'checkpoint' reserve re-checks tail solvency BEFORE the composition pays (RV4404): with the call collapsed, the seventh comparison trajectory pays the composition and both judges again and dies only where the armed round cannot dispatch, the exact 1.9 USD the checkpoint exists to save",
@@ -5901,7 +5920,7 @@ export const MUTATIONS = [
     doctrine:
       'an armed citation round keeps the strict judge sequence (RV4210): with the guard collapsed, the audit first pass dispatches beside a claim pass whose round may rewrite the document, and the audit verdict describes bytes that never ship, exactly the repair-moved-the-hash class the shared round exists to close',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "      (opts.citationAudit.onFound ?? 'report') !== 'repair';",
+    find: "      ((!claimRepairArmed &&\n        !coverageRoundArmed &&\n        (opts.citationAudit.onFound ?? 'report') !== 'repair') ||\n        mergedRoundArmed);",
     replace: '      true;',
     test: 'packages/core/src/orchestrator/parallel-judges.test.ts',
   },
