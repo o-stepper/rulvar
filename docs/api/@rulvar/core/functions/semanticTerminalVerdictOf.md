@@ -12,14 +12,19 @@ function semanticTerminalVerdictOf(input):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/semantic-verdict.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L78)
+Defined in: [packages/core/src/orchestrator/semantic-verdict.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L101)
 
 Folds the one semantic verdict out of envelope facts (RV4209).
 Returns undefined when NO semantic meta is present: nothing was
 configured, nothing judged anything, and absence must keep meaning
 NOT RECORDED rather than a fabricated verdict. Never throws on
-malformed shapes: an untyped field reads as absent, and the verdict
-degrades toward 'not-judged', the fail-closed direction.
+malformed shapes, and malformation degrades toward 'not-judged',
+the fail-closed direction (RV4402): a meta that carries NO evidence
+anything judged (no judgedHash/auditedHash, no judgeInvoked, no
+judge flag, no judgedStage) folds 'not-judged' with a trust code,
+never 'clean', and a counter that is present but not a count taints
+its meta the same way. An ABSENT field still reads absent: absence
+is honest, garbage is not.
 
 ## Parameters
 

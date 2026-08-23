@@ -133,7 +133,7 @@ describe('the production host reference (RV4307)', () => {
     const unjudged = { semanticTerminalVerdict: undefined } as unknown as TerminalEnvelope;
     const refusal = productionGate(unjudged);
     expect(refusal.ok).toBe(false);
-    expect(refusal.reason).toMatch(/not-judged/);
+    expect(refusal.reason).toMatch(/not-recorded/);
     const clean = semanticTerminalVerdictOf({
       claimConsistencyMeta: { coverage: 'full', findings: 0, judgedHash: 'a'.repeat(64) },
     });
@@ -141,7 +141,7 @@ describe('the production host reference (RV4307)', () => {
       productionGate({ semanticTerminalVerdict: clean } as unknown as TerminalEnvelope),
     ).toEqual({ ok: true });
     const waived = semanticTerminalVerdictOf({
-      claimConsistencyMeta: { coverage: 'partial', findings: 0 },
+      claimConsistencyMeta: { coverage: 'partial', findings: 0, judgedHash: 'a'.repeat(64) },
       claimCoverageWaiver: { principal: 'owner', reason: 'gap', coverage: 'partial' },
     });
     const gate = productionGate({

@@ -35,7 +35,7 @@ describe('semanticTerminalVerdictOf precedence (RV4209)', () => {
 
   it('findings beat every other reading', () => {
     const verdict = semanticTerminalVerdictOf({
-      claimConsistencyMeta: { coverage: 'full', findings: 1 },
+      claimConsistencyMeta: { coverage: 'full', findings: 1, judgedHash: 'a'.repeat(64) },
       claimCoverageWaiver: { principal: 'owner', reason: 'benchmark', coverage: 'partial' },
     });
     expect(verdict?.verdict).toBe('findings');
@@ -48,7 +48,7 @@ describe('semanticTerminalVerdictOf precedence (RV4209)', () => {
 
   it('unsupported citations are findings too', () => {
     const verdict = semanticTerminalVerdictOf({
-      citationAuditMeta: { unsupported: 3, partial: 1 },
+      citationAuditMeta: { unsupported: 3, partial: 1, auditedHash: 'a'.repeat(64) },
     });
     expect(verdict?.verdict).toBe('findings');
     expect(verdict?.unsupportedCitations).toBe(3);
@@ -57,7 +57,7 @@ describe('semanticTerminalVerdictOf precedence (RV4209)', () => {
 
   it("the experiment's shape: a standing waiver over partial coverage reads 'waived', never clean", () => {
     const verdict = semanticTerminalVerdictOf({
-      claimConsistencyMeta: { coverage: 'partial', findings: 0 },
+      claimConsistencyMeta: { coverage: 'partial', findings: 0, judgedHash: 'a'.repeat(64) },
       claimCoverageWaiver: {
         principal: 'benchmark-owner',
         reason: 'known gap',
@@ -74,17 +74,23 @@ describe('semanticTerminalVerdictOf precedence (RV4209)', () => {
 
   it('partial and vacuous coverage read as themselves without a waiver', () => {
     expect(
-      semanticTerminalVerdictOf({ claimConsistencyMeta: { coverage: 'partial', findings: 0 } })
-        ?.verdict,
-    ).toBe('partial');
-    expect(
       semanticTerminalVerdictOf({
-        claimConsistencyMeta: { coverage: 'critical-uncovered', findings: 0 },
+        claimConsistencyMeta: { coverage: 'partial', findings: 0, judgedHash: 'a'.repeat(64) },
       })?.verdict,
     ).toBe('partial');
     expect(
-      semanticTerminalVerdictOf({ claimConsistencyMeta: { coverage: 'vacuous', findings: 0 } })
-        ?.verdict,
+      semanticTerminalVerdictOf({
+        claimConsistencyMeta: {
+          coverage: 'critical-uncovered',
+          findings: 0,
+          judgedHash: 'a'.repeat(64),
+        },
+      })?.verdict,
+    ).toBe('partial');
+    expect(
+      semanticTerminalVerdictOf({
+        claimConsistencyMeta: { coverage: 'vacuous', findings: 0, judgedHash: 'a'.repeat(64) },
+      })?.verdict,
     ).toBe('vacuous');
   });
 
@@ -107,10 +113,51 @@ describe('semanticTerminalVerdictOf precedence (RV4209)', () => {
     expect(verdict?.judgeFailures).toEqual(['draft-rewritten-unjudged']);
   });
 
+  it('a meta with no evidence anything judged is not-judged, never clean (RV4402)', () => {
+    const empty = semanticTerminalVerdictOf({ claimConsistencyMeta: {} });
+    expect(empty?.verdict).toBe('not-judged');
+    expect(empty?.judgeFailures).toContain('claim-meta-unjudged');
+    expect(productionAcceptable(empty).ok).toBe(false);
+    const auditEmpty = semanticTerminalVerdictOf({
+      claimConsistencyMeta: { coverage: 'full', findings: 0, judgedHash: 'a'.repeat(64) },
+      citationAuditMeta: {},
+    });
+    expect(auditEmpty?.verdict).toBe('not-judged');
+    expect(auditEmpty?.judgeFailures).toEqual(['citation-meta-unjudged']);
+    // judgeInvoked false WITH the stamped hash is the legitimate
+    // "no pair existed to judge" meta, not garbage.
+    expect(
+      semanticTerminalVerdictOf({
+        claimConsistencyMeta: {
+          coverage: 'vacuous',
+          findings: 0,
+          judgeInvoked: false,
+          judgedHash: 'a'.repeat(64),
+        },
+      })?.verdict,
+    ).toBe('vacuous');
+  });
+
+  it('a malformed counter taints its meta toward not-judged, never 0 (RV4402)', () => {
+    const claimGarbage = semanticTerminalVerdictOf({
+      claimConsistencyMeta: { coverage: 'full', findings: '3', judgedHash: 'a'.repeat(64) },
+    });
+    expect(claimGarbage?.verdict).toBe('not-judged');
+    expect(claimGarbage?.judgeFailures).toEqual(['claim-meta-malformed']);
+    const auditGarbage = semanticTerminalVerdictOf({
+      citationAuditMeta: { unsupported: -1, partial: 0, auditedHash: 'a'.repeat(64) },
+    });
+    expect(auditGarbage?.verdict).toBe('not-judged');
+    expect(auditGarbage?.judgeFailures).toEqual(['citation-meta-malformed']);
+    const gate = productionAcceptable(claimGarbage);
+    expect(gate.ok).toBe(false);
+    expect(gate.reason).toContain('claim-meta-malformed');
+  });
+
   it('the production gate is fail closed on absence', () => {
     const gate = productionAcceptable(undefined);
     expect(gate.ok).toBe(false);
-    expect(gate.reason).toContain('not-judged');
+    expect(gate.reason).toContain('not-recorded');
   });
 });
 

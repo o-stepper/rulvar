@@ -20,7 +20,9 @@ export interface SemanticTerminalVerdict {
    * The verdict, in refusal precedence order:
    * - 'not-judged': semantic machinery was configured and nothing
    *   usable judged the shipped document (a failed or declined judge,
-   *   or a draft-stage verdict the synthesis then rewrote);
+   *   a draft-stage verdict the synthesis then rewrote, a meta
+   *   carrying no evidence anything judged, or a meta whose counters
+   *   are malformed, RV4402);
    * - 'findings': a judge ruled and defects stand (contradictions or
    *   unsupported sampled citations);
    * - 'waived': acceptance was licensed by a standing exception, not
@@ -51,7 +53,11 @@ export interface SemanticTerminalVerdict {
    * Why nothing usable judged the document, when 'not-judged': stable
    * codes ('claim-judge-failed', 'claim-judge-declined',
    * 'citation-judge-failed', 'citation-judge-declined',
-   * 'draft-rewritten-unjudged'). Empty on every other verdict.
+   * 'draft-rewritten-unjudged', and the RV4402 trust codes
+   * 'claim-meta-unjudged' / 'citation-meta-unjudged' for a meta with
+   * no evidence anything judged, 'claim-meta-malformed' /
+   * 'citation-meta-malformed' for counters that are not counts).
+   * Empty on every other verdict.
    */
   judgeFailures: string[];
 }
@@ -64,16 +70,33 @@ export interface SemanticVerdictInput {
   draftToFinal?: Record<string, unknown>;
 }
 
-const countOf = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+/**
+ * A counter that is ABSENT legitimately reads 0 (an older meta, a
+ * side that recorded nothing); a counter that is PRESENT but not a
+ * count is a meta this fold must not trust (RV4402): the seventh
+ * comparison experiment's re-audit found the old fold reading every
+ * malformed field as 0 and folding garbage to 'clean', the exact
+ * opposite of its own docstring.
+ */
+const counterOf = (value: unknown): { count: number; malformed: boolean } =>
+  value === undefined
+    ? { count: 0, malformed: false }
+    : typeof value === 'number' && Number.isFinite(value) && value >= 0
+      ? { count: value, malformed: false }
+      : { count: 0, malformed: true };
 
 /**
  * Folds the one semantic verdict out of envelope facts (RV4209).
  * Returns undefined when NO semantic meta is present: nothing was
  * configured, nothing judged anything, and absence must keep meaning
  * NOT RECORDED rather than a fabricated verdict. Never throws on
- * malformed shapes: an untyped field reads as absent, and the verdict
- * degrades toward 'not-judged', the fail-closed direction.
+ * malformed shapes, and malformation degrades toward 'not-judged',
+ * the fail-closed direction (RV4402): a meta that carries NO evidence
+ * anything judged (no judgedHash/auditedHash, no judgeInvoked, no
+ * judge flag, no judgedStage) folds 'not-judged' with a trust code,
+ * never 'clean', and a counter that is present but not a count taints
+ * its meta the same way. An ABSENT field still reads absent: absence
+ * is honest, garbage is not.
  */
 export function semanticTerminalVerdictOf(
   input: SemanticVerdictInput,
@@ -113,13 +136,50 @@ export function semanticTerminalVerdictOf(
   if (coverage === 'judge-declined' && !judgeFailures.includes('claim-judge-declined')) {
     judgeFailures.push('claim-judge-declined');
   }
-  const contradictions = countOf(claim?.findings);
-  const unsupportedCitations = countOf(audit?.unsupported);
-  const partialCitations = countOf(audit?.partial);
-  const semanticRepairRounds = Math.max(
-    countOf(claim?.semanticRepairRounds),
-    countOf(audit?.citationRepairRounds),
-  );
+  // The trust gate (RV4402). Evidence that a meta was produced by the
+  // judging machinery at all: the document hash it stamps on every
+  // path, the judgeInvoked marker, a judge failure flag (its own
+  // code), or a judged stage. A meta with NONE of these is a foreign
+  // or empty shape, and folding it toward 'clean' would launder
+  // garbage into the one word production gates on.
+  const claimUnjudged =
+    claim !== undefined &&
+    !(
+      typeof claim.judgedHash === 'string' ||
+      claim.judgeInvoked === true ||
+      claim.judgeFailed === true ||
+      claim.judgeDeclined === true ||
+      typeof claim.judgedStage === 'string'
+    );
+  if (claimUnjudged) {
+    judgeFailures.push('claim-meta-unjudged');
+  }
+  const auditUnjudged =
+    audit !== undefined &&
+    !(
+      typeof audit.auditedHash === 'string' ||
+      audit.judgeInvoked === true ||
+      audit.judgeFailed === true ||
+      audit.judgeDeclined === true
+    );
+  if (auditUnjudged) {
+    judgeFailures.push('citation-meta-unjudged');
+  }
+  const contradictionsC = counterOf(claim?.findings);
+  const unsupportedC = counterOf(audit?.unsupported);
+  const partialC = counterOf(audit?.partial);
+  const claimRoundsC = counterOf(claim?.semanticRepairRounds);
+  const auditRoundsC = counterOf(audit?.citationRepairRounds);
+  if (contradictionsC.malformed || claimRoundsC.malformed) {
+    judgeFailures.push('claim-meta-malformed');
+  }
+  if (unsupportedC.malformed || partialC.malformed || auditRoundsC.malformed) {
+    judgeFailures.push('citation-meta-malformed');
+  }
+  const contradictions = contradictionsC.count;
+  const unsupportedCitations = unsupportedC.count;
+  const partialCitations = partialC.count;
+  const semanticRepairRounds = Math.max(claimRoundsC.count, auditRoundsC.count);
   const waiverCandidate = input.claimCoverageWaiver as
     { principal?: unknown; reason?: unknown; expiresAt?: unknown; coverage?: unknown } | undefined;
   const waiver =
@@ -175,9 +235,15 @@ export function semanticTerminalVerdictOf(
  * (strict keeps exit 0 on them by documented design), 'waived' is a
  * human exception a machine gate must surface rather than inherit,
  * and an ABSENT verdict means nothing judged anything, which a
- * production gate reads fail closed. Exported so the CLI's
- * `--acceptance-policy production`, a server consumer, and a host
- * pipeline apply the SAME rule instead of three re-derivations.
+ * production gate reads fail closed. The refusal reason distinguishes
+ * the two refusal shapes a reader used to conflate (RV4402): an
+ * absent verdict reads 'not-recorded' (nothing was configured, or the
+ * run predates the fold), while a recorded 'not-judged' verdict lists
+ * its judge failure codes, so an operator can tell "the machinery
+ * never wrote a verdict" from "judges ran and nothing usable judged
+ * the shipped document". Exported so the CLI's `--acceptance-policy
+ * production`, a server consumer, and a host pipeline apply the SAME
+ * rule instead of three re-derivations.
  */
 export function productionAcceptable(verdict: SemanticTerminalVerdict | undefined): {
   ok: boolean;
@@ -187,7 +253,7 @@ export function productionAcceptable(verdict: SemanticTerminalVerdict | undefine
     return {
       ok: false,
       reason:
-        'not-judged: the terminal carries no semantic verdict (no claim or citation ' +
+        'not-recorded: the terminal carries no semantic verdict (no claim or citation ' +
         'machinery was configured, or the run predates it)',
     };
   }

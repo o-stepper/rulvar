@@ -15,13 +15,17 @@ function parseCitationVerdicts(output, rowIndexes):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:684](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L684)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:688](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L688)
 
 Parses the judge output strictly: one verdict per judged row, no
-duplicates, verdicts from the closed vocabulary. Anything else returns
-undefined and the caller treats the invocation as a failed judge
-(nothing was judged; partial verdicts over a partial parse would
-claim more than the judge said).
+duplicates, no rows beyond the judged set, verdicts from the closed
+vocabulary. Anything else returns undefined and the caller treats
+the invocation as a failed judge (nothing was judged; partial
+verdicts over a partial parse would claim more than the judge
+said). The row set is a BIJECTION with the sample (RV4402): a
+fabricated extra row is a parse failure, never surplus information,
+because a judge inventing rows is a judge whose output cannot be
+trusted about the rows it was asked.
 
 ## Parameters
 

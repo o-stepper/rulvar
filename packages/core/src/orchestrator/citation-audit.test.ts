@@ -118,6 +118,19 @@ describe('the deterministic sample (RV4004)', () => {
         [0],
       ),
     ).toBeUndefined();
+    // The bijection (RV4402): a fabricated extra row is a parse
+    // failure, never surplus information.
+    expect(
+      parseCitationVerdicts(
+        {
+          verdicts: [
+            { row: 0, verdict: 'supported', reason: 'a' },
+            { row: 999, verdict: 'supported', reason: 'invented' },
+          ],
+        },
+        [0],
+      ),
+    ).toBeUndefined();
   });
 });
 

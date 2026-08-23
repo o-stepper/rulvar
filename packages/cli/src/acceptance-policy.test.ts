@@ -140,7 +140,9 @@ describe('--acceptance-policy production (RV4209)', () => {
     const outcome = outcomeWith(undefined);
     expect(strictExitCode(outcome, 0, capture())).toBe(0);
     expect(acceptancePolicyExitCode('production', outcome, 0, io)).toBe(1);
-    expect(String(reasonLineOf(io).reason)).toContain('not-judged');
+    // RV4402: an ABSENT verdict reads 'not-recorded', distinct from a
+    // recorded 'not-judged' verdict that lists its judge failures.
+    expect(String(reasonLineOf(io).reason)).toContain('not-recorded');
   });
 
   it('a suspended run refuses as unsettled where the base exit is 0', () => {

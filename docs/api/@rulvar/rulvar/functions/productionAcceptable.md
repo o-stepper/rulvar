@@ -22,9 +22,15 @@ and reads 'clean': 'partial' and 'vacuous' are legal diagnostics
 (strict keeps exit 0 on them by documented design), 'waived' is a
 human exception a machine gate must surface rather than inherit,
 and an ABSENT verdict means nothing judged anything, which a
-production gate reads fail closed. Exported so the CLI's
-`--acceptance-policy production`, a server consumer, and a host
-pipeline apply the SAME rule instead of three re-derivations.
+production gate reads fail closed. The refusal reason distinguishes
+the two refusal shapes a reader used to conflate (RV4402): an
+absent verdict reads 'not-recorded' (nothing was configured, or the
+run predates the fold), while a recorded 'not-judged' verdict lists
+its judge failure codes, so an operator can tell "the machinery
+never wrote a verdict" from "judges ran and nothing usable judged
+the shipped document". Exported so the CLI's `--acceptance-policy
+production`, a server consumer, and a host pipeline apply the SAME
+rule instead of three re-derivations.
 
 ## Parameters
 

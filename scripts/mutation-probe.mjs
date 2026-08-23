@@ -5733,6 +5733,33 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
   {
+    id: 'empty-meta-is-not-judged',
+    doctrine:
+      "a meta with no evidence anything judged folds 'not-judged', never 'clean' (RV4402): with the trust code dropped, semanticTerminalVerdictOf({claimConsistencyMeta: {}}) reads clean again, and a foreign or empty shape launders itself into the one word production gates on, the exact fail-open the seventh comparison re-audit found",
+    file: 'packages/core/src/orchestrator/semantic-verdict.ts',
+    find: "  if (claimUnjudged) {\n    judgeFailures.push('claim-meta-unjudged');\n  }",
+    replace: '',
+    test: 'packages/core/src/orchestrator/semantic-verdict.test.ts',
+  },
+  {
+    id: 'malformed-counter-taints-the-meta',
+    doctrine:
+      "a counter that is present but not a count taints its meta toward 'not-judged' (RV4402): with the flag collapsed, findings: '3' reads as 0 findings and the fold degrades toward 'clean', the opposite of its own docstring's fail-closed promise",
+    file: 'packages/core/src/orchestrator/semantic-verdict.ts',
+    find: '      : { count: 0, malformed: true };',
+    replace: '      : { count: 0, malformed: false };',
+    test: 'packages/core/src/orchestrator/semantic-verdict.test.ts',
+  },
+  {
+    id: 'judge-rows-are-a-bijection',
+    doctrine:
+      'the judge row set is a bijection with the sample (RV4402): with the membership check dropped, a fabricated extra row parses as surplus information, and a judge inventing rows keeps its authority over the rows it was asked',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '      !requested.has(row) ||',
+    replace: '',
+    test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
+  {
     id: 'semantic-verdict-findings-outrank-the-waiver',
     doctrine:
       "standing findings outrank every softer reading of the verdict (RV4209): with the branch collapsed, a run carrying judged contradictions under a waiver reads 'waived', the human exception launders the machine defects, and the production gate refuses for the wrong reason or not at all",
