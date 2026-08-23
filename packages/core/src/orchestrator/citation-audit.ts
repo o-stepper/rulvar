@@ -676,10 +676,14 @@ export const CITATION_JUDGE_SCHEMA = {
 
 /**
  * Parses the judge output strictly: one verdict per judged row, no
- * duplicates, verdicts from the closed vocabulary. Anything else returns
- * undefined and the caller treats the invocation as a failed judge
- * (nothing was judged; partial verdicts over a partial parse would
- * claim more than the judge said).
+ * duplicates, no rows beyond the judged set, verdicts from the closed
+ * vocabulary. Anything else returns undefined and the caller treats
+ * the invocation as a failed judge (nothing was judged; partial
+ * verdicts over a partial parse would claim more than the judge
+ * said). The row set is a BIJECTION with the sample (RV4402): a
+ * fabricated extra row is a parse failure, never surplus information,
+ * because a judge inventing rows is a judge whose output cannot be
+ * trusted about the rows it was asked.
  */
 export function parseCitationVerdicts(
   output: unknown,
@@ -689,6 +693,7 @@ export function parseCitationVerdicts(
   if (shaped === null || shaped === undefined || !Array.isArray(shaped.verdicts)) {
     return undefined;
   }
+  const requested = new Set(rowIndexes);
   const parsed = new Map<
     number,
     { verdict: 'supported' | 'partial' | 'unsupported'; reason: string }
@@ -699,6 +704,7 @@ export function parseCitationVerdicts(
     const reason = (entry as { reason?: unknown }).reason;
     if (
       typeof row !== 'number' ||
+      !requested.has(row) ||
       (verdict !== 'supported' && verdict !== 'partial' && verdict !== 'unsupported') ||
       typeof reason !== 'string' ||
       parsed.has(row)

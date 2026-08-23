@@ -17735,10 +17735,14 @@ declare const CITATION_JUDGE_SCHEMA: {
 };
 /**
 * Parses the judge output strictly: one verdict per judged row, no
-* duplicates, verdicts from the closed vocabulary. Anything else returns
-* undefined and the caller treats the invocation as a failed judge
-* (nothing was judged; partial verdicts over a partial parse would
-* claim more than the judge said).
+* duplicates, no rows beyond the judged set, verdicts from the closed
+* vocabulary. Anything else returns undefined and the caller treats
+* the invocation as a failed judge (nothing was judged; partial
+* verdicts over a partial parse would claim more than the judge
+* said). The row set is a BIJECTION with the sample (RV4402): a
+* fabricated extra row is a parse failure, never surplus information,
+* because a judge inventing rows is a judge whose output cannot be
+* trusted about the rows it was asked.
 */
 declare function parseCitationVerdicts(output: unknown, rowIndexes: readonly number[]): Map<number, {
   verdict: "supported" | "partial" | "unsupported";
@@ -17767,7 +17771,9 @@ interface SemanticTerminalVerdict {
   * The verdict, in refusal precedence order:
   * - 'not-judged': semantic machinery was configured and nothing
   *   usable judged the shipped document (a failed or declined judge,
-  *   or a draft-stage verdict the synthesis then rewrote);
+  *   a draft-stage verdict the synthesis then rewrote, a meta
+  *   carrying no evidence anything judged, or a meta whose counters
+  *   are malformed, RV4402);
   * - 'findings': a judge ruled and defects stand (contradictions or
   *   unsupported sampled citations);
   * - 'waived': acceptance was licensed by a standing exception, not
@@ -17803,7 +17809,11 @@ interface SemanticTerminalVerdict {
   * Why nothing usable judged the document, when 'not-judged': stable
   * codes ('claim-judge-failed', 'claim-judge-declined',
   * 'citation-judge-failed', 'citation-judge-declined',
-  * 'draft-rewritten-unjudged'). Empty on every other verdict.
+  * 'draft-rewritten-unjudged', and the RV4402 trust codes
+  * 'claim-meta-unjudged' / 'citation-meta-unjudged' for a meta with
+  * no evidence anything judged, 'claim-meta-malformed' /
+  * 'citation-meta-malformed' for counters that are not counts).
+  * Empty on every other verdict.
   */
   judgeFailures: string[];
 }
@@ -17819,8 +17829,13 @@ interface SemanticVerdictInput {
 * Returns undefined when NO semantic meta is present: nothing was
 * configured, nothing judged anything, and absence must keep meaning
 * NOT RECORDED rather than a fabricated verdict. Never throws on
-* malformed shapes: an untyped field reads as absent, and the verdict
-* degrades toward 'not-judged', the fail-closed direction.
+* malformed shapes, and malformation degrades toward 'not-judged',
+* the fail-closed direction (RV4402): a meta that carries NO evidence
+* anything judged (no judgedHash/auditedHash, no judgeInvoked, no
+* judge flag, no judgedStage) folds 'not-judged' with a trust code,
+* never 'clean', and a counter that is present but not a count taints
+* its meta the same way. An ABSENT field still reads absent: absence
+* is honest, garbage is not.
 */
 declare function semanticTerminalVerdictOf(input: SemanticVerdictInput): SemanticTerminalVerdict | undefined;
 /**
@@ -17831,9 +17846,15 @@ declare function semanticTerminalVerdictOf(input: SemanticVerdictInput): Semanti
 * (strict keeps exit 0 on them by documented design), 'waived' is a
 * human exception a machine gate must surface rather than inherit,
 * and an ABSENT verdict means nothing judged anything, which a
-* production gate reads fail closed. Exported so the CLI's
-* `--acceptance-policy production`, a server consumer, and a host
-* pipeline apply the SAME rule instead of three re-derivations.
+* production gate reads fail closed. The refusal reason distinguishes
+* the two refusal shapes a reader used to conflate (RV4402): an
+* absent verdict reads 'not-recorded' (nothing was configured, or the
+* run predates the fold), while a recorded 'not-judged' verdict lists
+* its judge failure codes, so an operator can tell "the machinery
+* never wrote a verdict" from "judges ran and nothing usable judged
+* the shipped document". Exported so the CLI's `--acceptance-policy
+* production`, a server consumer, and a host pipeline apply the SAME
+* rule instead of three re-derivations.
 */
 declare function productionAcceptable(verdict: SemanticTerminalVerdict | undefined): {
   ok: boolean;
