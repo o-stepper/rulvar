@@ -1,0 +1,5 @@
+---
+'@rulvar/openai': minor
+---
+
+The Sol rates follow the documented page. The fresh contract classification dispatched for the plan-44 release gate caught a real drift: the provider's model page for gpt-5.6-sol now documents input 4, output 20, cache read 0.4, cache write 5 USD per MTok against the seeded 5 / 30 / 0.5 / 6.25. Per the rates audit's own doctrine (a confirmed rate change ships as its own changeset, never an automatic rewrite), the seed row and the derived `OPENAI_PRICING` table move to the page's numbers under the distinct `pricingVersion: 'openai-2026-08-23'`, with `ratesVerifiedAt: '2026-08-23'` on Sol and its `gpt-5.6` alias (Terra and Luna keep their 2026-07-31 verification). Runs recorded before this release overstated Sol spend relative to the cut, never under; the distinct version string surfaces the revision on resume instead of silently reinterpreting past spend. Sol's previous rates were billing-confirmed by the 2026-07-30 statement reconciliation; the new rates await theirs over a future export.

@@ -10,7 +10,7 @@ import { OPENAI_MODELS, OPENAI_PRICING } from './index.js';
 
 describe('OPENAI_PRICING', () => {
   it('exports exactly the priced seed rows under a dated version', () => {
-    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-31');
+    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-08-23');
     const priced = Object.entries(OPENAI_MODELS).filter(
       ([, info]) => info.caps.pricing !== undefined,
     );
@@ -31,7 +31,13 @@ describe('OPENAI_PRICING', () => {
     // verification date. A date is a recorded verification event,
     // never a guess: correcting a rate is a separate release with a
     // changeset, and this test pins that the stamp exists at all.
-    for (const name of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.6']) {
+    // Sol and its alias were re-verified 2026-08-23 (the plan-44
+    // fresh-classification dispatch caught the provider's Sol cut);
+    // Terra and Luna keep their 2026-07-31 verification.
+    for (const name of ['gpt-5.6-sol', 'gpt-5.6']) {
+      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-08-23');
+    }
+    for (const name of ['gpt-5.6-terra', 'gpt-5.6-luna']) {
       expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-07-31');
     }
     for (const name of ['gpt-5.5', 'gpt-5.5-pro', 'gpt-5.4', 'gpt-5.4-mini']) {

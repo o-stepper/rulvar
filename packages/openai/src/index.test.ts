@@ -601,12 +601,12 @@ describe('cache subset usage normalization (v1.19.0 review P1-1)', () => {
     };
     expect(usageEvents[0]?.usage).toEqual(expected);
     expect(finish.usage).toEqual(expected);
-    // Priced on the Sol row: 900 uncached at $5 + 100 reads at $0.5 +
-    // 200 writes at $6.25 (the 1.25x premium) + 10 output at $30, per MTok.
+    // Priced on the Sol row: 900 uncached at $4 + 100 reads at $0.4 +
+    // 200 writes at $5 (the 1.25x premium) + 10 output at $20, per MTok.
     const sol = OPENAI_MODELS['gpt-5.6-sol']?.caps.pricing;
     expect(sol).toBeDefined();
     expect(priceUsdOf(sol as NonNullable<typeof sol>, finish.usage)).toBeCloseTo(
-      (900 / 1e6) * 5 + (100 / 1e6) * 0.5 + (200 / 1e6) * 6.25 + (10 / 1e6) * 30,
+      (900 / 1e6) * 4 + (100 / 1e6) * 0.4 + (200 / 1e6) * 5 + (10 / 1e6) * 20,
       12,
     );
   });
@@ -1350,10 +1350,11 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
   // sibling verified live 2026-07-18 with a max-effort Responses call
   // returning 200 and the effort echoed.
   // Terra and Luna carry the provider's 2026-07-30 price cut (Terra at
-  // 0.8x across the board, Luna at 0.2x), re-verified against the
-  // documented model pages on 2026-07-31 (RV911); Sol is unchanged.
+  // 0.8x across the board, Luna at 0.2x), re-verified 2026-07-31
+  // (RV911); Sol carries the provider's later cut the plan-44
+  // fresh-classification dispatch caught, re-verified 2026-08-23.
   const GPT_56_EXPECTED = {
-    'gpt-5.6-sol': { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 6.25, wireMax: true },
+    'gpt-5.6-sol': { input: 4, output: 20, cacheRead: 0.4, cacheWrite: 5, wireMax: true },
     'gpt-5.6-terra': { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5, wireMax: true },
     'gpt-5.6-luna': { input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25, wireMax: true },
   } as const;
@@ -1373,10 +1374,10 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
         cacheReadUsdPerMTok: expected.cacheRead,
         cacheWriteUsdPerMTok: expected.cacheWrite,
         tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
-        // Docs re-verification of the whole family on 2026-07-31
-        // (RV911); Sol's unchanged rates additionally remain
-        // billing-confirmed by the 2026-07-30 statement reconciliation.
-        ratesVerifiedAt: '2026-07-31',
+        // Terra and Luna were docs re-verified 2026-07-31 (RV911);
+        // Sol's row re-verified 2026-08-23 with the provider's later
+        // cut (the plan-44 fresh-classification dispatch).
+        ratesVerifiedAt: model === 'gpt-5.6-sol' ? '2026-08-23' : '2026-07-31',
       });
     }
   });
@@ -1386,7 +1387,7 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
   });
 
   it('every gpt-5.6 family member has its own versioned OPENAI_PRICING row', () => {
-    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-31');
+    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-08-23');
     for (const [model, expected] of Object.entries(GPT_56_EXPECTED)) {
       expect(OPENAI_PRICING.models[`openai:${model}`]?.inputUsdPerMTok, model).toBe(expected.input);
       expect(OPENAI_PRICING.models[`openai:${model}`]?.outputUsdPerMTok, model).toBe(
