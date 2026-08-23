@@ -1,5 +1,27 @@
 # @rulvar/evals
 
+## 1.249.0
+
+### Patch Changes
+
+- Updated dependencies [8862133]
+- Updated dependencies [0d7a717]
+- Updated dependencies [e4428bd]
+- Updated dependencies [d6873c1]
+- Updated dependencies [4092e8d]
+- Updated dependencies [e086590]
+- Updated dependencies [1411938]
+- Updated dependencies [737d1ee]
+- Updated dependencies [634f966]
+- Updated dependencies [052cc26]
+- Updated dependencies [bbae134]
+- Updated dependencies [67a8d72]
+  - @rulvar/core@1.249.0
+  - @rulvar/openai@1.249.0
+  - @rulvar/anthropic@1.249.0
+  - @rulvar/plan@1.249.0
+  - @rulvar/testing@1.249.0
+
 ## 1.248.0
 
 ### Patch Changes

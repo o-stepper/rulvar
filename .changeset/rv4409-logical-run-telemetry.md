@@ -1,6 +1,0 @@
----
-'@rulvar/core': minor
-'@rulvar/cli': minor
----
-
-RV4409: the logical run's telemetry is native. The seventh comparison experiment measured its resumed run's active and calendar walls, the operator gap between segments, and the 109-wire logical count by external script over the raw journal, and reconciled "16 versus 109" by hand because the two counter families shared a vocabulary. `logicalRunTelemetry` now folds, from the stamps and decisions the journal already carries: `activeMs` (each segment's own append window, summed), `calendarMs` (first to last append), `gapMs` (their difference, the operator time), `perSegment` (status, entries, active wall, and `replayed: true` on a pure-replay segment, so a resumed run's walls read as the original segments' work instead of a 0.0 s rerun), and `logicalWireRequests` (provider-call decisions across the WHOLE journal, the invoice's cardinality). Absent stamps keep the time fields absent: not recorded, never zero. `rulvar inspect` prints the logical run block (both time conventions, per-segment walls, the replayed marker) and the wire count under its own name, with the label spelling out that a segment's adapter fetches are a different, smaller counter by design.

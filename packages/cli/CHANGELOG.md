@@ -1,5 +1,36 @@
 # @rulvar/cli
 
+## 1.249.0
+
+### Minor Changes
+
+- e4428bd: RV4403: the terminal has five axes (terminal status, execution completion, child acceptance, deliverable acceptance, semantic verdict), and none substitutes for another on any surface, live or restarted. The seventh comparison experiment settled `exhausted` with both judge metas and the ten-unsupported count only inside `error.data`: the outcome's top level read nothing, the settle recorded nothing, a restarted production gate answered 'not-judged' about a failure whose own message counted the findings, and `rulvar inspect` printed `acceptance: accepted (completion complete; gate on the status and completion PAIR)` over a rejected deliverable. Now: every typed semantic failure stamps the one-word verdict beside its metas (folded by the same RV4209 function the acceptance path uses, without a waiver or draft-bridge input, because a failing run has no standing acceptance to license); the engine lifts the semantic facts (`claimConsistencyMeta`, new `citationAuditMeta`, `semanticTerminalVerdict`) on EVERY terminal path including typed failures without a completion literal, mirrors them onto the outcome, the `run:end` event and the terminal envelope, and records them in the journaled settle; `lastRunSettle` and the persisted terminal envelope read them back defensively (a foreign or partial shape reads NOT RECORDED, never a verdict), so live and restart agree field for field. The CLI production gate reads the outcome's typed verdict field first, so it refuses with the recorded 'findings' instead of a false 'not-judged'. `rulvar inspect` prints the axes side by side (`axes: terminal exhausted | execution complete | children accepted | deliverable rejected | semantic findings`) with the semantic counts and the citation audit numbers, and the child roster verdict is labeled `children:`, one axis of five; the bare `acceptance:` label and the "gate on the status and completion PAIR" advice are gone.
+- d6873c1: RV4404: budget honesty, three opt-in answers to the seventh comparison experiment's death. The intake gate had verified the acceptance tail against DECLARED estimates and the run passed `fits: true` honestly; the workers then overshot their declared estimate 2.8x, and the refusal came only where the armed round could not dispatch, after the composition and both judges were already paid.
+
+  `budget.acceptanceReserve: 'checkpoint'` is 'require' plus a runtime re-check of the same arithmetic before each paid acceptance-tail dispatch (the first composition, each judge pass): every ceiling on the chain up to the run root judges its spend plus its dedicated tail reserves plus the worst case still ahead, and the run refuses typed BEFORE paying the stage, journaling an `acceptance_checkpoint_refused` decision naming the account, the stage, and every term. In the seventh trajectory the first checkpoint fires right after the workers, saving the composition and both judge passes. Dispatch-projection holds stay out of the arithmetic: they release on settle and the tail terms already price those futures.
+
+  `budget.estIsCeiling: true` turns declared spawn estimates into the fan-out's own hard allowance ceiling: tool-spawned children share the orchestrator's child scope, so the enforced bound is the AGGREGATE of the admitted estimates (`RunBudget.raiseChildAllowance` widens it per admitted child), exactly the number the acceptance-tail arithmetic trusted; a fan-out that overshoots its declarations refuses at ITS ceiling instead of silently eating the tail. With both opt-ins, a preflight `fits: true` becomes a dispatch guarantee for the declared tail.
+
+  The pair ceiling stops laundering itself as a document defect: a declared `semanticAcceptance` (claimCoverage 'full') derives coverage target 1 when none is set, so the pass runs coverage-first instead of the historical first-`max` selection, and a truncation under a DECLARED target grades `'coverage-capped'` (a new `ClaimCoverageGrade` literal) instead of a silent 'partial'. The strict-final and waiver-forbid refusals then name the knob: the pair ceiling `max`, and how many citing sentences it left uncovered. The seventh run declared full coverage, folded its pairs truncated, and reported 23 uncovered citing sentences as if the text were the problem. `--strict` refuses 'coverage-capped' (a capped pass breaks the contract the declaration states; plain 'partial' deliberately stays exit 0), and the semantic terminal verdict folds it into the partial bucket.
+
+- 634f966: RV4409: the logical run's telemetry is native. The seventh comparison experiment measured its resumed run's active and calendar walls, the operator gap between segments, and the 109-wire logical count by external script over the raw journal, and reconciled "16 versus 109" by hand because the two counter families shared a vocabulary. `logicalRunTelemetry` now folds, from the stamps and decisions the journal already carries: `activeMs` (each segment's own append window, summed), `calendarMs` (first to last append), `gapMs` (their difference, the operator time), `perSegment` (status, entries, active wall, and `replayed: true` on a pure-replay segment, so a resumed run's walls read as the original segments' work instead of a 0.0 s rerun), and `logicalWireRequests` (provider-call decisions across the WHOLE journal, the invoice's cardinality). Absent stamps keep the time fields absent: not recorded, never zero. `rulvar inspect` prints the logical run block (both time conventions, per-segment walls, the replayed marker) and the wire count under its own name, with the label spelling out that a segment's adapter fetches are a different, smaller counter by design.
+- 052cc26: RV4410: opt-in coordination checkpoints. With `coordinationCheckpoints: true`, every settled await round appends a compact `coordination_checkpoint` decision (the round ordinal, the settled handles, the spend at the checkpoint), so a timeout or kill terminal shows how far coordination durably got, and a resumed run's journal visibly continues from round N+1 instead of an opaque prefix. The seventh comparison experiment's genesis segment died on a timeout mid-coordination and the post-mortem priced the re-coordination by hand; the checkpoint makes the durable progress a journal fact. An await round the kill interrupted journals NOTHING, honestly: coordination got no farther than the journal says. Opt-in because the decisions are journal bytes; without the flag every journal stays byte identical, and the replay machinery never re-pays journaled coordination either way. `rulvar inspect` prints the last checkpoint (round, settled children, spend) when one exists.
+
+### Patch Changes
+
+- Updated dependencies [8862133]
+- Updated dependencies [0d7a717]
+- Updated dependencies [e4428bd]
+- Updated dependencies [d6873c1]
+- Updated dependencies [4092e8d]
+- Updated dependencies [e086590]
+- Updated dependencies [1411938]
+- Updated dependencies [737d1ee]
+- Updated dependencies [634f966]
+- Updated dependencies [052cc26]
+- Updated dependencies [bbae134]
+  - @rulvar/core@1.249.0
+
 ## 1.248.0
 
 ### Patch Changes
