@@ -806,6 +806,88 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
           : ' (the last settle claims the work is NOT complete)'),
     );
   }
+  // The terminal axes (RV4403): five verdicts that never substitute
+  // for one another, printed side by side wherever the settle
+  // recorded the semantic ones. The seventh comparison experiment
+  // read `acceptance: accepted (completion complete)` over a run
+  // whose DELIVERABLE was rejected for ten unsupported citations:
+  // every word was true and the surface still misled, because the
+  // child roster verdict stood where a run-level acceptance was
+  // expected and the two rejected axes were nowhere on the page.
+  if (
+    settled?.deliverableAccepted !== undefined ||
+    settled?.semanticTerminalVerdict !== undefined
+  ) {
+    const childrenVerdict = (() => {
+      for (let i = entries.length - 1; i >= 0; i -= 1) {
+        const entry = entries[i];
+        if (entry?.kind !== 'decision') {
+          continue;
+        }
+        const decision = entry.value as { decisionType?: unknown; verdict?: unknown } | undefined;
+        if (decision?.decisionType === 'orchestrator_acceptance') {
+          return typeof decision.verdict === 'string' ? decision.verdict : 'unknown';
+        }
+      }
+      return 'not recorded';
+    })();
+    const semantic = settled.semanticTerminalVerdict as { verdict?: unknown } | undefined;
+    context.io.out(
+      'axes: terminal ' +
+        sanitizeTerminalText(settled.runStatus) +
+        ' | execution ' +
+        (settled.completion ?? 'not recorded') +
+        ' | children ' +
+        sanitizeTerminalText(childrenVerdict) +
+        ' | deliverable ' +
+        (settled.deliverableAccepted === undefined
+          ? 'not recorded'
+          : settled.deliverableAccepted
+            ? 'accepted'
+            : 'rejected') +
+        ' | semantic ' +
+        (typeof semantic?.verdict === 'string'
+          ? sanitizeTerminalText(semantic.verdict)
+          : 'not recorded'),
+    );
+    if (settled.deliverableAccepted === false) {
+      context.io.out(
+        '  deliverable: rejected (no accepted artifact stands; a green children verdict does ' +
+          'not overrule this axis)',
+      );
+    }
+    if (semantic !== undefined) {
+      const counts = settled.semanticTerminalVerdict as {
+        contradictions?: unknown;
+        unsupportedCitations?: unknown;
+        partialCitations?: unknown;
+        coverage?: unknown;
+      };
+      const numberOr = (value: unknown): string =>
+        typeof value === 'number' ? String(value) : '?';
+      context.io.out(
+        `  semantic: ${typeof semantic.verdict === 'string' ? sanitizeTerminalText(semantic.verdict) : 'unknown'} ` +
+          `(${numberOr(counts.contradictions)} contradiction(s), ` +
+          `${numberOr(counts.unsupportedCitations)} unsupported / ` +
+          `${numberOr(counts.partialCitations)} partial citation(s)` +
+          (typeof counts.coverage === 'string'
+            ? `; coverage ${sanitizeTerminalText(counts.coverage)}`
+            : '') +
+          ')',
+      );
+    }
+    const audit = settled.citationAuditMeta as
+      | { sampled?: unknown; unsupported?: unknown; supported?: unknown; partial?: unknown }
+      | undefined;
+    if (audit !== undefined && typeof audit.sampled === 'number') {
+      const countOr = (value: unknown): string => (typeof value === 'number' ? String(value) : '?');
+      context.io.out(
+        `  citation audit: ${countOr(audit.supported)} supported, ` +
+          `${countOr(audit.partial)} partial, ${countOr(audit.unsupported)} ` +
+          `unsupported of ${String(audit.sampled)} sampled`,
+      );
+    }
+  }
   // What the children produced, folded from the journal (RV2702). The
   // live field dies with the process that held it, and a post-mortem
   // has only this: for a run that crossed its ceiling mid-roster, these
@@ -955,10 +1037,12 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
       `  unpriced: ${item.model} (${item.usage.inputTokens + item.usage.outputTokens} tok)`,
     );
   }
-  // The acceptance verdict from its journaled decision (RV806):
-  // completion, salvage, and the per-child evidence verdicts. Transport
-  // status alone does not say the work is complete; gate on the
-  // (status, completion) pair.
+  // The child roster verdict from its journaled decision (RV806,
+  // relabeled RV4403): completion, salvage, and the per-child
+  // evidence verdicts. This axis says what the CHILDREN produced; it
+  // never speaks for the deliverable or the semantic verdict, and the
+  // old bare `acceptance:` label plus its "gate on the pair" advice
+  // invited exactly that misreading on the seventh comparison run.
   for (const entry of entries) {
     if (entry.kind !== 'decision') {
       continue;
@@ -985,8 +1069,9 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
       | undefined;
     if (value?.decisionType === 'orchestrator_acceptance') {
       context.io.out(
-        `acceptance: ${value.verdict ?? 'unknown'} (completion ${value.completion ?? 'unknown'}; ` +
-          'gate on the status and completion PAIR)',
+        `children: ${value.verdict ?? 'unknown'} (completion ${value.completion ?? 'unknown'}; ` +
+          'the child roster verdict, one axis of five, never the deliverable or the semantic ' +
+          'verdict)',
       );
       if ((value.salvagedPartialChildren?.length ?? 0) > 0) {
         context.io.out(`  salvaged partial: ${(value.salvagedPartialChildren ?? []).join(', ')}`);

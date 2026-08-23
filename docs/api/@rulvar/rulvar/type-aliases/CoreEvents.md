@@ -36,6 +36,7 @@ type CoreEvents =
      unsettled?: string[];
   };
   childStatusCounts?: Record<string, number>;
+  citationAuditMeta?: Record<string, unknown>;
   claimConsistencyMeta?: Record<string, unknown>;
   completion?: "complete" | "partial" | "rejected";
   degradedReasons?: string[];
@@ -69,6 +70,7 @@ type CoreEvents =
         reason?: string;
      };
   };
+  semanticTerminalVerdict?: Record<string, unknown>;
   settled?: false;
   settledReason?: "superseded";
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
@@ -163,6 +165,7 @@ Run lifecycle and core telemetry (M1 subset).
      unsettled?: string[];
   };
   childStatusCounts?: Record<string, number>;
+  citationAuditMeta?: Record<string, unknown>;
   claimConsistencyMeta?: Record<string, unknown>;
   completion?: "complete" | "partial" | "rejected";
   degradedReasons?: string[];
@@ -196,6 +199,7 @@ Run lifecycle and core telemetry (M1 subset).
         reason?: string;
      };
   };
+  semanticTerminalVerdict?: Record<string, unknown>;
   settled?: false;
   settledReason?: "superseded";
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
@@ -218,6 +222,7 @@ Run lifecycle and core telemetry (M1 subset).
 | `childrenAtFailure.statusCounts` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
 | `childrenAtFailure.unsettled?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `childStatusCounts?` | `Record`\&lt;`string`, `number`\&gt; | Settled child statuses by status name, lifted from the same envelope (or typed error data) when it carries a valid record of nonnegative integers. Absent otherwise. | `packages/core/dist/index.d.ts` |
+| `citationAuditMeta?` | `Record`\&lt;`string`, `unknown`\&gt; | - | `packages/core/dist/index.d.ts` |
 | `claimConsistencyMeta?` | `Record`\&lt;`string`, `unknown`\&gt; | The claim-consistency pass meta, lifted from the same envelope (or typed error data) when it carries a valid object (RV2203); `judgeDeclined` rides here on the failed terminals that used to read null while the journal held the verdict. | `packages/core/dist/index.d.ts` |
 | `completion?` | `"complete"` \| `"partial"` \| `"rejected"` | The semantic completion lift (RV-207 tail): present when the workflow reported semantic completion through the completion envelope contract: an `ok`/`exhausted` run whose result value is an object carrying a valid `completion` literal, or an `error` run whose typed error data carries one (the orchestrator acceptance path emits both). Transport status says whether the run ran; completion says whether the work is COMPLETE: an accepted degraded run is `status: 'ok'` with `completion: 'partial'`. Replay recomputes the same value from the re-executed workflow, so the field is identical live and replayed. Absent when the workflow makes no completion claim. | `packages/core/dist/index.d.ts` |
 | `degradedReasons?` | `string`[] | Per-child degradation notes, lifted from the same envelope (or typed error data) when it carries a valid string array (the fifth experiment, cycle 75). An empty array is the workflow's claim of zero degradation; absence means no claim. The outcome mirror spreads the SAME lift, so the surfaces cannot disagree. | `packages/core/dist/index.d.ts` |
@@ -237,6 +242,7 @@ Run lifecycle and core telemetry (M1 subset).
 | `semanticPasses.synthesis` | \{ `ran`: `boolean`; `reason?`: `string`; \} | - | `packages/core/dist/index.d.ts` |
 | `semanticPasses.synthesis.ran` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `semanticPasses.synthesis.reason?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `semanticTerminalVerdict?` | `Record`\&lt;`string`, `unknown`\&gt; | The one-word semantic verdict (RV4209), the same lift the outcome carries, declared on the event since RV4403 so an event-only consumer reads it typed on failed terminals too. | `packages/core/dist/index.d.ts` |
 | `settled?` | `false` | Present and false ONLY when nothing durable records this terminal: a settlement write failed (the run_settle journal append or the terminal RunMeta projection, RV907), or the segment was superseded (`settledReason` names it, RV1009). The status above is true as computation, but `handle.result` rejects typed instead of resolving (SettlementError or SupersededError), and an event-only consumer must not treat this terminal as green. After a settlement failure, resuming the run re-settles by replay (no provider call) and the settled terminal carries no field, byte for byte like every ordinary run. Never emitted true. | `packages/core/dist/index.d.ts` |
 | `settledReason?` | `"superseded"` | Present only beside `settled: false`, naming WHY the terminal refused green when the reason is not a settlement write fault: 'superseded' means the run_settle append bounced off the store's fence because a successor segment holds the lease and owns settlement (RV1009), and `handle.result` rejects with the typed SupersededError. A settlement WRITE failure keeps its historical shape (`settled: false` with no reason) byte for byte. | `packages/core/dist/index.d.ts` |
 | `status` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | - | `packages/core/dist/index.d.ts` |

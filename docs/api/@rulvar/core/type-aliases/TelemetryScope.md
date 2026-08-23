@@ -10,7 +10,7 @@
 type TelemetryScope = "segment" | "cumulative" | "terminal";
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:249](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L249)
+Defined in: [packages/core/src/stores/reconcile.ts:321](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L321)
 
 Whether a terminal figure counts THIS segment's work or the whole
 logical run (RV2510).

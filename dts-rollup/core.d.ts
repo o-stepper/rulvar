@@ -1787,6 +1787,14 @@ interface TerminalEnvelope {
   */
   claimConsistencyMeta?: Record<string, unknown>;
   /**
+  * The citation audit meta, detached (RV4403): `sampled`,
+  * `supported`, `partial`, `unsupported`, `auditedHash` and the
+  * per-section split, mirrored beside the claim meta so the surface
+  * a consumer gates on carries the audit's own numbers on failed
+  * terminals too. Same posture as `claimConsistencyMeta`.
+  */
+  citationAuditMeta?: Record<string, unknown>;
+  /**
   * The one-word semantic verdict (RV4209), mirrored beside the meta
   * it was folded from: 'clean' | 'findings' | 'partial' | 'vacuous'
   * | 'waived' | 'not-judged' plus the counts and the waiver
@@ -2141,7 +2149,14 @@ type CoreEvents = {
   * `judgeDeclined` rides here on the failed terminals that used to
   * read null while the journal held the verdict.
   */
-  claimConsistencyMeta?: Record<string, unknown>; /** The synthesis-skip marker from the same envelope; same lift (RV2203). */
+  claimConsistencyMeta?: Record<string, unknown>; /** The citation audit meta, same lift and posture as the claim meta (RV4403). */
+  citationAuditMeta?: Record<string, unknown>;
+  /**
+  * The one-word semantic verdict (RV4209), the same lift the
+  * outcome carries, declared on the event since RV4403 so an
+  * event-only consumer reads it typed on failed terminals too.
+  */
+  semanticTerminalVerdict?: Record<string, unknown>; /** The synthesis-skip marker from the same envelope; same lift (RV2203). */
   synthesisSkipped?: boolean | string;
   /**
   * Whether the artifact this terminal carries was accepted by the
@@ -13744,6 +13759,16 @@ type RunOutcome<R> = {
   */
   claimConsistencyMeta?: Record<string, unknown>;
   /**
+  * The citation audit meta (`sampled`, `supported`, `partial`,
+  * `unsupported`, `auditedHash`, the per-section split), lifted from
+  * the same envelope or typed error data as the claim meta beside it
+  * (RV4403). The seventh comparison run failed typed with the audit
+  * meta only inside `error.data`, and no outcome, settle or restart
+  * surface carried the one count the failure was ABOUT. Same lift
+  * and posture as `claimConsistencyMeta`.
+  */
+  citationAuditMeta?: Record<string, unknown>;
+  /**
   * The one-word semantic verdict (RV4209), lifted from the same
   * envelope or typed error data as the meta beside it: 'clean',
   * 'findings', 'partial', 'vacuous', 'waived', or 'not-judged', with
@@ -13914,7 +13939,7 @@ interface RunHandle<R> {
 //#endregion
 //#region src/engine/terminal-envelope.d.ts
 /** The outcome facts the assembler reads; a structural subset of RunOutcome. */
-type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, "status" | "error" | "completion" | "deliverableAccepted" | "resultAvailable" | "acceptedArtifactRef" | "claimConsistencyMeta" | "semanticTerminalVerdict"> & {
+type TerminalOutcomeFacts = Pick<RunOutcome<unknown>, "status" | "error" | "completion" | "deliverableAccepted" | "resultAvailable" | "acceptedArtifactRef" | "claimConsistencyMeta" | "citationAuditMeta" | "semanticTerminalVerdict"> & {
   usage: RunOutcome<unknown>["usage"];
   cost: Pick<RunOutcome<unknown>["cost"], "totalUsd" | "grossUsd" | "byModel"> & {
     usageApprox?: boolean;
@@ -14847,6 +14872,15 @@ declare function lastRunSettle(entries: readonly JournalEntry[]): {
   resultAvailable?: boolean;
   acceptedArtifactRef?: number;
   claimConsistencyMeta?: Record<string, unknown>;
+  /**
+  * The citation audit meta and the one-word semantic verdict the
+  * settle recorded (RV4403), read back the same defensive way:
+  * the seventh comparison run's restart reader could not see the
+  * ten unsupported citations its own failure named. Absence
+  * means NOT RECORDED, never a verdict.
+  */
+  citationAuditMeta?: Record<string, unknown>;
+  semanticTerminalVerdict?: Record<string, unknown>;
 } | undefined;
 /**
 * Whether a terminal figure counts THIS segment's work or the whole

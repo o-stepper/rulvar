@@ -383,7 +383,15 @@ describe('the audit wired into the orchestrator (RV4004)', () => {
         undefined,
       ),
     ).rejects.toMatchObject({
-      data: { source: 'orchestrator_citation_audit' },
+      data: {
+        source: 'orchestrator_citation_audit',
+        // The typed failure is as self-describing as an acceptance
+        // (RV4403): the one-word verdict rides the error data, folded
+        // by the same RV4209 function, so the settle can persist it
+        // and a production gate never answers 'not-judged' about a
+        // failure whose own message counts the findings.
+        semanticTerminalVerdict: { verdict: 'findings', unsupportedCitations: 1 },
+      },
     });
   });
 

@@ -1180,8 +1180,6 @@ function liftRunCompletion(candidate: unknown):
       belowFloorOkChildren?: string[];
       acceptanceChildren?: AcceptanceChildSummary[];
       semanticPasses?: SemanticPassesSummary;
-      claimConsistencyMeta?: Record<string, unknown>;
-      semanticTerminalVerdict?: Record<string, unknown>;
       claimContradictions?: Record<string, unknown>[];
       synthesisSkipped?: boolean | string;
       deliverableAccepted?: boolean;
@@ -1206,8 +1204,6 @@ function liftRunCompletion(candidate: unknown):
     belowFloorOkChildren?: string[];
     acceptanceChildren?: AcceptanceChildSummary[];
     semanticPasses?: SemanticPassesSummary;
-    claimConsistencyMeta?: Record<string, unknown>;
-    semanticTerminalVerdict?: Record<string, unknown>;
     claimContradictions?: Record<string, unknown>[];
     synthesisSkipped?: boolean | string;
     deliverableAccepted?: boolean;
@@ -1331,32 +1327,11 @@ function liftRunCompletion(candidate: unknown):
       };
     }
   }
-  // The judge-pass meta and the synthesis-skip marker (RV2203), same
-  // posture as the roster: the RV2106 mirror run journaled its
-  // declined judge and the error terminal carried claimConsistencyMeta
-  // null, so the only truth lived in the journal. A valid object
-  // mirrors shallowly; anything malformed drops silently.
-  const metaCandidate = (candidate as { claimConsistencyMeta?: unknown }).claimConsistencyMeta;
-  if (
-    typeof metaCandidate === 'object' &&
-    metaCandidate !== null &&
-    !Array.isArray(metaCandidate)
-  ) {
-    lifted.claimConsistencyMeta = { ...(metaCandidate as Record<string, unknown>) };
-  }
-  // The one-word semantic verdict (RV4209), same posture as the meta
-  // beside it: a valid object mirrors shallowly, anything malformed
-  // drops silently, and the CLI's production gate reads it fail
-  // closed either way.
-  const verdictCandidate = (candidate as { semanticTerminalVerdict?: unknown })
-    .semanticTerminalVerdict;
-  if (
-    typeof verdictCandidate === 'object' &&
-    verdictCandidate !== null &&
-    !Array.isArray(verdictCandidate)
-  ) {
-    lifted.semanticTerminalVerdict = { ...(verdictCandidate as Record<string, unknown>) };
-  }
+  // The judge metas and the one-word verdict moved to
+  // liftSemanticFacts (RV4403), the ONE owner: they must ride every
+  // terminal path, completion literal or not, and two lifts carrying
+  // the same fields from the same sources were redundancy no test
+  // could pin.
   // The judged findings beside their meta (RV3601), same posture: the
   // third comparison run failed typed with the contradictions inside
   // error.data only, and the outcome's top level read null next to a
@@ -1449,6 +1424,53 @@ function liftRunCompletion(candidate: unknown):
     }
   }
   return lifted;
+}
+
+/**
+ * The semantic facts lifted on EVERY terminal path (RV4403). The
+ * completion lift above requires a completion literal by contract, so
+ * a run that failed typed WITHOUT one dropped every semantic fact it
+ * carried: the seventh comparison run's error.data held both judge
+ * metas and the failure was ABOUT the audit's ten unsupported
+ * citations, yet no outcome, settle, or restart surface carried them.
+ * Field-level lift from the same candidates in the same order (the
+ * first source carrying a field wins), each field under the exact
+ * posture the completion lift applies, so the two lifts can never
+ * disagree where they overlap.
+ */
+function liftSemanticFacts(...candidates: unknown[]):
+  | {
+      claimConsistencyMeta?: Record<string, unknown>;
+      citationAuditMeta?: Record<string, unknown>;
+      semanticTerminalVerdict?: Record<string, unknown>;
+    }
+  | undefined {
+  const facts: {
+    claimConsistencyMeta?: Record<string, unknown>;
+    citationAuditMeta?: Record<string, unknown>;
+    semanticTerminalVerdict?: Record<string, unknown>;
+  } = {};
+  const record = (value: unknown): Record<string, unknown> | undefined =>
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? { ...(value as Record<string, unknown>) }
+      : undefined;
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
+      continue;
+    }
+    const shaped = candidate as {
+      claimConsistencyMeta?: unknown;
+      citationAuditMeta?: unknown;
+      semanticTerminalVerdict?: unknown;
+    };
+    facts.claimConsistencyMeta ??= record(shaped.claimConsistencyMeta);
+    facts.citationAuditMeta ??= record(shaped.citationAuditMeta);
+    facts.semanticTerminalVerdict ??= record(shaped.semanticTerminalVerdict);
+  }
+  const trimmed = Object.fromEntries(
+    Object.entries(facts).filter(([, value]) => value !== undefined),
+  ) as typeof facts;
+  return Object.keys(trimmed).length === 0 ? undefined : trimmed;
 }
 
 /**
@@ -3008,12 +3030,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
         if (lifted.semanticPasses !== undefined) {
           outcomeFacts.semanticPasses = lifted.semanticPasses;
         }
-        if (lifted.claimConsistencyMeta !== undefined) {
-          outcomeFacts.claimConsistencyMeta = lifted.claimConsistencyMeta;
-        }
-        if (lifted.semanticTerminalVerdict !== undefined) {
-          outcomeFacts.semanticTerminalVerdict = lifted.semanticTerminalVerdict;
-        }
+        // claimConsistencyMeta, citationAuditMeta and the semantic
+        // verdict apply through liftSemanticFacts below (RV4403).
         if (lifted.claimContradictions !== undefined) {
           outcomeFacts.claimContradictions = lifted.claimContradictions;
         }
@@ -3031,6 +3049,37 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         if (lifted.rejectedFinishCandidates !== undefined) {
           outcomeFacts.rejectedFinishCandidates = lifted.rejectedFinishCandidates;
+        }
+      }
+      // The semantic facts settle on EVERY path (RV4403): the
+      // completion lift above requires a completion literal, so a
+      // failing run without one dropped every semantic fact from the
+      // outcome, the settle, and the restart read, exactly the
+      // seventh comparison run's shape. Field-level lift from the
+      // same two sources in the same order; it fills only what the
+      // completion lift left absent, so the two can never disagree.
+      const semanticFacts = liftSemanticFacts(
+        status === 'ok' || status === 'exhausted' ? outcomeFacts.value : undefined,
+        wireError?.data,
+      );
+      if (semanticFacts !== undefined) {
+        if (
+          outcomeFacts.claimConsistencyMeta === undefined &&
+          semanticFacts.claimConsistencyMeta !== undefined
+        ) {
+          outcomeFacts.claimConsistencyMeta = semanticFacts.claimConsistencyMeta;
+        }
+        if (
+          outcomeFacts.citationAuditMeta === undefined &&
+          semanticFacts.citationAuditMeta !== undefined
+        ) {
+          outcomeFacts.citationAuditMeta = semanticFacts.citationAuditMeta;
+        }
+        if (
+          outcomeFacts.semanticTerminalVerdict === undefined &&
+          semanticFacts.semanticTerminalVerdict !== undefined
+        ) {
+          outcomeFacts.semanticTerminalVerdict = semanticFacts.semanticTerminalVerdict;
         }
       }
       // The journaled settle (fenced run state RFC, phase 3): the run's
@@ -3118,6 +3167,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
                 // consumer saw. Additive, the outputHash precedent;
                 // pure replays append no settle, so a replayed lift
                 // never overwrites the live baseline.
+                ...(semanticFacts === undefined ? {} : semanticFacts),
                 ...(lifted === undefined ? {} : lifted),
                 ...(appliedPricing === undefined || options.pricing === undefined
                   ? {}
@@ -3209,6 +3259,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           status,
           totalUsd: outcome.cost.totalUsd,
           ...(outcome.cost.usageApprox === true ? { usageApprox: true } : {}),
+          ...(semanticFacts === undefined ? {} : semanticFacts),
           ...(lifted === undefined ? {} : lifted),
           // The same object the outcome carries (RV2602), so the event
           // and handle.result can never disagree about the roster.

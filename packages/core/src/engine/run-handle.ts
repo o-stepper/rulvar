@@ -321,6 +321,16 @@ export type RunOutcome<R> = {
    */
   claimConsistencyMeta?: Record<string, unknown>;
   /**
+   * The citation audit meta (`sampled`, `supported`, `partial`,
+   * `unsupported`, `auditedHash`, the per-section split), lifted from
+   * the same envelope or typed error data as the claim meta beside it
+   * (RV4403). The seventh comparison run failed typed with the audit
+   * meta only inside `error.data`, and no outcome, settle or restart
+   * surface carried the one count the failure was ABOUT. Same lift
+   * and posture as `claimConsistencyMeta`.
+   */
+  citationAuditMeta?: Record<string, unknown>;
+  /**
    * The one-word semantic verdict (RV4209), lifted from the same
    * envelope or typed error data as the meta beside it: 'clean',
    * 'findings', 'partial', 'vacuous', 'waived', or 'not-judged', with

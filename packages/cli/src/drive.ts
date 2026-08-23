@@ -574,8 +574,14 @@ export function acceptancePolicyExitCode(
   if (strict !== 0) {
     return refuse('strict: a mechanical acceptance check refused (see the lines above)');
   }
-  const verdict = (outcome.value as { semanticTerminalVerdict?: unknown } | null | undefined)
-    ?.semanticTerminalVerdict as SemanticTerminalVerdict | undefined;
+  // The outcome's own typed field first (RV4403): a run that failed
+  // typed carries the verdict on the outcome even though its value is
+  // absent; the seventh comparison run's production gate answered
+  // 'not-judged' about a failure whose own message counted ten
+  // unsupported citations, because this read knew only the value path.
+  const verdict = ((outcome.semanticTerminalVerdict as SemanticTerminalVerdict | undefined) ??
+    (outcome.value as { semanticTerminalVerdict?: unknown } | null | undefined)
+      ?.semanticTerminalVerdict) as SemanticTerminalVerdict | undefined;
   const acceptable = productionAcceptable(verdict);
   if (!acceptable.ok) {
     return refuse(acceptable.reason ?? 'refused', verdict);

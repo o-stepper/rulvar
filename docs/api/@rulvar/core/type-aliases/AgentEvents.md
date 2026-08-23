@@ -104,7 +104,7 @@ type AgentEvents =
 };
 ```
 
-Defined in: [packages/core/src/l0/events.ts:319](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L319)
+Defined in: [packages/core/src/l0/events.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L327)
 
 Agent lifecycle. One logical agent dispatch emits EXACTLY ONE
 `agent:start`/`agent:end` pair on its span (the start carries the
@@ -161,12 +161,12 @@ vocabulary.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:324](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L324) |
-| `invocation` | `number` | 1-based activation ordinal within the span, unique per activation (a summarize that fires three times gets three pairs). Key phases by (spanId, invocation). | [packages/core/src/l0/events.ts:335](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L335) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L325) |
-| `model` | `string` | The model the activation resolved to (fallbacks may serve another; the end event reports the server). | [packages/core/src/l0/events.ts:329](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L329) |
-| `role` | `string` | The invocation role this phase activation runs as. | [packages/core/src/l0/events.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L327) |
-| `type` | `"agent:phase:start"` | - | [packages/core/src/l0/events.ts:323](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L323) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L332) |
+| `invocation` | `number` | 1-based activation ordinal within the span, unique per activation (a summarize that fires three times gets three pairs). Key phases by (spanId, invocation). | [packages/core/src/l0/events.ts:343](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L343) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L333) |
+| `model` | `string` | The model the activation resolved to (fallbacks may serve another; the end event reports the server). | [packages/core/src/l0/events.ts:337](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L337) |
+| `role` | `string` | The invocation role this phase activation runs as. | [packages/core/src/l0/events.ts:335](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L335) |
+| `type` | `"agent:phase:start"` | - | [packages/core/src/l0/events.ts:331](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L331) |
 
 ***
 
@@ -191,18 +191,18 @@ vocabulary.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L339) |
-| `costBasis?` | [`CostBasis`](/api/@rulvar/core/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702). Live phase deltas are always per-call (every slice a live activation adds is backed by a recorded provider call); a replayed pair says 'aggregate-estimate' exactly when its model's records do not cover its usage. Absent on streams recorded before RV702, which priced the aggregate. | [packages/core/src/l0/events.ts:362](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L362) |
-| `costUsd` | `number` | That usage priced at each serving model's own rate. | [packages/core/src/l0/events.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L354) |
-| `durationMs` | `number` | Wall-clock activation duration. Live telemetry only: replayed phase pairs (reconstructed from the terminal entry's usage slices) carry 0. | [packages/core/src/l0/events.ts:350](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L350) |
-| `invocation` | `number` | - | [packages/core/src/l0/events.ts:344](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L344) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L340) |
-| `model` | `string` | The model that actually served the activation's last attempt. | [packages/core/src/l0/events.ts:343](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L343) |
-| `outcome` | `"ok"` \| `"error"` | - | [packages/core/src/l0/events.ts:363](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L363) |
-| `retries?` | `number` | Transport retries inside this activation. Present only when greater than zero; live telemetry only (absent on replay). | [packages/core/src/l0/events.ts:368](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L368) |
-| `role` | `string` | - | [packages/core/src/l0/events.ts:341](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L341) |
-| `type` | `"agent:phase:end"` | - | [packages/core/src/l0/events.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L338) |
-| `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | The usage this activation added to its (role, model) slices. | [packages/core/src/l0/events.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L352) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L347) |
+| `costBasis?` | [`CostBasis`](/api/@rulvar/core/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702). Live phase deltas are always per-call (every slice a live activation adds is backed by a recorded provider call); a replayed pair says 'aggregate-estimate' exactly when its model's records do not cover its usage. Absent on streams recorded before RV702, which priced the aggregate. | [packages/core/src/l0/events.ts:370](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L370) |
+| `costUsd` | `number` | That usage priced at each serving model's own rate. | [packages/core/src/l0/events.ts:362](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L362) |
+| `durationMs` | `number` | Wall-clock activation duration. Live telemetry only: replayed phase pairs (reconstructed from the terminal entry's usage slices) carry 0. | [packages/core/src/l0/events.ts:358](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L358) |
+| `invocation` | `number` | - | [packages/core/src/l0/events.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L352) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L348) |
+| `model` | `string` | The model that actually served the activation's last attempt. | [packages/core/src/l0/events.ts:351](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L351) |
+| `outcome` | `"ok"` \| `"error"` | - | [packages/core/src/l0/events.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L371) |
+| `retries?` | `number` | Transport retries inside this activation. Present only when greater than zero; live telemetry only (absent on replay). | [packages/core/src/l0/events.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L376) |
+| `role` | `string` | - | [packages/core/src/l0/events.ts:349](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L349) |
+| `type` | `"agent:phase:end"` | - | [packages/core/src/l0/events.ts:346](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L346) |
+| `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | The usage this activation added to its (role, model) slices. | [packages/core/src/l0/events.ts:360](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L360) |
 
 ***
 
@@ -228,19 +228,19 @@ vocabulary.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:372](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L372) |
-| `costBasis?` | [`CostBasis`](/api/@rulvar/core/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702): 'per-call' when every usage slice of the invocation (restored included) is covered by per-request records priced individually, the settled fold's own basis; 'aggregate-estimate' when it is not (the aggregate number is kept so restored spend is never silently dropped, and labeled so it is never mistaken for the per-request fold). Absent on streams recorded before RV702, which priced the aggregate. | [packages/core/src/l0/events.ts:386](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L386) |
-| `costUsd` | `number` | - | [packages/core/src/l0/events.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L376) |
-| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:387](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L387) |
-| `exploration?` | [`ExplorationSummary`](/api/@rulvar/core/interfaces/ExplorationSummary.md) | The exploration guard counters (RV-210). Present live whenever any exploration guard limit was configured for the invocation; on replay present only when the guard abort journaled it in the terminal error payload. | [packages/core/src/l0/events.ts:418](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L418) |
-| `hostRejected?` | `boolean` | Present and true when the invocation was aborted by the host's finish rejection (RV3702): the declared finish contract rejected the candidate past its repair bound. Journaled on the terminal agent entry (unlike retryCount), so a replayed agent:end carries it too and both surfaces of the RV3404 cut read the same count. | [packages/core/src/l0/events.ts:411](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L411) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:373](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L373) |
-| `retryCount?` | `number` | Total transport retries across the span's activations. Present only when greater than zero; live telemetry only, never journaled, so a replayed agent:end omits it (absent means "zero or unknown"). | [packages/core/src/l0/events.ts:402](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L402) |
-| `status` | `string` | - | [packages/core/src/l0/events.ts:374](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L374) |
-| `toolBudget?` | [`ToolBudgetSummary`](/api/@rulvar/core/interfaces/ToolBudgetSummary.md) | The tool budget pressure snapshot (RV304). Present live whenever a tool budget limiter or the extension was configured; live telemetry only, absent on replay. | [packages/core/src/l0/events.ts:424](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L424) |
-| `type` | `"agent:end"` | - | [packages/core/src/l0/events.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L371) |
-| `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | - | [packages/core/src/l0/events.ts:375](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L375) |
-| `usageApprox?` | `boolean` | Present and true when this agent's usage is approximate rather than reported by the provider (the turn was cut by a transport failure, a ceiling that severed the stream, or an abort). Absent means the provider reported the usage exactly. Mirrors the terminal journal entry's usageApprox. | [packages/core/src/l0/events.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L395) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:380](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L380) |
+| `costBasis?` | [`CostBasis`](/api/@rulvar/core/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702): 'per-call' when every usage slice of the invocation (restored included) is covered by per-request records priced individually, the settled fold's own basis; 'aggregate-estimate' when it is not (the aggregate number is kept so restored spend is never silently dropped, and labeled so it is never mistaken for the per-request fold). Absent on streams recorded before RV702, which priced the aggregate. | [packages/core/src/l0/events.ts:394](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L394) |
+| `costUsd` | `number` | - | [packages/core/src/l0/events.ts:384](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L384) |
+| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L395) |
+| `exploration?` | [`ExplorationSummary`](/api/@rulvar/core/interfaces/ExplorationSummary.md) | The exploration guard counters (RV-210). Present live whenever any exploration guard limit was configured for the invocation; on replay present only when the guard abort journaled it in the terminal error payload. | [packages/core/src/l0/events.ts:426](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L426) |
+| `hostRejected?` | `boolean` | Present and true when the invocation was aborted by the host's finish rejection (RV3702): the declared finish contract rejected the candidate past its repair bound. Journaled on the terminal agent entry (unlike retryCount), so a replayed agent:end carries it too and both surfaces of the RV3404 cut read the same count. | [packages/core/src/l0/events.ts:419](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L419) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:381](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L381) |
+| `retryCount?` | `number` | Total transport retries across the span's activations. Present only when greater than zero; live telemetry only, never journaled, so a replayed agent:end omits it (absent means "zero or unknown"). | [packages/core/src/l0/events.ts:410](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L410) |
+| `status` | `string` | - | [packages/core/src/l0/events.ts:382](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L382) |
+| `toolBudget?` | [`ToolBudgetSummary`](/api/@rulvar/core/interfaces/ToolBudgetSummary.md) | The tool budget pressure snapshot (RV304). Present live whenever a tool budget limiter or the extension was configured; live telemetry only, absent on replay. | [packages/core/src/l0/events.ts:432](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L432) |
+| `type` | `"agent:end"` | - | [packages/core/src/l0/events.ts:379](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L379) |
+| `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | - | [packages/core/src/l0/events.ts:383](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L383) |
+| `usageApprox?` | `boolean` | Present and true when this agent's usage is approximate rather than reported by the provider (the turn was cut by a transport failure, a ceiling that severed the stream, or an abort). Absent means the provider reported the usage exactly. Mirrors the terminal journal entry's usageApprox. | [packages/core/src/l0/events.ts:403](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L403) |
 
 ***
 
@@ -284,13 +284,13 @@ restores the legacy twin for consumers keyed to the old type.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:440](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L440) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:441](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L441) |
-| `model?` | `string` | The denied model ref. | [packages/core/src/l0/events.ts:443](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L443) |
-| `reason?` | `string` | The limiter's reason ('tokensPerMinute 1800000 exhausted'). | [packages/core/src/l0/events.ts:445](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L445) |
-| `retryAfterMs?` | `number` | - | [packages/core/src/l0/events.ts:446](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L446) |
-| `type` | `"quota:denied"` | - | [packages/core/src/l0/events.ts:439](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L439) |
-| `willRetry` | `true` | - | [packages/core/src/l0/events.ts:447](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L447) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:448](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L448) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:449](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L449) |
+| `model?` | `string` | The denied model ref. | [packages/core/src/l0/events.ts:451](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L451) |
+| `reason?` | `string` | The limiter's reason ('tokensPerMinute 1800000 exhausted'). | [packages/core/src/l0/events.ts:453](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L453) |
+| `retryAfterMs?` | `number` | - | [packages/core/src/l0/events.ts:454](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L454) |
+| `type` | `"quota:denied"` | - | [packages/core/src/l0/events.ts:447](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L447) |
+| `willRetry` | `true` | - | [packages/core/src/l0/events.ts:455](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L455) |
 
 ***
 
@@ -330,16 +330,16 @@ documented settle-as-budget-error behavior.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:469](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L469) |
-| `capUsd?` | `number` | The refusal arithmetic, verbatim from the typed refusal. | [packages/core/src/l0/events.ts:476](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L476) |
-| `estimateUsd?` | `number` | - | [packages/core/src/l0/events.ts:479](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L479) |
-| `inFlightUsd?` | `number` | - | [packages/core/src/l0/events.ts:478](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L478) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:470](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L470) |
-| `model?` | `string` | The refused model ref. | [packages/core/src/l0/events.ts:474](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L474) |
-| `scope?` | `"root"` \| `"child"` | The waiting party: the orchestrate root or a spawned child. | [packages/core/src/l0/events.ts:472](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L472) |
-| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:477](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L477) |
-| `type` | `"budget:exposure-wait"` | - | [packages/core/src/l0/events.ts:468](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L468) |
-| `willWait` | `boolean` | - | [packages/core/src/l0/events.ts:480](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L480) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:477](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L477) |
+| `capUsd?` | `number` | The refusal arithmetic, verbatim from the typed refusal. | [packages/core/src/l0/events.ts:484](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L484) |
+| `estimateUsd?` | `number` | - | [packages/core/src/l0/events.ts:487](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L487) |
+| `inFlightUsd?` | `number` | - | [packages/core/src/l0/events.ts:486](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L486) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:478](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L478) |
+| `model?` | `string` | The refused model ref. | [packages/core/src/l0/events.ts:482](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L482) |
+| `scope?` | `"root"` \| `"child"` | The waiting party: the orchestrate root or a spawned child. | [packages/core/src/l0/events.ts:480](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L480) |
+| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:485](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L485) |
+| `type` | `"budget:exposure-wait"` | - | [packages/core/src/l0/events.ts:476](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L476) |
+| `willWait` | `boolean` | - | [packages/core/src/l0/events.ts:488](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L488) |
 
 ***
 

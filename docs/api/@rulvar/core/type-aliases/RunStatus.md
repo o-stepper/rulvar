@@ -12,6 +12,6 @@ type RunStatus =
   | "running";
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:466](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L466)
+Defined in: [packages/core/src/engine/run-handle.ts:476](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L476)
 
 Adds 'running' for in-flight inspection.

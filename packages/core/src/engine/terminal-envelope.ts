@@ -39,6 +39,7 @@ export type TerminalOutcomeFacts = Pick<
   | 'resultAvailable'
   | 'acceptedArtifactRef'
   | 'claimConsistencyMeta'
+  | 'citationAuditMeta'
   | 'semanticTerminalVerdict'
 > & {
   usage: RunOutcome<unknown>['usage'];
@@ -130,6 +131,10 @@ export function terminalEnvelopeOf(input: {
   }
   if (outcome.claimConsistencyMeta !== undefined) {
     envelope.claimConsistencyMeta = detachedMeta(outcome.claimConsistencyMeta);
+  }
+  // The audit meta beside the claim meta (RV4403), same posture.
+  if (outcome.citationAuditMeta !== undefined) {
+    envelope.citationAuditMeta = detachedMeta(outcome.citationAuditMeta);
   }
   // The one-word verdict rides beside the meta it was folded from
   // (RV4209), the same detached posture.
