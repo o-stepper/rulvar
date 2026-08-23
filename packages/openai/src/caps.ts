@@ -68,7 +68,12 @@ const GPT_56_TIERS = [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMul
  * price cut on Terra (0.8x across input, cached input, cache write,
  * and output) and Luna (0.2x across the same four) that the
  * thirteenth-experiment live audit caught as drift (RV911). Sol's
- * rates are unchanged and additionally remain billing-CONFIRMED by the
+ * row was re-verified '2026-08-23': the fresh-classification dispatch
+ * of the plan-44 release caught the provider's Sol price cut on the
+ * documented page (input 5 to 4, output 30 to 20, cache read 0.5 to
+ * 0.4, cache write 6.25 to 5), and the correction ships as this
+ * release's own changeset per the audit's doctrine. Sol's PREVIOUS
+ * rates additionally remain billing-CONFIRMED by the
  * 2026-07-30 twelfth-experiment statement reconciliation, which
  * matched all eight per-model per-component dashboard categories to
  * the cent; the new Terra and Luna rates are docs-verified only, and
@@ -88,12 +93,12 @@ const GPT_56_SOL: OpenAiModelInfo = responses(
   1_050_000,
   128_000,
   {
-    inputUsdPerMTok: 5,
-    outputUsdPerMTok: 30,
-    cacheReadUsdPerMTok: 0.5,
-    cacheWriteUsdPerMTok: 6.25,
+    inputUsdPerMTok: 4,
+    outputUsdPerMTok: 20,
+    cacheReadUsdPerMTok: 0.4,
+    cacheWriteUsdPerMTok: 5,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-08-23',
   },
   { wireMaxEffort: true },
 );
@@ -196,7 +201,13 @@ export const OPENAI_PRICING: PriceTable = {
   // drift explicitly instead of silently reinterpreting past spend;
   // runs recorded before this release overstated Terra/Luna spend
   // relative to the cut, never under.
-  pricingVersion: 'openai-2026-07-31',
+  // The 2026-08-23 revision carries the provider's Sol price cut the
+  // plan-44 fresh-classification dispatch caught on the documented
+  // page (input 4, output 20, cache read 0.4, cache write 5). Runs
+  // recorded before this release overstated Sol spend relative to
+  // the cut, never under; the distinct version string surfaces the
+  // drift on resume instead of silently reinterpreting past spend.
+  pricingVersion: 'openai-2026-08-23',
   models: ((): Record<ModelRef, Pricing> => {
     const models: Record<ModelRef, Pricing> = {};
     for (const [name, info] of Object.entries(OPENAI_MODELS)) {
