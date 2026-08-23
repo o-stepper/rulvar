@@ -2536,6 +2536,91 @@ describe('inspect acceptance and quota rendering (RV806)', () => {
     );
   });
 
+  it('one command reports the logical run: segments, both time conventions, the wires (RV4409)', async () => {
+    // The seventh comparison experiment reconstructed exactly this by
+    // external script: a genesis segment dying on a timeout, an
+    // operator gap, a resume segment, 151 entries, 109 wires.
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-logical-'));
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), 'export default { workflows: {} };\n', 'utf8');
+    const storeDir = join(cwd, '.rulvar');
+    mkdirSync(storeDir, { recursive: true });
+    const entryBase = {
+      hashVersion: 2,
+      spanId: 's0',
+      scope: '',
+      ordinal: 0,
+      status: 'ok',
+    };
+    const stamp = (offsetSeconds: number): string =>
+      new Date(Date.parse('2026-08-21T20:00:00.000Z') + offsetSeconds * 1000).toISOString();
+    const entries: unknown[] = [];
+    let seq = 0;
+    // Segment 1: 96 entries over 2100 s of active wall, 70 wires.
+    for (let i = 0; i < 95; i += 1) {
+      const isWire = i < 70;
+      entries.push({
+        ...entryBase,
+        seq: (seq += 1),
+        key: `w1-${String(i)}`,
+        kind: isWire ? 'decision' : 'fact',
+        startedAt: stamp((i * 2100) / 94),
+        value: isWire ? { decisionType: 'provider-call', record: {} } : {},
+      });
+    }
+    entries.push({
+      ...entryBase,
+      seq: (seq += 1),
+      key: 'settle-1',
+      kind: 'decision',
+      startedAt: stamp(2100),
+      value: { decisionType: 'run_settle', runStatus: 'exhausted', segment: 1 },
+    });
+    // The operator gap: 334 s. Segment 2: 55 entries over 197 s, 39 wires.
+    for (let i = 0; i < 54; i += 1) {
+      const isWire = i < 39;
+      entries.push({
+        ...entryBase,
+        seq: (seq += 1),
+        key: `w2-${String(i)}`,
+        kind: isWire ? 'decision' : 'fact',
+        startedAt: stamp(2434 + (i * 197) / 53),
+        value: isWire ? { decisionType: 'provider-call', record: {} } : {},
+      });
+    }
+    entries.push({
+      ...entryBase,
+      seq: (seq += 1),
+      key: 'settle-2',
+      kind: 'decision',
+      startedAt: stamp(2631),
+      value: { decisionType: 'run_settle', runStatus: 'ok', segment: 2 },
+    });
+    expect(entries).toHaveLength(151);
+    writeFileSync(
+      join(storeDir, 'LOGICAL1.jsonl'),
+      entries.map((entry) => JSON.stringify(entry)).join('\n') + '\n',
+      'utf8',
+    );
+    writeFileSync(
+      join(storeDir, 'LOGICAL1.meta.json'),
+      JSON.stringify({
+        runId: 'LOGICAL1',
+        status: 'ok',
+        updatedAt: '2026-08-21T21:00:00.000Z',
+        workflowName: 'aster',
+      }),
+      'utf8',
+    );
+    const io = scriptedIo();
+    expect(await runCli(['inspect', 'LOGICAL1', '--store', storeDir], { cwd, io })).toBe(0);
+    const text = io.outLines.join('\n');
+    expect(text).toContain('segments: 2 (exhausted after 96, ok after 55)');
+    expect(text).toContain('logical run: active 2297.0 s, calendar 2631.0 s, operator gap 334.0 s');
+    expect(text).toContain('segment 1: exhausted after 96 entries; active 2100.0 s');
+    expect(text).toContain('segment 2: ok after 55 entries; active 197.0 s');
+    expect(text).toContain('logical wires: 109 provider calls across the whole run');
+  });
+
   it("prints the five terminal axes side by side over the seventh run's shape (RV4403)", async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-axes-'));
     writeFileSync(join(cwd, 'rulvar.config.mjs'), 'export default { workflows: {} };\n', 'utf8');

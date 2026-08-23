@@ -336,6 +336,67 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
     expect(total.entriesAfterLastSettle).toBe(2);
   });
 
+  it('folds the two time conventions, the wires and the replayed marker (RV4409)', () => {
+    const at = (seq: number, iso: string): JournalEntry =>
+      ({
+        seq,
+        kind: 'fact',
+        scope: '',
+        status: 'ok',
+        site: 'x',
+        startedAt: iso,
+        value: {},
+      }) as unknown as JournalEntry;
+    const wire = (seq: number, iso: string): JournalEntry =>
+      ({
+        seq,
+        kind: 'decision',
+        scope: '',
+        status: 'ok',
+        site: 'wire',
+        startedAt: iso,
+        value: { decisionType: 'provider-call', record: {} },
+      }) as unknown as JournalEntry;
+    const settleAt = (seq: number, runStatus: string, iso: string): JournalEntry =>
+      ({
+        seq,
+        kind: 'decision',
+        scope: '',
+        status: 'ok',
+        site: 'run-settle',
+        startedAt: iso,
+        value: { decisionType: 'run_settle', runStatus, segment: seq },
+      }) as unknown as JournalEntry;
+    const total = logicalRunTelemetry([
+      at(1, '2026-08-22T10:00:00.000Z'),
+      wire(2, '2026-08-22T10:00:10.000Z'),
+      settleAt(3, 'exhausted', '2026-08-22T10:00:30.000Z'),
+      // The operator gap: the resume starts five minutes later.
+      wire(4, '2026-08-22T10:05:30.000Z'),
+      settleAt(5, 'ok', '2026-08-22T10:05:40.000Z'),
+      // A pure-replay third segment: nothing but its settle.
+      settleAt(6, 'ok', '2026-08-22T10:05:41.000Z'),
+    ]);
+    expect(total.segments).toBe(3);
+    // Active sums each segment's own append window: 30 s + 10 s + 0 s.
+    expect(total.activeMs).toBe(40_000);
+    // Calendar spans the whole journal: 341 s.
+    expect(total.calendarMs).toBe(341_000);
+    expect(total.gapMs).toBe(301_000);
+    expect(total.logicalWireRequests).toBe(2);
+    expect(total.perSegment).toEqual([
+      { status: 'exhausted', entries: 3, activeMs: 30_000 },
+      { status: 'ok', entries: 2, activeMs: 10_000 },
+      { status: 'ok', entries: 1, activeMs: 0, replayed: true },
+    ]);
+    // A journal with no stamps keeps the time fields ABSENT: not
+    // recorded, never zero.
+    const bare = logicalRunTelemetry([work(1), settle(2, 'ok')]);
+    expect(bare.activeMs).toBeUndefined();
+    expect(bare.calendarMs).toBeUndefined();
+    expect(bare.logicalWireRequests).toBe(0);
+  });
+
   it('deliberately carries no cumulative figure: summing those double counts', () => {
     const total = logicalRunTelemetry([work(1), settle(2, 'ok')]);
     // Money and usage fold from the whole journal already; a per-segment
