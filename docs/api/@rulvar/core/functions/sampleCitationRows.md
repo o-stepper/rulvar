@@ -13,7 +13,7 @@ function sampleCitationRows(
    seed): Omit<CitationAuditRow, "excerpt">[];
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L263)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L291)
 
 The deterministic stratified sample (RV4004): per H2 section, up to
 `samplePerSection` citing sentences, selected by a hash chain seeded
@@ -30,7 +30,8 @@ of auditing the first sections only.
 | Parameter | Type |
 | ------ | ------ |
 | `document` | `string` |
-| `plan` | \{ `maxSampled`: `number`; `pattern`: `string`; `resolver?`: `1` \| `2`; `samplePerSection`: `number`; \} |
+| `plan` | \{ `auditScope?`: `"sample"` \| `"all"`; `maxSampled`: `number`; `pattern`: `string`; `resolver?`: `1` \| `2`; `samplePerSection`: `number`; \} |
+| `plan.auditScope?` | `"sample"` \| `"all"` |
 | `plan.maxSampled` | `number` |
 | `plan.pattern` | `string` |
 | `plan.resolver?` | `1` \| `2` |

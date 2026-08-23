@@ -135,6 +135,19 @@ export interface CitationAuditPlanOptions {
    * declared config must choose it.
    */
   resolver?: 1 | 2;
+  /**
+   * What the audit judges (RV4407): 'sample' (the default) keeps the
+   * deterministic stratified sample above byte for byte; 'all'
+   * judges EVERY anchor row of the document, no per-section pick and
+   * no `maxSampled` ceiling, so the verdict is a census instead of a
+   * sample. Requires resolver 2 (the census enumerates every anchor
+   * of every citing sentence, which is v2's row semantics), and one
+   * judge invocation still carries all rows: the cost scales through
+   * the prompt, so size `judge.estCost` for the whole document.
+   * The seventh comparison experiment's improvement plan asked for
+   * exactly this census for regulated classes.
+   */
+  auditScope?: 'sample' | 'all';
 }
 
 export const DEFAULT_CITATION_SAMPLE_PER_SECTION = 2;
@@ -169,11 +182,26 @@ export function resolveCitationAuditPlan(options: CitationAuditPlanOptions): {
   maxSampled: number;
   window: number;
   resolver: 1 | 2;
+  auditScope: 'sample' | 'all';
 } {
   const resolver = options.resolver ?? 1;
   if (resolver !== 1 && resolver !== 2) {
     throw new ConfigError(
       `citationAudit.resolver must be 1 or 2; got ${JSON.stringify(options.resolver)}`,
+    );
+  }
+  const auditScope = options.auditScope ?? 'sample';
+  if (auditScope !== 'sample' && auditScope !== 'all') {
+    throw new ConfigError(
+      `citationAudit.auditScope must be 'sample' or 'all'; got ${JSON.stringify(
+        options.auditScope,
+      )}`,
+    );
+  }
+  if (auditScope === 'all' && resolver !== 2) {
+    throw new ConfigError(
+      "citationAudit.auditScope 'all' requires resolver 2: the census enumerates every anchor " +
+        'of every citing sentence, which is the v2 row semantics; declare resolver: 2',
     );
   }
   const samplePerSection = options.samplePerSection ?? DEFAULT_CITATION_SAMPLE_PER_SECTION;
@@ -213,7 +241,7 @@ export function resolveCitationAuditPlan(options: CitationAuditPlanOptions): {
         'anchoring it',
     );
   }
-  return { pattern, samplePerSection, maxSampled, window, resolver };
+  return { pattern, samplePerSection, maxSampled, window, resolver, auditScope };
 }
 
 /** Splits a document into (section marker, body) runs in order. */
@@ -262,10 +290,20 @@ function pickIndexes(count: number, k: number, seedInput: string): number[] {
  */
 export function sampleCitationRows(
   document: string,
-  plan: { pattern: string; samplePerSection: number; maxSampled: number; resolver?: 1 | 2 },
+  plan: {
+    pattern: string;
+    samplePerSection: number;
+    maxSampled: number;
+    resolver?: 1 | 2;
+    auditScope?: 'sample' | 'all';
+  },
   seed: string,
 ): Omit<CitationAuditRow, 'excerpt'>[] {
   const allAnchors = plan.resolver === 2;
+  // The census (RV4407): every citing sentence of every section is a
+  // pick, no seeded selection and no row ceiling, so the judge rules
+  // on the document instead of a sample. Intake guarantees resolver 2.
+  const census = plan.auditScope === 'all';
   interface AnchorCandidate {
     sentence: string;
     anchor: string;
@@ -324,16 +362,21 @@ export function sampleCitationRows(
     if (candidates.length === 0) {
       continue;
     }
-    const picks = pickIndexes(candidates.length, plan.samplePerSection, `${seed}:${marker}`)
-      .map((index) => candidates[index])
-      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== undefined);
+    const picks = census
+      ? candidates
+      : pickIndexes(candidates.length, plan.samplePerSection, `${seed}:${marker}`)
+          .map((index) => candidates[index])
+          .filter(
+            (candidate): candidate is NonNullable<typeof candidate> => candidate !== undefined,
+          );
     perSection.push({ section: marker, picks });
   }
   // Cap by pick rank across sections: round-robin, document order. A
   // v2 pick expands into its anchor rows in sentence order, under the
   // same hard row ceiling.
+  const rowCeiling = census ? Number.MAX_SAFE_INTEGER : plan.maxSampled;
   const rows: Omit<CitationAuditRow, 'excerpt'>[] = [];
-  for (let rank = 0; rows.length < plan.maxSampled; rank += 1) {
+  for (let rank = 0; rows.length < rowCeiling; rank += 1) {
     let any = false;
     for (const bucket of perSection) {
       const pick = bucket.picks[rank];
@@ -342,7 +385,7 @@ export function sampleCitationRows(
       }
       any = true;
       for (const anchor of pick) {
-        if (rows.length >= plan.maxSampled) {
+        if (rows.length >= rowCeiling) {
           break;
         }
         rows.push({ row: rows.length, section: bucket.section, ...anchor });

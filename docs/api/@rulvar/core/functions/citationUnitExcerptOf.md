@@ -15,7 +15,7 @@ function citationUnitExcerptOf(resolve, row):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:474](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L474)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:517](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L517)
 
 Resolver v2's excerpt: the bounded LOGICAL UNIT the cited line
 belongs to (RV4208), through the same pure line resolver v1 reads.

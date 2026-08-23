@@ -23,6 +23,7 @@ not provenance.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-auditscope"></a> `auditScope?` | `"sample"` \| `"all"` | What the audit judges (RV4407): 'sample' (default) keeps the deterministic stratified sample byte for byte; 'all' judges EVERY anchor row of the document, a census instead of a sample. Requires resolver 2; one judge invocation still carries all rows, so the cost scales through the prompt and `judge.estCost` should be sized for the whole document. | `packages/core/dist/index.d.ts` |
 | <a id="property-judge"></a> `judge?` | \{ `effort?`: [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md); `estCost?`: `number`; `limits?`: [`UsageLimits`](/api/@rulvar/rulvar/interfaces/UsageLimits.md); `model?`: [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md); \} | The judge invocation's knobs, exactly the claim judge's shape. | `packages/core/dist/index.d.ts` |
 | `judge.effort?` | [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md) | - | `packages/core/dist/index.d.ts` |
 | `judge.estCost?` | `number` | - | `packages/core/dist/index.d.ts` |

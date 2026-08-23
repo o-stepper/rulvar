@@ -11887,6 +11887,15 @@ interface OrchestrateCitationAudit {
   * v2 changes which rows exist and what the judge reads.
   */
   resolver?: 1 | 2;
+  /**
+  * What the audit judges (RV4407): 'sample' (default) keeps the
+  * deterministic stratified sample byte for byte; 'all' judges
+  * EVERY anchor row of the document, a census instead of a sample.
+  * Requires resolver 2; one judge invocation still carries all
+  * rows, so the cost scales through the prompt and `judge.estCost`
+  * should be sized for the whole document.
+  */
+  auditScope?: "sample" | "all";
   /** The judge invocation's knobs, exactly the claim judge's shape. */
   judge?: {
     model?: ModelSpec;
@@ -17716,6 +17725,19 @@ interface CitationAuditPlanOptions {
   * declared config must choose it.
   */
   resolver?: 1 | 2;
+  /**
+  * What the audit judges (RV4407): 'sample' (the default) keeps the
+  * deterministic stratified sample above byte for byte; 'all'
+  * judges EVERY anchor row of the document, no per-section pick and
+  * no `maxSampled` ceiling, so the verdict is a census instead of a
+  * sample. Requires resolver 2 (the census enumerates every anchor
+  * of every citing sentence, which is v2's row semantics), and one
+  * judge invocation still carries all rows: the cost scales through
+  * the prompt, so size `judge.estCost` for the whole document.
+  * The seventh comparison experiment's improvement plan asked for
+  * exactly this census for regulated classes.
+  */
+  auditScope?: "sample" | "all";
 }
 declare const DEFAULT_CITATION_SAMPLE_PER_SECTION = 2;
 declare const DEFAULT_CITATION_MAX_SAMPLED = 24;
@@ -17743,6 +17765,7 @@ declare function resolveCitationAuditPlan(options: CitationAuditPlanOptions): {
   maxSampled: number;
   window: number;
   resolver: 1 | 2;
+  auditScope: "sample" | "all";
 };
 /**
 * The deterministic stratified sample (RV4004): per H2 section, up to
@@ -17760,6 +17783,7 @@ declare function sampleCitationRows(document: string, plan: {
   samplePerSection: number;
   maxSampled: number;
   resolver?: 1 | 2;
+  auditScope?: "sample" | "all";
 }, seed: string): Omit<CitationAuditRow, "excerpt">[];
 /**
 * The claim clause nearest an anchor (RV4208): the sentence segment,

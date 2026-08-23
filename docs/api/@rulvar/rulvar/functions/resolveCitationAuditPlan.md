@@ -8,6 +8,7 @@
 
 ```ts
 function resolveCitationAuditPlan(options): {
+  auditScope: "sample" | "all";
   maxSampled: number;
   pattern: string;
   resolver: 1 | 2;
@@ -31,6 +32,7 @@ Garbage throws like every malformed intake.
 
 ```ts
 {
+  auditScope: "sample" | "all";
   maxSampled: number;
   pattern: string;
   resolver: 1 | 2;
@@ -41,6 +43,7 @@ Garbage throws like every malformed intake.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
+| `auditScope` | `"sample"` \| `"all"` | `packages/core/dist/index.d.ts` |
 | `maxSampled` | `number` | `packages/core/dist/index.d.ts` |
 | `pattern` | `string` | `packages/core/dist/index.d.ts` |
 | `resolver` | `1` \| `2` | `packages/core/dist/index.d.ts` |
