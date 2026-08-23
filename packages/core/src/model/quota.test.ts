@@ -443,6 +443,17 @@ describe('scope-dimension rules (RV4205)', () => {
       quotaRuleMatches(rule, { ...base, scope: { region: 'us-east-1', legalDomain: 'eu-gdpr' } }),
     ).toBe(false);
     expect(quotaRuleMatches(rule, base)).toBe(false);
+    // sponsor pins the same way (RV4408): the financing principal is
+    // a cap dimension like every other.
+    expect(
+      quotaRuleMatches(
+        { sponsor: 'helios-bio', requestsPerMinute: 1 },
+        { ...base, scope: { sponsor: 'helios-bio' } },
+      ),
+    ).toBe(true);
+    expect(
+      quotaRuleMatches({ sponsor: 'helios-bio', requestsPerMinute: 1 }, { ...base, scope: {} }),
+    ).toBe(false);
     // account and providerAccount pin the same way.
     expect(
       quotaRuleMatches(

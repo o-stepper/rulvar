@@ -5734,6 +5734,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
   {
+    id: 'sponsor-is-a-scope-dimension',
+    doctrine:
+      'sponsor is a named scope dimension (RV4408): with the field dropped from the closed union table, the financing principal silently drops out of the normalized copy, the digest, the invoice header and the regulated hash, exactly the silent-drop class the reject policy exists to refuse',
+    file: 'packages/core/src/engine/engine.ts',
+    find: "  'providerAccount',\n  'sponsor',\n] as const satisfies readonly ExecutionScopeField[];",
+    replace: "  'providerAccount',\n] as const satisfies readonly ExecutionScopeField[];",
+    test: 'packages/core/src/engine/execution-scope.test.ts',
+  },
+  {
+    id: 'sponsor-pins-the-quota-rule',
+    doctrine:
+      'a quota rule pinning sponsor matches only reservations whose scope carries it (RV4408): with the clause dropped, a sponsor-capped rule debits every reservation in the window, and the cap the host wrote for one financing principal throttles them all',
+    file: 'packages/core/src/model/quota.ts',
+    find: ' &&\n    (rule.sponsor === undefined || rule.sponsor === request.scope?.sponsor)',
+    replace: '',
+    test: 'packages/core/src/model/quota.test.ts',
+  },
+  {
     id: 'census-judges-every-row',
     doctrine:
       "auditScope 'all' is a census, never a sample (RV4407): with the mode collapsed, the declared census silently samples 24 rows again, and a regulated class that paid for the whole document is judged on a fraction the config said it had left behind",

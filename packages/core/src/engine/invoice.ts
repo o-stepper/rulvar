@@ -343,6 +343,7 @@ export interface InvoiceExport {
     legalDomain?: string;
     region?: string;
     providerAccount?: string;
+    sponsor?: string;
   };
   /** The canonical scope digest (RV4205), lifted from the same decision. */
   executionScopeDigest?: string;

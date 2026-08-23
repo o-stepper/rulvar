@@ -10,7 +10,7 @@
 function openWireIntentsOf(entries): OpenWireIntent[];
 ```
 
-Defined in: [packages/core/src/engine/invoice.ts:618](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L618)
+Defined in: [packages/core/src/engine/invoice.ts:619](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L619)
 
 The open provider wire intents of a journal (RV4006): every
 `provider-intent` decision with neither a `provider-call` receipt

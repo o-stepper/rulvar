@@ -13,7 +13,7 @@ function mergeQuotaDenial(current, next): {
 };
 ```
 
-Defined in: [packages/core/src/model/quota.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L310)
+Defined in: [packages/core/src/model/quota.ts:317](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L317)
 
 Folds one more failing rule into the decision the caller returns:
 the wait is the LONGEST failing horizon (every matching rule must
@@ -39,5 +39,5 @@ admit), and the FIRST failing rule names the denial.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `reason` | `string` | [packages/core/src/model/quota.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L313) |
-| `retryAfterMs` | `number` | [packages/core/src/model/quota.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L313) |
+| `reason` | `string` | [packages/core/src/model/quota.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L320) |
+| `retryAfterMs` | `number` | [packages/core/src/model/quota.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L320) |

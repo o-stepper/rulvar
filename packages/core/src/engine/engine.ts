@@ -840,11 +840,23 @@ export interface ExecutionScope {
   region?: string;
   /** The provider-side billing account identity, host-defined (RV4205). */
   providerAccount?: string;
+  /**
+   * The sponsoring principal of the work (RV4408, the seventh
+   * comparison experiment's benchmark domain): the party on whose
+   * behalf and at whose expense the run executes, distinct from the
+   * OWNING tenant and the BILLING account. The Aster adjudication
+   * shape is the motivating example: a network operator (tenant)
+   * adjudicates a trial financed by a study sponsor, and the sponsor
+   * identity must ride attribution, the invoice header, and the
+   * regulated posture hash without being conflated with billing.
+   * Host-defined vocabulary, like every dimension here.
+   */
+  sponsor?: string;
 }
 
-/** One of the named scope dimensions (RV4007/RV4205). */
+/** One of the named scope dimensions (RV4007/RV4205/RV4408). */
 export type ExecutionScopeField =
-  'tenant' | 'account' | 'project' | 'legalDomain' | 'region' | 'providerAccount';
+  'tenant' | 'account' | 'project' | 'legalDomain' | 'region' | 'providerAccount' | 'sponsor';
 
 const SCOPE_FIELDS = [
   'tenant',
@@ -853,6 +865,7 @@ const SCOPE_FIELDS = [
   'legalDomain',
   'region',
   'providerAccount',
+  'sponsor',
 ] as const satisfies readonly ExecutionScopeField[];
 
 /**

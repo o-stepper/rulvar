@@ -4736,6 +4736,7 @@ interface QuotaReservationRequest {
     legalDomain?: string;
     region?: string;
     providerAccount?: string;
+    sponsor?: string;
   };
   /** The run paying for the attempt; observability only. */
   runId?: string;
@@ -4839,6 +4840,8 @@ interface QuotaRule {
   legalDomain?: string;
   region?: string;
   providerAccount?: string;
+  /** The sponsoring principal (RV4408), the newest scope dimension. */
+  sponsor?: string;
   /** Wire attempts admitted per window; the exact, hard cap. */
   requestsPerMinute?: number;
   /**
@@ -9230,9 +9233,21 @@ interface ExecutionScope {
   region?: string;
   /** The provider-side billing account identity, host-defined (RV4205). */
   providerAccount?: string;
+  /**
+  * The sponsoring principal of the work (RV4408, the seventh
+  * comparison experiment's benchmark domain): the party on whose
+  * behalf and at whose expense the run executes, distinct from the
+  * OWNING tenant and the BILLING account. The Aster adjudication
+  * shape is the motivating example: a network operator (tenant)
+  * adjudicates a trial financed by a study sponsor, and the sponsor
+  * identity must ride attribution, the invoice header, and the
+  * regulated posture hash without being conflated with billing.
+  * Host-defined vocabulary, like every dimension here.
+  */
+  sponsor?: string;
 }
-/** One of the named scope dimensions (RV4007/RV4205). */
-type ExecutionScopeField = "tenant" | "account" | "project" | "legalDomain" | "region" | "providerAccount";
+/** One of the named scope dimensions (RV4007/RV4205/RV4408). */
+type ExecutionScopeField = "tenant" | "account" | "project" | "legalDomain" | "region" | "providerAccount" | "sponsor";
 /**
 * One value-normalization operation of the declarative table (RV4302):
 * a CLOSED vocabulary on purpose. A host callback would not be replay
@@ -13388,6 +13403,7 @@ interface RunInternals {
     legalDomain?: string;
     region?: string;
     providerAccount?: string;
+    sponsor?: string;
   };
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
@@ -16180,6 +16196,7 @@ interface InvoiceExport {
     legalDomain?: string;
     region?: string;
     providerAccount?: string;
+    sponsor?: string;
   };
   /** The canonical scope digest (RV4205), lifted from the same decision. */
   executionScopeDigest?: string;

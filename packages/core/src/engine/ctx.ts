@@ -872,6 +872,7 @@ export interface RunInternals {
     legalDomain?: string;
     region?: string;
     providerAccount?: string;
+    sponsor?: string;
   };
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;

@@ -10,7 +10,7 @@
 function quotaActualRequestsDelta(actual?): number;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L247)
+Defined in: [packages/core/src/model/quota.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L254)
 
 The request-count settlement delta of one reservation (RV905): the
 reservation admitted ONE wire request, and `actual.requests` names
