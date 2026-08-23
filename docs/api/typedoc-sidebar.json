@@ -2987,6 +2987,14 @@
             "link": "/api/@rulvar/core/variables/MAX_CITATION_EXCERPT_LINES.md"
           },
           {
+            "text": "MAX_CITATION_UNIT_EXCERPT_CHARS",
+            "link": "/api/@rulvar/core/variables/MAX_CITATION_UNIT_EXCERPT_CHARS.md"
+          },
+          {
+            "text": "MAX_CITATION_UNIT_EXCERPT_LINES",
+            "link": "/api/@rulvar/core/variables/MAX_CITATION_UNIT_EXCERPT_LINES.md"
+          },
+          {
             "text": "MAX_CRITICAL_UNCOVERED",
             "link": "/api/@rulvar/core/variables/MAX_CRITICAL_UNCOVERED.md"
           },
@@ -8479,6 +8487,14 @@
           {
             "text": "MAX_CITATION_EXCERPT_LINES",
             "link": "/api/@rulvar/rulvar/variables/MAX_CITATION_EXCERPT_LINES.md"
+          },
+          {
+            "text": "MAX_CITATION_UNIT_EXCERPT_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_CITATION_UNIT_EXCERPT_CHARS.md"
+          },
+          {
+            "text": "MAX_CITATION_UNIT_EXCERPT_LINES",
+            "link": "/api/@rulvar/rulvar/variables/MAX_CITATION_UNIT_EXCERPT_LINES.md"
           },
           {
             "text": "MAX_CRITICAL_UNCOVERED",

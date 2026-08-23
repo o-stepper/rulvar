@@ -10,6 +10,6 @@
 const MAX_CITATION_EXCERPT_LINES: 12 = 12;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L142)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L144)
 
-Excerpt bounds, the claim-pass excerpt discipline.
+Excerpt bounds, the claim-pass excerpt discipline (resolver v1).

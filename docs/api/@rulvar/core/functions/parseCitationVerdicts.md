@@ -15,7 +15,7 @@ function parseCitationVerdicts(output, rowIndexes):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:563](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L563)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:684](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L684)
 
 Parses the judge output strictly: one verdict per judged row, no
 duplicates, verdicts from the closed vocabulary. Anything else returns

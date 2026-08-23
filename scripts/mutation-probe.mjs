@@ -5686,6 +5686,53 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
   {
+    id: 'comment-context-decides-before-the-list-rule',
+    doctrine:
+      'a line inside a comment block belongs to the comment, never to a one-line markdown list (RV4401): with the context collapsed, every docstring body line matches the list rule and excerpts ALONE again, which is exactly how seven of the seventh comparison run’s ten "unsupported" verdicts hid their support 3..9 lines away',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '  const commentFirst = commentFirstLineOf();',
+    replace: '  const commentFirst = undefined;',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'star-comment-needs-its-opener',
+    doctrine:
+      'a star-led line is a comment only when the bounded upward scan actually finds the /* opener (RV4401): with the requirement dropped, every bare markdown `* item` chain classifies as a comment block, and the byte-for-byte list semantics the fix promised for real markdown are gone',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '        if (!STAR_CONTINUATION.test(text)) {\n          return undefined;\n        }',
+    replace:
+      '        if (!STAR_CONTINUATION.test(text)) {\n          return Math.max(line + 1, row.line - COMMENT_UPWARD_LINES);\n        }',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'line-comment-needs-a-same-family-neighbor',
+    doctrine:
+      'a //, # or -- line is a comment only beside a SAME-family neighbor (RV4401): with the check dropped, a lone markdown H1 whose `#` also spells a comment prefix classifies as a comment and loses its section, so a heading citation stops carrying the body that supports it',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '    if (\n      (above === undefined || !family.test(above)) &&\n      (below === undefined || !family.test(below))\n    ) {\n      return undefined;\n    }',
+    replace: '',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'table-header-carries-its-body',
+    doctrine:
+      'citing a table HEADER cites the table (RV4401): with the extension collapsed, the header row excerpts alone with no body rows, and the seventh comparison run’s versioning-table verdict (the header "provides neither the policy nor the version") returns',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '    if (below !== undefined && TABLE_DELIMITER.test(below)) {',
+    replace: '    if (below !== undefined && below === anchor && TABLE_DELIMITER.test(below)) {',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'unit-caps-fit-the-package-docstrings',
+    doctrine:
+      'the v2 unit caps exist to carry the WHOLE bounded unit (RV4401): shrunk back to the v1-sized bounds, a 20-line store docstring truncates before its supporting line and a 1300-char guide section cuts before its support, which are two of the seventh comparison run’s misjudged citations verbatim',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: 'export const MAX_CITATION_UNIT_EXCERPT_LINES = 20;\nexport const MAX_CITATION_UNIT_EXCERPT_CHARS = 1600;',
+    replace:
+      'export const MAX_CITATION_UNIT_EXCERPT_LINES = 12;\nexport const MAX_CITATION_UNIT_EXCERPT_CHARS = 800;',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
     id: 'semantic-verdict-findings-outrank-the-waiver',
     doctrine:
       "standing findings outrank every softer reading of the verdict (RV4209): with the branch collapsed, a run carrying judged contradictions under a waiver reads 'waived', the human exception launders the machine defects, and the production gate refuses for the wrong reason or not at all",

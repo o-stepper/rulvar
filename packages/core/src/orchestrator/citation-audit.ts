@@ -79,8 +79,10 @@ export interface CitationAuditRow {
 export interface CitationExcerptUnit {
   /**
    * 'section' a heading plus its body to the next heading; 'list-item'
-   * a list marker plus its continuation lines; 'table-row' a table row
-   * with its header pair when adjacent; 'comment-declaration' a code
+   * a list marker plus its continuation lines (a comment-internal list
+   * item counts, judged on its prefix-stripped text, RV4401);
+   * 'table-row' a table row with its header pair when adjacent, or a
+   * header anchor with the body it names; 'comment-declaration' a code
    * comment block plus the declaration it documents; 'paragraph' a
    * blank-line-delimited run, the default.
    */
@@ -138,9 +140,19 @@ export interface CitationAuditPlanOptions {
 export const DEFAULT_CITATION_SAMPLE_PER_SECTION = 2;
 export const DEFAULT_CITATION_MAX_SAMPLED = 24;
 export const DEFAULT_CITATION_EXCERPT_WINDOW = 3;
-/** Excerpt bounds, the claim-pass excerpt discipline. */
+/** Excerpt bounds, the claim-pass excerpt discipline (resolver v1). */
 export const MAX_CITATION_EXCERPT_LINES = 12;
 export const MAX_CITATION_EXCERPT_CHARS = 800;
+/**
+ * Resolver v2's unit bounds (RV4401). A unit excerpt exists to carry
+ * the WHOLE bounded logical unit, so its caps must fit the package's
+ * typical docstrings and guide sections: the seventh comparison
+ * experiment's one section false negative was a section cut mid-unit
+ * by the v1-sized char cap, with the supporting line right past the
+ * cut. Resolver v1 keeps its own smaller bounds byte for byte.
+ */
+export const MAX_CITATION_UNIT_EXCERPT_LINES = 20;
+export const MAX_CITATION_UNIT_EXCERPT_CHARS = 1600;
 
 /** A citation with an optional `-end` range tail on the line half. */
 const citationWithRange = (pattern: string): RegExp => new RegExp(pattern, 'gu');
@@ -398,7 +410,21 @@ export function citationExcerptOf(
 const HEADING = /^#{1,6}\s+\S/u;
 const LIST_ITEM = /^(\s*)(?:[-*+]|\d+[.)])\s+\S/u;
 const TABLE_ROW = /^\s*\|/u;
+const TABLE_DELIMITER = /^\s*\|[\s:|-]+\|?\s*$/u;
 const CODE_COMMENT = /^\s*(?:\/\/|#(?!#)|\*|\/\*|--)\s?/u;
+/** Star-family block pieces: the opener, and the `*`-led body lines. */
+const BLOCK_COMMENT_OPENER = /^\s*\/\*/u;
+const STAR_CONTINUATION = /^\s*\*/u;
+/** Line-comment families; a lone line needs a SAME-family neighbor. */
+const LINE_COMMENT_FAMILIES = [/^\s*\/\//u, /^\s*#(?!#)/u, /^\s*--/u];
+/** Strips ONE comment prefix; what remains is the line's own text. */
+const COMMENT_PREFIX = /^\s*(?:\/\*\*?|\*\/|\*|\/\/|#(?!#)|--)\s?/u;
+/** How far up the star-family opener search reaches. */
+const COMMENT_OPENER_SCAN_LINES = 64;
+/** How far above the anchor a comment excerpt may start: the bound
+ * keeps the anchor inside the excerpt with room below it, because the
+ * supporting lines of a docstring anchor typically live BELOW it. */
+const COMMENT_UPWARD_LINES = 12;
 
 /**
  * Resolver v2's excerpt: the bounded LOGICAL UNIT the cited line
@@ -407,16 +433,35 @@ const CODE_COMMENT = /^\s*(?:\/\/|#(?!#)|\*|\/\*|--)\s?/u;
  * experiment's confirmed false negative was structural: a section
  * heading cited as the anchor with its support three lines below the
  * window. The unit rules, all bounded by {@link
- * MAX_CITATION_EXCERPT_LINES} and {@link MAX_CITATION_EXCERPT_CHARS}
- * with a `truncated` flag when clipped:
+ * MAX_CITATION_UNIT_EXCERPT_LINES} and {@link
+ * MAX_CITATION_UNIT_EXCERPT_CHARS} with a `truncated` flag when
+ * clipped:
  *
+ * - comment context decides FIRST (RV4401): a line inside a comment
+ *   block belongs to the comment, never to a one-line markdown list
+ *   (seven of the seventh comparison experiment's ten "unsupported"
+ *   verdicts were docstring anchors whose `* `-led lines matched the
+ *   list rule and excerpted ALONE, hiding support 3..9 lines away).
+ *   A `*`-led line is a comment only when a bounded upward scan finds
+ *   the `/*` opener (a bare markdown `* item` chain has none and
+ *   keeps its list semantics byte for byte); a `//`, `#` or `--` line
+ *   is a comment only beside a SAME-family neighbor (a lone
+ *   `# heading` stays a heading). Inside the comment the line
+ *   classifies by its text AFTER the prefix strips: a stripped list
+ *   item excerpts the item with its continuations, anything else the
+ *   comment BLOCK (expanded upward to its start, bounded so the
+ *   anchor keeps room below) plus the declaration lines it documents,
+ *   to the first blank line;
  * - heading: the SECTION, the heading plus following lines to the
  *   next heading;
  * - table row: the row, with the header pair above it when adjacent;
+ *   a HEADER anchor (the delimiter row sits directly below it)
+ *   carries the delimiter and body rows too, because citing the
+ *   header cites the table;
  * - list item: the marker line plus its more-indented continuation
  *   lines;
- * - code comment: the comment BLOCK (expanded upward to its start)
- *   plus the declaration lines it documents, to the first blank line;
+ * - code comment with no context evidence: the single-line fallback
+ *   keeps the prior comment-declaration behavior unchanged;
  * - anything else: the paragraph, expanded upward and downward to the
  *   nearest blank or heading line.
  *
@@ -444,7 +489,7 @@ export function citationUnitExcerptOf(
     const lines: string[] = [];
     let truncated = false;
     for (let line = firstLine; ; line += 1) {
-      if (lines.length >= MAX_CITATION_EXCERPT_LINES) {
+      if (lines.length >= MAX_CITATION_UNIT_EXCERPT_LINES) {
         truncated = true;
         break;
       }
@@ -458,8 +503,8 @@ export function citationUnitExcerptOf(
       lines.push(`L${String(line)}: ${text}`);
     }
     let excerpt = lines.join('\n');
-    if (excerpt.length > MAX_CITATION_EXCERPT_CHARS) {
-      excerpt = `${excerpt.slice(0, MAX_CITATION_EXCERPT_CHARS)}…`;
+    if (excerpt.length > MAX_CITATION_UNIT_EXCERPT_CHARS) {
+      excerpt = `${excerpt.slice(0, MAX_CITATION_UNIT_EXCERPT_CHARS)}…`;
       truncated = true;
     }
     return {
@@ -473,10 +518,86 @@ export function citationUnitExcerptOf(
     const last = row.endLine;
     return collect('paragraph', row.line, (_text, line) => line <= last);
   }
+  // RV4401: the comment CONTEXT decides before any markdown rule. A
+  // docstring body line starts with `*`, which is also a markdown
+  // list marker, and classifying it as a one-line list hid the
+  // support lines behind seven of the seventh comparison experiment's
+  // ten "unsupported" verdicts.
+  const commentFirstLineOf = (): number | undefined => {
+    if (BLOCK_COMMENT_OPENER.test(anchor)) {
+      return row.line;
+    }
+    if (STAR_CONTINUATION.test(anchor)) {
+      for (
+        let line = row.line - 1;
+        line >= 1 && row.line - line <= COMMENT_OPENER_SCAN_LINES;
+        line -= 1
+      ) {
+        const text = lineAt(line);
+        if (text === undefined) {
+          return undefined;
+        }
+        if (BLOCK_COMMENT_OPENER.test(text)) {
+          return Math.max(line, row.line - COMMENT_UPWARD_LINES);
+        }
+        if (!STAR_CONTINUATION.test(text)) {
+          return undefined;
+        }
+      }
+      return undefined;
+    }
+    const family = LINE_COMMENT_FAMILIES.find((prefix) => prefix.test(anchor));
+    if (family === undefined) {
+      return undefined;
+    }
+    const above = lineAt(row.line - 1);
+    const below = lineAt(row.line + 1);
+    if (
+      (above === undefined || !family.test(above)) &&
+      (below === undefined || !family.test(below))
+    ) {
+      return undefined;
+    }
+    let first = row.line;
+    for (let line = row.line - 1; line >= 1 && row.line - line <= COMMENT_UPWARD_LINES; line -= 1) {
+      const text = lineAt(line);
+      if (text === undefined || !family.test(text)) {
+        break;
+      }
+      first = line;
+    }
+    return first;
+  };
+  const commentFirst = commentFirstLineOf();
+  if (commentFirst !== undefined) {
+    const stripped = anchor.replace(COMMENT_PREFIX, '');
+    const strippedList = LIST_ITEM.exec(stripped);
+    if (strippedList !== null) {
+      // The stripped text IS a list item inside the comment: the
+      // truthful unit is the item with its continuations, the
+      // markdown rule applied to the stripped lines.
+      const markerIndent = (strippedList[1] ?? '').length;
+      return collect('list-item', row.line, (text) => {
+        const rest = text.replace(COMMENT_PREFIX, '');
+        if (rest === text || rest.trim() === '' || HEADING.test(rest) || LIST_ITEM.test(rest)) {
+          return false;
+        }
+        const indent = /^(\s*)/u.exec(rest)?.[1]?.length ?? 0;
+        return indent > markerIndent;
+      });
+    }
+    return collect('comment-declaration', commentFirst, (text) => text.trim() !== '');
+  }
   if (HEADING.test(anchor)) {
     return collect('section', row.line, (text) => !HEADING.test(text));
   }
   if (TABLE_ROW.test(anchor)) {
+    const below = lineAt(row.line + 1);
+    if (below !== undefined && TABLE_DELIMITER.test(below)) {
+      // The anchor IS the header row: citing the header cites the
+      // table, whose meaning lives in the body rows (RV4401).
+      return collect('table-row', row.line, (text) => TABLE_ROW.test(text));
+    }
     // The header pair above, when the row sits in a table body: the
     // row alone names values with no column meanings.
     const above = lineAt(row.line - 1);
@@ -484,7 +605,7 @@ export function citationUnitExcerptOf(
     const first =
       above !== undefined &&
       headerTop !== undefined &&
-      /^\s*\|[\s:|-]+\|?\s*$/u.test(above) &&
+      TABLE_DELIMITER.test(above) &&
       TABLE_ROW.test(headerTop)
         ? row.line - 2
         : row.line;
