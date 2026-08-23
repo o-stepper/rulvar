@@ -884,6 +884,19 @@ export interface OrchestrateOptions {
    * identical.
    */
   maxTotalRepairRounds?: number;
+  /**
+   * Journaled coordination checkpoints (RV4410, the seventh
+   * comparison experiment): with `true`, every settled await round
+   * appends a compact `coordination_checkpoint` decision (the round
+   * ordinal, the settled handles, the spend so far), so a timeout or
+   * kill terminal shows how far coordination durably got, an
+   * operator reads progress from `rulvar inspect` instead of the raw
+   * transcript, and a resumed run's replay visibly continues from
+   * the last checkpoint instead of an opaque prefix. Opt-in because
+   * the decisions are journal bytes; the replay machinery already
+   * never re-pays journaled coordination either way.
+   */
+  coordinationCheckpoints?: boolean;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
   /**
@@ -2112,6 +2125,16 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   }
   if (opts.maxTotalRepairRounds !== undefined) {
     requireNonNegativeInteger(opts.maxTotalRepairRounds, 'orchestrate maxTotalRepairRounds');
+  }
+  if (
+    opts.coordinationCheckpoints !== undefined &&
+    typeof opts.coordinationCheckpoints !== 'boolean'
+  ) {
+    throw new ConfigError(
+      `orchestrate coordinationCheckpoints must be a boolean; got ${String(
+        opts.coordinationCheckpoints,
+      )}`,
+    );
   }
   if (
     opts.onUnsettledAtExit !== undefined &&
@@ -4085,6 +4108,34 @@ export function makeOrchestratorWorkflow(
       }
       return used;
     };
+    /**
+     * The coordination checkpoint (RV4410): one compact decision per
+     * settled await round, keyed by its ordinal so a replayed round
+     * reuses its journaled checkpoint instead of appending a twin.
+     * The spend figure is the account fold at append time; on replay
+     * the journaled value stands, exactly the decision discipline.
+     */
+    let coordinationRound = 0;
+    const journalCoordinationCheckpoint = async (settledHandles: number[]): Promise<void> => {
+      if (opts?.coordinationCheckpoints !== true) {
+        return;
+      }
+      coordinationRound += 1;
+      await internals.replayer.appendSinglePhase({
+        scope: callingState.scope,
+        key: deriverV2.deriveKey({ kind: `coordination-checkpoint-${String(coordinationRound)}` }),
+        kind: 'decision',
+        status: 'ok',
+        spanId: internals.spans.mint(callingState.spanId),
+        site: 'orchestrator-coordination',
+        value: {
+          decisionType: 'coordination_checkpoint',
+          round: coordinationRound,
+          settledHandles,
+          spentUsd: internals.budget.spent().usd,
+        },
+      });
+    };
     const runRepairPoolAdmits = (): boolean =>
       opts?.maxTotalRepairRounds === undefined || runRepairPoolUsed() < opts.maxTotalRepairRounds;
     const checkpointAcceptanceTail = async (
@@ -5223,6 +5274,7 @@ export function makeOrchestratorWorkflow(
           .filter((record) => record.settled !== undefined)
           .map((record) => record.handle)
           .sort((a, b) => a - b);
+        await journalCoordinationCheckpoint(settledHandles);
         return { ...digest, settledHandles };
       },
       async awaitAll(handles: number[]): Promise<TaskDigest[]> {
@@ -5234,11 +5286,18 @@ export function makeOrchestratorWorkflow(
           }
           return record;
         });
-        return Promise.all(
+        const digests = await Promise.all(
           waited.map(async (record) =>
             digestOf(record, await record.result, executionFactsEnabled),
           ),
         );
+        await journalCoordinationCheckpoint(
+          waited
+            .filter((record) => record.settled !== undefined)
+            .map((record) => record.handle)
+            .sort((a, b) => a - b),
+        );
+        return digests;
       },
       async waitForEvents(rawTriggers: unknown): Promise<unknown> {
         await recoveryDone;

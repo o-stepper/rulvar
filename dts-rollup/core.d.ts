@@ -11684,6 +11684,19 @@ interface OrchestrateOptions {
   * identical.
   */
   maxTotalRepairRounds?: number;
+  /**
+  * Journaled coordination checkpoints (RV4410, the seventh
+  * comparison experiment): with `true`, every settled await round
+  * appends a compact `coordination_checkpoint` decision (the round
+  * ordinal, the settled handles, the spend so far), so a timeout or
+  * kill terminal shows how far coordination durably got, an
+  * operator reads progress from `rulvar inspect` instead of the raw
+  * transcript, and a resumed run's replay visibly continues from
+  * the last checkpoint instead of an opaque prefix. Opt-in because
+  * the decisions are journal bytes; the replay machinery already
+  * never re-pays journaled coordination either way.
+  */
+  coordinationCheckpoints?: boolean;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
   /**

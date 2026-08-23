@@ -5734,6 +5734,15 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
   {
+    id: 'coordination-checkpoints-are-opt-in-bytes',
+    doctrine:
+      'a coordination checkpoint is journal bytes only under the declared opt-in (RV4410): with the guard collapsed, every existing config gains a new decision per await round, and the byte discipline that keeps replays stable across the upgrade is gone',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      if (opts?.coordinationCheckpoints !== true) {\n        return;\n      }',
+    replace: '',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
     id: 'logical-wires-have-their-own-name',
     doctrine:
       'the logical run owns its wire count (RV4409): with the fold dropped, "16 versus 109" becomes hand reconciliation over the raw journal again, exactly the naming defect the seventh comparison post-mortem spent a script on',

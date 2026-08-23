@@ -165,6 +165,91 @@ describe('dynamic orchestrator resume after a budget-cancelled root', () => {
     expect(digest).toContain('did: w3');
   });
 
+  it('checkpoints survive a kill: the resume continues from the journaled round, never a twin (RV4410)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-orch-ckpt-'));
+    const store = new JsonlFileStore({ dir });
+    const transcripts = new FileTranscriptStore({ dir: join(dir, 'transcripts') });
+    let hang = true;
+    const makeAdapter = () =>
+      scriptedAdapter((req): ScriptedTurn => {
+        if (agentTypeOf(req) === 'worker') {
+          const prompt = JSON.stringify(req.messages[0]?.parts);
+          const part = prompt.includes('w1') ? 'w1' : 'w2';
+          return {
+            text: `did: ${part}`,
+            usage: { inputTokens: 100_000, outputTokens: 0 },
+            ...(part === 'w2' && hang ? { hangMs: 5_000 } : {}),
+          };
+        }
+        const transcript = JSON.stringify(req.messages);
+        if (!transcript.includes('"handle"')) {
+          return {
+            toolCalls: [
+              { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w1' } },
+              { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'w2' } },
+            ],
+            usage: { inputTokens: 50_000, outputTokens: 0 },
+          };
+        }
+        if (!transcript.includes('did:')) {
+          return hang
+            ? {
+                toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+                usage: { inputTokens: 500_000, outputTokens: 0 },
+                hangMs: 120,
+              }
+            : {
+                toolCall: { name: 'await_all', args: { handles: handlesIn(req) } },
+                usage: { inputTokens: 10_000, outputTokens: 0 },
+              };
+        }
+        return {
+          toolCall: { name: 'finish', args: { result: 'assembled' } },
+          usage: { inputTokens: 10_000, outputTokens: 0 },
+        };
+      });
+    const defaults: EngineDefaults = {
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: { worker: { description: 'does one task' } },
+    };
+    const wf = () =>
+      makeOrchestratorWorkflow('assemble the parts', { coordinationCheckpoints: true });
+    const checkpointsIn = (entries: readonly { value?: unknown }[]) =>
+      entries.filter(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'coordination_checkpoint',
+      );
+
+    const first = await createEngine({
+      adapters: [makeAdapter()],
+      stores: { journal: store, transcripts },
+      defaults,
+    }).run(wf(), undefined, { runId: 'ORCKPT', budgetUsd: 2 }).result;
+    expect(first.status).toBe('exhausted');
+    // The await round never durably completed: no checkpoint, and the
+    // absence is honest (coordination got no farther than the spawns).
+    expect(checkpointsIn(await store.load('ORCKPT'))).toHaveLength(0);
+
+    hang = false;
+    const adapterB = makeAdapter();
+    const resumed = await createEngine({
+      adapters: [adapterB],
+      stores: { journal: store, transcripts },
+      defaults,
+    }).resume('ORCKPT', wf()).result;
+    expect(resumed.status).toBe('ok');
+    // Exactly ONE checkpoint for the one settled round, appended by
+    // the segment that completed it; a second resume would replay it
+    // instead of appending a twin (the keyed-decision discipline).
+    const afterResume = checkpointsIn(await store.load('ORCKPT'));
+    expect(afterResume).toHaveLength(1);
+    expect(afterResume[0]?.value).toMatchObject({ round: 1 });
+    // The resume paid coordination forward, never backward: the
+    // regenerated await turn and the finish, nothing before them.
+    expect(adapterB.calls.filter((req) => agentTypeOf(req) === '')).toHaveLength(2);
+  });
+
   it('the documented resume forms both replay a finished dynamic run', async () => {
     // The executable form of the mode (c) resume table row: the
     // workflow value rebuilt from the ORIGINAL inputs, and the
