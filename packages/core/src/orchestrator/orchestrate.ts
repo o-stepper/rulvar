@@ -84,7 +84,11 @@ import type {
   RunHandle,
 } from '../engine/run-handle.js';
 import type { AdmissionDecision } from './admission.js';
-import { acceptanceTailRequiredUsd, formatAcceptanceTailTerms } from './admission.js';
+import {
+  acceptanceTailRequiredUsd,
+  formatAcceptanceTailTerms,
+  type AcceptanceTailTerms,
+} from './admission.js';
 import { dedupeRepeatedClaims, type RepeatedClaim } from './claims.js';
 import {
   digestOf,
@@ -217,8 +221,42 @@ export interface OrchestratorBudgetSpec {
    * declared; the refusal journals an `acceptance_reserve_refused`
    * decision naming every term and throws the typed
    * OrchestratorCapConfigError with the same arithmetic.
+   *
+   * 'checkpoint' (RV4404, the seventh comparison experiment) is
+   * 'require' plus a runtime re-check of the SAME arithmetic before
+   * each paid acceptance-tail dispatch (the first composition, each
+   * judge pass): the worst case still ahead, at the money actually
+   * spent, must fit the effective cap, or the run refuses typed NOW,
+   * before paying the stage. The intake gate binds declared
+   * estimates; runtime actuals can exceed them (the seventh run's
+   * workers overshot their declared estimate 2.8x and the refusal
+   * came only where the armed round could not dispatch, after the
+   * composition and both judges were already paid). The checkpoint
+   * moves the refusal to the first moment the arithmetic is known
+   * lost; in the seventh run that is right after the workers, saving
+   * the composition and both judge passes. The refusal journals an
+   * `acceptance_checkpoint_refused` decision naming the stage and
+   * every term, and throws typed with the same fields.
    */
-  acceptanceReserve?: 'warn' | 'require';
+  acceptanceReserve?: 'warn' | 'require' | 'checkpoint';
+  /**
+   * Enforced stage ceilings (RV4404): with `estIsCeiling: true`, a
+   * spawned child's DECLARED estimate (its `budgetUsd`, else its
+   * profile's `estCost`) becomes the hard ceiling of its own
+   * allowance account, so a child that overshoots its declaration
+   * refuses individually and honestly at its own ceiling instead of
+   * silently eating the acceptance tail. The seventh comparison
+   * experiment's workers declared 0.25 USD each and spent 0.58..0.77;
+   * the intake gate had verified the tail against the declarations,
+   * so the run passed `fits: true` honestly and still could not pay
+   * its armed round. Under this mode plus 'checkpoint', a preflight
+   * `fits: true` becomes a dispatch guarantee for the declared tail:
+   * the fan-out cannot spend past its declarations, and the
+   * checkpoint refuses before any tail stage the remaining money
+   * cannot carry. Opt-in; spawns without any declared estimate keep
+   * the parent-account flow byte for byte.
+   */
+  estIsCeiling?: boolean;
   /**
    * A positive integer, validated before any journal entry or dispatch:
    * the turn limit of the reserved final wake.
@@ -1477,6 +1515,13 @@ export interface OrchestrateClaimConsistencyMeta {
    * coverage was held against, not only what it reached.
    */
   coverageTarget?: number;
+  /**
+   * Present when the pass ran under an effective coverage target
+   * (RV4404): declared `coverageTarget`, or the target 1 a declared
+   * semanticAcceptance derives. A truncation then grades
+   * 'coverage-capped', naming the ceiling as the cause.
+   */
+  coverageTargetDeclared?: true;
   /**
    * Present when `critical` was declared: the critical draft anchors
    * with no judged pair (capped at {@link MAX_CRITICAL_UNCOVERED});
@@ -3360,12 +3405,18 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   if (
     spec.acceptanceReserve !== undefined &&
     spec.acceptanceReserve !== 'warn' &&
-    spec.acceptanceReserve !== 'require'
+    spec.acceptanceReserve !== 'require' &&
+    spec.acceptanceReserve !== 'checkpoint'
   ) {
     // The runtime JS/JSON boundary, the atCap rule exactly.
     throw new ConfigError(
-      "orchestrate budget.acceptanceReserve must be 'warn' or 'require'; got " +
+      "orchestrate budget.acceptanceReserve must be 'warn', 'require' or 'checkpoint'; got " +
         `${String(spec.acceptanceReserve)}`,
+    );
+  }
+  if (spec.estIsCeiling !== undefined && typeof spec.estIsCeiling !== 'boolean') {
+    throw new OrchestratorCapConfigError(
+      `orchestrate budget.estIsCeiling must be a boolean; got ${String(spec.estIsCeiling)}`,
     );
   }
   if (
@@ -3866,7 +3917,13 @@ export function makeOrchestratorWorkflow(
     // inline judge-pass count read `stage: 'both'` as one pass where
     // the worst case dispatches two. One exported function now serves
     // both callers, so the gate and the report cannot drift again.
-    if (opts?.budget?.acceptanceReserve === 'require') {
+    // 'checkpoint' includes the intake gate: a tail that does not fit
+    // at zero spend will not fit at any spend (RV4404).
+    let acceptanceTailTerms: AcceptanceTailTerms | undefined;
+    if (
+      opts?.budget?.acceptanceReserve === 'require' ||
+      opts?.budget?.acceptanceReserve === 'checkpoint'
+    ) {
       const { requiredUsd, terms } = acceptanceTailRequiredUsd({
         ...(opts.budget.synthesisReserveUsd === undefined
           ? {}
@@ -3928,15 +3985,135 @@ export function makeOrchestratorWorkflow(
         });
         throw new OrchestratorCapConfigError(
           capUsd === undefined
-            ? `budget.acceptanceReserve 'require' needs a resolved effective cap to hold the ` +
+            ? `budget.acceptanceReserve '${opts.budget.acceptanceReserve}' needs a resolved effective cap to hold the ` +
                 `declared acceptance tail against (${termsLine}); declare budget.capUsd or a ` +
                 'run ceiling'
-            : `budget.acceptanceReserve 'require': the declared acceptance tail does not fit the ` +
+            : `budget.acceptanceReserve '${opts.budget.acceptanceReserve}': the declared acceptance tail does not fit the ` +
                 `effective cap ${capUsd.toFixed(4)} USD (${termsLine}); raise the cap or lower ` +
                 'the declared tail',
         );
       }
+      acceptanceTailTerms = terms;
     }
+    /**
+     * The runtime tail solvency checkpoint (RV4404). The intake gate
+     * above binds DECLARED estimates at zero spend; the seventh
+     * comparison run passed it honestly and still died at the armed
+     * round, because the workers overshot their declared estimate
+     * 2.8x and nothing re-ran the arithmetic at the money actually
+     * spent. Under 'checkpoint', every paid acceptance-tail dispatch
+     * re-checks first: the account's spend, every held reserve, and
+     * the worst case still AHEAD (judge passes not yet dispatched,
+     * the armed round's repair and composition terms while the round
+     * has not run, one turn of working room) must fit the effective
+     * cap, or the run refuses typed NOW, before paying the stage. In
+     * the seventh run the first checkpoint (before the composition,
+     * right after the workers) already fails, saving the composition
+     * and both judge passes. Counters advance only after a checkpoint
+     * passes, so the pass being dispatched still counts as ahead
+     * during its own check.
+     */
+    const tailPassesDone = { claim: 0, citation: 0 };
+    const checkpointAcceptanceTail = async (
+      stage: 'composition' | 'claim-judge' | 'citation-judge',
+    ): Promise<void> => {
+      if (
+        opts?.budget?.acceptanceReserve !== 'checkpoint' ||
+        acceptanceTailTerms === undefined ||
+        orchestratorAccount === undefined
+      ) {
+        return;
+      }
+      const terms = acceptanceTailTerms;
+      const roundAhead = semanticRoundSpent === undefined && releaseRepairLeg === undefined;
+      const remainingUsd =
+        terms.judgeEstUsd * Math.max(0, terms.judgePasses - tailPassesDone.claim) +
+        (terms.citationJudgeEstUsd ?? 0) *
+          Math.max(0, (terms.citationJudgePasses ?? 0) - tailPassesDone.citation) +
+        (roundAhead ? terms.estRepairCostUsd + terms.roundCompositionUsd : 0) +
+        terms.workingRoomUsd;
+      // The WHOLE ceiling chain answers (RV4404): fan-out spend debits
+      // every ancestor up to the run root (the seventh run's refusal
+      // named account 'run', not the orchestrator cap). Each account
+      // judges its spend plus its DEDICATED tail reserves (synthesis,
+      // finalize, convergence, repair) plus the shared unreserved
+      // remainder. Dispatch-projection holds (committedReserveUsd)
+      // stay OUT of the arithmetic: they release on settle and the
+      // tail terms already price those same future stages, so
+      // counting a live loop's standing hold would double-count the
+      // tail and refuse every composition dispatched from inside it.
+      // The first account that cannot carry the remainder refuses.
+      let violated:
+        { scope: string; spentUsd: number; heldUsd: number; ceilingUsd: number } | undefined;
+      for (
+        let scope: string | undefined = orchestratorAccount;
+        scope !== undefined && violated === undefined;
+      ) {
+        const view = internals.budget.accountView(scope);
+        if (view === undefined) {
+          break;
+        }
+        if (view.ceilingUsd !== undefined) {
+          const heldUsd =
+            view.finalizeReserveUsd +
+            view.synthesisReserveUsd +
+            view.convergenceReserveUsd +
+            view.repairReserveUsd;
+          if (view.spentUsd + heldUsd + remainingUsd > view.ceilingUsd + 1e-9) {
+            violated = {
+              scope: view.scope,
+              spentUsd: view.spentUsd,
+              heldUsd,
+              ceilingUsd: view.ceilingUsd,
+            };
+          }
+        }
+        scope = view.parentScope;
+      }
+      if (violated === undefined) {
+        return;
+      }
+      await internals.replayer.appendSinglePhase({
+        scope: callingState.scope,
+        key: deriverV2.deriveKey({ kind: `acceptance-checkpoint-refused-${stage}` }),
+        kind: 'decision',
+        status: 'ok',
+        spanId: internals.spans.mint(callingState.spanId),
+        site: 'orchestrator-budget',
+        value: {
+          decisionType: 'acceptance_checkpoint_refused',
+          stage,
+          account: violated.scope,
+          spentUsd: violated.spentUsd,
+          heldReservesUsd: violated.heldUsd,
+          remainingTailUsd: remainingUsd,
+          effectiveCapUsd: violated.ceilingUsd,
+          claimJudgePassesDone: tailPassesDone.claim,
+          citationJudgePassesDone: tailPassesDone.citation,
+          roundAhead,
+        },
+      });
+      throw new FailRunError(
+        `budget.acceptanceReserve 'checkpoint': the acceptance tail no longer fits before the ` +
+          `${stage} dispatch (on account '${violated.scope}': spent ` +
+          `${violated.spentUsd.toFixed(4)} USD plus held reserves ` +
+          `${violated.heldUsd.toFixed(4)} USD plus the remaining armed worst case ` +
+          `${remainingUsd.toFixed(4)} USD does not fit the ceiling ` +
+          `${violated.ceilingUsd.toFixed(4)} USD); the stage was not paid, and the declared ` +
+          'tail was refused at the first moment the arithmetic was known lost',
+        {
+          data: {
+            source: 'orchestrator_budget',
+            stage,
+            account: violated.scope,
+            spentUsd: violated.spentUsd,
+            heldReservesUsd: violated.heldUsd,
+            remainingTailUsd: remainingUsd,
+            effectiveCapUsd: violated.ceilingUsd,
+          },
+        },
+      );
+    };
 
     // `records` is the HANDLE lookup: several handles can map to one
     // record once recovery aliases prior attempts to their reborn
@@ -4918,10 +5095,35 @@ export function makeOrchestratorWorkflow(
           spawnUnitsAfter: decision.verdict.spawnUnitsAfter,
           spanId: callingState.spanId,
         });
-        const record = await dispatchChild(params, spawnOrdinal, {
-          nodeId: decision.nodeId ?? 'unknown',
-          logicalTaskId: decision.verdict.lineage.logicalTaskId,
-        });
+        // Enforced stage ceilings (RV4404): the declared estimate
+        // joins the fan-out's own allowance ceiling. Tool-spawned
+        // children share the orchestrator's child scope, so the
+        // enforced bound is the AGGREGATE of the admitted estimates:
+        // the fan-out collectively cannot spend past what it
+        // declared, which is the number the acceptance-tail
+        // arithmetic trusted, and an overshooting fan-out refuses at
+        // ITS ceiling instead of silently eating the tail.
+        const estCeilingUsd =
+          opts?.budget?.estIsCeiling === true ? (params.budgetUsd ?? profile?.estCost) : undefined;
+        if (estCeilingUsd !== undefined) {
+          if (internals.budget.accountView(scope) === undefined) {
+            internals.budget.openAccount(scope, {
+              parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
+              ceilingUsd: 0,
+              kind: 'child-allowance',
+            });
+          }
+          internals.budget.raiseChildAllowance(scope, estCeilingUsd);
+        }
+        const record = await dispatchChild(
+          params,
+          spawnOrdinal,
+          {
+            nodeId: decision.nodeId ?? 'unknown',
+            logicalTaskId: decision.verdict.lineage.logicalTaskId,
+          },
+          estCeilingUsd === undefined ? undefined : { childScope: scope, ownAccount: true },
+        );
         return { handle: record.handle };
       },
       async awaitAny(handles: number[]): Promise<TaskDigest> {
@@ -7658,6 +7860,11 @@ export function makeOrchestratorWorkflow(
         }
       }
       const draftText = typeof draft === 'string' ? draft : JSON.stringify(draft ?? null);
+      // RV4404: the effective coverage target of this pass. A
+      // declared semanticAcceptance means claimCoverage 'full' by
+      // intake, and full coverage owns coverage-first selection.
+      const effectiveCoverageTarget =
+        spec.coverageTarget ?? (opts?.semanticAcceptance !== undefined ? 1 : undefined);
       const fold = pairDraftClaims(draftText, pool, {
         ...(spec.pattern === undefined ? {} : { pattern: spec.pattern }),
         max: spec.max ?? DEFAULT_MAX_CLAIM_PAIRS,
@@ -7666,8 +7873,15 @@ export function makeOrchestratorWorkflow(
         ...(spec.critical === undefined ? {} : { critical: spec.critical }),
         // The declared coverage target (RV2903) sizes the selection
         // coverage-first; without it the historical first-max pairing
-        // reproduces byte for byte.
-        ...(spec.coverageTarget === undefined ? {} : { targetCoverageShare: spec.coverageTarget }),
+        // reproduces byte for byte. A declared semanticAcceptance
+        // (claimCoverage 'full') derives target 1 when none is set
+        // (RV4404): the seventh comparison run declared full coverage
+        // over the historical first-max selection, and the pair
+        // ceiling silently cut 23 citing sentences it then reported
+        // as uncovered text.
+        ...(effectiveCoverageTarget === undefined
+          ? {}
+          : { targetCoverageShare: effectiveCoverageTarget }),
         // The coverage-armed round's raw material (RV4202): collected
         // only under the flag, so every other fold does the exact
         // historical work; selection is untouched either way.
@@ -7705,7 +7919,7 @@ export function makeOrchestratorWorkflow(
                 // run-fact pass judges EVERY matched candidate: the
                 // ninth comparison run cut 30 candidates to the
                 // default 8 with no way to raise the bound.
-                ...(spec.coverageTarget === undefined ? {} : { max: Number.MAX_SAFE_INTEGER }),
+                ...(effectiveCoverageTarget === undefined ? {} : { max: Number.MAX_SAFE_INTEGER }),
               },
             )
           : undefined;
@@ -7720,6 +7934,9 @@ export function makeOrchestratorWorkflow(
         truncated: fold.truncated,
         coveredCitingSentences: fold.coveredCitingSentences,
         ...(spec.coverageTarget === undefined ? {} : { coverageTarget: spec.coverageTarget }),
+        // The grade input (RV4404): a truncation under a declared
+        // target grades 'coverage-capped', naming the ceiling.
+        ...(effectiveCoverageTarget === undefined ? {} : { coverageTargetDeclared: true as const }),
         ...(fold.criticalUncovered === undefined
           ? {}
           : {
@@ -7963,6 +8180,12 @@ export function makeOrchestratorWorkflow(
         ...(spec.judge?.effort === undefined ? {} : { effort: spec.judge.effort }),
         ...(spec.judge?.estCost === undefined ? {} : { estCost: spec.judge.estCost }),
       };
+      // RV4404: solvency first, outside the decline-degradation try
+      // (a checkpoint refusal is a run refusal, never a judge
+      // degradation); the pass being dispatched still counts as
+      // ahead during its own check.
+      await checkpointAcceptanceTail('claim-judge');
+      tailPassesDone.claim += 1;
       let judged: AgentResult<unknown>;
       try {
         judged = await runtime.runInScope(judgeState, () =>
@@ -8329,6 +8552,9 @@ export function makeOrchestratorWorkflow(
         ...(auditSpec.judge?.effort === undefined ? {} : { effort: auditSpec.judge.effort }),
         ...(auditSpec.judge?.estCost === undefined ? {} : { estCost: auditSpec.judge.estCost }),
       };
+      // RV4404: same checkpoint discipline as the claim judge.
+      await checkpointAcceptanceTail('citation-judge');
+      tailPassesDone.citation += 1;
       let judged: AgentResult<unknown>;
       try {
         judged = await runtime.runInScope(auditJudgeState, () =>
@@ -8511,6 +8737,12 @@ export function makeOrchestratorWorkflow(
         // The final step of incremental synthesis is deterministic:
         // no model call composes the final result.
         return await reconcileIncremental(draft, spec);
+      }
+      if (stagePhase === 'composition') {
+        // RV4404: the first paid tail dispatch re-checks solvency at
+        // the money actually spent; the repair round's own budget
+        // machinery already refuses honestly on its path.
+        await checkpointAcceptanceTail('composition');
       }
       /**
        * The failed pre-pass verdict carried to synthesis (RV808a),
@@ -11819,6 +12051,21 @@ export function makeOrchestratorWorkflow(
       { principal: string; reason: string; expiresAt?: string; coverage: string } | undefined;
     if (opts?.claimConsistency?.coveragePolicy === 'strict-final') {
       const grade = claimConsistencyMeta?.coverage ?? 'not-judged';
+      // The capped grade names its ceiling (RV4404): the refusal must
+      // point at the config knob, because the document is not the
+      // problem and "raise the coverage" alone reads as a text defect.
+      const cappedDetail =
+        grade === 'coverage-capped'
+          ? `; the pair ceiling max=${String(opts.claimConsistency?.max ?? DEFAULT_MAX_CLAIM_PAIRS)} ` +
+            `cut selection the declared coverage target wanted ` +
+            `(${String(
+              Math.max(
+                0,
+                (claimConsistencyMeta?.draftCitingSentences ?? 0) -
+                  (claimConsistencyMeta?.coveredCitingSentences ?? 0),
+              ),
+            )} citing sentence(s) stand uncovered); raise claimConsistency.max`
+          : '';
       if (grade !== 'full') {
         // The declared acceptance's waiver posture (RV4201): 'forbid'
         // admits no exception at all, and the pinned form licenses
@@ -11874,7 +12121,8 @@ export function makeOrchestratorWorkflow(
                   `${String(priorWaiveDecision.seq)}) exists under a config that forbids ` +
                   'waivers, which is a config/journal mismatch, not an authority') +
               '; raise the coverage (pairs, targets, critical anchors) or ship a clean ' +
-              'document',
+              'document' +
+              cappedDetail,
             {
               data: {
                 source: 'orchestrator_claim_consistency',
@@ -11934,7 +12182,8 @@ export function makeOrchestratorWorkflow(
                       `${String(pinnedJudgedHash)} and this run judged ` +
                       `${String(claimConsistencyMeta?.judgedHash)}, a different document`) +
                 '; raise the coverage (pairs, targets, critical anchors) or record a waiver ' +
-                'naming who accepts the gap and why',
+                'naming who accepts the gap and why' +
+                cappedDetail,
               {
                 data: {
                   source: 'orchestrator_claim_consistency',

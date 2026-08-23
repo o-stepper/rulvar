@@ -505,6 +505,32 @@ export class RunBudget {
   }
 
   /**
+   * Raises a child-allowance ceiling by one more admitted child's
+   * declared estimate (RV4404, `budget.estIsCeiling`). Tool-spawned
+   * children of one orchestrator share a scope, so the enforced bound
+   * is the AGGREGATE of the declared estimates: the fan-out
+   * collectively cannot spend past what it declared, which is exactly
+   * the number the acceptance-tail arithmetic trusted. Only a
+   * child-allowance account may raise; the orchestrator cap and the
+   * root are host declarations no admission may widen. Deterministic
+   * on resume: admissions replay in order, so the raises do too.
+   */
+  raiseChildAllowance(scope: string, byUsd: number): void {
+    const account = this.accounts.get(scope);
+    if (account === undefined) {
+      throw new ConfigError(`unknown budget account '${scope}' cannot raise its allowance`);
+    }
+    if (account.kind !== 'child-allowance') {
+      throw new ConfigError(
+        `budget account '${scope}' is not a child allowance; only a child allowance widens ` +
+          'with its admitted children',
+      );
+    }
+    requireValidCeiling(byUsd, `allowance raise of budget account '${scope}'`);
+    account.ceilingUsd = (account.ceilingUsd ?? 0) + byUsd;
+  }
+
+  /**
    * The diagnostic projection behind a ceiling error: the first CLOSED
    * account (projected commitments included, exactly the layer-1
    * closure test) walking from `scope` toward the root, plus the root

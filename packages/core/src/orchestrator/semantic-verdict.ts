@@ -27,8 +27,9 @@ export interface SemanticTerminalVerdict {
    *   unsupported sampled citations);
    * - 'waived': acceptance was licensed by a standing exception, not
    *   by coverage;
-   * - 'partial': coverage graded below 'full' ('partial' or
-   *   'critical-uncovered') with no waiver standing;
+   * - 'partial': coverage graded below 'full' ('partial',
+   *   'critical-uncovered', or the RV4404 'coverage-capped', whose
+   *   cause is the configured pair ceiling) with no waiver standing;
    * - 'vacuous': the document cited nothing, so the configured pass
    *   verified nothing;
    * - 'clean': every configured judge ruled on the shipped document
@@ -209,7 +210,9 @@ export function semanticTerminalVerdictOf(
         ? 'findings'
         : waiver !== undefined
           ? 'waived'
-          : coverage === 'partial' || coverage === 'critical-uncovered'
+          : coverage === 'partial' ||
+              coverage === 'critical-uncovered' ||
+              coverage === 'coverage-capped'
             ? 'partial'
             : coverage === 'vacuous'
               ? 'vacuous'

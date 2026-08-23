@@ -10,7 +10,7 @@
 function claimCoverageOf(meta): ClaimCoverageGrade;
 ```
 
-Defined in: [packages/core/src/orchestrator/consistency.ts:685](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L685)
+Defined in: [packages/core/src/orchestrator/consistency.ts:707](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/consistency.ts#L707)
 
 Derives the [ClaimCoverageGrade](/api/@rulvar/core/type-aliases/ClaimCoverageGrade.md) of a claim-consistency meta.
 

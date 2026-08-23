@@ -7213,6 +7213,18 @@ declare class RunBudget {
     kind?: "orchestrator-cap" | "child-allowance";
   }): void;
   /**
+  * Raises a child-allowance ceiling by one more admitted child's
+  * declared estimate (RV4404, `budget.estIsCeiling`). Tool-spawned
+  * children of one orchestrator share a scope, so the enforced bound
+  * is the AGGREGATE of the declared estimates: the fan-out
+  * collectively cannot spend past what it declared, which is exactly
+  * the number the acceptance-tail arithmetic trusted. Only a
+  * child-allowance account may raise; the orchestrator cap and the
+  * root are host declarations no admission may widen. Deterministic
+  * on resume: admissions replay in order, so the raises do too.
+  */
+  raiseChildAllowance(scope: string, byUsd: number): void;
+  /**
   * The diagnostic projection behind a ceiling error: the first CLOSED
   * account (projected commitments included, exactly the layer-1
   * closure test) walking from `scope` toward the root, plus the root
@@ -10276,6 +10288,14 @@ declare function pairRunFactClaims(draftText: string, sheet: RunFactsSheet, opti
 * - `'partial'`: the pass verified a strict subset: the pair bound
 *   truncated the fold, a run-facts bound truncated the run-claim
 *   pairs, or citing sentences exist that no judged pair covers.
+* - `'coverage-capped'` (RV4404): the pass ran under a DECLARED
+*   coverage target and the hard pair ceiling still cut selection the
+*   target wanted. Distinct from `'partial'` because the cause is the
+*   CONFIGURED `max`, not the pool: the seventh comparison run
+*   declared full coverage, folded its pairs truncated at the
+*   ceiling, and reported 23 uncovered citing sentences as if the
+*   text were the problem. The honest grade names the ceiling so the
+*   refusal (and the operator) fix the config, not the document.
 * - `'critical-uncovered'`: at least one DECLARED critical anchor got
 *   no judged pair; stronger than `'partial'` because the caller named
 *   exactly these claims as the ones that must not go unverified.
@@ -10293,7 +10313,7 @@ declare function pairRunFactClaims(draftText: string, sheet: RunFactsSheet, opti
 * and total over metas written BEFORE the grade shipped, so a consumer
 * can grade a persisted outcome from an older engine.
 */
-type ClaimCoverageGrade = "full" | "vacuous" | "partial" | "critical-uncovered" | "judge-declined" | "judge-failed";
+type ClaimCoverageGrade = "full" | "vacuous" | "partial" | "coverage-capped" | "critical-uncovered" | "judge-declined" | "judge-failed";
 /** The subset of the claim-consistency meta the grade derives from. */
 interface ClaimCoverageInput {
   /** Draft sentences carrying at least one parsable anchor. */
@@ -10314,6 +10334,14 @@ interface ClaimCoverageInput {
   * the meta it grades, so nothing at the call site changes.
   */
   judgeDeclined?: true;
+  /**
+  * True when the fold ran under a DECLARED coverage target (RV4404):
+  * a truncation is then the CEILING cutting selection the target
+  * wanted, and the grade names it 'coverage-capped' instead of a
+  * silent 'partial'. Absent keeps every historical grade byte for
+  * byte.
+  */
+  coverageTargetDeclared?: true;
 }
 /** Derives the {@link ClaimCoverageGrade} of a claim-consistency meta. */
 declare function claimCoverageOf(meta: ClaimCoverageInput): ClaimCoverageGrade;
@@ -11088,8 +11116,42 @@ interface OrchestratorBudgetSpec {
   * declared; the refusal journals an `acceptance_reserve_refused`
   * decision naming every term and throws the typed
   * OrchestratorCapConfigError with the same arithmetic.
+  *
+  * 'checkpoint' (RV4404, the seventh comparison experiment) is
+  * 'require' plus a runtime re-check of the SAME arithmetic before
+  * each paid acceptance-tail dispatch (the first composition, each
+  * judge pass): the worst case still ahead, at the money actually
+  * spent, must fit the effective cap, or the run refuses typed NOW,
+  * before paying the stage. The intake gate binds declared
+  * estimates; runtime actuals can exceed them (the seventh run's
+  * workers overshot their declared estimate 2.8x and the refusal
+  * came only where the armed round could not dispatch, after the
+  * composition and both judges were already paid). The checkpoint
+  * moves the refusal to the first moment the arithmetic is known
+  * lost; in the seventh run that is right after the workers, saving
+  * the composition and both judge passes. The refusal journals an
+  * `acceptance_checkpoint_refused` decision naming the stage and
+  * every term, and throws typed with the same fields.
   */
-  acceptanceReserve?: "warn" | "require";
+  acceptanceReserve?: "warn" | "require" | "checkpoint";
+  /**
+  * Enforced stage ceilings (RV4404): with `estIsCeiling: true`, a
+  * spawned child's DECLARED estimate (its `budgetUsd`, else its
+  * profile's `estCost`) becomes the hard ceiling of its own
+  * allowance account, so a child that overshoots its declaration
+  * refuses individually and honestly at its own ceiling instead of
+  * silently eating the acceptance tail. The seventh comparison
+  * experiment's workers declared 0.25 USD each and spent 0.58..0.77;
+  * the intake gate had verified the tail against the declarations,
+  * so the run passed `fits: true` honestly and still could not pay
+  * its armed round. Under this mode plus 'checkpoint', a preflight
+  * `fits: true` becomes a dispatch guarantee for the declared tail:
+  * the fan-out cannot spend past its declarations, and the
+  * checkpoint refuses before any tail stage the remaining money
+  * cannot carry. Opt-in; spawns without any declared estimate keep
+  * the parent-account flow byte for byte.
+  */
+  estIsCeiling?: boolean;
   /**
   * A positive integer, validated before any journal entry or dispatch:
   * the turn limit of the reserved final wake.
@@ -12231,6 +12293,13 @@ interface OrchestrateClaimConsistencyMeta {
   * coverage was held against, not only what it reached.
   */
   coverageTarget?: number;
+  /**
+  * Present when the pass ran under an effective coverage target
+  * (RV4404): declared `coverageTarget`, or the target 1 a declared
+  * semanticAcceptance derives. A truncation then grades
+  * 'coverage-capped', naming the ceiling as the cause.
+  */
+  coverageTargetDeclared?: true;
   /**
   * Present when `critical` was declared: the critical draft anchors
   * with no judged pair (capped at {@link MAX_CRITICAL_UNCOVERED});
@@ -17812,8 +17881,9 @@ interface SemanticTerminalVerdict {
   *   unsupported sampled citations);
   * - 'waived': acceptance was licensed by a standing exception, not
   *   by coverage;
-  * - 'partial': coverage graded below 'full' ('partial' or
-  *   'critical-uncovered') with no waiver standing;
+  * - 'partial': coverage graded below 'full' ('partial',
+  *   'critical-uncovered', or the RV4404 'coverage-capped', whose
+  *   cause is the configured pair ceiling) with no waiver standing;
   * - 'vacuous': the document cited nothing, so the configured pass
   *   verified nothing;
   * - 'clean': every configured judge ruled on the shipped document

@@ -14,6 +14,7 @@ The subset of the claim-consistency meta the grade derives from.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-coveragetargetdeclared"></a> `coverageTargetDeclared?` | `true` | True when the fold ran under a DECLARED coverage target (RV4404): a truncation is then the CEILING cutting selection the target wanted, and the grade names it 'coverage-capped' instead of a silent 'partial'. Absent keeps every historical grade byte for byte. | `packages/core/dist/index.d.ts` |
 | <a id="property-coveredcitingsentences"></a> `coveredCitingSentences` | `number` | Citing sentences with at least one judged pair. | `packages/core/dist/index.d.ts` |
 | <a id="property-criticaluncoveredtotal"></a> `criticalUncoveredTotal?` | `number` | Uncapped count of declared critical anchors with no judged pair. | `packages/core/dist/index.d.ts` |
 | <a id="property-draftcitingsentences"></a> `draftCitingSentences` | `number` | Draft sentences carrying at least one parsable anchor. | `packages/core/dist/index.d.ts` |

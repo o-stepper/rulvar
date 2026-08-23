@@ -51,7 +51,7 @@ describe('orchestrate option intake (v1.35.0 review P2-2)', () => {
     ],
     [
       { budget: { acceptanceReserve: 'block' as unknown as 'require' } },
-      /budget\.acceptanceReserve must be 'warn' or 'require'; got block/,
+      /budget\.acceptanceReserve must be 'warn', 'require' or 'checkpoint'; got block/,
     ],
   ] as Array<[OrchestrateOptions, RegExp]>)(
     'refuses %j synchronously at construction',
