@@ -741,6 +741,37 @@ single call crossed: each call opens its own meter (RV504).
 
 ***
 
+### raiseChildAllowance()
+
+```ts
+raiseChildAllowance(scope, byUsd): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Raises a child-allowance ceiling by one more admitted child's
+declared estimate (RV4404, `budget.estIsCeiling`). Tool-spawned
+children of one orchestrator share a scope, so the enforced bound
+is the AGGREGATE of the declared estimates: the fan-out
+collectively cannot spend past what it declared, which is exactly
+the number the acceptance-tail arithmetic trusted. Only a
+child-allowance account may raise; the orchestrator cap and the
+root are host declarations no admission may widen. Deterministic
+on resume: admissions replay in order, so the raises do too.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+| `byUsd` | `number` |
+
+#### Returns
+
+`void`
+
+***
+
 ### refuseSpawnIfInfeasible()
 
 ```ts

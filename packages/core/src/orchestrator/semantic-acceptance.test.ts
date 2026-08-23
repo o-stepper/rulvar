@@ -375,6 +375,33 @@ describe('the wired declaration (RV4201): clean settles, dirty physically cannot
     expect(data.semanticAcceptanceWaiver).toBe('forbid');
   });
 
+  it("a declared full coverage cut by the pair ceiling refuses as 'coverage-capped', naming the knob (RV4404)", async () => {
+    // Both pool children ground both citing sentences, so the POOL is
+    // not the limit; max: 1 is. The seventh comparison run declared
+    // full coverage over a truncated fold and reported 23 uncovered
+    // sentences as if the document were the problem.
+    const { internals } = acceptanceHarness({
+      children: [POOL_EXEC, POOL_OTEL],
+      final: FINAL_CLEAN,
+    });
+    const thrown = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...STRICT_MACHINERY,
+        claimConsistency: { ...STRICT_MACHINERY.claimConsistency, max: 1 },
+        semanticAcceptance: DECLARATION,
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const message = String((thrown as FailRunError).message);
+    expect(message).toContain("'coverage-capped'");
+    expect(message).toContain('the pair ceiling max=1 cut selection');
+    expect(message).toContain('raise claimConsistency.max');
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.coverage).toBe('coverage-capped');
+  });
+
   it('the pinned waiver licenses exactly the reviewed document: a foreign hash refuses', async () => {
     const { internals } = acceptanceHarness({ children: [POOL_EXEC], final: FINAL_CLEAN });
     const thrown = await executeWorkflow(

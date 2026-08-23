@@ -321,6 +321,7 @@ const COVERAGE_GRADES: readonly ClaimCoverageGrade[] = [
   'full',
   'vacuous',
   'partial',
+  'coverage-capped',
   'critical-uncovered',
   'judge-declined',
   'judge-failed',
@@ -447,7 +448,15 @@ export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: C
     return 1;
   }
   const grade = coverageGradeOf(value);
-  if (grade === 'judge-failed' || grade === 'judge-declined' || grade === 'critical-uncovered') {
+  if (
+    grade === 'judge-failed' ||
+    grade === 'judge-declined' ||
+    grade === 'critical-uncovered' ||
+    // RV4404: a capped grade under a DECLARED coverage target breaks
+    // the contract the pass declared ('partial' deliberately does
+    // not), so strict refuses it.
+    grade === 'coverage-capped'
+  ) {
     io.err(
       `strict: claim coverage '${grade}': ` +
         (grade === 'judge-failed'

@@ -1341,7 +1341,9 @@ describe('the declared coverage target sizes the pass (RV2903)', () => {
     // The same number that sized the pass judges what it reached: no
     // separate minimumCoverageRatio was declared anywhere.
     expect(meta?.lowCoverage).toEqual({ coverageRatio: 0.5, coverageFloor: 1 });
-    expect(meta).toMatchObject({ coverageTarget: 1, truncated: true, coverage: 'partial' });
+    // RV4404: a truncation under the declared target now names the
+    // ceiling as the cause instead of a generic 'partial'.
+    expect(meta).toMatchObject({ coverageTarget: 1, truncated: true, coverage: 'coverage-capped' });
   });
 
   it('under a target the run-fact pass judges every matched candidate', async () => {

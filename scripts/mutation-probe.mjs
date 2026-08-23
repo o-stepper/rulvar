@@ -3231,8 +3231,9 @@ export const MUTATIONS = [
     doctrine:
       "--strict exits nonzero on a declined judge exactly as on a failed one (RV2508): nothing was judged either way, and a run that reads 'complete' with an unjudged draft is the mechanical green the strict grade reading exists to catch",
     file: 'packages/cli/src/drive.ts',
-    find: "  if (grade === 'judge-failed' || grade === 'judge-declined' || grade === 'critical-uncovered') {",
-    replace: "  if (grade === 'judge-failed' || grade === 'critical-uncovered') {",
+    find: "  if (\n    grade === 'judge-failed' ||\n    grade === 'judge-declined' ||\n    grade === 'critical-uncovered' ||\n    // RV4404: a capped grade under a DECLARED coverage target breaks\n    // the contract the pass declared ('partial' deliberately does\n    // not), so strict refuses it.\n    grade === 'coverage-capped'\n  ) {",
+    replace:
+      "  if (grade === 'judge-failed' || grade === 'critical-uncovered' || grade === 'coverage-capped') {",
     test: 'packages/cli/src/index.test.ts',
   },
   {
@@ -3258,7 +3259,7 @@ export const MUTATIONS = [
     doctrine:
       "the CLI strict gate exits nonzero on 'judge-failed' and 'critical-uncovered' coverage (RV1702, widened to 'judge-declined' by RV2508): dropping the branch returns strict to the posture where a dead judge and unverified declared claims pass as green, the states the flag exists to refuse",
     file: 'packages/cli/src/drive.ts',
-    find: "  if (grade === 'judge-failed' || grade === 'judge-declined' || grade === 'critical-uncovered') {",
+    find: "  if (\n    grade === 'judge-failed' ||\n    grade === 'judge-declined' ||\n    grade === 'critical-uncovered' ||\n    // RV4404: a capped grade under a DECLARED coverage target breaks\n    // the contract the pass declared ('partial' deliberately does\n    // not), so strict refuses it.\n    grade === 'coverage-capped'\n  ) {",
     replace: '  if (false) {',
     test: 'packages/cli/src/index.test.ts',
   },
@@ -4535,7 +4536,7 @@ export const MUTATIONS = [
     doctrine:
       'under a declared coverage target the run-fact pass judges EVERY matched candidate (RV2903): the ninth comparison run cut 30 candidates to the default 8 with no configuration surface to raise the bound',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '                ...(spec.coverageTarget === undefined ? {} : { max: Number.MAX_SAFE_INTEGER }),',
+    find: '                ...(effectiveCoverageTarget === undefined ? {} : { max: Number.MAX_SAFE_INTEGER }),',
     replace: '',
     test: 'packages/core/src/orchestrator/consistency.test.ts',
   },
@@ -5138,7 +5139,7 @@ export const MUTATIONS = [
     doctrine:
       "budget.acceptanceReserve 'require' refuses a run whose declared acceptance tail does not fit the cap BEFORE the first wire (RV3907): with the gate collapsed, the starving config dispatches anyway and dies mid-acceptance, the fourth comparison run's warned-and-started shape",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "    if (opts?.budget?.acceptanceReserve === 'require') {",
+    find: "    if (\n      opts?.budget?.acceptanceReserve === 'require' ||\n      opts?.budget?.acceptanceReserve === 'checkpoint'\n    ) {",
     replace: '    if (false) {',
     test: 'packages/core/src/orchestrator/orchestrate-intake.test.ts',
   },
@@ -5731,6 +5732,51 @@ export const MUTATIONS = [
     replace:
       'export const MAX_CITATION_UNIT_EXCERPT_LINES = 12;\nexport const MAX_CITATION_UNIT_EXCERPT_CHARS = 800;',
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'checkpoint-refuses-before-the-stage-pays',
+    doctrine:
+      "the 'checkpoint' reserve re-checks tail solvency BEFORE the composition pays (RV4404): with the call collapsed, the seventh comparison trajectory pays the composition and both judges again and dies only where the armed round cannot dispatch, the exact 1.9 USD the checkpoint exists to save",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "      if (stagePhase === 'composition') {\n        // RV4404: the first paid tail dispatch re-checks solvency at\n        // the money actually spent; the repair round's own budget\n        // machinery already refuses honestly on its path.\n        await checkpointAcceptanceTail('composition');\n      }",
+    replace: '',
+    test: 'packages/core/src/orchestrator/budget-honesty.test.ts',
+  },
+  {
+    id: 'checkpoint-walks-the-whole-chain',
+    doctrine:
+      "the checkpoint judges every ceiling up to the run root (RV4404): with the walk cut at the orchestrator cap, fan-out spend that debits the ROOT stays invisible and the arithmetic passes green over the exact account the seventh comparison run's refusal named",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        scope = view.parentScope;',
+    replace: '        scope = undefined;',
+    test: 'packages/core/src/orchestrator/budget-honesty.test.ts',
+  },
+  {
+    id: 'est-ceiling-is-the-fanout-allowance',
+    doctrine:
+      "estIsCeiling widens the fan-out allowance by EACH admitted child's declared estimate (RV4404): with the raise collapsed, the allowance never grows past its opening and the enforced bound stops being the number the acceptance-tail arithmetic trusted",
+    file: 'packages/core/src/engine/budget.ts',
+    find: '    account.ceilingUsd = (account.ceilingUsd ?? 0) + byUsd;',
+    replace: '    account.ceilingUsd = account.ceilingUsd ?? byUsd;',
+    test: 'packages/core/src/orchestrator/budget-honesty.test.ts',
+  },
+  {
+    id: 'capped-coverage-names-the-ceiling',
+    doctrine:
+      "a truncation under a declared coverage target grades 'coverage-capped', never a silent 'partial' (RV4404): with the branch collapsed, the configured pair ceiling reads as a document defect again, exactly how the seventh comparison run reported 23 uncovered sentences its own max had cut",
+    file: 'packages/core/src/orchestrator/consistency.ts',
+    find: "  if (meta.truncated && meta.coverageTargetDeclared === true) {\n    return 'coverage-capped';\n  }",
+    replace: '',
+    test: 'packages/core/src/orchestrator/budget-honesty.test.ts',
+  },
+  {
+    id: 'full-coverage-owns-its-selection',
+    doctrine:
+      'a declared semanticAcceptance derives coverage target 1 when none is set (RV4404): with the derivation collapsed, full coverage runs the historical first-max selection again and the pair ceiling cuts citing sentences silently, the seventh comparison configuration verbatim',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        spec.coverageTarget ?? (opts?.semanticAcceptance !== undefined ? 1 : undefined);',
+    replace: '        spec.coverageTarget;',
+    test: 'packages/core/src/orchestrator/semantic-acceptance.test.ts',
   },
   {
     id: 'empty-meta-is-not-judged',

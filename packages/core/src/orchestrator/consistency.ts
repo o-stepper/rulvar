@@ -639,6 +639,14 @@ export function pairRunFactClaims(
  * - `'partial'`: the pass verified a strict subset: the pair bound
  *   truncated the fold, a run-facts bound truncated the run-claim
  *   pairs, or citing sentences exist that no judged pair covers.
+ * - `'coverage-capped'` (RV4404): the pass ran under a DECLARED
+ *   coverage target and the hard pair ceiling still cut selection the
+ *   target wanted. Distinct from `'partial'` because the cause is the
+ *   CONFIGURED `max`, not the pool: the seventh comparison run
+ *   declared full coverage, folded its pairs truncated at the
+ *   ceiling, and reported 23 uncovered citing sentences as if the
+ *   text were the problem. The honest grade names the ceiling so the
+ *   refusal (and the operator) fix the config, not the document.
  * - `'critical-uncovered'`: at least one DECLARED critical anchor got
  *   no judged pair; stronger than `'partial'` because the caller named
  *   exactly these claims as the ones that must not go unverified.
@@ -657,7 +665,13 @@ export function pairRunFactClaims(
  * can grade a persisted outcome from an older engine.
  */
 export type ClaimCoverageGrade =
-  'full' | 'vacuous' | 'partial' | 'critical-uncovered' | 'judge-declined' | 'judge-failed';
+  | 'full'
+  | 'vacuous'
+  | 'partial'
+  | 'coverage-capped'
+  | 'critical-uncovered'
+  | 'judge-declined'
+  | 'judge-failed';
 
 /** The subset of the claim-consistency meta the grade derives from. */
 export interface ClaimCoverageInput {
@@ -679,6 +693,14 @@ export interface ClaimCoverageInput {
    * the meta it grades, so nothing at the call site changes.
    */
   judgeDeclined?: true;
+  /**
+   * True when the fold ran under a DECLARED coverage target (RV4404):
+   * a truncation is then the CEILING cutting selection the target
+   * wanted, and the grade names it 'coverage-capped' instead of a
+   * silent 'partial'. Absent keeps every historical grade byte for
+   * byte.
+   */
+  coverageTargetDeclared?: true;
 }
 
 /** Derives the {@link ClaimCoverageGrade} of a claim-consistency meta. */
@@ -696,6 +718,14 @@ export function claimCoverageOf(meta: ClaimCoverageInput): ClaimCoverageGrade {
   }
   if ((meta.criticalUncoveredTotal ?? 0) > 0) {
     return 'critical-uncovered';
+  }
+  // The declared-target truncation names its cause (RV4404): the
+  // hard ceiling cut selection the target wanted, so the fix is the
+  // config, not the document. Run-facts truncation and plain
+  // uncovered sentences keep reading 'partial': no ceiling of the
+  // main pair fold is to blame for those.
+  if (meta.truncated && meta.coverageTargetDeclared === true) {
+    return 'coverage-capped';
   }
   if (
     meta.truncated ||

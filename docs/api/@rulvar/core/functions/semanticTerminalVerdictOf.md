@@ -12,7 +12,7 @@ function semanticTerminalVerdictOf(input):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/semantic-verdict.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L101)
+Defined in: [packages/core/src/orchestrator/semantic-verdict.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L102)
 
 Folds the one semantic verdict out of envelope facts (RV4209).
 Returns undefined when NO semantic meta is present: nothing was

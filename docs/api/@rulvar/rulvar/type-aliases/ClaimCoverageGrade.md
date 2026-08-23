@@ -11,6 +11,7 @@ type ClaimCoverageGrade =
   | "full"
   | "vacuous"
   | "partial"
+  | "coverage-capped"
   | "critical-uncovered"
   | "judge-declined"
   | "judge-failed";
@@ -39,6 +40,14 @@ The grade names the verification posture outright:
 - `'partial'`: the pass verified a strict subset: the pair bound
   truncated the fold, a run-facts bound truncated the run-claim
   pairs, or citing sentences exist that no judged pair covers.
+- `'coverage-capped'` (RV4404): the pass ran under a DECLARED
+  coverage target and the hard pair ceiling still cut selection the
+  target wanted. Distinct from `'partial'` because the cause is the
+  CONFIGURED `max`, not the pool: the seventh comparison run
+  declared full coverage, folded its pairs truncated at the
+  ceiling, and reported 23 uncovered citing sentences as if the
+  text were the problem. The honest grade names the ceiling so the
+  refusal (and the operator) fix the config, not the document.
 - `'critical-uncovered'`: at least one DECLARED critical anchor got
   no judged pair; stronger than `'partial'` because the caller named
   exactly these claims as the ones that must not go unverified.
