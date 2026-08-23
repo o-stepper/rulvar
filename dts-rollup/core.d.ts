@@ -15087,6 +15087,41 @@ interface LogicalRunTelemetry {
   * so the last status is not the run's last word.
   */
   entriesAfterLastSettle: number;
+  /**
+  * The two time conventions of a resumed run (RV4409, the seventh
+  * comparison experiment's post-mortem measured them by external
+  * script): `activeMs` sums each segment's own append window (its
+  * first to its last appended entry), `calendarMs` spans the whole
+  * journal, and `gapMs` is their difference, the operator time
+  * between segments. Derived from the `startedAt` stamps the entries
+  * already carry; absent when the journal carries none (absence
+  * means NOT RECORDED, RV1209).
+  */
+  activeMs?: number;
+  calendarMs?: number;
+  gapMs?: number;
+  /**
+  * Per segment, in journal order (RV4409): the settled status, the
+  * appended entries, the segment's own append window when the stamps
+  * exist, and `replayed: true` on a pure-replay segment (nothing
+  * appended but its settle), so a resumed run's walls read as the
+  * original segments' work instead of 0.0 s.
+  */
+  perSegment?: Array<{
+    status: RunStatus;
+    entries: number;
+    activeMs?: number;
+    replayed?: true;
+  }>;
+  /**
+  * Provider wire decisions across the WHOLE journal (RV4409): the
+  * logical run's paid wire count, the invoice's cardinality. A
+  * resumed segment re-reads its prefix without re-paying it, so this
+  * figure and a segment's own adapter fetches are DIFFERENT counters
+  * with different names; the seventh comparison experiment
+  * reconciled "16 versus 109" by hand for exactly this reason.
+  */
+  logicalWireRequests?: number;
 }
 /**
 * Folds a run's journal into the logical run's telemetry (RV2510): how

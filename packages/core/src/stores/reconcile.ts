@@ -504,6 +504,41 @@ export interface LogicalRunTelemetry {
    * so the last status is not the run's last word.
    */
   entriesAfterLastSettle: number;
+  /**
+   * The two time conventions of a resumed run (RV4409, the seventh
+   * comparison experiment's post-mortem measured them by external
+   * script): `activeMs` sums each segment's own append window (its
+   * first to its last appended entry), `calendarMs` spans the whole
+   * journal, and `gapMs` is their difference, the operator time
+   * between segments. Derived from the `startedAt` stamps the entries
+   * already carry; absent when the journal carries none (absence
+   * means NOT RECORDED, RV1209).
+   */
+  activeMs?: number;
+  calendarMs?: number;
+  gapMs?: number;
+  /**
+   * Per segment, in journal order (RV4409): the settled status, the
+   * appended entries, the segment's own append window when the stamps
+   * exist, and `replayed: true` on a pure-replay segment (nothing
+   * appended but its settle), so a resumed run's walls read as the
+   * original segments' work instead of 0.0 s.
+   */
+  perSegment?: Array<{
+    status: RunStatus;
+    entries: number;
+    activeMs?: number;
+    replayed?: true;
+  }>;
+  /**
+   * Provider wire decisions across the WHOLE journal (RV4409): the
+   * logical run's paid wire count, the invoice's cardinality. A
+   * resumed segment re-reads its prefix without re-paying it, so this
+   * figure and a segment's own adapter fetches are DIFFERENT counters
+   * with different names; the seventh comparison experiment
+   * reconciled "16 versus 109" by hand for exactly this reason.
+   */
+  logicalWireRequests?: number;
 }
 
 /**
@@ -527,13 +562,34 @@ export interface LogicalRunTelemetry {
 export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRunTelemetry {
   const statuses: RunStatus[] = [];
   const entriesPerSegment: number[] = [];
+  const segmentWindows: Array<{ firstMs?: number; lastMs?: number }> = [];
   let sinceLastSettle = 0;
+  let window: { firstMs?: number; lastMs?: number } = {};
+  let logicalWireRequests = 0;
+  const stampOf = (entry: JournalEntry): number | undefined => {
+    const raw = (entry as { startedAt?: unknown }).startedAt;
+    if (typeof raw !== 'string') {
+      return undefined;
+    }
+    const ms = Date.parse(raw);
+    return Number.isFinite(ms) ? ms : undefined;
+  };
   for (const entry of entries) {
     sinceLastSettle += 1;
+    const ms = stampOf(entry);
+    if (ms !== undefined) {
+      window.firstMs ??= ms;
+      window.lastMs = ms;
+    }
     if (entry.kind !== 'decision') {
       continue;
     }
     const value = entry.value as { decisionType?: unknown; runStatus?: unknown } | undefined;
+    if (value?.decisionType === 'provider-call') {
+      // The logical wire count (RV4409): one decision per billable
+      // provider call, replay-deduped by the journal itself.
+      logicalWireRequests += 1;
+    }
     if (
       value?.decisionType !== RUN_SETTLE_DECISION_TYPE ||
       typeof value.runStatus !== 'string' ||
@@ -543,14 +599,49 @@ export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRu
     }
     statuses.push(value.runStatus as RunStatus);
     entriesPerSegment.push(sinceLastSettle);
+    segmentWindows.push(window);
     sinceLastSettle = 0;
+    window = {};
   }
+  const perSegment = statuses.map((status, index) => {
+    const count = entriesPerSegment[index] ?? 0;
+    const seg = segmentWindows[index] ?? {};
+    const activeMs =
+      seg.firstMs !== undefined && seg.lastMs !== undefined ? seg.lastMs - seg.firstMs : undefined;
+    return {
+      status,
+      entries: count,
+      ...(activeMs === undefined ? {} : { activeMs }),
+      // A pure-replay resume appends nothing but its settle: the
+      // segment did no new paid work, and its wall belongs to the
+      // original segments, not to a 0.0 s rerun.
+      ...(count <= 1 ? { replayed: true as const } : {}),
+    };
+  });
+  const activeMs = perSegment.reduce<number | undefined>(
+    (sum, seg) => (seg.activeMs === undefined ? sum : (sum ?? 0) + seg.activeMs),
+    undefined,
+  );
+  const firstStamp = entries.map(stampOf).find((ms) => ms !== undefined);
+  const lastStamp = [...entries]
+    .reverse()
+    .map(stampOf)
+    .find((ms) => ms !== undefined);
+  const calendarMs =
+    firstStamp !== undefined && lastStamp !== undefined ? lastStamp - firstStamp : undefined;
   return {
     segments: statuses.length,
     statuses,
     entriesPerSegment,
     entries: entries.length,
     entriesAfterLastSettle: sinceLastSettle,
+    ...(activeMs === undefined ? {} : { activeMs }),
+    ...(calendarMs === undefined ? {} : { calendarMs }),
+    ...(activeMs !== undefined && calendarMs !== undefined
+      ? { gapMs: Math.max(0, calendarMs - activeMs) }
+      : {}),
+    ...(statuses.length === 0 ? {} : { perSegment }),
+    logicalWireRequests,
   };
 }
 

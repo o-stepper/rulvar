@@ -4282,8 +4282,8 @@ export const MUTATIONS = [
     doctrine:
       'the logical aggregate PARTITIONS the journal at each settle boundary (RV2510): a running total that never resets reports segment two as having done every entry segment one did, which is the double count the fold exists to prevent',
     file: 'packages/core/src/stores/reconcile.ts',
-    find: '    entriesPerSegment.push(sinceLastSettle);\n    sinceLastSettle = 0;',
-    replace: '    entriesPerSegment.push(sinceLastSettle);',
+    find: '    entriesPerSegment.push(sinceLastSettle);\n    segmentWindows.push(window);\n    sinceLastSettle = 0;',
+    replace: '    entriesPerSegment.push(sinceLastSettle);\n    segmentWindows.push(window);',
     test: 'packages/core/src/stores/reconcile.test.ts',
   },
   {
@@ -5732,6 +5732,24 @@ export const MUTATIONS = [
     replace:
       'export const MAX_CITATION_UNIT_EXCERPT_LINES = 12;\nexport const MAX_CITATION_UNIT_EXCERPT_CHARS = 800;',
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'logical-wires-have-their-own-name',
+    doctrine:
+      'the logical run owns its wire count (RV4409): with the fold dropped, "16 versus 109" becomes hand reconciliation over the raw journal again, exactly the naming defect the seventh comparison post-mortem spent a script on',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '      logicalWireRequests += 1;',
+    replace: '',
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
+  {
+    id: 'replayed-segments-say-so',
+    doctrine:
+      "a pure-replay segment reads 'replayed', never a 0.0 s rerun (RV4409): with the marker dropped, a resumed run's walls read as if the original work took no time, the exact misreading the seventh comparison post-mortem hit on its replayed workers",
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '      ...(count <= 1 ? { replayed: true as const } : {}),',
+    replace: '',
+    test: 'packages/core/src/stores/reconcile.test.ts',
   },
   {
     id: 'sponsor-is-a-scope-dimension',

@@ -785,6 +785,37 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
       // settled status is not the run's last word.
       context.io.out(`  entries after the last settle: ${logical.entriesAfterLastSettle}`);
     }
+    // The logical run's own telemetry (RV4409): the seventh comparison
+    // experiment measured active/calendar walls and the 109-wire count
+    // by external script over the raw journal; the fold owns them now,
+    // and the two counter families get DIFFERENT names because "16
+    // versus 109" was a naming defect, not a data one.
+    const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)} s`;
+    if (logical.activeMs !== undefined && logical.calendarMs !== undefined) {
+      context.io.out(
+        `logical run: active ${seconds(logical.activeMs)}, calendar ` +
+          `${seconds(logical.calendarMs)}, operator gap ${seconds(logical.gapMs ?? 0)} ` +
+          '(active sums each segment; calendar spans first to last append)',
+      );
+      for (const [index, seg] of (logical.perSegment ?? []).entries()) {
+        context.io.out(
+          `  segment ${String(index + 1)}: ${sanitizeTerminalText(seg.status)} after ` +
+            `${String(seg.entries)} entr${seg.entries === 1 ? 'y' : 'ies'}` +
+            (seg.activeMs === undefined ? '' : `; active ${seconds(seg.activeMs)}`) +
+            (seg.replayed === true
+              ? '; replayed (a pure-replay resume: the wall belongs to the original segments)'
+              : ''),
+        );
+      }
+    }
+    if (logical.logicalWireRequests !== undefined && logical.logicalWireRequests > 0) {
+      context.io.out(
+        `logical wires: ${String(logical.logicalWireRequests)} provider call` +
+          `${logical.logicalWireRequests === 1 ? '' : 's'} across the whole run (a resumed ` +
+          'segment re-reads its prefix without re-paying it, so segment adapter fetches are ' +
+          'a different, smaller counter by design)',
+      );
+    }
   }
   // What the finish contract REFUSED (RV2507), read back from the settle
   // that recorded it (RV2605): three rows sharing one hash is the model
