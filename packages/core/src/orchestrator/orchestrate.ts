@@ -1103,6 +1103,15 @@ export interface OrchestrateCitationAudit {
    * v2 changes which rows exist and what the judge reads.
    */
   resolver?: 1 | 2;
+  /**
+   * What the audit judges (RV4407): 'sample' (default) keeps the
+   * deterministic stratified sample byte for byte; 'all' judges
+   * EVERY anchor row of the document, a census instead of a sample.
+   * Requires resolver 2; one judge invocation still carries all
+   * rows, so the cost scales through the prompt and `judge.estCost`
+   * should be sized for the whole document.
+   */
+  auditScope?: 'sample' | 'all';
   /** The judge invocation's knobs, exactly the claim judge's shape. */
   judge?: {
     model?: ModelSpec;
@@ -3202,6 +3211,22 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     if (audit.judge?.estCost !== undefined) {
       requireNonNegativeNumber(audit.judge.estCost, 'orchestrate citationAudit.judge.estCost');
+    }
+    if (
+      audit.auditScope !== undefined &&
+      audit.auditScope !== 'sample' &&
+      audit.auditScope !== 'all'
+    ) {
+      throw new ConfigError(
+        `orchestrate citationAudit.auditScope must be 'sample' or 'all'; got ` +
+          JSON.stringify(audit.auditScope),
+      );
+    }
+    if (audit.auditScope === 'all' && audit.resolver !== 2) {
+      throw new ConfigError(
+        "orchestrate citationAudit.auditScope 'all' requires resolver 2: the census " +
+          'enumerates every anchor of every citing sentence, which is the v2 row semantics',
+      );
     }
     if (audit.onFound === 'repair') {
       if (opts?.synthesis === undefined) {
@@ -8454,6 +8479,8 @@ export function makeOrchestratorWorkflow(
           maxSampled: number;
           /** Present exactly under the declared resolver 2 (RV4208). */
           resolverVersion?: 2;
+          /** Present exactly under the declared census (RV4407). */
+          auditScope?: 'all';
           passes?: number;
           firstPassFindings?: number;
           citationRepairRounds?: number;
@@ -8554,6 +8581,9 @@ export function makeOrchestratorWorkflow(
         // verdict's consumer must know whether rows are first-anchor
         // windows or per-anchor logical units.
         ...(plan.resolver === 2 ? { resolverVersion: 2 as const } : {}),
+        // The census marker (RV4407), same posture: a consumer must
+        // know whether `sampled` counts a sample or the document.
+        ...(plan.auditScope === 'all' ? { auditScope: 'all' as const } : {}),
       };
       const onFound = auditSpec.onFound ?? 'report';
       if (judgeRows.length === 0) {

@@ -74,7 +74,33 @@ describe('the deterministic sample (RV4004)', () => {
       maxSampled: 24,
       window: 3,
       resolver: 1,
+      auditScope: 'sample',
     });
+    // The census literal gate (RV4407): garbage refuses, and the
+    // census requires the v2 row semantics.
+    expect(() => resolveCitationAuditPlan({ auditScope: 'census' as never })).toThrow(
+      /auditScope must be 'sample' or 'all'/,
+    );
+    expect(() => resolveCitationAuditPlan({ auditScope: 'all' })).toThrow(/requires resolver 2/);
+    expect(resolveCitationAuditPlan({ auditScope: 'all', resolver: 2 }).auditScope).toBe('all');
+  });
+
+  it("auditScope 'all' judges every anchor row: a census, not a sample (RV4407)", () => {
+    const plan = {
+      pattern: '[\\w./-]+\\.\\w+:\\d+',
+      samplePerSection: 2,
+      maxSampled: 2,
+      resolver: 2 as const,
+    };
+    const sampled = sampleCitationRows(DOC, plan, 'seed-a');
+    expect(sampled).toHaveLength(2);
+    const census = sampleCitationRows(DOC, { ...plan, auditScope: 'all' }, 'seed-a');
+    // Every citing sentence's every anchor, past both sampling caps;
+    // the seed steers nothing because nothing is picked.
+    expect(census.length).toBeGreaterThan(sampled.length);
+    expect(sampleCitationRows(DOC, { ...plan, auditScope: 'all' }, 'seed-b')).toEqual(census);
+    const anchors = census.map((row) => `${row.path}:${String(row.line)}`);
+    expect(new Set(anchors).size).toBeGreaterThanOrEqual(4);
   });
 
   it('excerpts read through the pure resolver: window, ranges, unresolvable first line', () => {
@@ -320,6 +346,67 @@ describe('the audit wired into the orchestrator (RV4004)', () => {
       section: '## Grid',
     });
     expect(rig.judgeCalls()).toBe(1);
+  });
+
+  it("the declared census stamps auditScope 'all' and judges every row (RV4407)", async () => {
+    const rig = auditHarness({
+      finals: [FINAL_MIXED],
+      judgeTurns: () => ({
+        text: JSON.stringify({
+          verdicts: [
+            { row: 0, verdict: 'supported', reason: 'entails' },
+            { row: 1, verdict: 'supported', reason: 'entails' },
+          ],
+        }),
+      }),
+    });
+    const outcome = (await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...AUDIT_BASE,
+        citationAudit: {
+          resolve: resolveSnapshot,
+          judge: { model: 'judge:model' },
+          resolver: 2,
+          auditScope: 'all',
+          // The caps are inert under the census; declared tiny to
+          // prove nothing samples.
+          samplePerSection: 1,
+          maxSampled: 1,
+        },
+      }),
+      undefined,
+    )) as { citationAuditMeta?: Record<string, unknown> };
+    expect(outcome.citationAuditMeta).toMatchObject({
+      sampled: 2,
+      supported: 2,
+      auditScope: 'all',
+      resolverVersion: 2,
+    });
+    expect(rig.judgeCalls()).toBe(1);
+  });
+
+  it('intake refuses a census without resolver 2 and a garbage scope (RV4407)', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        ...AUDIT_BASE,
+        citationAudit: {
+          resolve: resolveSnapshot,
+          judge: { model: 'judge:model' },
+          auditScope: 'all',
+        },
+      }),
+    ).toThrow(/auditScope 'all' requires resolver 2/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        ...AUDIT_BASE,
+        citationAudit: {
+          resolve: resolveSnapshot,
+          judge: { model: 'judge:model' },
+          auditScope: 'census' as never,
+        },
+      }),
+    ).toThrow(/auditScope must be 'sample' or 'all'/);
   });
 
   it('a citation nothing resolves is unsupported mechanically, no judge for that row', async () => {

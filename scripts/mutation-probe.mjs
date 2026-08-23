@@ -5734,6 +5734,24 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
   {
+    id: 'census-judges-every-row',
+    doctrine:
+      "auditScope 'all' is a census, never a sample (RV4407): with the mode collapsed, the declared census silently samples 24 rows again, and a regulated class that paid for the whole document is judged on a fraction the config said it had left behind",
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: "  const census = plan.auditScope === 'all';",
+    replace: '  const census = false;',
+    test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
+  {
+    id: 'census-needs-the-v2-rows',
+    doctrine:
+      "the census requires resolver 2 (RV4407): with the gate dropped, auditScope 'all' over the v1 first-anchor rows claims a census while skipping every later anchor of every compound sentence, a totality the machinery cannot deliver",
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: "  if (auditScope === 'all' && resolver !== 2) {",
+    replace: '  if (false) {',
+    test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
+  {
     id: 'repair-pool-binds-the-round',
     doctrine:
       'a spent run repair pool refuses the semantic round BEFORE dispatch (RV4406): with the refusal collapsed, the round composes past the one lifetime bound the host declared, and the pool becomes advisory prose over paid work',

@@ -10,7 +10,7 @@
 function orchestratorAdmissionEstCostUsd(effectiveCapUsd, committedFinalizeReserveUsd): number;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:3570](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L3570)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:3595](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L3595)
 
 The capped orchestrator's own admission estimate (the 1.63.0
 experiment review, P0.3): the effective cap MINUS the finalize

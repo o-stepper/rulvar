@@ -30,7 +30,8 @@ of auditing the first sections only.
 | Parameter | Type |
 | ------ | ------ |
 | `document` | `string` |
-| `plan` | \{ `maxSampled`: `number`; `pattern`: `string`; `resolver?`: `2` \| `1`; `samplePerSection`: `number`; \} |
+| `plan` | \{ `auditScope?`: `"sample"` \| `"all"`; `maxSampled`: `number`; `pattern`: `string`; `resolver?`: `2` \| `1`; `samplePerSection`: `number`; \} |
+| `plan.auditScope?` | `"sample"` \| `"all"` |
 | `plan.maxSampled` | `number` |
 | `plan.pattern` | `string` |
 | `plan.resolver?` | `2` \| `1` |
