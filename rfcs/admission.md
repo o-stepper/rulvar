@@ -76,7 +76,7 @@ Why the split is load bearing:
 
 ## 4. The durable admission SPI, designed
 
-Vocabulary (names are design intent; plan 44 freezes them):
+Vocabulary (names are design intent; the effects plan, plan 45, freezes them):
 
 1. `AdmissionTicket`: the durable record of one admitted unit of work. Fields: the
    caller minted unit identity `(unitId, generation)` (below), the resolved effective
@@ -322,7 +322,7 @@ A ticket reserves, per level, up to four measures: wires, tokens, dollars, expos
 4. No new package: P1.4 allowed a separate host package, and the answer is that the
    store packages ARE the host packages for durable seams in this repository.
 
-## 10. Deliberately deferred to plan 44+
+## 10. Deliberately deferred to the effects plan (plan 45+)
 
 1. Frozen TypeScript names and the exact ticket state chart encoding.
 2. The scheduler's multi replica story beyond deterministic ordering (single scheduler
