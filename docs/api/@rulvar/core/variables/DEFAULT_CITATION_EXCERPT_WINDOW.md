@@ -10,4 +10,4 @@
 const DEFAULT_CITATION_EXCERPT_WINDOW: 3 = 3;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L140)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L142)

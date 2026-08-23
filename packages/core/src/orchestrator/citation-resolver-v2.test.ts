@@ -343,3 +343,388 @@ describe('the declared resolver 2 rides the audit end to end (RV4208)', () => {
     expect(judgeText).toContain('Rows carrying a `clause`');
   });
 });
+
+/**
+ * The seventh comparison experiment's citation findings, frozen
+ * (RV4401). The built-in judge returned 10 unsupported of 24 sampled,
+ * and re-adjudication against the frozen tree showed seven of the ten
+ * were EXCERPT artifacts, not candidate defects: docstring anchors
+ * whose `* `-led lines matched the markdown list rule and excerpted
+ * alone (support 3..9 lines away), one section cut mid-unit by the
+ * v1-sized char cap, and one table HEADER excerpted without the body
+ * rows it names. The corpus freezes the exact line texts of the ten
+ * findings' files at v1.248.0 (54c04dc7) and pins both directions:
+ * the artifact excerpts now carry their support, and the genuinely
+ * wrong citations stay exactly as damning as the judge read them.
+ */
+const SEVENTH: Record<string, Record<string, string>> = {
+  'packages/store-sqlite/src/store.ts': {
+    '1': '/**',
+    '2': ' * SqliteStore (M5-T02): JournalStore plus LeasableStore with fencing',
+    '3': ' * epochs over the builtin node:sqlite driver; the reference',
+    '4': ' * implementation for community stores (see',
+    '5': ' * https://docs.rulvar.com/guide/stores). Zero native dependencies by',
+    '6': ' * design.',
+    '7': ' *',
+    '8': ' * Contract highlights (executable definition: @rulvar/store-conformance):',
+    '9': ' * - A1-A4: single-statement inserts are atomic; per-run order is the',
+    '10': ' *   append order (rowid); payloads are opaque JSON, unknown fields pass',
+    '11': ' *   through untouched.',
+    '12': " * - Fencing: the epoch is monotonic per runId for the store's lifetime",
+    '13': ' *   INCLUDING across deleteRun and recreate (the epochs row is a',
+    '14': ' *   tombstone deletion preserves, so a zombie lease from a deleted',
+    '15': ' *   incarnation can never fence green against a recreated run);',
+    '16': ' *   an append carrying a stale or released lease rejects with the typed',
+    '17': ' *   LeaseHeldError and the entry never becomes visible. The fence check',
+    '18': " *   and the guarded mutation (append's insert, renew's extension,",
+    '19': " *   release's deletion) commit as ONE immediate transaction: checking in",
+    '20': ' *   one autocommit statement and mutating in the next left a',
+  },
+  'packages/store-postgres/src/store.ts': {
+    '1': '/**',
+    '2': ' * PostgresStore (RV-214): JournalStore plus LeasableStore with fencing',
+    '3': ' * epochs over node-postgres (`pg`); the production reference for',
+    '4': " * multi-process AND multi-host deployments, where SqliteStore's",
+    '5': ' * one-file-per-host boundary ends.',
+    '6': ' *',
+    '7': ' * Contract highlights (executable definition: @rulvar/store-conformance):',
+    '8': ' * - A1-A4: a single INSERT is atomic; per-run order is the append order',
+    '9': ' *   (a BIGSERIAL id); payloads are opaque TEXT JSON, unknown fields pass',
+    '10': ' *   through byte-for-byte (deliberately NOT a jsonb column: jsonb',
+    '11': ' *   normalizes key order and duplicate keys, and A4 forbids',
+    '12': ' *   normalization; jsonb is used only in query-side casts and',
+    '13': ' *   expression indexes).',
+    '14': ' * - Serialization: every run-scoped mutation (fenced or not) runs inside',
+    '15': ' *   one transaction that first takes a per-run advisory transaction lock',
+    '16': ' *   (`pg_advisory_xact_lock` over a hash of schema and runId). That is',
+    '17': " *   this store's translation of the sqlite BEGIN IMMEDIATE lesson (the",
+    '18': ' *   fenced-run-state RFC, F3): the fence check and the guarded mutation',
+    '19': ' *   commit as ONE serialized unit, so a takeover from another process or',
+    '20': ' *   HOST cannot land between the check and the write. The lock is',
+    '21': ' *   per-run, so unrelated runs never queue behind each other.',
+    '22': " * - Fencing: the epoch is monotonic per runId for the store's lifetime",
+    '23': ' *   INCLUDING across deleteRun and recreate (the epochs row is a',
+    '24': ' *   tombstone deletion preserves, so a zombie lease from a deleted',
+    '25': ' *   incarnation can never fence green against a recreated run); an',
+    '26': ' *   append carrying a stale or released lease rejects with the typed',
+    '27': ' *   LeaseHeldError and the entry never becomes visible. `fencedWrites:',
+    '28': ' *   true` on both the journal side and the transcript twin: putMeta,',
+    '29': ' *   delete, and blob writes accept the same optional lease under the',
+    '30': ' *   same atomic rule, and every lease-guarded mutation additionally',
+    '31': " *   requires the lease's runId to BE the mutated run.",
+    '32': ' * - A5 monotonic seq: the tail check and the insert are one conditional',
+    '33': " *   INSERT under the run's advisory lock, so a second writer racing the",
+    '34': ' *   journal from a stale tail loses with a typed JournalOrderViolation.',
+    '35': ' * - Concurrent boot: the idempotent schema bootstrap runs lazily on',
+    '36': ' *   first use, inside a schema-scoped advisory transaction lock, so a',
+    '37': ' *   fleet start over one fresh database serializes instead of colliding',
+    '38': ' *   in the DDL (the sqlite boot-race lesson, translated: postgres',
+    '39': ' *   queues on the lock and needs no busy retry).',
+    '40': ' * - Clocks: lease expiry uses the CLIENT clock (injectable `now`),',
+    '41': ' *   mirroring SqliteStore, so coordinating worker hosts must be',
+    '42': ' *   NTP-synced and the lease ttl must dwarf their skew (the default',
+    '43': ' *   60000 ms dwarfs sane NTP drift). One write region per run: this',
+    '44': ' *   store proves single-region multi-host fencing; a multi-region',
+    '45': ' *   protocol is out of scope until proven.',
+    '46': ' * - Pooling and backpressure: one pg Pool per store (default max 10',
+  },
+  'packages/core/src/tools/toolset-hash.ts': {
+    '36': '',
+    '37': '/**',
+    '38': ' * The authority projection of one tool (RV1802): what the tool may DO',
+    '39': ' * and under what gate, beside WHAT the model sees. The contract hash',
+    '40': ' * pins the model-facing tuple; risk, needsApproval, executor, and the',
+    '41': ' * executorSpec digest are the declarations that never enter',
+    '42': ' * toolsetHash by design, yet every one of them changes what the ask',
+    '43': ' * rules and the approval flow will do. Execute bodies stay',
+    '44': ' * deliberately unhashable: `version` remains the lever for behavior',
+    '45': ' * drift under an unchanged contract.',
+    '46': ' */',
+    '47': 'export interface ToolAuthority {',
+    '48': '  /** toolContractHash of the model-facing contract tuple. */',
+    '49': '  contract: string;',
+    '50': "  /** The tool's approval gate (default false at build time). */",
+  },
+  'packages/core/src/orchestrator/semantic-verdict.ts': {
+    '67': 'const countOf = (value: unknown): number =>',
+    '68': "  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;",
+    '69': '',
+    '70': '/**',
+    '71': ' * Folds the one semantic verdict out of envelope facts (RV4209).',
+    '72': ' * Returns undefined when NO semantic meta is present: nothing was',
+    '73': ' * configured, nothing judged anything, and absence must keep meaning',
+    '74': ' * NOT RECORDED rather than a fabricated verdict. Never throws on',
+    '75': ' * malformed shapes: an untyped field reads as absent, and the verdict',
+    '76': " * degrades toward 'not-judged', the fail-closed direction.",
+    '77': ' */',
+    '78': 'export function semanticTerminalVerdictOf(',
+    '79': '  input: SemanticVerdictInput,',
+    '80': '): SemanticTerminalVerdict | undefined {',
+    '81': '  const claim = input.claimConsistencyMeta;',
+    '82': '  const audit = input.citationAuditMeta;',
+  },
+  'packages/openai/src/compatible.ts': {
+    '1': '/**',
+    '2': ' * openaiCompatible factory (M3-T06): a ProviderAdapter for',
+    '3': ' * OpenAI-compatible endpoints (Ollama, vLLM, Mistral, OpenRouter,',
+    '4': ' * arbitrary gateways) speaking the Chat Completions dialect by',
+    '5': ' * construction. Explicit ids let several endpoints coexist in one',
+    '6': ' * engine; a duplicate adapterId at createEngine is a typed ConfigError',
+    '7': ' * raised by the adapter registry.',
+    '8': ' *',
+    '9': ' * Guide: https://docs.rulvar.com/guide/providers',
+    '10': ' */',
+    '11': "import OpenAI from 'openai';",
+    '12': 'import {',
+    '13': '  ConfigError,',
+    '14': '  createCanonicalIdMinter,',
+    '15': '  type ChatEvent,',
+    '16': '  type ChatRequest,',
+    '17': '  type ModelCaps,',
+    '18': '  type ProviderAdapter,',
+    '19': "} from '@rulvar/core';",
+    '20': "import type { OpenAiClientLike } from './adapter.js';",
+  },
+  'packages/evals/src/fault-injection.ts': {
+    '1': '/**',
+    '2': ' * The fault-injection kit (RV811): the comparison experiments left a',
+    '3': ' * standing list of fail-closed branches never observed live, and a',
+    '4': ' * branch nobody has ever driven is a claim, not a guarantee. Each',
+    '5': ' * scenario here DELIBERATELY drives one such branch on the real engine',
+    '6': ' * with scripted adapters (zero provider calls, zero keys), verifies the',
+    '7': ' * documented typed observable, and leaves experiment-grade artifacts',
+    '8': ' * (the outcome, the journal, the raw bytes where the fault is a byte',
+    '9': ' * fault). Fail closed like everything else in this package: a scenario',
+    '10': ' * whose branch stops producing its documented observable reports',
+    '11': ' * `matched: false` and the whole report says so, instead of the list',
+    '12': ' * quietly becoming untested again. The RV909 scenarios extend the list',
+    '13': " * with the thirteenth experiment's fixed defects, so each fix's probe",
+    '14': ' * is a permanent gate: reverting the fixed behavior reports',
+    '15': ' * `matched: false` here, not only in the unit suite that shipped it.',
+    '16': ' */',
+    '17': "import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';",
+    '18': "import { appendFileSync, mkdtempSync } from 'node:fs';",
+    '19': "import { tmpdir } from 'node:os';",
+    '20': "import { join } from 'node:path';",
+  },
+  'packages/core/src/journal/replayer.ts': {
+    '74': 'export interface Ledger {',
+    '75': '  usage: Usage;',
+    '76': '  usd: number;',
+    '77': '  agentsSpawned: number;',
+    '78': '}',
+    '79': '',
+    '80': '/**',
+    '81': ' * The budget ledger fold as a PURE function over entries (extracted in',
+    '82': ' * RV1209 so an offline reader folds the identical arithmetic instead',
+    '83': ' * of a lookalike): usage sums over terminal entries once, never twice;',
+    '84': ' * agentsSpawned counts agent dispatches. Dollars fold on the settled',
+    '85': " * billing basis (RV801): per provider call where the entry's records",
+    '86': ' * cover its usage, the per-slice aggregate otherwise, the same basis',
+    '87': ' * as the CostReport and the invoice.',
+    '88': ' */',
+    '89': 'export function foldLedger(',
+    '90': '  entries: readonly JournalEntry[],',
+    '91': '  abandonFold: AbandonFold,',
+    '92': '  priceUsd?: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,',
+    '93': '): Ledger {',
+    '94': '  let usage: Usage = {',
+  },
+  'docs/guide/adaptive-orchestration.md': {
+    '1': '---',
+    '2': 'title: PlanRunner and extensions',
+    '3': 'description: The opt-in @rulvar/plan extension for wide fan-out workloads, where the task plan is typed engine-owned data with journaled revisions, reuse, escalations, model ladders, and guaranteed termination.',
+    '4': '---',
+    '5': '',
+    '6': '# PlanRunner and extensions',
+    '7': '',
+    '8': '`@rulvar/plan` ships PlanRunner, the opt-in extension of the dynamic orchestrator ([mode (c)](/guide/orchestration-modes)). It exists for one workload shape: wide fan-out where the plan must change mid-run. The design position is deliberate: mid-run replanning is the only real justification for an LLM orchestrator, and if the plan never changes, a script is strictly better. For most workloads the documented default remains a phase chain with replanning between phases; reach for PlanRunner when dozens of children run in parallel, some of them escalate, and the plan has to absorb what they report without redoing paid work.',
+    '9': '',
+    '10': '```bash',
+    '11': 'pnpm add @rulvar/core @rulvar/anthropic @rulvar/plan @rulvar/store-sqlite',
+    '12': '```',
+    '13': '',
+    '14': 'The extension holds a hard line everywhere: the plan is typed data owned by the engine, never prose in a transcript. The orchestrator model proposes typed diffs; the engine mints identifiers, admits spawns, schedules ready nodes, and journals every dynamic decision strictly before its effects. Nondeterminism is eliminated not by forbidding dynamism but by recording it.',
+    '15': '',
+    '16': '## Quick start',
+  },
+  'docs/reference/versioning.md': {
+    '8': 'Rulvar follows semver with one deliberate simplification: every package releases together under one identical version. There is exactly one exemption, and it exists to protect frozen data. This page explains the policy, what a release contains, and what an upgrade means for your code and for your journals.',
+    '9': '',
+    '10': '| Line | Current version | Policy |',
+    '11': '|---|---|---|',
+    '12': '| The fixed group (fifteen packages) | <!-- version:lockstep -->1.248.0<!-- /version --> | Lockstep: identical versions, released together |',
+    '13': '| `@rulvar/compat` | <!-- version:compat -->0.1.1<!-- /version --> | Independent: releases when a frozen profile moves in, or for rare packaging-only fixes |',
+    '14': '',
+    '15': '## Lockstep semver across the fixed group',
+  },
+  '.github/workflows/release.yml': {
+    '60': '          cache: pnpm',
+    '61': "          registry-url: 'https://registry.npmjs.org'",
+    '62': '      - run: pnpm install --frozen-lockfile',
+    '63': '      # Retries once on the tsdown pack flake; scripts/turbo-retry.mjs',
+    '64': '      # documents why that is safe. A flaked first build must not cost',
+    '65': '      # the release train a manual re-run.',
+    '66': '      - run: node scripts/turbo-retry.mjs build',
+  },
+};
+
+const resolveSeventh = (target: CitationTarget): string | undefined =>
+  SEVENTH[target.path]?.[String(target.line)];
+
+describe('the seventh run findings corpus (RV4401)', () => {
+  it('a docstring anchor is a comment block, not a one-line list', () => {
+    const resolved = citationUnitExcerptOf(resolveSeventh, {
+      path: 'packages/store-sqlite/src/store.ts',
+      line: 8,
+    });
+    expect(resolved?.unit.type).toBe('comment-declaration');
+    // The judged claim: fence and mutation commit in one immediate
+    // transaction. Support lives 11 lines below the anchor; the
+    // one-line excerpt hid it and the judge ruled unsupported.
+    expect(resolved?.excerpt).toContain('ONE immediate transaction');
+    expect(resolved?.unit.lines).toBe(20);
+    expect(resolved?.unit.truncated).toBe(true);
+  });
+
+  it('a stripped list item inside a docstring excerpts the ITEM with its continuations', () => {
+    const resolved = citationUnitExcerptOf(resolveSeventh, {
+      path: 'packages/store-postgres/src/store.ts',
+      line: 40,
+    });
+    expect(resolved?.unit.type).toBe('list-item');
+    // The judged claim: no multi-region protocol. Support is the
+    // item's own continuation five lines down.
+    expect(resolved?.excerpt).toContain('out of scope until proven');
+    expect(resolved?.excerpt).not.toContain('Pooling');
+  });
+
+  it('the authority-projection docstring carries its declaration list', () => {
+    const resolved = citationUnitExcerptOf(resolveSeventh, {
+      path: 'packages/core/src/tools/toolset-hash.ts',
+      line: 38,
+    });
+    expect(resolved?.unit.type).toBe('comment-declaration');
+    expect(resolved?.excerpt).toContain('risk, needsApproval, executor, and the');
+  });
+
+  it('the semantic-verdict docstring shows its fail-closed sentence', () => {
+    const resolved = citationUnitExcerptOf(resolveSeventh, {
+      path: 'packages/core/src/orchestrator/semantic-verdict.ts',
+      line: 71,
+    });
+    expect(resolved?.unit.type).toBe('comment-declaration');
+    expect(resolved?.excerpt).toContain('the fail-closed direction');
+  });
+
+  it('the fault-kit docstring shows the typed observable and artifact promise', () => {
+    const resolved = citationUnitExcerptOf(resolveSeventh, {
+      path: 'packages/evals/src/fault-injection.ts',
+      line: 2,
+    });
+    expect(resolved?.unit.type).toBe('comment-declaration');
+    expect(resolved?.excerpt).toContain('documented typed observable');
+  });
+
+  it('a truthful excerpt does not launder a claim the unit never carries', () => {
+    // The candidate cited compatible.ts:2 for conservative default
+    // caps; the factory docstring says nothing about caps (the
+    // support lives in a DIFFERENT unit the sentence also anchored).
+    // The fix widens the excerpt to the true unit and the verdict
+    // stays honestly unsupported.
+    const factory = citationUnitExcerptOf(resolveSeventh, {
+      path: 'packages/openai/src/compatible.ts',
+      line: 2,
+    });
+    expect(factory?.unit.type).toBe('comment-declaration');
+    expect(factory?.unit.lines).toBeGreaterThan(1);
+    expect(factory?.excerpt).not.toContain('conservative');
+    // The candidate cited the budget-ledger fold as append/ordinal
+    // serialization evidence; the full docstring proves the judge
+    // RIGHT, in more detail than the one-line excerpt did.
+    const fold = citationUnitExcerptOf(resolveSeventh, {
+      path: 'packages/core/src/journal/replayer.ts',
+      line: 81,
+    });
+    expect(fold?.unit.type).toBe('comment-declaration');
+    expect(fold?.excerpt).toContain('budget ledger fold');
+    expect(fold?.excerpt).not.toContain('serializ');
+  });
+
+  it('the unit char cap fits a guide section whose support sat past the v1-sized cap', () => {
+    const resolved = citationUnitExcerptOf(resolveSeventh, {
+      path: 'docs/guide/adaptive-orchestration.md',
+      line: 6,
+    });
+    expect(resolved?.unit.type).toBe('section');
+    // The judged claim: the engine keeps identifiers, admission,
+    // scheduling and journal ownership. The support line sits past
+    // 800 chars of section body, exactly where the old cap cut.
+    expect(resolved?.excerpt.length).toBeGreaterThan(800);
+    expect(resolved?.excerpt).toContain('journals every dynamic decision');
+  });
+
+  it('a table HEADER anchor carries the body rows it names', () => {
+    const resolved = citationUnitExcerptOf(resolveSeventh, {
+      path: 'docs/reference/versioning.md',
+      line: 10,
+    });
+    expect(resolved?.unit.type).toBe('table-row');
+    // The judged claim: compat is independent at 0.1.1. The header
+    // alone names columns; the body rows carry the versions.
+    expect(resolved?.excerpt).toContain('0.1.1');
+    expect(resolved?.excerpt).toContain('Independent');
+  });
+
+  it('a genuinely weak YAML anchor stays exactly as the judge read it', () => {
+    const resolved = citationUnitExcerptOf(resolveSeventh, {
+      path: '.github/workflows/release.yml',
+      line: 62,
+    });
+    expect(resolved?.unit.type).toBe('list-item');
+    expect(resolved?.unit.lines).toBe(1);
+    expect(resolved?.excerpt).toContain('pnpm install');
+  });
+});
+
+describe('comment context boundaries (RV4401)', () => {
+  const BOUNDARY: Record<string, Record<string, string>> = {
+    'notes.md': {
+      '1': 'Operational summary:',
+      '2': '* the first item explains the fence,',
+      '3': '* the second item explains the lease.',
+    },
+    'tool.py': {
+      '1': '# The retry ladder caps at three attempts;',
+      '2': '# the fourth is a typed refusal.',
+      '3': 'def retry():',
+    },
+    'plain.md': {
+      '1': '# The store guide',
+      '2': '',
+      '3': 'Prose below the title.',
+    },
+  };
+  const resolveBoundary = (target: CitationTarget): string | undefined =>
+    BOUNDARY[target.path]?.[String(target.line)];
+
+  it('a bare markdown star chain has no opener and keeps list semantics', () => {
+    const resolved = citationUnitExcerptOf(resolveBoundary, { path: 'notes.md', line: 2 });
+    expect(resolved?.unit.type).toBe('list-item');
+    expect(resolved?.unit.lines).toBe(1);
+    expect(resolved?.excerpt).not.toContain('second item');
+  });
+
+  it('a hash line beside a same-family neighbor is a comment, not a heading', () => {
+    const resolved = citationUnitExcerptOf(resolveBoundary, { path: 'tool.py', line: 1 });
+    expect(resolved?.unit.type).toBe('comment-declaration');
+    expect(resolved?.excerpt).toContain('typed refusal');
+    expect(resolved?.excerpt).toContain('def retry():');
+  });
+
+  it('a lone markdown H1 stays a heading section', () => {
+    const resolved = citationUnitExcerptOf(resolveBoundary, { path: 'plain.md', line: 1 });
+    expect(resolved?.unit.type).toBe('section');
+    expect(resolved?.excerpt).toContain('Prose below the title.');
+  });
+});
