@@ -158,6 +158,28 @@ describe('scope dimensions v2 (RV4205)', () => {
     ).toBe(executionScopeDigest(copy));
   });
 
+  it('sponsor joins the union: normalized, keyed, digest-bearing, reject-passing (RV4408)', () => {
+    const sponsored = normalizeExecutionScope(
+      { tenant: 'aster-network', sponsor: 'Helios-Bio' },
+      'RunOptions.scope',
+    );
+    // The copy carries the newest dimension exactly like the rest
+    // (value normalization stays the declared-table opt-in, RV4302).
+    expect(sponsored).toEqual({ tenant: 'aster-network', sponsor: 'Helios-Bio' });
+    expect(executionScopeKey(sponsored)).toBe('{"sponsor":"Helios-Bio","tenant":"aster-network"}');
+    // The digest moves with the sponsor: two runs differing only in
+    // WHO finances the work are two identities.
+    expect(executionScopeDigest(sponsored)).not.toBe(
+      executionScopeDigest({ tenant: 'aster-network' }),
+    );
+    // 'reject' accepts the named dimension: it is vocabulary now.
+    expect(() =>
+      normalizeExecutionScope({ tenant: 'acme', sponsor: 'helios' }, 'RunOptions.scope', {
+        unknown: 'reject',
+      }),
+    ).not.toThrow();
+  });
+
   it('the drop default is PINNED: an unknown field silently leaves the copy (RV4107 bytes)', () => {
     const copy = normalizeExecutionScope(
       { tenant: 'acme', platformTeam: 'core' },

@@ -38,5 +38,6 @@ mind; the semantics are pinned as intended, not scheduled to change.
 | <a id="property-provideraccount"></a> `providerAccount?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-region"></a> `region?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-requestsperminute"></a> `requestsPerMinute?` | `number` | Wire attempts admitted per window; the exact, hard cap. | `packages/core/dist/index.d.ts` |
+| <a id="property-sponsor"></a> `sponsor?` | `string` | The sponsoring principal (RV4408), the newest scope dimension. | `packages/core/dist/index.d.ts` |
 | <a id="property-tenant"></a> `tenant?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-tokensperminute"></a> `tokensPerMinute?` | `number` | Input plus output tokens admitted per window: estimated at admission, reconciled to actual usage. | `packages/core/dist/index.d.ts` |

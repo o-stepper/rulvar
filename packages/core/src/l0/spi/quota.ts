@@ -80,6 +80,7 @@ export interface QuotaReservationRequest {
     legalDomain?: string;
     region?: string;
     providerAccount?: string;
+    sponsor?: string;
   };
   /** The run paying for the attempt; observability only. */
   runId?: string;

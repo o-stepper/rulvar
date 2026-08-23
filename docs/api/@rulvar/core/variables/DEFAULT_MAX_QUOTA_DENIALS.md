@@ -10,7 +10,7 @@
 const DEFAULT_MAX_QUOTA_DENIALS: 8 = 8;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:586](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L586)
+Defined in: [packages/core/src/model/quota.ts:593](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L593)
 
 The default [EngineQuotaConfig.maxDenials](/api/@rulvar/core/interfaces/EngineQuotaConfig.md#property-maxdenials): generous next to the
 transport default of 3 tries because a denial is a WAIT, not a

@@ -16,12 +16,13 @@ The machine-readable invoice: rows plus the ledger totals.
 | ------ | ------ | ------ | ------ |
 | <a id="property-abandonedusd"></a> `abandonedUsd` | `number` | The abandoned share: totalUsd - netUsd, equals CostReport.abandoned.usd. | `packages/core/dist/index.d.ts` |
 | <a id="property-cardinality"></a> `cardinality` | [`InvoiceCardinality`](/api/@rulvar/rulvar/interfaces/InvoiceCardinality.md) | Dispatch rows against the provider requests they represent (RV1210). | `packages/core/dist/index.d.ts` |
-| <a id="property-executionscope"></a> `executionScope?` | \{ `account?`: `string`; `legalDomain?`: `string`; `project?`: `string`; `providerAccount?`: `string`; `region?`: `string`; `tenant?`: `string`; \} | The run's bounded execution scope (RV4007), lifted from the genesis `execution_scope` decision: who this run executed for, as the host named it, on the money document a FinOps pipeline actually consumes. Absent on unscoped runs, so their exports keep their bytes. The RV4205 dimensions ride the same object, and `executionScopeDigest` beside it is the fixed-length join column (present exactly when the genesis decision recorded one). | `packages/core/dist/index.d.ts` |
+| <a id="property-executionscope"></a> `executionScope?` | \{ `account?`: `string`; `legalDomain?`: `string`; `project?`: `string`; `providerAccount?`: `string`; `region?`: `string`; `sponsor?`: `string`; `tenant?`: `string`; \} | The run's bounded execution scope (RV4007), lifted from the genesis `execution_scope` decision: who this run executed for, as the host named it, on the money document a FinOps pipeline actually consumes. Absent on unscoped runs, so their exports keep their bytes. The RV4205 dimensions ride the same object, and `executionScopeDigest` beside it is the fixed-length join column (present exactly when the genesis decision recorded one). | `packages/core/dist/index.d.ts` |
 | `executionScope.account?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `executionScope.legalDomain?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `executionScope.project?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `executionScope.providerAccount?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `executionScope.region?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `executionScope.sponsor?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `executionScope.tenant?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-executionscopedigest"></a> `executionScopeDigest?` | `string` | The canonical scope digest (RV4205), lifted from the same decision. | `packages/core/dist/index.d.ts` |
 | <a id="property-netusd"></a> `netUsd` | `number` | The net ledger (abandoned subtrees contribute zero): equals CostReport.totalUsd. | `packages/core/dist/index.d.ts` |

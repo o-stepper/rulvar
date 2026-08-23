@@ -13,9 +13,10 @@ type ExecutionScopeField =
   | "project"
   | "legalDomain"
   | "region"
-  | "providerAccount";
+  | "providerAccount"
+  | "sponsor";
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:846](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L846)
+Defined in: [packages/core/src/engine/engine.ts:858](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L858)
 
-One of the named scope dimensions (RV4007/RV4205).
+One of the named scope dimensions (RV4007/RV4205/RV4408).

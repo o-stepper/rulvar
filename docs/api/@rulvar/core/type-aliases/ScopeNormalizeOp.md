@@ -10,7 +10,7 @@
 type ScopeNormalizeOp = "trim" | "lowercase" | "nfc";
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:865](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L865)
+Defined in: [packages/core/src/engine/engine.ts:878](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L878)
 
 One value-normalization operation of the declarative table (RV4302):
 a CLOSED vocabulary on purpose. A host callback would not be replay

@@ -6,7 +6,7 @@
 
 # Interface: QuotaLimiter
 
-Defined in: [packages/core/src/l0/spi/quota.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L102)
+Defined in: [packages/core/src/l0/spi/quota.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L103)
 
 The shared rate/quota limiter seam; see the module contract above.
 
@@ -25,7 +25,7 @@ reconcile(
 actual?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/quota.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L116)
+Defined in: [packages/core/src/l0/spi/quota.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L117)
 
 Settles a reservation against the attempt's actual usage. The
 optional `actual.requests` is the TRUE number of wire requests the
@@ -59,7 +59,7 @@ remain valid; they merely keep the historical undercount.
 optional release(reservationId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/quota.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L129)
+Defined in: [packages/core/src/l0/spi/quota.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L130)
 
 Cancels an UNUSED admission (RV1013): the reserved wire never
 left, so the admitted request and its token estimate return to
@@ -90,7 +90,7 @@ conservative window age-out for unused admissions.
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/core/src/l0/spi/quota.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L103)
+Defined in: [packages/core/src/l0/spi/quota.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/quota.ts#L104)
 
 #### Parameters
 

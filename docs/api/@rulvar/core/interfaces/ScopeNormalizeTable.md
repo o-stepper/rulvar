@@ -6,7 +6,7 @@
 
 # Interface: ScopeNormalizeTable
 
-Defined in: [packages/core/src/engine/engine.ts:879](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L879)
+Defined in: [packages/core/src/engine/engine.ts:892](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L892)
 
 The declarative scope value normalization table (RV4302, deferred
 from RV4205): without it, `Region` and `region` values produce two
@@ -21,5 +21,5 @@ with the result re-validated by the same rule.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-fields"></a> `fields` | `Partial`\&lt;`Record`\&lt;[`ExecutionScopeField`](/api/@rulvar/core/type-aliases/ExecutionScopeField.md), readonly [`ScopeNormalizeOp`](/api/@rulvar/core/type-aliases/ScopeNormalizeOp.md)[]\&gt;\&gt; | Per-dimension operation lists, applied in array order. | [packages/core/src/engine/engine.ts:882](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L882) |
-| <a id="property-version"></a> `version` | `1` | - | [packages/core/src/engine/engine.ts:880](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L880) |
+| <a id="property-fields"></a> `fields` | `Partial`\&lt;`Record`\&lt;[`ExecutionScopeField`](/api/@rulvar/core/type-aliases/ExecutionScopeField.md), readonly [`ScopeNormalizeOp`](/api/@rulvar/core/type-aliases/ScopeNormalizeOp.md)[]\&gt;\&gt; | Per-dimension operation lists, applied in array order. | [packages/core/src/engine/engine.ts:895](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L895) |
+| <a id="property-version"></a> `version` | `1` | - | [packages/core/src/engine/engine.ts:893](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L893) |

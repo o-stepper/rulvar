@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+RV4408: `sponsor` joins the composite execution scope. The seventh comparison experiment's benchmark domain (a clinical trial adjudication network) runs work on behalf of a study sponsor who is neither the owning tenant nor the billing account, and the scope vocabulary could not say so. `ExecutionScope.sponsor` is the seventh named dimension (the RV4205 `providerAccount` precedent): host-defined vocabulary, carried without loss through RunMeta, the genesis `execution_scope` decision, the canonical `scopeDigest`, the invoice header, the export bundle, and the resume assertion, entering the regulated posture hash automatically through the same closed table. `scopePolicy: { unknown: 'reject' }` accepts it as vocabulary; a `QuotaRule` can pin `sponsor` beside the other dimensions, matching only reservations whose scope carries the same value, with dimension-less rules keeping their storage bucket keys byte identical. The durability and production-profiles guides name the new dimension.

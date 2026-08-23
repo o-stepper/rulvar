@@ -67,6 +67,8 @@ export interface QuotaRule {
   legalDomain?: string;
   region?: string;
   providerAccount?: string;
+  /** The sponsoring principal (RV4408), the newest scope dimension. */
+  sponsor?: string;
   /** Wire attempts admitted per window; the exact, hard cap. */
   requestsPerMinute?: number;
   /**
@@ -83,6 +85,7 @@ const RULE_SCOPE_DIMENSIONS = [
   'legalDomain',
   'region',
   'providerAccount',
+  'sponsor',
 ] as const;
 
 /**
@@ -145,6 +148,7 @@ export function quotaRuleKey(rule: QuotaRule): string {
     ...(rule.legalDomain === undefined ? {} : { legalDomain: rule.legalDomain }),
     ...(rule.region === undefined ? {} : { region: rule.region }),
     ...(rule.providerAccount === undefined ? {} : { providerAccount: rule.providerAccount }),
+    ...(rule.sponsor === undefined ? {} : { sponsor: rule.sponsor }),
     requestsPerMinute: rule.requestsPerMinute ?? null,
     tokensPerMinute: rule.tokensPerMinute ?? null,
   });
@@ -198,6 +202,7 @@ export function snapshotQuotaRules(
         ...(rule.legalDomain === undefined ? {} : { legalDomain: rule.legalDomain }),
         ...(rule.region === undefined ? {} : { region: rule.region }),
         ...(rule.providerAccount === undefined ? {} : { providerAccount: rule.providerAccount }),
+        ...(rule.sponsor === undefined ? {} : { sponsor: rule.sponsor }),
         ...(rule.requestsPerMinute === undefined
           ? {}
           : { requestsPerMinute: rule.requestsPerMinute }),
@@ -220,7 +225,9 @@ export function quotaRuleMatches(rule: QuotaRule, request: QuotaReservationReque
     (rule.project === undefined || rule.project === request.scope?.project) &&
     (rule.legalDomain === undefined || rule.legalDomain === request.scope?.legalDomain) &&
     (rule.region === undefined || rule.region === request.scope?.region) &&
-    (rule.providerAccount === undefined || rule.providerAccount === request.scope?.providerAccount)
+    (rule.providerAccount === undefined ||
+      rule.providerAccount === request.scope?.providerAccount) &&
+    (rule.sponsor === undefined || rule.sponsor === request.scope?.sponsor)
   );
 }
 

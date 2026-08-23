@@ -13,9 +13,10 @@ type ExecutionScopeField =
   | "project"
   | "legalDomain"
   | "region"
-  | "providerAccount";
+  | "providerAccount"
+  | "sponsor";
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
 
-One of the named scope dimensions (RV4007/RV4205).
+One of the named scope dimensions (RV4007/RV4205/RV4408).

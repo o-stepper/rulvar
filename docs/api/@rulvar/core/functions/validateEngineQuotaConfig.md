@@ -10,7 +10,7 @@
 function validateEngineQuotaConfig(config, site?): void;
 ```
 
-Defined in: [packages/core/src/model/quota.ts:608](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L608)
+Defined in: [packages/core/src/model/quota.ts:615](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/quota.ts#L615)
 
 Validates createEngine's quota config as a typed ConfigError before
 any run could dispatch under a malformed limiter (the intake
