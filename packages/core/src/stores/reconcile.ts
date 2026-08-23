@@ -86,6 +86,15 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
       resultAvailable?: boolean;
       acceptedArtifactRef?: number;
       claimConsistencyMeta?: Record<string, unknown>;
+      /**
+       * The citation audit meta and the one-word semantic verdict the
+       * settle recorded (RV4403), read back the same defensive way:
+       * the seventh comparison run's restart reader could not see the
+       * ten unsupported citations its own failure named. Absence
+       * means NOT RECORDED, never a verdict.
+       */
+      citationAuditMeta?: Record<string, unknown>;
+      semanticTerminalVerdict?: Record<string, unknown>;
     }
   | undefined {
   for (let i = entries.length - 1; i >= 0; i -= 1) {
@@ -104,6 +113,8 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
           resultAvailable?: unknown;
           acceptedArtifactRef?: unknown;
           claimConsistencyMeta?: unknown;
+          citationAuditMeta?: unknown;
+          semanticTerminalVerdict?: unknown;
         }
       | undefined;
     if (
@@ -118,6 +129,8 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
       const completion = value.completion;
       const rejected = readRejectedFinishCandidates(value.rejectedFinishCandidates);
       const judgeMeta = readClaimConsistencyMeta(value.claimConsistencyMeta);
+      const auditMeta = readCitationAuditMeta(value.citationAuditMeta);
+      const semanticVerdict = readSemanticTerminalVerdict(value.semanticTerminalVerdict);
       return {
         runStatus: value.runStatus as RunStatus,
         seq: entry.seq,
@@ -138,6 +151,8 @@ export function lastRunSettle(entries: readonly JournalEntry[]):
           ? { acceptedArtifactRef: value.acceptedArtifactRef }
           : {}),
         ...(judgeMeta === undefined ? {} : { claimConsistencyMeta: judgeMeta }),
+        ...(auditMeta === undefined ? {} : { citationAuditMeta: auditMeta }),
+        ...(semanticVerdict === undefined ? {} : { semanticTerminalVerdict: semanticVerdict }),
       };
     }
   }
@@ -167,6 +182,63 @@ function readClaimConsistencyMeta(raw: unknown): Record<string, unknown> | undef
     typeof meta.coverage !== 'string' ||
     (meta.judgedStage !== 'draft' && meta.judgedStage !== 'final') ||
     typeof meta.judgedHash !== 'string'
+  ) {
+    return undefined;
+  }
+  return { ...(raw as Record<string, unknown>) };
+}
+
+/**
+ * The citation audit meta of a persisted settle, or `undefined`
+ * (RV4403). Load bearing fields as the live producer writes them: the
+ * counts and the audited hash; a partially shaped meta read back as a
+ * verdict would claim audit ground the journal does not hold, the
+ * `readClaimConsistencyMeta` posture exactly.
+ */
+function readCitationAuditMeta(raw: unknown): Record<string, unknown> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const meta = raw as {
+    sampled?: unknown;
+    supported?: unknown;
+    partial?: unknown;
+    unsupported?: unknown;
+    auditedHash?: unknown;
+  };
+  const count = (value: unknown): boolean =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+  if (
+    !count(meta.sampled) ||
+    !count(meta.supported) ||
+    !count(meta.partial) ||
+    !count(meta.unsupported) ||
+    typeof meta.auditedHash !== 'string'
+  ) {
+    return undefined;
+  }
+  return { ...(raw as Record<string, unknown>) };
+}
+
+/**
+ * The one-word semantic verdict of a persisted settle, or `undefined`
+ * (RV4403): the verdict literal must be one the RV4209 fold can
+ * produce; everything else rides back verbatim. A restart reader gates
+ * on the same recorded word the live consumer saw, instead of
+ * re-deriving (and possibly disagreeing) from the metas.
+ */
+function readSemanticTerminalVerdict(raw: unknown): Record<string, unknown> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const verdict = (raw as { verdict?: unknown }).verdict;
+  if (
+    verdict !== 'clean' &&
+    verdict !== 'findings' &&
+    verdict !== 'partial' &&
+    verdict !== 'vacuous' &&
+    verdict !== 'waived' &&
+    verdict !== 'not-judged'
   ) {
     return undefined;
   }
@@ -359,6 +431,7 @@ export const TERMINAL_TELEMETRY_SCOPE: TerminalTelemetryScopes = Object.freeze({
   childrenAtFailure: 'cumulative',
   semanticPasses: 'terminal',
   claimConsistencyMeta: 'terminal',
+  citationAuditMeta: 'terminal',
   // The one-word semantic verdict (RV4209): folded once at the settle
   // from the terminal's own metas, so it scopes exactly like them.
   semanticTerminalVerdict: 'terminal',

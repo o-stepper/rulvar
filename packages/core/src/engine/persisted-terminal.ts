@@ -184,6 +184,16 @@ function assemble(
       ...(settle.claimConsistencyMeta === undefined
         ? {}
         : { claimConsistencyMeta: settle.claimConsistencyMeta }),
+      // The audit meta and the one-word verdict (RV4403), read back
+      // from the same settle lift: the seventh comparison run's
+      // restart reader answered 'not-judged' about a failure whose
+      // own message counted ten unsupported citations.
+      ...(settle.citationAuditMeta === undefined
+        ? {}
+        : { citationAuditMeta: settle.citationAuditMeta }),
+      ...(settle.semanticTerminalVerdict === undefined
+        ? {}
+        : { semanticTerminalVerdict: settle.semanticTerminalVerdict }),
       usage: ledger.usage,
       cost: costReportFromJournal(input.entries, input.priceUsd),
     },

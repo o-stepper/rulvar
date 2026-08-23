@@ -10,7 +10,7 @@
 const TERMINAL_TELEMETRY_SCOPE: TerminalTelemetryScopes;
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:343](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L343)
+Defined in: [packages/core/src/stores/reconcile.ts:415](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L415)
 
 The scope of every field the engine writes onto a terminal (RV2510),
 as one exported table rather than as sentences scattered through

@@ -7822,6 +7822,7 @@ export function makeOrchestratorWorkflow(
           {
             data: {
               source: 'orchestrator_claim_consistency',
+              ...semanticVerdictSoFar(),
               lowCoverage: low as unknown as Json,
               claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
               ...(snapshot ?? {}),
@@ -7845,6 +7846,7 @@ export function makeOrchestratorWorkflow(
           {
             data: {
               source: 'orchestrator_claim_consistency',
+              ...semanticVerdictSoFar(),
               criticalUncovered: fold.criticalUncovered,
               claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
               ...(snapshot ?? {}),
@@ -8046,6 +8048,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_claim_consistency',
+                ...semanticVerdictSoFar(),
                 claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
                 ...(snapshot ?? {}),
               },
@@ -8080,6 +8083,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_claim_consistency',
+                ...semanticVerdictSoFar(),
                 judgeStatus: judged.status,
                 claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
                 ...(snapshot ?? {}),
@@ -8131,6 +8135,7 @@ export function makeOrchestratorWorkflow(
         {
           data: {
             source: 'orchestrator_claim_consistency',
+            ...semanticVerdictSoFar(),
             claimContradictions: findings as unknown as Json,
             claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
             // The acceptance snapshot the run already earned (cycle
@@ -8172,6 +8177,30 @@ export function makeOrchestratorWorkflow(
         }
       | undefined;
     let citationFindingsFound: CitationAuditFinding[] | undefined;
+    /**
+     * The one-word verdict as the judged facts stand RIGHT NOW
+     * (RV4403): every typed semantic failure stamps it beside the
+     * metas it already carries, folded by the SAME RV4209 function
+     * the acceptance path stamps, so a fail_run terminal is as
+     * self-describing as an accepted one and the settle can persist
+     * the verdict on every path. Deliberately folded WITHOUT a waiver
+     * or draft bridge input: a run that fails semantically has no
+     * standing acceptance for a waiver to license, and the metas
+     * describe the exact document the judges last ruled on.
+     */
+    const semanticVerdictSoFar = (): Record<string, Json> => {
+      if (opts?.claimConsistency === undefined && opts?.citationAudit === undefined) {
+        return {};
+      }
+      const verdict = semanticTerminalVerdictOf({
+        ...(claimConsistencyMeta === undefined
+          ? {}
+          : { claimConsistencyMeta: claimConsistencyMeta as unknown as Record<string, unknown> }),
+        ...(citationAuditMeta === undefined ? {} : { citationAuditMeta }),
+      });
+      return verdict === undefined ? {} : { semanticTerminalVerdict: verdict as unknown as Json };
+    };
+
     /**
      * The citation entailment audit (RV4004): a deterministic
      * stratified sample of the document's citing sentences, excerpts
@@ -8358,6 +8387,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_citation_audit',
+                ...semanticVerdictSoFar(),
                 citationAuditMeta: citationAuditMeta as unknown as Json,
               },
             },
@@ -8391,6 +8421,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_citation_audit',
+                ...semanticVerdictSoFar(),
                 citationAuditMeta: citationAuditMeta as unknown as Json,
               },
             },
@@ -10943,6 +10974,7 @@ export function makeOrchestratorWorkflow(
           {
             data: {
               source: round.source,
+              ...semanticVerdictSoFar(),
               ...(round.carriedClaims.length === 0
                 ? {}
                 : { claimContradictions: round.carriedClaims as unknown as Json }),
@@ -11237,6 +11269,7 @@ export function makeOrchestratorWorkflow(
               {
                 data: {
                   source: 'orchestrator_claim_consistency',
+                  ...semanticVerdictSoFar(),
                   claimContradictions: carried as unknown as Json,
                   claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
                   repairsUsed: 1,
@@ -11271,6 +11304,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_claim_consistency',
+                ...semanticVerdictSoFar(),
                 claimContradictions: carried as unknown as Json,
                 claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
                 repairsUsed: 0,
@@ -11353,6 +11387,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_claim_consistency',
+                ...semanticVerdictSoFar(),
                 claimContradictions: claimFindingsFound as unknown as Json,
                 claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
                 repairsUsed: 1,
@@ -11409,6 +11444,7 @@ export function makeOrchestratorWorkflow(
               {
                 data: {
                   source: 'orchestrator_claim_consistency',
+                  ...semanticVerdictSoFar(),
                   claimContradictions: claimFindingsFound as unknown as Json,
                   claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
                   repairsUsed: 1,
@@ -11457,6 +11493,7 @@ export function makeOrchestratorWorkflow(
           {
             data: {
               source: 'orchestrator_citation_audit',
+              ...semanticVerdictSoFar(),
               citationFindings: citationFindingsFound as unknown as Json,
               citationAuditMeta: citationAuditMeta as unknown as Json,
               ...(acceptanceSnapshot as unknown as Record<string, Json>),
@@ -11544,6 +11581,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_citation_audit',
+                ...semanticVerdictSoFar(),
                 citationFindings: carried as unknown as Json,
                 citationAuditMeta: citationAuditMeta as unknown as Json,
                 repairsUsed: auditHostRejection !== undefined ? 1 : 0,
@@ -11586,6 +11624,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_citation_audit',
+                ...semanticVerdictSoFar(),
                 citationFindings: citationFindingsFound as unknown as Json,
                 citationAuditMeta: citationAuditMeta as unknown as Json,
                 repairsUsed: 1,
@@ -11663,6 +11702,7 @@ export function makeOrchestratorWorkflow(
               {
                 data: {
                   source: 'orchestrator_claim_consistency',
+                  ...semanticVerdictSoFar(),
                   claimContradictions: claimFindingsFound as unknown as Json,
                   claimConsistencyMeta: claimConsistencyMeta as unknown as Json,
                   ...(citationAuditMeta === undefined
@@ -11688,6 +11728,7 @@ export function makeOrchestratorWorkflow(
               {
                 data: {
                   source: 'orchestrator_citation_audit',
+                  ...semanticVerdictSoFar(),
                   citationFindings: citationFindingsFound as unknown as Json,
                   citationAuditMeta: citationAuditMeta as unknown as Json,
                   repairsUsed: 1,
@@ -11837,6 +11878,7 @@ export function makeOrchestratorWorkflow(
             {
               data: {
                 source: 'orchestrator_claim_consistency',
+                ...semanticVerdictSoFar(),
                 coveragePolicy: 'strict-final',
                 coverage: grade,
                 semanticAcceptanceWaiver: 'forbid',
@@ -11896,6 +11938,7 @@ export function makeOrchestratorWorkflow(
               {
                 data: {
                   source: 'orchestrator_claim_consistency',
+                  ...semanticVerdictSoFar(),
                   coveragePolicy: 'strict-final',
                   coverage: grade,
                   ...(waiverSpec === undefined || !expired
@@ -11971,6 +12014,7 @@ export function makeOrchestratorWorkflow(
           {
             data: {
               source: 'orchestrator_claim_consistency',
+              ...semanticVerdictSoFar(),
               shippedHash,
               ...(claimConsistencyMeta === undefined
                 ? {}

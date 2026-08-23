@@ -10,7 +10,7 @@
 function invoiceCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:1104](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L1104)
+Defined in: [packages/cli/src/commands.ts:1184](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L1184)
 
 rulvar invoice (P1.3): the per-dispatch reconciliation export from
 the journal's providerCalls ledger, one row per billable provider

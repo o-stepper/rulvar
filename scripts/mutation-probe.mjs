@@ -5751,6 +5751,52 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/semantic-verdict.test.ts',
   },
   {
+    id: 'semantic-facts-settle-on-every-path',
+    doctrine:
+      "the semantic facts settle on EVERY terminal path (RV4403): with the fill dropped, a typed failure without a completion literal loses its judge metas and verdict at the settle again, and a restarted reader answers 'not-judged' about a failure whose own message counted ten unsupported citations, the seventh comparison run verbatim",
+    file: 'packages/core/src/engine/engine.ts',
+    find: '                ...(semanticFacts === undefined ? {} : semanticFacts),\n                ...(lifted === undefined ? {} : lifted),',
+    replace: '                ...(lifted === undefined ? {} : lifted),',
+    test: 'packages/core/src/engine/terminal-axes.test.ts',
+  },
+  {
+    id: 'settle-reads-back-the-verdict',
+    doctrine:
+      'the persisted settle reads its one-word verdict BACK (RV4403): with the read collapsed, the journal records the verdict and no restart surface ever sees it, which is the write-only persistence the seventh comparison run proved useless',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '      const semanticVerdict = readSemanticTerminalVerdict(value.semanticTerminalVerdict);',
+    replace: '      const semanticVerdict = undefined;',
+    test: 'packages/core/src/engine/terminal-axes.test.ts',
+  },
+  {
+    id: 'foreign-audit-meta-never-reads-back',
+    doctrine:
+      'a partially shaped audit meta reads back as NOT RECORDED, never as a verdict (RV4403): with the shape gate dropped, a foreign journal carrying sampled: "many" reads back as audit ground the journal does not hold',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: "  if (\n    !count(meta.sampled) ||\n    !count(meta.supported) ||\n    !count(meta.partial) ||\n    !count(meta.unsupported) ||\n    typeof meta.auditedHash !== 'string'\n  ) {\n    return undefined;\n  }",
+    replace: '',
+    test: 'packages/core/src/engine/terminal-axes.test.ts',
+  },
+  {
+    id: 'typed-failure-stamps-the-verdict',
+    doctrine:
+      "every typed semantic failure stamps the one-word verdict beside its metas (RV4403): with the stamp collapsed, error.data carries the counts and no verdict, the settle has nothing to persist, and the production gate answers 'not-judged' after judges really ran",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      return verdict === undefined ? {} : { semanticTerminalVerdict: verdict as unknown as Json };',
+    replace: '      return {};',
+    test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
+  {
+    id: 'the-children-axis-never-reads-as-acceptance',
+    doctrine:
+      "the child roster verdict prints as the CHILDREN axis, never as a bare 'acceptance:' (RV4403): with the label reverted, a reader gates a rejected deliverable on the one green axis again, the seventh comparison run's exact misreading",
+    file: 'packages/cli/src/commands.ts',
+    find: "        `children: ${value.verdict ?? 'unknown'} (completion ${value.completion ?? 'unknown'}; ` +",
+    replace:
+      "        `acceptance: ${value.verdict ?? 'unknown'} (completion ${value.completion ?? 'unknown'}; ` +",
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
     id: 'judge-rows-are-a-bijection',
     doctrine:
       'the judge row set is a bijection with the sample (RV4402): with the membership check dropped, a fabricated extra row parses as surplus information, and a judge inventing rows keeps its authority over the rows it was asked',

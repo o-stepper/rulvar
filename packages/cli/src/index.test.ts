@@ -2519,15 +2519,117 @@ describe('inspect acceptance and quota rendering (RV806)', () => {
     const io = scriptedIo();
     expect(await runCli(['inspect', 'ACC1', '--store', storeDir], { cwd, io })).toBe(0);
     const text = io.outLines.join('\n');
+    // RV4403: the child roster verdict prints under its own axis
+    // name, and the old "gate on the pair" advice is gone (it invited
+    // gating on a green pair over a rejected deliverable).
     expect(text).toContain(
-      'acceptance: accepted (completion partial; gate on the status and completion PAIR)',
+      'children: accepted (completion partial; the child roster verdict, one axis of five, ' +
+        'never the deliverable or the semantic verdict)',
     );
+    expect(text).not.toContain('acceptance: accepted');
+    expect(text).not.toContain('gate on the status and completion PAIR');
     expect(text).toContain('salvaged partial: w2');
     expect(text).toContain('evidence w2: 1 of 2 (below floor, waived by salvage)');
     expect(text).not.toContain('evidence w1');
     expect(text).toContain(
       'quota drift: openai:gpt-5.6-terra requests declared 500/min vs provider 300/min (per-minute window, not cumulative)',
     );
+  });
+
+  it("prints the five terminal axes side by side over the seventh run's shape (RV4403)", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-axes-'));
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), 'export default { workflows: {} };\n', 'utf8');
+    const storeDir = join(cwd, '.rulvar');
+    mkdirSync(storeDir, { recursive: true });
+    const entryBase = {
+      hashVersion: 2,
+      spanId: 's0',
+      startedAt: '2026-08-22T00:00:00.000Z',
+      scope: '',
+      ordinal: 0,
+      kind: 'decision',
+      status: 'ok',
+    };
+    const entries = [
+      {
+        ...entryBase,
+        seq: 0,
+        key: 'acceptance',
+        value: {
+          decisionType: 'orchestrator_acceptance',
+          verdict: 'accepted',
+          completion: 'complete',
+          children: [],
+        },
+      },
+      {
+        ...entryBase,
+        seq: 1,
+        key: 'settle',
+        value: {
+          decisionType: 'run_settle',
+          runStatus: 'exhausted',
+          segment: 1,
+          completion: 'complete',
+          deliverableAccepted: false,
+          resultAvailable: false,
+          claimConsistencyMeta: {
+            judgeInvoked: true,
+            coverage: 'partial',
+            judgedStage: 'final',
+            judgedHash: 'c'.repeat(64),
+            findings: 0,
+          },
+          citationAuditMeta: {
+            sampled: 24,
+            supported: 8,
+            partial: 6,
+            unsupported: 10,
+            auditedHash: 'c'.repeat(64),
+          },
+          semanticTerminalVerdict: {
+            verdict: 'findings',
+            coverage: 'partial',
+            contradictions: 0,
+            unsupportedCitations: 10,
+            partialCitations: 6,
+            semanticRepairRounds: 0,
+            judgeFailures: [],
+          },
+        },
+      },
+    ];
+    writeFileSync(
+      join(storeDir, 'AXES1.jsonl'),
+      entries.map((entry) => JSON.stringify(entry)).join('\n') + '\n',
+      'utf8',
+    );
+    writeFileSync(
+      join(storeDir, 'AXES1.meta.json'),
+      JSON.stringify({
+        runId: 'AXES1',
+        status: 'exhausted',
+        updatedAt: '2026-08-22T00:00:01.000Z',
+        workflowName: 'aster',
+      }),
+      'utf8',
+    );
+
+    const io = scriptedIo();
+    expect(await runCli(['inspect', 'AXES1', '--store', storeDir], { cwd, io })).toBe(0);
+    const text = io.outLines.join('\n');
+    // The one line where no axis can stand in for another: the
+    // seventh run read green children over a rejected deliverable.
+    expect(text).toContain(
+      'axes: terminal exhausted | execution complete | children accepted | ' +
+        'deliverable rejected | semantic findings',
+    );
+    expect(text).toContain('deliverable: rejected (no accepted artifact stands');
+    expect(text).toContain(
+      'semantic: findings (0 contradiction(s), 10 unsupported / 6 partial citation(s); ' +
+        'coverage partial)',
+    );
+    expect(text).toContain('citation audit: 8 supported, 6 partial, 10 unsupported of 24 sampled');
   });
 });
 

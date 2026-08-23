@@ -15,6 +15,7 @@ type TerminalOutcomeFacts = Pick<RunOutcome<unknown>,
   | "resultAvailable"
   | "acceptedArtifactRef"
   | "claimConsistencyMeta"
+  | "citationAuditMeta"
   | "semanticTerminalVerdict"> & {
   cost: Pick<RunOutcome<unknown>["cost"], "totalUsd" | "grossUsd" | "byModel"> & {
      usageApprox?: boolean;

@@ -117,6 +117,14 @@ export interface TerminalEnvelope {
    */
   claimConsistencyMeta?: Record<string, unknown>;
   /**
+   * The citation audit meta, detached (RV4403): `sampled`,
+   * `supported`, `partial`, `unsupported`, `auditedHash` and the
+   * per-section split, mirrored beside the claim meta so the surface
+   * a consumer gates on carries the audit's own numbers on failed
+   * terminals too. Same posture as `claimConsistencyMeta`.
+   */
+  citationAuditMeta?: Record<string, unknown>;
+  /**
    * The one-word semantic verdict (RV4209), mirrored beside the meta
    * it was folded from: 'clean' | 'findings' | 'partial' | 'vacuous'
    * | 'waived' | 'not-judged' plus the counts and the waiver
@@ -326,6 +334,9 @@ export function parseTerminalEnvelope(value: unknown): TerminalEnvelope {
   }
   if (value.claimConsistencyMeta !== undefined && !isPlainObject(value.claimConsistencyMeta)) {
     refuseEnvelope('claimConsistencyMeta', 'an object when present', value.claimConsistencyMeta);
+  }
+  if (value.citationAuditMeta !== undefined && !isPlainObject(value.citationAuditMeta)) {
+    refuseEnvelope('citationAuditMeta', 'an object when present', value.citationAuditMeta);
   }
   if (
     value.semanticTerminalVerdict !== undefined &&

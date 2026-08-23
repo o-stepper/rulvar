@@ -13,6 +13,7 @@ type RunOutcome<R> = {
   belowFloorOkChildren?: string[];
   childrenAtFailure?: ChildrenAtFailure;
   childStatusCounts?: Record<string, number>;
+  citationAuditMeta?: Record<string, unknown>;
   claimConsistencyMeta?: Record<string, unknown>;
   claimContradictions?: Record<string, unknown>[];
   completion?: "complete" | "partial" | "rejected";
@@ -146,6 +147,24 @@ Settled child statuses by status name, lifted from the same
 envelope (or typed error data) when it carries a valid record of
 nonnegative integers; the mirror of the `run:end` field. Absent
 otherwise.
+
+***
+
+### citationAuditMeta?
+
+```ts
+optional citationAuditMeta?: Record<string, unknown>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The citation audit meta (`sampled`, `supported`, `partial`,
+`unsupported`, `auditedHash`, the per-section split), lifted from
+the same envelope or typed error data as the claim meta beside it
+(RV4403). The seventh comparison run failed typed with the audit
+meta only inside `error.data`, and no outcome, settle or restart
+surface carried the one count the failure was ABOUT. Same lift
+and posture as `claimConsistencyMeta`.
 
 ***
 

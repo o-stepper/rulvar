@@ -78,6 +78,14 @@ export type CoreEvents =
        * read null while the journal held the verdict.
        */
       claimConsistencyMeta?: Record<string, unknown>;
+      /** The citation audit meta, same lift and posture as the claim meta (RV4403). */
+      citationAuditMeta?: Record<string, unknown>;
+      /**
+       * The one-word semantic verdict (RV4209), the same lift the
+       * outcome carries, declared on the event since RV4403 so an
+       * event-only consumer reads it typed on failed terminals too.
+       */
+      semanticTerminalVerdict?: Record<string, unknown>;
       /** The synthesis-skip marker from the same envelope; same lift (RV2203). */
       synthesisSkipped?: boolean | string;
       /**
