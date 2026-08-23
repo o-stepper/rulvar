@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+RV4405: the parallel judge pair extends to the merged arming and the post-round rejudges. RV4210 dispatched the final claim pass and the audit's first pass concurrently only when NO repair round was armed; the seventh comparison experiment ran the exact posture the exclusion kept sequential (both `onFound: 'repair'`), and its judge wall was pure wait. With BOTH repair postures armed, no single-class round can rewrite the document between the two first passes (the one merged round fires strictly after both), so both passes read the same immutable bytes and now dispatch together, verdicts still processed in the historical order (the claim pass's typed throws first). The two post-round re-passes judge the SAME repaired bytes, so they dispatch together under the same discipline. A SINGLE armed round keeps the strict sequence byte for byte: its round rewrites the document between the passes, and the audit must read what ships. The honest cost is unchanged and documented: under a refusing posture both judges are already paid when one refuses, the price of the saved wall; the acceptance tail funded both passes either way.
