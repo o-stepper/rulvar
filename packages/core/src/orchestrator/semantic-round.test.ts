@@ -549,3 +549,165 @@ describe('the acceptance tail prices the merged round once (RV4202)', () => {
     expect(merged.requiredUsd).toBeCloseTo(0.4 + 0.5 + 0.3, 10);
   });
 });
+
+describe('the run repair pool (RV4406): one lifetime bound over every repair grant', () => {
+  it('a spent pool refuses the merged round BEFORE dispatch, wearing the honest envelope', async () => {
+    const rig = mergedHarness({
+      claimTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      citationTurns: [CITE_BAD, CITE_CLEAN],
+      finals: [MERGED_BAD, MERGED_FIXED],
+    });
+    const thrown = await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        maxTotalRepairRounds: 0,
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain('could not dispatch');
+    expect(String((thrown as FailRunError).message)).toContain('maxTotalRepairRounds 0');
+    // The whole point: the round composition was never paid.
+    expect(rig.synthesis.calls).toHaveLength(1);
+    expect(rig.claimCalls()).toBe(1);
+    expect(rig.citationCalls()).toBe(1);
+  });
+
+  it('a finish-validation repair consumes the token the semantic round then cannot have', async () => {
+    const rig = mergedHarness({
+      claimTurns: [JUDGE_FINDS],
+      citationTurns: [CITE_CLEAN],
+      finals: [
+        // The first candidate fails the validator; the repaired one
+        // passes it but still contradicts the pool.
+        MERGED_BAD.replace('## Exec', '## Exec (draft)'),
+        MERGED_BAD,
+      ],
+    });
+    const thrown = await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        finishValidation: {
+          validators: [
+            {
+              name: 'no-draft-marker',
+              validate: (input: { text: string }) =>
+                input.text.includes('(draft)')
+                  ? { ok: false, reasons: ['the draft marker must not ship'] }
+                  : { ok: true },
+            },
+          ],
+          maxRepairs: 1,
+        },
+        maxTotalRepairRounds: 1,
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain('maxTotalRepairRounds 1');
+    // The composition attempt and its ONE granted repair turn: two
+    // synthesis wires, and the refused round never becomes a third.
+    expect(rig.synthesis.calls).toHaveLength(2);
+    const entries = rig.internals.replayer.snapshot();
+    const grants = entries.filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string; verdict?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation' &&
+        (entry.value as { verdict?: string }).verdict === 'repair',
+    );
+    expect(grants).toHaveLength(1);
+    expect(
+      entries.some(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'repair_pool_consume',
+      ),
+    ).toBe(false);
+  });
+
+  it("a spent pool turns a finish-validation grant into 'rejected', naming itself", async () => {
+    const rig = mergedHarness({
+      claimTurns: [JUDGE_AGREES],
+      citationTurns: [CITE_CLEAN],
+      finals: [MERGED_FIXED.replace('## Exec', '## Exec (draft)'), MERGED_FIXED],
+    });
+    const thrown = await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        finishValidation: {
+          validators: [
+            {
+              name: 'no-draft-marker',
+              validate: (input: { text: string }) =>
+                input.text.includes('(draft)')
+                  ? { ok: false, reasons: ['the draft marker must not ship'] }
+                  : { ok: true },
+            },
+          ],
+          maxRepairs: 1,
+        },
+        maxTotalRepairRounds: 0,
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    // One synthesis wire: the repair turn the stage bound would have
+    // granted was refused by the pool, so no second candidate exists.
+    expect(rig.synthesis.calls).toHaveLength(1);
+    const verdictEntry = rig.internals.replayer
+      .snapshot()
+      .find(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation',
+      );
+    expect(verdictEntry?.value).toMatchObject({
+      verdict: 'rejected',
+      runRepairPoolExhausted: true,
+      maxTotalRepairRounds: 0,
+    });
+  });
+
+  it('an admitted round journals its consume decision strictly before the dispatch', async () => {
+    const rig = mergedHarness({
+      claimTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      citationTurns: [CITE_BAD, CITE_CLEAN],
+      finals: [MERGED_BAD, MERGED_FIXED],
+    });
+    const outcome = (await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        maxTotalRepairRounds: 2,
+      }),
+      undefined,
+    )) as { result: unknown };
+    expect(outcome.result).toBe(MERGED_FIXED);
+    const entries = rig.internals.replayer.snapshot();
+    const consume = entries.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'repair_pool_consume',
+    );
+    expect(consume).toBeDefined();
+    expect(consume?.value).toMatchObject({
+      stage: 'semantic',
+      tokensUsedAfter: 1,
+      maxTotalRepairRounds: 2,
+    });
+    // The consume decision lands BEFORE the round composition's wire.
+    const roundWire = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'provider-call' &&
+        (entry.value as { record?: { role?: string; ordinal?: number } }).record?.role ===
+          'synthesize' &&
+        entry.seq > (consume?.seq ?? 0),
+    );
+    expect(roundWire).toBeDefined();
+  });
+});

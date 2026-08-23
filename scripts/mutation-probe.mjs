@@ -5734,6 +5734,33 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
   {
+    id: 'repair-pool-binds-the-round',
+    doctrine:
+      'a spent run repair pool refuses the semantic round BEFORE dispatch (RV4406): with the refusal collapsed, the round composes past the one lifetime bound the host declared, and the pool becomes advisory prose over paid work',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        const usedBefore = runRepairPoolUsed();\n        if (usedBefore >= opts.maxTotalRepairRounds) {',
+    replace: '        const usedBefore = runRepairPoolUsed();\n        if (false) {',
+    test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
+    id: 'finish-grant-consumes-the-pool',
+    doctrine:
+      "a finish-validation repair grant consults the run pool (RV4406): with the consult dropped, the stage bound grants a repair the pool already refused, the verdict reads 'repair' where the host's lifetime bound says 'rejected', and stage policies widen the pool they may only narrow",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '              : repairsUsed < maxRepairs && runRepairPoolAdmits()',
+    replace: '              : repairsUsed < maxRepairs',
+    test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
+    id: 'pool-consume-is-durable',
+    doctrine:
+      "the semantic round's pool consumption is a keyed decision BEFORE the dispatch (RV4406): with the append dropped, the token lives only in process memory, a crash between grant and dispatch forgets it, and the resumed run repairs one more time than the pool ever held",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "            decisionType: 'repair_pool_consume',",
+    replace: "            decisionType: 'repair_pool_probe_dropped',",
+    test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
     id: 'merged-first-passes-dispatch-together',
     doctrine:
       "the MERGED arming joins the parallel judge pair (RV4405): with the arm dropped, both repair postures fall back to the sequential dispatch and the seventh comparison run's exact posture waits out the full claim judge wall before the citation judge can start, on two verdicts over the same immutable bytes",
