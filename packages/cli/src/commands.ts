@@ -808,6 +808,30 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
         );
       }
     }
+    // The last durable coordination checkpoint (RV4410), when the
+    // run opted in: a timeout terminal then shows how far the
+    // coordination durably got instead of an opaque prefix.
+    for (let i = entries.length - 1; i >= 0; i -= 1) {
+      const entry = entries[i];
+      if (entry?.kind !== 'decision') {
+        continue;
+      }
+      const checkpoint = entry.value as
+        | { decisionType?: string; round?: number; settledHandles?: number[]; spentUsd?: number }
+        | undefined;
+      if (checkpoint?.decisionType !== 'coordination_checkpoint') {
+        continue;
+      }
+      context.io.out(
+        `coordination: checkpoint round ${String(checkpoint.round ?? '?')} at seq ` +
+          `${String(entry.seq)}; ${String(checkpoint.settledHandles?.length ?? 0)} ` +
+          `child${(checkpoint.settledHandles?.length ?? 0) === 1 ? '' : 'ren'} settled` +
+          (typeof checkpoint.spentUsd === 'number'
+            ? `; spent $${checkpoint.spentUsd.toFixed(4)} at the checkpoint`
+            : ''),
+      );
+      break;
+    }
     if (logical.logicalWireRequests !== undefined && logical.logicalWireRequests > 0) {
       context.io.out(
         `logical wires: ${String(logical.logicalWireRequests)} provider call` +

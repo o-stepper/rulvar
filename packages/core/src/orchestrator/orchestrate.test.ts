@@ -129,6 +129,89 @@ describe('orchestrate (M6-T07/T08)', () => {
     expect(digestPart).toContain('did: task B');
   });
 
+  it('opt-in coordination checkpoints journal one decision per settled await round (RV4410)', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'done' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        const [firstHandle] = handlesIn(req);
+        return { toolCall: { name: 'await_all', args: { handles: [firstHandle] } } };
+      }
+      if (orchTurn === 3) {
+        const all = handlesIn(req);
+        return { toolCall: { name: 'await_all', args: { handles: [all[1]] } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'ok' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('collect', { coordinationCheckpoints: true }),
+      undefined,
+    );
+    // TWO settled rounds, two checkpoints, each under its own ordinal
+    // key: a shared key would keep only the first and the progress
+    // record would stop counting.
+    const checkpoints = (await store.load('test-run')).filter(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'coordination_checkpoint',
+    );
+    expect(checkpoints).toHaveLength(2);
+    expect(checkpoints[0]?.value).toMatchObject({ round: 1 });
+    expect(checkpoints[1]?.value).toMatchObject({ round: 2 });
+    const handlesAt = (checkpoints[0]?.value as { settledHandles?: number[] }).settledHandles;
+    expect(handlesAt).toHaveLength(1);
+    expect(typeof (checkpoints[0]?.value as { spentUsd?: number }).spentUsd).toBe('number');
+  });
+
+  it('without the opt-in, no checkpoint decision exists: journal bytes stay identical (RV4410)', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'done' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task A' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'ok' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    await executeWorkflow(internals, makeOrchestratorWorkflow('collect', {}), undefined);
+    expect(
+      (await store.load('test-run')).some(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'coordination_checkpoint',
+      ),
+    ).toBe(false);
+  });
+
   it('surfaces admission rejections as typed tool errors and keeps the run alive', async () => {
     let orchTurn = 0;
     const adapter = scriptedAdapter((req): ScriptedTurn => {
