@@ -4,9 +4,9 @@ Status: accepted design (RV4301, plan 43), hardened by two adversarial review pa
 the kill point catalog and the protocol (13 findings, then 5 on the revision; every one
 incorporated; the review record lives in the plan). This document ships no runtime and
 freezes no exported TypeScript names;
-implementation is plan 44 scope. A seam described here may be called frozen only because
+implementation is the dedicated effects plan's scope (plan 45; plan 44 answered the seventh comparison experiment instead). A seam described here may be called frozen only because
 section 4 resolves the central atomicity question; everything else is design intent that
-plan 44 may still adjust with a recorded reason.
+the effects plan may still adjust with a recorded reason.
 
 Scope: P0.4 of the sixth comparison experiment's improvement plan (reference effect
 intent and outcome contract plus a conformance kit). Related but out of scope here:
@@ -584,7 +584,7 @@ Split, with the cut at the fold:
    `cancelled-before-dispatch` are the no effect terminals for intents that never
    dispatched. Evidence is the journal itself: one append per transition.
 
-## 13. Deliberately deferred to plan 44
+## 13. Deliberately deferred to the effects plan (plan 45)
 
 1. Frozen TypeScript names, entry payload schemas, and store schema migrations,
    including the exact encoding of the effect lane store capability (section 4.4).

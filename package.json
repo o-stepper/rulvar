@@ -20,6 +20,7 @@
     "test:coverage": "vitest run --coverage",
     "test:live": "node scripts/test-live.mjs",
     "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
+    "guard:pnpm-pin": "node scripts/assert-pnpm-pin.mjs",
     "pack-check": "turbo pack-check",
     "docs:lint": "node scripts/docs-lint.mjs",
     "docs:anchors": "node scripts/docs-anchors.mjs",
