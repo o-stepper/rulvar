@@ -3996,8 +3996,8 @@ export const MUTATIONS = [
     doctrine:
       "the claim-consistency meta mirrors onto the outcome and run:end through the same lift as completion (RV2203): the RV2106 mirror run's error terminal read claimConsistencyMeta null over a journal holding the declined-judge verdict",
     file: 'packages/core/src/engine/engine.ts',
-    find: '  const metaCandidate = (candidate as { claimConsistencyMeta?: unknown }).claimConsistencyMeta;',
-    replace: '  const metaCandidate = undefined;',
+    find: '    facts.claimConsistencyMeta ??= record(shaped.claimConsistencyMeta);',
+    replace: '',
     test: 'packages/core/src/engine/run-completion.test.ts',
   },
   {

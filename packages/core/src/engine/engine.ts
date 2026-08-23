@@ -1180,9 +1180,6 @@ function liftRunCompletion(candidate: unknown):
       belowFloorOkChildren?: string[];
       acceptanceChildren?: AcceptanceChildSummary[];
       semanticPasses?: SemanticPassesSummary;
-      claimConsistencyMeta?: Record<string, unknown>;
-      citationAuditMeta?: Record<string, unknown>;
-      semanticTerminalVerdict?: Record<string, unknown>;
       claimContradictions?: Record<string, unknown>[];
       synthesisSkipped?: boolean | string;
       deliverableAccepted?: boolean;
@@ -1207,9 +1204,6 @@ function liftRunCompletion(candidate: unknown):
     belowFloorOkChildren?: string[];
     acceptanceChildren?: AcceptanceChildSummary[];
     semanticPasses?: SemanticPassesSummary;
-    claimConsistencyMeta?: Record<string, unknown>;
-    citationAuditMeta?: Record<string, unknown>;
-    semanticTerminalVerdict?: Record<string, unknown>;
     claimContradictions?: Record<string, unknown>[];
     synthesisSkipped?: boolean | string;
     deliverableAccepted?: boolean;
@@ -1333,45 +1327,11 @@ function liftRunCompletion(candidate: unknown):
       };
     }
   }
-  // The judge-pass meta and the synthesis-skip marker (RV2203), same
-  // posture as the roster: the RV2106 mirror run journaled its
-  // declined judge and the error terminal carried claimConsistencyMeta
-  // null, so the only truth lived in the journal. A valid object
-  // mirrors shallowly; anything malformed drops silently.
-  const metaCandidate = (candidate as { claimConsistencyMeta?: unknown }).claimConsistencyMeta;
-  if (
-    typeof metaCandidate === 'object' &&
-    metaCandidate !== null &&
-    !Array.isArray(metaCandidate)
-  ) {
-    lifted.claimConsistencyMeta = { ...(metaCandidate as Record<string, unknown>) };
-  }
-  // The citation audit meta (RV4403), same posture: the seventh
-  // comparison run failed typed with the audit meta only inside
-  // error.data, and the one count the failure was ABOUT (10
-  // unsupported of 24 sampled) reached no outcome, settle or restart
-  // surface.
-  const auditMetaCandidate = (candidate as { citationAuditMeta?: unknown }).citationAuditMeta;
-  if (
-    typeof auditMetaCandidate === 'object' &&
-    auditMetaCandidate !== null &&
-    !Array.isArray(auditMetaCandidate)
-  ) {
-    lifted.citationAuditMeta = { ...(auditMetaCandidate as Record<string, unknown>) };
-  }
-  // The one-word semantic verdict (RV4209), same posture as the meta
-  // beside it: a valid object mirrors shallowly, anything malformed
-  // drops silently, and the CLI's production gate reads it fail
-  // closed either way.
-  const verdictCandidate = (candidate as { semanticTerminalVerdict?: unknown })
-    .semanticTerminalVerdict;
-  if (
-    typeof verdictCandidate === 'object' &&
-    verdictCandidate !== null &&
-    !Array.isArray(verdictCandidate)
-  ) {
-    lifted.semanticTerminalVerdict = { ...(verdictCandidate as Record<string, unknown>) };
-  }
+  // The judge metas and the one-word verdict moved to
+  // liftSemanticFacts (RV4403), the ONE owner: they must ride every
+  // terminal path, completion literal or not, and two lifts carrying
+  // the same fields from the same sources were redundancy no test
+  // could pin.
   // The judged findings beside their meta (RV3601), same posture: the
   // third comparison run failed typed with the contradictions inside
   // error.data only, and the outcome's top level read null next to a
@@ -3070,15 +3030,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
         if (lifted.semanticPasses !== undefined) {
           outcomeFacts.semanticPasses = lifted.semanticPasses;
         }
-        if (lifted.claimConsistencyMeta !== undefined) {
-          outcomeFacts.claimConsistencyMeta = lifted.claimConsistencyMeta;
-        }
-        if (lifted.citationAuditMeta !== undefined) {
-          outcomeFacts.citationAuditMeta = lifted.citationAuditMeta;
-        }
-        if (lifted.semanticTerminalVerdict !== undefined) {
-          outcomeFacts.semanticTerminalVerdict = lifted.semanticTerminalVerdict;
-        }
+        // claimConsistencyMeta, citationAuditMeta and the semantic
+        // verdict apply through liftSemanticFacts below (RV4403).
         if (lifted.claimContradictions !== undefined) {
           outcomeFacts.claimContradictions = lifted.claimContradictions;
         }

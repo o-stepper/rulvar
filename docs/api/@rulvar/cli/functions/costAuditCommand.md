@@ -10,7 +10,7 @@
 function costAuditCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:1528](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L1528)
+Defined in: [packages/cli/src/commands.ts:1533](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L1533)
 
 cost-audit (RV1910): the denominator diagnostic over one stored run.
 The four-role benchmark's recovery run produced four mutually
