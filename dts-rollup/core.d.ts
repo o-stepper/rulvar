@@ -11651,6 +11651,24 @@ interface OrchestrateOptions {
   * WAKE_SUMMARY_RENDER_BUDGET_CHARS.
   */
   renderBudgetChars?: number;
+  /**
+  * One run-wide repair pool (RV4406, the seventh comparison
+  * experiment): every provider-dispatching repair grant consumes
+  * from it, whatever gate granted it. The per-stage bounds
+  * (`finishValidation.maxRepairs`, the one bounded semantic round)
+  * NARROW the pool, never widen it: a stage may grant fewer repairs
+  * than the pool has left, and a stage whose own bound is spent
+  * refuses regardless of the pool. The pool consumes durable
+  * tokens: a finish-validation 'repair' verdict IS its consumption
+  * (the decision lands before the repair turn dispatches), and a
+  * semantic repair round journals a `repair_pool_consume` decision
+  * strictly BEFORE its dispatch, keyed so a crash between the
+  * decision and the dispatch resumes without a double consume. The
+  * draft-gate pre-pass dispatches no provider work and spends
+  * nothing, by design. Absent keeps every decision and refusal byte
+  * identical.
+  */
+  maxTotalRepairRounds?: number;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
   /**

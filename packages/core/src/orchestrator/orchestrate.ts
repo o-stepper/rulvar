@@ -866,6 +866,24 @@ export interface OrchestrateOptions {
    * WAKE_SUMMARY_RENDER_BUDGET_CHARS.
    */
   renderBudgetChars?: number;
+  /**
+   * One run-wide repair pool (RV4406, the seventh comparison
+   * experiment): every provider-dispatching repair grant consumes
+   * from it, whatever gate granted it. The per-stage bounds
+   * (`finishValidation.maxRepairs`, the one bounded semantic round)
+   * NARROW the pool, never widen it: a stage may grant fewer repairs
+   * than the pool has left, and a stage whose own bound is spent
+   * refuses regardless of the pool. The pool consumes durable
+   * tokens: a finish-validation 'repair' verdict IS its consumption
+   * (the decision lands before the repair turn dispatches), and a
+   * semantic repair round journals a `repair_pool_consume` decision
+   * strictly BEFORE its dispatch, keyed so a crash between the
+   * decision and the dispatch resumes without a double consume. The
+   * draft-gate pre-pass dispatches no provider work and spends
+   * nothing, by design. Absent keeps every decision and refusal byte
+   * identical.
+   */
+  maxTotalRepairRounds?: number;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
   /**
@@ -2082,6 +2100,9 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   }
   if (opts.renderBudgetChars !== undefined) {
     requireNonNegativeInteger(opts.renderBudgetChars, 'orchestrate renderBudgetChars');
+  }
+  if (opts.maxTotalRepairRounds !== undefined) {
+    requireNonNegativeInteger(opts.maxTotalRepairRounds, 'orchestrate maxTotalRepairRounds');
   }
   if (
     opts.onUnsettledAtExit !== undefined &&
@@ -4014,6 +4035,33 @@ export function makeOrchestratorWorkflow(
      * during its own check.
      */
     const tailPassesDone = { claim: 0, citation: 0 };
+    /**
+     * The run repair pool's durable count (RV4406): folded from the
+     * journal at every consultation, so live grants, replayed grants
+     * and resumed segments all read the SAME counter and nothing can
+     * double consume. A finish-validation 'repair' verdict is one
+     * token; a journaled `repair_pool_consume` decision (the semantic
+     * round's pre-dispatch consumption) is one token.
+     */
+    const runRepairPoolUsed = (): number => {
+      let used = 0;
+      for (const entry of internals.replayer.snapshot()) {
+        if (entry.kind !== 'decision') {
+          continue;
+        }
+        const value = entry.value as { decisionType?: string; verdict?: string } | undefined;
+        if (
+          (value?.decisionType === 'orchestrator_finish_validation' &&
+            value.verdict === 'repair') ||
+          value?.decisionType === 'repair_pool_consume'
+        ) {
+          used += 1;
+        }
+      }
+      return used;
+    };
+    const runRepairPoolAdmits = (): boolean =>
+      opts?.maxTotalRepairRounds === undefined || runRepairPoolUsed() < opts.maxTotalRepairRounds;
     const checkpointAcceptanceTail = async (
       stage: 'composition' | 'claim-judge' | 'citation-judge',
     ): Promise<void> => {
@@ -6440,7 +6488,7 @@ export function makeOrchestratorWorkflow(
           verdict:
             failed.length === 0 || deterministicRepair?.outcome === 'accepted'
               ? 'accepted'
-              : repairsUsed < maxRepairs
+              : repairsUsed < maxRepairs && runRepairPoolAdmits()
                 ? 'repair'
                 : 'rejected',
           stage: finishValidationStage,
@@ -6450,6 +6498,18 @@ export function makeOrchestratorWorkflow(
           failed: deterministicRepair?.outcome === 'accepted' ? [] : failed,
           repairsUsed,
           maxRepairs,
+          // The pool names itself exactly when IT refused a repair the
+          // stage bound would have granted (RV4406); every other
+          // decision keeps its bytes.
+          ...(failed.length > 0 &&
+          deterministicRepair?.outcome !== 'accepted' &&
+          repairsUsed < maxRepairs &&
+          !runRepairPoolAdmits()
+            ? {
+                runRepairPoolExhausted: true,
+                maxTotalRepairRounds: opts?.maxTotalRepairRounds ?? null,
+              }
+            : {}),
           ...(deterministicRepair === undefined ? {} : { deterministicRepair }),
           ...(validationSpec.contract === undefined
             ? {}
@@ -8743,6 +8803,44 @@ export function makeOrchestratorWorkflow(
         // the money actually spent; the repair round's own budget
         // machinery already refuses honestly on its path.
         await checkpointAcceptanceTail('composition');
+      }
+      if (stagePhase === 'repair' && opts?.maxTotalRepairRounds !== undefined) {
+        // The run repair pool (RV4406): consume-or-refuse strictly
+        // BEFORE the round's dispatch. The refusal throws inside the
+        // callers' own catch, so it wears the honest could-not-
+        // dispatch envelope with the carried defects; the consume is
+        // a keyed decision, so a crash between it and the dispatch
+        // resumes without a double consume.
+        const usedBefore = runRepairPoolUsed();
+        if (usedBefore >= opts.maxTotalRepairRounds) {
+          throw new FailRunError(
+            `the run repair pool is spent (maxTotalRepairRounds ` +
+              `${String(opts.maxTotalRepairRounds)}, ${String(usedBefore)} consumed); the ` +
+              'semantic repair round is refused before dispatch',
+            {
+              data: {
+                source: 'orchestrator_budget',
+                maxTotalRepairRounds: opts.maxTotalRepairRounds,
+                repairRoundsUsed: usedBefore,
+              },
+            },
+          );
+        }
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: deriverV2.deriveKey({ kind: `repair-pool-consume-${String(usedBefore)}` }),
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-budget',
+          value: {
+            decisionType: 'repair_pool_consume',
+            stage: 'semantic',
+            ...(repairTrigger === undefined ? {} : { trigger: repairTrigger }),
+            tokensUsedAfter: usedBefore + 1,
+            maxTotalRepairRounds: opts.maxTotalRepairRounds,
+          },
+        });
       }
       /**
        * The failed pre-pass verdict carried to synthesis (RV808a),
