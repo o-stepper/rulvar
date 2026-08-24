@@ -10,6 +10,6 @@
 const DEFAULT_POOL_MAX: 10 = 10;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L73)
+Defined in: [packages/store-postgres/src/store.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L74)
 
 Default pg Pool size; every operation is a short transaction.

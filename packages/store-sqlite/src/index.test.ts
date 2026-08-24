@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { ConfigError, LeaseHeldError, type JournalEntry, type Lease } from '@rulvar/core';
 import {
   fencedTranscriptsConformance,
+  effectLaneStoreConformance,
   fencedWritesConformance,
   journalStoreConformance,
   leasableStoreConformance,
@@ -41,6 +42,11 @@ registerConformance(
 
 registerConformance(
   fencedWritesConformance(() => memoryStore()),
+  { describe, it },
+);
+
+registerConformance(
+  effectLaneStoreConformance(() => new SqliteStore({ path: ':memory:', ttlMs: 600_000 })),
   { describe, it },
 );
 

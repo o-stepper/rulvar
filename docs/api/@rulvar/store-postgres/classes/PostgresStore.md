@@ -6,7 +6,7 @@
 
 # Class: PostgresStore
 
-Defined in: [packages/store-postgres/src/store.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L128)
+Defined in: [packages/store-postgres/src/store.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L129)
 
 @rulvar/store-postgres: PostgresStore implementing JournalStore and
 LeasableStore with fencing epochs over node-postgres, for
@@ -22,6 +22,7 @@ quota, admission serialized on a schema-wide advisory lock.
 
 - [`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md)
 - [`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md)
+- [`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md)
 
 ## Constructors
 
@@ -31,7 +32,7 @@ quota, admission serialized on a schema-wide advisory lock.
 new PostgresStore(options): PostgresStore;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L148)
+Defined in: [packages/store-postgres/src/store.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L159)
 
 #### Parameters
 
@@ -47,7 +48,8 @@ Defined in: [packages/store-postgres/src/store.ts:148](https://github.com/o-step
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | The fenced writes promise (fenced run state RFC, phase 2). | [packages/store-postgres/src/store.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L130) |
+| <a id="property-effectlane"></a> `effectLane` | `readonly` | `true` | Effect lane capability (plan 45, rfcs/effects.md section 4.5, item 3): the restoration generation lives OUTSIDE the journal bytes in the same schema. The restore runbook is one rule: after a point-in-time restore, run bumpRestorationGeneration() BEFORE the restored database becomes reachable to any worker, so the effect lane comes up with dispatch disabled until an operator appends a fresh effect_epoch citing the bumped generation. | [packages/store-postgres/src/store.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L141) |
+| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | The fenced writes promise (fenced run state RFC, phase 2). | [packages/store-postgres/src/store.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L131) |
 
 ## Accessors
 
@@ -59,7 +61,7 @@ Defined in: [packages/store-postgres/src/store.ts:148](https://github.com/o-step
 get leaseTtlMs(): number;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:575](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L575)
+Defined in: [packages/store-postgres/src/store.ts:622](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L622)
 
 TTL introspection (the LeasableStore optional capability).
 
@@ -75,7 +77,7 @@ stores without it are accepted with the worker's own ttl.
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`leaseTtlMs`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#property-leasettlms)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`leaseTtlMs`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#property-leasettlms)
 
 ## Methods
 
@@ -85,7 +87,7 @@ stores without it are accepted with the worker's own ttl.
 acquire(runId, owner): Promise<Lease>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:579](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L579)
+Defined in: [packages/store-postgres/src/store.ts:626](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L626)
 
 #### Parameters
 
@@ -100,7 +102,7 @@ Defined in: [packages/store-postgres/src/store.ts:579](https://github.com/o-step
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`acquire`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#acquire)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`acquire`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#acquire)
 
 ***
 
@@ -113,7 +115,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:396](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L396)
+Defined in: [packages/store-postgres/src/store.ts:443](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L443)
 
 #### Parameters
 
@@ -129,7 +131,28 @@ Defined in: [packages/store-postgres/src/store.ts:396](https://github.com/o-step
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`append`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#append)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`append`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#append)
+
+***
+
+### bumpRestorationGeneration()
+
+```ts
+bumpRestorationGeneration(): Promise<number>;
+```
+
+Defined in: [packages/store-postgres/src/store.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L332)
+
+The restore procedure's one mutation (plan 45, rfcs/effects.md
+section 4.5, item 3): after a point-in-time restore, bump the
+generation BEFORE the restored database becomes reachable to any
+worker, so the effect lane comes up with dispatch disabled until
+an operator appends a fresh effect_epoch citing the bumped
+generation. Every extra bump only widens the fence.
+
+#### Returns
+
+`Promise`\&lt;`number`\&gt;
 
 ***
 
@@ -139,7 +162,7 @@ Defined in: [packages/store-postgres/src/store.ts:396](https://github.com/o-step
 close(): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:292](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L292)
+Defined in: [packages/store-postgres/src/store.ts:309](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L309)
 
 #### Returns
 
@@ -153,7 +176,7 @@ Defined in: [packages/store-postgres/src/store.ts:292](https://github.com/o-step
 delete(runId, lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:493](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L493)
+Defined in: [packages/store-postgres/src/store.ts:540](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L540)
 
 #### Parameters
 
@@ -168,7 +191,7 @@ Defined in: [packages/store-postgres/src/store.ts:493](https://github.com/o-step
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`delete`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#delete)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`delete`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#delete)
 
 ***
 
@@ -178,7 +201,7 @@ Defined in: [packages/store-postgres/src/store.ts:493](https://github.com/o-step
 getMeta(runId): Promise<RunMeta | undefined>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:439](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L439)
+Defined in: [packages/store-postgres/src/store.ts:486](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L486)
 
 #### Parameters
 
@@ -202,7 +225,7 @@ Defined in: [packages/store-postgres/src/store.ts:439](https://github.com/o-step
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:448](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L448)
+Defined in: [packages/store-postgres/src/store.ts:495](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L495)
 
 #### Parameters
 
@@ -216,7 +239,7 @@ Defined in: [packages/store-postgres/src/store.ts:448](https://github.com/o-step
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`listRuns`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#listruns)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`listRuns`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#listruns)
 
 ***
 
@@ -226,7 +249,7 @@ Defined in: [packages/store-postgres/src/store.ts:448](https://github.com/o-step
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:410](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L410)
+Defined in: [packages/store-postgres/src/store.ts:457](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L457)
 
 #### Parameters
 
@@ -240,7 +263,7 @@ Defined in: [packages/store-postgres/src/store.ts:410](https://github.com/o-step
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`load`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#load)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`load`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#load)
 
 ***
 
@@ -250,7 +273,7 @@ Defined in: [packages/store-postgres/src/store.ts:410](https://github.com/o-step
 putMeta(m, lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:429](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L429)
+Defined in: [packages/store-postgres/src/store.ts:476](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L476)
 
 #### Parameters
 
@@ -265,7 +288,7 @@ Defined in: [packages/store-postgres/src/store.ts:429](https://github.com/o-step
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`putMeta`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#putmeta)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`putMeta`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#putmeta)
 
 ***
 
@@ -275,7 +298,7 @@ Defined in: [packages/store-postgres/src/store.ts:429](https://github.com/o-step
 release(l): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:623](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L623)
+Defined in: [packages/store-postgres/src/store.ts:670](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L670)
 
 #### Parameters
 
@@ -289,7 +312,7 @@ Defined in: [packages/store-postgres/src/store.ts:623](https://github.com/o-step
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`release`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#release)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`release`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#release)
 
 ***
 
@@ -299,7 +322,7 @@ Defined in: [packages/store-postgres/src/store.ts:623](https://github.com/o-step
 renew(l): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:611](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L611)
+Defined in: [packages/store-postgres/src/store.ts:658](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L658)
 
 #### Parameters
 
@@ -313,7 +336,27 @@ Defined in: [packages/store-postgres/src/store.ts:611](https://github.com/o-step
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`renew`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#renew)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`renew`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#renew)
+
+***
+
+### restorationGeneration()
+
+```ts
+restorationGeneration(): Promise<number>;
+```
+
+Defined in: [packages/store-postgres/src/store.ts:314](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L314)
+
+The current restoration generation; 0 until a restore ever ran.
+
+#### Returns
+
+`Promise`\&lt;`number`\&gt;
+
+#### Implementation of
+
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`restorationGeneration`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#restorationgeneration)
 
 ***
 
@@ -323,7 +366,7 @@ Defined in: [packages/store-postgres/src/store.ts:611](https://github.com/o-step
 transcripts(): PostgresTranscriptStore;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:512](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L512)
+Defined in: [packages/store-postgres/src/store.ts:559](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L559)
 
 The fenced transcript twin (RFC F2): blobs live in this store's
 database beside the lease rows, so a lease-carrying put or delete

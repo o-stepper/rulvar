@@ -57,6 +57,7 @@ import {
   LeaseHeldError,
   metaMatchesFilter,
   type Bytes,
+  type EffectLaneStore,
   type JournalEntry,
   type LeasableStore,
   type Lease,
@@ -125,9 +126,19 @@ export interface PostgresStoreOptions {
   now?: () => number;
 }
 
-export class PostgresStore implements MetaLookupStore, LeasableStore {
+export class PostgresStore implements MetaLookupStore, LeasableStore, EffectLaneStore {
   /** The fenced writes promise (fenced run state RFC, phase 2). */
   readonly fencedWrites = true as const;
+  /**
+   * Effect lane capability (plan 45, rfcs/effects.md section 4.5, item
+   * 3): the restoration generation lives OUTSIDE the journal bytes in
+   * the same schema. The restore runbook is one rule: after a
+   * point-in-time restore, run bumpRestorationGeneration() BEFORE the
+   * restored database becomes reachable to any worker, so the effect
+   * lane comes up with dispatch disabled until an operator appends a
+   * fresh effect_epoch citing the bumped generation.
+   */
+  readonly effectLane = true as const;
   private readonly pool: pg.Pool;
   private readonly schema: string;
   private readonly ttlMs: number;
@@ -250,6 +261,12 @@ export class PostgresStore implements MetaLookupStore, LeasableStore {
         );
         CREATE INDEX IF NOT EXISTS rulvar_blobs_by_run
           ON ${this.table('blobs')} (run_id);
+        CREATE TABLE IF NOT EXISTS ${this.table('restoration')} (
+          id SMALLINT PRIMARY KEY CHECK (id = 1),
+          generation BIGINT NOT NULL
+        );
+        INSERT INTO ${this.table('restoration')} (id, generation) VALUES (1, 0)
+          ON CONFLICT (id) DO NOTHING;
       `);
       await client.query('COMMIT');
     } catch (thrown) {
@@ -291,6 +308,36 @@ export class PostgresStore implements MetaLookupStore, LeasableStore {
 
   async close(): Promise<void> {
     await this.pool.end();
+  }
+
+  /** The current restoration generation; 0 until a restore ever ran. */
+  async restorationGeneration(): Promise<number> {
+    await this.booted();
+    const rows = (
+      await this.pool.query(
+        `SELECT generation::int8 AS generation FROM ${this.table('restoration')} WHERE id = 1`,
+      )
+    ).rows as Array<{ generation: string | number }>;
+    return Number(rows[0]?.generation ?? 0);
+  }
+
+  /**
+   * The restore procedure's one mutation (plan 45, rfcs/effects.md
+   * section 4.5, item 3): after a point-in-time restore, bump the
+   * generation BEFORE the restored database becomes reachable to any
+   * worker, so the effect lane comes up with dispatch disabled until
+   * an operator appends a fresh effect_epoch citing the bumped
+   * generation. Every extra bump only widens the fence.
+   */
+  async bumpRestorationGeneration(): Promise<number> {
+    await this.booted();
+    const rows = (
+      await this.pool.query(
+        `UPDATE ${this.table('restoration')} SET generation = generation + 1 WHERE id = 1
+           RETURNING generation::int8 AS generation`,
+      )
+    ).rows as Array<{ generation: string | number }>;
+    return Number(rows[0]?.generation ?? 0);
   }
 
   private async liveLease(client: pg.PoolClient, runId: string): Promise<LeaseRow | undefined> {

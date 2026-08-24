@@ -50,6 +50,7 @@ import {
   LeaseHeldError,
   metaMatchesFilter,
   type Bytes,
+  type EffectLaneStore,
   type JournalEntry,
   type LeasableStore,
   type Lease,
@@ -133,7 +134,7 @@ export interface SqliteTranscriptStore extends TranscriptStore {
 // same convention as createEngine's real clock).
 const wallClock: () => number = Date.now.bind(globalThis);
 
-export class SqliteStore implements MetaLookupStore, LeasableStore {
+export class SqliteStore implements MetaLookupStore, LeasableStore, EffectLaneStore {
   /**
    * The fenced writes promise (fenced run state RFC, phase 2): every
    * lease-carrying mutation of this store (append, putMeta, delete)
@@ -142,6 +143,16 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
    * holders with the typed LeaseHeldError leaving nothing changed.
    */
   readonly fencedWrites = true as const;
+  /**
+   * Effect lane capability (plan 45, rfcs/effects.md section 4.5, item
+   * 3): the restoration generation lives OUTSIDE the journal bytes in
+   * the same database file. The restore runbook is one rule: after
+   * restoring the file from a backup, run bumpRestorationGeneration()
+   * BEFORE the restored file becomes reachable to any worker, so the
+   * effect lane comes up with dispatch disabled until an operator
+   * appends a fresh effect_epoch citing the bumped generation.
+   */
+  readonly effectLane = true as const;
   private readonly db: DatabaseSync;
   private readonly ttlMs: number;
   private readonly now: () => number;
@@ -208,6 +219,11 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
         data BLOB NOT NULL
       );
       CREATE INDEX IF NOT EXISTS blobs_by_run ON blobs (run_id);
+      CREATE TABLE IF NOT EXISTS restoration (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        generation INTEGER NOT NULL
+      );
+      INSERT OR IGNORE INTO restoration (id, generation) VALUES (1, 0);
     `;
     const bootDeadline = wallClock() + BOOT_BUSY_TIMEOUT_MS;
     for (let attempt = 0; ; attempt += 1) {
@@ -225,6 +241,24 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
 
   close(): void {
     this.db.close();
+  }
+
+  /** The current restoration generation; 0 until a restore ever ran. */
+  async restorationGeneration(): Promise<number> {
+    const row = this.db.prepare('SELECT generation FROM restoration WHERE id = 1').get() as
+      { generation: number | bigint } | undefined;
+    return Promise.resolve(Number(row?.generation ?? 0));
+  }
+
+  /**
+   * The restore procedure's one mutation (see `effectLane` above):
+   * bumps the generation atomically and returns the new value. Idempotent
+   * in effect: every extra bump only widens the fence, never re-enables
+   * anything.
+   */
+  async bumpRestorationGeneration(): Promise<number> {
+    this.db.prepare('UPDATE restoration SET generation = generation + 1 WHERE id = 1').run();
+    return this.restorationGeneration();
   }
 
   private liveLease(runId: string): LeaseRow | undefined {

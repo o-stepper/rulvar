@@ -1,4 +1,4 @@
-import { JournalEntry, LeasableStore, Lease, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
+import { EffectLaneStore, JournalEntry, LeasableStore, Lease, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference for the sqlite store. */
@@ -39,7 +39,7 @@ interface SqliteStoreOptions {
 interface SqliteTranscriptStore extends TranscriptStore {
   readonly fencedWrites: true;
 }
-declare class SqliteStore implements MetaLookupStore, LeasableStore {
+declare class SqliteStore implements MetaLookupStore, LeasableStore, EffectLaneStore {
   /**
   * The fenced writes promise (fenced run state RFC, phase 2): every
   * lease-carrying mutation of this store (append, putMeta, delete)
@@ -48,12 +48,31 @@ declare class SqliteStore implements MetaLookupStore, LeasableStore {
   * holders with the typed LeaseHeldError leaving nothing changed.
   */
   readonly fencedWrites = true;
+  /**
+  * Effect lane capability (plan 45, rfcs/effects.md section 4.5, item
+  * 3): the restoration generation lives OUTSIDE the journal bytes in
+  * the same database file. The restore runbook is one rule: after
+  * restoring the file from a backup, run bumpRestorationGeneration()
+  * BEFORE the restored file becomes reachable to any worker, so the
+  * effect lane comes up with dispatch disabled until an operator
+  * appends a fresh effect_epoch citing the bumped generation.
+  */
+  readonly effectLane = true;
   private readonly db;
   private readonly ttlMs;
   private readonly now;
   private transcriptTwin;
   constructor(options: SqliteStoreOptions);
   close(): void;
+  /** The current restoration generation; 0 until a restore ever ran. */
+  restorationGeneration(): Promise<number>;
+  /**
+  * The restore procedure's one mutation (see `effectLane` above):
+  * bumps the generation atomically and returns the new value. Idempotent
+  * in effect: every extra bump only widens the fence, never re-enables
+  * anything.
+  */
+  bumpRestorationGeneration(): Promise<number>;
   private liveLease;
   /**
   * A lease fences exactly the run it names: guarding a mutation of a

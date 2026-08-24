@@ -10280,6 +10280,10 @@
             "link": "/api/@rulvar/store-conformance/interfaces/MultiProcessSoakResult.md"
           },
           {
+            "text": "RestorableEffectLaneStore",
+            "link": "/api/@rulvar/store-conformance/interfaces/RestorableEffectLaneStore.md"
+          },
+          {
             "text": "SoakActivity",
             "link": "/api/@rulvar/store-conformance/interfaces/SoakActivity.md"
           },
@@ -10372,6 +10376,10 @@
           {
             "text": "countSoakActivity",
             "link": "/api/@rulvar/store-conformance/functions/countSoakActivity.md"
+          },
+          {
+            "text": "effectLaneStoreConformance",
+            "link": "/api/@rulvar/store-conformance/functions/effectLaneStoreConformance.md"
           },
           {
             "text": "fencedTranscriptsConformance",
