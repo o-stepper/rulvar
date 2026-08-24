@@ -16,6 +16,11 @@ import {
   SupersededError,
   type WireError,
 } from '../l0/errors.js';
+import {
+  admitRunUnit,
+  validateEngineAdmissionConfig,
+  type EngineAdmissionConfig,
+} from '../admission/engine-bracket.js';
 import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import { realNow } from '../l0/real-clock.js';
 import { assertSafeRunId } from '../l0/run-id.js';
@@ -269,6 +274,18 @@ export interface CreateEngineOptions {
    * surprise-throttle hosts).
    */
   quota?: EngineQuotaConfig;
+  /**
+   * The durable admission bracket (RV4510, rfcs/admission.md): a
+   * configured scheduler brackets every non-preview run as one unit of
+   * work under `(runId, genesis)`. A queued run WAITS for its grant
+   * honoring retryAfterMs; the terminal denied verdict refuses typed
+   * (AdmissionRejectedError) before any provider dispatch; the lease
+   * renews on a timer and releases at settle. Admission is an
+   * environmental fact: never journaled, and replay never consults it.
+   * The wire-level QuotaLimiter keeps being consulted per dispatch,
+   * unchanged: a granted ticket never exempts a wire from quota.
+   */
+  admission?: EngineAdmissionConfig;
   /** Versioned price table; wins over caps.pricing (M4-T06). */
   pricing?: PriceTable;
   /**
@@ -1783,6 +1800,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
   // The shared quota limiter config fails loud too: a malformed
   // limiter must never reach a dispatch decision (RV-215).
   validateEngineQuotaConfig(options.quota);
+  validateEngineAdmissionConfig(options.admission);
+  const admissionRuntime = options.admission;
   if (
     options.security?.argsHashSalt !== undefined &&
     (typeof options.security.argsHashSalt !== 'string' || options.security.argsHashSalt === '')
@@ -2528,8 +2547,31 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // the outer settlement hook for rejections that never reach the
     // body's own release point.
     let ownershipTeardown: () => Promise<void> = () => Promise.resolve();
+    let admissionTeardown: () => Promise<void> = () => Promise.resolve();
 
     const result: Promise<RunOutcome<R>> = (async () => {
+      // The durable admission bracket (RV4510): the ticket brackets
+      // the RUN as the unit of work, admitted BEFORE any store
+      // mutation or provider dispatch of this segment. Previews skip
+      // it (zero effects, zero admission), and nothing is journaled:
+      // admission is an environmental fact like the limiter.
+      if (admissionRuntime !== undefined && resumeCtx?.strict !== true) {
+        admissionTeardown = await admitRunUnit(admissionRuntime, {
+          unitId: runId,
+          generation: typeof genesis === 'string' ? genesis : runId,
+          ...(executionScope === undefined ? {} : { scope: executionScope }),
+          ...((quotaRuntime?.tenantFrom ?? admissionRuntime.tenantFrom) === 'scope'
+            ? {
+                tenantFromScope: true,
+                ...(executionScope?.tenant === undefined
+                  ? {}
+                  : { resolvedTenant: executionScope.tenant }),
+              }
+            : (quotaRuntime?.tenant ?? admissionRuntime.tenant) === undefined
+              ? {}
+              : { resolvedTenant: quotaRuntime?.tenant ?? admissionRuntime.tenant }),
+        });
+      }
       // The genesis ownership boot (P0.2): over a leasable journal
       // store a segment that was NOT handed a lease acquires its own
       // BEFORE its first durable mutation, renews it at ttl/3 exactly
@@ -3349,12 +3391,28 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // exactly the span in which it has no journaled terminal.
         quiescenceWatchdogUnregister(quiescenceForce);
         void ownershipTeardown();
+        void admissionTeardown();
         activeSegments.delete(runId);
       });
 
+    // The admission release is part of settlement ordering: a caller
+    // that observed the outcome must be able to observe the released
+    // ticket too, so the handle's result awaits the teardown (the
+    // detached finally above stays as the backstop; the teardown is
+    // idempotent).
+    const admittedResult: Promise<RunOutcome<R>> =
+      admissionRuntime === undefined
+        ? result
+        : (async () => {
+            try {
+              return await result;
+            } finally {
+              await admissionTeardown();
+            }
+          })();
     return {
       runId,
-      result,
+      result: admittedResult,
       events: bus.iterate(),
       on: (type, cb) => bus.on(type, cb),
       resolveExternal: (key, value) => external.resolveExternal(key, value),

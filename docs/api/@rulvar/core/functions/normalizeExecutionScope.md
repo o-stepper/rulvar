@@ -13,7 +13,7 @@ function normalizeExecutionScope(
    policy?): ExecutionScope;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:1001](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L1001)
+Defined in: [packages/core/src/engine/engine.ts:1018](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L1018)
 
 Validates and copies a declared scope (RV4007): own properties only
 (the RV1205 doctrine: a prototype member must never resolve),

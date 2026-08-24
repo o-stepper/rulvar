@@ -389,7 +389,16 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
     const nowMs = this.options.now();
     const existing = this.tickets.get(key(request.unitId, request.generation));
     if (existing !== undefined) {
-      return this.decisionOf(existing);
+      const state = existing.ticket.state;
+      if (state === 'released' || state === 'refunded' || state === 'expired') {
+        // The unit settled and came back for more work (a resume after
+        // release): its history's arithmetic already settled, so the
+        // SAME identity re-admits as a fresh ticket. 'denied' stays
+        // terminal: infeasibility does not wash out with time.
+        this.tickets.delete(key(request.unitId, request.generation));
+      } else {
+        return this.decisionOf(existing);
+      }
     }
     if (!Number.isInteger(request.reservation.wires) || request.reservation.wires < 1) {
       throw new ConfigError('an admission reservation requires at least one wire');

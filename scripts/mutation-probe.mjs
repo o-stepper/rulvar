@@ -6635,6 +6635,33 @@ export const MUTATIONS = [
     replace: '    const reserve = 0;',
     test: 'packages/core/src/admission/admission.test.ts',
   },
+  {
+    id: 'admission-bracket-grants-only',
+    doctrine:
+      'the run proceeds ONLY on a granted ticket (RV4510): with the verdict collapsed to true, a terminally denied run marches into dispatch on a ticket it never held',
+    file: 'packages/core/src/admission/engine-bracket.ts',
+    find: "    granted = decision.state === 'granted';\n  }\n  let waitedMs = 0;",
+    replace: '    granted = true;\n  }\n  let waitedMs = 0;',
+    test: 'packages/core/src/engine/engine-admission.test.ts',
+  },
+  {
+    id: 'admission-bracket-releases-at-settle',
+    doctrine:
+      'the ticket releases at settle (RV4510): with the release collapsed, every finished run leaks its reservation and the fleet starves on ghosts',
+    file: 'packages/core/src/admission/engine-bracket.ts',
+    find: '      await scheduler.release(unit.unitId, unit.generation, reservation, `${opBase}:release`);',
+    replace: '      await Promise.resolve();',
+    test: 'packages/core/src/engine/engine-admission.test.ts',
+  },
+  {
+    id: 'admission-engine-resolves-scope-tenant',
+    doctrine:
+      "under tenantFrom 'scope' the admission identity comes from the run scope, the same resolution the limiter uses (RV4510, RFC admission 4.1): with the branch collapsed, the two seams debit different identities",
+    file: 'packages/core/src/engine/engine.ts',
+    find: "          ...((quotaRuntime?.tenantFrom ?? admissionRuntime.tenantFrom) === 'scope'",
+    replace: '          ...((false as boolean)',
+    test: 'packages/core/src/engine/engine-admission.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
