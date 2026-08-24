@@ -68,6 +68,7 @@ The Layer column in the table below uses the labels of the architecture's layer 
 | [`@rulvar/store-postgres`](/api/@rulvar/store-postgres/) | L1 | PostgreSQL journal store implementing `JournalStore` and `LeasableStore` with the fencing epoch over node-postgres, every run-scoped mutation serialized on a per-run advisory transaction lock, for multi-process and multi-host deployments | `PostgresStore` | `@rulvar/core`, `pg` |
 | [`@rulvar/executor`](/api/@rulvar/executor/) | L1 | Reference isolated tool executors behind the `ToolExecutorProvider` SPI, so hostile or model-generated tool work runs out of process: the subprocess adapter (replaced environment, ephemeral workdir, hard timeout, output cap, per-call short-lived credentials) and the docker container adapter (network off, read-only filesystem), the side-effect ledger, and the executable executor conformance kit | `subprocessExecutor`, `subprocessTool`, `containerExecutor`, `memoryEffectLedger`, `executorConformance` | `@rulvar/core` |
 | [`@rulvar/store-conformance`](/api/@rulvar/store-conformance/) | L6 | The executable conformance kit for store adapters: append atomicity, total per-run order, read-your-writes, payload opacity, lease fencing, and golden fold-state fixtures | `journalStoreConformance`, `leasableStoreConformance`, `registerConformance` | `@rulvar/core` |
+| [`@rulvar/effects`](/api/@rulvar/effects/) | L6 | The effect lane runtime: the adapter seam that cannot send without an attempt record, the provider capability matrix, the crash-window dispatcher licensed by provider-side fencing, and the kill point kit | `EffectDispatcher`, `FakeEffectProvider`, `effectIdempotencyKey` | `@rulvar/core` |
 | [`@rulvar/compat`](/api/@rulvar/compat/) | L2 extension | Frozen key-derivation profiles for journal hashVersions that leave the engine's support window, attached at engine construction via `extraDerivers`. Independently versioned. Re-exports the [`KeyDeriver`](/api/@rulvar/core/interfaces/KeyDeriver) type, whose reference page lives with `@rulvar/core` | `deriverV0Synthetic` | `@rulvar/core` |
 | [`@rulvar/plan`](/api/@rulvar/plan/) | L4 extension | The adaptive orchestration extension for the dynamic orchestrator: PlanRunner, the run ledger, escalation extensions, and model ladder configuration; built entirely on the public core API | `planRunner`, `orchestratePlanned`, `buildPlanTools` | `@rulvar/core` |
 | [`@rulvar/planner`](/api/@rulvar/planner/) | L5 | The flagship hybrid mode: the plan agent, script compilation with an import allowlist, the worker sandbox runner with seeded journaled globals, and the lint-driven self-repair loop | `plan`, `runPlanned`, `compileScript`, `WorkerSandboxRunner`, `apiCard` | `@rulvar/core`, `eslint-plugin-rulvar`, `eslint` |
@@ -94,6 +95,7 @@ graph TD
   postgres["@rulvar/store-postgres"] --> core
   executor["@rulvar/executor"] --> core
   conformance["@rulvar/store-conformance"] --> core
+  effects["@rulvar/effects"] --> core
   compat["@rulvar/compat"] --> core
   plan["@rulvar/plan"] --> core
   planner["@rulvar/planner"] --> core

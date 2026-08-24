@@ -160,6 +160,7 @@ pointer), fifteen in lockstep at a single version. Full map and dependency graph
 | `@rulvar/store-sqlite`      | SQLite `JournalStore` and `LeasableStore` with a fencing epoch                                                   |
 | `@rulvar/store-postgres`    | PostgreSQL `JournalStore` and `LeasableStore` with a fencing epoch, for multi-process and multi-host deployments |
 | `@rulvar/store-conformance` | Executable conformance kit for custom store implementations                                                      |
+| `@rulvar/effects`           | Effect lane runtime: adapter seam, capability matrix, reconciler, kill point kit (rfcs/effects.md)               |
 | `@rulvar/executor`          | Isolated tool executors: subprocess and container `ToolExecutorProvider` adapters, plus their conformance kit    |
 | `@rulvar/testing`           | `createTestEngine`, `FakeAdapter`, VCR cassettes, replay-strict runs, matchers                                   |
 | `@rulvar/evals`             | Eval cases, rubric and judge graders, matrix sweeps, canary fingerprints                                         |

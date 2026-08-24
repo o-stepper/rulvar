@@ -41,6 +41,7 @@ const packDirs = [
   'packages/planner',
   'packages/rulvar',
   'packages/store-conformance',
+  'packages/effects',
   'packages/store-postgres',
   'packages/store-sqlite',
   'packages/testing',

@@ -1,0 +1,48 @@
+{
+  "name": "@rulvar/effects",
+  "version": "1.249.0",
+  "description": "Rulvar effect lane runtime: the adapter seam, provider capability matrix, reconciler, and the kill point conformance kit (rfcs/effects.md).",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "pnpm -w exec vitest run --project @rulvar/effects",
+    "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
+  },
+  "dependencies": {
+    "@rulvar/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/effects"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
+  }
+}

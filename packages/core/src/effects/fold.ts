@@ -806,10 +806,15 @@ export class EffectLaneFold {
     terminal: EffectTerminalState,
     decision: { causalRef?: number },
   ): string | undefined {
-    if (terminal === 'cancelled-before-dispatch' && machine.attempts.length > 0) {
+    if (
+      terminal === 'cancelled-before-dispatch' &&
+      machine.attempts.some((a) => a.open || a.outcome !== 'failed')
+    ) {
       return (
-        'cancelled-before-dispatch requires ZERO attempt records: the journal must prove ' +
-        'no conforming send ever happened (RFC section 3.1, item 9)'
+        'cancelled-before-dispatch requires that the journal PROVES no effect: zero ' +
+        'attempt records, or every attempt closed failed (a provably-not-executed ' +
+        'classification, e.g. an acceptance-closing negative; RFC sections 3.1 item 9 ' +
+        'and 4.7 row 2); an open, accepted, or unknown attempt proves nothing'
       );
     }
     if (terminal === 'confirmed' && !machine.receipts.some((r) => r.verification === 'verified')) {
