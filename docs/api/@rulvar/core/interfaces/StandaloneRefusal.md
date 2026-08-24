@@ -6,12 +6,12 @@
 
 # Interface: StandaloneRefusal
 
-Defined in: [packages/core/src/effects/fold.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L173)
+Defined in: [packages/core/src/effects/fold.ts:198](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L198)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-logicalkey"></a> `logicalKey` | `string` | [packages/core/src/effects/fold.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L175) |
-| <a id="property-reason"></a> `reason?` | `string` | [packages/core/src/effects/fold.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L176) |
-| <a id="property-seq"></a> `seq` | `number` | [packages/core/src/effects/fold.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L174) |
+| <a id="property-logicalkey"></a> `logicalKey` | `string` | [packages/core/src/effects/fold.ts:200](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L200) |
+| <a id="property-reason"></a> `reason?` | `string` | [packages/core/src/effects/fold.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L201) |
+| <a id="property-seq"></a> `seq` | `number` | [packages/core/src/effects/fold.ts:199](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L199) |

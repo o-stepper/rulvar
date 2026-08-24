@@ -9,3 +9,6 @@
 export * from './adapter.js';
 export * from './dispatcher.js';
 export * from './fakes.js';
+export * from './receipts.js';
+export * from './reconciler.js';
+export * from './telemetry.js';

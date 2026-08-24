@@ -221,6 +221,31 @@ export class EffectDispatcher {
     }
   }
 
+  /**
+   * The provider's truth, JOURNALED: every probe is a durable row, so
+   * the intent's lookup budget is countable from the journal alone
+   * (kill point 19). A budget-exhausted probe throws typed; recover()
+   * converts it into the quarantine the RFC demands.
+   */
+  private async probedTruth(
+    machine: EffectMachine,
+    attemptSeq?: number,
+  ): Promise<EffectLookupAnswer | undefined> {
+    const answer = await this.providerTruth(machine, attemptSeq);
+    if (answer !== undefined) {
+      await this.writer.appendProbe(machine.intentSeq, {
+        probe:
+          this.adapter.descriptor.lookupQualification === 'acceptance-closing' &&
+          this.adapter.closeAcceptance !== undefined
+            ? 'close-acceptance'
+            : 'lookup',
+        found: answer.found,
+        ...(answer.found ? {} : { acceptanceClosed: answer.acceptanceClosed }),
+      });
+    }
+    return answer;
+  }
+
   /** The provider's truth, by the strongest primitive the row offers. */
   private async providerTruth(
     machine: EffectMachine,
@@ -261,6 +286,18 @@ export class EffectDispatcher {
    * retry; never a provider contact on an already-closed machine.
    */
   async recover(intentSeq: number): Promise<EffectRecoveryReport> {
+    try {
+      return await this.recoverInner(intentSeq);
+    } catch (thrown) {
+      if (thrown instanceof EffectLaneRefusedError && thrown.rule === 'lookups-exhausted') {
+        // Kill point 19: lookup exhaustion quarantines, never loops.
+        return this.quarantine(intentSeq, thrown.message);
+      }
+      throw thrown;
+    }
+  }
+
+  private async recoverInner(intentSeq: number): Promise<EffectRecoveryReport> {
     const machine = await this.machine(intentSeq);
     if (machine.terminal !== undefined) {
       // Kill point 7: resume after a terminal is a no-op and must not
@@ -287,7 +324,7 @@ export class EffectDispatcher {
         );
       }
       if (row === 'lookup') {
-        const answer = await this.providerTruth(machine, open.seq);
+        const answer = await this.probedTruth(machine, open.seq);
         if (answer === undefined) {
           return this.quarantine(
             intentSeq,
@@ -343,7 +380,7 @@ export class EffectDispatcher {
       case 'intent':
         return { kind: 'redispatched', report: await this.dispatch(intentSeq) };
       case 'awaiting-receipt': {
-        const answer = await this.providerTruth(machine);
+        const answer = await this.probedTruth(machine);
         if (answer !== undefined && answer.found) {
           return this.recordReceipt(
             intentSeq,
@@ -364,7 +401,7 @@ export class EffectDispatcher {
         }
         if (row === 'lookup') {
           const last = machine.attempts[machine.attempts.length - 1];
-          const answer = await this.providerTruth(machine, last?.seq);
+          const answer = await this.probedTruth(machine, last?.seq);
           if (answer !== undefined && answer.found) {
             return this.recordReceipt(
               intentSeq,
@@ -419,7 +456,7 @@ export class EffectDispatcher {
     }
     const open = machine.attempts.find((a) => a.open);
     const last = machine.attempts[machine.attempts.length - 1];
-    const truth = await this.providerTruth(machine, open?.seq ?? last?.seq);
+    const truth = await this.probedTruth(machine, open?.seq ?? last?.seq);
     if (truth !== undefined && truth.found) {
       if (open !== undefined) {
         await this.writer.appendOutcome(intentSeq, open.seq, {

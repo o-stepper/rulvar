@@ -177,6 +177,22 @@ Consumed machines that have not reached a terminal.
 
 ***
 
+### standaloneQuarantines()
+
+```ts
+standaloneQuarantines(): StandaloneQuarantine[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Sweep-recorded quarantines with no machine (kill 25's remainder).
+
+#### Returns
+
+[`StandaloneQuarantine`](/api/@rulvar/rulvar/interfaces/StandaloneQuarantine.md)[]
+
+***
+
 ### standaloneRefusals()
 
 ```ts

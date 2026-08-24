@@ -14,7 +14,7 @@ function readApprovalRevoked(entry):
   | undefined;
 ```
 
-Defined in: [packages/core/src/effects/types.ts:499](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L499)
+Defined in: [packages/core/src/effects/types.ts:561](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L561)
 
 Reads one journal entry as the shipped `approval_revoked` decision
 (RV4008), by the exact shape ExternalRegistry.revokeApproval appends.

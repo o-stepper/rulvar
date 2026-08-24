@@ -1123,12 +1123,24 @@
             "link": "/api/@rulvar/core/interfaces/EffectOutcomeDecision.md"
           },
           {
+            "text": "EffectProbeDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectProbeDecision.md"
+          },
+          {
+            "text": "EffectProbeState",
+            "link": "/api/@rulvar/core/interfaces/EffectProbeState.md"
+          },
+          {
             "text": "EffectReceiptDecision",
             "link": "/api/@rulvar/core/interfaces/EffectReceiptDecision.md"
           },
           {
             "text": "EffectReceiptState",
             "link": "/api/@rulvar/core/interfaces/EffectReceiptState.md"
+          },
+          {
+            "text": "EffectReconciliationCompleteDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectReconciliationCompleteDecision.md"
           },
           {
             "text": "EffectTerminalDecision",
@@ -1925,6 +1937,10 @@
           {
             "text": "SpawnRecord",
             "link": "/api/@rulvar/core/interfaces/SpawnRecord.md"
+          },
+          {
+            "text": "StandaloneQuarantine",
+            "link": "/api/@rulvar/core/interfaces/StandaloneQuarantine.md"
           },
           {
             "text": "StandaloneRefusal",
@@ -4510,6 +4526,10 @@
             "link": "/api/@rulvar/effects/classes/EffectDispatcher.md"
           },
           {
+            "text": "EffectReconciler",
+            "link": "/api/@rulvar/effects/classes/EffectReconciler.md"
+          },
+          {
             "text": "FakeEffectProvider",
             "link": "/api/@rulvar/effects/classes/FakeEffectProvider.md"
           }
@@ -4542,6 +4562,30 @@
           {
             "text": "EffectReceiptObservation",
             "link": "/api/@rulvar/effects/interfaces/EffectReceiptObservation.md"
+          },
+          {
+            "text": "EffectReconcilerOptions",
+            "link": "/api/@rulvar/effects/interfaces/EffectReconcilerOptions.md"
+          },
+          {
+            "text": "EffectsTelemetry",
+            "link": "/api/@rulvar/effects/interfaces/EffectsTelemetry.md"
+          },
+          {
+            "text": "EffectSweepReport",
+            "link": "/api/@rulvar/effects/interfaces/EffectSweepReport.md"
+          },
+          {
+            "text": "EffectTrustEnvelope",
+            "link": "/api/@rulvar/effects/interfaces/EffectTrustEnvelope.md"
+          },
+          {
+            "text": "EffectTrustKey",
+            "link": "/api/@rulvar/effects/interfaces/EffectTrustKey.md"
+          },
+          {
+            "text": "RestorationReport",
+            "link": "/api/@rulvar/effects/interfaces/RestorationReport.md"
           }
         ]
       },
@@ -4570,6 +4614,10 @@
             "link": "/api/@rulvar/effects/type-aliases/FakeDispatchBehavior.md"
           },
           {
+            "text": "ReceiptVerification",
+            "link": "/api/@rulvar/effects/type-aliases/ReceiptVerification.md"
+          },
+          {
             "text": "ReceiptVerifier",
             "link": "/api/@rulvar/effects/type-aliases/ReceiptVerifier.md"
           }
@@ -4582,6 +4630,18 @@
           {
             "text": "effectIdempotencyKey",
             "link": "/api/@rulvar/effects/functions/effectIdempotencyKey.md"
+          },
+          {
+            "text": "effectsTelemetryOf",
+            "link": "/api/@rulvar/effects/functions/effectsTelemetryOf.md"
+          },
+          {
+            "text": "envelopeVerifier",
+            "link": "/api/@rulvar/effects/functions/envelopeVerifier.md"
+          },
+          {
+            "text": "verifyReceiptObservation",
+            "link": "/api/@rulvar/effects/functions/verifyReceiptObservation.md"
           }
         ]
       }
@@ -6876,12 +6936,24 @@
             "link": "/api/@rulvar/rulvar/interfaces/EffectOutcomeDecision.md"
           },
           {
+            "text": "EffectProbeDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectProbeDecision.md"
+          },
+          {
+            "text": "EffectProbeState",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectProbeState.md"
+          },
+          {
             "text": "EffectReceiptDecision",
             "link": "/api/@rulvar/rulvar/interfaces/EffectReceiptDecision.md"
           },
           {
             "text": "EffectReceiptState",
             "link": "/api/@rulvar/rulvar/interfaces/EffectReceiptState.md"
+          },
+          {
+            "text": "EffectReconciliationCompleteDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectReconciliationCompleteDecision.md"
           },
           {
             "text": "EffectTerminalDecision",
@@ -7702,6 +7774,10 @@
           {
             "text": "SpawnRecord",
             "link": "/api/@rulvar/rulvar/interfaces/SpawnRecord.md"
+          },
+          {
+            "text": "StandaloneQuarantine",
+            "link": "/api/@rulvar/rulvar/interfaces/StandaloneQuarantine.md"
           },
           {
             "text": "StandaloneRefusal",

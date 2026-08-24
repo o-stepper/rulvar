@@ -10,7 +10,7 @@
 function readEffectLaneDecision(entry): EffectLaneRead;
 ```
 
-Defined in: [packages/core/src/effects/types.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L340)
+Defined in: [packages/core/src/effects/types.ts:378](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L378)
 
 Reads one journal entry as an effect lane decision, fail closed: an
 entry that is not a kind-'decision' entry with a lane decisionType is

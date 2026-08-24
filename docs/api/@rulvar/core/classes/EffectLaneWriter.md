@@ -36,7 +36,7 @@ Defined in: [packages/core/src/effects/writer.ts:125](https://github.com/o-stepp
 appendDisposition(intentSeq, spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:646](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L646)
+Defined in: [packages/core/src/effects/writer.ts:655](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L655)
 
 Records a human disposition of a quarantine or an incident.
 
@@ -64,7 +64,7 @@ Records a human disposition of a quarantine or an incident.
 appendIncident(intentSeq, spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:630](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L630)
+Defined in: [packages/core/src/effects/writer.ts:639](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L639)
 
 Records a linked incident on a machine.
 
@@ -94,7 +94,7 @@ appendOutcome(
 spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:564](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L564)
+Defined in: [packages/core/src/effects/writer.ts:573](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L573)
 
 Classifies one open attempt's result.
 
@@ -115,13 +115,40 @@ Classifies one open attempt's result.
 
 ***
 
+### appendProbe()
+
+```ts
+appendProbe(intentSeq, spec): Promise<EffectAppendResult>;
+```
+
+Defined in: [packages/core/src/effects/writer.ts:715](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L715)
+
+Journals one provider probe (the durable lookup budget row).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `intentSeq` | `number` |
+| `spec` | \{ `acceptanceClosed?`: `boolean`; `found`: `boolean`; `opId?`: `string`; `probe`: `"lookup"` \| `"close-acceptance"`; \} |
+| `spec.acceptanceClosed?` | `boolean` |
+| `spec.found` | `boolean` |
+| `spec.opId?` | `string` |
+| `spec.probe` | `"lookup"` \| `"close-acceptance"` |
+
+#### Returns
+
+`Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/core/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
 ### appendReceipt()
 
 ```ts
 appendReceipt(intentSeq, spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:582](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L582)
+Defined in: [packages/core/src/effects/writer.ts:591](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L591)
 
 Records a receipt observation with the caller's verification verdict.
 
@@ -147,13 +174,88 @@ Records a receipt observation with the caller's verification verdict.
 
 ***
 
+### appendReconciliationComplete()
+
+```ts
+appendReconciliationComplete(spec): Promise<EffectAppendResult>;
+```
+
+Defined in: [packages/core/src/effects/writer.ts:744](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L744)
+
+Releases a restoration epoch after its sweep (RFC 4.5, item 3).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `spec` | \{ `epochRef`: `number`; `opId`: `string`; `swept`: `number`; \} |
+| `spec.epochRef` | `number` |
+| `spec.opId` | `string` |
+| `spec.swept` | `number` |
+
+#### Returns
+
+`Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/core/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
+### appendStandaloneQuarantine()
+
+```ts
+appendStandaloneQuarantine(spec): Promise<EffectAppendResult>;
+```
+
+Defined in: [packages/core/src/effects/writer.ts:699](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L699)
+
+A durable standalone quarantine (the kill 25 sweep records).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `spec` | \{ `logicalKey`: `string`; `opId`: `string`; `reason`: `string`; \} |
+| `spec.logicalKey` | `string` |
+| `spec.opId` | `string` |
+| `spec.reason` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/core/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
+### appendStandaloneRefusal()
+
+```ts
+appendStandaloneRefusal(spec): Promise<EffectAppendResult>;
+```
+
+Defined in: [packages/core/src/effects/writer.ts:683](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L683)
+
+A durable standalone refusal for a logical key (no machine).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `spec` | \{ `logicalKey`: `string`; `opId`: `string`; `reason`: `string`; \} |
+| `spec.logicalKey` | `string` |
+| `spec.opId` | `string` |
+| `spec.reason` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/core/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
 ### appendTerminal()
 
 ```ts
 appendTerminal(intentSeq, spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:608](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L608)
+Defined in: [packages/core/src/effects/writer.ts:617](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L617)
 
 Appends a terminal transition; the fold's legality rules decide.
 
@@ -238,6 +340,22 @@ derived operation id.
 #### Returns
 
 `Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/core/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
+### entriesSnapshot()
+
+```ts
+entriesSnapshot(): Promise<readonly JournalEntry[]>;
+```
+
+Defined in: [packages/core/src/effects/writer.ts:677](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L677)
+
+The writer's current loaded entries (read-only snapshot).
+
+#### Returns
+
+`Promise`\&lt;readonly [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md)[]\&gt;
 
 ***
 

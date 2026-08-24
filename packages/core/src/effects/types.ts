@@ -80,7 +80,9 @@ export type EffectLaneDecisionType =
   | 'effect_receipt'
   | 'effect_terminal'
   | 'effect_incident'
-  | 'effect_disposition';
+  | 'effect_disposition'
+  | 'effect_probe'
+  | 'effect_reconciliation_complete';
 
 export const EFFECT_LANE_DECISION_TYPES: readonly EffectLaneDecisionType[] = [
   'effect_epoch',
@@ -92,6 +94,8 @@ export const EFFECT_LANE_DECISION_TYPES: readonly EffectLaneDecisionType[] = [
   'effect_terminal',
   'effect_incident',
   'effect_disposition',
+  'effect_probe',
+  'effect_reconciliation_complete',
 ];
 
 /**
@@ -248,6 +252,38 @@ export interface EffectIncidentDecision {
   detail?: string;
 }
 
+/**
+ * A journaled provider probe (plan 45 train five): every lookup and
+ * every acceptance closure the recovery machinery performs is a
+ * durable row, so the intent's lookup budget (RFC section 3.1) is
+ * countable from the journal alone and survives a crash of the
+ * probing process.
+ */
+export interface EffectProbeDecision {
+  decisionType: 'effect_probe';
+  opId: string;
+  intentRef: number;
+  probe: 'lookup' | 'close-acceptance';
+  found: boolean;
+  /** True when the negative is provider-enforced final. */
+  acceptanceClosed?: boolean;
+}
+
+/**
+ * The post-restore gate release (RFC section 4.5, item 3): after a
+ * restoration epoch's reconciliation sweep completes, this decision
+ * re-enables attempt dispatch for that epoch. An epoch born from a
+ * restore (its recorded restoration generation differs from its
+ * predecessor's) refuses to open attempts until this row exists.
+ */
+export interface EffectReconciliationCompleteDecision {
+  decisionType: 'effect_reconciliation_complete';
+  opId: string;
+  /** Seq of the effect_epoch this completion releases. */
+  epochRef: number;
+  swept: number;
+}
+
 /** A journaled human disposition of a quarantine or an incident. */
 export interface EffectDispositionDecision {
   decisionType: 'effect_disposition';
@@ -286,7 +322,9 @@ export type EffectLaneDecision =
   | EffectReceiptDecision
   | EffectTerminalDecision
   | EffectIncidentDecision
-  | EffectDispositionDecision;
+  | EffectDispositionDecision
+  | EffectProbeDecision
+  | EffectReconciliationCompleteDecision;
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0;
@@ -440,10 +478,15 @@ export function readEffectLaneDecision(entry: JournalEntry): EffectLaneRead {
         return { lane: true, malformed: 'effect_terminal requires a terminal state' };
       }
       if (record.intentRef === undefined) {
-        if (record.terminal !== 'refused' || !isNonEmptyString(record.logicalKey)) {
+        if (
+          (record.terminal !== 'refused' && record.terminal !== 'quarantined') ||
+          !isNonEmptyString(record.logicalKey)
+        ) {
           return {
             lane: true,
-            malformed: "a terminal without intentRef must be a 'refused' record naming logicalKey",
+            malformed:
+              "a terminal without intentRef must be a 'refused' or 'quarantined' record " +
+              'naming logicalKey (the standalone give-up and the unreconstructable sweep row)',
           };
         }
       } else if (!isSeq(record.intentRef)) {
@@ -456,6 +499,25 @@ export function readEffectLaneDecision(entry: JournalEntry): EffectLaneRead {
         return { lane: true, malformed: 'effect_incident payload incomplete' };
       }
       return { lane: true, decision: record as unknown as EffectIncidentDecision };
+    }
+    case 'effect_probe': {
+      if (
+        !isSeq(record.intentRef) ||
+        (record.probe !== 'lookup' && record.probe !== 'close-acceptance') ||
+        typeof record.found !== 'boolean'
+      ) {
+        return { lane: true, malformed: 'effect_probe payload incomplete' };
+      }
+      return { lane: true, decision: record as unknown as EffectProbeDecision };
+    }
+    case 'effect_reconciliation_complete': {
+      if (!isSeq(record.epochRef)) {
+        return { lane: true, malformed: 'effect_reconciliation_complete requires epochRef' };
+      }
+      return {
+        lane: true,
+        decision: record as unknown as EffectReconciliationCompleteDecision,
+      };
     }
     case 'effect_disposition': {
       if (

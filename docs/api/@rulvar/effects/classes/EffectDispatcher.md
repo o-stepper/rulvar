@@ -60,7 +60,7 @@ seam, classify the outcome, and confirm on a verified receipt.
 recover(intentSeq): Promise<EffectRecoveryReport>;
 ```
 
-Defined in: [packages/effects/src/dispatcher.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/effects/src/dispatcher.ts#L263)
+Defined in: [packages/effects/src/dispatcher.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/effects/src/dispatcher.ts#L288)
 
 The crash-window recovery (RFC section 8): derived from what the
 journal proves and what the capability row licenses. Never a blind

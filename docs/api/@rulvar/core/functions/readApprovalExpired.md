@@ -15,7 +15,7 @@ function readApprovalExpired(entry):
   | undefined;
 ```
 
-Defined in: [packages/core/src/effects/types.ts:478](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L478)
+Defined in: [packages/core/src/effects/types.ts:540](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L540)
 
 Reads one journal entry as an `approval_expired` decision (the clock
 fact of RFC section 4.5), fail closed like the lane reader.

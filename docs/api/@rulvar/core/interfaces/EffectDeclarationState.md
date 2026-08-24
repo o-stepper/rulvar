@@ -6,11 +6,11 @@
 
 # Interface: EffectDeclarationState
 
-Defined in: [packages/core/src/effects/fold.ts:168](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L168)
+Defined in: [packages/core/src/effects/fold.ts:193](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L193)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-declaration"></a> `declaration` | [`EffectDeclaredDecision`](/api/@rulvar/core/interfaces/EffectDeclaredDecision.md) | [packages/core/src/effects/fold.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L170) |
-| <a id="property-seq"></a> `seq` | `number` | [packages/core/src/effects/fold.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L169) |
+| <a id="property-declaration"></a> `declaration` | [`EffectDeclaredDecision`](/api/@rulvar/core/interfaces/EffectDeclaredDecision.md) | [packages/core/src/effects/fold.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L195) |
+| <a id="property-seq"></a> `seq` | `number` | [packages/core/src/effects/fold.ts:194](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L194) |

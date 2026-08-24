@@ -504,6 +504,15 @@ export class EffectLaneWriter {
   > {
     await this.reload();
     await this.assertRestorationCurrent('openAttempt');
+    const epoch = this.fold.currentEpoch();
+    if (epoch !== undefined && epoch.needsReconciliation && !epoch.reconciled) {
+      throw new EffectLaneRefusedError(
+        'reconciliation-pending',
+        `the current epoch (seq ${String(epoch.seq)}) was born from a restore and its ` +
+          'reconciliation sweep has not completed; attempt dispatch is disabled until an ' +
+          'effect_reconciliation_complete decision cites it (RFC section 4.5, item 3)',
+      );
+    }
     const machine = this.requireMachine(intentSeq);
     const existing = this.findOpId(spec.opId);
     if (existing !== undefined) {
@@ -660,6 +669,88 @@ export class EffectLaneWriter {
       decisionType: 'effect_disposition',
       opId,
       intentRef: intentSeq,
+      ...rest,
+    });
+  }
+
+  /** The writer's current loaded entries (read-only snapshot). */
+  async entriesSnapshot(): Promise<readonly JournalEntry[]> {
+    await this.reload();
+    return [...this.entries];
+  }
+
+  /** A durable standalone refusal for a logical key (no machine). */
+  async appendStandaloneRefusal(spec: {
+    opId: string;
+    logicalKey: string;
+    reason: string;
+  }): Promise<EffectAppendResult> {
+    await this.reload();
+    return this.laneAppend(spec.opId, {
+      decisionType: 'effect_terminal',
+      opId: spec.opId,
+      terminal: 'refused',
+      logicalKey: spec.logicalKey,
+      reason: spec.reason,
+    });
+  }
+
+  /** A durable standalone quarantine (the kill 25 sweep records). */
+  async appendStandaloneQuarantine(spec: {
+    opId: string;
+    logicalKey: string;
+    reason: string;
+  }): Promise<EffectAppendResult> {
+    await this.reload();
+    return this.laneAppend(spec.opId, {
+      decisionType: 'effect_terminal',
+      opId: spec.opId,
+      terminal: 'quarantined',
+      logicalKey: spec.logicalKey,
+      reason: spec.reason,
+    });
+  }
+
+  /** Journals one provider probe (the durable lookup budget row). */
+  async appendProbe(
+    intentSeq: number,
+    spec: {
+      opId?: string;
+      probe: 'lookup' | 'close-acceptance';
+      found: boolean;
+      acceptanceClosed?: boolean;
+    },
+  ): Promise<EffectAppendResult> {
+    await this.reload();
+    const machine = this.requireMachine(intentSeq);
+    if (machine.probes.length >= machine.budgets.lookups) {
+      throw new EffectLaneRefusedError(
+        'lookups-exhausted',
+        `the intent's lookup budget (${String(machine.budgets.lookups)}) is spent; the ` +
+          'reconciler quarantines an exhausted intent, it never loops',
+      );
+    }
+    const { opId: given, ...rest } = spec;
+    const opId = given ?? `probe:${String(intentSeq)}:${String(machine.probes.length + 1)}`;
+    return this.laneAppend(opId, {
+      decisionType: 'effect_probe',
+      opId,
+      intentRef: intentSeq,
+      ...rest,
+    });
+  }
+
+  /** Releases a restoration epoch after its sweep (RFC 4.5, item 3). */
+  async appendReconciliationComplete(spec: {
+    opId: string;
+    epochRef: number;
+    swept: number;
+  }): Promise<EffectAppendResult> {
+    await this.reload();
+    const { opId, ...rest } = spec;
+    return this.laneAppend(opId, {
+      decisionType: 'effect_reconciliation_complete',
+      opId,
       ...rest,
     });
   }

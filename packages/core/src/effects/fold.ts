@@ -89,10 +89,16 @@ export interface EffectAttemptState {
   open: boolean;
   outcome?: 'accepted' | 'failed' | 'unknown';
   outcomeSeq?: number;
+  /** The attempt entry's startedAt instant. */
+  at: string;
+  /** The closing outcome entry's startedAt instant. */
+  outcomeAt?: string;
 }
 
 export interface EffectReceiptState {
   seq: number;
+  /** The receipt entry's startedAt instant. */
+  at: string;
   verification: 'verified' | 'unverified';
   transferId?: string;
   amount?: number;
@@ -127,8 +133,18 @@ export interface PostIntentCloser {
   kind: 'revoked' | 'expired';
 }
 
+/** One journaled provider probe (lookup budget accounting). */
+export interface EffectProbeState {
+  seq: number;
+  probe: 'lookup' | 'close-acceptance';
+  found: boolean;
+  acceptanceClosed?: boolean;
+}
+
 export interface EffectMachine {
   intentSeq: number;
+  /** The intent entry's startedAt instant. */
+  at: string;
   opId: string;
   logicalKey: string;
   approvalRef: number;
@@ -150,6 +166,7 @@ export interface EffectMachine {
   receipts: EffectReceiptState[];
   incidents: EffectIncidentState[];
   dispositions: EffectDispositionState[];
+  probes: EffectProbeState[];
   terminal?: { seq: number; terminal: EffectTerminalState; reason?: string; causalRef?: number };
   /** A pre-terminal conflicting receipt awaiting the quarantine append. */
   pendingConflict?: { seq: number; detail: string };
@@ -163,6 +180,14 @@ export interface EffectEpochState {
   seq: number;
   generation: string;
   restorationGeneration?: number;
+  /**
+   * True when this epoch's recorded restoration generation differs
+   * from its predecessor's: a restore happened, and attempt dispatch
+   * stays disabled until `reconciled` (RFC section 4.5, item 3).
+   */
+  needsReconciliation: boolean;
+  /** An effect_reconciliation_complete decision cites this epoch. */
+  reconciled: boolean;
 }
 
 export interface EffectDeclarationState {
@@ -171,6 +196,13 @@ export interface EffectDeclarationState {
 }
 
 export interface StandaloneRefusal {
+  seq: number;
+  logicalKey: string;
+  reason?: string;
+}
+
+/** A sweep-recorded quarantine with no machine to attach to (kill 25). */
+export interface StandaloneQuarantine {
   seq: number;
   logicalKey: string;
   reason?: string;
@@ -197,6 +229,7 @@ export class EffectLaneFold {
   private readonly epochList: EffectEpochState[] = [];
   private readonly declarationList: EffectDeclarationState[] = [];
   private readonly refusalList: StandaloneRefusal[] = [];
+  private readonly quarantineList: StandaloneQuarantine[] = [];
   /** targetRef -> ascending seqs of approval_revoked decisions. */
   private readonly revokedIndex = new Map<number, number[]>();
   /** targetRef -> ascending seqs of approval_expired decisions. */
@@ -264,6 +297,11 @@ export class EffectLaneFold {
     return [...this.refusalList];
   }
 
+  /** Sweep-recorded quarantines with no machine (kill 25's remainder). */
+  standaloneQuarantines(): StandaloneQuarantine[] {
+    return [...this.quarantineList];
+  }
+
   /** Consumed machines that have not reached a terminal. */
   openMachines(): EffectMachine[] {
     return this.machines().filter((m) => m.consumed && m.terminal === undefined);
@@ -325,12 +363,17 @@ export class EffectLaneFold {
     this.opIds.set(decision.opId, entry.seq);
     switch (decision.decisionType) {
       case 'effect_epoch': {
+        const previous = this.epochList[this.epochList.length - 1];
         this.epochList.push({
           seq: entry.seq,
           generation: decision.generation,
           ...(decision.restorationGeneration === undefined
             ? {}
             : { restorationGeneration: decision.restorationGeneration }),
+          needsReconciliation:
+            previous !== undefined &&
+            (previous.restorationGeneration ?? 0) !== (decision.restorationGeneration ?? 0),
+          reconciled: false,
         });
         this.classify(entry.seq, { classification: 'applied' });
         return;
@@ -376,6 +419,7 @@ export class EffectLaneFold {
         }
         machine.attempts.push({
           seq: entry.seq,
+          at: entry.startedAt,
           ordinal: decision.ordinal,
           notAfter: decision.notAfter,
           ...(decision.idempotencyKey === undefined
@@ -411,6 +455,7 @@ export class EffectLaneFold {
         attempt.open = false;
         attempt.outcome = decision.outcome;
         attempt.outcomeSeq = entry.seq;
+        attempt.outcomeAt = entry.startedAt;
         if (machine.terminal !== undefined) {
           const incident: EffectIncidentState = {
             seq: entry.seq,
@@ -439,16 +484,21 @@ export class EffectLaneFold {
         if (machine === undefined) {
           return;
         }
-        this.applyReceipt(entry.seq, machine, decision);
+        this.applyReceipt(entry.seq, entry.startedAt, machine, decision);
         return;
       }
       case 'effect_terminal': {
         if (decision.intentRef === undefined) {
-          this.refusalList.push({
+          const record = {
             seq: entry.seq,
             logicalKey: decision.logicalKey ?? '',
             ...(decision.reason === undefined ? {} : { reason: decision.reason }),
-          });
+          };
+          if (decision.terminal === 'quarantined') {
+            this.quarantineList.push(record);
+          } else {
+            this.refusalList.push(record);
+          }
           this.classify(entry.seq, { classification: 'applied' });
           return;
         }
@@ -489,6 +539,35 @@ export class EffectLaneFold {
           ...(decision.causalRef === undefined ? {} : { causalRef: decision.causalRef }),
           ...(decision.detail === undefined ? {} : { detail: decision.detail }),
         });
+        this.classify(entry.seq, { classification: 'applied' });
+        return;
+      }
+      case 'effect_probe': {
+        const machine = this.liveMachine(entry.seq, decision.intentRef);
+        if (machine === undefined) {
+          return;
+        }
+        machine.probes.push({
+          seq: entry.seq,
+          probe: decision.probe,
+          found: decision.found,
+          ...(decision.acceptanceClosed === undefined
+            ? {}
+            : { acceptanceClosed: decision.acceptanceClosed }),
+        });
+        this.classify(entry.seq, { classification: 'applied' });
+        return;
+      }
+      case 'effect_reconciliation_complete': {
+        const epoch = this.epochList.find((e) => e.seq === decision.epochRef);
+        if (epoch === undefined) {
+          this.classify(entry.seq, {
+            classification: 'invalid',
+            detail: `no effect_epoch at seq ${String(decision.epochRef)}`,
+          });
+          return;
+        }
+        epoch.reconciled = true;
         this.classify(entry.seq, { classification: 'applied' });
         return;
       }
@@ -562,6 +641,7 @@ export class EffectLaneFold {
   ): void {
     const machine: EffectMachine = {
       intentSeq: entry.seq,
+      at: entry.startedAt,
       opId: decision.opId,
       logicalKey: decision.logicalKey,
       approvalRef: decision.approvalRef,
@@ -585,6 +665,7 @@ export class EffectLaneFold {
       receipts: [],
       incidents: [],
       dispositions: [],
+      probes: [],
     };
     this.machinesByIntent.set(entry.seq, machine);
     const voided = (reason: EffectVoidReason, detail: string): void => {
@@ -711,6 +792,7 @@ export class EffectLaneFold {
 
   private applyReceipt(
     seq: number,
+    at: string,
     machine: EffectMachine,
     decision: {
       verification: 'verified' | 'unverified';
@@ -724,6 +806,7 @@ export class EffectLaneFold {
   ): void {
     const receipt: EffectReceiptState = {
       seq,
+      at,
       verification: decision.verification,
       ...(decision.transferId === undefined ? {} : { transferId: decision.transferId }),
       ...(decision.amount === undefined ? {} : { amount: decision.amount }),

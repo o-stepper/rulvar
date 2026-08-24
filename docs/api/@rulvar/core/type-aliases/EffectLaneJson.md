@@ -10,6 +10,6 @@
 type EffectLaneJson = Json;
 ```
 
-Defined in: [packages/core/src/effects/types.ts:523](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L523)
+Defined in: [packages/core/src/effects/types.ts:585](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L585)
 
 Narrow Json helper for payload builders in the writer train.
