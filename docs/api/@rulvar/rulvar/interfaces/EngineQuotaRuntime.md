@@ -20,4 +20,4 @@ The resolved engine-side quota runtime threaded into every run.
 | <a id="property-onlimitererror"></a> `onLimiterError` | `"allow"` \| `"deny"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-reservecontinuations"></a> `reserveContinuations` | `boolean` | Pre-wire continuation admission (RV1013); see [EngineQuotaConfig](/api/@rulvar/rulvar/interfaces/EngineQuotaConfig.md). | `packages/core/dist/index.d.ts` |
 | <a id="property-tenant"></a> `tenant?` | `string` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-tenantfrom"></a> `tenantFrom?` | `"engine"` \| `"scope"` | Where the reservation tenant comes from (RV4205); absent reads 'engine'. | `packages/core/dist/index.d.ts` |
+| <a id="property-tenantfrom"></a> `tenantFrom?` | `"scope"` \| `"engine"` | Where the reservation tenant comes from (RV4205); absent reads 'engine'. | `packages/core/dist/index.d.ts` |

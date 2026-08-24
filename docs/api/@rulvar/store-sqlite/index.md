@@ -35,6 +35,7 @@ pnpm add @rulvar/core @rulvar/store-sqlite
 
 | Class | Description |
 | ------ | ------ |
+| [SqliteAdmissionScheduler](/api/@rulvar/store-sqlite/classes/SqliteAdmissionScheduler.md) | - |
 | [SqliteQuotaLimiter](/api/@rulvar/store-sqlite/classes/SqliteQuotaLimiter.md) | The cross-process reference implementation of the core QuotaLimiter SPI: engine processes pointing instances at ONE database file (this store's file or its own) enforce one global provider quota. Admission consumes the window counters inside a single `BEGIN IMMEDIATE` transaction, so two processes can never both take the last slot; reservations are rows, so `reconcile` settles a grant from any process; both tables are lazily pruned to the current and previous accounting window. The rule model, the fixed epoch-aligned one-minute windows, and the admission decision are the core's own exported functions, so this limiter and `memoryQuotaLimiter` agree on every verdict. The `rules` MUST be identical across coordinating processes (buckets key on rule content). Runtime contention queues briefly on the connection's busy_timeout (a hot limiter is EXPECTED to serialize); a call still busy past the bound throws, and the engine's `onLimiterError` policy decides what that means. Call `close()` when done. |
 | [SqliteStore](/api/@rulvar/store-sqlite/classes/SqliteStore.md) | @rulvar/store-sqlite: SqliteStore implementing JournalStore and LeasableStore with fencing epochs over the builtin node:sqlite driver; the reference implementation for community stores (M5-T02). Requires a Node.js with node:sqlite available (unflagged in the 22.13+/23.4+ lines). |
 
@@ -42,6 +43,7 @@ pnpm add @rulvar/core @rulvar/store-sqlite
 
 | Interface | Description |
 | ------ | ------ |
+| [SqliteAdmissionSchedulerOptions](/api/@rulvar/store-sqlite/interfaces/SqliteAdmissionSchedulerOptions.md) | - |
 | [SqliteQuotaLimiterOptions](/api/@rulvar/store-sqlite/interfaces/SqliteQuotaLimiterOptions.md) | - |
 | [SqliteStoreOptions](/api/@rulvar/store-sqlite/interfaces/SqliteStoreOptions.md) | @rulvar/store-sqlite: SqliteStore implementing JournalStore and LeasableStore with fencing epochs over the builtin node:sqlite driver; the reference implementation for community stores (M5-T02). Requires a Node.js with node:sqlite available (unflagged in the 22.13+/23.4+ lines). |
 | [SqliteTranscriptStore](/api/@rulvar/store-sqlite/interfaces/SqliteTranscriptStore.md) | The fenced transcript twin over a SqliteStore database (the fenced run state RFC, F2): a TranscriptStore that declares `fencedWrites` because its blobs live in the SAME database as the lease rows, giving the fence check and the blob mutation one transactional domain. Obtain it from [SqliteStore.transcripts](/api/@rulvar/store-sqlite/classes/SqliteStore.md#transcripts); its lifetime is the owning store's (one shared connection, one `close()`). |

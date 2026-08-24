@@ -291,6 +291,40 @@ describe('MemoryAdmissionScheduler lifecycle', () => {
     expect(recovered.state).toBe('unknown');
   });
 
+  it('the snapshot round-trips: applied operation ids survive hydration', async () => {
+    const now = { ms: 0 };
+    const first = scheduler(now);
+    await first.enqueue(request('a', { reservation: { wires: 4 } }), 'op-a');
+    await first.checkpointCover('a', 'g1', { wires: 2 }, 'op-cover');
+    now.ms = 31_000;
+    await first.pump('op-pump');
+    // The late settlement lands one wire of debt (actuals 3, cover 2).
+    await first.release('a', 'g1', { wires: 3 }, 'op-late');
+    const second = new MemoryAdmissionScheduler({
+      levels: {
+        tenant: { algorithm: 'sliding-window', capWires: 4, windowMs: 60_000, slots: 6 },
+      },
+      leaseTtlMs: 30_000,
+      now: () => now.ms,
+      state: first.snapshot(),
+    });
+    // Replaying the SAME settlement op on the next holder is a durable
+    // no-op: a second debt entry would eat the last free wire.
+    await second.release('a', 'g1', { wires: 3 }, 'op-late');
+    const follower = await second.enqueue(request('f', { reservation: { wires: 1 } }), 'op-f');
+    expect(follower.state).toBe('granted');
+  });
+
+  it('the snapshot is a deep copy: later mutation never leaks into it', async () => {
+    const now = { ms: 0 };
+    const s = scheduler(now);
+    await s.enqueue(request('a'), 'op-a');
+    const state = s.snapshot();
+    await s.enqueue(request('b'), 'op-b');
+    expect(Object.keys(state.tickets)).toHaveLength(1);
+    expect(state.arrivalCounter).toBe(1);
+  });
+
   it('the emergency reserve admits flagged work where ordinary work refuses', async () => {
     const now = { ms: 0 };
     const s = new MemoryAdmissionScheduler({

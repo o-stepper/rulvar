@@ -739,6 +739,10 @@
             "link": "/api/@rulvar/core/interfaces/AdmissionScopeDimensions.md"
           },
           {
+            "text": "AdmissionState",
+            "link": "/api/@rulvar/core/interfaces/AdmissionState.md"
+          },
+          {
             "text": "AdmissionStatsBefore",
             "link": "/api/@rulvar/core/interfaces/AdmissionStatsBefore.md"
           },
@@ -6698,6 +6702,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/AdmissionScopeDimensions.md"
           },
           {
+            "text": "AdmissionState",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmissionState.md"
+          },
+          {
             "text": "AdmissionStatsBefore",
             "link": "/api/@rulvar/rulvar/interfaces/AdmissionStatsBefore.md"
           },
@@ -10928,6 +10936,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "PostgresAdmissionScheduler",
+            "link": "/api/@rulvar/store-postgres/classes/PostgresAdmissionScheduler.md"
+          },
+          {
             "text": "PostgresQuotaLimiter",
             "link": "/api/@rulvar/store-postgres/classes/PostgresQuotaLimiter.md"
           },
@@ -10949,6 +10961,10 @@
         "text": "Interfaces",
         "collapsed": true,
         "items": [
+          {
+            "text": "PostgresAdmissionSchedulerOptions",
+            "link": "/api/@rulvar/store-postgres/interfaces/PostgresAdmissionSchedulerOptions.md"
+          },
           {
             "text": "PostgresQuotaLimiterOptions",
             "link": "/api/@rulvar/store-postgres/interfaces/PostgresQuotaLimiterOptions.md"
@@ -11007,6 +11023,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "SqliteAdmissionScheduler",
+            "link": "/api/@rulvar/store-sqlite/classes/SqliteAdmissionScheduler.md"
+          },
+          {
             "text": "SqliteQuotaLimiter",
             "link": "/api/@rulvar/store-sqlite/classes/SqliteQuotaLimiter.md"
           },
@@ -11020,6 +11040,10 @@
         "text": "Interfaces",
         "collapsed": true,
         "items": [
+          {
+            "text": "SqliteAdmissionSchedulerOptions",
+            "link": "/api/@rulvar/store-sqlite/interfaces/SqliteAdmissionSchedulerOptions.md"
+          },
           {
             "text": "SqliteQuotaLimiterOptions",
             "link": "/api/@rulvar/store-sqlite/interfaces/SqliteQuotaLimiterOptions.md"

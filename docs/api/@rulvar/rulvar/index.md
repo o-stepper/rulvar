@@ -137,6 +137,7 @@ const engine = createEngine({
 | [AdmissionReservation](/api/@rulvar/rulvar/interfaces/AdmissionReservation.md) | The four reservation measures (RFC section 4.3). |
 | [AdmissionScheduler](/api/@rulvar/rulvar/interfaces/AdmissionScheduler.md) | - |
 | [AdmissionScopeDimensions](/api/@rulvar/rulvar/interfaces/AdmissionScopeDimensions.md) | Normalized scope dimensions, exactly the quota request's shape. |
+| [AdmissionState](/api/@rulvar/rulvar/interfaces/AdmissionState.md) | The scheduler's WHOLE state as one plain-JSON document: the durable implementations (sqlite, postgres) persist exactly this shape and CAS it atomically per lifecycle call, which is the RFC's first shipped durable form (a single scheduler over durable state; the multi-replica story beyond deterministic ordering is deferred by section 10). Per-row schemas are an optimization the SPI does not require: atomic "state moved AND buckets moved" holds trivially when the whole document commits or none of it does. |
 | [AdmissionStatsBefore](/api/@rulvar/rulvar/interfaces/AdmissionStatsBefore.md) | Live pre-append snapshot embedded in the decision entry (DEF-2/DEF-3). |
 | [AdmissionTicket](/api/@rulvar/rulvar/interfaces/AdmissionTicket.md) | - |
 | [AdmitLineage](/api/@rulvar/rulvar/interfaces/AdmitLineage.md) | The lineage block every non-reject verdict carries (DEF-3). |

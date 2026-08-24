@@ -25,3 +25,4 @@ export {
   quotaRulesFingerprint,
   type PostgresQuotaLimiterOptions,
 } from './quota.js';
+export { PostgresAdmissionScheduler, type PostgresAdmissionSchedulerOptions } from './admission.js';
