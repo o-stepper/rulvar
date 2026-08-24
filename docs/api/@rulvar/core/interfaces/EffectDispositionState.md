@@ -6,14 +6,14 @@
 
 # Interface: EffectDispositionState
 
-Defined in: [packages/core/src/effects/fold.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L116)
+Defined in: [packages/core/src/effects/fold.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L122)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-causalref"></a> `causalRef?` | `number` | [packages/core/src/effects/fold.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L121) |
-| <a id="property-disposition"></a> `disposition` | `string` | [packages/core/src/effects/fold.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L120) |
-| <a id="property-principal"></a> `principal` | `string` | [packages/core/src/effects/fold.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L118) |
-| <a id="property-reason"></a> `reason` | `string` | [packages/core/src/effects/fold.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L119) |
-| <a id="property-seq"></a> `seq` | `number` | [packages/core/src/effects/fold.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L117) |
+| <a id="property-causalref"></a> `causalRef?` | `number` | [packages/core/src/effects/fold.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L127) |
+| <a id="property-disposition"></a> `disposition` | `string` | [packages/core/src/effects/fold.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L126) |
+| <a id="property-principal"></a> `principal` | `string` | [packages/core/src/effects/fold.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L124) |
+| <a id="property-reason"></a> `reason` | `string` | [packages/core/src/effects/fold.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L125) |
+| <a id="property-seq"></a> `seq` | `number` | [packages/core/src/effects/fold.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L123) |

@@ -234,8 +234,11 @@ const engine = createEngine({
 | [EffectLaneWriterOptions](/api/@rulvar/rulvar/interfaces/EffectLaneWriterOptions.md) | - |
 | [EffectMachine](/api/@rulvar/rulvar/interfaces/EffectMachine.md) | - |
 | [EffectOutcomeDecision](/api/@rulvar/rulvar/interfaces/EffectOutcomeDecision.md) | The classified result of one attempt. |
+| [EffectProbeDecision](/api/@rulvar/rulvar/interfaces/EffectProbeDecision.md) | A journaled provider probe (plan 45 train five): every lookup and every acceptance closure the recovery machinery performs is a durable row, so the intent's lookup budget (RFC section 3.1) is countable from the journal alone and survives a crash of the probing process. |
+| [EffectProbeState](/api/@rulvar/rulvar/interfaces/EffectProbeState.md) | One journaled provider probe (lookup budget accounting). |
 | [EffectReceiptDecision](/api/@rulvar/rulvar/interfaces/EffectReceiptDecision.md) | A receipt observation, verified against the trust envelope BEFORE it is appended as 'verified' (RFC section 7): an unverifiable receipt appends as 'unverified' and routes the machine to `unknown`, never to `confirmed` and never to silent discard. |
 | [EffectReceiptState](/api/@rulvar/rulvar/interfaces/EffectReceiptState.md) | - |
+| [EffectReconciliationCompleteDecision](/api/@rulvar/rulvar/interfaces/EffectReconciliationCompleteDecision.md) | The post-restore gate release (RFC section 4.5, item 3): after a restoration epoch's reconciliation sweep completes, this decision re-enables attempt dispatch for that epoch. An epoch born from a restore (its recorded restoration generation differs from its predecessor's) refuses to open attempts until this row exists. |
 | [EffectTerminalDecision](/api/@rulvar/rulvar/interfaces/EffectTerminalDecision.md) | A terminal transition (RFC section 4.6): the first terminal append for an intent closes it; later would-be transitions fold as durable no-ops with a superseded-by reason. A terminal without `intentRef` is a standalone `refused` record (the writer's durable give-up when no intent ever landed); it requires `logicalKey`. |
 | [Engine](/api/@rulvar/rulvar/interfaces/Engine.md) | - |
 | [EngineDefaults](/api/@rulvar/rulvar/interfaces/EngineDefaults.md) | - |
@@ -441,6 +444,7 @@ const engine = createEngine({
 | [SpawnLineage](/api/@rulvar/rulvar/interfaces/SpawnLineage.md) | The value-part lineage block embedded in decision entries: the computed LineageRef plus the normalized tag (the request part holds the RAW proposal; the value part holds what was COMPUTED and is reused byte-exact on replay). |
 | [SpawnLineageOpt](/api/@rulvar/rulvar/interfaces/SpawnLineageOpt.md) | The spawn-options lineage block (ctx.agent, ctx.workflow, spawn_agent, add_task). |
 | [SpawnRecord](/api/@rulvar/rulvar/interfaces/SpawnRecord.md) | One spawned child tracked by the orchestrator runtime. |
+| [StandaloneQuarantine](/api/@rulvar/rulvar/interfaces/StandaloneQuarantine.md) | A sweep-recorded quarantine with no machine to attach to (kill 25). |
 | [StandaloneRefusal](/api/@rulvar/rulvar/interfaces/StandaloneRefusal.md) | - |
 | [StandardJSONSchemaV1](/api/@rulvar/rulvar/interfaces/StandardJSONSchemaV1.md) | The Standard JSON Schema interface. |
 | [StandardSchemaV1](/api/@rulvar/rulvar/interfaces/StandardSchemaV1.md) | The Standard Schema interface. |

@@ -16,7 +16,9 @@ type EffectLaneDecision =
   | EffectReceiptDecision
   | EffectTerminalDecision
   | EffectIncidentDecision
-  | EffectDispositionDecision;
+  | EffectDispositionDecision
+  | EffectProbeDecision
+  | EffectReconciliationCompleteDecision;
 ```
 
-Defined in: [packages/core/src/effects/types.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L280)
+Defined in: [packages/core/src/effects/types.ts:316](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L316)

@@ -35,7 +35,8 @@
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
-    "@rulvar/store-conformance": "workspace:*"
+    "@rulvar/store-conformance": "workspace:*",
+    "@rulvar/effects": "workspace:*"
   },
   "repository": {
     "type": "git",

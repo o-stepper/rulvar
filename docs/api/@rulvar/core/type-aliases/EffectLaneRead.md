@@ -21,6 +21,6 @@ type EffectLaneRead =
 };
 ```
 
-Defined in: [packages/core/src/effects/types.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L327)
+Defined in: [packages/core/src/effects/types.ts:365](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L365)
 
 The read verdict of one journal entry against the lane vocabulary.

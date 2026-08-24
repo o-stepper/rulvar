@@ -6,7 +6,7 @@
 
 # Class: EffectLaneFold
 
-Defined in: [packages/core/src/effects/fold.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L191)
+Defined in: [packages/core/src/effects/fold.ts:223](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L223)
 
 ## Constructors
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/src/effects/fold.ts:191](https://github.com/o-stepper
 new EffectLaneFold(entries, resolutions?): EffectLaneFold;
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:206](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L206)
+Defined in: [packages/core/src/effects/fold.ts:239](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L239)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ canonicalIntent(logicalKey):
   | undefined;
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L238)
+Defined in: [packages/core/src/effects/fold.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L271)
 
 The consumed intent holding `logicalKey` in the CURRENT epoch.
 
@@ -64,7 +64,7 @@ classificationOf(seq):
   | undefined;
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:255](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L255)
+Defined in: [packages/core/src/effects/fold.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L288)
 
 #### Parameters
 
@@ -87,7 +87,7 @@ currentEpoch():
   | undefined;
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:251](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L251)
+Defined in: [packages/core/src/effects/fold.ts:284](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L284)
 
 #### Returns
 
@@ -102,7 +102,7 @@ Defined in: [packages/core/src/effects/fold.ts:251](https://github.com/o-stepper
 declarations(): EffectDeclarationState[];
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:259](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L259)
+Defined in: [packages/core/src/effects/fold.ts:292](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L292)
 
 #### Returns
 
@@ -116,7 +116,7 @@ Defined in: [packages/core/src/effects/fold.ts:259](https://github.com/o-stepper
 epochs(): EffectEpochState[];
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L247)
+Defined in: [packages/core/src/effects/fold.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L280)
 
 #### Returns
 
@@ -132,7 +132,7 @@ machineAt(intentSeq):
   | undefined;
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:233](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L233)
+Defined in: [packages/core/src/effects/fold.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L266)
 
 #### Parameters
 
@@ -153,7 +153,7 @@ Defined in: [packages/core/src/effects/fold.ts:233](https://github.com/o-stepper
 machines(): EffectMachine[];
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:229](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L229)
+Defined in: [packages/core/src/effects/fold.ts:262](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L262)
 
 #### Returns
 
@@ -167,7 +167,7 @@ Defined in: [packages/core/src/effects/fold.ts:229](https://github.com/o-stepper
 openMachines(): EffectMachine[];
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L268)
+Defined in: [packages/core/src/effects/fold.ts:306](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L306)
 
 Consumed machines that have not reached a terminal.
 
@@ -177,13 +177,29 @@ Consumed machines that have not reached a terminal.
 
 ***
 
+### standaloneQuarantines()
+
+```ts
+standaloneQuarantines(): StandaloneQuarantine[];
+```
+
+Defined in: [packages/core/src/effects/fold.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L301)
+
+Sweep-recorded quarantines with no machine (kill 25's remainder).
+
+#### Returns
+
+[`StandaloneQuarantine`](/api/@rulvar/core/interfaces/StandaloneQuarantine.md)[]
+
+***
+
 ### standaloneRefusals()
 
 ```ts
 standaloneRefusals(): StandaloneRefusal[];
 ```
 
-Defined in: [packages/core/src/effects/fold.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L263)
+Defined in: [packages/core/src/effects/fold.ts:296](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/fold.ts#L296)
 
 #### Returns
 

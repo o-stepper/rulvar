@@ -15,6 +15,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-approvalref"></a> `approvalRef` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-argumentshash"></a> `argumentsHash` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-artifacthash"></a> `artifactHash?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-at"></a> `at` | `string` | The intent entry's startedAt instant. | `packages/core/dist/index.d.ts` |
 | <a id="property-attempts"></a> `attempts` | [`EffectAttemptState`](/api/@rulvar/rulvar/interfaces/EffectAttemptState.md)[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-budgets"></a> `budgets` | [`EffectBudgets`](/api/@rulvar/rulvar/interfaces/EffectBudgets.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-capabilityrow"></a> `capabilityRow` | [`EffectCapabilityRow`](/api/@rulvar/rulvar/type-aliases/EffectCapabilityRow.md) | - | `packages/core/dist/index.d.ts` |
@@ -34,6 +35,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | `pendingConflict.detail` | `string` | - | `packages/core/dist/index.d.ts` |
 | `pendingConflict.seq` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-postintentcloser"></a> `postIntentCloser?` | [`PostIntentCloser`](/api/@rulvar/rulvar/interfaces/PostIntentCloser.md) | Set at finalize; re-dispatch is disabled from this position on. | `packages/core/dist/index.d.ts` |
+| <a id="property-probes"></a> `probes` | [`EffectProbeState`](/api/@rulvar/rulvar/interfaces/EffectProbeState.md)[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-receipts"></a> `receipts` | [`EffectReceiptState`](/api/@rulvar/rulvar/interfaces/EffectReceiptState.md)[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-state"></a> `state` | [`EffectMachineState`](/api/@rulvar/rulvar/type-aliases/EffectMachineState.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-successorof"></a> `successorOf?` | `number` | - | `packages/core/dist/index.d.ts` |

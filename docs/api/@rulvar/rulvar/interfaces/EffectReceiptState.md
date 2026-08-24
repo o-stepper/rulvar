@@ -13,6 +13,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-amount"></a> `amount?` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-at"></a> `at` | `string` | The receipt entry's startedAt instant. | `packages/core/dist/index.d.ts` |
 | <a id="property-benignduplicateof"></a> `benignDuplicateOf?` | `number` | Seq of the earlier verified receipt this one benignly duplicates. | `packages/core/dist/index.d.ts` |
 | <a id="property-conflictwith"></a> `conflictWith?` | `number` | Seq of the earlier verified receipt this one conflicts with. | `packages/core/dist/index.d.ts` |
 | <a id="property-currency"></a> `currency?` | `string` | - | `packages/core/dist/index.d.ts` |

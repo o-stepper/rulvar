@@ -6,7 +6,7 @@
 
 # Interface: ApprovalExpiredDecision
 
-Defined in: [packages/core/src/effects/types.ts:272](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L272)
+Defined in: [packages/core/src/effects/types.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L308)
 
 The clock fact for grant expiry (RFC section 4.5, item 1): the fold
 never compares wall clocks, so an approval's `expiresAt` becomes
@@ -20,7 +20,7 @@ recorded expiry already determines).
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-decisiontype"></a> `decisionType` | `"approval_expired"` | - | [packages/core/src/effects/types.ts:273](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L273) |
-| <a id="property-expiresat"></a> `expiresAt` | `string` | The recorded expiry instant this decision materializes. | [packages/core/src/effects/types.ts:276](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L276) |
-| <a id="property-observer"></a> `observer?` | `string` | - | [packages/core/src/effects/types.ts:277](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L277) |
-| <a id="property-targetref"></a> `targetRef` | `number` | - | [packages/core/src/effects/types.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L274) |
+| <a id="property-decisiontype"></a> `decisionType` | `"approval_expired"` | - | [packages/core/src/effects/types.ts:309](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L309) |
+| <a id="property-expiresat"></a> `expiresAt` | `string` | The recorded expiry instant this decision materializes. | [packages/core/src/effects/types.ts:312](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L312) |
+| <a id="property-observer"></a> `observer?` | `string` | - | [packages/core/src/effects/types.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L313) |
+| <a id="property-targetref"></a> `targetRef` | `number` | - | [packages/core/src/effects/types.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L310) |

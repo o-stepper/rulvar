@@ -1,4 +1,5 @@
-import { EffectCapabilityRow, EffectLaneWriter, EffectLookupQualification, EffectMachine } from "@rulvar/core";
+import { EffectCapabilityRow, EffectClass, EffectLaneFold, EffectLaneWriter, EffectLookupQualification, EffectMachine, JournalStore } from "@rulvar/core";
+import { ConformanceSuite, StoreFactory } from "@rulvar/store-conformance";
 
 //#region src/adapter.d.ts
 /** One provider row of the capability matrix (RFC section 6). */
@@ -185,6 +186,13 @@ declare class EffectDispatcher {
   * crossing and expiry bounds the grant, not the past.
   */
   private settleCloserAfterConfirm;
+  /**
+  * The provider's truth, JOURNALED: every probe is a durable row, so
+  * the intent's lookup budget is countable from the journal alone
+  * (kill point 19). A budget-exhausted probe throws typed; recover()
+  * converts it into the quarantine the RFC demands.
+  */
+  private probedTruth;
   /** The provider's truth, by the strongest primitive the row offers. */
   private providerTruth;
   private quarantine;
@@ -194,6 +202,7 @@ declare class EffectDispatcher {
   * retry; never a provider contact on an already-closed machine.
   */
   recover(intentSeq: number): Promise<EffectRecoveryReport>;
+  private recoverInner;
   /**
   * RFC section 4.7 rows 2 and 3: reconcile-only recovery once a
   * revocation or expiry landed after the intent. No re-dispatch on
@@ -245,4 +254,147 @@ declare class FakeEffectProvider implements EffectAdapter {
   private findCommitted;
 }
 //#endregion
-export { EffectAdapter, EffectDispatchReport, EffectDispatchRequest, EffectDispatchResult, EffectDispatcher, EffectDispatcherOptions, EffectLookupAnswer, EffectLookupRequest, EffectProviderDescriptor, EffectReceiptObservation, EffectRecoveryReport, FakeDispatchBehavior, FakeEffectProvider, ReceiptVerifier, effectIdempotencyKey };
+//#region src/receipts.d.ts
+interface EffectTrustKey {
+  keyId: string;
+  /** ISO instant; absent means valid from the beginning of time. */
+  validFrom?: string;
+  /** ISO instant; absent means no scheduled end. */
+  validTo?: string;
+  /** ISO instant; the key fails verification from here FORWARD. */
+  revokedAt?: string;
+}
+interface EffectTrustEnvelope {
+  /** Principals or provider identities that may sign receipts. */
+  issuers: readonly string[];
+  keys: readonly EffectTrustKey[];
+  /**
+  * Host-supplied signature check over the observation and the resolved
+  * key. Absent means structural verification only (presence of a
+  * signature field), which is the conformance posture; production
+  * hosts supply real cryptography here.
+  */
+  verifySignature?: (observation: EffectReceiptObservation, key: EffectTrustKey) => boolean;
+}
+type ReceiptVerification = {
+  verification: "verified";
+} | {
+  verification: "unverified";
+  reason: string;
+};
+/**
+* Verifies one receipt observation against the envelope. The order of
+* checks is the RFC's: issuer identity, content bindings, key
+* resolution with validity windows, revocation, then the signature
+* itself. A receipt that binds fewer fields than its class requires
+* verifies `unverified` no matter how good its signature is.
+*/
+declare function verifyReceiptObservation(observation: EffectReceiptObservation, effectClass: EffectClass, envelope: EffectTrustEnvelope): ReceiptVerification;
+/** Adapts an envelope to the dispatcher's ReceiptVerifier seam. */
+declare function envelopeVerifier(effectClass: EffectClass, envelope: EffectTrustEnvelope): (observation: EffectReceiptObservation) => "verified" | "unverified";
+//#endregion
+//#region src/reconciler.d.ts
+interface EffectSweepReport {
+  /** Machines the sweep examined. */
+  swept: number;
+  quarantined: Array<{
+    intentSeq: number;
+    reason: string;
+  }>;
+  recovered: Array<{
+    intentSeq: number;
+    report: EffectRecoveryReport;
+  }>;
+  /** Open machines legitimately waiting inside their budgets. */
+  waiting: number;
+  /** Standalone authorization-timeout refusals appended. */
+  authorizationTimeouts: number;
+}
+interface RestorationReport {
+  /** Provider effects with no journaled intent: quarantined by name. */
+  unreconstructable: string[];
+  /** True when no enumeration exists and the range quarantined whole. */
+  rangeQuarantined: boolean;
+  sweep: EffectSweepReport;
+  /** Seq of the appended effect_reconciliation_complete decision. */
+  completionSeq: number;
+}
+interface EffectReconcilerOptions {
+  writer: EffectLaneWriter;
+  /** Optional: without it the sweep only quarantines and reports. */
+  dispatcher?: EffectDispatcher;
+  now?: () => string;
+}
+declare class EffectReconciler {
+  private readonly writer;
+  private readonly dispatcher?;
+  private readonly now;
+  constructor(options: EffectReconcilerOptions);
+  private quarantine;
+  /** Why this machine's budgets demand a quarantine, if they do. */
+  private exhaustion;
+  /**
+  * Effect authorizations whose deadline crossed while still open
+  * (kill 22, the compensation wait included): the sweep appends a
+  * durable standalone refusal for the licensed key, so nothing waits
+  * forever on an authorization that can no longer arrive in time.
+  */
+  private refuseTimedOutAuthorizations;
+  sweep(options?: {
+    recover?: boolean;
+  }): Promise<EffectSweepReport>;
+  /**
+  * The post-restore reconciliation (RFC section 4.5, item 3; kill
+  * 25). Requires the current epoch to be a restoration epoch awaiting
+  * release. With `enumerate`, every provider effect whose logical key
+  * has no consumed intent anywhere in the journal quarantines
+  * standalone by name (what could NOT be reconstructed), and open
+  * machines re-enter recovery through the ordinary sweep. Without
+  * authoritative enumeration the whole affected range quarantines as
+  * one named record and automatic recovery is forbidden. Either way
+  * the sweep runs, the completion decision appends, and attempt
+  * dispatch re-enables for the epoch.
+  */
+  reconcileRestoration(options?: {
+    enumerate?: () => Promise<Array<{
+      logicalKey: string;
+      receipt?: EffectReceiptObservation;
+    }>>;
+  }): Promise<RestorationReport>;
+}
+//#endregion
+//#region src/telemetry.d.ts
+interface EffectsTelemetry {
+  /** Consumed intents that have not reached a terminal. */
+  openEffectIntents: number;
+  /** Present only when `nowMs` was supplied. */
+  oldestOpenIntentAgeMs?: number;
+  confirmed: number;
+  compensated: number;
+  refused: number;
+  cancelledBeforeDispatch: number;
+  quarantined: number;
+  /** Machines that entered `unknown` at least once. */
+  unknownEntered: number;
+  duplicateReceiptsBenign: number;
+  duplicateReceiptsConflicting: number;
+  /** Incidents with no disposition citing them. */
+  incidentsOpen: number;
+}
+declare function effectsTelemetryOf(fold: EffectLaneFold, options?: {
+  nowMs?: number;
+}): EffectsTelemetry;
+//#endregion
+//#region src/kit.d.ts
+/** Rows that do not apply per effect class (part of the kit contract). */
+declare const EFFECTS_KILL_EXCLUSIONS: Record<"monetary" | "signing" | "case", readonly string[]>;
+interface EffectsConformanceOptions {
+  /** A fresh, isolated store per call. */
+  store: StoreFactory<JournalStore>;
+  /** Explicitly single-process semantics for non-leasable stores. */
+  singleProcess?: boolean;
+}
+/** The kill point catalog as named checks (RFC section 8). */
+declare function effectsConformance(options: EffectsConformanceOptions): ConformanceSuite;
+//#endregion
+export { EFFECTS_KILL_EXCLUSIONS, EffectAdapter, EffectDispatchReport, EffectDispatchRequest, EffectDispatchResult, EffectDispatcher, EffectDispatcherOptions, EffectLookupAnswer, EffectLookupRequest, EffectProviderDescriptor, EffectReceiptObservation, EffectReconciler, EffectReconcilerOptions, EffectRecoveryReport, EffectSweepReport, EffectTrustEnvelope, EffectTrustKey, EffectsConformanceOptions, EffectsTelemetry, FakeDispatchBehavior, FakeEffectProvider, ReceiptVerification, ReceiptVerifier, RestorationReport, effectIdempotencyKey, effectsConformance, effectsTelemetryOf, envelopeVerifier, verifyReceiptObservation };

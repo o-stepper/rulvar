@@ -24,6 +24,7 @@
  * obligations) and https://docs.rulvar.com/guide/testing (conformance tier).
  */
 export {
+  ensure,
   registerConformance,
   makeSuite,
   stableStringify,

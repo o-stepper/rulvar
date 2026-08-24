@@ -10,4 +10,4 @@
 const EFFECT_LANE_DECISION_TYPES: readonly EffectLaneDecisionType[];
 ```
 
-Defined in: [packages/core/src/effects/types.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L85)
+Defined in: [packages/core/src/effects/types.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/types.ts#L87)

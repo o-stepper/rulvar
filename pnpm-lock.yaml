@@ -329,6 +329,9 @@ importers:
       '@rulvar/core':
         specifier: workspace:*
         version: link:../core
+      '@rulvar/store-conformance':
+        specifier: workspace:*
+        version: link:../store-conformance
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -527,6 +530,9 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
     devDependencies:
+      '@rulvar/effects':
+        specifier: workspace:*
+        version: link:../effects
       '@rulvar/store-conformance':
         specifier: workspace:*
         version: link:../store-conformance
@@ -549,6 +555,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@rulvar/effects':
+        specifier: workspace:*
+        version: link:../effects
       '@rulvar/store-conformance':
         specifier: workspace:*
         version: link:../store-conformance

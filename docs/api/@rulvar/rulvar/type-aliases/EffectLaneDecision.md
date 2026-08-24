@@ -16,7 +16,9 @@ type EffectLaneDecision =
   | EffectReceiptDecision
   | EffectTerminalDecision
   | EffectIncidentDecision
-  | EffectDispositionDecision;
+  | EffectDispositionDecision
+  | EffectProbeDecision
+  | EffectReconciliationCompleteDecision;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`

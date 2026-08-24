@@ -115,6 +115,33 @@ Classifies one open attempt's result.
 
 ***
 
+### appendProbe()
+
+```ts
+appendProbe(intentSeq, spec): Promise<EffectAppendResult>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Journals one provider probe (the durable lookup budget row).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `intentSeq` | `number` |
+| `spec` | \{ `acceptanceClosed?`: `boolean`; `found`: `boolean`; `opId?`: `string`; `probe`: `"lookup"` \| `"close-acceptance"`; \} |
+| `spec.acceptanceClosed?` | `boolean` |
+| `spec.found` | `boolean` |
+| `spec.opId?` | `string` |
+| `spec.probe` | `"lookup"` \| `"close-acceptance"` |
+
+#### Returns
+
+`Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/rulvar/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
 ### appendReceipt()
 
 ```ts
@@ -140,6 +167,81 @@ Records a receipt observation with the caller's verification verdict.
 | `spec.timestamp?` | `string` |
 | `spec.transferId?` | `string` |
 | `spec.verification` | `"verified"` \| `"unverified"` |
+
+#### Returns
+
+`Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/rulvar/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
+### appendReconciliationComplete()
+
+```ts
+appendReconciliationComplete(spec): Promise<EffectAppendResult>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Releases a restoration epoch after its sweep (RFC 4.5, item 3).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `spec` | \{ `epochRef`: `number`; `opId`: `string`; `swept`: `number`; \} |
+| `spec.epochRef` | `number` |
+| `spec.opId` | `string` |
+| `spec.swept` | `number` |
+
+#### Returns
+
+`Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/rulvar/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
+### appendStandaloneQuarantine()
+
+```ts
+appendStandaloneQuarantine(spec): Promise<EffectAppendResult>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+A durable standalone quarantine (the kill 25 sweep records).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `spec` | \{ `logicalKey`: `string`; `opId`: `string`; `reason`: `string`; \} |
+| `spec.logicalKey` | `string` |
+| `spec.opId` | `string` |
+| `spec.reason` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/rulvar/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
+### appendStandaloneRefusal()
+
+```ts
+appendStandaloneRefusal(spec): Promise<EffectAppendResult>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+A durable standalone refusal for a logical key (no machine).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `spec` | \{ `logicalKey`: `string`; `opId`: `string`; `reason`: `string`; \} |
+| `spec.logicalKey` | `string` |
+| `spec.opId` | `string` |
+| `spec.reason` | `string` |
 
 #### Returns
 
@@ -238,6 +340,22 @@ derived operation id.
 #### Returns
 
 `Promise`\&lt;[`EffectAppendResult`](/api/@rulvar/rulvar/interfaces/EffectAppendResult.md)\&gt;
+
+***
+
+### entriesSnapshot()
+
+```ts
+entriesSnapshot(): Promise<readonly JournalEntry[]>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The writer's current loaded entries (read-only snapshot).
+
+#### Returns
+
+`Promise`\&lt;readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]\&gt;
 
 ***
 
