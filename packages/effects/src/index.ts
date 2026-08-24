@@ -12,3 +12,4 @@ export * from './fakes.js';
 export * from './receipts.js';
 export * from './reconciler.js';
 export * from './telemetry.js';
+export * from './kit.js';

@@ -509,6 +509,23 @@ describe('kill 30: every transition append survives a lost ack without a duplica
   });
 });
 
+describe('the journaled probe budget (kill 19, the writer half)', () => {
+  it('refuses a probe past the recorded lookup budget', async () => {
+    const store = new FakeLaneStore();
+    seedBase(store);
+    const writer = await openWriter(store);
+    await writer.ensureEpoch('gen-1');
+    const consumed = await writer.consumeApprovalAndRecordIntent(
+      spec({ budgets: { ...BUDGETS, lookups: 1 } }),
+    );
+    await writer.appendProbe(consumed.intentSeq, { probe: 'lookup', found: false });
+    await expect(
+      writer.appendProbe(consumed.intentSeq, { probe: 'lookup', found: false }),
+    ).rejects.toMatchObject({ rule: 'lookups-exhausted' });
+    await writer.close();
+  });
+});
+
 describe('the restoration generation gate (kill 25, the store half)', () => {
   it('a restored store disables the lane until a fresh epoch cites the bump', async () => {
     const store = new FakeLaneStore();
@@ -525,6 +542,36 @@ describe('the restoration generation gate (kill 25, the store half)', () => {
     const fresh = await writer.ensureEpoch('gen-1');
     expect(fresh.replayed).toBe(false);
     expect(writer.view().currentEpoch()?.restorationGeneration).toBe(1);
+    await writer.close();
+  });
+});
+
+describe('the reconciliation release gate (kill 25, the writer half)', () => {
+  it('a restoration epoch refuses attempts until the completion decision cites it', async () => {
+    const store = new FakeLaneStore();
+    seedBase(store);
+    const writer = await openWriter(store);
+    await writer.ensureEpoch('gen-1');
+    const consumed = await writer.consumeApprovalAndRecordIntent(spec());
+    store.generation = 1;
+    const fresh = await writer.ensureEpoch('gen-1');
+    expect(fresh.replayed).toBe(false);
+    await expect(
+      writer.openAttempt(consumed.intentSeq, {
+        opId: 'op-attempt-1',
+        notAfter: '2026-08-24T10:05:00.000Z',
+      }),
+    ).rejects.toMatchObject({ rule: 'reconciliation-pending' });
+    await writer.appendReconciliationComplete({
+      opId: 'rc-1',
+      epochRef: fresh.seq,
+      swept: 0,
+    });
+    // The old-epoch intent is now stale for consumption purposes, but
+    // the GATE is what this test pins: the epoch released, attempts
+    // may open again (this one refuses later on its own merits).
+    const view = await writer.refresh();
+    expect(view.currentEpoch()?.reconciled).toBe(true);
     await writer.close();
   });
 });

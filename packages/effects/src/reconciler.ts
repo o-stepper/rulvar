@@ -70,7 +70,10 @@ export class EffectReconciler {
   }
 
   /** Why this machine's budgets demand a quarantine, if they do. */
-  private exhaustion(machine: EffectMachine, now: string): { tag: string; reason: string } | undefined {
+  private exhaustion(
+    machine: EffectMachine,
+    now: string,
+  ): { tag: string; reason: string } | undefined {
     if (now > machine.budgets.reconcileBy) {
       // Kill 21: whatever non-terminal state the machine is in,
       // crossing reconcileBy quarantines it with the state recorded.
@@ -118,7 +121,8 @@ export class EffectReconciler {
       // Kill 19: lookups are bounded separately from attempts.
       return {
         tag: 'lookups',
-        reason: `the lookup budget (${String(machine.budgets.lookups)}) is exhausted with ` +
+        reason:
+          `the lookup budget (${String(machine.budgets.lookups)}) is exhausted with ` +
           'the outcome still unknown',
       };
     }

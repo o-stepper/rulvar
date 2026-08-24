@@ -29,7 +29,8 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
-    "@rulvar/core": "workspace:*"
+    "@rulvar/core": "workspace:*",
+    "@rulvar/store-conformance": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

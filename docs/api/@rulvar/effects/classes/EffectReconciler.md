@@ -36,7 +36,7 @@ Defined in: [packages/effects/src/reconciler.ts:56](https://github.com/o-stepper
 reconcileRestoration(options?): Promise<RestorationReport>;
 ```
 
-Defined in: [packages/effects/src/reconciler.ts:230](https://github.com/o-stepper/rulvar/blob/main/packages/effects/src/reconciler.ts#L230)
+Defined in: [packages/effects/src/reconciler.ts:234](https://github.com/o-stepper/rulvar/blob/main/packages/effects/src/reconciler.ts#L234)
 
 The post-restore reconciliation (RFC section 4.5, item 3; kill
 25). Requires the current epoch to be a restoration epoch awaiting
@@ -68,7 +68,7 @@ dispatch re-enables for the epoch.
 sweep(options?): Promise<EffectSweepReport>;
 ```
 
-Defined in: [packages/effects/src/reconciler.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/effects/src/reconciler.ts#L166)
+Defined in: [packages/effects/src/reconciler.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/effects/src/reconciler.ts#L170)
 
 #### Parameters
 

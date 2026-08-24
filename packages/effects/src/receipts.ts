@@ -36,8 +36,7 @@ export interface EffectTrustEnvelope {
 }
 
 export type ReceiptVerification =
-  | { verification: 'verified' }
-  | { verification: 'unverified'; reason: string };
+  { verification: 'verified' } | { verification: 'unverified'; reason: string };
 
 /** The fields a receipt must bind, per effect class (RFC section 7). */
 function missingBindings(
@@ -85,7 +84,8 @@ export function verifyReceiptObservation(
   if (missing.length > 0) {
     return {
       verification: 'unverified',
-      reason: `the receipt binds fewer fields than the '${effectClass}' class requires: ` +
+      reason:
+        `the receipt binds fewer fields than the '${effectClass}' class requires: ` +
         `missing ${missing.join(', ')}`,
     };
   }

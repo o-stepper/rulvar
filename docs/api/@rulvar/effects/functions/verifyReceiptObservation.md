@@ -13,7 +13,7 @@ function verifyReceiptObservation(
    envelope): ReceiptVerification;
 ```
 
-Defined in: [packages/effects/src/receipts.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/effects/src/receipts.ts#L73)
+Defined in: [packages/effects/src/receipts.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/effects/src/receipts.ts#L72)
 
 Verifies one receipt observation against the envelope. The order of
 checks is the RFC's: issuer identity, content bindings, key

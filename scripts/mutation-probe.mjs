@@ -6437,6 +6437,77 @@ export const MUTATIONS = [
     replace: "      case 'neither':\n        return this.naturalKeyOf(request);",
     test: 'packages/effects/src/dispatch.test.ts',
   },
+  {
+    id: 'effect-sweep-reconcile-by',
+    doctrine:
+      'crossing reconcileBy quarantines whatever non-terminal state the machine is in (RV4505, RFC effects 3.1): with the deadline check collapsed, an intent loiters forever',
+    file: 'packages/effects/src/reconciler.ts',
+    find: '    if (now > machine.budgets.reconcileBy) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/effects/src/reconcile.test.ts',
+  },
+  {
+    id: 'effect-sweep-receipt-wait',
+    doctrine:
+      'awaiting-receipt is bounded by the receipt wait budget (RV4505, kill 20): with the comparison collapsed, a provider that never sends the receipt parks the machine forever',
+    file: 'packages/effects/src/reconciler.ts',
+    find: '        Date.parse(now) - Date.parse(since) > machine.budgets.receiptWaitMs',
+    replace: '        (false as boolean)',
+    test: 'packages/effects/src/reconcile.test.ts',
+  },
+  {
+    id: 'effect-sweep-attempts-exhausted',
+    doctrine: 'attempt exhaustion quarantines, never an unbounded retry loop (RV4505, kill 18)',
+    file: 'packages/effects/src/reconciler.ts',
+    find: "    if (machine.state === 'intent' && machine.attempts.length >= machine.budgets.attempts) {",
+    replace: '    if (false as boolean) {',
+    test: 'packages/effects/src/reconcile.test.ts',
+  },
+  {
+    id: 'effect-sweep-lookups-exhausted',
+    doctrine:
+      'lookups are bounded separately from dispatch attempts (RV4505, kill 19): with the check collapsed, an unknown outcome probes forever on the provider',
+    file: 'packages/effects/src/reconciler.ts',
+    find: "    if (machine.state === 'unknown' && machine.probes.length >= machine.budgets.lookups) {",
+    replace: '    if (false as boolean) {',
+    test: 'packages/effects/src/reconcile.test.ts',
+  },
+  {
+    id: 'effect-probe-budget-durable',
+    doctrine:
+      'the lookup budget is countable from the journal alone and the writer refuses past it (RV4505, RFC effects 3.1): with the guard collapsed, probes append unbounded and the durable bound is fiction',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '    if (machine.probes.length >= machine.budgets.lookups) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-restoration-needs-completion',
+    doctrine:
+      'a restoration epoch stays undispatchable until effect_reconciliation_complete cites it (RV4505, RFC effects 4.5 item 3): with the gate collapsed, the window between the epoch append and the sweep dispatches',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '    if (epoch !== undefined && epoch.needsReconciliation && !epoch.reconciled) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-envelope-revoked-forward',
+    doctrine:
+      'a revoked signing key fails verification from its revocation time FORWARD, old receipts inside their window still verify (RV4505, RFC effects 7)',
+    file: 'packages/effects/src/receipts.ts',
+    find: '  if (key.revokedAt !== undefined && at >= key.revokedAt) {',
+    replace: '  if (false as boolean) {',
+    test: 'packages/effects/src/receipts.test.ts',
+  },
+  {
+    id: 'effect-envelope-binds-the-class',
+    doctrine:
+      'a receipt that binds fewer fields than its class requires verifies unverified no matter its signature (RV4505, RFC effects 7)',
+    file: 'packages/effects/src/receipts.ts',
+    find: "    need('amount', observation.amount);",
+    replace: '    ;',
+    test: 'packages/effects/src/receipts.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

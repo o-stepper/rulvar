@@ -4568,6 +4568,10 @@
             "link": "/api/@rulvar/effects/interfaces/EffectReconcilerOptions.md"
           },
           {
+            "text": "EffectsConformanceOptions",
+            "link": "/api/@rulvar/effects/interfaces/EffectsConformanceOptions.md"
+          },
+          {
             "text": "EffectsTelemetry",
             "link": "/api/@rulvar/effects/interfaces/EffectsTelemetry.md"
           },
@@ -4624,12 +4628,26 @@
         ]
       },
       {
+        "text": "Variables",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "EFFECTS_KILL_EXCLUSIONS",
+            "link": "/api/@rulvar/effects/variables/EFFECTS_KILL_EXCLUSIONS.md"
+          }
+        ]
+      },
+      {
         "text": "Functions",
         "collapsed": true,
         "items": [
           {
             "text": "effectIdempotencyKey",
             "link": "/api/@rulvar/effects/functions/effectIdempotencyKey.md"
+          },
+          {
+            "text": "effectsConformance",
+            "link": "/api/@rulvar/effects/functions/effectsConformance.md"
           },
           {
             "text": "effectsTelemetryOf",
@@ -10547,6 +10565,10 @@
           {
             "text": "effectLaneStoreConformance",
             "link": "/api/@rulvar/store-conformance/functions/effectLaneStoreConformance.md"
+          },
+          {
+            "text": "ensure",
+            "link": "/api/@rulvar/store-conformance/functions/ensure.md"
           },
           {
             "text": "fencedTranscriptsConformance",

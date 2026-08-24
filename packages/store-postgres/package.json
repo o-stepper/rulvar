@@ -37,7 +37,8 @@
     "@types/node": "catalog:",
     "@types/pg": "^8.20.0",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "@rulvar/effects": "workspace:*"
   },
   "repository": {
     "type": "git",
