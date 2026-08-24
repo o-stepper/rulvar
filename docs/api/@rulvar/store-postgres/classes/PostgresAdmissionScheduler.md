@@ -2,11 +2,11 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / MemoryAdmissionScheduler
+[Rulvar API reference](/api/index.md) / [@rulvar/store-postgres](/api/@rulvar/store-postgres/index.md) / PostgresAdmissionScheduler
 
-# Class: MemoryAdmissionScheduler
+# Class: PostgresAdmissionScheduler
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L38)
 
 ## Implements
 
@@ -17,20 +17,20 @@ Defined in: `packages/core/dist/index.d.ts`
 ### Constructor
 
 ```ts
-new MemoryAdmissionScheduler(options): MemoryAdmissionScheduler;
+new PostgresAdmissionScheduler(options): PostgresAdmissionScheduler;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L47)
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | [`MemoryAdmissionOptions`](/api/@rulvar/rulvar/interfaces/MemoryAdmissionOptions.md) |
+| `options` | [`PostgresAdmissionSchedulerOptions`](/api/@rulvar/store-postgres/interfaces/PostgresAdmissionSchedulerOptions.md) |
 
 #### Returns
 
-`MemoryAdmissionScheduler`
+`PostgresAdmissionScheduler`
 
 ## Methods
 
@@ -43,7 +43,7 @@ cancel(
 opId): Promise<void>;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L176)
 
 Cancels a queued ticket (nothing to refund); granted ones release.
 
@@ -75,7 +75,7 @@ checkpointCover(
 opId): Promise<void>;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L158)
 
 Durably checkpoints a consumption cover BEFORE the covered batch
 (the intent-before-effect doctrine applied to capacity): monotone
@@ -102,13 +102,27 @@ conservative expiry refund provable rather than optimistic.
 
 ***
 
+### close()
+
+```ts
+close(): Promise<void>;
+```
+
+Defined in: [packages/store-postgres/src/admission.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L65)
+
+#### Returns
+
+`Promise`\&lt;`void`\&gt;
+
+***
+
 ### enqueue()
 
 ```ts
 enqueue(request, opId): Promise<AdmissionTicketDecision>;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L146)
 
 Conditional create by `(unitId, generation)` plus immediate grant
 when every matched level admits; `opId` makes retries idempotent.
@@ -133,10 +147,10 @@ when every matched level admits; `opId` makes retries idempotent.
 ### pump()
 
 ```ts
-pump(_opId): Promise<AdmissionTicket[]>;
+pump(opId): Promise<AdmissionTicket[]>;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L180)
 
 Advances the scheduler: expires stale leases (conservative
 settlement), then grants queued tickets in SFQ order while every
@@ -146,7 +160,7 @@ matched level admits. Returns the newly granted tickets.
 
 | Parameter | Type |
 | ------ | ------ |
-| `_opId` | `string` |
+| `opId` | `string` |
 
 #### Returns
 
@@ -167,7 +181,7 @@ recover(
 opId): Promise<AdmissionRecovery>;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L150)
 
 The resumed unit's recovery: `granted` renews the lease, a queued
 ticket reports its surviving position, and `unknown` means
@@ -201,7 +215,7 @@ release(
 opId): Promise<void>;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L167)
 
 Release with actuals: the unused remainder refunds to each level,
 over-consumption beyond the reservation lands as bucket debt (it
@@ -233,10 +247,10 @@ accepted idempotently as debt rather than discarded.
 renew(
    unitId, 
    generation, 
-_opId): Promise<void>;
+opId): Promise<void>;
 ```
 
-Defined in: `packages/core/dist/index.d.ts`
+Defined in: [packages/store-postgres/src/admission.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L154)
 
 Renews a granted ticket's lease; unknown tickets are no-ops.
 
@@ -246,7 +260,7 @@ Renews a granted ticket's lease; unknown tickets are no-ops.
 | ------ | ------ |
 | `unitId` | `string` |
 | `generation` | `string` |
-| `_opId` | `string` |
+| `opId` | `string` |
 
 #### Returns
 
@@ -255,19 +269,3 @@ Renews a granted ticket's lease; unknown tickets are no-ops.
 #### Implementation of
 
 [`AdmissionScheduler`](/api/@rulvar/rulvar/interfaces/AdmissionScheduler.md).[`renew`](/api/@rulvar/rulvar/interfaces/AdmissionScheduler.md#renew)
-
-***
-
-### snapshot()
-
-```ts
-snapshot(): AdmissionState;
-```
-
-Defined in: `packages/core/dist/index.d.ts`
-
-The whole state as a plain-JSON document (deep-copied).
-
-#### Returns
-
-[`AdmissionState`](/api/@rulvar/rulvar/interfaces/AdmissionState.md)

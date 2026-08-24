@@ -1,4 +1,4 @@
-import { EffectLaneStore, JournalEntry, LeasableStore, Lease, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
+import { AdmissionRecovery, AdmissionRequest, AdmissionReservation, AdmissionScheduler, AdmissionTicket, AdmissionTicketDecision, EffectLaneStore, JournalEntry, LeasableStore, Lease, MemoryAdmissionOptions, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference for the sqlite store. */
@@ -213,4 +213,35 @@ declare class SqliteQuotaLimiter implements QuotaLimiter {
   private rollbackQuietly;
 }
 //#endregion
-export { BOOT_BUSY_TIMEOUT_MS, DEFAULT_LEASE_TTL_MS, QUOTA_BUSY_TIMEOUT_MS, SqliteQuotaLimiter, type SqliteQuotaLimiterOptions, SqliteStore, type SqliteStoreOptions, type SqliteTranscriptStore };
+//#region src/admission.d.ts
+interface SqliteAdmissionSchedulerOptions {
+  /** Database file path; ':memory:' is single-process only. */
+  path: string;
+  /** The admission configuration (levels, weights, lease ttl). */
+  config: Omit<MemoryAdmissionOptions, "state" | "now">;
+  /** Several schedulers may share one file under distinct ids. */
+  schedulerId?: string;
+  /** Injectable clock for tests; default the wall clock. */
+  now?: () => number;
+}
+declare class SqliteAdmissionScheduler implements AdmissionScheduler {
+  private readonly db;
+  private readonly config;
+  private readonly schedulerId;
+  private readonly now;
+  private chain;
+  constructor(options: SqliteAdmissionSchedulerOptions);
+  close(): void;
+  private serialize;
+  /** One lifecycle call: load, hydrate, act, persist, atomically. */
+  private withCore;
+  enqueue(request: AdmissionRequest, opId: string): Promise<AdmissionTicketDecision>;
+  recover(unitId: string, generation: string, opId: string): Promise<AdmissionRecovery>;
+  renew(unitId: string, generation: string, opId: string): Promise<void>;
+  checkpointCover(unitId: string, generation: string, cover: AdmissionReservation, opId: string): Promise<void>;
+  release(unitId: string, generation: string, actuals: AdmissionReservation, opId: string): Promise<void>;
+  cancel(unitId: string, generation: string, opId: string): Promise<void>;
+  pump(opId: string): Promise<AdmissionTicket[]>;
+}
+//#endregion
+export { BOOT_BUSY_TIMEOUT_MS, DEFAULT_LEASE_TTL_MS, QUOTA_BUSY_TIMEOUT_MS, SqliteAdmissionScheduler, type SqliteAdmissionSchedulerOptions, SqliteQuotaLimiter, type SqliteQuotaLimiterOptions, SqliteStore, type SqliteStoreOptions, type SqliteTranscriptStore };

@@ -6589,6 +6589,34 @@ export const MUTATIONS = [
     replace: '        const refund = ticket.reservation;',
     test: 'packages/core/src/admission/admission.test.ts',
   },
+  {
+    id: 'admission-sqlite-persists-the-document',
+    doctrine:
+      'every lifecycle call persists the WHOLE state document atomically (RV4508): with the update writing the stale payload, transitions vanish at the next holder and tickets are lost',
+    file: 'packages/store-sqlite/src/admission.ts',
+    find: "            .prepare('UPDATE adm_state SET version = version + 1, payload = ? WHERE id = ?')\n            .run(payload, this.schedulerId);",
+    replace:
+      "            .prepare('UPDATE adm_state SET version = version + 1, payload = ? WHERE id = ?')\n            .run(row.payload, this.schedulerId);",
+    test: 'packages/store-sqlite/src/admission.test.ts',
+  },
+  {
+    id: 'admission-sqlite-first-write-inserts',
+    doctrine:
+      "the scheduler's first durable write must land (RV4508): with the insert branch collapsed, a fresh database updates a nonexistent row and nothing survives the holder",
+    file: 'packages/store-sqlite/src/admission.ts',
+    find: '        if (row === undefined) {',
+    replace: '        if (false as boolean) {',
+    test: 'packages/store-sqlite/src/admission.test.ts',
+  },
+  {
+    id: 'admission-hydration-restores-applied-ops',
+    doctrine:
+      'operation-id idempotence is part of the durable document (RV4508): with the applied set dropped at hydration, a replayed settlement refunds twice across holders',
+    file: 'packages/core/src/admission/memory.ts',
+    find: '        appliedOps: new Set(row.appliedOps),',
+    replace: '        appliedOps: new Set<string>(),',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

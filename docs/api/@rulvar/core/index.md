@@ -125,6 +125,7 @@ exactly the pieces you need, for example
 | [AdmissionReservation](/api/@rulvar/core/interfaces/AdmissionReservation.md) | The four reservation measures (RFC section 4.3). |
 | [AdmissionScheduler](/api/@rulvar/core/interfaces/AdmissionScheduler.md) | - |
 | [AdmissionScopeDimensions](/api/@rulvar/core/interfaces/AdmissionScopeDimensions.md) | Normalized scope dimensions, exactly the quota request's shape. |
+| [AdmissionState](/api/@rulvar/core/interfaces/AdmissionState.md) | The scheduler's WHOLE state as one plain-JSON document: the durable implementations (sqlite, postgres) persist exactly this shape and CAS it atomically per lifecycle call, which is the RFC's first shipped durable form (a single scheduler over durable state; the multi-replica story beyond deterministic ordering is deferred by section 10). Per-row schemas are an optimization the SPI does not require: atomic "state moved AND buckets moved" holds trivially when the whole document commits or none of it does. |
 | [AdmissionStatsBefore](/api/@rulvar/core/interfaces/AdmissionStatsBefore.md) | Live pre-append snapshot embedded in the decision entry (DEF-2/DEF-3). |
 | [AdmissionTicket](/api/@rulvar/core/interfaces/AdmissionTicket.md) | - |
 | [AdmitLineage](/api/@rulvar/core/interfaces/AdmitLineage.md) | The lineage block every non-reject verdict carries (DEF-3). |

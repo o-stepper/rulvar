@@ -17,3 +17,4 @@ export {
   SqliteQuotaLimiter,
   type SqliteQuotaLimiterOptions,
 } from './quota.js';
+export { SqliteAdmissionScheduler, type SqliteAdmissionSchedulerOptions } from './admission.js';

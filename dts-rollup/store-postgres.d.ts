@@ -1,4 +1,5 @@
-import { EffectLaneStore, JournalEntry, LeasableStore, Lease, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
+import pg from "pg";
+import { AdmissionRecovery, AdmissionRequest, AdmissionReservation, AdmissionScheduler, AdmissionTicket, AdmissionTicketDecision, EffectLaneStore, JournalEntry, LeasableStore, Lease, MemoryAdmissionOptions, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference, shared with the sqlite store. */
@@ -381,4 +382,37 @@ declare class PostgresQuotaLimiter implements QuotaLimiter {
   private prune;
 }
 //#endregion
-export { DEFAULT_LEASE_TTL_MS, DEFAULT_POOL_MAX, PostgresQuotaLimiter, type PostgresQuotaLimiterOptions, PostgresStore, type PostgresStoreOptions, type PostgresTranscriptStore, QUOTA_ADMISSION_DEADLINE_MS, QUOTA_LOCK_TIMEOUT_MS, QuotaDeadlineError, QuotaGenerationError, quotaRulesFingerprint };
+//#region src/admission.d.ts
+interface PostgresAdmissionSchedulerOptions {
+  url?: string;
+  pool?: pg.Pool;
+  schema?: string;
+  config: Omit<MemoryAdmissionOptions, "state" | "now">;
+  schedulerId?: string;
+  now?: () => number;
+  max?: number;
+}
+declare class PostgresAdmissionScheduler implements AdmissionScheduler {
+  private readonly pool;
+  private readonly ownsPool;
+  private readonly schema;
+  private readonly config;
+  private readonly schedulerId;
+  private readonly now;
+  private boot;
+  constructor(options: PostgresAdmissionSchedulerOptions);
+  close(): Promise<void>;
+  private table;
+  private booted;
+  private runBootstrap;
+  private withCore;
+  enqueue(request: AdmissionRequest, opId: string): Promise<AdmissionTicketDecision>;
+  recover(unitId: string, generation: string, opId: string): Promise<AdmissionRecovery>;
+  renew(unitId: string, generation: string, opId: string): Promise<void>;
+  checkpointCover(unitId: string, generation: string, cover: AdmissionReservation, opId: string): Promise<void>;
+  release(unitId: string, generation: string, actuals: AdmissionReservation, opId: string): Promise<void>;
+  cancel(unitId: string, generation: string, opId: string): Promise<void>;
+  pump(opId: string): Promise<AdmissionTicket[]>;
+}
+//#endregion
+export { DEFAULT_LEASE_TTL_MS, DEFAULT_POOL_MAX, PostgresAdmissionScheduler, type PostgresAdmissionSchedulerOptions, PostgresQuotaLimiter, type PostgresQuotaLimiterOptions, PostgresStore, type PostgresStoreOptions, type PostgresTranscriptStore, QUOTA_ADMISSION_DEADLINE_MS, QUOTA_LOCK_TIMEOUT_MS, QuotaDeadlineError, QuotaGenerationError, quotaRulesFingerprint };

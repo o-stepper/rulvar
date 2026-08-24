@@ -71,6 +71,8 @@ export interface MemoryAdmissionOptions {
   now: () => number;
   /** Debt age-out horizon; default the tenant level's window. */
   debtAgeMs?: number;
+  /** Hydrate from a persisted document (the durable wrappers). */
+  state?: AdmissionState;
 }
 
 type LevelName = 'tenant' | 'providerAccount' | 'scope';
@@ -97,6 +99,42 @@ interface InternalTicket {
 
 const key = (unitId: string, generation: string): string => `${unitId}#${generation}`;
 
+/**
+ * The scheduler's WHOLE state as one plain-JSON document: the durable
+ * implementations (sqlite, postgres) persist exactly this shape and
+ * CAS it atomically per lifecycle call, which is the RFC's first
+ * shipped durable form (a single scheduler over durable state; the
+ * multi-replica story beyond deterministic ordering is deferred by
+ * section 10). Per-row schemas are an optimization the SPI does not
+ * require: atomic "state moved AND buckets moved" holds trivially when
+ * the whole document commits or none of it does.
+ */
+export interface AdmissionState {
+  tickets: Record<
+    string,
+    {
+      ticket: AdmissionTicket;
+      request: AdmissionRequest;
+      keys: Partial<Record<'tenant' | 'providerAccount' | 'scope', string>>;
+      accountStartTag: number;
+      accountFinishTag: number;
+      appliedOps: string[];
+    }
+  >;
+  buckets: Record<
+    string,
+    {
+      window?: SlidingWindowState;
+      bucket?: TokenBucketState;
+      debts: Array<{ wires: number; atMs: number }>;
+      held: number;
+    }
+  >;
+  tenantQueue: FairQueueState;
+  accountQueues: Record<string, FairQueueState>;
+  arrivalCounter: number;
+}
+
 export class MemoryAdmissionScheduler implements AdmissionScheduler {
   private readonly options: MemoryAdmissionOptions;
   private readonly tickets = new Map<string, InternalTicket>();
@@ -113,6 +151,72 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
       }
     }
     this.options = options;
+    if (options.state !== undefined) {
+      this.hydrate(options.state);
+    }
+  }
+
+  private hydrate(state: AdmissionState): void {
+    for (const [id, row] of Object.entries(state.tickets)) {
+      this.tickets.set(id, {
+        ticket: row.ticket,
+        request: row.request,
+        keys: row.keys,
+        accountStartTag: row.accountStartTag,
+        accountFinishTag: row.accountFinishTag,
+        appliedOps: new Set(row.appliedOps),
+      });
+    }
+    for (const [id, bucket] of Object.entries(state.buckets)) {
+      this.buckets.set(id, {
+        ...(bucket.window === undefined ? {} : { window: bucket.window }),
+        ...(bucket.bucket === undefined ? {} : { bucket: bucket.bucket }),
+        debts: [...bucket.debts],
+        held: bucket.held,
+      });
+    }
+    this.tenantQueue = state.tenantQueue;
+    for (const [id, queue] of Object.entries(state.accountQueues)) {
+      this.accountQueues.set(id, queue);
+    }
+    this.arrivalCounter = state.arrivalCounter;
+  }
+
+  /** The whole state as a plain-JSON document (deep-copied). */
+  snapshot(): AdmissionState {
+    const tickets: AdmissionState['tickets'] = {};
+    for (const [id, internal] of this.tickets) {
+      tickets[id] = {
+        ticket: internal.ticket,
+        request: internal.request,
+        keys: internal.keys,
+        accountStartTag: internal.accountStartTag,
+        accountFinishTag: internal.accountFinishTag,
+        appliedOps: [...internal.appliedOps],
+      };
+    }
+    const buckets: AdmissionState['buckets'] = {};
+    for (const [id, bucket] of this.buckets) {
+      buckets[id] = {
+        ...(bucket.window === undefined ? {} : { window: bucket.window }),
+        ...(bucket.bucket === undefined ? {} : { bucket: bucket.bucket }),
+        debts: bucket.debts,
+        held: bucket.held,
+      };
+    }
+    const accountQueues: Record<string, FairQueueState> = {};
+    for (const [id, queue] of this.accountQueues) {
+      accountQueues[id] = queue;
+    }
+    return JSON.parse(
+      JSON.stringify({
+        tickets,
+        buckets,
+        tenantQueue: this.tenantQueue,
+        accountQueues,
+        arrivalCounter: this.arrivalCounter,
+      }),
+    ) as AdmissionState;
   }
 
   private levelConfig(level: LevelName): AdmissionLevelConfig | undefined {

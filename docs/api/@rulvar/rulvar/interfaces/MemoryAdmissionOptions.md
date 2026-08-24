@@ -19,4 +19,5 @@ Defined in: `packages/core/dist/index.d.ts`
 | `levels.scope?` | [`AdmissionLevelConfig`](/api/@rulvar/rulvar/interfaces/AdmissionLevelConfig.md) | - | `packages/core/dist/index.d.ts` |
 | `levels.tenant?` | [`AdmissionLevelConfig`](/api/@rulvar/rulvar/interfaces/AdmissionLevelConfig.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-now"></a> `now` | () => `number` | The injectable clock, REQUIRED: the reference owns no wall clock. | `packages/core/dist/index.d.ts` |
+| <a id="property-state"></a> `state?` | [`AdmissionState`](/api/@rulvar/rulvar/interfaces/AdmissionState.md) | Hydrate from a persisted document (the durable wrappers). | `packages/core/dist/index.d.ts` |
 | <a id="property-weights"></a> `weights?` | `Record`\&lt;`string`, `number`\&gt; | Fairness weights by resolved tenant; default 1. | `packages/core/dist/index.d.ts` |
