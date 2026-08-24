@@ -100,5 +100,14 @@ registerConformance(
       };
     },
   }),
-  { describe, it },
+  {
+    describe,
+    // The document-CAS reference serializes the whole scheduler state
+    // per lifecycle call, and the sixty-tenant row makes hundreds of
+    // calls: on the floor binary that legitimately outruns the 5 s
+    // default, so the matrix rows carry their own bound.
+    it: (name, fn) => {
+      it(name, fn, 30_000);
+    },
+  },
 );

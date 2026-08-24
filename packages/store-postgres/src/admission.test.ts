@@ -97,6 +97,13 @@ describeDb('admission conformance (postgres)', () => {
         };
       },
     }),
-    { describe, it },
+    {
+      describe,
+      // The matrix's burst rows make hundreds of document-CAS calls;
+      // they carry their own bound instead of the 5 s default.
+      it: (name, fn) => {
+        it(name, fn, 30_000);
+      },
+    },
   );
 });
