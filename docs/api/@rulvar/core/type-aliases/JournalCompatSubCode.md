@@ -10,6 +10,6 @@
 type JournalCompatSubCode = "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L126)
+Defined in: [packages/core/src/l0/errors.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L127)
 
 Sub-code detail of JournalCompatibilityError.

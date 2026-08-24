@@ -6,7 +6,7 @@
 
 # Class: SettlementError
 
-Defined in: [packages/core/src/l0/errors.ts:382](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L382)
+Defined in: [packages/core/src/l0/errors.ts:405](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L405)
 
 The segment computed its outcome but a settlement write failed with a
 NON-fencing store error, so nothing durable records that the run
@@ -41,7 +41,7 @@ belongs to the current holder). `data` records
 new SettlementError(message, opts): SettlementError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:390](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L390)
+Defined in: [packages/core/src/l0/errors.ts:413](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L413)
 
 #### Parameters
 
@@ -66,12 +66,12 @@ Defined in: [packages/core/src/l0/errors.ts:390](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"settlement"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:383](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L383) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
-| <a id="property-runid"></a> `runId` | `readonly` | `string` | - | - | - | [packages/core/src/l0/errors.ts:386](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L386) |
-| <a id="property-runstatus"></a> `runStatus` | `readonly` | `string` | The outcome status the segment computed and could not record. | - | - | [packages/core/src/l0/errors.ts:388](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L388) |
-| <a id="property-stage"></a> `stage` | `readonly` | `"run-settle"` \| `"meta"` | The settlement write that failed first. | - | - | [packages/core/src/l0/errors.ts:385](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L385) |
+| <a id="property-code"></a> `code` | `readonly` | `"settlement"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:406](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L406) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L64) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
+| <a id="property-runid"></a> `runId` | `readonly` | `string` | - | - | - | [packages/core/src/l0/errors.ts:409](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L409) |
+| <a id="property-runstatus"></a> `runStatus` | `readonly` | `string` | The outcome status the segment computed and could not record. | - | - | [packages/core/src/l0/errors.ts:411](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L411) |
+| <a id="property-stage"></a> `stage` | `readonly` | `"run-settle"` \| `"meta"` | The settlement write that failed first. | - | - | [packages/core/src/l0/errors.ts:408](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L408) |
 
 ## Methods
 
@@ -81,7 +81,7 @@ Defined in: [packages/core/src/l0/errors.ts:390](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
+Defined in: [packages/core/src/l0/errors.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L75)
 
 #### Returns
 

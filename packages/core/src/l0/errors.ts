@@ -42,6 +42,7 @@ export type ErrorCode =
   | 'admission_rejected'
   | 'sandbox_limit'
   | 'lease_held'
+  | 'effect_refused'
   | 'knowledge_cas'
   | 'determinism'
   | 'settlement'
@@ -354,6 +355,28 @@ export class LeaseHeldError extends RulvarError {
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: true, ...opts });
+  }
+}
+
+/**
+ * The effect lane refused an operation, typed and fail closed (plan
+ * 45, rfcs/effects.md): a consumption whose verdict no longer holds, a
+ * dispatch the state table forbids (re-dispatch after a revocation), a
+ * budget the intent has exhausted, an intake the protocol rejects (an
+ * effect approval without a deadline), or a store without the
+ * capabilities the lane requires. Never retryable by the engine's wire
+ * machinery: the lane's own recovery rules (reload, find the operation
+ * id, re-verdict) are the only legal retry, and they live in the
+ * writer, not in RetryPolicy.
+ */
+export class EffectLaneRefusedError extends RulvarError {
+  readonly code = 'effect_refused' as const;
+  /** The protocol rule that refused, kebab-case, stable. */
+  readonly rule: string;
+
+  constructor(rule: string, message: string, opts?: { data?: Json; cause?: unknown }) {
+    super(message, { retryable: false, ...opts });
+    this.rule = rule;
   }
 }
 

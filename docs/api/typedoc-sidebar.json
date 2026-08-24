@@ -509,6 +509,14 @@
             "link": "/api/@rulvar/core/classes/EffectLaneFold.md"
           },
           {
+            "text": "EffectLaneRefusedError",
+            "link": "/api/@rulvar/core/classes/EffectLaneRefusedError.md"
+          },
+          {
+            "text": "EffectLaneWriter",
+            "link": "/api/@rulvar/core/classes/EffectLaneWriter.md"
+          },
+          {
             "text": "EscalationDecisionAbortedError",
             "link": "/api/@rulvar/core/classes/EscalationDecisionAbortedError.md"
           },
@@ -1035,6 +1043,10 @@
             "link": "/api/@rulvar/core/interfaces/DroppedItem.md"
           },
           {
+            "text": "EffectAppendResult",
+            "link": "/api/@rulvar/core/interfaces/EffectAppendResult.md"
+          },
+          {
             "text": "EffectAttemptDecision",
             "link": "/api/@rulvar/core/interfaces/EffectAttemptDecision.md"
           },
@@ -1045,6 +1057,10 @@
           {
             "text": "EffectBudgets",
             "link": "/api/@rulvar/core/interfaces/EffectBudgets.md"
+          },
+          {
+            "text": "EffectConsumeResult",
+            "link": "/api/@rulvar/core/interfaces/EffectConsumeResult.md"
           },
           {
             "text": "EffectDeclarationState",
@@ -1083,8 +1099,20 @@
             "link": "/api/@rulvar/core/interfaces/EffectIntentDecision.md"
           },
           {
+            "text": "EffectIntentSpec",
+            "link": "/api/@rulvar/core/interfaces/EffectIntentSpec.md"
+          },
+          {
             "text": "EffectiveUsageLimits",
             "link": "/api/@rulvar/core/interfaces/EffectiveUsageLimits.md"
+          },
+          {
+            "text": "EffectLaneStore",
+            "link": "/api/@rulvar/core/interfaces/EffectLaneStore.md"
+          },
+          {
+            "text": "EffectLaneWriterOptions",
+            "link": "/api/@rulvar/core/interfaces/EffectLaneWriterOptions.md"
           },
           {
             "text": "EffectMachine",
@@ -2235,6 +2263,10 @@
           {
             "text": "EffectClass",
             "link": "/api/@rulvar/core/type-aliases/EffectClass.md"
+          },
+          {
+            "text": "EffectLaneAdmissionVerdict",
+            "link": "/api/@rulvar/core/type-aliases/EffectLaneAdmissionVerdict.md"
           },
           {
             "text": "EffectLaneClassification",
@@ -3597,6 +3629,10 @@
             "link": "/api/@rulvar/core/functions/effectiveEffectState.md"
           },
           {
+            "text": "effectLaneAdmissible",
+            "link": "/api/@rulvar/core/functions/effectLaneAdmissible.md"
+          },
+          {
             "text": "emptyDigestBlocks",
             "link": "/api/@rulvar/core/functions/emptyDigestBlocks.md"
           },
@@ -3915,6 +3951,10 @@
           {
             "text": "normalizeFallbacks",
             "link": "/api/@rulvar/core/functions/normalizeFallbacks.md"
+          },
+          {
+            "text": "openEffectLane",
+            "link": "/api/@rulvar/core/functions/openEffectLane.md"
           },
           {
             "text": "openWireIntentsOf",
@@ -6127,6 +6167,14 @@
             "link": "/api/@rulvar/rulvar/classes/EffectLaneFold.md"
           },
           {
+            "text": "EffectLaneRefusedError",
+            "link": "/api/@rulvar/rulvar/classes/EffectLaneRefusedError.md"
+          },
+          {
+            "text": "EffectLaneWriter",
+            "link": "/api/@rulvar/rulvar/classes/EffectLaneWriter.md"
+          },
+          {
             "text": "EscalationDecisionAbortedError",
             "link": "/api/@rulvar/rulvar/classes/EscalationDecisionAbortedError.md"
           },
@@ -6657,6 +6705,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/DroppedItem.md"
           },
           {
+            "text": "EffectAppendResult",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectAppendResult.md"
+          },
+          {
             "text": "EffectAttemptDecision",
             "link": "/api/@rulvar/rulvar/interfaces/EffectAttemptDecision.md"
           },
@@ -6667,6 +6719,10 @@
           {
             "text": "EffectBudgets",
             "link": "/api/@rulvar/rulvar/interfaces/EffectBudgets.md"
+          },
+          {
+            "text": "EffectConsumeResult",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectConsumeResult.md"
           },
           {
             "text": "EffectDeclarationState",
@@ -6705,8 +6761,20 @@
             "link": "/api/@rulvar/rulvar/interfaces/EffectIntentDecision.md"
           },
           {
+            "text": "EffectIntentSpec",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectIntentSpec.md"
+          },
+          {
             "text": "EffectiveUsageLimits",
             "link": "/api/@rulvar/rulvar/interfaces/EffectiveUsageLimits.md"
+          },
+          {
+            "text": "EffectLaneStore",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectLaneStore.md"
+          },
+          {
+            "text": "EffectLaneWriterOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectLaneWriterOptions.md"
           },
           {
             "text": "EffectMachine",
@@ -7881,6 +7949,10 @@
           {
             "text": "EffectClass",
             "link": "/api/@rulvar/rulvar/type-aliases/EffectClass.md"
+          },
+          {
+            "text": "EffectLaneAdmissionVerdict",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectLaneAdmissionVerdict.md"
           },
           {
             "text": "EffectLaneClassification",
@@ -9267,6 +9339,10 @@
             "link": "/api/@rulvar/rulvar/functions/effectiveEffectState.md"
           },
           {
+            "text": "effectLaneAdmissible",
+            "link": "/api/@rulvar/rulvar/functions/effectLaneAdmissible.md"
+          },
+          {
             "text": "emptyDigestBlocks",
             "link": "/api/@rulvar/rulvar/functions/emptyDigestBlocks.md"
           },
@@ -9589,6 +9665,10 @@
           {
             "text": "openai",
             "link": "/api/@rulvar/rulvar/functions/openai.md"
+          },
+          {
+            "text": "openEffectLane",
+            "link": "/api/@rulvar/rulvar/functions/openEffectLane.md"
           },
           {
             "text": "openWireIntentsOf",

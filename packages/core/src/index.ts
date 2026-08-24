@@ -61,6 +61,8 @@ export * from './journal/disposition.js';
 export * from './journal/resolution.js';
 export * from './effects/types.js';
 export * from './effects/fold.js';
+export * from './effects/writer.js';
+export * from './effects/admissible.js';
 export * from './engine/external.js';
 export * from './stores/inmemory.js';
 export * from './stores/meta-lookup.js';

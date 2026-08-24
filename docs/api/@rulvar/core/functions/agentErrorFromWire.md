@@ -10,7 +10,7 @@
 function agentErrorFromWire(wire): AgentError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:537](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L537)
+Defined in: [packages/core/src/l0/errors.ts:560](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L560)
 
 Reads an AgentError back from its WireError projection. Throws a
 ConfigError when the wire code is not 'agent'.
