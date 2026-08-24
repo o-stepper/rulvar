@@ -14897,6 +14897,438 @@ declare function toJournalValue(value: unknown, site: string): Json;
 */
 declare function validateEntryShape(entry: JournalEntry): Issue$1[];
 //#endregion
+//#region src/effects/types.d.ts
+/** Provider capability rows (RFC section 6); contract vocabulary. */
+type EffectCapabilityRow = "idempotency-key" | "lookup" | "neither";
+/**
+* What earns a provider the `lookup` row (RFC section 6): either a
+* negative that provably CLOSES acceptance, or a provider-enforced
+* unique natural key on create. Recorded on the intent so recovery
+* policy is derivable from the journal alone.
+*/
+type EffectLookupQualification = "acceptance-closing" | "conditional-create";
+/** Effect classes (RFC section 3); compensation semantics differ. */
+type EffectClass = "monetary" | "signing" | "case";
+/** The five appendable terminal states (RFC section 4.6). */
+type EffectTerminalState = "confirmed" | "quarantined" | "cancelled-before-dispatch" | "compensated" | "refused";
+declare const EFFECT_TERMINAL_STATES: readonly EffectTerminalState[];
+/**
+* Recovery budgets recorded ON the intent (RFC section 3.1, item 2):
+* every non-terminal state is bounded, and every exhaustion path lands
+* in `quarantined`. `reconcileBy` is the overall deadline; crossing it
+* in any non-terminal state quarantines with the state recorded.
+*/
+interface EffectBudgets {
+  /** Dispatch attempts the intent may open, total. */
+  attempts: number;
+  /** Provider lookups, bounded separately from dispatch attempts. */
+  lookups: number;
+  /** How long `awaiting-receipt` may wait, in milliseconds. */
+  receiptWaitMs: number;
+  /**
+  * How long a compensation may wait for its own authorization, in
+  * milliseconds (RFC section 3.1, items 1 and 8); absent on effects
+  * that are not compensations.
+  */
+  authorizationWaitMs?: number;
+  /** ISO instant: the overall reconcile deadline of the intent. */
+  reconcileBy: string;
+}
+/** The lane's decisionType discriminators, exactly. */
+type EffectLaneDecisionType = "effect_epoch" | "effect_declared" | "effect_intent" | "effect_attempt" | "effect_outcome" | "effect_receipt" | "effect_terminal" | "effect_incident" | "effect_disposition";
+declare const EFFECT_LANE_DECISION_TYPES: readonly EffectLaneDecisionType[];
+/**
+* The epoch fact (RFC section 4.5): before the first effect intent of a
+* run incarnation the engine appends the run's generation token (from
+* RunMeta.genesis, which is meta and invisible to a journal-only fold)
+* and the store-level restoration generation when the store exposes
+* one. Every intent cites the epoch entry by seq; an intent citing a
+* non-latest epoch folds void.
+*/
+interface EffectEpochDecision {
+  decisionType: "effect_epoch";
+  opId: string;
+  /** The run incarnation's generation token (RunMeta.genesis). */
+  generation: string;
+  /** The store's restoration generation at append time, when exposed. */
+  restorationGeneration?: number;
+}
+/**
+* The descriptive `declared` state (RFC section 3.1, item 1): the
+* effect is described but not yet authorized; no provider interaction
+* is legal. The bounded wait for authorization rides the licensing
+* approval's own `deadlineAt` (refused at intake without one), so this
+* record is descriptive, never load-bearing for consumption.
+*/
+interface EffectDeclaredDecision {
+  decisionType: "effect_declared";
+  opId: string;
+  logicalKey: string;
+  effectClass: EffectClass;
+  capabilityRow: EffectCapabilityRow;
+  argumentsHash: string;
+  /** Monetary amount or document hash, per class; descriptive. */
+  amountOrDocumentHash?: string;
+}
+/**
+* The single linearization append (RFC section 4.3): consuming the
+* approval and recording the intent is THIS one entry. Whether it
+* consumed is a pure function of the strict journal prefix before it;
+* the fold computes the verdict, and a void intent derives the
+* `refused` terminal.
+*/
+interface EffectIntentDecision {
+  decisionType: "effect_intent";
+  opId: string;
+  logicalKey: string;
+  /** Seq of the approval suspension this intent consumes. */
+  approvalRef: number;
+  /** Seq of the `effect_epoch` decision this intent cites. */
+  epochRef: number;
+  effectClass: EffectClass;
+  capabilityRow: EffectCapabilityRow;
+  /** Required when capabilityRow is 'lookup' (RFC section 6). */
+  lookupQualification?: EffectLookupQualification;
+  argumentsHash: string;
+  /** The accepted artifact's hash (RV4207); binds bytes to the effect. */
+  artifactHash?: string;
+  /** The terminal envelope's configFingerprint at admission. */
+  configFingerprint?: string;
+  budgets: EffectBudgets;
+  /** Seq of the intent this one reverses (depth one, distinct key). */
+  compensates?: number;
+  /** Seq of the intent this one succeeds (corrections, distinct key). */
+  successorOf?: number;
+}
+/**
+* One dispatch attempt, appended BEFORE the network send (RFC section
+* 3.1, item 3): at most one attempt may be open at a time, and attempts
+* are sub-records of the ONE intent, never new intents.
+*/
+interface EffectAttemptDecision {
+  decisionType: "effect_attempt";
+  opId: string;
+  intentRef: number;
+  /** 1-based attempt order under the intent. */
+  ordinal: number;
+  /** The attempt's send deadline (defense in depth, never proof). */
+  notAfter: string;
+  /** The provider idempotency key, when the row carries one. */
+  idempotencyKey?: string;
+  transport?: string;
+}
+/** The classified result of one attempt. */
+interface EffectOutcomeDecision {
+  decisionType: "effect_outcome";
+  opId: string;
+  intentRef: number;
+  attemptRef: number;
+  /**
+  * 'accepted': the provider took the request (receipt expected);
+  * 'failed': a classified failure that provably did not execute;
+  * 'unknown': unclassifiable from what the journal holds.
+  */
+  outcome: "accepted" | "failed" | "unknown";
+  detail?: string;
+}
+/**
+* A receipt observation, verified against the trust envelope BEFORE it
+* is appended as 'verified' (RFC section 7): an unverifiable receipt
+* appends as 'unverified' and routes the machine to `unknown`, never to
+* `confirmed` and never to silent discard.
+*/
+interface EffectReceiptDecision {
+  decisionType: "effect_receipt";
+  opId: string;
+  intentRef: number;
+  verification: "verified" | "unverified";
+  /** Provider transfer id (monetary); duplicate classification key. */
+  transferId?: string;
+  amount?: number;
+  currency?: string;
+  /** Signed document hash (signing class). */
+  documentHash?: string;
+  /** Provider case or object reference. */
+  providerRef?: string;
+  timestamp?: string;
+  detail?: string;
+}
+/**
+* A terminal transition (RFC section 4.6): the first terminal append
+* for an intent closes it; later would-be transitions fold as durable
+* no-ops with a superseded-by reason. A terminal without `intentRef`
+* is a standalone `refused` record (the writer's durable give-up when
+* no intent ever landed); it requires `logicalKey`.
+*/
+interface EffectTerminalDecision {
+  decisionType: "effect_terminal";
+  opId: string;
+  intentRef?: number;
+  logicalKey?: string;
+  terminal: EffectTerminalState;
+  reason?: string;
+  /** Causal reference (for 'compensated': the compensation intent). */
+  causalRef?: number;
+}
+/**
+* A linked incident (RFC section 4.6, item 2): a fact that arrived
+* after a terminal and genuinely matters. Durable, causally linked,
+* surfaced, requiring disposition; never a mutation of the terminal.
+*/
+interface EffectIncidentDecision {
+  decisionType: "effect_incident";
+  opId: string;
+  intentRef: number;
+  incident: string;
+  causalRef?: number;
+  detail?: string;
+}
+/** A journaled human disposition of a quarantine or an incident. */
+interface EffectDispositionDecision {
+  decisionType: "effect_disposition";
+  opId: string;
+  intentRef: number;
+  principal: string;
+  reason: string;
+  disposition: string;
+  /** The incident this disposition answers, when not the quarantine. */
+  causalRef?: number;
+}
+/**
+* The clock fact for grant expiry (RFC section 4.5, item 1): the fold
+* never compares wall clocks, so an approval's `expiresAt` becomes
+* effective only through this appended decision. Mirrors the shipped
+* `approval_revoked` decision shape (targetRef addressing, no opId:
+* idempotent by content, appendable by any observer with append
+* rights, because it only materializes a crossing the approval's own
+* recorded expiry already determines).
+*/
+interface ApprovalExpiredDecision {
+  decisionType: "approval_expired";
+  targetRef: number;
+  /** The recorded expiry instant this decision materializes. */
+  expiresAt: string;
+  observer?: string;
+}
+type EffectLaneDecision = EffectEpochDecision | EffectDeclaredDecision | EffectIntentDecision | EffectAttemptDecision | EffectOutcomeDecision | EffectReceiptDecision | EffectTerminalDecision | EffectIncidentDecision | EffectDispositionDecision;
+/** The read verdict of one journal entry against the lane vocabulary. */
+type EffectLaneRead = {
+  lane: false;
+} | {
+  lane: true;
+  decision: EffectLaneDecision;
+} | {
+  lane: true;
+  malformed: string;
+};
+/**
+* Reads one journal entry as an effect lane decision, fail closed: an
+* entry that is not a kind-'decision' entry with a lane decisionType is
+* not lane traffic; a lane decisionType whose payload fails validation
+* reads `malformed` and participates in NOTHING (a hand-written broken
+* row must never confuse the machine). `approval_expired` is read by
+* the fold directly (it targets approvals, not machines).
+*/
+declare function readEffectLaneDecision(entry: JournalEntry): EffectLaneRead;
+/**
+* Reads one journal entry as an `approval_expired` decision (the clock
+* fact of RFC section 4.5), fail closed like the lane reader.
+*/
+declare function readApprovalExpired(entry: JournalEntry): {
+  targetRef: number;
+  expiresAt: string;
+} | undefined;
+/**
+* Reads one journal entry as the shipped `approval_revoked` decision
+* (RV4008), by the exact shape ExternalRegistry.revokeApproval appends.
+*/
+declare function readApprovalRevoked(entry: JournalEntry): {
+  targetRef: number;
+} | undefined;
+/**
+* The effect logical key an approval licenses (RFC section 4.3, item
+* 4), read from the approval suspension's own payload: recorded on the
+* approval request, so the fold can refuse an intent whose key differs
+* from the key the approval named. Fail closed: an approval that names
+* no key licenses no effect.
+*/
+declare function approvalLicensedKey(entry: JournalEntry): string | undefined;
+/** Narrow Json helper for payload builders in the writer train. */
+type EffectLaneJson = Json;
+//#endregion
+//#region src/effects/fold.d.ts
+/** Why a consumption fold refused an intent (RFC section 4.3). */
+type EffectVoidReason = "no-epoch" | "stale-epoch" | "no-such-approval" | "approval-not-allowed" | "approval-revoked" | "approval-expired" | "approval-names-no-key" | "approval-key-mismatch" | "duplicate-logical-key" | "compensation-depth" | "bad-causal-ref";
+/** Fold classification of one lane entry; NEVER persisted. */
+type EffectLaneClassification = {
+  classification: "applied";
+} | {
+  classification: "replay";
+  firstSeq: number;
+} | {
+  classification: "void";
+  reason: EffectVoidReason;
+  detail: string;
+} | {
+  classification: "superseded";
+  supersededBy: number;
+} | {
+  classification: "incident";
+  intentRef: number;
+  detail: string;
+} | {
+  classification: "invalid";
+  detail: string;
+} | {
+  classification: "malformed";
+  detail: string;
+};
+type EffectMachineState = "intent" | "dispatching" | "awaiting-receipt" | "unknown" | EffectTerminalState;
+interface EffectAttemptState {
+  seq: number;
+  ordinal: number;
+  notAfter: string;
+  idempotencyKey?: string;
+  transport?: string;
+  open: boolean;
+  outcome?: "accepted" | "failed" | "unknown";
+  outcomeSeq?: number;
+}
+interface EffectReceiptState {
+  seq: number;
+  verification: "verified" | "unverified";
+  transferId?: string;
+  amount?: number;
+  currency?: string;
+  documentHash?: string;
+  providerRef?: string;
+  timestamp?: string;
+  /** Seq of the earlier verified receipt this one benignly duplicates. */
+  benignDuplicateOf?: number;
+  /** Seq of the earlier verified receipt this one conflicts with. */
+  conflictWith?: number;
+}
+interface EffectIncidentState {
+  seq: number;
+  incident: string;
+  causalRef?: number;
+  detail?: string;
+}
+interface EffectDispositionState {
+  seq: number;
+  principal: string;
+  reason: string;
+  disposition: string;
+  causalRef?: number;
+}
+/** The first revocation or expiry decision AFTER the intent position. */
+interface PostIntentCloser {
+  seq: number;
+  kind: "revoked" | "expired";
+}
+interface EffectMachine {
+  intentSeq: number;
+  opId: string;
+  logicalKey: string;
+  approvalRef: number;
+  epochRef: number;
+  effectClass: EffectClass;
+  capabilityRow: EffectCapabilityRow;
+  lookupQualification?: EffectLookupQualification;
+  argumentsHash: string;
+  artifactHash?: string;
+  configFingerprint?: string;
+  budgets: EffectBudgets;
+  compensates?: number;
+  successorOf?: number;
+  /** True when the consumption fold licensed the intent. */
+  consumed: boolean;
+  voidReason?: {
+    reason: EffectVoidReason;
+    detail: string;
+  };
+  state: EffectMachineState;
+  attempts: EffectAttemptState[];
+  receipts: EffectReceiptState[];
+  incidents: EffectIncidentState[];
+  dispositions: EffectDispositionState[];
+  terminal?: {
+    seq: number;
+    terminal: EffectTerminalState;
+    reason?: string;
+    causalRef?: number;
+  };
+  /** A pre-terminal conflicting receipt awaiting the quarantine append. */
+  pendingConflict?: {
+    seq: number;
+    detail: string;
+  };
+  /** Set at finalize; re-dispatch is disabled from this position on. */
+  postIntentCloser?: PostIntentCloser;
+  /** The confirmed compensation citing this intent (derived overlay). */
+  compensatedBy?: number;
+}
+interface EffectEpochState {
+  seq: number;
+  generation: string;
+  restorationGeneration?: number;
+}
+interface EffectDeclarationState {
+  seq: number;
+  declaration: EffectDeclaredDecision;
+}
+interface StandaloneRefusal {
+  seq: number;
+  logicalKey: string;
+  reason?: string;
+}
+/**
+* The compensated overlay (see the module doc): 'compensated' when a
+* confirmed compensation cites a confirmed original, else the
+* machine's own state.
+*/
+declare function effectiveEffectState(machine: EffectMachine): EffectMachineState;
+declare class EffectLaneFold {
+  private readonly bySeq;
+  private readonly machinesByIntent;
+  private readonly canonicalByEpochKey;
+  private readonly classifications;
+  private readonly opIds;
+  private readonly epochList;
+  private readonly declarationList;
+  private readonly refusalList;
+  /** targetRef -> ascending seqs of approval_revoked decisions. */
+  private readonly revokedIndex;
+  /** targetRef -> ascending seqs of approval_expired decisions. */
+  private readonly expiredIndex;
+  private readonly resolutions;
+  constructor(entries: readonly JournalEntry[], resolutions?: ResolutionFold);
+  machines(): EffectMachine[];
+  machineAt(intentSeq: number): EffectMachine | undefined;
+  /** The consumed intent holding `logicalKey` in the CURRENT epoch. */
+  canonicalIntent(logicalKey: string): EffectMachine | undefined;
+  epochs(): EffectEpochState[];
+  currentEpoch(): EffectEpochState | undefined;
+  classificationOf(seq: number): EffectLaneClassification | undefined;
+  declarations(): EffectDeclarationState[];
+  standaloneRefusals(): StandaloneRefusal[];
+  /** Consumed machines that have not reached a terminal. */
+  openMachines(): EffectMachine[];
+  private classify;
+  private firstAtOrBelow;
+  private firstAbove;
+  private latestEpochBefore;
+  private applyEntry;
+  /** The machine a sub-record addresses, or an invalid classification. */
+  private liveMachine;
+  private closerAfterIntent;
+  private applyIntent;
+  private applyReceipt;
+  /** Why a terminal append is illegal in this machine state, if it is. */
+  private terminalIllegality;
+  private finalize;
+}
+//#endregion
 //#region src/stores/inmemory.d.ts
 declare class InMemoryStore implements MetaLookupStore {
   private readonly runs;
@@ -18667,4 +19099,4 @@ interface SandboxBridge {
 declare const SANDBOX_AGENT_OPT_KEYS: readonly string[];
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, AcceptanceChildSummary, AcceptanceTailSpec, AcceptanceTailTerms, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, type AiSdkBridgeRegulatedPosture, type AppliedPricingRow, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, ApprovalRevocationOutcome, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BillingComponent, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CITATION_JUDGE_LABEL, CITATION_JUDGE_SCHEMA, CLAIM_JUDGE_LABEL, CLAIM_MAP_MAX_ANCHORS_PER_CLAIM, CLAIM_MAP_MAX_CLAIMS, CLAIM_MAP_MAX_CLAIM_CHARS, CLAIM_MAP_ROWS_SCHEMA, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CachePolicy, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, CapacitySheet, CapacitySheetFigure, CapacitySheetSection, CapacitySheetSpec, CapacitySheetUnit, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildExecutionFacts, ChildIdentityInput, ChildResultPage, ChildrenAtFailure, CitationAuditFinding, CitationAuditPlanOptions, CitationAuditRow, CitationAuditSectionMeta, CitationExcerptUnit, CitationTarget, type ClaimClass, ClaimContradictionFinding, ClaimCoverageGrade, ClaimCoverageInput, ClaimGrade, ClaimMapRow, type ClaimOp, ClaimPair, ClaimPairOptions, ClaimPairsFold, ClaimPoolReading, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ComponentDelta, ConfigError, Contradiction, ContradictionClaim, ContradictionOptions, ContradictionSource, type CoreEvents, CostAttribution, CostAttributionFacts, type CostBasis, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DECISION_CHAIN_KINDS, DEFAULT_ANCHOR_PATTERN, DEFAULT_ARTIFACT_PATTERN, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_EXCERPT_WINDOW, DEFAULT_CITATION_MAX_SAMPLED, DEFAULT_CITATION_PATTERN, DEFAULT_CITATION_SAMPLE, DEFAULT_CITATION_SAMPLE_PER_SECTION, DEFAULT_CLAIM_JUDGE_MAX_TURNS, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_CALLS_PER_ENTRY, DEFAULT_EVIDENCE_GRADE_PHRASES, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_EVIDENCE_OVERHEAD_CALLS, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_CLAIM_PAIRS, DEFAULT_MAX_CONTRADICTIONS, DEFAULT_MAX_DEPTH, DEFAULT_MAX_EXCERPT_CHARS, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PAIR_EXCERPT_CHARS, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_POOL_PER_PAIR, DEFAULT_MAX_QUOTA_DENIALS, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_RUN_FACT_PAIRS, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DIGEST_DRAFT_MAX_WORDS, DataKeyProvider, DebitResult, DecisionChainRow, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DelimitedStatementOptions, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DocumentedRates, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_AUTHORITY_HASH, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EXPOSURE_WAIT_SWEEP_MS, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryBillingFold, EntryBillingUnit, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, EvidenceContract, type EvidenceRef, type ExecKeyDerivation, ExecutionScope, ExecutionScopeField, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINAL_COMPOSITION_LABEL, FINISH_CLAIM_MAP_SCHEMA, FINISH_LESSON_CAP_CHARS, FINISH_SCHEMA, FINISH_SECTIONAL_SCHEMA, FINISH_TOOL_NAME, FUTURE_RATES_TOLERANCE_MS, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FencedCodeMode, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, type FinalizationWindowBudget, FinishContract, FinishContractCitations, FinishContractGoldenReject, FinishContractManifest, FinishContractSectionPattern, FinishInfo, FinishRepairHint, FinishSelfTestFailure, FinishSelfTestFixtures, FinishSelfTestReport, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, GET_SETTLED_CHILD_RESULTS_SCHEMA, GET_SETTLED_CHILD_RESULTS_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceCardinality, InvoiceExport, InvoicePricingProvenance, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalIntegrityError, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalPricingSnapshot, JournalSealedError, JournalSerializationContext, JournalSerializationHook, type JournalStore, JournaledChild, JournaledChildRoster, JournaledCriticalPath, JournaledPostFanIn, JournaledSynthesisCandidate, JournaledSynthesisCandidateReport, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalRunTelemetry, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_CITATION_EXCERPT_CHARS, MAX_CITATION_EXCERPT_LINES, MAX_CITATION_UNIT_EXCERPT_CHARS, MAX_CITATION_UNIT_EXCERPT_LINES, MAX_CRITICAL_UNCOVERED, MAX_DEPTH_CEILING, MAX_RUN_FACTS_SHEET_CHARS, MAX_RUN_ID_LENGTH, MAX_TIMER_DELAY_MS, MAX_UNCOVERED_SENTENCES, MatchResult, McpConfig, type McpSourceRegulatedPosture, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelAdapterRegulatedPosture, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OpenWireIntent, OperationDisposition, OrchestrateAcceptance, OrchestrateCitationAudit, OrchestrateClaimConsistency, OrchestrateClaimConsistencyMeta, OrchestrateContradictions, OrchestrateContradictionsMeta, OrchestrateDeterministicPatches, OrchestrateDraftToFinal, OrchestrateOptions, OrchestrateSemanticAcceptance, OrchestrateSynthesis, OrchestrateSynthesisSkipReason, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, OutputContractManifest, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PersistedTerminalRefusal, PersistedTerminalResult, type PhaseRow, PhaseTarget, PilotAgentProfileOptions, PilotAgentProfileResult, type PinnedPricingSegment, PipelineCollected, PipelineOpts, PlanInvariantError, type PostFanInBreakdown, PreflightAdmissionRow, PreflightFinding, PreflightInput, PreflightOrchestratorSpec, PreflightReport, PreflightSpawnReport, PreflightSpawnSpec, PreflightToolCeiling, PriceTable, PricedComponent, PricedComponents, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, ProviderStatement, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_FACTS_ANCHOR, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, RateLimitObservation, ReconcileOptions, ReconcileResult, ReconcileStatementOptions, RefEntryAppender, RefEntryClassification, RefusalInfo, type RegulatedPostureDescriptor, RegulatedProfile, RejectedFinishCandidate, RepairLedger, RepairLedgerRound, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, RunFactPairOptions, RunFactPairsFold, RunFactsSheet, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_ADMISSION_DECISION_TYPE, SPAWN_AGENT_SCHEMA, SYNTHESIS_NOTE_LABEL, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeNormalizeOp, ScopeNormalizeTable, ScopePolicy, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, SectionMatchMode, SectionPatternEntry, SectionalRoundPlan, SemanticPassSummary, SemanticPassesSummary, SemanticRoundArming, SemanticRoundPosture, SemanticTerminalVerdict, SemanticVerdictInput, Semaphore, SerializationHook, Settled, SettlementError, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StatementCategoryRow, StatementColumnMap, StatementCoverage, StatementReconciliation, StatementRequestRow, StepIdentityInput, type StreamHooks, StructuredOutputTier, SupersededError, SuspendedAppend, SuspensionState, SynthesisCandidateFailure, TERMINAL_TELEMETRY_SCOPE, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TelemetryScope, type TerminalEnvelope, TerminalOutcomeFacts, TerminalPatch, TerminalTelemetryScopes, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolAuthority, type ToolBudgetSummary, ToolCalibrationExclusion, ToolCalibrationReport, ToolCalibrationRow, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, type ToolExecutorRegulatedPosture, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, ToolsetAttestation, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireCapacityEstimate, WireCapacitySpec, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, acceptanceJudgePasses, acceptanceTailRequiredUsd, accountSpendFromJournal, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, agentTypeBucket, applyClaimOps, applyFinishRepairHints, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, assertSafeRunId, atCompactionThreshold, attestToolset, attributionBucket, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, candidateHashOf, canonicalClaimMap, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capacitySheet, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, childRostersFromJournal, citationExcerptOf, citationJudgePassOf, citationTargetsValidator, citationUnitExcerptOf, citedValueValidator, claimCoverageOf, claimExpired, claimExpiry, claimIssues, claimJudgeStageOf, claimMapHashOf, claimOpIssues, classifyAgentError, classifyAttemptOutcome, clauseAround, collectDeclaredLadders, compactMessages, compareRates, compilePermissionChain, compilePermissionPreset, compileRegulatedProfile, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, criticalPathFromJournal, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispatchProjectionReserveUsd, dispositionHook, documentAnchorsOf, emptyDigestBlocks, emptyToolset, encodeCheckpoint, enforceToolsetAttestation, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidenceGradeValidator, evidencePreservedValidator, executeWorkflow, executionFactsOf, executionScopeDigest, executionScopeKey, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, findContradictions, finishContract, foldLedger, foldTermination, formatAcceptanceTailTerms, formatCharacterValidator, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, headingStructureValidator, identityJcs, implementationAgentProfile, insertRunIdIntoSentence, invoiceFromJournal, isClaimJudgeLabel, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, journalPricingSnapshot, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastMechanicalRepairCostUsd, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, logicalRunTelemetry, makeOrchestratorWorkflow, manifestValidators, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeExecutionScope, normalizeFallbacks, openWireIntentsOf, orchestrate, orchestratorAdmissionEstCostUsd, pairDraftClaims, pairRunFactClaims, parallelScope, parseCitationVerdicts, parseModelRef, parseScopePath, parseTerminalEnvelope, persistedTerminalEnvelope, phiInitialOf, pilotAgentProfile, pipelineScope, planNodeScope, preflightEstimate, priceComponentsOf, priceEntryBilling, priceEntryUsage, priceUsdOf, productionAcceptable, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualRequestsDelta, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleKey, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reconcileStatement, reduceAuditTrail, reduceCriticalPath, reduceDecisionChain, reduceInvocationTable, registryKeyRing, remeasureQueue, renderCapacitySheetMarkdown, renderContractRequirements, repairLedgerFromJournal, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredMentionsValidator, requiredSectionsValidator, researchAgentProfile, resolveCitationAuditPlan, resolveModelInvocation, resolvePricing, resolveToolset, retentionKeyOf, retryClassOf, retryDelayMs, retryWireMultiplier, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sampleCitationRows, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, scopeBucket, sectionCitationsValidator, sectionPatternCountValidator, sectionalRoundPlan, selectStructuredOutputTier, selfTestFinishValidation, semanticRoundArming, semanticTerminalVerdictOf, shouldCompact, snapshotQuotaRules, snapshotUsage, spawnDepthOf, spliceSections, statementFromRows, statementRowsFromDelimited, stripFencedBlocks, sumUsage, summarizeInstruction, summarizeOutput, synthesisCandidatesFromJournal, synthesizeSpanClassOf, terminalEnvelopeOf, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolAuthority, toolCalibrationFromJournal, toolContract, toolContractHash, toolsetAuthorityHash, toolsetHash, ttlState, unionOfIntervalsMs, usageViolations, validateClaimMapStructure, validateDetachedResolution, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateToolsetAttestation, validateUsageLimits, verifyCandidateBytes, wireCapacityEstimate, wordCountValidator, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, AcceptanceChildSummary, AcceptanceTailSpec, AcceptanceTailTerms, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, type AiSdkBridgeRegulatedPosture, type AppliedPricingRow, ApproachSignatureInputs, ApprovalDecision, ApprovalExpiredDecision, ApprovalIdentityInput, ApprovalRevocationOutcome, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BillingComponent, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CITATION_JUDGE_LABEL, CITATION_JUDGE_SCHEMA, CLAIM_JUDGE_LABEL, CLAIM_MAP_MAX_ANCHORS_PER_CLAIM, CLAIM_MAP_MAX_CLAIMS, CLAIM_MAP_MAX_CLAIM_CHARS, CLAIM_MAP_ROWS_SCHEMA, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CachePolicy, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, CapacitySheet, CapacitySheetFigure, CapacitySheetSection, CapacitySheetSpec, CapacitySheetUnit, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildExecutionFacts, ChildIdentityInput, ChildResultPage, ChildrenAtFailure, CitationAuditFinding, CitationAuditPlanOptions, CitationAuditRow, CitationAuditSectionMeta, CitationExcerptUnit, CitationTarget, type ClaimClass, ClaimContradictionFinding, ClaimCoverageGrade, ClaimCoverageInput, ClaimGrade, ClaimMapRow, type ClaimOp, ClaimPair, ClaimPairOptions, ClaimPairsFold, ClaimPoolReading, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ComponentDelta, ConfigError, Contradiction, ContradictionClaim, ContradictionOptions, ContradictionSource, type CoreEvents, CostAttribution, CostAttributionFacts, type CostBasis, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DECISION_CHAIN_KINDS, DEFAULT_ANCHOR_PATTERN, DEFAULT_ARTIFACT_PATTERN, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_EXCERPT_WINDOW, DEFAULT_CITATION_MAX_SAMPLED, DEFAULT_CITATION_PATTERN, DEFAULT_CITATION_SAMPLE, DEFAULT_CITATION_SAMPLE_PER_SECTION, DEFAULT_CLAIM_JUDGE_MAX_TURNS, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_CALLS_PER_ENTRY, DEFAULT_EVIDENCE_GRADE_PHRASES, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_EVIDENCE_OVERHEAD_CALLS, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_CLAIM_PAIRS, DEFAULT_MAX_CONTRADICTIONS, DEFAULT_MAX_DEPTH, DEFAULT_MAX_EXCERPT_CHARS, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PAIR_EXCERPT_CHARS, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_POOL_PER_PAIR, DEFAULT_MAX_QUOTA_DENIALS, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_RUN_FACT_PAIRS, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DIGEST_DRAFT_MAX_WORDS, DataKeyProvider, DebitResult, DecisionChainRow, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DelimitedStatementOptions, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DocumentedRates, DonorCandidate, DonorRef, DroppedItem, EFFECT_LANE_DECISION_TYPES, EFFECT_TERMINAL_STATES, EMIT_RESULT_TOOL, EMPTY_AUTHORITY_HASH, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EXPOSURE_WAIT_SWEEP_MS, EffectAttemptDecision, EffectAttemptState, EffectBudgets, EffectCapabilityRow, EffectClass, EffectDeclarationState, EffectDeclaredDecision, EffectDispositionDecision, EffectDispositionState, EffectEpochDecision, EffectEpochState, EffectIncidentDecision, EffectIncidentState, EffectIntentDecision, EffectLaneClassification, EffectLaneDecision, EffectLaneDecisionType, EffectLaneFold, EffectLaneJson, EffectLaneRead, EffectLookupQualification, EffectMachine, EffectMachineState, EffectOutcomeDecision, EffectReceiptDecision, EffectReceiptState, EffectTerminalDecision, EffectTerminalState, EffectVoidReason, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryBillingFold, EntryBillingUnit, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, EvidenceContract, type EvidenceRef, type ExecKeyDerivation, ExecutionScope, ExecutionScopeField, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINAL_COMPOSITION_LABEL, FINISH_CLAIM_MAP_SCHEMA, FINISH_LESSON_CAP_CHARS, FINISH_SCHEMA, FINISH_SECTIONAL_SCHEMA, FINISH_TOOL_NAME, FUTURE_RATES_TOLERANCE_MS, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FencedCodeMode, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, type FinalizationWindowBudget, FinishContract, FinishContractCitations, FinishContractGoldenReject, FinishContractManifest, FinishContractSectionPattern, FinishInfo, FinishRepairHint, FinishSelfTestFailure, FinishSelfTestFixtures, FinishSelfTestReport, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, GET_SETTLED_CHILD_RESULTS_SCHEMA, GET_SETTLED_CHILD_RESULTS_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IN_FLIGHT_EXPOSURE_REFUSAL_PREFIX, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceCardinality, InvoiceExport, InvoicePricingProvenance, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalIntegrityError, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalPricingSnapshot, JournalSealedError, JournalSerializationContext, JournalSerializationHook, type JournalStore, JournaledChild, JournaledChildRoster, JournaledCriticalPath, JournaledPostFanIn, JournaledSynthesisCandidate, JournaledSynthesisCandidateReport, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalRunTelemetry, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_CITATION_EXCERPT_CHARS, MAX_CITATION_EXCERPT_LINES, MAX_CITATION_UNIT_EXCERPT_CHARS, MAX_CITATION_UNIT_EXCERPT_LINES, MAX_CRITICAL_UNCOVERED, MAX_DEPTH_CEILING, MAX_RUN_FACTS_SHEET_CHARS, MAX_RUN_ID_LENGTH, MAX_TIMER_DELAY_MS, MAX_UNCOVERED_SENTENCES, MatchResult, McpConfig, type McpSourceRegulatedPosture, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelAdapterRegulatedPosture, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OpenWireIntent, OperationDisposition, OrchestrateAcceptance, OrchestrateCitationAudit, OrchestrateClaimConsistency, OrchestrateClaimConsistencyMeta, OrchestrateContradictions, OrchestrateContradictionsMeta, OrchestrateDeterministicPatches, OrchestrateDraftToFinal, OrchestrateOptions, OrchestrateSemanticAcceptance, OrchestrateSynthesis, OrchestrateSynthesisSkipReason, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, OutputContractManifest, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PersistedTerminalRefusal, PersistedTerminalResult, type PhaseRow, PhaseTarget, PilotAgentProfileOptions, PilotAgentProfileResult, type PinnedPricingSegment, PipelineCollected, PipelineOpts, PlanInvariantError, type PostFanInBreakdown, PostIntentCloser, PreflightAdmissionRow, PreflightFinding, PreflightInput, PreflightOrchestratorSpec, PreflightReport, PreflightSpawnReport, PreflightSpawnSpec, PreflightToolCeiling, PriceTable, PricedComponent, PricedComponents, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, ProviderStatement, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_FACTS_ANCHOR, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, RateLimitObservation, ReconcileOptions, ReconcileResult, ReconcileStatementOptions, RefEntryAppender, RefEntryClassification, RefusalInfo, type RegulatedPostureDescriptor, RegulatedProfile, RejectedFinishCandidate, RepairLedger, RepairLedgerRound, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, RunFactPairOptions, RunFactPairsFold, RunFactsSheet, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_ADMISSION_DECISION_TYPE, SPAWN_AGENT_SCHEMA, SYNTHESIS_NOTE_LABEL, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeNormalizeOp, ScopeNormalizeTable, ScopePolicy, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, SectionMatchMode, SectionPatternEntry, SectionalRoundPlan, SemanticPassSummary, SemanticPassesSummary, SemanticRoundArming, SemanticRoundPosture, SemanticTerminalVerdict, SemanticVerdictInput, Semaphore, SerializationHook, Settled, SettlementError, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, StandaloneRefusal, type StandardJSONSchemaV1, type StandardSchemaV1, StatementCategoryRow, StatementColumnMap, StatementCoverage, StatementReconciliation, StatementRequestRow, StepIdentityInput, type StreamHooks, StructuredOutputTier, SupersededError, SuspendedAppend, SuspensionState, SynthesisCandidateFailure, TERMINAL_TELEMETRY_SCOPE, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TelemetryScope, type TerminalEnvelope, TerminalOutcomeFacts, TerminalPatch, TerminalTelemetryScopes, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolAuthority, type ToolBudgetSummary, ToolCalibrationExclusion, ToolCalibrationReport, ToolCalibrationRow, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, type ToolExecutorRegulatedPosture, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, ToolsetAttestation, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireCapacityEstimate, WireCapacitySpec, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, acceptanceJudgePasses, acceptanceTailRequiredUsd, accountSpendFromJournal, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, agentTypeBucket, applyClaimOps, applyFinishRepairHints, applyStructuredOutputTier, approachSigCoarse, approachSigOf, approvalLicensedKey, archiveDeprecatedModelOps, assertFencedWrites, assertSafeRunId, atCompactionThreshold, attestToolset, attributionBucket, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, candidateHashOf, canonicalClaimMap, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capacitySheet, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, childRostersFromJournal, citationExcerptOf, citationJudgePassOf, citationTargetsValidator, citationUnitExcerptOf, citedValueValidator, claimCoverageOf, claimExpired, claimExpiry, claimIssues, claimJudgeStageOf, claimMapHashOf, claimOpIssues, classifyAgentError, classifyAttemptOutcome, clauseAround, collectDeclaredLadders, compactMessages, compareRates, compilePermissionChain, compilePermissionPreset, compileRegulatedProfile, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, criticalPathFromJournal, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispatchProjectionReserveUsd, dispositionHook, documentAnchorsOf, effectiveEffectState, emptyDigestBlocks, emptyToolset, encodeCheckpoint, enforceToolsetAttestation, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidenceGradeValidator, evidencePreservedValidator, executeWorkflow, executionFactsOf, executionScopeDigest, executionScopeKey, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, findContradictions, finishContract, foldLedger, foldTermination, formatAcceptanceTailTerms, formatCharacterValidator, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, headingStructureValidator, identityJcs, implementationAgentProfile, insertRunIdIntoSentence, invoiceFromJournal, isClaimJudgeLabel, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, journalPricingSnapshot, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastMechanicalRepairCostUsd, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, logicalRunTelemetry, makeOrchestratorWorkflow, manifestValidators, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeExecutionScope, normalizeFallbacks, openWireIntentsOf, orchestrate, orchestratorAdmissionEstCostUsd, pairDraftClaims, pairRunFactClaims, parallelScope, parseCitationVerdicts, parseModelRef, parseScopePath, parseTerminalEnvelope, persistedTerminalEnvelope, phiInitialOf, pilotAgentProfile, pipelineScope, planNodeScope, preflightEstimate, priceComponentsOf, priceEntryBilling, priceEntryUsage, priceUsdOf, productionAcceptable, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualRequestsDelta, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleKey, quotaRuleMatches, readApprovalExpired, readApprovalRevoked, readEffectLaneDecision, readRunMeta, readTerminationInit, reconcileRunMeta, reconcileStatement, reduceAuditTrail, reduceCriticalPath, reduceDecisionChain, reduceInvocationTable, registryKeyRing, remeasureQueue, renderCapacitySheetMarkdown, renderContractRequirements, repairLedgerFromJournal, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredMentionsValidator, requiredSectionsValidator, researchAgentProfile, resolveCitationAuditPlan, resolveModelInvocation, resolvePricing, resolveToolset, retentionKeyOf, retryClassOf, retryDelayMs, retryWireMultiplier, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sampleCitationRows, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, scopeBucket, sectionCitationsValidator, sectionPatternCountValidator, sectionalRoundPlan, selectStructuredOutputTier, selfTestFinishValidation, semanticRoundArming, semanticTerminalVerdictOf, shouldCompact, snapshotQuotaRules, snapshotUsage, spawnDepthOf, spliceSections, statementFromRows, statementRowsFromDelimited, stripFencedBlocks, sumUsage, summarizeInstruction, summarizeOutput, synthesisCandidatesFromJournal, synthesizeSpanClassOf, terminalEnvelopeOf, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolAuthority, toolCalibrationFromJournal, toolContract, toolContractHash, toolsetAuthorityHash, toolsetHash, ttlState, unionOfIntervalsMs, usageViolations, validateClaimMapStructure, validateDetachedResolution, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateToolsetAttestation, validateUsageLimits, verifyCandidateBytes, wireCapacityEstimate, wordCountValidator, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };

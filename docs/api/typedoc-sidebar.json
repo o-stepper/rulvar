@@ -505,6 +505,10 @@
             "link": "/api/@rulvar/core/classes/DeterminismError.md"
           },
           {
+            "text": "EffectLaneFold",
+            "link": "/api/@rulvar/core/classes/EffectLaneFold.md"
+          },
+          {
             "text": "EscalationDecisionAbortedError",
             "link": "/api/@rulvar/core/classes/EscalationDecisionAbortedError.md"
           },
@@ -757,6 +761,10 @@
           {
             "text": "ApprovalDecision",
             "link": "/api/@rulvar/core/interfaces/ApprovalDecision.md"
+          },
+          {
+            "text": "ApprovalExpiredDecision",
+            "link": "/api/@rulvar/core/interfaces/ApprovalExpiredDecision.md"
           },
           {
             "text": "ApprovalIdentityInput",
@@ -1027,8 +1035,76 @@
             "link": "/api/@rulvar/core/interfaces/DroppedItem.md"
           },
           {
+            "text": "EffectAttemptDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectAttemptDecision.md"
+          },
+          {
+            "text": "EffectAttemptState",
+            "link": "/api/@rulvar/core/interfaces/EffectAttemptState.md"
+          },
+          {
+            "text": "EffectBudgets",
+            "link": "/api/@rulvar/core/interfaces/EffectBudgets.md"
+          },
+          {
+            "text": "EffectDeclarationState",
+            "link": "/api/@rulvar/core/interfaces/EffectDeclarationState.md"
+          },
+          {
+            "text": "EffectDeclaredDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectDeclaredDecision.md"
+          },
+          {
+            "text": "EffectDispositionDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectDispositionDecision.md"
+          },
+          {
+            "text": "EffectDispositionState",
+            "link": "/api/@rulvar/core/interfaces/EffectDispositionState.md"
+          },
+          {
+            "text": "EffectEpochDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectEpochDecision.md"
+          },
+          {
+            "text": "EffectEpochState",
+            "link": "/api/@rulvar/core/interfaces/EffectEpochState.md"
+          },
+          {
+            "text": "EffectIncidentDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectIncidentDecision.md"
+          },
+          {
+            "text": "EffectIncidentState",
+            "link": "/api/@rulvar/core/interfaces/EffectIncidentState.md"
+          },
+          {
+            "text": "EffectIntentDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectIntentDecision.md"
+          },
+          {
             "text": "EffectiveUsageLimits",
             "link": "/api/@rulvar/core/interfaces/EffectiveUsageLimits.md"
+          },
+          {
+            "text": "EffectMachine",
+            "link": "/api/@rulvar/core/interfaces/EffectMachine.md"
+          },
+          {
+            "text": "EffectOutcomeDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectOutcomeDecision.md"
+          },
+          {
+            "text": "EffectReceiptDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectReceiptDecision.md"
+          },
+          {
+            "text": "EffectReceiptState",
+            "link": "/api/@rulvar/core/interfaces/EffectReceiptState.md"
+          },
+          {
+            "text": "EffectTerminalDecision",
+            "link": "/api/@rulvar/core/interfaces/EffectTerminalDecision.md"
           },
           {
             "text": "Engine",
@@ -1471,6 +1547,10 @@
             "link": "/api/@rulvar/core/interfaces/PostFanInBreakdown.md"
           },
           {
+            "text": "PostIntentCloser",
+            "link": "/api/@rulvar/core/interfaces/PostIntentCloser.md"
+          },
+          {
             "text": "PreflightAdmissionRow",
             "link": "/api/@rulvar/core/interfaces/PreflightAdmissionRow.md"
           },
@@ -1819,6 +1899,10 @@
             "link": "/api/@rulvar/core/interfaces/SpawnRecord.md"
           },
           {
+            "text": "StandaloneRefusal",
+            "link": "/api/@rulvar/core/interfaces/StandaloneRefusal.md"
+          },
+          {
             "text": "StandardJSONSchemaV1",
             "link": "/api/@rulvar/core/interfaces/StandardJSONSchemaV1.md"
           },
@@ -2143,6 +2227,50 @@
           {
             "text": "DispositionTable",
             "link": "/api/@rulvar/core/type-aliases/DispositionTable.md"
+          },
+          {
+            "text": "EffectCapabilityRow",
+            "link": "/api/@rulvar/core/type-aliases/EffectCapabilityRow.md"
+          },
+          {
+            "text": "EffectClass",
+            "link": "/api/@rulvar/core/type-aliases/EffectClass.md"
+          },
+          {
+            "text": "EffectLaneClassification",
+            "link": "/api/@rulvar/core/type-aliases/EffectLaneClassification.md"
+          },
+          {
+            "text": "EffectLaneDecision",
+            "link": "/api/@rulvar/core/type-aliases/EffectLaneDecision.md"
+          },
+          {
+            "text": "EffectLaneDecisionType",
+            "link": "/api/@rulvar/core/type-aliases/EffectLaneDecisionType.md"
+          },
+          {
+            "text": "EffectLaneJson",
+            "link": "/api/@rulvar/core/type-aliases/EffectLaneJson.md"
+          },
+          {
+            "text": "EffectLaneRead",
+            "link": "/api/@rulvar/core/type-aliases/EffectLaneRead.md"
+          },
+          {
+            "text": "EffectLookupQualification",
+            "link": "/api/@rulvar/core/type-aliases/EffectLookupQualification.md"
+          },
+          {
+            "text": "EffectMachineState",
+            "link": "/api/@rulvar/core/type-aliases/EffectMachineState.md"
+          },
+          {
+            "text": "EffectTerminalState",
+            "link": "/api/@rulvar/core/type-aliases/EffectTerminalState.md"
+          },
+          {
+            "text": "EffectVoidReason",
+            "link": "/api/@rulvar/core/type-aliases/EffectVoidReason.md"
           },
           {
             "text": "Effort",
@@ -2847,6 +2975,14 @@
             "link": "/api/@rulvar/core/variables/DIGEST_DRAFT_MAX_WORDS.md"
           },
           {
+            "text": "EFFECT_LANE_DECISION_TYPES",
+            "link": "/api/@rulvar/core/variables/EFFECT_LANE_DECISION_TYPES.md"
+          },
+          {
+            "text": "EFFECT_TERMINAL_STATES",
+            "link": "/api/@rulvar/core/variables/EFFECT_TERMINAL_STATES.md"
+          },
+          {
             "text": "EMIT_RESULT_TOOL",
             "link": "/api/@rulvar/core/variables/EMIT_RESULT_TOOL.md"
           },
@@ -3177,6 +3313,10 @@
             "link": "/api/@rulvar/core/functions/approachSigOf.md"
           },
           {
+            "text": "approvalLicensedKey",
+            "link": "/api/@rulvar/core/functions/approvalLicensedKey.md"
+          },
+          {
             "text": "archiveDeprecatedModelOps",
             "link": "/api/@rulvar/core/functions/archiveDeprecatedModelOps.md"
           },
@@ -3451,6 +3591,10 @@
           {
             "text": "documentAnchorsOf",
             "link": "/api/@rulvar/core/functions/documentAnchorsOf.md"
+          },
+          {
+            "text": "effectiveEffectState",
+            "link": "/api/@rulvar/core/functions/effectiveEffectState.md"
           },
           {
             "text": "emptyDigestBlocks",
@@ -3911,6 +4055,18 @@
           {
             "text": "quotaRuleMatches",
             "link": "/api/@rulvar/core/functions/quotaRuleMatches.md"
+          },
+          {
+            "text": "readApprovalExpired",
+            "link": "/api/@rulvar/core/functions/readApprovalExpired.md"
+          },
+          {
+            "text": "readApprovalRevoked",
+            "link": "/api/@rulvar/core/functions/readApprovalRevoked.md"
+          },
+          {
+            "text": "readEffectLaneDecision",
+            "link": "/api/@rulvar/core/functions/readEffectLaneDecision.md"
           },
           {
             "text": "readRunMeta",
@@ -5967,6 +6123,10 @@
             "link": "/api/@rulvar/rulvar/classes/DeterminismError.md"
           },
           {
+            "text": "EffectLaneFold",
+            "link": "/api/@rulvar/rulvar/classes/EffectLaneFold.md"
+          },
+          {
             "text": "EscalationDecisionAbortedError",
             "link": "/api/@rulvar/rulvar/classes/EscalationDecisionAbortedError.md"
           },
@@ -6223,6 +6383,10 @@
           {
             "text": "ApprovalDecision",
             "link": "/api/@rulvar/rulvar/interfaces/ApprovalDecision.md"
+          },
+          {
+            "text": "ApprovalExpiredDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/ApprovalExpiredDecision.md"
           },
           {
             "text": "ApprovalIdentityInput",
@@ -6493,8 +6657,76 @@
             "link": "/api/@rulvar/rulvar/interfaces/DroppedItem.md"
           },
           {
+            "text": "EffectAttemptDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectAttemptDecision.md"
+          },
+          {
+            "text": "EffectAttemptState",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectAttemptState.md"
+          },
+          {
+            "text": "EffectBudgets",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectBudgets.md"
+          },
+          {
+            "text": "EffectDeclarationState",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectDeclarationState.md"
+          },
+          {
+            "text": "EffectDeclaredDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectDeclaredDecision.md"
+          },
+          {
+            "text": "EffectDispositionDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectDispositionDecision.md"
+          },
+          {
+            "text": "EffectDispositionState",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectDispositionState.md"
+          },
+          {
+            "text": "EffectEpochDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectEpochDecision.md"
+          },
+          {
+            "text": "EffectEpochState",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectEpochState.md"
+          },
+          {
+            "text": "EffectIncidentDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectIncidentDecision.md"
+          },
+          {
+            "text": "EffectIncidentState",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectIncidentState.md"
+          },
+          {
+            "text": "EffectIntentDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectIntentDecision.md"
+          },
+          {
             "text": "EffectiveUsageLimits",
             "link": "/api/@rulvar/rulvar/interfaces/EffectiveUsageLimits.md"
+          },
+          {
+            "text": "EffectMachine",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectMachine.md"
+          },
+          {
+            "text": "EffectOutcomeDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectOutcomeDecision.md"
+          },
+          {
+            "text": "EffectReceiptDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectReceiptDecision.md"
+          },
+          {
+            "text": "EffectReceiptState",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectReceiptState.md"
+          },
+          {
+            "text": "EffectTerminalDecision",
+            "link": "/api/@rulvar/rulvar/interfaces/EffectTerminalDecision.md"
           },
           {
             "text": "Engine",
@@ -6941,6 +7173,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/PostFanInBreakdown.md"
           },
           {
+            "text": "PostIntentCloser",
+            "link": "/api/@rulvar/rulvar/interfaces/PostIntentCloser.md"
+          },
+          {
             "text": "PreflightAdmissionRow",
             "link": "/api/@rulvar/rulvar/interfaces/PreflightAdmissionRow.md"
           },
@@ -7309,6 +7545,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/SpawnRecord.md"
           },
           {
+            "text": "StandaloneRefusal",
+            "link": "/api/@rulvar/rulvar/interfaces/StandaloneRefusal.md"
+          },
+          {
             "text": "StandardJSONSchemaV1",
             "link": "/api/@rulvar/rulvar/interfaces/StandardJSONSchemaV1.md"
           },
@@ -7633,6 +7873,50 @@
           {
             "text": "DispositionTable",
             "link": "/api/@rulvar/rulvar/type-aliases/DispositionTable.md"
+          },
+          {
+            "text": "EffectCapabilityRow",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectCapabilityRow.md"
+          },
+          {
+            "text": "EffectClass",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectClass.md"
+          },
+          {
+            "text": "EffectLaneClassification",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectLaneClassification.md"
+          },
+          {
+            "text": "EffectLaneDecision",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectLaneDecision.md"
+          },
+          {
+            "text": "EffectLaneDecisionType",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectLaneDecisionType.md"
+          },
+          {
+            "text": "EffectLaneJson",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectLaneJson.md"
+          },
+          {
+            "text": "EffectLaneRead",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectLaneRead.md"
+          },
+          {
+            "text": "EffectLookupQualification",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectLookupQualification.md"
+          },
+          {
+            "text": "EffectMachineState",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectMachineState.md"
+          },
+          {
+            "text": "EffectTerminalState",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectTerminalState.md"
+          },
+          {
+            "text": "EffectVoidReason",
+            "link": "/api/@rulvar/rulvar/type-aliases/EffectVoidReason.md"
           },
           {
             "text": "Effort",
@@ -8349,6 +8633,14 @@
             "link": "/api/@rulvar/rulvar/variables/DIGEST_DRAFT_MAX_WORDS.md"
           },
           {
+            "text": "EFFECT_LANE_DECISION_TYPES",
+            "link": "/api/@rulvar/rulvar/variables/EFFECT_LANE_DECISION_TYPES.md"
+          },
+          {
+            "text": "EFFECT_TERMINAL_STATES",
+            "link": "/api/@rulvar/rulvar/variables/EFFECT_TERMINAL_STATES.md"
+          },
+          {
             "text": "EMIT_RESULT_TOOL",
             "link": "/api/@rulvar/rulvar/variables/EMIT_RESULT_TOOL.md"
           },
@@ -8691,6 +8983,10 @@
             "link": "/api/@rulvar/rulvar/functions/approachSigOf.md"
           },
           {
+            "text": "approvalLicensedKey",
+            "link": "/api/@rulvar/rulvar/functions/approvalLicensedKey.md"
+          },
+          {
             "text": "archiveDeprecatedModelOps",
             "link": "/api/@rulvar/rulvar/functions/archiveDeprecatedModelOps.md"
           },
@@ -8965,6 +9261,10 @@
           {
             "text": "documentAnchorsOf",
             "link": "/api/@rulvar/rulvar/functions/documentAnchorsOf.md"
+          },
+          {
+            "text": "effectiveEffectState",
+            "link": "/api/@rulvar/rulvar/functions/effectiveEffectState.md"
           },
           {
             "text": "emptyDigestBlocks",
@@ -9433,6 +9733,18 @@
           {
             "text": "quotaRuleMatches",
             "link": "/api/@rulvar/rulvar/functions/quotaRuleMatches.md"
+          },
+          {
+            "text": "readApprovalExpired",
+            "link": "/api/@rulvar/rulvar/functions/readApprovalExpired.md"
+          },
+          {
+            "text": "readApprovalRevoked",
+            "link": "/api/@rulvar/rulvar/functions/readApprovalRevoked.md"
+          },
+          {
+            "text": "readEffectLaneDecision",
+            "link": "/api/@rulvar/rulvar/functions/readEffectLaneDecision.md"
           },
           {
             "text": "readRunMeta",
