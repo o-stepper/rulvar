@@ -14,5 +14,5 @@ The first revocation or expiry decision AFTER the intent position.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-kind"></a> `kind` | `"revoked"` \| `"expired"` | `packages/core/dist/index.d.ts` |
+| <a id="property-kind"></a> `kind` | `"expired"` \| `"revoked"` | `packages/core/dist/index.d.ts` |
 | <a id="property-seq"></a> `seq` | `number` | `packages/core/dist/index.d.ts` |

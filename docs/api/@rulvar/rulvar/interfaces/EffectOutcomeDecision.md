@@ -19,4 +19,4 @@ The classified result of one attempt.
 | <a id="property-detail"></a> `detail?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-intentref"></a> `intentRef` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-opid"></a> `opId` | `string` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-outcome"></a> `outcome` | `"accepted"` \| `"failed"` \| `"unknown"` | 'accepted': the provider took the request (receipt expected); 'failed': a classified failure that provably did not execute; 'unknown': unclassifiable from what the journal holds. | `packages/core/dist/index.d.ts` |
+| <a id="property-outcome"></a> `outcome` | `"accepted"` \| `"unknown"` \| `"failed"` | 'accepted': the provider took the request (receipt expected); 'failed': a classified failure that provably did not execute; 'unknown': unclassifiable from what the journal holds. | `packages/core/dist/index.d.ts` |

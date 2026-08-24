@@ -605,6 +605,10 @@
             "link": "/api/@rulvar/core/classes/LineageIndex.md"
           },
           {
+            "text": "MemoryAdmissionScheduler",
+            "link": "/api/@rulvar/core/classes/MemoryAdmissionScheduler.md"
+          },
+          {
             "text": "ModelRetry",
             "link": "/api/@rulvar/core/classes/ModelRetry.md"
           },
@@ -711,8 +715,36 @@
             "link": "/api/@rulvar/core/interfaces/AdmissionDecision.md"
           },
           {
+            "text": "AdmissionLevelConfig",
+            "link": "/api/@rulvar/core/interfaces/AdmissionLevelConfig.md"
+          },
+          {
+            "text": "AdmissionLevelKeys",
+            "link": "/api/@rulvar/core/interfaces/AdmissionLevelKeys.md"
+          },
+          {
+            "text": "AdmissionRequest",
+            "link": "/api/@rulvar/core/interfaces/AdmissionRequest.md"
+          },
+          {
+            "text": "AdmissionReservation",
+            "link": "/api/@rulvar/core/interfaces/AdmissionReservation.md"
+          },
+          {
+            "text": "AdmissionScheduler",
+            "link": "/api/@rulvar/core/interfaces/AdmissionScheduler.md"
+          },
+          {
+            "text": "AdmissionScopeDimensions",
+            "link": "/api/@rulvar/core/interfaces/AdmissionScopeDimensions.md"
+          },
+          {
             "text": "AdmissionStatsBefore",
             "link": "/api/@rulvar/core/interfaces/AdmissionStatsBefore.md"
+          },
+          {
+            "text": "AdmissionTicket",
+            "link": "/api/@rulvar/core/interfaces/AdmissionTicket.md"
           },
           {
             "text": "AdmitLineage",
@@ -1231,6 +1263,10 @@
             "link": "/api/@rulvar/core/interfaces/FailoverTarget.md"
           },
           {
+            "text": "FairQueueState",
+            "link": "/api/@rulvar/core/interfaces/FairQueueState.md"
+          },
+          {
             "text": "FallbackField",
             "link": "/api/@rulvar/core/interfaces/FallbackField.md"
           },
@@ -1441,6 +1477,10 @@
           {
             "text": "MechanicalGateVerdict",
             "link": "/api/@rulvar/core/interfaces/MechanicalGateVerdict.md"
+          },
+          {
+            "text": "MemoryAdmissionOptions",
+            "link": "/api/@rulvar/core/interfaces/MemoryAdmissionOptions.md"
           },
           {
             "text": "MemoryQuotaLimiter",
@@ -1915,6 +1955,10 @@
             "link": "/api/@rulvar/core/interfaces/SinglePhaseAppend.md"
           },
           {
+            "text": "SlidingWindowState",
+            "link": "/api/@rulvar/core/interfaces/SlidingWindowState.md"
+          },
+          {
             "text": "SpanMinter",
             "link": "/api/@rulvar/core/interfaces/SpanMinter.md"
           },
@@ -2017,6 +2061,10 @@
           {
             "text": "TerminationLimits",
             "link": "/api/@rulvar/core/interfaces/TerminationLimits.md"
+          },
+          {
+            "text": "TokenBucketState",
+            "link": "/api/@rulvar/core/interfaces/TokenBucketState.md"
           },
           {
             "text": "ToolAuthority",
@@ -2151,6 +2199,18 @@
           {
             "text": "AdaptiveEvents",
             "link": "/api/@rulvar/core/type-aliases/AdaptiveEvents.md"
+          },
+          {
+            "text": "AdmissionRecovery",
+            "link": "/api/@rulvar/core/type-aliases/AdmissionRecovery.md"
+          },
+          {
+            "text": "AdmissionTicketDecision",
+            "link": "/api/@rulvar/core/type-aliases/AdmissionTicketDecision.md"
+          },
+          {
+            "text": "AdmissionTicketState",
+            "link": "/api/@rulvar/core/type-aliases/AdmissionTicketState.md"
           },
           {
             "text": "AdmitRejectReason",
@@ -3313,6 +3373,10 @@
             "link": "/api/@rulvar/core/functions/accountSpendFromJournal.md"
           },
           {
+            "text": "admissionLevelKeys",
+            "link": "/api/@rulvar/core/functions/admissionLevelKeys.md"
+          },
+          {
             "text": "admissionReserveUsd",
             "link": "/api/@rulvar/core/functions/admissionReserveUsd.md"
           },
@@ -3395,6 +3459,22 @@
           {
             "text": "auditRuns",
             "link": "/api/@rulvar/core/functions/auditRuns.md"
+          },
+          {
+            "text": "bucketAdmits",
+            "link": "/api/@rulvar/core/functions/bucketAdmits.md"
+          },
+          {
+            "text": "bucketAdvance",
+            "link": "/api/@rulvar/core/functions/bucketAdvance.md"
+          },
+          {
+            "text": "bucketConsume",
+            "link": "/api/@rulvar/core/functions/bucketConsume.md"
+          },
+          {
+            "text": "bucketRefund",
+            "link": "/api/@rulvar/core/functions/bucketRefund.md"
           },
           {
             "text": "buildAbandonFold",
@@ -3581,6 +3661,10 @@
             "link": "/api/@rulvar/core/functions/countsAgainstLimit.md"
           },
           {
+            "text": "coverMerge",
+            "link": "/api/@rulvar/core/functions/coverMerge.md"
+          },
+          {
             "text": "createCanonicalIdMinter",
             "link": "/api/@rulvar/core/functions/createCanonicalIdMinter.md"
           },
@@ -3651,6 +3735,14 @@
           {
             "text": "emptyDigestBlocks",
             "link": "/api/@rulvar/core/functions/emptyDigestBlocks.md"
+          },
+          {
+            "text": "emptyFairQueue",
+            "link": "/api/@rulvar/core/functions/emptyFairQueue.md"
+          },
+          {
+            "text": "emptySlidingWindow",
+            "link": "/api/@rulvar/core/functions/emptySlidingWindow.md"
           },
           {
             "text": "emptyToolset",
@@ -4201,6 +4293,10 @@
             "link": "/api/@rulvar/core/functions/researchAgentProfile.md"
           },
           {
+            "text": "reservationMinus",
+            "link": "/api/@rulvar/core/functions/reservationMinus.md"
+          },
+          {
             "text": "resolveCitationAuditPlan",
             "link": "/api/@rulvar/core/functions/resolveCitationAuditPlan.md"
           },
@@ -4315,6 +4411,22 @@
           {
             "text": "semanticTerminalVerdictOf",
             "link": "/api/@rulvar/core/functions/semanticTerminalVerdictOf.md"
+          },
+          {
+            "text": "sfqGrantOrder",
+            "link": "/api/@rulvar/core/functions/sfqGrantOrder.md"
+          },
+          {
+            "text": "sfqRecordArrival",
+            "link": "/api/@rulvar/core/functions/sfqRecordArrival.md"
+          },
+          {
+            "text": "sfqRecordGrant",
+            "link": "/api/@rulvar/core/functions/sfqRecordGrant.md"
+          },
+          {
+            "text": "sfqTagsOnArrival",
+            "link": "/api/@rulvar/core/functions/sfqTagsOnArrival.md"
           },
           {
             "text": "shouldCompact",
@@ -4483,6 +4595,26 @@
           {
             "text": "verifyCandidateBytes",
             "link": "/api/@rulvar/core/functions/verifyCandidateBytes.md"
+          },
+          {
+            "text": "windowAdmits",
+            "link": "/api/@rulvar/core/functions/windowAdmits.md"
+          },
+          {
+            "text": "windowAdvance",
+            "link": "/api/@rulvar/core/functions/windowAdvance.md"
+          },
+          {
+            "text": "windowConsume",
+            "link": "/api/@rulvar/core/functions/windowConsume.md"
+          },
+          {
+            "text": "windowRefund",
+            "link": "/api/@rulvar/core/functions/windowRefund.md"
+          },
+          {
+            "text": "windowSum",
+            "link": "/api/@rulvar/core/functions/windowSum.md"
           },
           {
             "text": "wireCapacityEstimate",
@@ -6432,6 +6564,10 @@
             "link": "/api/@rulvar/rulvar/classes/LineageIndex.md"
           },
           {
+            "text": "MemoryAdmissionScheduler",
+            "link": "/api/@rulvar/rulvar/classes/MemoryAdmissionScheduler.md"
+          },
+          {
             "text": "ModelRetry",
             "link": "/api/@rulvar/rulvar/classes/ModelRetry.md"
           },
@@ -6538,8 +6674,36 @@
             "link": "/api/@rulvar/rulvar/interfaces/AdmissionDecision.md"
           },
           {
+            "text": "AdmissionLevelConfig",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmissionLevelConfig.md"
+          },
+          {
+            "text": "AdmissionLevelKeys",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmissionLevelKeys.md"
+          },
+          {
+            "text": "AdmissionRequest",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmissionRequest.md"
+          },
+          {
+            "text": "AdmissionReservation",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmissionReservation.md"
+          },
+          {
+            "text": "AdmissionScheduler",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmissionScheduler.md"
+          },
+          {
+            "text": "AdmissionScopeDimensions",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmissionScopeDimensions.md"
+          },
+          {
             "text": "AdmissionStatsBefore",
             "link": "/api/@rulvar/rulvar/interfaces/AdmissionStatsBefore.md"
+          },
+          {
+            "text": "AdmissionTicket",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmissionTicket.md"
           },
           {
             "text": "AdmitLineage",
@@ -7062,6 +7226,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/FailoverTarget.md"
           },
           {
+            "text": "FairQueueState",
+            "link": "/api/@rulvar/rulvar/interfaces/FairQueueState.md"
+          },
+          {
             "text": "FallbackField",
             "link": "/api/@rulvar/rulvar/interfaces/FallbackField.md"
           },
@@ -7272,6 +7440,10 @@
           {
             "text": "MechanicalGateVerdict",
             "link": "/api/@rulvar/rulvar/interfaces/MechanicalGateVerdict.md"
+          },
+          {
+            "text": "MemoryAdmissionOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/MemoryAdmissionOptions.md"
           },
           {
             "text": "MemoryQuotaLimiter",
@@ -7770,6 +7942,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/SinglePhaseAppend.md"
           },
           {
+            "text": "SlidingWindowState",
+            "link": "/api/@rulvar/rulvar/interfaces/SlidingWindowState.md"
+          },
+          {
             "text": "SpanMinter",
             "link": "/api/@rulvar/rulvar/interfaces/SpanMinter.md"
           },
@@ -7872,6 +8048,10 @@
           {
             "text": "TerminationLimits",
             "link": "/api/@rulvar/rulvar/interfaces/TerminationLimits.md"
+          },
+          {
+            "text": "TokenBucketState",
+            "link": "/api/@rulvar/rulvar/interfaces/TokenBucketState.md"
           },
           {
             "text": "ToolAuthority",
@@ -8006,6 +8186,18 @@
           {
             "text": "AdaptiveEvents",
             "link": "/api/@rulvar/rulvar/type-aliases/AdaptiveEvents.md"
+          },
+          {
+            "text": "AdmissionRecovery",
+            "link": "/api/@rulvar/rulvar/type-aliases/AdmissionRecovery.md"
+          },
+          {
+            "text": "AdmissionTicketDecision",
+            "link": "/api/@rulvar/rulvar/type-aliases/AdmissionTicketDecision.md"
+          },
+          {
+            "text": "AdmissionTicketState",
+            "link": "/api/@rulvar/rulvar/type-aliases/AdmissionTicketState.md"
           },
           {
             "text": "AdmitRejectReason",
@@ -9188,6 +9380,10 @@
             "link": "/api/@rulvar/rulvar/functions/accountSpendFromJournal.md"
           },
           {
+            "text": "admissionLevelKeys",
+            "link": "/api/@rulvar/rulvar/functions/admissionLevelKeys.md"
+          },
+          {
             "text": "admissionReserveUsd",
             "link": "/api/@rulvar/rulvar/functions/admissionReserveUsd.md"
           },
@@ -9274,6 +9470,22 @@
           {
             "text": "auditRuns",
             "link": "/api/@rulvar/rulvar/functions/auditRuns.md"
+          },
+          {
+            "text": "bucketAdmits",
+            "link": "/api/@rulvar/rulvar/functions/bucketAdmits.md"
+          },
+          {
+            "text": "bucketAdvance",
+            "link": "/api/@rulvar/rulvar/functions/bucketAdvance.md"
+          },
+          {
+            "text": "bucketConsume",
+            "link": "/api/@rulvar/rulvar/functions/bucketConsume.md"
+          },
+          {
+            "text": "bucketRefund",
+            "link": "/api/@rulvar/rulvar/functions/bucketRefund.md"
           },
           {
             "text": "buildAbandonFold",
@@ -9460,6 +9672,10 @@
             "link": "/api/@rulvar/rulvar/functions/countsAgainstLimit.md"
           },
           {
+            "text": "coverMerge",
+            "link": "/api/@rulvar/rulvar/functions/coverMerge.md"
+          },
+          {
             "text": "createCanonicalIdMinter",
             "link": "/api/@rulvar/rulvar/functions/createCanonicalIdMinter.md"
           },
@@ -9530,6 +9746,14 @@
           {
             "text": "emptyDigestBlocks",
             "link": "/api/@rulvar/rulvar/functions/emptyDigestBlocks.md"
+          },
+          {
+            "text": "emptyFairQueue",
+            "link": "/api/@rulvar/rulvar/functions/emptyFairQueue.md"
+          },
+          {
+            "text": "emptySlidingWindow",
+            "link": "/api/@rulvar/rulvar/functions/emptySlidingWindow.md"
           },
           {
             "text": "emptyToolset",
@@ -10092,6 +10316,10 @@
             "link": "/api/@rulvar/rulvar/functions/researchAgentProfile.md"
           },
           {
+            "text": "reservationMinus",
+            "link": "/api/@rulvar/rulvar/functions/reservationMinus.md"
+          },
+          {
             "text": "resolveCitationAuditPlan",
             "link": "/api/@rulvar/rulvar/functions/resolveCitationAuditPlan.md"
           },
@@ -10206,6 +10434,22 @@
           {
             "text": "semanticTerminalVerdictOf",
             "link": "/api/@rulvar/rulvar/functions/semanticTerminalVerdictOf.md"
+          },
+          {
+            "text": "sfqGrantOrder",
+            "link": "/api/@rulvar/rulvar/functions/sfqGrantOrder.md"
+          },
+          {
+            "text": "sfqRecordArrival",
+            "link": "/api/@rulvar/rulvar/functions/sfqRecordArrival.md"
+          },
+          {
+            "text": "sfqRecordGrant",
+            "link": "/api/@rulvar/rulvar/functions/sfqRecordGrant.md"
+          },
+          {
+            "text": "sfqTagsOnArrival",
+            "link": "/api/@rulvar/rulvar/functions/sfqTagsOnArrival.md"
           },
           {
             "text": "shouldCompact",
@@ -10374,6 +10618,26 @@
           {
             "text": "verifyCandidateBytes",
             "link": "/api/@rulvar/rulvar/functions/verifyCandidateBytes.md"
+          },
+          {
+            "text": "windowAdmits",
+            "link": "/api/@rulvar/rulvar/functions/windowAdmits.md"
+          },
+          {
+            "text": "windowAdvance",
+            "link": "/api/@rulvar/rulvar/functions/windowAdvance.md"
+          },
+          {
+            "text": "windowConsume",
+            "link": "/api/@rulvar/rulvar/functions/windowConsume.md"
+          },
+          {
+            "text": "windowRefund",
+            "link": "/api/@rulvar/rulvar/functions/windowRefund.md"
+          },
+          {
+            "text": "windowSum",
+            "link": "/api/@rulvar/rulvar/functions/windowSum.md"
           },
           {
             "text": "wireCapacityEstimate",
