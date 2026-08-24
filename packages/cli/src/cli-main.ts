@@ -6,6 +6,9 @@ import { ConfigError, sanitizeTerminalText } from '@rulvar/core';
 
 import {
   costAuditCommand,
+  effectsLsCommand,
+  effectsShowCommand,
+  effectsSweepCommand,
   inspectCommand,
   invoiceCommand,
   kbCommand,
@@ -17,7 +20,7 @@ import {
   runsAuditCommand,
   runsLsCommand,
 } from './commands.js';
-import { helpCommandLines, RUNS_FAMILY_USAGE } from './grammar.js';
+import { EFFECTS_FAMILY_USAGE, helpCommandLines, RUNS_FAMILY_USAGE } from './grammar.js';
 import type { CliIo } from './io.js';
 
 // The command block renders from the one canonical grammar structure
@@ -104,6 +107,19 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
           return await runsAuditCommand(subRest, context);
         }
         throw new ConfigError(RUNS_FAMILY_USAGE);
+      }
+      case 'effects': {
+        const [sub, ...subRest] = rest;
+        if (sub === 'ls') {
+          return await effectsLsCommand(subRest, context);
+        }
+        if (sub === 'show') {
+          return await effectsShowCommand(subRest, context);
+        }
+        if (sub === 'sweep') {
+          return await effectsSweepCommand(subRest, context);
+        }
+        throw new ConfigError(EFFECTS_FAMILY_USAGE);
       }
       case 'inspect':
         return await inspectCommand(rest, context);

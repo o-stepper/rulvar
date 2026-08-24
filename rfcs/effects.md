@@ -1,10 +1,16 @@
 # RFC: effect intents, receipts, and reconciliation
 
-Status: accepted design (RV4301, plan 43), hardened by two adversarial review passes of
-the kill point catalog and the protocol (13 findings, then 5 on the revision; every one
-incorporated; the review record lives in the plan). This document ships no runtime and
-freezes no exported TypeScript names;
-implementation is the dedicated effects plan's scope (plan 45; plan 44 answered the seventh comparison experiment instead). A seam described here may be called frozen only because
+Status: IMPLEMENTED (plan 45, trains RV4501 to RV4506): the consumption fold and the
+writer in @rulvar/core, the adapter seam, dispatcher, reconciler, receipts, telemetry,
+and the kill point conformance kit in @rulvar/effects, with two recorded deviations
+(effect lane facts ride kind-'decision' entries because the kinds registry is versioned
+inside the hashVersion 2 identity profile; the store-side unleased-append rejection is
+enforced by the writer's construction plus the conformance kit over the composition,
+because stores never parse payloads) and one derived overlay (the original's
+'compensated' disposition derives from a confirmed compensation citing a confirmed
+original, because terminals are immutable). Originally: accepted design (RV4301, plan
+43), hardened by two adversarial review passes of the kill point catalog and the
+protocol (13 findings, then 5 on the revision; every one incorporated). A seam described here may be called frozen only because
 section 4 resolves the central atomicity question; everything else is design intent that
 the effects plan may still adjust with a recorded reason.
 

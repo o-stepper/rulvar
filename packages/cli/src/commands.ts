@@ -45,6 +45,10 @@ import {
   type GateRecord,
   type JournalEntry,
   type JournalPricingSnapshot,
+  EffectLaneFold,
+  effectiveEffectState,
+  openEffectLane,
+  type EffectMachine,
   type LeasableStore,
   type Lease,
   type InvoiceExport,
@@ -2837,4 +2841,240 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
     );
   }
   return 0;
+}
+
+/** One machine's summary line for `effects ls`. */
+function effectMachineLine(machine: EffectMachine): string {
+  const effective = effectiveEffectState(machine);
+  const state = machine.consumed ? effective : `refused (${machine.voidReason?.reason ?? 'void'})`;
+  const closer =
+    machine.postIntentCloser === undefined
+      ? ''
+      : ` closer=${machine.postIntentCloser.kind}@${String(machine.postIntentCloser.seq)}`;
+  return (
+    `  seq ${String(machine.intentSeq)}  ${machine.logicalKey}  ${state}  ` +
+    `${machine.effectClass}/${machine.capabilityRow}  ` +
+    `attempts ${String(machine.attempts.length)}/${String(machine.budgets.attempts)}  ` +
+    `probes ${String(machine.probes.length)}/${String(machine.budgets.lookups)}  ` +
+    `receipts ${String(machine.receipts.length)}  ` +
+    `incidents ${String(machine.incidents.length)}${closer}`
+  );
+}
+
+/**
+ * `rulvar effects ls <runId>`: the effect lane fold report, read only.
+ * The fold is the single authority (plan 45, rfcs/effects.md); this
+ * command prints what the journal bytes MEAN, never live state.
+ */
+export async function effectsLsCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseCommand(GRAMMAR['effects ls'], argv);
+  const runId = parsed.positionals[0];
+  const storePath = parsed.values.store as string | undefined;
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(storePath === undefined ? {} : { storePath }),
+    cwd: context.cwd,
+  });
+  const entries = await assembled.store.load(runId);
+  if (entries.length === 0) {
+    context.io.err(`no journal for run '${runId}'`);
+    return 1;
+  }
+  const fold = new EffectLaneFold(entries);
+  const machines = fold.machines();
+  const epoch = fold.currentEpoch();
+  if (parsed.values.json === true) {
+    context.io.out(
+      JSON.stringify({
+        runId,
+        epoch,
+        machines: machines.map((machine) => ({
+          intentSeq: machine.intentSeq,
+          logicalKey: machine.logicalKey,
+          state: effectiveEffectState(machine),
+          consumed: machine.consumed,
+          effectClass: machine.effectClass,
+          capabilityRow: machine.capabilityRow,
+          attempts: machine.attempts.length,
+          probes: machine.probes.length,
+          receipts: machine.receipts.length,
+          incidents: machine.incidents.length,
+          ...(machine.voidReason === undefined ? {} : { voidReason: machine.voidReason }),
+          ...(machine.postIntentCloser === undefined ? {} : { closer: machine.postIntentCloser }),
+        })),
+        standaloneRefusals: fold.standaloneRefusals(),
+        standaloneQuarantines: fold.standaloneQuarantines(),
+      }),
+    );
+    return 0;
+  }
+  if (epoch === undefined) {
+    context.io.out(`effects ${runId}: no effect_epoch; the lane never opened`);
+  } else {
+    const release = epoch.needsReconciliation
+      ? epoch.reconciled
+        ? 'reconciled'
+        : 'RECONCILIATION PENDING (dispatch disabled)'
+      : 'clean';
+    context.io.out(
+      `effects ${runId}: epoch '${epoch.generation}' seq ${String(epoch.seq)} ` +
+        `restoration ${String(epoch.restorationGeneration ?? 0)} ${release}`,
+    );
+  }
+  if (machines.length === 0) {
+    context.io.out('  no effect intents');
+  }
+  for (const machine of machines) {
+    context.io.out(effectMachineLine(machine));
+  }
+  const refusals = fold.standaloneRefusals();
+  const quarantines = fold.standaloneQuarantines();
+  if (refusals.length > 0 || quarantines.length > 0) {
+    context.io.out(
+      `  standalone: refused ${String(refusals.length)}, quarantined ${String(quarantines.length)}`,
+    );
+  }
+  return 0;
+}
+
+/** `rulvar effects show <runId> <intentSeq>`: one machine, in full. */
+export async function effectsShowCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseCommand(GRAMMAR['effects show'], argv);
+  const runId = parsed.positionals[0];
+  const intentSeq = Number(parsed.positionals[1]);
+  const storePath = parsed.values.store as string | undefined;
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(storePath === undefined ? {} : { storePath }),
+    cwd: context.cwd,
+  });
+  const entries = await assembled.store.load(runId);
+  const fold = new EffectLaneFold(entries);
+  const machine = fold.machineAt(intentSeq);
+  if (machine === undefined) {
+    context.io.err(`no effect intent at seq ${String(intentSeq)} in run '${runId}'`);
+    return 1;
+  }
+  const out = context.io.out.bind(context.io);
+  out(
+    `intent seq ${String(machine.intentSeq)} '${machine.logicalKey}' ` +
+      `(${machine.effectClass}, ${machine.capabilityRow}` +
+      `${machine.lookupQualification === undefined ? '' : `/${machine.lookupQualification}`}) ` +
+      `${machine.consumed ? 'consumed' : `VOID: ${machine.voidReason?.reason ?? '?'}`}`,
+  );
+  out(
+    `  approvalRef ${String(machine.approvalRef)}  epochRef ${String(machine.epochRef)}  ` +
+      `argumentsHash ${machine.argumentsHash}`,
+  );
+  out(
+    `  budgets: attempts ${String(machine.budgets.attempts)}, lookups ` +
+      `${String(machine.budgets.lookups)}, receiptWaitMs ` +
+      `${String(machine.budgets.receiptWaitMs)}, reconcileBy ${machine.budgets.reconcileBy}`,
+  );
+  const terminal =
+    machine.terminal === undefined
+      ? ''
+      : ` (terminal seq ${String(machine.terminal.seq)}` +
+        `${machine.terminal.reason === undefined ? '' : `: ${machine.terminal.reason}`})`;
+  out(`  state ${effectiveEffectState(machine)}${terminal}`);
+  if (machine.postIntentCloser !== undefined) {
+    out(
+      `  closer: ${machine.postIntentCloser.kind} at seq ` +
+        `${String(machine.postIntentCloser.seq)} (re-dispatch disabled; reconcile only)`,
+    );
+  }
+  for (const attempt of machine.attempts) {
+    out(
+      `  attempt ${String(attempt.ordinal)} seq ${String(attempt.seq)}: ` +
+        `${attempt.open ? 'OPEN' : (attempt.outcome ?? '?')}` +
+        `${attempt.idempotencyKey === undefined ? '' : ` key=${attempt.idempotencyKey}`}` +
+        ` notAfter ${attempt.notAfter}`,
+    );
+  }
+  for (const receipt of machine.receipts) {
+    const dup =
+      receipt.benignDuplicateOf !== undefined
+        ? ` benign-duplicate-of=${String(receipt.benignDuplicateOf)}`
+        : receipt.conflictWith !== undefined
+          ? ` CONFLICTS-WITH=${String(receipt.conflictWith)}`
+          : '';
+    out(
+      `  receipt seq ${String(receipt.seq)}: ${receipt.verification}` +
+        `${receipt.transferId === undefined ? '' : ` transferId=${receipt.transferId}`}` +
+        `${receipt.amount === undefined ? '' : ` amount=${String(receipt.amount)}`}${dup}`,
+    );
+  }
+  for (const probe of machine.probes) {
+    out(
+      `  probe seq ${String(probe.seq)}: ${probe.probe} found=${String(probe.found)}` +
+        `${probe.acceptanceClosed === undefined ? '' : ` closed=${String(probe.acceptanceClosed)}`}`,
+    );
+  }
+  for (const incident of machine.incidents) {
+    out(
+      `  incident seq ${String(incident.seq)}: ${incident.incident}` +
+        `${incident.causalRef === undefined ? '' : ` (causal ${String(incident.causalRef)})`}`,
+    );
+  }
+  for (const disposition of machine.dispositions) {
+    out(
+      `  disposition seq ${String(disposition.seq)}: ${disposition.disposition} by ` +
+        `${disposition.principal}: ${disposition.reason}`,
+    );
+  }
+  return 0;
+}
+
+/**
+ * `rulvar effects sweep <runId>`: the quarantine-only reconciler sweep
+ * (no provider adapter, so no recovery dispatch): budget exhaustions
+ * quarantine, timed-out effect authorizations refuse durably. Requires
+ * @rulvar/effects (a command-local companion). The default store is
+ * not leasable, so the command demands the explicit --single-process
+ * acknowledgment the writer's doctrine requires.
+ */
+export async function effectsSweepCommand(
+  argv: string[],
+  context: CommandContext,
+): Promise<number> {
+  const parsed = parseCommand(GRAMMAR['effects sweep'], argv);
+  const runId = parsed.positionals[0];
+  const storePath = parsed.values.store as string | undefined;
+  const singleProcess = parsed.values['single-process'] === true;
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(storePath === undefined ? {} : { storePath }),
+    cwd: context.cwd,
+  });
+  const companion = await loadCompanion<typeof import('@rulvar/effects')>(
+    import('@rulvar/effects'),
+    '@rulvar/effects',
+    'effects sweep',
+    'effects sweep needs @rulvar/effects: install it alongside @rulvar/cli to run the ' +
+      'reconciler (hosts that do not run effects pay nothing for it)',
+  );
+  const writer = await openEffectLane({
+    store: assembled.store,
+    runId,
+    owner: 'cli-effects-sweep',
+    ...(singleProcess ? { singleProcess: true } : {}),
+  });
+  try {
+    const reconciler = new companion.EffectReconciler({ writer });
+    const report = await reconciler.sweep();
+    context.io.out(
+      `swept ${String(report.swept)}: quarantined ${String(report.quarantined.length)}, ` +
+        `waiting ${String(report.waiting)}, authorization timeouts ` +
+        `${String(report.authorizationTimeouts)}`,
+    );
+    for (const quarantined of report.quarantined) {
+      context.io.out(`  quarantined seq ${String(quarantined.intentSeq)}: ${quarantined.reason}`);
+    }
+    return 0;
+  } finally {
+    await writer.close();
+  }
 }

@@ -2780,3 +2780,180 @@ export default {
     expect(spawnLine).toContain(`ratesVerified=${date} (age 12d)`);
   });
 });
+
+describe('rulvar effects (RV4506, plan 45)', () => {
+  const seedEffectsJournal = async (cwd: string): Promise<void> => {
+    const store = new JsonlFileStore({ dir: join(cwd, '.rulvar') });
+    const base = {
+      hashVersion: 2,
+      ordinal: 0,
+      spanId: 's',
+      startedAt: '2026-08-24T10:00:00.000Z',
+    } as const;
+    const decision = (seq: number, value: Record<string, unknown>): Promise<void> =>
+      store.append('FX', {
+        ...base,
+        seq,
+        scope: 'effects',
+        key: typeof value.opId === 'string' ? value.opId : String(seq),
+        kind: 'decision',
+        status: 'ok',
+        value: value as never,
+      });
+    await store.append('FX', {
+      ...base,
+      seq: 0,
+      scope: 'run',
+      key: 'a0',
+      kind: 'approval',
+      status: 'suspended',
+      deadlineAt: '2026-08-24T12:00:00.000Z',
+      value: { flavor: 'approval', toolName: 'payout', effectLogicalKey: 'pay-1' },
+    });
+    await store.append('FX', {
+      ...base,
+      seq: 1,
+      scope: 'run',
+      key: 'r1',
+      kind: 'resolution',
+      status: 'ok',
+      ref: 0,
+      resolution: { target: 0, by: 'external', value: { decision: 'allow' } },
+    });
+    await decision(2, { decisionType: 'effect_epoch', opId: 'epoch-1', generation: 'gen-1' });
+    await decision(3, {
+      decisionType: 'effect_intent',
+      opId: 'intent-1',
+      logicalKey: 'pay-1',
+      approvalRef: 0,
+      epochRef: 2,
+      effectClass: 'monetary',
+      capabilityRow: 'idempotency-key',
+      argumentsHash: 'deadbeef',
+      budgets: {
+        attempts: 3,
+        lookups: 5,
+        receiptWaitMs: 60000,
+        reconcileBy: '2026-08-24T00:00:00.000Z',
+      },
+    });
+    await decision(4, {
+      decisionType: 'effect_attempt',
+      opId: 'attempt-1',
+      intentRef: 3,
+      ordinal: 1,
+      notAfter: '2026-08-24T10:05:00.000Z',
+      idempotencyKey: 'pay-1#epoch2',
+    });
+    await decision(5, {
+      decisionType: 'effect_outcome',
+      opId: 'outcome-1',
+      intentRef: 3,
+      attemptRef: 4,
+      outcome: 'accepted',
+    });
+    await decision(6, {
+      decisionType: 'effect_receipt',
+      opId: 'receipt-1',
+      intentRef: 3,
+      verification: 'verified',
+      transferId: 't-1',
+      amount: 100,
+    });
+    await decision(7, {
+      decisionType: 'effect_terminal',
+      opId: 'confirm-1',
+      intentRef: 3,
+      terminal: 'confirmed',
+      causalRef: 6,
+    });
+    await store.append('FX', {
+      ...base,
+      seq: 8,
+      scope: 'run',
+      key: 'a8',
+      kind: 'approval',
+      status: 'suspended',
+      deadlineAt: '2026-08-24T12:00:00.000Z',
+      value: { flavor: 'approval', toolName: 'payout', effectLogicalKey: 'pay-2' },
+    });
+    await store.append('FX', {
+      ...base,
+      seq: 9,
+      scope: 'run',
+      key: 'r9',
+      kind: 'resolution',
+      status: 'ok',
+      ref: 8,
+      resolution: { target: 8, by: 'external', value: { decision: 'allow' } },
+    });
+    await decision(10, {
+      decisionType: 'effect_intent',
+      opId: 'intent-2',
+      logicalKey: 'pay-2',
+      approvalRef: 8,
+      epochRef: 2,
+      effectClass: 'monetary',
+      capabilityRow: 'neither',
+      argumentsHash: 'feedface',
+      budgets: {
+        attempts: 3,
+        lookups: 5,
+        receiptWaitMs: 60000,
+        reconcileBy: '2026-08-24T00:00:00.000Z',
+      },
+    });
+  };
+
+  it('effects ls prints the fold report: epoch, machines, effective states', async () => {
+    const cwd = writeFixtureProject();
+    await seedEffectsJournal(cwd);
+    const io = scriptedIo();
+    expect(await runCli(['effects', 'ls', 'FX'], { cwd, io })).toBe(0);
+    const text = io.outLines.join('\n');
+    expect(text).toContain("effects FX: epoch 'gen-1' seq 2 restoration 0 clean");
+    expect(text).toContain('seq 3  pay-1  confirmed  monetary/idempotency-key');
+    expect(text).toContain('attempts 1/3');
+    expect(text).toContain('seq 10  pay-2  intent  monetary/neither');
+  });
+
+  it('effects show prints one machine in full: budgets, attempts, receipts', async () => {
+    const cwd = writeFixtureProject();
+    await seedEffectsJournal(cwd);
+    const io = scriptedIo();
+    expect(await runCli(['effects', 'show', 'FX', '3'], { cwd, io })).toBe(0);
+    const text = io.outLines.join('\n');
+    expect(text).toContain("intent seq 3 'pay-1' (monetary, idempotency-key) consumed");
+    expect(text).toContain(
+      'budgets: attempts 3, lookups 5, receiptWaitMs 60000, reconcileBy 2026-08-24T00:00:00.000Z',
+    );
+    expect(text).toContain('state confirmed (terminal seq 7)');
+    expect(text).toContain('attempt 1 seq 4: accepted key=pay-1#epoch2');
+    expect(text).toContain('receipt seq 6: verified transferId=t-1 amount=100');
+  });
+
+  it('effects sweep refuses the non-leasable store without the explicit acknowledgment', async () => {
+    const cwd = writeFixtureProject();
+    await seedEffectsJournal(cwd);
+    const refused = scriptedIo();
+    expect(await runCli(['effects', 'sweep', 'FX'], { cwd, io: refused })).toBe(1);
+    expect(refused.errLines.join('\n')).toContain('singleProcess');
+    const io = scriptedIo();
+    expect(await runCli(['effects', 'sweep', 'FX', '--single-process'], { cwd, io })).toBe(0);
+    const text = io.outLines.join('\n');
+    // The pay-2 intent crossed its reconcileBy: the sweep quarantines
+    // it with the state recorded; the confirmed machine is untouched.
+    expect(text).toContain('swept 1: quarantined 1');
+    expect(text).toContain('quarantined seq 10');
+    const after = scriptedIo();
+    expect(await runCli(['effects', 'ls', 'FX'], { cwd, io: after })).toBe(0);
+    expect(after.outLines.join('\n')).toContain('seq 10  pay-2  quarantined');
+  });
+
+  it('the effects family fails loudly on an unknown sub-command', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    expect(await runCli(['effects', 'nope'], { cwd, io })).toBe(1);
+    expect(io.errLines.join('\n')).toContain('usage: rulvar effects <ls | show | sweep>');
+  });
+});

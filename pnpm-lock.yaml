@@ -255,6 +255,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@rulvar/effects':
+        specifier: workspace:*
+        version: link:../effects
       '@rulvar/evals':
         specifier: workspace:*
         version: link:../evals

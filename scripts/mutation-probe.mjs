@@ -6508,6 +6508,33 @@ export const MUTATIONS = [
     replace: '    ;',
     test: 'packages/effects/src/receipts.test.ts',
   },
+  {
+    id: 'effect-cli-sweep-prints-quarantines',
+    doctrine:
+      'the sweep report names every quarantined intent and its reason (RV4506): with the loop collapsed, an operator reads a count and loses the reasons',
+    file: 'packages/cli/src/commands.ts',
+    find: '    for (const quarantined of report.quarantined) {',
+    replace: '    for (const quarantined of [] as typeof report.quarantined) {',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'effect-cli-ls-names-the-epoch-posture',
+    doctrine:
+      "effects ls prints the epoch's restore posture (clean, reconciled, or RECONCILIATION PENDING) so the disabled-dispatch window is visible from the terminal (RV4506)",
+    file: 'packages/cli/src/commands.ts',
+    find: "      : 'clean';",
+    replace: "      : 'dirty';",
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'effect-cli-single-process-is-explicit',
+    doctrine:
+      'the CLI sweep passes singleProcess ONLY under the explicit flag (RV4506): the non-leasable default store must refuse without the acknowledgment, exactly the writer doctrine',
+    file: 'packages/cli/src/commands.ts',
+    find: '    ...(singleProcess ? { singleProcess: true } : {}),',
+    replace: '    singleProcess: true,',
+    test: 'packages/cli/src/index.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

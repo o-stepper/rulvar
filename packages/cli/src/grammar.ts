@@ -61,6 +61,9 @@ export const GRAMMAR: {
   readonly 'cost-audit': CommandGrammar;
   readonly plan: CommandGrammar;
   readonly preflight: CommandGrammar;
+  readonly 'effects ls': CommandGrammar;
+  readonly 'effects show': CommandGrammar;
+  readonly 'effects sweep': CommandGrammar;
   readonly 'kb list': CommandGrammar;
   readonly 'kb inbox': CommandGrammar;
   readonly 'kb gate': CommandGrammar;
@@ -133,6 +136,21 @@ export const GRAMMAR: {
       { name: 'json' },
     ],
   },
+  'effects ls': {
+    command: 'effects ls',
+    positionals: ['<runId>'],
+    flags: [STORE, { name: 'json' }],
+  },
+  'effects show': {
+    command: 'effects show',
+    positionals: ['<runId>', '<intentSeq>'],
+    flags: [STORE],
+  },
+  'effects sweep': {
+    command: 'effects sweep',
+    positionals: ['<runId>'],
+    flags: [STORE, { name: 'single-process' }],
+  },
   'kb list': { command: 'kb list', positionals: [], flags: [] },
   'kb inbox': { command: 'kb inbox', positionals: [], flags: [STORE] },
   'kb gate': {
@@ -164,6 +182,8 @@ export const KB_FAMILY_USAGE = 'usage: rulvar kb <list | inbox | gate | sweep> (
 
 /** The runs dispatch line: subcommands carry their own grammar entries. */
 export const RUNS_FAMILY_USAGE = 'usage: rulvar runs <ls | audit> (no aliases in v1)';
+
+export const EFFECTS_FAMILY_USAGE = 'usage: rulvar effects <ls | show | sweep> (no aliases in v1)';
 
 function renderFlags(flags: FlagGrammar[]): string[] {
   const tokens: string[] = [];
@@ -226,6 +246,9 @@ export function helpCommandLines(): string[] {
     GRAMMAR.inspect,
     GRAMMAR.invoice,
     GRAMMAR['cost-audit'],
+    GRAMMAR['effects ls'],
+    GRAMMAR['effects show'],
+    GRAMMAR['effects sweep'],
     GRAMMAR.plan,
     GRAMMAR.preflight,
   ];
@@ -258,6 +281,9 @@ export function docsGrammarLines(): string[] {
     GRAMMAR.inspect,
     GRAMMAR.invoice,
     GRAMMAR['cost-audit'],
+    GRAMMAR['effects ls'],
+    GRAMMAR['effects show'],
+    GRAMMAR['effects sweep'],
     GRAMMAR.plan,
     GRAMMAR.preflight,
   ];

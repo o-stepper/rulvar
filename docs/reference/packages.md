@@ -75,7 +75,7 @@ The Layer column in the table below uses the labels of the architecture's layer 
 | [`eslint-plugin-rulvar`](/api/eslint-plugin-rulvar/) | tooling | Determinism lint rules for workflow modules (ban bare Date.now, Math.random, new Date, fetch, and process.env; ban Promise.all over ctx calls), emitting structured JSON diagnostics for the planner's self-repair loop | default plugin export, `rules`, `workflowsConfig`, `toJsonDiagnostics` | `eslint` >= 9 (peer) |
 | [`@rulvar/testing`](/api/@rulvar/testing/) | L6 | The test harness: a fake adapter and test engine for fast typed unit tests, VCR cassettes with secret redaction, replay-strict runs, and matchers for Vitest and Jest | `createTestEngine`, `FakeAdapter`, `record`, `replay`, `replayRun` | `@rulvar/core` |
 | [`@rulvar/evals`](/api/@rulvar/evals/) | L6 | The eval framework: eval cases with golden outputs, rubric and judge graders running through the engine, matrix sweeps, and the canary fingerprint | `runEvalSuite`, `runEvalMatrix`, `goldenGrader`, `rubricGrader`, `judgeGrader`, `canaryFingerprint` | `@rulvar/core`, `@rulvar/testing`, `@rulvar/anthropic`, `@rulvar/openai`, `@rulvar/plan` |
-| [`@rulvar/cli`](/api/@rulvar/cli/) | L6 | The ops shell: the `rulvar` binary (run, resume, runs, inspect, plan, kb), TUI progress, the embeddable HTTP server with SSE events and external-input resolution, the queue worker over a leasable store, and the OTel exporter | `runCli`, `createServer`, `createWorker`, `toOtel` | `@rulvar/core`; `@opentelemetry/api` (optional peer); three optional companions loaded dynamically per command: `@rulvar/planner` (`plan`), `@rulvar/plan` (`kb inbox`, `kb gate`), `@rulvar/evals` (`kb sweep`) |
+| [`@rulvar/cli`](/api/@rulvar/cli/) | L6 | The ops shell: the `rulvar` binary (run, resume, runs, inspect, plan, kb), TUI progress, the embeddable HTTP server with SSE events and external-input resolution, the queue worker over a leasable store, and the OTel exporter | `runCli`, `createServer`, `createWorker`, `toOtel` | `@rulvar/core`; `@opentelemetry/api` (optional peer); four optional companions loaded dynamically per command: `@rulvar/planner` (`plan`), `@rulvar/plan` (`kb inbox`, `kb gate`), `@rulvar/evals` (`kb sweep`), `@rulvar/effects` (`effects sweep`) |
 | `rulvar` (unscoped) | pointer | A minimal pointer on npm whose entry module re-exports `@rulvar/rulvar`, so a bare install still resolves to the real umbrella; its caret dependency resolves the newest release of the same major, the pointer's own version or newer, so pin `@rulvar/rulvar` exactly when you need one exact version | re-export of `@rulvar/rulvar` | `@rulvar/rulvar` |
 
 ## Dependency graph
@@ -107,6 +107,7 @@ graph TD
   cli -.->|"rulvar plan"| planner
   cli -.->|"rulvar kb inbox, kb gate"| plan
   cli -.->|"rulvar kb sweep"| evals
+  cli -.->|"rulvar effects sweep"| effects
 ```
 
 Four rules keep this graph honest, and they are enforced permanently, not just at major releases:
