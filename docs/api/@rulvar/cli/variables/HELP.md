@@ -10,7 +10,7 @@
 const HELP: string;
 ```
 
-Defined in: [packages/cli/src/cli-main.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/cli-main.ts#L26)
+Defined in: [packages/cli/src/cli-main.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/cli-main.ts#L29)
 
 @rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli).
 M5 surface: run/resume/runs ls/inspect over the canonical

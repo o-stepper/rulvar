@@ -35,6 +35,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Orchestration modes', link: '/guide/orchestration-modes' },
       { text: 'Budgets and termination', link: '/guide/budgets' },
       { text: 'Durability and resume', link: '/guide/durability' },
+      { text: 'The effect lane', link: '/guide/effects' },
     ],
   },
   {

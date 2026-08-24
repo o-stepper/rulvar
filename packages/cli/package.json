@@ -39,7 +39,8 @@
     "@rulvar/store-sqlite": "workspace:*",
     "@rulvar/planner": "workspace:*",
     "@rulvar/plan": "workspace:*",
-    "@rulvar/evals": "workspace:*"
+    "@rulvar/evals": "workspace:*",
+    "@rulvar/effects": "workspace:*"
   },
   "bin": {
     "rulvar": "./dist/cli.js"
