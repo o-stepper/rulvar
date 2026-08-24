@@ -6216,6 +6216,79 @@ export const MUTATIONS = [
     replace: '  if (false) {',
     test: 'scripts/contract-classification.test.mjs',
   },
+  {
+    id: 'effect-consumption-prefix-order',
+    doctrine:
+      'consumption is a fold over the STRICT prefix (RV4501, RFC effects 4.3): an approval that resolved allow AFTER the intent position never licenses it; with the position comparison collapsed, a late allow consumes retroactively',
+    file: 'packages/core/src/effects/fold.ts',
+    find: '      state.by < entry.seq &&',
+    replace: '      true &&',
+    test: 'packages/core/src/effects/fold.test.ts',
+  },
+  {
+    id: 'effect-epoch-must-be-latest',
+    doctrine:
+      "an intent citing a non-latest epoch folds void (RV4501, RFC effects 4.5): with the staleness check collapsed, a recreated run spends the dead incarnation's approvals (kill 24)",
+    file: 'packages/core/src/effects/fold.ts',
+    find: '    if (epoch.seq !== decision.epochRef) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/effects/fold.test.ts',
+  },
+  {
+    id: 'effect-one-intent-per-key',
+    doctrine:
+      'one canonical intent per logical key per epoch, whatever approval it cites (RV4501, RFC effects 4.3): with the holder check collapsed, two approvals license two sends of one effect (kill 26)',
+    file: 'packages/core/src/effects/fold.ts',
+    find: '    const holder = this.canonicalByEpochKey.get(canonicalKey);\n    if (holder !== undefined) {',
+    replace: '    const holder = this.canonicalByEpochKey.get(canonicalKey);\n    if (false) {',
+    test: 'packages/core/src/effects/fold.test.ts',
+  },
+  {
+    id: 'effect-first-terminal-wins',
+    doctrine:
+      'the first terminal append closes the machine; later transitions fold superseded, never overwrite (RV4501, RFC effects 4.6)',
+    file: 'packages/core/src/effects/fold.ts',
+    find: "        if (machine.terminal !== undefined) {\n          this.classify(entry.seq, {\n            classification: 'superseded',\n            supersededBy: machine.terminal.seq,\n          });\n          return;\n        }\n        const illegality",
+    replace:
+      "        if (false as boolean) {\n          this.classify(entry.seq, {\n            classification: 'superseded',\n            supersededBy: 0,\n          });\n          return;\n        }\n        const illegality",
+    test: 'packages/core/src/effects/fold.test.ts',
+  },
+  {
+    id: 'effect-redispatch-dies-at-revocation',
+    doctrine:
+      're-dispatch is disabled on EVERY capability row from the revocation position on (RV4501, RFC effects 4.7): with the closer guard collapsed, a revoked effect knowingly re-dispatches',
+    file: 'packages/core/src/effects/fold.ts',
+    find: '        if (closer !== undefined && entry.seq > closer.seq) {',
+    replace: '        if (false) {',
+    test: 'packages/core/src/effects/fold.test.ts',
+  },
+  {
+    id: 'effect-confirmed-needs-verified-receipt',
+    doctrine:
+      'confirmed requires a verified receipt in the prefix (RV4501, RFC effects 3.1): with the guard collapsed, a machine confirms on nothing',
+    file: 'packages/core/src/effects/fold.ts',
+    find: "    if (terminal === 'confirmed' && !machine.receipts.some((r) => r.verification === 'verified')) {",
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/effects/fold.test.ts',
+  },
+  {
+    id: 'effect-opid-replay-is-same-transition',
+    doctrine:
+      'a same-opId replay is the SAME transition, never a duplicate (RV4501, RFC effects 4.3 item 2): with the dedup collapsed, an ambiguous-ack recovery fabricates a second machine and the duplicate-key rule fires on its own retry',
+    file: 'packages/core/src/effects/fold.ts',
+    find: '    const firstSeq = this.opIds.get(decision.opId);\n    if (firstSeq !== undefined) {',
+    replace: '    const firstSeq = this.opIds.get(decision.opId);\n    if (false as boolean) {',
+    test: 'packages/core/src/effects/fold.test.ts',
+  },
+  {
+    id: 'effect-lookup-row-demands-qualification',
+    doctrine:
+      "the 'lookup' capability row is earned, not claimed (RV4501, RFC effects 6): without a recorded qualification the payload reads malformed; with the demand collapsed, an eventually consistent search passes for a closing negative",
+    file: 'packages/core/src/effects/types.ts',
+    find: "        record.capabilityRow === 'lookup' &&",
+    replace: '        (false as boolean) &&',
+    test: 'packages/core/src/effects/fold.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
