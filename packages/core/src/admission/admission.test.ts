@@ -191,6 +191,7 @@ describe('MemoryAdmissionScheduler lifecycle', () => {
     // The unit finished having used 2 of 4: the unused half refunds
     // and the queue drains without waiting for the window.
     await s.release('big', 'g1', { wires: 2 }, 'op-release');
+    await s.pump('op-pump');
     const recovered = await s.recover('next', 'g1', 'op-r');
     expect(recovered.state).toBe('granted');
   });
@@ -325,6 +326,23 @@ describe('MemoryAdmissionScheduler lifecycle', () => {
     expect(state.arrivalCounter).toBe(1);
   });
 
+  it('a blocked bucket is never overtaken from behind', async () => {
+    const now = { ms: 0 };
+    const s = scheduler(now);
+    await s.enqueue(request('holder', { reservation: { wires: 3 } }), 'op-h');
+    const big = await s.enqueue(request('big', { reservation: { wires: 3 } }), 'op-big');
+    expect(big.state).toBe('queued');
+    const small = await s.enqueue(request('small', { reservation: { wires: 1 } }), 'op-small');
+    // One free wire exists, and the small ticket would fit; granting
+    // it would starve exactly the oversized ticket the no-starvation
+    // claim protects, so the blocked bucket holds its order.
+    expect(small.state).toBe('queued');
+    expect((await s.pump('op-p')).length).toBe(0);
+    await s.release('holder', 'g1', { wires: 0 }, 'op-rel');
+    const granted = await s.pump('op-p2');
+    expect(granted.map((t) => t.unitId)).toEqual(['big', 'small']);
+  });
+
   it('the emergency reserve admits flagged work where ordinary work refuses', async () => {
     const now = { ms: 0 };
     const s = new MemoryAdmissionScheduler({
@@ -362,6 +380,7 @@ describe('MemoryAdmissionScheduler lifecycle', () => {
     const second = await s.enqueue(request('b'), 'op-b');
     expect(second.state).toBe('queued');
     await s.release('a', 'g1', { wires: 1 }, 'op-release');
+    await s.pump('op-pump');
     const recovered = await s.recover('b', 'g1', 'op-r');
     expect(recovered.state).toBe('granted');
   });

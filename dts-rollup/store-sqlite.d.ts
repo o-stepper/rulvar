@@ -241,6 +241,9 @@ declare class SqliteAdmissionScheduler implements AdmissionScheduler {
   checkpointCover(unitId: string, generation: string, cover: AdmissionReservation, opId: string): Promise<void>;
   release(unitId: string, generation: string, actuals: AdmissionReservation, opId: string): Promise<void>;
   cancel(unitId: string, generation: string, opId: string): Promise<void>;
+  rebind(unitId: string, generation: string, target: {
+    scope: NonNullable<AdmissionRequest["scope"]>;
+  }, opId: string): Promise<AdmissionTicketDecision>;
   pump(opId: string): Promise<AdmissionTicket[]>;
 }
 //#endregion

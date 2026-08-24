@@ -100,7 +100,7 @@ when every matched level admits; `opId` makes retries idempotent.
 pump(opId): Promise<AdmissionTicket[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L167)
+Defined in: [packages/core/src/l0/spi/admission.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L181)
 
 Advances the scheduler: expires stale leases (conservative
 settlement), then grants queued tickets in SFQ order while every
@@ -115,6 +115,41 @@ matched level admits. Returns the newly granted tickets.
 #### Returns
 
 `Promise`\&lt;[`AdmissionTicket`](/api/@rulvar/core/interfaces/AdmissionTicket.md)[]\&gt;
+
+***
+
+### rebind()
+
+```ts
+rebind(
+   unitId, 
+   generation, 
+   target, 
+opId): Promise<AdmissionTicketDecision>;
+```
+
+Defined in: [packages/core/src/l0/spi/admission.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L170)
+
+The failover transfer (RFC section 4.2, item 4): atomically
+acquires the TARGET hierarchy's capacity and level-2 slot and
+releases the source hierarchy in the same transition, BEFORE the
+target dispatches. A failed transfer leaves the source binding
+unchanged and the target undispatchable: no window exists in which
+work runs on a provider account whose slot it never held.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `unitId` | `string` |
+| `generation` | `string` |
+| `target` | \{ `scope`: [`AdmissionScopeDimensions`](/api/@rulvar/core/interfaces/AdmissionScopeDimensions.md); \} |
+| `target.scope` | [`AdmissionScopeDimensions`](/api/@rulvar/core/interfaces/AdmissionScopeDimensions.md) |
+| `opId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`AdmissionTicketDecision`](/api/@rulvar/core/type-aliases/AdmissionTicketDecision.md)\&gt;
 
 ***
 

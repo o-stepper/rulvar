@@ -42,6 +42,8 @@ pnpm add -D @rulvar/store-conformance
 
 | Interface | Description |
 | ------ | ------ |
+| [AdmissionConformanceOptions](/api/@rulvar/store-conformance/interfaces/AdmissionConformanceOptions.md) | - |
+| [AdmissionSchedulerFixture](/api/@rulvar/store-conformance/interfaces/AdmissionSchedulerFixture.md) | - |
 | [ConformanceCheck](/api/@rulvar/store-conformance/interfaces/ConformanceCheck.md) | One mandatory check; `run` rejects with a descriptive Error on violation. |
 | [ConformanceSuite](/api/@rulvar/store-conformance/interfaces/ConformanceSuite.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability, fencedWritesConformance when it declares the fencedWrites promise, and fencedTranscriptsConformance when its transcript store declares the same promise) or it is not a Rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. Stores meant for multi-process queue deployments additionally run the adversarial multi-process soak (runMultiProcessSoak: real OS processes storm one store location through every fenced write surface and the referee diffs the state against the serial history the epochs promise) and the engine-level kill-point suite (killPointConformance: a child process SIGKILLs itself around each durable write of a scripted run, and the referee resumes over the same store asserting the documented recovery semantics, re-pay counts included). |
 | [FencedTranscriptsFixture](/api/@rulvar/store-conformance/interfaces/FencedTranscriptsFixture.md) | The paired factory product: the transcript store under test plus the leasable journal store sharing its fencing domain. |
@@ -66,6 +68,7 @@ pnpm add -D @rulvar/store-conformance
 
 | Type Alias | Description |
 | ------ | ------ |
+| [AdmissionConfig](/api/@rulvar/store-conformance/type-aliases/AdmissionConfig.md) | - |
 | [KillPointEvent](/api/@rulvar/store-conformance/type-aliases/KillPointEvent.md) | One JSONL line of a worker's report file. |
 | [KillPointName](/api/@rulvar/store-conformance/type-aliases/KillPointName.md) | The five durable writes a scenario kills around. |
 | [KillPointPhase](/api/@rulvar/store-conformance/type-aliases/KillPointPhase.md) | `before` = the write is lost; `after` = everything past it is lost. |
@@ -89,6 +92,7 @@ pnpm add -D @rulvar/store-conformance
 
 | Function | Description |
 | ------ | ------ |
+| [admissionConformance](/api/@rulvar/store-conformance/functions/admissionConformance.md) | - |
 | [countSoakActivity](/api/@rulvar/store-conformance/functions/countSoakActivity.md) | Derives the activity counters the quorum is judged against. |
 | [effectLaneStoreConformance](/api/@rulvar/store-conformance/functions/effectLaneStoreConformance.md) | - |
 | [ensure](/api/@rulvar/store-conformance/functions/ensure.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability, fencedWritesConformance when it declares the fencedWrites promise, and fencedTranscriptsConformance when its transcript store declares the same promise) or it is not a Rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. Stores meant for multi-process queue deployments additionally run the adversarial multi-process soak (runMultiProcessSoak: real OS processes storm one store location through every fenced write surface and the referee diffs the state against the serial history the epochs promise) and the engine-level kill-point suite (killPointConformance: a child process SIGKILLs itself around each durable write of a scripted run, and the referee resumes over the same store asserting the documented recovery semantics, re-pay counts included). |

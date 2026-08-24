@@ -39,6 +39,12 @@ export { fencedWritesConformance } from './fenced-writes.js';
 export { quotaRulesConformance, type QuotaLimiterConstructor } from './quota-rules.js';
 export { effectLaneStoreConformance, type RestorableEffectLaneStore } from './effect-lane.js';
 export {
+  admissionConformance,
+  type AdmissionConfig,
+  type AdmissionConformanceOptions,
+  type AdmissionSchedulerFixture,
+} from './admission-matrix.js';
+export {
   fencedTranscriptsConformance,
   type FencedTranscriptsFixture,
 } from './fenced-transcripts.js';

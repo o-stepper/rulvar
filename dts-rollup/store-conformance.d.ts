@@ -1,4 +1,4 @@
-import { EffectLaneStore, JournalEntry, JournalStore, LeasableStore, QuotaRule, TranscriptStore } from "@rulvar/core";
+import { AdmissionScheduler, EffectLaneStore, JournalEntry, JournalStore, LeasableStore, MemoryAdmissionOptions, QuotaRule, TranscriptStore } from "@rulvar/core";
 
 //#region src/types.d.ts
 /**
@@ -81,6 +81,20 @@ interface RestorableEffectLaneStore extends EffectLaneStore {
   bumpRestorationGeneration(): Promise<number>;
 }
 declare function effectLaneStoreConformance(factory: StoreFactory<RestorableEffectLaneStore>): ConformanceSuite;
+//#endregion
+//#region src/admission-matrix.d.ts
+interface AdmissionSchedulerFixture {
+  scheduler: AdmissionScheduler;
+  /** A NEW holder over the same durable state (the crash rows). */
+  reopen(): AdmissionScheduler | Promise<AdmissionScheduler>;
+  close?(): Promise<void>;
+}
+type AdmissionConfig = Omit<MemoryAdmissionOptions, "state" | "now">;
+interface AdmissionConformanceOptions {
+  /** A fresh, isolated scheduler per call, over the config and clock. */
+  make(config: AdmissionConfig, now: () => number): AdmissionSchedulerFixture | Promise<AdmissionSchedulerFixture>;
+}
+declare function admissionConformance(options: AdmissionConformanceOptions): ConformanceSuite;
 //#endregion
 //#region src/fenced-transcripts.d.ts
 /**
@@ -524,4 +538,4 @@ declare function foldStateSha256(entries: readonly JournalEntry[]): string;
 /** The reference hash; computed once from the kernel fold and frozen. */
 declare const GOLDEN_FOLD_STATE_SHA256 = "81e6ccff549fb3e6c1de4d34ba65b912162eba6f66403b5d5f23a3e1ec69243c";
 //#endregion
-export { type ConformanceCheck, type ConformanceSuite, DEFAULT_SOAK_QUORUM, type FencedTranscriptsFixture, GOLDEN_FOLD_JOURNAL, GOLDEN_FOLD_STATE_SHA256, KILL_POINT_SCENARIOS, type KillPointConformanceOptions, type KillPointEvent, type KillPointExpectation, type KillPointName, type KillPointObservation, type KillPointPhase, type KillPointScenario, type KillPointScenarioOptions, type KillPointTarget, type KillPointWorkerConfig, type KillPointWorkerHooks, type KillPointWorkflowKind, type MultiProcessSoakOptions, type MultiProcessSoakResult, type QuotaLimiterConstructor, type RestorableEffectLaneStore, type SoakAcceptSurface, type SoakActivity, type SoakEvent, type SoakProbeSurface, type SoakQuorum, type SoakWriterConfig, type SoakWriterHooks, type StoreFactory, type TestRegistrar, countSoakActivity, effectLaneStoreConformance, ensure, fencedTranscriptsConformance, fencedWritesConformance, foldStateSha256, journalStoreConformance, killPointConformance, killPointWorkerConfigFromEnv, leasableStoreConformance, makeSuite, materializeFoldState, parseKillPointReport, parseSoakReport, quotaRulesConformance, registerConformance, runKillPointScenario, runKillPointWorker, runMultiProcessSoak, runSoakWriter, soakWriterConfigFromEnv, stableStringify, verifySoakHistory };
+export { type AdmissionConfig, type AdmissionConformanceOptions, type AdmissionSchedulerFixture, type ConformanceCheck, type ConformanceSuite, DEFAULT_SOAK_QUORUM, type FencedTranscriptsFixture, GOLDEN_FOLD_JOURNAL, GOLDEN_FOLD_STATE_SHA256, KILL_POINT_SCENARIOS, type KillPointConformanceOptions, type KillPointEvent, type KillPointExpectation, type KillPointName, type KillPointObservation, type KillPointPhase, type KillPointScenario, type KillPointScenarioOptions, type KillPointTarget, type KillPointWorkerConfig, type KillPointWorkerHooks, type KillPointWorkflowKind, type MultiProcessSoakOptions, type MultiProcessSoakResult, type QuotaLimiterConstructor, type RestorableEffectLaneStore, type SoakAcceptSurface, type SoakActivity, type SoakEvent, type SoakProbeSurface, type SoakQuorum, type SoakWriterConfig, type SoakWriterHooks, type StoreFactory, type TestRegistrar, admissionConformance, countSoakActivity, effectLaneStoreConformance, ensure, fencedTranscriptsConformance, fencedWritesConformance, foldStateSha256, journalStoreConformance, killPointConformance, killPointWorkerConfigFromEnv, leasableStoreConformance, makeSuite, materializeFoldState, parseKillPointReport, parseSoakReport, quotaRulesConformance, registerConformance, runKillPointScenario, runKillPointWorker, runMultiProcessSoak, runSoakWriter, soakWriterConfigFromEnv, stableStringify, verifySoakHistory };
