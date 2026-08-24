@@ -6,7 +6,7 @@
 
 # Class: BudgetExhaustedError
 
-Defined in: [packages/core/src/l0/errors.ts:250](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L250)
+Defined in: [packages/core/src/l0/errors.ts:251](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L251)
 
 The run budget ceiling blocked further work. The budget guard denial is
 a decision entry; ctx primitives throw this as AgentError kind 'budget';
@@ -24,7 +24,7 @@ the run reports outcome 'exhausted', overriding 'error'.
 new BudgetExhaustedError(message, opts?): BudgetExhaustedError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:253](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L253)
+Defined in: [packages/core/src/l0/errors.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L254)
 
 #### Parameters
 
@@ -47,9 +47,9 @@ Defined in: [packages/core/src/l0/errors.ts:253](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"budget_exhausted"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:251](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L251) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
+| <a id="property-code"></a> `code` | `readonly` | `"budget_exhausted"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:252](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L252) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L64) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
 
 ## Methods
 
@@ -59,7 +59,7 @@ Defined in: [packages/core/src/l0/errors.ts:253](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
+Defined in: [packages/core/src/l0/errors.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L75)
 
 #### Returns
 

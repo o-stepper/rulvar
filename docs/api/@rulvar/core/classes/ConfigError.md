@@ -6,7 +6,7 @@
 
 # Class: ConfigError
 
-Defined in: [packages/core/src/l0/errors.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L92)
+Defined in: [packages/core/src/l0/errors.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L93)
 
 Construction- and definition-time misconfiguration: duplicate adapterId,
 non-git host for worktree isolation, worker over a non-leasable store,
@@ -24,7 +24,7 @@ failed schema projection. Never journaled; raised before any run effect.
 new ConfigError(message, opts?): ConfigError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L95)
+Defined in: [packages/core/src/l0/errors.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L96)
 
 #### Parameters
 
@@ -47,9 +47,9 @@ Defined in: [packages/core/src/l0/errors.ts:95](https://github.com/o-stepper/rul
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"config"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L93) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
+| <a id="property-code"></a> `code` | `readonly` | `"config"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L94) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L64) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
 
 ## Methods
 
@@ -59,7 +59,7 @@ Defined in: [packages/core/src/l0/errors.ts:95](https://github.com/o-stepper/rul
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
+Defined in: [packages/core/src/l0/errors.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L75)
 
 #### Returns
 

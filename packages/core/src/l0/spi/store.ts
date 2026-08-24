@@ -253,6 +253,30 @@ export interface MetaLookupStore extends JournalStore {
  * incarnation with a stable owner identity would fence green against
  * the new incarnation's journal, meta, and delete surfaces.
  */
+/**
+ * Effect lane capability (plan 45, rfcs/effects.md section 4.5, item
+ * 3): a store carrying a restoration generation OUTSIDE the journal
+ * bytes. The restore procedure bumps it atomically BEFORE the restored
+ * data becomes reachable, so a point-in-time-restored store comes up
+ * with effect dispatch disabled by construction: the effect lane
+ * writer validates the store's generation against the one recorded in
+ * the journal's latest `effect_epoch` decision and refuses every lane
+ * append until an operator appends a fresh epoch citing the bumped
+ * generation. One recorded deviation from the RFC's wording, with its
+ * reason: the RFC asks the store itself to reject an UNLEASED effect
+ * lane append, but stores are dumb byte stores that never parse
+ * payloads (obligation A4) and cannot recognize lane traffic; the
+ * unleased half is therefore enforced by the writer's construction
+ * (no lane append path exists without the lease) plus the conformance
+ * kit over the writer-store composition, while the superseded-lease
+ * half is exactly the shipped `fencedWrites` contract.
+ */
+export interface EffectLaneStore extends LeasableStore {
+  readonly effectLane: true;
+  /** The current restoration generation; 0 until a restore ever ran. */
+  restorationGeneration(): Promise<number>;
+}
+
 export interface LeasableStore extends JournalStore {
   acquire(runId: string, owner: string): Promise<Lease>;
   renew(l: Lease): Promise<void>;

@@ -6289,6 +6289,78 @@ export const MUTATIONS = [
     replace: '        (false as boolean) &&',
     test: 'packages/core/src/effects/fold.test.ts',
   },
+  {
+    id: 'effect-writer-reload-before-retry',
+    doctrine:
+      'every uncertain lane append reloads and searches for its own operation id BEFORE any retry (RV4502, RFC effects 4.3 item 2): with the search collapsed, a committed append with a lost ack is treated as a failure and the ambiguous-commit recovery dies',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '        const landed = this.findOpId(opId);\n        if (landed !== undefined) {',
+    replace: '        const landed = this.findOpId(opId);\n        if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-writer-preattempt-refold-cancels',
+    doctrine:
+      'the dispatcher re-folds immediately before opening each attempt (RV4502, RFC effects 4.3 item 5): a revocation with zero attempts cancels cleanly and one with history refuses reconcile-only; with the closer branch collapsed, the writer dispatches into a revoked grant',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '    if (machine.postIntentCloser !== undefined) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-writer-verdict-at-every-tail',
+    doctrine:
+      'a contention loser retries ONLY while its verdict still holds at the new tail (RV4502, RFC effects 4.3): with the verdict gate collapsed, the loser lands a void intent instead of giving up with a durable refused record',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '      const reason = verdict?.();\n      if (reason !== undefined) {',
+    replace: '      const reason = verdict?.();\n      if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-writer-deadline-required',
+    doctrine:
+      'an approval that licenses an effect MUST carry a deadline; without one the effect is refused at intake (RV4502, RFC effects 3.1 item 1)',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '    if (approval.deadlineAt === undefined) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-writer-expiry-materializes',
+    doctrine:
+      'a crossed grant expiry becomes an appended approval_expired decision, the deterministic truth, and the intent is refused (RV4502, RFC effects 4.5 item 1): with the advisory guard collapsed, an expired allow consumes',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '    if (expiresAt !== undefined && this.now() > expiresAt) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-writer-restoration-gate',
+    doctrine:
+      'a restored store comes up with effect dispatch disabled until a fresh epoch cites the bumped generation (RV4502, RFC effects 4.5 item 3, kill 25): with the comparison collapsed, the post-restore window dispatches',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '    if ((epoch.restorationGeneration ?? 0) !== storeGeneration) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-writer-budget-refuses',
+    doctrine:
+      'the writer never opens an attempt past the recorded budget (RV4502, RFC effects 3.1 item 2): exhaustion is the reconciler quarantine, never an unbounded loop',
+    file: 'packages/core/src/effects/writer.ts',
+    find: '    if (machine.attempts.length >= machine.budgets.attempts) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
+  {
+    id: 'effect-admissible-fails-closed',
+    doctrine:
+      'the effect lane admission predicate refuses without an accepted deliverable (RV4502, RFC effects 5): each conjunct has a concrete counterexample; with this one collapsed, an unjudged artifact licenses money',
+    file: 'packages/core/src/effects/admissible.ts',
+    find: '  if (envelope.deliverableAccepted !== true) {',
+    replace: '  if (false as boolean) {',
+    test: 'packages/core/src/effects/writer.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

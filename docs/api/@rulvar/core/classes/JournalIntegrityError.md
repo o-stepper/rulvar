@@ -6,7 +6,7 @@
 
 # Class: JournalIntegrityError
 
-Defined in: [packages/core/src/l0/errors.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L287)
+Defined in: [packages/core/src/l0/errors.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L288)
 
 A journal append was lost before the settle (RV3201): a persist
 inside the serialized append queue rejected, and the queue swallowed
@@ -31,7 +31,7 @@ a fresh Replayer against whatever the store actually holds.
 new JournalIntegrityError(message, opts?): JournalIntegrityError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:290](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L290)
+Defined in: [packages/core/src/l0/errors.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L291)
 
 #### Parameters
 
@@ -54,9 +54,9 @@ Defined in: [packages/core/src/l0/errors.ts:290](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"journal_integrity"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L288) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L62) |
+| <a id="property-code"></a> `code` | `readonly` | `"journal_integrity"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L289) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L64) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L63) |
 
 ## Methods
 
@@ -66,7 +66,7 @@ Defined in: [packages/core/src/l0/errors.ts:290](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L74)
+Defined in: [packages/core/src/l0/errors.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L75)
 
 #### Returns
 

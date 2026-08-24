@@ -24,6 +24,7 @@ type ErrorCode =
   | "admission_rejected"
   | "sandbox_limit"
   | "lease_held"
+  | "effect_refused"
   | "knowledge_cas"
   | "determinism"
   | "settlement"
