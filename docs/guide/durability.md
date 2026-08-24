@@ -336,3 +336,7 @@ One more boundary whose defaults stay with the host: everything these stores per
 - [Journal compatibility](/guide/journal-compatibility) covers resuming journals written by older engine versions.
 - [Budgets](/guide/budgets) explains the ledger that resume restores and the three-layer budget it feeds.
 - [Testing](/guide/testing) shows replay-strict cassettes that assert a resume performs zero live calls.
+
+## Durable admission and the run bracket
+
+With `createEngine({ admission: { scheduler } })` (plan 45, [`rfcs/admission.md`](https://github.com/o-stepper/rulvar/blob/main/rfcs/admission.md)) every non-preview run is bracketed by a durable admission ticket under the run's own identity (runId, genesis): a queued run waits for its grant, the terminal `denied` verdict refuses typed before any store mutation or provider dispatch, the lease renews while the run lives, and the release is part of settlement ordering. The bracket is built for the crash model of this page: a resumed segment RECOVERS its ticket by unit identity instead of minting a duplicate, a settled unit re-admits as a fresh ticket under the same identity, and a holder that dies mid-run settles conservatively through lease expiry (the scheduler refunds exactly what the fenced cover proves unused). Admission is an environmental fact exactly like the wire-level quota limiter: nothing of it is journaled, and replay never consults it.
