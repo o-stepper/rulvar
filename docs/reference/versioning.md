@@ -9,14 +9,14 @@ Rulvar follows semver with one deliberate simplification: every package releases
 
 | Line | Current version | Policy |
 |---|---|---|
-| The fixed group (fifteen packages) | <!-- version:lockstep -->1.249.0<!-- /version --> | Lockstep: identical versions, released together |
+| The fixed group (sixteen packages) | <!-- version:lockstep -->1.249.0<!-- /version --> | Lockstep: identical versions, released together |
 | `@rulvar/compat` | <!-- version:compat -->0.1.1<!-- /version --> | Independent: releases when a frozen profile moves in, or for rare packaging-only fixes |
 
 ## Lockstep semver across the fixed group
 
 Every publishable Rulvar package except `@rulvar/compat` belongs to one fixed group and publishes at the identical version, even when a package has no changes of its own in a given release. The group is:
 
-`@rulvar/core`, `@rulvar/plan`, `@rulvar/planner`, `@rulvar/anthropic`, `@rulvar/openai`, `@rulvar/bridge-ai-sdk`, `@rulvar/executor`, `@rulvar/store-sqlite`, `@rulvar/store-postgres`, `@rulvar/store-conformance`, `@rulvar/testing`, `@rulvar/evals`, `@rulvar/cli`, the umbrella `@rulvar/rulvar`, and `eslint-plugin-rulvar`.
+`@rulvar/core`, `@rulvar/plan`, `@rulvar/planner`, `@rulvar/anthropic`, `@rulvar/openai`, `@rulvar/bridge-ai-sdk`, `@rulvar/executor`, `@rulvar/store-sqlite`, `@rulvar/store-postgres`, `@rulvar/store-conformance`, `@rulvar/effects`, `@rulvar/testing`, `@rulvar/evals`, `@rulvar/cli`, the umbrella `@rulvar/rulvar`, and `eslint-plugin-rulvar`.
 
 See [Packages](/reference/packages) for what each one does.
 

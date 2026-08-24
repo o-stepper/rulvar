@@ -15436,6 +15436,8 @@ declare class EffectLaneWriter {
   close(): Promise<void>;
   /** The current fold over the writer's loaded view. */
   view(): EffectLaneFold;
+  /** Reloads the journal and returns the fresh fold. */
+  refresh(): Promise<EffectLaneFold>;
   private reload;
   private tail;
   private template;

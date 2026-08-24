@@ -8,6 +8,7 @@
       "@rulvar/bridge-ai-sdk",
       "@rulvar/cli",
       "@rulvar/core",
+      "@rulvar/effects",
       "@rulvar/evals",
       "@rulvar/executor",
       "@rulvar/openai",

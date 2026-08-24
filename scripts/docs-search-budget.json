@@ -1,6 +1,6 @@
 {
   "comment": "Committed size baseline for the docs local search index chunk. scripts/docs-search-budget.mjs fails a docs build that exceeds it by more than 10 percent; refreeze deliberately with --update.",
-  "rawBytes": 7718700,
-  "gzipBytes": 1727169,
-  "recordedAt": "2026-08-14"
+  "rawBytes": 8507369,
+  "gzipBytes": 1904981,
+  "recordedAt": "2026-08-24"
 }

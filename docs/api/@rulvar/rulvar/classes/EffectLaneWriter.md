@@ -305,6 +305,22 @@ reconcile-only on every capability row.
 
 ***
 
+### refresh()
+
+```ts
+refresh(): Promise<EffectLaneFold>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Reloads the journal and returns the fresh fold.
+
+#### Returns
+
+`Promise`\&lt;[`EffectLaneFold`](/api/@rulvar/rulvar/classes/EffectLaneFold.md)\&gt;
+
+***
+
 ### view()
 
 ```ts

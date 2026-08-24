@@ -75,6 +75,7 @@ When you mix individual packages, keep every `@rulvar/*` dependency at the same 
 | `@rulvar/store-postgres` | `PostgresStore`: the journal store for multi process and multi host deployments, every run scoped mutation serialized on an advisory lock, with leases and fencing epochs over node-postgres. |
 | `@rulvar/executor` | Isolated tool executors behind the `ToolExecutorProvider` SPI: the subprocess adapter and the docker container adapter, the side effect ledger, and the executor conformance kit. |
 | `@rulvar/store-conformance` | Executable conformance kit for store authors: atomicity, ordering, fencing, and the decide once oracle, runnable under Vitest. |
+| `@rulvar/effects` | Effect lane runtime: the adapter seam, provider capability matrix, crash window recovery, and the kill point conformance kit (rfcs/effects.md). |
 | `@rulvar/compat` | Frozen key derivation profiles that let a current engine read journals written under retired hash versions. The one package outside lockstep. |
 | `@rulvar/plan` | Plan and execute orchestration: the `planRunner` extension factory, the run ledger, escalation extensions, model ladder configuration. |
 | `@rulvar/planner` | The flagship hybrid: a plan agent that writes workflow scripts, `compileScript` with an import allowlist, and the `WorkerSandboxRunner`. |

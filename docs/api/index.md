@@ -13,6 +13,7 @@
 | [@rulvar/cli](/api/@rulvar/cli/index.md) | Rulvar shell: run/resume/runs/inspect/plan/kb commands, TUI progress, createServer, createWorker, OTel exporter. |
 | [@rulvar/compat](/api/@rulvar/compat/index.md) | rulvar frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned. |
 | [@rulvar/core](/api/@rulvar/core/index.md) | Rulvar core: L0 contracts, journal kernel, ctx primitives, agent runtime, model router, tool system, dynamic orchestrator, InMemory and JSONL stores, event stream. |
+| [@rulvar/effects](/api/@rulvar/effects/index.md) | Rulvar effect lane runtime: the adapter seam, provider capability matrix, reconciler, and the kill point conformance kit (rfcs/effects.md). |
 | [@rulvar/evals](/api/@rulvar/evals/index.md) | Rulvar evals: eval cases, golden outputs, rubric and judge graders, matrix sweeps, canary fingerprint. |
 | [@rulvar/executor](/api/@rulvar/executor/index.md) | Rulvar isolated tool executors: reference ToolExecutorProvider adapters that run tool work out of process (subprocess and container) so hostile or model-generated scripts cannot reach host capabilities. |
 | [@rulvar/openai](/api/@rulvar/openai/index.md) | Rulvar first-class provider adapter for the OpenAI Responses API, plus the openaiCompatible factory. |

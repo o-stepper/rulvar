@@ -172,6 +172,12 @@ export class EffectLaneWriter {
     return this.fold;
   }
 
+  /** Reloads the journal and returns the fresh fold. */
+  async refresh(): Promise<EffectLaneFold> {
+    await this.reload();
+    return this.fold;
+  }
+
   private async reload(): Promise<void> {
     this.entries = await this.store.load(this.runId);
     this.fold = new EffectLaneFold(this.entries);

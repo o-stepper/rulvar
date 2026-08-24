@@ -36,7 +36,7 @@ Defined in: [packages/core/src/effects/writer.ts:125](https://github.com/o-stepp
 appendDisposition(intentSeq, spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:640](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L640)
+Defined in: [packages/core/src/effects/writer.ts:646](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L646)
 
 Records a human disposition of a quarantine or an incident.
 
@@ -64,7 +64,7 @@ Records a human disposition of a quarantine or an incident.
 appendIncident(intentSeq, spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:624](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L624)
+Defined in: [packages/core/src/effects/writer.ts:630](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L630)
 
 Records a linked incident on a machine.
 
@@ -94,7 +94,7 @@ appendOutcome(
 spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:558](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L558)
+Defined in: [packages/core/src/effects/writer.ts:564](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L564)
 
 Classifies one open attempt's result.
 
@@ -121,7 +121,7 @@ Classifies one open attempt's result.
 appendReceipt(intentSeq, spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:576](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L576)
+Defined in: [packages/core/src/effects/writer.ts:582](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L582)
 
 Records a receipt observation with the caller's verification verdict.
 
@@ -153,7 +153,7 @@ Records a receipt observation with the caller's verification verdict.
 appendTerminal(intentSeq, spec): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:602](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L602)
+Defined in: [packages/core/src/effects/writer.ts:608](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L608)
 
 Appends a terminal transition; the fold's legality rules decide.
 
@@ -194,7 +194,7 @@ Defined in: [packages/core/src/effects/writer.ts:160](https://github.com/o-stepp
 consumeApprovalAndRecordIntent(spec): Promise<EffectConsumeResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L338)
+Defined in: [packages/core/src/effects/writer.ts:344](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L344)
 
 Consumes a standing approval and records the intent as ONE append
 (RFC section 4.3). Intake refusals (an effect approval without a
@@ -222,7 +222,7 @@ an intent. A contention give-up appends a durable standalone
 ensureEpoch(generation): Promise<EffectAppendResult>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:307](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L307)
+Defined in: [packages/core/src/effects/writer.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L313)
 
 Appends the run incarnation's epoch fact (RFC section 4.5, item
 2) when the latest epoch does not already record this generation
@@ -270,7 +270,7 @@ openAttempt(intentSeq, spec): Promise<
 }>;
 ```
 
-Defined in: [packages/core/src/effects/writer.ts:492](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L492)
+Defined in: [packages/core/src/effects/writer.ts:498](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L498)
 
 Opens one dispatch attempt (RFC section 3.1, item 3), with the
 pre-attempt re-fold of section 4.3, item 5: a revocation or expiry
@@ -302,6 +302,22 @@ reconcile-only on every capability row.
   `cancelled`: `false`;
   `replayed`: `boolean`;
 \}\>
+
+***
+
+### refresh()
+
+```ts
+refresh(): Promise<EffectLaneFold>;
+```
+
+Defined in: [packages/core/src/effects/writer.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/effects/writer.ts#L176)
+
+Reloads the journal and returns the fresh fold.
+
+#### Returns
+
+`Promise`\&lt;[`EffectLaneFold`](/api/@rulvar/core/classes/EffectLaneFold.md)\&gt;
 
 ***
 

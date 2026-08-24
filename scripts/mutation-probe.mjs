@@ -6380,6 +6380,63 @@ export const MUTATIONS = [
     replace: '      INSERT OR IGNORE INTO restoration (id, generation) VALUES (1, 1);',
     test: 'packages/store-sqlite/src/index.test.ts',
   },
+  {
+    id: 'effect-dispatch-honors-the-cancel',
+    doctrine:
+      'the pre-attempt re-fold cancel short-circuits the send (RV4504, RFC effects 4.3 item 5): with the branch collapsed, a revoked grant dispatches to the provider anyway',
+    file: 'packages/effects/src/dispatcher.ts',
+    find: "    if (opened.cancelled) {\n      return { kind: 'cancelled', terminalSeq: opened.terminalSeq };\n    }",
+    replace:
+      "    if (false as boolean) {\n      return { kind: 'cancelled', terminalSeq: 0 };\n    }",
+    test: 'packages/effects/src/dispatch.test.ts',
+  },
+  {
+    id: 'effect-neither-never-redispatches',
+    doctrine:
+      "a provider with no fencing gets no automatic re-dispatch after an open attempt, ever (RV4504, RFC effects 4.4): with the guard collapsed, the ambiguous window fires blind and the 'at most one effect' claim dies",
+    file: 'packages/effects/src/dispatcher.ts',
+    find: "      if (row === 'neither') {\n        return this.quarantine(\n          intentSeq,\n          'an attempt is open on a provider with no fencing",
+    replace:
+      "      if (false as boolean) {\n        return this.quarantine(\n          intentSeq,\n          'an attempt is open on a provider with no fencing",
+    test: 'packages/effects/src/dispatch.test.ts',
+  },
+  {
+    id: 'effect-closer-reconciles-only',
+    doctrine:
+      're-dispatch is disabled on EVERY capability row from the closer position (RV4504, RFC effects 4.7): with the branch collapsed, a revoked effect knowingly re-dispatches under its dedup key',
+    file: 'packages/effects/src/dispatcher.ts',
+    find: '    if (closer !== undefined) {\n      return this.reconcileUnderCloser(intentSeq, machine);\n    }',
+    replace:
+      '    if (false as boolean) {\n      return this.reconcileUnderCloser(intentSeq, machine);\n    }',
+    test: 'packages/effects/src/dispatch.test.ts',
+  },
+  {
+    id: 'effect-closure-licenses-the-fresh-attempt',
+    doctrine:
+      'on the acceptance-closing row the ambiguous attempt closes FAILED only because the provider closed acceptance for it (RV4504, RFC effects 6): with the qualification branch collapsed, the attempt closes unknown and the journal loses the proof the cancel terminal rests on',
+    file: 'packages/effects/src/dispatcher.ts',
+    find: "        if (qualification === 'acceptance-closing') {",
+    replace: '        if (false as boolean) {',
+    test: 'packages/effects/src/dispatch.test.ts',
+  },
+  {
+    id: 'effect-expiry-opens-no-compensation',
+    doctrine:
+      'expiry bounds the grant, not the past: a pre-expiry execution confirms WITHOUT a compensation path, only a revocation opens one (RV4504, RFC effects 4.7)',
+    file: 'packages/effects/src/dispatcher.ts',
+    find: "    if (machine.postIntentCloser?.kind === 'revoked') {",
+    replace: '    if (machine.postIntentCloser !== undefined) {',
+    test: 'packages/effects/src/dispatch.test.ts',
+  },
+  {
+    id: 'effect-fake-neither-commits-blind',
+    doctrine:
+      "the 'neither' fake enforces exactly what the row claims: every send is its own blind effect (RV4504); with the fence key collapsed to the natural key, the fake silently grants a dedup the row does not offer and the kill 17 late landing disappears",
+    file: 'packages/effects/src/fakes.ts',
+    find: "      case 'neither':\n        return `blind:${String(this.dispatches)}`;",
+    replace: "      case 'neither':\n        return this.naturalKeyOf(request);",
+    test: 'packages/effects/src/dispatch.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
