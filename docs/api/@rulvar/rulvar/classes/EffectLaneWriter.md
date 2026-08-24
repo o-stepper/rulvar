@@ -104,10 +104,10 @@ Classifies one open attempt's result.
 | ------ | ------ |
 | `intentSeq` | `number` |
 | `attemptSeq` | `number` |
-| `spec` | \{ `detail?`: `string`; `opId`: `string`; `outcome`: `"accepted"` \| `"failed"` \| `"unknown"`; \} |
+| `spec` | \{ `detail?`: `string`; `opId`: `string`; `outcome`: `"accepted"` \| `"unknown"` \| `"failed"`; \} |
 | `spec.detail?` | `string` |
 | `spec.opId` | `string` |
-| `spec.outcome` | `"accepted"` \| `"failed"` \| `"unknown"` |
+| `spec.outcome` | `"accepted"` \| `"unknown"` \| `"failed"` |
 
 #### Returns
 

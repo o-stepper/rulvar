@@ -6535,6 +6535,60 @@ export const MUTATIONS = [
     replace: '    singleProcess: true,',
     test: 'packages/cli/src/index.test.ts',
   },
+  {
+    id: 'admission-start-tag-caps-hoarding',
+    doctrine:
+      "an idle member's stale finish tag is capped by V in the start-tag rule (RV4507, RFC admission 4.2): with the max collapsed, silence hoards credit and the burst bound dies",
+    file: 'packages/core/src/admission/algorithms.ts',
+    find: '  const startTag = Math.max(state.finishTags[memberKey] ?? 0, state.virtualTime);',
+    replace: '  const startTag = state.finishTags[memberKey] ?? 0;',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
+  {
+    id: 'admission-v-never-decreases',
+    doctrine:
+      'V advances to granted start tags monotonically, initially 0, never decreasing (RV4507): with the max collapsed, a late grant rewinds the queue clock and replicas diverge',
+    file: 'packages/core/src/admission/algorithms.ts',
+    find: '    virtualTime: Math.max(state.virtualTime, startTag),',
+    replace: '    virtualTime: startTag,',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
+  {
+    id: 'admission-cost-is-wires-over-weight',
+    doctrine:
+      'the finish tag is start plus cost over WEIGHT (RV4507): with the division collapsed, weighted shares flatten to FIFO and the 1:2:4 convergence dies',
+    file: 'packages/core/src/admission/algorithms.ts',
+    find: '  const finishTag = startTag + costWires / weight;',
+    replace: '  const finishTag = startTag + costWires;',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
+  {
+    id: 'admission-feasibility-never-camps',
+    doctrine:
+      'an infeasible reservation refuses TERMINALLY at enqueue (RV4507, RFC admission 4.2): with the bound collapsed, the oversized ticket camps at the head and starves the queue behind it',
+    file: 'packages/core/src/admission/memory.ts',
+    find: '      if (request.reservation.wires > this.admissibleCap(config, request.emergency === true)) {',
+    replace: '      if (false as boolean) {',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
+  {
+    id: 'admission-cover-writes-are-fenced',
+    doctrine:
+      "an expired lease's cover write is rejected (RV4507, RFC admission 4.3): the fence is what makes the conservative expiry refund provable rather than optimistic",
+    file: 'packages/core/src/admission/memory.ts',
+    find: '    if ((internal.ticket.leaseExpiresAtMs ?? 0) <= this.options.now()) {',
+    replace: '    if (false as boolean) {',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
+  {
+    id: 'admission-expiry-refunds-only-uncovered',
+    doctrine:
+      'expiry refunds reservation MINUS the covered high water, provably unused by construction (RV4507): with the subtraction collapsed, covered consumption returns to the window and the bucket admits phantom capacity',
+    file: 'packages/core/src/admission/memory.ts',
+    find: '        const refund = reservationMinus(ticket.reservation, covered);',
+    replace: '        const refund = ticket.reservation;',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

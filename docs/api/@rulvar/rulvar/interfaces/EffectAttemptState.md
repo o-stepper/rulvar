@@ -17,7 +17,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-notafter"></a> `notAfter` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-open"></a> `open` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-ordinal"></a> `ordinal` | `number` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-outcome"></a> `outcome?` | `"accepted"` \| `"failed"` \| `"unknown"` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-outcome"></a> `outcome?` | `"accepted"` \| `"unknown"` \| `"failed"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-outcomeat"></a> `outcomeAt?` | `string` | The closing outcome entry's startedAt instant. | `packages/core/dist/index.d.ts` |
 | <a id="property-outcomeseq"></a> `outcomeSeq?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-seq"></a> `seq` | `number` | - | `packages/core/dist/index.d.ts` |
