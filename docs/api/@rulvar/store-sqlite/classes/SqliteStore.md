@@ -6,7 +6,7 @@
 
 # Class: SqliteStore
 
-Defined in: [packages/store-sqlite/src/store.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L136)
+Defined in: [packages/store-sqlite/src/store.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L137)
 
 @rulvar/store-sqlite: SqliteStore implementing JournalStore and
 LeasableStore with fencing epochs over the builtin node:sqlite driver;
@@ -18,6 +18,7 @@ Requires a Node.js with node:sqlite available
 
 - [`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md)
 - [`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md)
+- [`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md)
 
 ## Constructors
 
@@ -27,7 +28,7 @@ Requires a Node.js with node:sqlite available
 new SqliteStore(options): SqliteStore;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L150)
+Defined in: [packages/store-sqlite/src/store.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L161)
 
 #### Parameters
 
@@ -43,7 +44,8 @@ Defined in: [packages/store-sqlite/src/store.ts:150](https://github.com/o-steppe
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | The fenced writes promise (fenced run state RFC, phase 2): every lease-carrying mutation of this store (append, putMeta, delete) verifies the lease is the current holder FOR THE MUTATED RUN, atomically with the mutation, and rejects stale or mismatched holders with the typed LeaseHeldError leaving nothing changed. | [packages/store-sqlite/src/store.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L144) |
+| <a id="property-effectlane"></a> `effectLane` | `readonly` | `true` | Effect lane capability (plan 45, rfcs/effects.md section 4.5, item 3): the restoration generation lives OUTSIDE the journal bytes in the same database file. The restore runbook is one rule: after restoring the file from a backup, run bumpRestorationGeneration() BEFORE the restored file becomes reachable to any worker, so the effect lane comes up with dispatch disabled until an operator appends a fresh effect_epoch citing the bumped generation. | [packages/store-sqlite/src/store.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L155) |
+| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | The fenced writes promise (fenced run state RFC, phase 2): every lease-carrying mutation of this store (append, putMeta, delete) verifies the lease is the current holder FOR THE MUTATED RUN, atomically with the mutation, and rejects stale or mismatched holders with the typed LeaseHeldError leaving nothing changed. | [packages/store-sqlite/src/store.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L145) |
 
 ## Accessors
 
@@ -55,7 +57,7 @@ Defined in: [packages/store-sqlite/src/store.ts:150](https://github.com/o-steppe
 get leaseTtlMs(): number;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:526](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L526)
+Defined in: [packages/store-sqlite/src/store.ts:560](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L560)
 
 TTL introspection (the LeasableStore optional capability): lets
 createWorker verify at construction that its renew cadence matches
@@ -73,7 +75,7 @@ stores without it are accepted with the worker's own ttl.
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`leaseTtlMs`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#property-leasettlms)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`leaseTtlMs`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#property-leasettlms)
 
 ## Methods
 
@@ -83,7 +85,7 @@ stores without it are accepted with the worker's own ttl.
 acquire(runId, owner): Promise<Lease>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:531](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L531)
+Defined in: [packages/store-sqlite/src/store.ts:565](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L565)
 
 #### Parameters
 
@@ -98,7 +100,7 @@ Defined in: [packages/store-sqlite/src/store.ts:531](https://github.com/o-steppe
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`acquire`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#acquire)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`acquire`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#acquire)
 
 ***
 
@@ -111,7 +113,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:318](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L318)
+Defined in: [packages/store-sqlite/src/store.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L352)
 
 #### Parameters
 
@@ -127,7 +129,26 @@ Defined in: [packages/store-sqlite/src/store.ts:318](https://github.com/o-steppe
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`append`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#append)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`append`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#append)
+
+***
+
+### bumpRestorationGeneration()
+
+```ts
+bumpRestorationGeneration(): Promise<number>;
+```
+
+Defined in: [packages/store-sqlite/src/store.ts:259](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L259)
+
+The restore procedure's one mutation (see `effectLane` above):
+bumps the generation atomically and returns the new value. Idempotent
+in effect: every extra bump only widens the fence, never re-enables
+anything.
+
+#### Returns
+
+`Promise`\&lt;`number`\&gt;
 
 ***
 
@@ -137,7 +158,7 @@ Defined in: [packages/store-sqlite/src/store.ts:318](https://github.com/o-steppe
 close(): void;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L226)
+Defined in: [packages/store-sqlite/src/store.ts:242](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L242)
 
 #### Returns
 
@@ -151,7 +172,7 @@ Defined in: [packages/store-sqlite/src/store.ts:226](https://github.com/o-steppe
 delete(runId, lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:418](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L418)
+Defined in: [packages/store-sqlite/src/store.ts:452](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L452)
 
 #### Parameters
 
@@ -166,7 +187,7 @@ Defined in: [packages/store-sqlite/src/store.ts:418](https://github.com/o-steppe
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`delete`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#delete)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`delete`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#delete)
 
 ***
 
@@ -176,7 +197,7 @@ Defined in: [packages/store-sqlite/src/store.ts:418](https://github.com/o-steppe
 getMeta(runId): Promise<RunMeta | undefined>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:363](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L363)
+Defined in: [packages/store-sqlite/src/store.ts:397](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L397)
 
 #### Parameters
 
@@ -200,7 +221,7 @@ Defined in: [packages/store-sqlite/src/store.ts:363](https://github.com/o-steppe
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:372](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L372)
+Defined in: [packages/store-sqlite/src/store.ts:406](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L406)
 
 #### Parameters
 
@@ -214,7 +235,7 @@ Defined in: [packages/store-sqlite/src/store.ts:372](https://github.com/o-steppe
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`listRuns`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#listruns)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`listRuns`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#listruns)
 
 ***
 
@@ -224,7 +245,7 @@ Defined in: [packages/store-sqlite/src/store.ts:372](https://github.com/o-steppe
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L330)
+Defined in: [packages/store-sqlite/src/store.ts:364](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L364)
 
 #### Parameters
 
@@ -238,7 +259,7 @@ Defined in: [packages/store-sqlite/src/store.ts:330](https://github.com/o-steppe
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`load`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#load)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`load`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#load)
 
 ***
 
@@ -248,7 +269,7 @@ Defined in: [packages/store-sqlite/src/store.ts:330](https://github.com/o-steppe
 putMeta(m, lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L347)
+Defined in: [packages/store-sqlite/src/store.ts:381](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L381)
 
 #### Parameters
 
@@ -263,7 +284,7 @@ Defined in: [packages/store-sqlite/src/store.ts:347](https://github.com/o-steppe
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`putMeta`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#putmeta)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`putMeta`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#putmeta)
 
 ***
 
@@ -273,7 +294,7 @@ Defined in: [packages/store-sqlite/src/store.ts:347](https://github.com/o-steppe
 release(l): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:579](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L579)
+Defined in: [packages/store-sqlite/src/store.ts:613](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L613)
 
 #### Parameters
 
@@ -287,7 +308,7 @@ Defined in: [packages/store-sqlite/src/store.ts:579](https://github.com/o-steppe
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`release`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#release)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`release`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#release)
 
 ***
 
@@ -297,7 +318,7 @@ Defined in: [packages/store-sqlite/src/store.ts:579](https://github.com/o-steppe
 renew(l): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:568](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L568)
+Defined in: [packages/store-sqlite/src/store.ts:602](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L602)
 
 #### Parameters
 
@@ -311,7 +332,27 @@ Defined in: [packages/store-sqlite/src/store.ts:568](https://github.com/o-steppe
 
 #### Implementation of
 
-[`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md).[`renew`](/api/@rulvar/rulvar/interfaces/LeasableStore.md#renew)
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`renew`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#renew)
+
+***
+
+### restorationGeneration()
+
+```ts
+restorationGeneration(): Promise<number>;
+```
+
+Defined in: [packages/store-sqlite/src/store.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L247)
+
+The current restoration generation; 0 until a restore ever ran.
+
+#### Returns
+
+`Promise`\&lt;`number`\&gt;
+
+#### Implementation of
+
+[`EffectLaneStore`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md).[`restorationGeneration`](/api/@rulvar/rulvar/interfaces/EffectLaneStore.md#restorationgeneration)
 
 ***
 
@@ -321,7 +362,7 @@ Defined in: [packages/store-sqlite/src/store.ts:568](https://github.com/o-steppe
 transcripts(): SqliteTranscriptStore;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:457](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L457)
+Defined in: [packages/store-sqlite/src/store.ts:491](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L491)
 
 The fenced transcript twin (fenced run state RFC, F2): a
 TranscriptStore whose blobs live in THIS store's database, beside

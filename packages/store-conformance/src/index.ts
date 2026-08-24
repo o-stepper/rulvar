@@ -36,6 +36,7 @@ export { journalStoreConformance } from './journal.js';
 export { leasableStoreConformance } from './leasable.js';
 export { fencedWritesConformance } from './fenced-writes.js';
 export { quotaRulesConformance, type QuotaLimiterConstructor } from './quota-rules.js';
+export { effectLaneStoreConformance, type RestorableEffectLaneStore } from './effect-lane.js';
 export {
   fencedTranscriptsConformance,
   type FencedTranscriptsFixture,

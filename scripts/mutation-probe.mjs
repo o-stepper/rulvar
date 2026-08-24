@@ -6361,6 +6361,25 @@ export const MUTATIONS = [
     replace: '  if (false as boolean) {',
     test: 'packages/core/src/effects/writer.test.ts',
   },
+  {
+    id: 'effect-restoration-bump-is-monotonic',
+    doctrine:
+      'the restore procedure widens the fence, monotonically, never a reset (RV4503, RFC effects 4.5 item 3): with the increment collapsed, a restored store reports the old generation and the post-restore window dispatches',
+    file: 'packages/store-sqlite/src/store.ts',
+    find: "    this.db.prepare('UPDATE restoration SET generation = generation + 1 WHERE id = 1').run();",
+    replace:
+      "    this.db.prepare('UPDATE restoration SET generation = generation + 0 WHERE id = 1').run();",
+    test: 'packages/store-sqlite/src/index.test.ts',
+  },
+  {
+    id: 'effect-restoration-seeds-at-zero',
+    doctrine:
+      'a store no restore ever touched reports generation 0 (RV4503): with the seed shifted, every fresh store looks freshly restored and the lane arms against phantom restores',
+    file: 'packages/store-sqlite/src/store.ts',
+    find: '      INSERT OR IGNORE INTO restoration (id, generation) VALUES (1, 0);',
+    replace: '      INSERT OR IGNORE INTO restoration (id, generation) VALUES (1, 1);',
+    test: 'packages/store-sqlite/src/index.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

@@ -10,6 +10,6 @@
 const DEFAULT_LEASE_TTL_MS: 60000 = 60_000;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L63)
+Defined in: [packages/store-sqlite/src/store.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L64)
 
 Appendix A interim reference for the sqlite store.

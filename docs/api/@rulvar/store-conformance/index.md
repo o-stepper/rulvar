@@ -55,6 +55,7 @@ pnpm add -D @rulvar/store-conformance
 | [KillPointWorkerHooks](/api/@rulvar/store-conformance/interfaces/KillPointWorkerHooks.md) | Consumer hooks for [runKillPointWorker](/api/@rulvar/store-conformance/functions/runKillPointWorker.md). |
 | [MultiProcessSoakOptions](/api/@rulvar/store-conformance/interfaces/MultiProcessSoakOptions.md) | - |
 | [MultiProcessSoakResult](/api/@rulvar/store-conformance/interfaces/MultiProcessSoakResult.md) | What a green soak returns (the storm's observed coverage). |
+| [RestorableEffectLaneStore](/api/@rulvar/store-conformance/interfaces/RestorableEffectLaneStore.md) | The store shape under test: the capability plus the restore verb. |
 | [SoakActivity](/api/@rulvar/store-conformance/interfaces/SoakActivity.md) | Activity counters derived from the merged report events. |
 | [SoakQuorum](/api/@rulvar/store-conformance/interfaces/SoakQuorum.md) | Minimum activity the storm must reach before the referee stops it: run-until-quorum makes the soak adaptive (a slow CI machine storms longer, it never asserts on thin coverage). |
 | [SoakWriterConfig](/api/@rulvar/store-conformance/interfaces/SoakWriterConfig.md) | The per-writer contract, serialized as JSON into the `RULVAR_SOAK_CONFIG` environment variable of each spawned writer. |
@@ -89,6 +90,7 @@ pnpm add -D @rulvar/store-conformance
 | Function | Description |
 | ------ | ------ |
 | [countSoakActivity](/api/@rulvar/store-conformance/functions/countSoakActivity.md) | Derives the activity counters the quorum is judged against. |
+| [effectLaneStoreConformance](/api/@rulvar/store-conformance/functions/effectLaneStoreConformance.md) | - |
 | [fencedTranscriptsConformance](/api/@rulvar/store-conformance/functions/fencedTranscriptsConformance.md) | - |
 | [fencedWritesConformance](/api/@rulvar/store-conformance/functions/fencedWritesConformance.md) | - |
 | [foldStateSha256](/api/@rulvar/store-conformance/functions/foldStateSha256.md) | - |

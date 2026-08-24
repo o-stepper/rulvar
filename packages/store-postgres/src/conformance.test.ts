@@ -23,6 +23,7 @@ import {
   type JournalEntry,
 } from '@rulvar/core';
 import {
+  effectLaneStoreConformance,
   fencedTranscriptsConformance,
   fencedWritesConformance,
   journalStoreConformance,
@@ -91,6 +92,10 @@ if (hasDb) {
   );
   registerConformance(
     fencedWritesConformance(() => fresh()),
+    { describe, it },
+  );
+  registerConformance(
+    effectLaneStoreConformance(() => fresh()),
     { describe, it },
   );
   registerConformance(

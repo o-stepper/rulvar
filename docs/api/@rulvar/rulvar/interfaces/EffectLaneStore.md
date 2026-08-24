@@ -29,6 +29,10 @@ half is exactly the shipped `fencedWrites` contract.
 
 - [`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md)
 
+## Extended by
+
+- [`RestorableEffectLaneStore`](/api/@rulvar/store-conformance/interfaces/RestorableEffectLaneStore.md)
+
 ## Properties
 
 | Property | Modifier | Type | Description | Inherited from | Defined in |

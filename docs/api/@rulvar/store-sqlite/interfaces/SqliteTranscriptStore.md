@@ -6,7 +6,7 @@
 
 # Interface: SqliteTranscriptStore
 
-Defined in: [packages/store-sqlite/src/store.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L126)
+Defined in: [packages/store-sqlite/src/store.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L127)
 
 The fenced transcript twin over a SqliteStore database (the fenced
 run state RFC, F2): a TranscriptStore that declares `fencedWrites`
@@ -23,7 +23,7 @@ owning store's (one shared connection, one `close()`).
 
 | Property | Modifier | Type | Description | Overrides | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), the transcript-side twin of the JournalStore marker: a store declaring it verifies a lease-carrying `put` or `delete` against the CURRENT lease of the run the ref's leading path segment names, atomically with the mutation, and rejects stale holders with the typed LeaseHeldError leaving the prior blob intact. The engine threads the segment's lease into every blob write of a leased resume (checkpoints, compaction summaries, worktree patches, workflow sources). The shipped file and in-memory transcript stores do NOT declare it (they are single-writer by contract); a fenced implementation needs the blobs and the lease state in one transactional domain, which is exactly how the sqlite twin ships: `SqliteStore.transcripts()` in `@rulvar/store-sqlite` keeps blobs beside the lease rows of the same database. | [`TranscriptStore`](/api/@rulvar/rulvar/interfaces/TranscriptStore.md).[`fencedWrites`](/api/@rulvar/rulvar/interfaces/TranscriptStore.md#property-fencedwrites) | [packages/store-sqlite/src/store.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L127) |
+| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), the transcript-side twin of the JournalStore marker: a store declaring it verifies a lease-carrying `put` or `delete` against the CURRENT lease of the run the ref's leading path segment names, atomically with the mutation, and rejects stale holders with the typed LeaseHeldError leaving the prior blob intact. The engine threads the segment's lease into every blob write of a leased resume (checkpoints, compaction summaries, worktree patches, workflow sources). The shipped file and in-memory transcript stores do NOT declare it (they are single-writer by contract); a fenced implementation needs the blobs and the lease state in one transactional domain, which is exactly how the sqlite twin ships: `SqliteStore.transcripts()` in `@rulvar/store-sqlite` keeps blobs beside the lease rows of the same database. | [`TranscriptStore`](/api/@rulvar/rulvar/interfaces/TranscriptStore.md).[`fencedWrites`](/api/@rulvar/rulvar/interfaces/TranscriptStore.md#property-fencedwrites) | [packages/store-sqlite/src/store.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L128) |
 
 ## Methods
 

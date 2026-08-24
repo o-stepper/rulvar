@@ -1,4 +1,4 @@
-import { JournalEntry, LeasableStore, Lease, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
+import { EffectLaneStore, JournalEntry, LeasableStore, Lease, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference, shared with the sqlite store. */
@@ -37,9 +37,19 @@ interface PostgresStoreOptions {
   /** Injectable clock for lease-expiry tests. */
   now?: () => number;
 }
-declare class PostgresStore implements MetaLookupStore, LeasableStore {
+declare class PostgresStore implements MetaLookupStore, LeasableStore, EffectLaneStore {
   /** The fenced writes promise (fenced run state RFC, phase 2). */
   readonly fencedWrites = true;
+  /**
+  * Effect lane capability (plan 45, rfcs/effects.md section 4.5, item
+  * 3): the restoration generation lives OUTSIDE the journal bytes in
+  * the same schema. The restore runbook is one rule: after a
+  * point-in-time restore, run bumpRestorationGeneration() BEFORE the
+  * restored database becomes reachable to any worker, so the effect
+  * lane comes up with dispatch disabled until an operator appends a
+  * fresh effect_epoch citing the bumped generation.
+  */
+  readonly effectLane = true;
   private readonly pool;
   private readonly schema;
   private readonly ttlMs;
@@ -75,6 +85,17 @@ declare class PostgresStore implements MetaLookupStore, LeasableStore {
   */
   private withRunLock;
   close(): Promise<void>;
+  /** The current restoration generation; 0 until a restore ever ran. */
+  restorationGeneration(): Promise<number>;
+  /**
+  * The restore procedure's one mutation (plan 45, rfcs/effects.md
+  * section 4.5, item 3): after a point-in-time restore, bump the
+  * generation BEFORE the restored database becomes reachable to any
+  * worker, so the effect lane comes up with dispatch disabled until
+  * an operator appends a fresh effect_epoch citing the bumped
+  * generation. Every extra bump only widens the fence.
+  */
+  bumpRestorationGeneration(): Promise<number>;
   private liveLease;
   /**
   * A lease fences exactly the run it names (the sqlite rule): guarding
