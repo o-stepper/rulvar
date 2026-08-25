@@ -62,6 +62,22 @@ test('coverage runs as its own scheduled workflow, never a schedule on the whole
   assert.doesNotMatch(ciYml, /schedule:/);
 });
 
+test('the ancestry check survives the shallow release checkout and fails closed', () => {
+  const gate = readFileSync(join(root, 'scripts/release-contract-gate.mjs'), 'utf8');
+  // Local git answers first (a full clone needs no network at all)...
+  assert.match(gate, /'merge-base', '--is-ancestor'/);
+  // ...and any local failure asks the compare API about the SAME
+  // ancestry instead of trusting a grafted shallow graph: the release
+  // checkout holds one commit, so a classification even one commit
+  // behind the push is a fatal locally, never a verdict.
+  assert.match(gate, /compare\/\$\{doc\.sha\}\.\.\.\$\{releaseSha\}/);
+  // Only a proven ancestry passes; every other answer refuses.
+  assert.match(gate, /compared !== 'ahead' && compared !== 'identical'/);
+  // The fallback never rescues a run the API cannot answer for.
+  assert.match(gate, /unresolvable in the shallow checkout, and the compare API refused/);
+  assert.match(gate, /no GITHUB_SHA to ask the compare API about/);
+});
+
 test('the gate names the legacy migration window instead of mandating spend', () => {
   const gate = readFileSync(join(root, 'scripts/release-contract-gate.mjs'), 'utf8');
   assert.match(gate, /legacy green run without per-suite/);
