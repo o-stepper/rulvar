@@ -204,7 +204,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The two hundred sixteen rounds, verbatim in this repository's history:
+The two hundred seventeen rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                                                | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -449,6 +449,7 @@ The two hundred sixteen rounds, verbatim in this repository's history:
 | v1.246.0      | 1933ecc (#1022): plan 42 answers the sixth experiment: the acceptance closes fail closed, the posture map tells postures apart, the first party attests, the telemetry names every judge  | v1.247.0   |
 | v1.247.0      | 21924a4 (#1034): plan 43 answers by design: effects and admission arrive as reviewed protocols, the floor demands the contract, capacity and claims carry provenance, releases grow teeth | v1.248.0   |
 | v1.248.0      | 8862133 (#1044): plan 44 answers the seventh loss: the excerpt tells the block's truth, five terminal axes persist, the checkpoint refuses before the tail pays, one repair pool holds    | v1.249.0   |
+| v1.249.0      | 0e240b9 (#1059): plan 45 ships both protocols: one append consumes the approval, provider fences license recovery, the fair queue grants starts, forty two conformance rows prove it      | v1.250.0   |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
