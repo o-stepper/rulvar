@@ -13,6 +13,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-adapters"></a> `adapters` | [`ProviderAdapter`](/api/@rulvar/rulvar/interfaces/ProviderAdapter.md)[] | - | `packages/core/dist/index.d.ts` |
+| <a id="property-admission"></a> `admission?` | [`EngineAdmissionConfig`](/api/@rulvar/rulvar/interfaces/EngineAdmissionConfig.md) | The durable admission bracket (RV4510, rfcs/admission.md): a configured scheduler brackets every non-preview run as one unit of work under `(runId, genesis)`. A queued run WAITS for its grant honoring retryAfterMs; the terminal denied verdict refuses typed (AdmissionRejectedError) before any provider dispatch; the lease renews on a timer and releases at settle. Admission is an environmental fact: never journaled, and replay never consults it. The wire-level QuotaLimiter keeps being consulted per dispatch, unchanged: a granted ticket never exempts a wire from quota. | `packages/core/dist/index.d.ts` |
 | <a id="property-budgetdefaults"></a> `budgetDefaults?` | [`BudgetDefaults`](/api/@rulvar/rulvar/interfaces/BudgetDefaults.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-concurrency"></a> `concurrency?` | \{ `perProvider?`: `Record`\&lt;`string`, `number`\&gt;; `perRun?`: `number`; \} | - | `packages/core/dist/index.d.ts` |
 | `concurrency.perProvider?` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |

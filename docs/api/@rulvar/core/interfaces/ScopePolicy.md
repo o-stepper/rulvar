@@ -6,7 +6,7 @@
 
 # Interface: ScopePolicy
 
-Defined in: [packages/core/src/engine/engine.ts:911](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L911)
+Defined in: [packages/core/src/engine/engine.ts:928](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L928)
 
 What an UNKNOWN scope field does (RV4205). 'drop' (the default, the
 RV4007/RV4107 posture byte for byte) silently discards it from the
@@ -24,5 +24,5 @@ one (a conflicting resupply refuses typed, the args-binding rule).
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-normalize"></a> `normalize?` | [`ScopeNormalizeTable`](/api/@rulvar/core/interfaces/ScopeNormalizeTable.md) | [packages/core/src/engine/engine.ts:913](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L913) |
-| <a id="property-unknown"></a> `unknown?` | `"reject"` \| `"drop"` | [packages/core/src/engine/engine.ts:912](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L912) |
+| <a id="property-normalize"></a> `normalize?` | [`ScopeNormalizeTable`](/api/@rulvar/core/interfaces/ScopeNormalizeTable.md) | [packages/core/src/engine/engine.ts:930](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L930) |
+| <a id="property-unknown"></a> `unknown?` | `"reject"` \| `"drop"` | [packages/core/src/engine/engine.ts:929](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L929) |

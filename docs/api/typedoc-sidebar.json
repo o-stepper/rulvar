@@ -755,6 +755,10 @@
             "link": "/api/@rulvar/core/interfaces/AdmitLineage.md"
           },
           {
+            "text": "AdmitRunUnitInput",
+            "link": "/api/@rulvar/core/interfaces/AdmitRunUnitInput.md"
+          },
+          {
             "text": "AdmitSpec",
             "link": "/api/@rulvar/core/interfaces/AdmitSpec.md"
           },
@@ -1185,6 +1189,10 @@
           {
             "text": "Engine",
             "link": "/api/@rulvar/core/interfaces/Engine.md"
+          },
+          {
+            "text": "EngineAdmissionConfig",
+            "link": "/api/@rulvar/core/interfaces/EngineAdmissionConfig.md"
           },
           {
             "text": "EngineDefaults",
@@ -3385,6 +3393,10 @@
             "link": "/api/@rulvar/core/functions/admissionReserveUsd.md"
           },
           {
+            "text": "admitRunUnit",
+            "link": "/api/@rulvar/core/functions/admitRunUnit.md"
+          },
+          {
             "text": "affordableOutputTokens",
             "link": "/api/@rulvar/core/functions/affordableOutputTokens.md"
           },
@@ -4555,6 +4567,10 @@
           {
             "text": "validateEditorialCommit",
             "link": "/api/@rulvar/core/functions/validateEditorialCommit.md"
+          },
+          {
+            "text": "validateEngineAdmissionConfig",
+            "link": "/api/@rulvar/core/functions/validateEngineAdmissionConfig.md"
           },
           {
             "text": "validateEngineQuotaConfig",
@@ -6718,6 +6734,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/AdmitLineage.md"
           },
           {
+            "text": "AdmitRunUnitInput",
+            "link": "/api/@rulvar/rulvar/interfaces/AdmitRunUnitInput.md"
+          },
+          {
             "text": "AdmitSpec",
             "link": "/api/@rulvar/rulvar/interfaces/AdmitSpec.md"
           },
@@ -7152,6 +7172,10 @@
           {
             "text": "Engine",
             "link": "/api/@rulvar/rulvar/interfaces/Engine.md"
+          },
+          {
+            "text": "EngineAdmissionConfig",
+            "link": "/api/@rulvar/rulvar/interfaces/EngineAdmissionConfig.md"
           },
           {
             "text": "EngineDefaults",
@@ -9396,6 +9420,10 @@
             "link": "/api/@rulvar/rulvar/functions/admissionReserveUsd.md"
           },
           {
+            "text": "admitRunUnit",
+            "link": "/api/@rulvar/rulvar/functions/admitRunUnit.md"
+          },
+          {
             "text": "affordableOutputTokens",
             "link": "/api/@rulvar/rulvar/functions/affordableOutputTokens.md"
           },
@@ -10582,6 +10610,10 @@
           {
             "text": "validateEditorialCommit",
             "link": "/api/@rulvar/rulvar/functions/validateEditorialCommit.md"
+          },
+          {
+            "text": "validateEngineAdmissionConfig",
+            "link": "/api/@rulvar/rulvar/functions/validateEngineAdmissionConfig.md"
           },
           {
             "text": "validateEngineQuotaConfig",
