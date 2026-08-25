@@ -12,6 +12,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { AdmissionRequest } from '@rulvar/core';
 
+import { admissionConformance, registerConformance } from '@rulvar/store-conformance';
+
 import { SqliteAdmissionScheduler } from './admission.js';
 
 const CONFIG = {
@@ -76,3 +78,36 @@ describe('SqliteAdmissionScheduler durability', () => {
     second.close();
   });
 });
+
+registerConformance(
+  admissionConformance({
+    make: (config, now) => {
+      const path = join(mkdtempSync(join(tmpdir(), 'rulvar-adm-kit-')), 'adm.db');
+      let current = new SqliteAdmissionScheduler({ path, config, now });
+      return {
+        get scheduler() {
+          return current;
+        },
+        reopen: () => {
+          current.close();
+          current = new SqliteAdmissionScheduler({ path, config, now });
+          return current;
+        },
+        close: async () => {
+          current.close();
+          await Promise.resolve();
+        },
+      };
+    },
+  }),
+  {
+    describe,
+    // The document-CAS reference serializes the whole scheduler state
+    // per lifecycle call, and the sixty-tenant row makes hundreds of
+    // calls: on the floor binary that legitimately outruns the 5 s
+    // default, so the matrix rows carry their own bound.
+    it: (name, fn) => {
+      it(name, fn, 30_000);
+    },
+  },
+);

@@ -10685,6 +10685,14 @@
         "collapsed": true,
         "items": [
           {
+            "text": "AdmissionConformanceOptions",
+            "link": "/api/@rulvar/store-conformance/interfaces/AdmissionConformanceOptions.md"
+          },
+          {
+            "text": "AdmissionSchedulerFixture",
+            "link": "/api/@rulvar/store-conformance/interfaces/AdmissionSchedulerFixture.md"
+          },
+          {
             "text": "ConformanceCheck",
             "link": "/api/@rulvar/store-conformance/interfaces/ConformanceCheck.md"
           },
@@ -10767,6 +10775,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "AdmissionConfig",
+            "link": "/api/@rulvar/store-conformance/type-aliases/AdmissionConfig.md"
+          },
+          {
             "text": "KillPointEvent",
             "link": "/api/@rulvar/store-conformance/type-aliases/KillPointEvent.md"
           },
@@ -10830,6 +10842,10 @@
         "text": "Functions",
         "collapsed": true,
         "items": [
+          {
+            "text": "admissionConformance",
+            "link": "/api/@rulvar/store-conformance/functions/admissionConformance.md"
+          },
           {
             "text": "countSoakActivity",
             "link": "/api/@rulvar/store-conformance/functions/countSoakActivity.md"

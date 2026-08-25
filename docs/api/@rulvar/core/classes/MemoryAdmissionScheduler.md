@@ -43,7 +43,7 @@ cancel(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/admission/memory.ts:580](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L580)
+Defined in: [packages/core/src/admission/memory.ts:614](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L614)
 
 Cancels a queued ticket (nothing to refund); granted ones release.
 
@@ -75,7 +75,7 @@ checkpointCover(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/admission/memory.ts:522](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L522)
+Defined in: [packages/core/src/admission/memory.ts:557](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L557)
 
 Durably checkpoints a consumption cover BEFORE the covered batch
 (the intent-before-effect doctrine applied to capacity): monotone
@@ -108,7 +108,7 @@ conservative expiry refund provable rather than optimistic.
 enqueue(request, opId): Promise<AdmissionTicketDecision>;
 ```
 
-Defined in: [packages/core/src/admission/memory.ts:365](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L365)
+Defined in: [packages/core/src/admission/memory.ts:387](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L387)
 
 Conditional create by `(unitId, generation)` plus immediate grant
 when every matched level admits; `opId` makes retries idempotent.
@@ -136,7 +136,7 @@ when every matched level admits; `opId` makes retries idempotent.
 pump(_opId): Promise<AdmissionTicket[]>;
 ```
 
-Defined in: [packages/core/src/admission/memory.ts:600](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L600)
+Defined in: [packages/core/src/admission/memory.ts:686](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L686)
 
 Advances the scheduler: expires stale leases (conservative
 settlement), then grants queued tickets in SFQ order while every
@@ -158,6 +158,45 @@ matched level admits. Returns the newly granted tickets.
 
 ***
 
+### rebind()
+
+```ts
+rebind(
+   unitId, 
+   generation, 
+   target, 
+opId): Promise<AdmissionTicketDecision>;
+```
+
+Defined in: [packages/core/src/admission/memory.ts:634](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L634)
+
+The failover transfer (RFC section 4.2, item 4): atomically
+acquires the TARGET hierarchy's capacity and level-2 slot and
+releases the source hierarchy in the same transition, BEFORE the
+target dispatches. A failed transfer leaves the source binding
+unchanged and the target undispatchable: no window exists in which
+work runs on a provider account whose slot it never held.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `unitId` | `string` |
+| `generation` | `string` |
+| `target` | \{ `scope`: [`AdmissionScopeDimensions`](/api/@rulvar/core/interfaces/AdmissionScopeDimensions.md); \} |
+| `target.scope` | [`AdmissionScopeDimensions`](/api/@rulvar/core/interfaces/AdmissionScopeDimensions.md) |
+| `opId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`AdmissionTicketDecision`](/api/@rulvar/core/type-aliases/AdmissionTicketDecision.md)\&gt;
+
+#### Implementation of
+
+[`AdmissionScheduler`](/api/@rulvar/core/interfaces/AdmissionScheduler.md).[`rebind`](/api/@rulvar/core/interfaces/AdmissionScheduler.md#rebind)
+
+***
+
 ### recover()
 
 ```ts
@@ -167,7 +206,7 @@ recover(
 opId): Promise<AdmissionRecovery>;
 ```
 
-Defined in: [packages/core/src/admission/memory.ts:497](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L497)
+Defined in: [packages/core/src/admission/memory.ts:532](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L532)
 
 The resumed unit's recovery: `granted` renews the lease, a queued
 ticket reports its surviving position, and `unknown` means
@@ -201,7 +240,7 @@ release(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/admission/memory.ts:544](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L544)
+Defined in: [packages/core/src/admission/memory.ts:579](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L579)
 
 Release with actuals: the unused remainder refunds to each level,
 over-consumption beyond the reservation lands as bucket debt (it
@@ -236,7 +275,7 @@ renew(
 _opId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/admission/memory.ts:514](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L514)
+Defined in: [packages/core/src/admission/memory.ts:549](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/memory.ts#L549)
 
 Renews a granted ticket's lease; unknown tickets are no-ops.
 

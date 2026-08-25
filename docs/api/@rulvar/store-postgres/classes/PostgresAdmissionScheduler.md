@@ -150,7 +150,7 @@ when every matched level admits; `opId` makes retries idempotent.
 pump(opId): Promise<AdmissionTicket[]>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L180)
+Defined in: [packages/store-postgres/src/admission.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L189)
 
 Advances the scheduler: expires stale leases (conservative
 settlement), then grants queued tickets in SFQ order while every
@@ -169,6 +169,45 @@ matched level admits. Returns the newly granted tickets.
 #### Implementation of
 
 [`AdmissionScheduler`](/api/@rulvar/rulvar/interfaces/AdmissionScheduler.md).[`pump`](/api/@rulvar/rulvar/interfaces/AdmissionScheduler.md#pump)
+
+***
+
+### rebind()
+
+```ts
+rebind(
+   unitId, 
+   generation, 
+   target, 
+opId): Promise<AdmissionTicketDecision>;
+```
+
+Defined in: [packages/store-postgres/src/admission.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L180)
+
+The failover transfer (RFC section 4.2, item 4): atomically
+acquires the TARGET hierarchy's capacity and level-2 slot and
+releases the source hierarchy in the same transition, BEFORE the
+target dispatches. A failed transfer leaves the source binding
+unchanged and the target undispatchable: no window exists in which
+work runs on a provider account whose slot it never held.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `unitId` | `string` |
+| `generation` | `string` |
+| `target` | \{ `scope`: [`AdmissionScopeDimensions`](/api/@rulvar/rulvar/interfaces/AdmissionScopeDimensions.md); \} |
+| `target.scope` | [`AdmissionScopeDimensions`](/api/@rulvar/rulvar/interfaces/AdmissionScopeDimensions.md) |
+| `opId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`AdmissionTicketDecision`](/api/@rulvar/rulvar/type-aliases/AdmissionTicketDecision.md)\&gt;
+
+#### Implementation of
+
+[`AdmissionScheduler`](/api/@rulvar/rulvar/interfaces/AdmissionScheduler.md).[`rebind`](/api/@rulvar/rulvar/interfaces/AdmissionScheduler.md#rebind)
 
 ***
 

@@ -6617,6 +6617,24 @@ export const MUTATIONS = [
     replace: '        appliedOps: new Set<string>(),',
     test: 'packages/core/src/admission/admission.test.ts',
   },
+  {
+    id: 'admission-blocked-bucket-holds-its-order',
+    doctrine:
+      'a ticket refused at some level blocks ITS bucket for the pass; no later ticket of the same bucket overtakes it (RV4509, the no-starvation guarantee for the oversized ticket)',
+    file: 'packages/core/src/admission/memory.ts',
+    find: '        if (behindBlocked) {\n          continue;\n        }',
+    replace: '        if (false as boolean) {\n          continue;\n        }',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
+  {
+    id: 'admission-emergency-reserve-is-carved',
+    doctrine:
+      'a configured fraction of each cap admits only host-flagged emergency work (RV4507, RFC admission 4.2): with the carve collapsed, ordinary work eats the incident lane',
+    file: 'packages/core/src/admission/memory.ts',
+    find: '    const reserve = emergency ? 0 : (config.emergencyReserveFraction ?? 0);',
+    replace: '    const reserve = 0;',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

@@ -160,6 +160,20 @@ export interface AdmissionScheduler {
   /** Cancels a queued ticket (nothing to refund); granted ones release. */
   cancel(unitId: string, generation: string, opId: string): Promise<void>;
   /**
+   * The failover transfer (RFC section 4.2, item 4): atomically
+   * acquires the TARGET hierarchy's capacity and level-2 slot and
+   * releases the source hierarchy in the same transition, BEFORE the
+   * target dispatches. A failed transfer leaves the source binding
+   * unchanged and the target undispatchable: no window exists in which
+   * work runs on a provider account whose slot it never held.
+   */
+  rebind(
+    unitId: string,
+    generation: string,
+    target: { scope: AdmissionScopeDimensions },
+    opId: string,
+  ): Promise<AdmissionTicketDecision>;
+  /**
    * Advances the scheduler: expires stale leases (conservative
    * settlement), then grants queued tickets in SFQ order while every
    * matched level admits. Returns the newly granted tickets.

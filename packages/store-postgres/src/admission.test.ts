@@ -10,6 +10,8 @@ import pg from 'pg';
 
 import type { AdmissionRequest } from '@rulvar/core';
 
+import { admissionConformance, registerConformance } from '@rulvar/store-conformance';
+
 import { PostgresAdmissionScheduler } from './admission.js';
 
 const url = process.env.RULVAR_POSTGRES_URL;
@@ -71,4 +73,37 @@ afterAll(async () => {
     }
     await pool.end();
   }
+});
+
+let kitCounter = 0;
+describeDb('admission conformance (postgres)', () => {
+  registerConformance(
+    admissionConformance({
+      make: (config, now) => {
+        kitCounter += 1;
+        const schema = `rulvar_admk_${SUITE_ID}_${String(kitCounter)}`;
+        schemas.push(schema);
+        let current = new PostgresAdmissionScheduler({ url: url ?? '', schema, config, now });
+        return {
+          get scheduler() {
+            return current;
+          },
+          reopen: () => {
+            void current.close();
+            current = new PostgresAdmissionScheduler({ url: url ?? '', schema, config, now });
+            return current;
+          },
+          close: () => current.close(),
+        };
+      },
+    }),
+    {
+      describe,
+      // The matrix's burst rows make hundreds of document-CAS calls;
+      // they carry their own bound instead of the 5 s default.
+      it: (name, fn) => {
+        it(name, fn, 30_000);
+      },
+    },
+  );
 });

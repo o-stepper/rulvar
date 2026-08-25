@@ -146,6 +146,15 @@ export class SqliteAdmissionScheduler implements AdmissionScheduler {
     return this.withCore((core) => core.cancel(unitId, generation, opId));
   }
 
+  rebind(
+    unitId: string,
+    generation: string,
+    target: { scope: NonNullable<AdmissionRequest['scope']> },
+    opId: string,
+  ): Promise<AdmissionTicketDecision> {
+    return this.withCore((core) => core.rebind(unitId, generation, target, opId));
+  }
+
   pump(opId: string): Promise<AdmissionTicket[]> {
     return this.withCore((core) => core.pump(opId));
   }

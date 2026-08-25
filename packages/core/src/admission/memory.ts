@@ -257,6 +257,28 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
     return config.capWires * (1 - reserve);
   }
 
+  /** The first level refusing this ticket, or undefined when all admit. */
+  private firstRefusingLevel(internal: InternalTicket, nowMs: number): LevelName | undefined {
+    for (const level of LEVELS) {
+      const bucketKey = internal.keys[level];
+      if (bucketKey === undefined || this.levelConfig(level) === undefined) {
+        continue;
+      }
+      if (
+        !this.levelAdmits(
+          level,
+          bucketKey,
+          internal.ticket.reservation.wires,
+          internal.request.emergency === true,
+          nowMs,
+        )
+      ) {
+        return level;
+      }
+    }
+    return undefined;
+  }
+
   private levelAdmits(
     level: LevelName,
     bucketKey: string,
@@ -386,6 +408,19 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
       );
     }
     const keys = admissionLevelKeys(request.resolvedTenant, request.scope);
+    // Fail-closed matching (RFC section 7, row 9): a request whose
+    // dimensions cannot key a CONFIGURED level consumes nothing
+    // anywhere; the refusal is typed, never a silent global bucket.
+    for (const level of LEVELS) {
+      if (this.levelConfig(level) !== undefined && keys[level] === undefined) {
+        return {
+          state: 'denied',
+          reason:
+            `the '${level}' admission level is configured but the request carries no ` +
+            'dimensions to key it; a foreign scope never consumes a bucket (fail closed)',
+        };
+      }
+    }
     // Feasibility at enqueue: a reservation no matched bucket can EVER
     // fit refuses terminally instead of camping at the head.
     for (const level of LEVELS) {
@@ -563,7 +598,6 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
         nowMs,
       );
       internal.ticket.state = 'released';
-      await this.pump(`${opId}:pump`);
       return;
     }
     if (state === 'expired') {
@@ -597,6 +631,58 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
     }
   }
 
+  async rebind(
+    unitId: string,
+    generation: string,
+    target: { scope: NonNullable<AdmissionRequest['scope']> },
+    opId: string,
+  ): Promise<AdmissionTicketDecision> {
+    await Promise.resolve();
+    const internal = this.tickets.get(key(unitId, generation));
+    if (internal === undefined || internal.ticket.state !== 'granted') {
+      return { state: 'denied', reason: 'rebind requires a granted ticket' };
+    }
+    if (this.applied(internal, opId)) {
+      return this.decisionOf(internal);
+    }
+    const nowMs = this.options.now();
+    const targetKeys = admissionLevelKeys(internal.ticket.resolvedTenant, target.scope);
+    for (const level of LEVELS) {
+      if (this.levelConfig(level) !== undefined && targetKeys[level] === undefined) {
+        return {
+          state: 'denied',
+          reason: `the rebind target cannot key the configured '${level}' level`,
+        };
+      }
+    }
+    // Acquire the target hierarchy FIRST; a refusal leaves the source
+    // binding untouched and the target never dispatches.
+    const wires = internal.ticket.reservation.wires;
+    const admits = LEVELS.every((level) => {
+      const bucketKey = targetKeys[level];
+      return (
+        bucketKey === undefined ||
+        this.levelAdmits(level, bucketKey, wires, internal.request.emergency === true, nowMs)
+      );
+    });
+    if (!admits) {
+      return {
+        state: 'denied',
+        reason: 'the target hierarchy refused capacity; the source binding is unchanged',
+      };
+    }
+    const sourceKeys = internal.keys;
+    // The atomic transfer: consume the target, release the source, one
+    // transition (the whole document commits or none of it does).
+    internal.keys = targetKeys;
+    internal.request = { ...internal.request, scope: target.scope };
+    internal.ticket.scope = target.scope;
+    this.consumeLevels(internal, nowMs);
+    const restore: InternalTicket = { ...internal, keys: sourceKeys };
+    this.refundLevels(restore, wires, true);
+    return { state: 'granted', ticket: internal.ticket };
+  }
+
   async pump(_opId: string): Promise<AdmissionTicket[]> {
     await Promise.resolve();
     const nowMs = this.options.now();
@@ -615,42 +701,52 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
       }
     }
     const granted: AdmissionTicket[] = [];
-    // The grant loop: SFQ-first, and the head WAITS when capacity does
-    // not admit (skipping past it would starve exactly the oversized
-    // ticket the no-starvation claim protects).
+    // The grant loop, in SFQ order, with per-bucket head-waiting: a
+    // ticket refused at some level BLOCKS ITS BUCKET for the rest of
+    // the pass (no later ticket of the same bucket may overtake it,
+    // which is exactly the no-starvation guarantee for the oversized
+    // ticket), while tickets of independent buckets proceed: waiting
+    // on someone else's slot frees nothing for anyone.
     for (;;) {
       const order = this.queuedInGrantOrder();
-      const head = order[0];
-      if (head === undefined) {
+      let grantedThisPass = false;
+      const blockedBuckets = new Set<string>();
+      for (const head of order) {
+        const behindBlocked = LEVELS.some((level) => {
+          const bucketKey = head.keys[level];
+          return bucketKey !== undefined && blockedBuckets.has(`${level}:${bucketKey}`);
+        });
+        if (behindBlocked) {
+          continue;
+        }
+        const refusing = this.firstRefusingLevel(head, nowMs);
+        if (refusing !== undefined) {
+          const bucketKey = head.keys[refusing];
+          if (bucketKey !== undefined) {
+            blockedBuckets.add(`${refusing}:${bucketKey}`);
+          }
+          continue;
+        }
+        this.consumeLevels(head, nowMs);
+        head.ticket.state = 'granted';
+        head.ticket.grantedAtMs = nowMs;
+        head.ticket.leaseExpiresAtMs = nowMs + this.options.leaseTtlMs;
+        this.tenantQueue = sfqRecordGrant(this.tenantQueue, head.ticket.startTag);
+        const accountQueueId = `accounts:${head.ticket.resolvedTenant ?? '-'}`;
+        const accountQueue = this.accountQueues.get(accountQueueId);
+        if (accountQueue !== undefined) {
+          this.accountQueues.set(
+            accountQueueId,
+            sfqRecordGrant(accountQueue, head.accountStartTag),
+          );
+        }
+        granted.push(head.ticket);
+        grantedThisPass = true;
         break;
       }
-      const admits = LEVELS.every((level) => {
-        const bucketKey = head.keys[level];
-        return (
-          bucketKey === undefined ||
-          this.levelAdmits(
-            level,
-            bucketKey,
-            head.ticket.reservation.wires,
-            head.request.emergency === true,
-            nowMs,
-          )
-        );
-      });
-      if (!admits) {
+      if (!grantedThisPass) {
         break;
       }
-      this.consumeLevels(head, nowMs);
-      head.ticket.state = 'granted';
-      head.ticket.grantedAtMs = nowMs;
-      head.ticket.leaseExpiresAtMs = nowMs + this.options.leaseTtlMs;
-      this.tenantQueue = sfqRecordGrant(this.tenantQueue, head.ticket.startTag);
-      const accountQueueId = `accounts:${head.ticket.resolvedTenant ?? '-'}`;
-      const accountQueue = this.accountQueues.get(accountQueueId);
-      if (accountQueue !== undefined) {
-        this.accountQueues.set(accountQueueId, sfqRecordGrant(accountQueue, head.accountStartTag));
-      }
-      granted.push(head.ticket);
     }
     return granted;
   }
