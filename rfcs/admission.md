@@ -1,12 +1,23 @@
 # RFC: durable admission and fairness over composite scope
 
-Status: accepted design (RV4302, plan 43), hardened by an adversarial review pass (5
-blocker findings on the ticket lifecycle, expiry settlement, failover transfer, tenant
-resolution, and the fairness algorithm; every one incorporated; the review record lives
-in the plan). This document ships no runtime; the only code that lands in the same
-train is the declarative scope value normalization table, which is specified in the
-plan and only referenced here (section 5). Implementation of the SPIs below is plan
-44+ scope.
+Status: IMPLEMENTED (plan 45, trains RV4507 to RV4510): the AdmissionScheduler SPI and
+the pure algorithms (hierarchical SFQ, sliding window, token bucket, JCS level keys) in
+@rulvar/core with the single-process reference scheduler; durable documents in
+@rulvar/store-sqlite and @rulvar/store-postgres; the twelve-row conformance matrix in
+@rulvar/store-conformance; and the engine run bracket (createEngine admission). Recorded
+deviations and first shapes: (1) the durable form is the WHOLE scheduler state as one
+atomically CASed document, the section 10 single-scheduler shape made literal (per-row
+schemas are an optimization the SPI does not require); (2) release grants nothing
+implicitly, pump is the observable grant event; (3) the grant scan is bucket-blocking
+(a refused ticket blocks ITS bucket for the pass, no intra-bucket overtake, independent
+buckets proceed), which is the no-starvation rule stated operationally; (4) the engine
+bracket's first-shape cover is the full reservation and its release actuals equal the
+reservation, both recorded in the bracket's doc; (5) a settled unit re-admits under the
+same identity while `denied` stays terminal; (6) `rebind` joined the SPI to carry
+section 4.2 item 4's atomic failover transfer, pinned by conformance row 11.
+Originally: accepted design (RV4302, plan 43), hardened by an adversarial review pass
+(5 blocker findings; every one incorporated). The declarative scope value normalization
+table shipped with the plan 43 train (section 5).
 
 Scope: P1.4 of the sixth comparison experiment's improvement plan (durable fairness and
 admission by composite scope). Out of scope: changing the semantics of the pinned RV708
@@ -76,7 +87,7 @@ Why the split is load bearing:
 
 ## 4. The durable admission SPI, designed
 
-Vocabulary (names are design intent; the effects plan, plan 45, freezes them):
+Vocabulary (frozen by plan 45 as l0/spi/admission.ts; the shipped names):
 
 1. `AdmissionTicket`: the durable record of one admitted unit of work. Fields: the
    caller minted unit identity `(unitId, generation)` (below), the resolved effective
@@ -322,7 +333,7 @@ A ticket reserves, per level, up to four measures: wires, tokens, dollars, expos
 4. No new package: P1.4 allowed a separate host package, and the answer is that the
    store packages ARE the host packages for durable seams in this repository.
 
-## 10. Deliberately deferred to the effects plan (plan 45+)
+## 10. Deliberately deferred (still open after plan 45)
 
 1. Frozen TypeScript names and the exact ticket state chart encoding.
 2. The scheduler's multi replica story beyond deterministic ordering (single scheduler
