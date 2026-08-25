@@ -1,5 +1,0 @@
----
-'@rulvar/cli': minor
----
-
-The effects family in the CLI and the effect lane guide (RV4506, plan 45): `rulvar effects ls <runId>` prints the fold report (the epoch and its restore posture, every machine's effective state, budgets consumed, standalone records; `--json` for the machine-readable form), `rulvar effects show <runId> <intentSeq>` prints one machine in full (budgets, attempts with outcomes, receipts with duplicate classification, journaled probes, incidents, dispositions, the closer), and `rulvar effects sweep <runId>` runs the quarantine-only reconciler sweep through the `@rulvar/effects` companion (loaded dynamically per command, the planner precedent), demanding the explicit `--single-process` acknowledgment over the non-leasable default store, exactly the writer's doctrine. The guide page docs/guide/effects.md documents the shipped protocol end to end, the production host dossier's effects rows flip from design to shipped, and rfcs/effects.md records the implemented status with its deviations.

@@ -18,6 +18,22 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+
 ### 1.249.0
 
 #### Patch Changes
@@ -2322,6 +2338,22 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+
 ### 1.249.0
 
 #### Patch Changes
@@ -4421,6 +4453,26 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.250.0
+
+#### Minor Changes
+
+- 1b39e62: The effects family in the CLI and the effect lane guide (RV4506, plan 45): `rulvar effects ls <runId>` prints the fold report (the epoch and its restore posture, every machine's effective state, budgets consumed, standalone records; `--json` for the machine-readable form), `rulvar effects show <runId> <intentSeq>` prints one machine in full (budgets, attempts with outcomes, receipts with duplicate classification, journaled probes, incidents, dispositions, the closer), and `rulvar effects sweep <runId>` runs the quarantine-only reconciler sweep through the `@rulvar/effects` companion (loaded dynamically per command, the planner precedent), demanding the explicit `--single-process` acknowledgment over the non-leasable default store, exactly the writer's doctrine. The guide page docs/guide/effects.md documents the shipped protocol end to end, the production host dossier's effects rows flip from design to shipped, and rfcs/effects.md records the implemented status with its deviations.
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
 
 ### 1.249.0
 
@@ -7111,6 +7163,24 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.250.0
+
+#### Minor Changes
+
+- 0e240b9: The effect lane fold (RV4501, plan 45, rfcs/effects.md): `EffectLaneFold` is the pure journal semantics of the effect intent protocol. Effect lane facts ride kind-'decision' entries with typed payloads (`effect_epoch`, `effect_declared`, `effect_intent`, `effect_attempt`, `effect_outcome`, `effect_receipt`, `effect_terminal`, `effect_incident`, `effect_disposition`, plus the `approval_expired` clock fact), a recorded deviation from the RFC's entry-kind wording: the kinds registry is versioned as part of the hashVersion 2 identity profile, so the lane mints no new kind and stores stay dumb byte stores. The fold decides consumption over the strict prefix (allow before the intent position, no prior revocation or expiry decision, latest epoch, the approval's own licensed key, one canonical intent per logical key per epoch), treats same-opId replays as the same transition, closes machines first-terminal-wins with post-terminal facts as linked incidents, disables re-dispatch on every capability row from a revocation or expiry position on, validates terminal legality (confirmed demands a verified receipt; cancelled-before-dispatch demands zero attempts), classifies duplicate receipts benign against conflicting, and derives the compensated disposition as an overlay (`effectiveEffectState`) because terminals are immutable.
+- 6fe585e: The effect lane writer and the admission predicate (RV4502, plan 45, rfcs/effects.md): `consumeApprovalAndRecordIntent` is ONE append contended through the store's (runId, seq) uniqueness, with the universal recovery rule on every lane append: an uncertain result reloads and searches for its own operation id before any retry, a loser re-verdicts at the new tail (the fold itself is the verdict authority, evaluated over the prefix plus the hypothetical candidate), and a give-up appends a durable standalone refused record. The writer re-folds before opening each attempt (a revocation with zero attempts cancels cleanly; with history it refuses reconcile-only on every capability row), refuses attempts past the recorded budget, requires a deadline on every effect approval at intake, materializes a crossed grant expiry as an appended `approval_expired` decision before refusing, and honors the new `EffectLaneStore` restoration generation (a restored store comes up with dispatch disabled until a fresh epoch cites the bumped generation). Production mode requires a leasable store with `fencedWrites`; `singleProcess: true` is the explicit conformance posture for the in-memory store. `effectLaneAdmissible` evaluates the five conjuncts of RFC section 5 over a terminal envelope, fail closed, naming the first conjunct that refused. New typed error `EffectLaneRefusedError` (code `effect_refused`) carries the stable protocol rule that refused.
+- c5eb19c: The restoration generation (RV4503, plan 45, rfcs/effects.md section 4.5, item 3): SqliteStore and PostgresStore implement the `EffectLaneStore` capability, carrying a restoration generation OUTSIDE the journal bytes (a one-row table beside the leases). The restore runbook is one rule: after a point-in-time restore, call `bumpRestorationGeneration()` BEFORE the restored database becomes reachable to any worker, so the effect lane comes up with dispatch disabled by construction until an operator appends a fresh `effect_epoch` citing the bumped generation. The new `effectLaneStoreConformance` suite in @rulvar/store-conformance is the executable definition: generation starts at 0 and bumps monotonically (ELS1, ELS2), a bumped generation refuses every lane append until the fresh epoch (ELS3, the kill point 25 window, driven through the real writer over the real store), and a lane append under a non-current lease dies on the store's fence with nothing consumed (ELS4, the kill point 16 shape).
+- 565c13b: The @rulvar/effects package is born (RV4504, plan 45, rfcs/effects.md sections 4.4, 6, 8, 11): the effect adapter seam that cannot send without an attempt record (dispatch receives the seq of the attempt appended BEFORE the call), the provider capability matrix types, and the crash-window dispatcher whose recovery is licensed exclusively by provider-side fencing: the idempotency-key row re-dispatches under the same key and lets the provider dedupe, the conditional-create row leans on the unique natural key, the acceptance-closing row closes the ambiguous ATTEMPT identity (so the fresh attempt stays legal while the stale one is refused at the provider), and the 'neither' row quarantines every ambiguous window with the possible late stale send named in the record. From a revocation or expiry position recovery is reconcile-only on every row: a found receipt confirms (a revocation then opens the compensation decision path as a linked incident; an expiry opens none, because it bounds the grant, not the past), a closed negative cancels with the proof on the record, and anything unresolvable quarantines. Provider fakes enforce exactly the fencing their row claims, including the deliberately stalled predecessor of kill point 17, where elapsed time licenses nothing. In core, the `cancelled-before-dispatch` legality widens per RFC section 4.7 row 2 (every attempt provably failed also proves no effect) and the writer gains `refresh()`. Kill points 4, 5, 6, 7, 8, 14, 15, 17, 27, 28, 29 are pinned by tests.
+- c6d197b: The reconciler, the trust envelope, and the whole kill point kit (RV4505, plan 45, rfcs/effects.md sections 3.1, 7, 8, 9). The sweep makes "every intent deterministically reaches confirmed, compensated, or quarantined" true: crossing `reconcileBy` quarantines whatever state with the state recorded, receipt waits and attempt budgets quarantine on exhaustion, lookups are bounded SEPARATELY through journaled `effect_probe` rows (countable from the journal alone, crash-proof), pre-terminal conflicting receipts quarantine, and effect authorizations past their deadline refuse durably instead of waiting forever. Receipt verification runs a declared trust envelope: issuer identity, per-class content bindings, key validity windows, revocation from its time forward, and the host's signature check; every failure classifies unverified, which routes to unknown. The post-restore reconciliation (kill 25) quarantines provider effects the journal cannot reconstruct by name (or the whole range without authoritative enumeration), and a restoration epoch stays undispatchable until the new `effect_reconciliation_complete` decision cites it. Section 9 telemetry folds effective dispositions (the compensated overlay included), pressure, duplicate classification, and open incidents. The kit exports all thirty `effects.kill.*` rows as named conformance checks parameterized by a store factory (ambiguous acks and restoration generations injected through delegating proxies, so any store qualifies), registered over the in-memory reference store in single-process posture and over the REAL sqlite and postgres stores in their own packages.
+- c9d9729: The durable admission SPI and the pure scheduler core (RV4507, plan 45, rfcs/admission.md): `AdmissionScheduler` in `l0/spi/admission.ts` is the seam that answers "when may this work START, and in what order relative to competing tenants", deliberately split from QuotaLimiter (a counter has no queue; the two seams degrade independently, and a granted ticket never exempts a wire from quota). Enqueue is a conditional create under the caller-minted (unitId, generation) identity; every lifecycle call is idempotent by its operation id; `denied` is a terminal infeasibility verdict that never camps at the head; of racing release, expiry, and cancel exactly one wins; and the run journal never records scheduler state. The pure algorithms are exact and replica-deterministic: hierarchical start-time fair queuing with cost = reserved wires over weight, V advancing to granted start tags monotonically and capping idle hoarding, arrival seq breaking ties; the sliding window ring that bounds the epoch boundary burst to one sub-window allowance; the token bucket; and the three JCS-canonical level projections (resolved tenant, tenant plus providerAccount, the full scope). `MemoryAdmissionScheduler` is the single-process reference: all-levels-or-nothing consumption, the emergency reserve, lease-fenced covers with the conservative expiry refund (reservation minus the covered high water), release refunds with bucket debt that never denies retroactively, the level-2 concurrency semaphore, and typed refusal of a conflicting tenant pair outside `tenantFrom: 'scope'`.
+- fed9db6: Durable admission over sqlite and postgres (RV4508, plan 45, rfcs/admission.md section 9): `SqliteAdmissionScheduler` and `PostgresAdmissionScheduler` persist the scheduler's WHOLE state as one plain-JSON document (`AdmissionState`, now exported with `snapshot()` and hydration on the reference core), committed atomically per lifecycle call inside a BEGIN IMMEDIATE transaction (sqlite) or an advisory-lock-serialized transaction (postgres). This is the RFC's first shipped durable shape, recorded as a deliberate decision: a single scheduler over durable state with deterministic ordering, where "state moved AND buckets moved" holds trivially because the whole document commits or none of it does; per-row schemas are an optimization the SPI does not require. A queued ticket survives its holder with position and arrival identity intact, re-enqueueing the same (unitId, generation) returns the SAME ticket, and settlement operation ids replay as durable no-ops across holders (a late-settlement debt entry lands exactly once).
+- df9ed76: The admission conformance matrix, all twelve rows (RV4509, plan 45, rfcs/admission.md section 7): `admissionConformance` runs the RFC's named acceptance surface over any scheduler factory, registered over the in-memory reference (snapshot/hydrate plays the crash reopen), the sqlite document, and the postgres document. The fairness rows measure GRANTED RAW SERVICE, the property itself: sixty equal tenants each receive their exact share with every consecutive sixty-grant window containing every tenant, and weights 1/2/4 grant exactly 1:2:4 in the first virtual-time cycle with weight 1 never starving (the tenant plugs that assemble the queue first carry weight equal to their cost, a uniform one-unit tag shift that preserves the burst's relative order bit for bit). The remaining rows: the minute-boundary burst bound, queued-ticket crash survival with arrival identity intact, the conservative fenced-cover expiry settlement with late debt, the denied-versus-queued state distinction, region loss without double grants, hundred-percent repair amplification held inside caps through debt, fail-closed foreign scope, multi-level all-or-nothing, the atomic failover rebind (new `rebind` on the SPI: the target slot acquires before the source releases, and a failed transfer changes nothing), and tenant resolution parity. The reference pump's scan is now bucket-blocking: a refused ticket blocks ITS bucket for the pass, so no later ticket of the same bucket overtakes it (the no-starvation guarantee), while independent buckets proceed; `release` no longer grants implicitly, making every grant an observable `pump` event.
+- 3020912: The engine's durable admission bracket (RV4510, plan 45, rfcs/admission.md section 5): `createEngine({ admission: { scheduler, reservation?, pollMs?, tenant?, tenantFrom? } })` brackets every non-preview run as one unit of work under the run's own identity (runId, genesis). A resumed segment RECOVERS its ticket by that identity before ever enqueueing; a queued run waits for its grant (polling with the scheduler's pump, honoring retryAfterMs); the terminal denied verdict refuses typed (`AdmissionRejectedError`) before any store mutation or provider dispatch; the full reservation checkpoints as the maximally conservative cover at grant; the lease renews on a timer; and the release is part of settlement ordering (a caller that observed the outcome can observe the released ticket). The effective tenant resolves exactly like the limiter's (engine-configured, or the scope's under tenantFrom 'scope'; the admission config carries its own tenant fields for limiter-less deployments, with quota's taking precedence so the two seams debit the SAME identity). A settled unit re-admits on resume as a fresh ticket under the same identity; `denied` stays terminal. Admission is an environmental fact: nothing is journaled, replay never consults it, and the wire-level QuotaLimiter keeps being consulted per dispatch, unchanged. First-shape actuals equal the reservation and the cover is the whole reservation, both recorded as deliberate first shapes in the bracket's doc.
+
+#### Patch Changes
+
+- d8d598d: Plan 45 closes in the documentation (RV4511): the model-routing page records the limiter/admission split as load bearing (the limiter answers "may this wire fly right now", the durable admission seam answers "when may this work START and in what order", a granted ticket never exempts a wire from quota), the durability page documents the run bracket's crash model (recover by unit identity, re-admission of settled units, conservative expiry settlement through fenced covers, nothing journaled), and rfcs/admission.md records the implemented status with its deviations and first shapes named one by one, mirroring rfcs/effects.md. Both RFCs now read as shipped protocol references rather than promises.
 
 ### 1.249.0
 
@@ -10041,7 +10111,33 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   the @cfworker/json-schema lineage validator subset, a first-party monotonic
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
+## @rulvar/effects
+
+### 1.250.0
+
+#### Minor Changes
+
+- 565c13b: The @rulvar/effects package is born (RV4504, plan 45, rfcs/effects.md sections 4.4, 6, 8, 11): the effect adapter seam that cannot send without an attempt record (dispatch receives the seq of the attempt appended BEFORE the call), the provider capability matrix types, and the crash-window dispatcher whose recovery is licensed exclusively by provider-side fencing: the idempotency-key row re-dispatches under the same key and lets the provider dedupe, the conditional-create row leans on the unique natural key, the acceptance-closing row closes the ambiguous ATTEMPT identity (so the fresh attempt stays legal while the stale one is refused at the provider), and the 'neither' row quarantines every ambiguous window with the possible late stale send named in the record. From a revocation or expiry position recovery is reconcile-only on every row: a found receipt confirms (a revocation then opens the compensation decision path as a linked incident; an expiry opens none, because it bounds the grant, not the past), a closed negative cancels with the proof on the record, and anything unresolvable quarantines. Provider fakes enforce exactly the fencing their row claims, including the deliberately stalled predecessor of kill point 17, where elapsed time licenses nothing. In core, the `cancelled-before-dispatch` legality widens per RFC section 4.7 row 2 (every attempt provably failed also proves no effect) and the writer gains `refresh()`. Kill points 4, 5, 6, 7, 8, 14, 15, 17, 27, 28, 29 are pinned by tests.
+- c6d197b: The reconciler, the trust envelope, and the whole kill point kit (RV4505, plan 45, rfcs/effects.md sections 3.1, 7, 8, 9). The sweep makes "every intent deterministically reaches confirmed, compensated, or quarantined" true: crossing `reconcileBy` quarantines whatever state with the state recorded, receipt waits and attempt budgets quarantine on exhaustion, lookups are bounded SEPARATELY through journaled `effect_probe` rows (countable from the journal alone, crash-proof), pre-terminal conflicting receipts quarantine, and effect authorizations past their deadline refuse durably instead of waiting forever. Receipt verification runs a declared trust envelope: issuer identity, per-class content bindings, key validity windows, revocation from its time forward, and the host's signature check; every failure classifies unverified, which routes to unknown. The post-restore reconciliation (kill 25) quarantines provider effects the journal cannot reconstruct by name (or the whole range without authoritative enumeration), and a restoration epoch stays undispatchable until the new `effect_reconciliation_complete` decision cites it. Section 9 telemetry folds effective dispositions (the compensated overlay included), pressure, duplicate classification, and open incidents. The kit exports all thirty `effects.kill.*` rows as named conformance checks parameterized by a store factory (ambiguous acks and restoration generations injected through delegating proxies, so any store qualifies), registered over the in-memory reference store in single-process posture and over the REAL sqlite and postgres stores in their own packages.
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+  - @rulvar/store-conformance@1.250.0
+
 ## eslint-plugin-rulvar
+
+### 1.250.0
 
 ### 1.249.0
 
@@ -10645,6 +10741,26 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+  - @rulvar/anthropic@1.250.0
+  - @rulvar/openai@1.250.0
+  - @rulvar/plan@1.250.0
+  - @rulvar/testing@1.250.0
 
 ### 1.249.0
 
@@ -13589,6 +13705,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+
 ### 1.249.0
 
 #### Patch Changes
@@ -15099,6 +15231,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
 
 ### 1.249.0
 
@@ -17409,6 +17557,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+
 ### 1.249.0
 
 #### Patch Changes
@@ -19623,6 +19787,23 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+  - eslint-plugin-rulvar@1.250.0
 
 ### 1.249.0
 
@@ -22044,6 +22225,24 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+  - @rulvar/anthropic@1.250.0
+  - @rulvar/openai@1.250.0
 
 ### 1.249.0
 
@@ -24801,6 +25000,28 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.250.0
+
+#### Minor Changes
+
+- c5eb19c: The restoration generation (RV4503, plan 45, rfcs/effects.md section 4.5, item 3): SqliteStore and PostgresStore implement the `EffectLaneStore` capability, carrying a restoration generation OUTSIDE the journal bytes (a one-row table beside the leases). The restore runbook is one rule: after a point-in-time restore, call `bumpRestorationGeneration()` BEFORE the restored database becomes reachable to any worker, so the effect lane comes up with dispatch disabled by construction until an operator appends a fresh `effect_epoch` citing the bumped generation. The new `effectLaneStoreConformance` suite in @rulvar/store-conformance is the executable definition: generation starts at 0 and bumps monotonically (ELS1, ELS2), a bumped generation refuses every lane append until the fresh epoch (ELS3, the kill point 25 window, driven through the real writer over the real store), and a lane append under a non-current lease dies on the store's fence with nothing consumed (ELS4, the kill point 16 shape).
+- c6d197b: The reconciler, the trust envelope, and the whole kill point kit (RV4505, plan 45, rfcs/effects.md sections 3.1, 7, 8, 9). The sweep makes "every intent deterministically reaches confirmed, compensated, or quarantined" true: crossing `reconcileBy` quarantines whatever state with the state recorded, receipt waits and attempt budgets quarantine on exhaustion, lookups are bounded SEPARATELY through journaled `effect_probe` rows (countable from the journal alone, crash-proof), pre-terminal conflicting receipts quarantine, and effect authorizations past their deadline refuse durably instead of waiting forever. Receipt verification runs a declared trust envelope: issuer identity, per-class content bindings, key validity windows, revocation from its time forward, and the host's signature check; every failure classifies unverified, which routes to unknown. The post-restore reconciliation (kill 25) quarantines provider effects the journal cannot reconstruct by name (or the whole range without authoritative enumeration), and a restoration epoch stays undispatchable until the new `effect_reconciliation_complete` decision cites it. Section 9 telemetry folds effective dispositions (the compensated overlay included), pressure, duplicate classification, and open incidents. The kit exports all thirty `effects.kill.*` rows as named conformance checks parameterized by a store factory (ambiguous acks and restoration generations injected through delegating proxies, so any store qualifies), registered over the in-memory reference store in single-process posture and over the REAL sqlite and postgres stores in their own packages.
+- df9ed76: The admission conformance matrix, all twelve rows (RV4509, plan 45, rfcs/admission.md section 7): `admissionConformance` runs the RFC's named acceptance surface over any scheduler factory, registered over the in-memory reference (snapshot/hydrate plays the crash reopen), the sqlite document, and the postgres document. The fairness rows measure GRANTED RAW SERVICE, the property itself: sixty equal tenants each receive their exact share with every consecutive sixty-grant window containing every tenant, and weights 1/2/4 grant exactly 1:2:4 in the first virtual-time cycle with weight 1 never starving (the tenant plugs that assemble the queue first carry weight equal to their cost, a uniform one-unit tag shift that preserves the burst's relative order bit for bit). The remaining rows: the minute-boundary burst bound, queued-ticket crash survival with arrival identity intact, the conservative fenced-cover expiry settlement with late debt, the denied-versus-queued state distinction, region loss without double grants, hundred-percent repair amplification held inside caps through debt, fail-closed foreign scope, multi-level all-or-nothing, the atomic failover rebind (new `rebind` on the SPI: the target slot acquires before the source releases, and a failed transfer changes nothing), and tenant resolution parity. The reference pump's scan is now bucket-blocking: a refused ticket blocks ITS bucket for the pass, so no later ticket of the same bucket overtakes it (the no-starvation guarantee), while independent buckets proceed; `release` no longer grants implicitly, making every grant an observable `pump` event.
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+
 ### 1.249.0
 
 #### Patch Changes
@@ -27030,6 +27251,28 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.250.0
+
+#### Minor Changes
+
+- c5eb19c: The restoration generation (RV4503, plan 45, rfcs/effects.md section 4.5, item 3): SqliteStore and PostgresStore implement the `EffectLaneStore` capability, carrying a restoration generation OUTSIDE the journal bytes (a one-row table beside the leases). The restore runbook is one rule: after a point-in-time restore, call `bumpRestorationGeneration()` BEFORE the restored database becomes reachable to any worker, so the effect lane comes up with dispatch disabled by construction until an operator appends a fresh `effect_epoch` citing the bumped generation. The new `effectLaneStoreConformance` suite in @rulvar/store-conformance is the executable definition: generation starts at 0 and bumps monotonically (ELS1, ELS2), a bumped generation refuses every lane append until the fresh epoch (ELS3, the kill point 25 window, driven through the real writer over the real store), and a lane append under a non-current lease dies on the store's fence with nothing consumed (ELS4, the kill point 16 shape).
+- c6d197b: The reconciler, the trust envelope, and the whole kill point kit (RV4505, plan 45, rfcs/effects.md sections 3.1, 7, 8, 9). The sweep makes "every intent deterministically reaches confirmed, compensated, or quarantined" true: crossing `reconcileBy` quarantines whatever state with the state recorded, receipt waits and attempt budgets quarantine on exhaustion, lookups are bounded SEPARATELY through journaled `effect_probe` rows (countable from the journal alone, crash-proof), pre-terminal conflicting receipts quarantine, and effect authorizations past their deadline refuse durably instead of waiting forever. Receipt verification runs a declared trust envelope: issuer identity, per-class content bindings, key validity windows, revocation from its time forward, and the host's signature check; every failure classifies unverified, which routes to unknown. The post-restore reconciliation (kill 25) quarantines provider effects the journal cannot reconstruct by name (or the whole range without authoritative enumeration), and a restoration epoch stays undispatchable until the new `effect_reconciliation_complete` decision cites it. Section 9 telemetry folds effective dispositions (the compensated overlay included), pressure, duplicate classification, and open incidents. The kit exports all thirty `effects.kill.*` rows as named conformance checks parameterized by a store factory (ambiguous acks and restoration generations injected through delegating proxies, so any store qualifies), registered over the in-memory reference store in single-process posture and over the REAL sqlite and postgres stores in their own packages.
+- fed9db6: Durable admission over sqlite and postgres (RV4508, plan 45, rfcs/admission.md section 9): `SqliteAdmissionScheduler` and `PostgresAdmissionScheduler` persist the scheduler's WHOLE state as one plain-JSON document (`AdmissionState`, now exported with `snapshot()` and hydration on the reference core), committed atomically per lifecycle call inside a BEGIN IMMEDIATE transaction (sqlite) or an advisory-lock-serialized transaction (postgres). This is the RFC's first shipped durable shape, recorded as a deliberate decision: a single scheduler over durable state with deterministic ordering, where "state moved AND buckets moved" holds trivially because the whole document commits or none of it does; per-row schemas are an optimization the SPI does not require. A queued ticket survives its holder with position and arrival identity intact, re-enqueueing the same (unitId, generation) returns the SAME ticket, and settlement operation ids replay as durable no-ops across holders (a late-settlement debt entry lands exactly once).
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+
 ### 1.249.0
 
 #### Patch Changes
@@ -28552,6 +28795,28 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.250.0
+
+#### Minor Changes
+
+- c5eb19c: The restoration generation (RV4503, plan 45, rfcs/effects.md section 4.5, item 3): SqliteStore and PostgresStore implement the `EffectLaneStore` capability, carrying a restoration generation OUTSIDE the journal bytes (a one-row table beside the leases). The restore runbook is one rule: after a point-in-time restore, call `bumpRestorationGeneration()` BEFORE the restored database becomes reachable to any worker, so the effect lane comes up with dispatch disabled by construction until an operator appends a fresh `effect_epoch` citing the bumped generation. The new `effectLaneStoreConformance` suite in @rulvar/store-conformance is the executable definition: generation starts at 0 and bumps monotonically (ELS1, ELS2), a bumped generation refuses every lane append until the fresh epoch (ELS3, the kill point 25 window, driven through the real writer over the real store), and a lane append under a non-current lease dies on the store's fence with nothing consumed (ELS4, the kill point 16 shape).
+- c6d197b: The reconciler, the trust envelope, and the whole kill point kit (RV4505, plan 45, rfcs/effects.md sections 3.1, 7, 8, 9). The sweep makes "every intent deterministically reaches confirmed, compensated, or quarantined" true: crossing `reconcileBy` quarantines whatever state with the state recorded, receipt waits and attempt budgets quarantine on exhaustion, lookups are bounded SEPARATELY through journaled `effect_probe` rows (countable from the journal alone, crash-proof), pre-terminal conflicting receipts quarantine, and effect authorizations past their deadline refuse durably instead of waiting forever. Receipt verification runs a declared trust envelope: issuer identity, per-class content bindings, key validity windows, revocation from its time forward, and the host's signature check; every failure classifies unverified, which routes to unknown. The post-restore reconciliation (kill 25) quarantines provider effects the journal cannot reconstruct by name (or the whole range without authoritative enumeration), and a restoration epoch stays undispatchable until the new `effect_reconciliation_complete` decision cites it. Section 9 telemetry folds effective dispositions (the compensated overlay included), pressure, duplicate classification, and open incidents. The kit exports all thirty `effects.kill.*` rows as named conformance checks parameterized by a store factory (ambiguous acks and restoration generations injected through delegating proxies, so any store qualifies), registered over the in-memory reference store in single-process posture and over the REAL sqlite and postgres stores in their own packages.
+- fed9db6: Durable admission over sqlite and postgres (RV4508, plan 45, rfcs/admission.md section 9): `SqliteAdmissionScheduler` and `PostgresAdmissionScheduler` persist the scheduler's WHOLE state as one plain-JSON document (`AdmissionState`, now exported with `snapshot()` and hydration on the reference core), committed atomically per lifecycle call inside a BEGIN IMMEDIATE transaction (sqlite) or an advisory-lock-serialized transaction (postgres). This is the RFC's first shipped durable shape, recorded as a deliberate decision: a single scheduler over durable state with deterministic ordering, where "state moved AND buckets moved" holds trivially because the whole document commits or none of it does; per-row schemas are an optimization the SPI does not require. A queued ticket survives its holder with position and arrival identity intact, re-enqueueing the same (unitId, generation) returns the SAME ticket, and settlement operation ids replay as durable no-ops across holders (a late-settlement debt entry lands exactly once).
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
 
 ### 1.249.0
 
@@ -30706,6 +30971,22 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.250.0
+
+#### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
 
 ### 1.249.0
 

@@ -1,5 +1,27 @@
 # @rulvar/store-sqlite
 
+## 1.250.0
+
+### Minor Changes
+
+- c5eb19c: The restoration generation (RV4503, plan 45, rfcs/effects.md section 4.5, item 3): SqliteStore and PostgresStore implement the `EffectLaneStore` capability, carrying a restoration generation OUTSIDE the journal bytes (a one-row table beside the leases). The restore runbook is one rule: after a point-in-time restore, call `bumpRestorationGeneration()` BEFORE the restored database becomes reachable to any worker, so the effect lane comes up with dispatch disabled by construction until an operator appends a fresh `effect_epoch` citing the bumped generation. The new `effectLaneStoreConformance` suite in @rulvar/store-conformance is the executable definition: generation starts at 0 and bumps monotonically (ELS1, ELS2), a bumped generation refuses every lane append until the fresh epoch (ELS3, the kill point 25 window, driven through the real writer over the real store), and a lane append under a non-current lease dies on the store's fence with nothing consumed (ELS4, the kill point 16 shape).
+- c6d197b: The reconciler, the trust envelope, and the whole kill point kit (RV4505, plan 45, rfcs/effects.md sections 3.1, 7, 8, 9). The sweep makes "every intent deterministically reaches confirmed, compensated, or quarantined" true: crossing `reconcileBy` quarantines whatever state with the state recorded, receipt waits and attempt budgets quarantine on exhaustion, lookups are bounded SEPARATELY through journaled `effect_probe` rows (countable from the journal alone, crash-proof), pre-terminal conflicting receipts quarantine, and effect authorizations past their deadline refuse durably instead of waiting forever. Receipt verification runs a declared trust envelope: issuer identity, per-class content bindings, key validity windows, revocation from its time forward, and the host's signature check; every failure classifies unverified, which routes to unknown. The post-restore reconciliation (kill 25) quarantines provider effects the journal cannot reconstruct by name (or the whole range without authoritative enumeration), and a restoration epoch stays undispatchable until the new `effect_reconciliation_complete` decision cites it. Section 9 telemetry folds effective dispositions (the compensated overlay included), pressure, duplicate classification, and open incidents. The kit exports all thirty `effects.kill.*` rows as named conformance checks parameterized by a store factory (ambiguous acks and restoration generations injected through delegating proxies, so any store qualifies), registered over the in-memory reference store in single-process posture and over the REAL sqlite and postgres stores in their own packages.
+- fed9db6: Durable admission over sqlite and postgres (RV4508, plan 45, rfcs/admission.md section 9): `SqliteAdmissionScheduler` and `PostgresAdmissionScheduler` persist the scheduler's WHOLE state as one plain-JSON document (`AdmissionState`, now exported with `snapshot()` and hydration on the reference core), committed atomically per lifecycle call inside a BEGIN IMMEDIATE transaction (sqlite) or an advisory-lock-serialized transaction (postgres). This is the RFC's first shipped durable shape, recorded as a deliberate decision: a single scheduler over durable state with deterministic ordering, where "state moved AND buckets moved" holds trivially because the whole document commits or none of it does; per-row schemas are an optimization the SPI does not require. A queued ticket survives its holder with position and arrival identity intact, re-enqueueing the same (unitId, generation) returns the SAME ticket, and settlement operation ids replay as durable no-ops across holders (a late-settlement debt entry lands exactly once).
+
+### Patch Changes
+
+- Updated dependencies [0e240b9]
+- Updated dependencies [6fe585e]
+- Updated dependencies [c5eb19c]
+- Updated dependencies [565c13b]
+- Updated dependencies [c6d197b]
+- Updated dependencies [c9d9729]
+- Updated dependencies [fed9db6]
+- Updated dependencies [df9ed76]
+- Updated dependencies [3020912]
+- Updated dependencies [d8d598d]
+  - @rulvar/core@1.250.0
+
 ## 1.249.0
 
 ### Patch Changes
