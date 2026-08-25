@@ -153,13 +153,39 @@ const doc = requireClassification(JSON.parse(readFileSync(join(dir, fileName), '
 
 // The recorded sha must be an ancestor of the release commit: a
 // classification of a commit outside this history proves nothing here.
+// The job checkout is shallow: local git holds no commit object except
+// the checked out one, so any other sha used to die here with a fatal
+// instead of a verdict (every round push after a release refused
+// exactly that way, with a classification one commit behind). Any
+// local failure falls through to the compare API, which answers from
+// the full graph; only a proven ancestry ('ahead' or 'identical')
+// passes, and an API that cannot answer refuses.
+const refuseAncestry = (detail) => {
+  refuse(
+    `the classification sha ${doc.sha} is not an ancestor of the release commit${detail}`,
+    'run the Contract tests workflow on current main and wait',
+  );
+};
 try {
   execFileSync('git', ['merge-base', '--is-ancestor', doc.sha, releaseSha || 'HEAD']);
 } catch {
-  refuse(
-    `the classification sha ${doc.sha} is not an ancestor of the release commit`,
-    'run the Contract tests workflow on current main and wait',
-  );
+  if (releaseSha === '') {
+    refuseAncestry(' (no GITHUB_SHA to ask the compare API about)');
+  }
+  let compared;
+  try {
+    compared = gh([
+      'api',
+      `repos/${repo}/compare/${doc.sha}...${releaseSha}?per_page=1`,
+      '--jq',
+      '.status',
+    ]).trim();
+  } catch {
+    refuseAncestry(' (unresolvable in the shallow checkout, and the compare API refused)');
+  }
+  if (compared !== 'ahead' && compared !== 'identical') {
+    refuseAncestry(` (the compare API answered '${String(compared)}')`);
+  }
 }
 
 const aggregate = aggregateOutcome(doc);
