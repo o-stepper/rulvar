@@ -43,6 +43,12 @@ export interface CommandGrammar {
 
 const ARGS = { name: 'args', placeholder: 'JSON' } as const;
 const STORE = { name: 'store', placeholder: 'PATH' } as const;
+/**
+ * The portable registry module (RV4602): resume and replay accept a
+ * workflow registry FILE beside rulvar.config.mjs, so a programmatic
+ * run replays from a clean checkout with its descriptor attached.
+ */
+const REGISTRY = { name: 'registry', placeholder: 'FILE' } as const;
 
 /**
  * Every command of the canonical grammar (no aliases in v1). The help
@@ -87,6 +93,7 @@ export const GRAMMAR: {
     flags: [
       ARGS,
       STORE,
+      REGISTRY,
       { name: 'dry-run' },
       { name: 'allow-args-change' },
       { name: 'strict' },
@@ -96,7 +103,7 @@ export const GRAMMAR: {
   replay: {
     command: 'replay',
     positionals: ['<runId>'],
-    flags: [ARGS, STORE, { name: 'assert-no-live' }, { name: 'compare-output-hash' }],
+    flags: [ARGS, STORE, REGISTRY, { name: 'assert-no-live' }, { name: 'compare-output-hash' }],
   },
   'runs ls': { command: 'runs ls', positionals: [], flags: [STORE], note: '(no aliases in v1)' },
   'runs audit': {

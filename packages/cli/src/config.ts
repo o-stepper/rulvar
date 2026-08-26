@@ -44,6 +44,17 @@ export interface CliConfig {
   preflight?: PreflightDeclaration;
   /** rulvar kb sweep configuration (M11-T05). */
   kbSweep?: KbSweepCliConfig;
+  /**
+   * The module's own configuration identity (RV4602): recorded on
+   * every run this module starts, verified by the engine on every
+   * resume and replay STRICTLY before ownership, meta writes, or any
+   * provider call, so policy drift refuses typed instead of running.
+   * The seventh comparison experiment's programmatic run recorded a
+   * fingerprint the CLI then never supplied back, which downgraded the
+   * genesis binding to a warning; a descriptor module carrying the
+   * fingerprint closes that loop.
+   */
+  configFingerprint?: string;
 }
 
 /**
@@ -114,6 +125,22 @@ interface ConfigModule {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
   preflight?: PreflightDeclaration;
+  configFingerprint?: string;
+}
+
+/**
+ * The engine's own fingerprint intake bounds (`requireConfigFingerprint`),
+ * applied at module load so a malformed export is a ConfigError naming
+ * the file, never a refusal deep inside a resume.
+ */
+function requireFingerprintExport(value: unknown, where: string): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 512) {
+    throw new ConfigError(
+      `${where} exports configFingerprint that is not a non empty string of at most ` +
+        `512 characters`,
+    );
+  }
+  return value;
 }
 
 function isWorkflowValue(value: unknown): value is Workflow<never, unknown> {
@@ -139,12 +166,17 @@ export async function loadCliConfig(cwd: string): Promise<CliConfig> {
         `${basename} default-exports a workflow; it must default-export { engineOptions?, workflows? }`,
       );
     }
-    return {
+    const merged: CliConfig = {
       ...(config ?? {}),
       ...(mod.engineOptions === undefined ? {} : { engineOptions: mod.engineOptions }),
       ...(mod.workflows === undefined ? {} : { workflows: mod.workflows }),
       ...(mod.preflight === undefined ? {} : { preflight: mod.preflight }),
+      ...(mod.configFingerprint === undefined ? {} : { configFingerprint: mod.configFingerprint }),
     };
+    if (merged.configFingerprint !== undefined) {
+      merged.configFingerprint = requireFingerprintExport(merged.configFingerprint, basename);
+    }
+    return merged;
   }
   return {};
 }
@@ -154,6 +186,8 @@ export interface LoadedWorkflowModule {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
   preflight?: PreflightDeclaration;
+  /** The module's declared configuration identity (RV4602). */
+  configFingerprint?: string;
 }
 
 /** Imports a workflow module given on the command line. */
@@ -176,6 +210,9 @@ export async function loadWorkflowModule(file: string, cwd: string): Promise<Loa
   }
   if (mod.preflight !== undefined) {
     loaded.preflight = mod.preflight;
+  }
+  if (mod.configFingerprint !== undefined) {
+    loaded.configFingerprint = requireFingerprintExport(mod.configFingerprint, file);
   }
   return loaded;
 }

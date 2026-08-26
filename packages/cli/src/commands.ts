@@ -197,8 +197,14 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
         : `no workflow named '${target}' in the registry; register it in rulvar.config.mjs`,
     );
   }
+  // The module's declared identity rides genesis (RV4602): the engine
+  // records it in RunMeta and every later resume or replay that
+  // supplies a fingerprint is verified against this one, refusing
+  // typed BEFORE any provider call on drift.
+  const genesisFingerprint = module?.configFingerprint ?? config.configFingerprint;
   const runOptions: RunOptions = {
     ...(budgetUsd === undefined ? {} : { budgetUsd }),
+    ...(genesisFingerprint === undefined ? {} : { configFingerprint: genesisFingerprint }),
   };
   const first = assembled.engine.run(
     workflow as unknown as Workflow<unknown, unknown>,
@@ -362,8 +368,19 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   const allowChange = parsed.values['allow-args-change'] === true;
   const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
+  // The portable registry module (RV4602): a programmatic run's
+  // workflow lives in no rulvar.config.mjs, so the seventh comparison
+  // experiment's journal could not be resumed or replayed from a clean
+  // checkout at all. --registry attaches the descriptor module: its
+  // workflows merge OVER the config registry, its engineOptions ride
+  // the assembly, and its declared configFingerprint is verified by
+  // the engine against the genesis record before any provider call.
+  const registryFile = parsed.values.registry as string | undefined;
+  const module =
+    registryFile === undefined ? undefined : await loadWorkflowModule(registryFile, context.cwd);
   const assembled = assembleEngine({
     config,
+    ...(module === undefined ? {} : { module }),
     ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
@@ -383,18 +400,26 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   const workflow =
     name === undefined
       ? undefined
-      : (assembled.workflows[name] as Workflow<never, unknown> | undefined);
+      : ((assembled.workflows[name] as Workflow<never, unknown> | undefined) ??
+        (module?.workflow?.name === name ? module.workflow : undefined));
   if (workflow === undefined) {
     throw new ConfigError(
       `run '${runId}' was started from workflow '${name ?? '(unknown)'}'; register it under ` +
-        `that name in rulvar.config.mjs workflows to resume ` +
-        '(resume requires the in-process workflow value)',
+        `that name in rulvar.config.mjs workflows, or attach a registry module with ` +
+        `--registry <file>, to resume (resume requires the in-process workflow value)`,
     );
   }
+  const suppliedFingerprint = module?.configFingerprint ?? config.configFingerprint;
   const first = assembled.engine.resume(runId, workflow as unknown as Workflow<unknown, unknown>, {
     args,
     ...(dryRun ? { dryRun: true } : {}),
+    ...(suppliedFingerprint === undefined ? {} : { configFingerprint: suppliedFingerprint }),
   });
+  // A pre-ownership refusal (the fingerprint check among them, RV4602)
+  // rejects every promise the handle carries; the paths below await
+  // them one at a time, so the rest must not fire the process
+  // unhandled channel while the first is being reported.
+  void Promise.allSettled([first.result, first.preview]);
   if (dryRun) {
     return await reportDryRun(first, context.io);
   }
@@ -441,8 +466,15 @@ export async function replayCommand(argv: string[], context: CommandContext): Pr
   const compareOutputHash = parsed.values['compare-output-hash'] === true;
   const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
+  // The portable registry module (RV4602), exactly the resume seam: a
+  // verification that cannot find its workflow proves nothing, and the
+  // descriptor file is how a programmatic run travels.
+  const registryFile = parsed.values.registry as string | undefined;
+  const module =
+    registryFile === undefined ? undefined : await loadWorkflowModule(registryFile, context.cwd);
   const assembled = assembleEngine({
     config,
+    ...(module === undefined ? {} : { module }),
     ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
@@ -462,18 +494,24 @@ export async function replayCommand(argv: string[], context: CommandContext): Pr
   const workflow =
     name === undefined
       ? undefined
-      : (assembled.workflows[name] as Workflow<never, unknown> | undefined);
+      : ((assembled.workflows[name] as Workflow<never, unknown> | undefined) ??
+        (module?.workflow?.name === name ? module.workflow : undefined));
   if (workflow === undefined) {
     throw new ConfigError(
       `run '${runId}' was started from workflow '${name ?? '(unknown)'}'; register it under ` +
-        `that name in rulvar.config.mjs workflows to replay ` +
-        '(replay requires the in-process workflow value)',
+        `that name in rulvar.config.mjs workflows, or attach a registry module with ` +
+        `--registry <file>, to replay (replay requires the in-process workflow value)`,
     );
   }
+  const suppliedFingerprint = module?.configFingerprint ?? config.configFingerprint;
   const handle = assembled.engine.resume(runId, workflow as unknown as Workflow<unknown, unknown>, {
     args,
     dryRun: true,
+    ...(suppliedFingerprint === undefined ? {} : { configFingerprint: suppliedFingerprint }),
   });
+  // The resume seam's handle hygiene (RV4602): a pre-ownership
+  // refusal rejects result and preview both, awaited in sequence below.
+  void Promise.allSettled([handle.result, handle.preview]);
   const warnings: DeterminismEvents[] = [];
   const consumer = (async () => {
     for await (const event of handle.events) {

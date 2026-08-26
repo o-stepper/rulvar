@@ -111,6 +111,17 @@ interface CliConfig {
   preflight?: PreflightDeclaration;
   /** rulvar kb sweep configuration (M11-T05). */
   kbSweep?: KbSweepCliConfig;
+  /**
+  * The module's own configuration identity (RV4602): recorded on
+  * every run this module starts, verified by the engine on every
+  * resume and replay STRICTLY before ownership, meta writes, or any
+  * provider call, so policy drift refuses typed instead of running.
+  * The seventh comparison experiment's programmatic run recorded a
+  * fingerprint the CLI then never supplied back, which downgraded the
+  * genesis binding to a warning; a descriptor module carrying the
+  * fingerprint closes that loop.
+  */
+  configFingerprint?: string;
 }
 /**
 * The kb sweep config: a FIXED pool (sweep volume is never authorized
@@ -180,6 +191,8 @@ interface LoadedWorkflowModule {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
   preflight?: PreflightDeclaration;
+  /** The module's declared configuration identity (RV4602). */
+  configFingerprint?: string;
 }
 /** Imports a workflow module given on the command line. */
 declare function loadWorkflowModule(file: string, cwd: string): Promise<LoadedWorkflowModule>;

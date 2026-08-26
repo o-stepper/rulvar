@@ -3837,11 +3837,19 @@ export function createEngine(options: CreateEngineOptions): Engine {
       on: (type, cb) => {
         let unsub: (() => void) | undefined;
         let cancelled = false;
-        void handlePromise.then((handle) => {
-          if (!cancelled) {
-            unsub = handle.on(type, cb);
-          }
-        });
+        // A refused resume rejects handlePromise before any handle
+        // exists; the subscription then simply never attaches, and the
+        // refusal stays result's alone to report (RV4602: fourteen
+        // renderer subscriptions on one refused resume used to spray
+        // fourteen unhandled rejections of the same typed refusal).
+        void handlePromise.then(
+          (handle) => {
+            if (!cancelled) {
+              unsub = handle.on(type, cb);
+            }
+          },
+          () => undefined,
+        );
         return () => {
           cancelled = true;
           unsub?.();

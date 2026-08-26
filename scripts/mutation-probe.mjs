@@ -6708,6 +6708,44 @@ export const MUTATIONS = [
     replace: '          ...((false as boolean)',
     test: 'packages/core/src/engine/engine-admission.test.ts',
   },
+  {
+    id: 'descriptor-fingerprint-guards-the-resume',
+    doctrine:
+      "the registry module's declared fingerprint reaches the engine's resume verification (RV4602): with the pass dropped, a descriptor for the wrong configuration resumes under drifted policy with only a warning nobody reads, the exact downgrade the seventh comparison experiment's programmatic run lived with",
+    file: 'packages/cli/src/commands.ts',
+    find: '    ...(suppliedFingerprint === undefined ? {} : { configFingerprint: suppliedFingerprint }),\n  });\n  // A pre-ownership refusal (the fingerprint check among them, RV4602)',
+    replace: '  });\n  // A pre-ownership refusal (the fingerprint check among them, RV4602)',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'descriptor-fingerprint-rides-genesis',
+    doctrine:
+      'the module fingerprint records at genesis (RV4602): with the read collapsed, no CLI run ever records an identity, every later verification degrades to the one sided warning, and the drift gate the descriptor exists for can never fire',
+    file: 'packages/cli/src/commands.ts',
+    find: '  const genesisFingerprint = module?.configFingerprint ?? config.configFingerprint;',
+    replace: '  const genesisFingerprint = undefined;',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'the-registry-module-reaches-the-replay-lookup',
+    doctrine:
+      'replay assembles the --registry module into its engine (RV4602): with the load collapsed, a programmatic run still cannot be verified from a clean checkout, which is the seventh comparison experiment refusal this flag exists to close',
+    file: 'packages/cli/src/commands.ts',
+    find: '  // The portable registry module (RV4602), exactly the resume seam: a\n  // verification that cannot find its workflow proves nothing, and the\n  // descriptor file is how a programmatic run travels.\n  const registryFile = parsed.values.registry as string | undefined;\n  const module =\n    registryFile === undefined ? undefined : await loadWorkflowModule(registryFile, context.cwd);',
+    replace:
+      '  // The portable registry module (RV4602), exactly the resume seam: a\n  // verification that cannot find its workflow proves nothing, and the\n  // descriptor file is how a programmatic run travels.\n  const registryFile = parsed.values.registry as string | undefined;\n  void registryFile;\n  const module = undefined as LoadedWorkflowModule | undefined;',
+    test: 'packages/cli/src/index.test.ts',
+  },
+  {
+    id: 'refused-resume-keeps-subscriptions-quiet',
+    doctrine:
+      'a refused resume rejects its result alone, never one unhandled rejection per event subscription (RV4602): with the rejection arm dropped, the fourteen renderer subscriptions of one refused CLI resume spray fourteen copies of the same typed refusal into the process unhandled channel',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '        void handlePromise.then(\n          (handle) => {\n            if (!cancelled) {\n              unsub = handle.on(type, cb);\n            }\n          },\n          () => undefined,\n        );',
+    replace:
+      '        void handlePromise.then((handle) => {\n          if (!cancelled) {\n            unsub = handle.on(type, cb);\n          }\n        });',
+    test: 'packages/core/src/engine/resume.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

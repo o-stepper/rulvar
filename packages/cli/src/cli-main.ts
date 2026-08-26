@@ -45,7 +45,11 @@ journal or meta writes, zero adapter calls) that reports replay
 accounting, localized determinism warnings, and the output digest;
 --assert-no-live exits 1 unless the replay is pure, and
 --compare-output-hash exits 1 unless the replayed result's digest
-equals the journaled one.
+equals the journaled one. resume and replay accept --registry FILE, a
+portable registry module (named exports workflows, engineOptions,
+configFingerprint) merged over rulvar.config.mjs, so a programmatic
+run travels with its descriptor and its declared fingerprint is
+verified against the genesis record before any provider call.
 invoice prints the per-dispatch reconciliation export: one row per
 billable provider call (failed and retried attempts included) with the
 provider's response id when the adapter surfaced one, plus the
