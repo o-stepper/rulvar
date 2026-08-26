@@ -253,6 +253,25 @@ export interface PreflightOrchestratorSpec {
     onFound?: 'report' | 'repair' | 'fail';
   };
   /**
+   * Mirrors OrchestrateOptions.maxTotalRepairRounds (RV4406): the one
+   * run-wide pool every provider-dispatching repair grant consumes
+   * from. Declaring it lets the estimator judge the pool against the
+   * armed semantic round and the mechanical grants that share it
+   * (RV4705): the eighth comparison rerun's mechanical composition
+   * repair drained a one-token pool before the judges ruled, and the
+   * armed round was refused over 38 standing findings; preflight said
+   * nothing. Absent keeps the report and findings byte identical.
+   */
+  maxTotalRepairRounds?: number;
+  /**
+   * Mirrors OrchestrateOptions.maxSemanticRepairRounds (RV4705): the
+   * scoped semantic reserve inside the pool. Declared beside a total
+   * pool it shrinks the mechanical allowance the findings judge;
+   * greater than the total mirrors the intake ConfigError as an error
+   * finding, because the run would refuse to start.
+   */
+  maxSemanticRepairRounds?: number;
+  /**
    * The `reserve-line-headroom` threshold in coordination turn floors
    * (RV2201; previously hardwired to 2): the finding warns when the
    * admitted wave's steady state sits closer to the reserve line than
@@ -527,6 +546,20 @@ export interface PreflightReport {
         /** Exact fill admits, exactly the runtime gate. */
         fits: boolean;
         terms: AcceptanceTailTerms;
+      };
+      /**
+       * The run repair pool and its scoped semantic reserve (RV4705),
+       * present when either bound is declared: `mechanicalAllowance`
+       * is what finish-validation grants can actually draw (the total
+       * minus the unspent reserve), the figure the eighth comparison
+       * rerun needed before its mechanical repair ate the armed
+       * round's only token.
+       */
+      repairPool?: {
+        maxTotalRepairRounds?: number;
+        maxSemanticRepairRounds?: number;
+        /** The pool minus the reserve; absent without a declared total. */
+        mechanicalAllowance?: number;
       };
     };
   };
@@ -1095,6 +1128,95 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           overallExecutedCeiling(echoLimits, toolCeilingsOf(echoLimits)),
         ) + coordinationRepairReserve,
     };
+    // The run repair pool against its consumers (RV4705, the eighth
+    // comparison rerun): the pool is shared by mechanical
+    // finish-validation grants and the armed semantic round, and that
+    // rerun's mechanical composition repair drained a one-token pool
+    // before the judges ruled, so the armed round was refused over 38
+    // standing findings; preflight had said nothing. The findings
+    // below are the static twin of the runtime split: a reserve
+    // contradiction mirrors the intake ConfigError, an undivided pool
+    // the mechanics can drain warns about the armed round, and a
+    // stage bound promising more grants than the mechanical allowance
+    // warns that the pool, not the stage, will do the refusing.
+    {
+      const totalPool = input.orchestrator.maxTotalRepairRounds;
+      const semanticReserve = input.orchestrator.maxSemanticRepairRounds;
+      if (totalPool !== undefined) {
+        requireNonNegativeInteger(totalPool, 'preflight.orchestrator.maxTotalRepairRounds');
+      }
+      if (semanticReserve !== undefined) {
+        requireNonNegativeInteger(
+          semanticReserve,
+          'preflight.orchestrator.maxSemanticRepairRounds',
+        );
+      }
+      if (totalPool !== undefined || semanticReserve !== undefined) {
+        const contradiction =
+          totalPool !== undefined && semanticReserve !== undefined && semanticReserve > totalPool;
+        const mechanicalAllowance =
+          totalPool === undefined
+            ? undefined
+            : Math.max(0, totalPool - Math.min(semanticReserve ?? 0, totalPool));
+        orchestratorEcho.repairPool = {
+          ...(totalPool === undefined ? {} : { maxTotalRepairRounds: totalPool }),
+          ...(semanticReserve === undefined ? {} : { maxSemanticRepairRounds: semanticReserve }),
+          ...(mechanicalAllowance === undefined ? {} : { mechanicalAllowance }),
+        };
+        const claimPosture = input.orchestrator.claimConsistency;
+        const roundArmed =
+          (claimPosture?.onFound === 'repair' && (claimPosture.stage ?? 'draft') !== 'draft') ||
+          input.orchestrator.citationAudit?.onFound === 'repair';
+        const grantedRepairs =
+          input.finishValidation === undefined
+            ? 0
+            : (input.finishValidation.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS);
+        if (contradiction) {
+          say({
+            severity: 'error',
+            code: 'repair-pool-refused-at-intake',
+            message:
+              `maxSemanticRepairRounds ${String(semanticReserve)} cannot exceed ` +
+              `maxTotalRepairRounds ${String(totalPool)} (the semantic reserve lives inside ` +
+              'the run repair pool, RV4705): the run would refuse to start',
+          });
+        } else {
+          if (
+            roundArmed &&
+            totalPool !== undefined &&
+            semanticReserve === undefined &&
+            grantedRepairs >= totalPool
+          ) {
+            say({
+              severity: 'warning',
+              code: 'repair-pool-starves-semantic-round',
+              message:
+                `the armed semantic round shares the undivided run repair pool ` +
+                `(maxTotalRepairRounds ${String(totalPool)}) with up to ` +
+                `${String(grantedRepairs)} mechanical finish-validation grant(s): the ` +
+                'mechanics can drain the pool before the judges rule and the armed round ' +
+                'is then refused over standing findings (the eighth comparison rerun); ' +
+                'declare maxSemanticRepairRounds to reserve the round, or raise the pool',
+            });
+          }
+          if (mechanicalAllowance !== undefined && grantedRepairs > mechanicalAllowance) {
+            say({
+              severity: 'warning',
+              code: 'finish-repairs-exceed-repair-pool',
+              message:
+                `finishValidation grants up to ${String(grantedRepairs)} mechanical ` +
+                `repair(s) but the run repair pool leaves mechanics only ` +
+                `${String(mechanicalAllowance)} (maxTotalRepairRounds ` +
+                `${String(totalPool)}` +
+                (semanticReserve === undefined
+                  ? ''
+                  : ` minus the semantic reserve ${String(semanticReserve)}`) +
+                '): the pool, not the stage bound, will refuse the excess grants',
+            });
+          }
+        }
+      }
+    }
     if (
       spec?.capUsd !== undefined &&
       spec.capFraction === undefined &&

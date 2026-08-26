@@ -10,7 +10,7 @@
 function renderCapacitySheetMarkdown(sheet): string;
 ```
 
-Defined in: [packages/core/src/orchestrator/capacity-sheet.ts:357](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/capacity-sheet.ts#L357)
+Defined in: [packages/core/src/orchestrator/capacity-sheet.ts:373](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/capacity-sheet.ts#L373)
 
 Renders the sheet as Markdown: one heading per section, one line per
 figure with its provenance label on the line, and the named

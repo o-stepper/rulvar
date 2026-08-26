@@ -10,7 +10,7 @@
 function wireCapacityEstimate(spec): WireCapacityEstimate;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:614](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L614)
+Defined in: [packages/core/src/orchestrator/admission.ts:644](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L644)
 
 The wire capacity of a declared orchestration plan (RV4005, the
 fifth comparison experiment): base wires by declaration, the armed

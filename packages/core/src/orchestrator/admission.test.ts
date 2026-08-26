@@ -870,3 +870,62 @@ describe('the posture-derived round delta (RV4304, plan 43)', () => {
     );
   });
 });
+
+describe('the pool-bounded repair ceiling (RV4705)', () => {
+  it('a declared pool bounds the worst-case repair wires; the reserve narrows the mechanics', () => {
+    // The eighth rerun's plan: one armed citation round (delta 2), a
+    // one-token pool. The round takes the pool's only token, so the
+    // ceiling is the round alone.
+    const rerun = wireCapacityEstimate({
+      childWires: 24,
+      synthesisWires: 1,
+      citationOnFound: 'repair',
+      maxTotalRepairRounds: 1,
+    });
+    expect(rerun.repairRoundDeltaWires).toBe(2);
+    expect(rerun.repairWiresCeiling).toBe(2 + 0);
+    // Pool 3, reserve 1: the round plus two mechanical grants.
+    const reserved = wireCapacityEstimate({
+      childWires: 24,
+      synthesisWires: 1,
+      citationOnFound: 'repair',
+      maxTotalRepairRounds: 3,
+      maxSemanticRepairRounds: 1,
+    });
+    expect(reserved.repairWiresCeiling).toBe(2 + 2);
+    // Reserve 0 forbids the round: the whole pool is mechanical.
+    const forbidden = wireCapacityEstimate({
+      childWires: 24,
+      synthesisWires: 1,
+      citationOnFound: 'repair',
+      maxTotalRepairRounds: 2,
+      maxSemanticRepairRounds: 0,
+    });
+    expect(forbidden.repairWiresCeiling).toBe(0 + 2);
+    // A zero pool bounds every repair wire at zero.
+    expect(
+      wireCapacityEstimate({ childWires: 24, maxTotalRepairRounds: 0 }).repairWiresCeiling,
+    ).toBe(0);
+  });
+
+  it('absent pool keys keep the estimate byte identical: no ceiling field at all', () => {
+    const bare = wireCapacityEstimate({ childWires: 10 });
+    expect('repairWiresCeiling' in bare).toBe(false);
+  });
+
+  it('a malformed pool or a reserve past the pool refuses typed', () => {
+    expect(() => wireCapacityEstimate({ childWires: 1, maxTotalRepairRounds: 1.5 })).toThrow(
+      /maxTotalRepairRounds/,
+    );
+    expect(() => wireCapacityEstimate({ childWires: 1, maxSemanticRepairRounds: -1 })).toThrow(
+      /maxSemanticRepairRounds/,
+    );
+    expect(() =>
+      wireCapacityEstimate({
+        childWires: 1,
+        maxTotalRepairRounds: 1,
+        maxSemanticRepairRounds: 2,
+      }),
+    ).toThrow(/cannot exceed maxTotalRepairRounds 1/);
+  });
+});

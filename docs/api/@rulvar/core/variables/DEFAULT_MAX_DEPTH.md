@@ -10,4 +10,4 @@
 const DEFAULT_MAX_DEPTH: 1 = 1;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:270](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L270)
+Defined in: [packages/core/src/orchestrator/admission.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L271)

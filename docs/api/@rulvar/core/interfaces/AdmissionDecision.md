@@ -6,7 +6,7 @@
 
 # Interface: AdmissionDecision
 
-Defined in: [packages/core/src/orchestrator/admission.ts:252](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L252)
+Defined in: [packages/core/src/orchestrator/admission.ts:253](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L253)
 
 The full admission decision embedded in the carrying entry.
 
@@ -14,8 +14,8 @@ The full admission decision embedded in the carrying entry.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-ladderlength"></a> `ladderLength?` | `number` | The declared ladder length recorded for the termination fold (DEF-2): the replay recomputation reads K_l from the entry, never from the live registry. Present only under a termination account. | [packages/core/src/orchestrator/admission.ts:267](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L267) |
-| <a id="property-lineage"></a> `lineage?` | [`SpawnLineage`](/api/@rulvar/core/interfaces/SpawnLineage.md) | The computed value-part lineage block (DEF-3): reused byte-exact on replay, never recomputed. Absent on reject. | [packages/core/src/orchestrator/admission.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L261) |
-| <a id="property-nodeid"></a> `nodeId?` | `string` | Node identity minted inside the decision; absent on reject. | [packages/core/src/orchestrator/admission.ts:256](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L256) |
-| <a id="property-statsbefore"></a> `statsBefore` | [`AdmissionStatsBefore`](/api/@rulvar/core/interfaces/AdmissionStatsBefore.md) | - | [packages/core/src/orchestrator/admission.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L254) |
-| <a id="property-verdict"></a> `verdict` | [`AdmitVerdict`](/api/@rulvar/core/type-aliases/AdmitVerdict.md) | - | [packages/core/src/orchestrator/admission.ts:253](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L253) |
+| <a id="property-ladderlength"></a> `ladderLength?` | `number` | The declared ladder length recorded for the termination fold (DEF-2): the replay recomputation reads K_l from the entry, never from the live registry. Present only under a termination account. | [packages/core/src/orchestrator/admission.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L268) |
+| <a id="property-lineage"></a> `lineage?` | [`SpawnLineage`](/api/@rulvar/core/interfaces/SpawnLineage.md) | The computed value-part lineage block (DEF-3): reused byte-exact on replay, never recomputed. Absent on reject. | [packages/core/src/orchestrator/admission.ts:262](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L262) |
+| <a id="property-nodeid"></a> `nodeId?` | `string` | Node identity minted inside the decision; absent on reject. | [packages/core/src/orchestrator/admission.ts:257](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L257) |
+| <a id="property-statsbefore"></a> `statsBefore` | [`AdmissionStatsBefore`](/api/@rulvar/core/interfaces/AdmissionStatsBefore.md) | - | [packages/core/src/orchestrator/admission.ts:255](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L255) |
+| <a id="property-verdict"></a> `verdict` | [`AdmitVerdict`](/api/@rulvar/core/type-aliases/AdmitVerdict.md) | - | [packages/core/src/orchestrator/admission.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L254) |

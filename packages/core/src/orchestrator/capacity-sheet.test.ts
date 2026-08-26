@@ -143,4 +143,35 @@ describe('capacitySheet (RV4304)', () => {
     expect(rendered).not.toMatch(/percentile(?!\))/i);
     expect(rendered).not.toMatch(/\bp95\b/);
   });
+
+  it('a declared repair pool rides the plan as givens and the ceiling as a derived row (RV4705)', () => {
+    const sheet = capacitySheet({
+      plan: {
+        ...SIXTH_RUN().plan,
+        maxTotalRepairRounds: 3,
+        maxSemanticRepairRounds: 1,
+      },
+    });
+    const plan = sheet.sections.find((section) => section.name === 'declared plan');
+    expect(plan?.figures.find((figure) => figure.name === 'maxTotalRepairRounds')).toMatchObject({
+      value: 3,
+      provenance: 'given',
+    });
+    expect(plan?.figures.find((figure) => figure.name === 'maxSemanticRepairRounds')).toMatchObject(
+      { value: 1, provenance: 'given' },
+    );
+    // Legacy round delta 2 (no posture declared) plus two mechanical
+    // grants past the reserve.
+    expect(plan?.figures.find((figure) => figure.name === 'repairWiresCeiling')).toMatchObject({
+      value: 4,
+      provenance: 'derived',
+    });
+    // Undeclared pool: no row, exactly the estimate's absent field.
+    const bare = capacitySheet(SIXTH_RUN());
+    expect(
+      bare.sections
+        .find((section) => section.name === 'declared plan')
+        ?.figures.some((figure) => figure.name === 'repairWiresCeiling'),
+    ).toBe(false);
+  });
 });

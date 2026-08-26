@@ -3305,3 +3305,145 @@ describe('the acceptance-tail twin (RV4001, the fifth comparison experiment)', (
     expect(bothRound.budget.orchestrator?.acceptanceReserve?.terms.judgePasses).toBe(3);
   });
 });
+
+describe('the run repair pool findings (RV4705, the eighth comparison rerun)', () => {
+  // That rerun declared maxTotalRepairRounds 1 under an armed citation
+  // round and a mechanical finish-validation grant; the mechanical
+  // repair drained the pool before the judges ruled, the armed round
+  // was refused over 38 standing findings, and preflight had said
+  // nothing about the plan it green-lit.
+  function poolInput(options: {
+    maxTotalRepairRounds?: number;
+    maxSemanticRepairRounds?: number;
+    citationOnFound?: 'report' | 'repair' | 'fail';
+    claimRepair?: boolean;
+    finishRepairs?: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 200000 }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: { budgetUsd: 20 },
+      orchestrator: {
+        budget: { capUsd: 3.2, capFraction: 1.0, synthesisReserveUsd: 1.4 },
+        synthesis: { limits: { maxTurns: 2 } },
+        limits: { maxOutputTokensPerTurn: 36000 },
+        ...(options.claimRepair === true
+          ? { claimConsistency: { onFound: 'repair' as const, stage: 'final' as const } }
+          : {}),
+        ...(options.citationOnFound === undefined
+          ? {}
+          : { citationAudit: { onFound: options.citationOnFound } }),
+        ...(options.maxTotalRepairRounds === undefined
+          ? {}
+          : { maxTotalRepairRounds: options.maxTotalRepairRounds }),
+        ...(options.maxSemanticRepairRounds === undefined
+          ? {}
+          : { maxSemanticRepairRounds: options.maxSemanticRepairRounds }),
+      },
+      ...(options.finishRepairs === undefined
+        ? {}
+        : {
+            finishValidation: {
+              validators: [{ name: 'nonempty', validate: () => ({ ok: true as const }) }],
+              maxRepairs: options.finishRepairs,
+            },
+          }),
+      spawns: [{ label: 'worker', estCost: 1, limits: { maxOutputTokensPerTurn: 14000 } }],
+    };
+  }
+
+  it('the rerun shape warns: an undivided one-token pool under an armed round and a grant', () => {
+    const rerun = preflightEstimate(
+      poolInput({ maxTotalRepairRounds: 1, citationOnFound: 'repair', finishRepairs: 1 }),
+    );
+    const finding = rerun.findings.find(
+      (entry) => entry.code === 'repair-pool-starves-semantic-round',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('maxTotalRepairRounds 1');
+    expect(finding?.message).toContain('declare maxSemanticRepairRounds');
+    expect(rerun.budget.orchestrator?.repairPool).toEqual({
+      maxTotalRepairRounds: 1,
+      mechanicalAllowance: 1,
+    });
+    // The claim-armed round starves the same way.
+    const claim = preflightEstimate(
+      poolInput({ maxTotalRepairRounds: 1, claimRepair: true, finishRepairs: 1 }),
+    );
+    expect(
+      claim.findings.some((entry) => entry.code === 'repair-pool-starves-semantic-round'),
+    ).toBe(true);
+  });
+
+  it('a declared reserve silences the starvation and shrinks the mechanical allowance', () => {
+    const reserved = preflightEstimate(
+      poolInput({
+        maxTotalRepairRounds: 2,
+        maxSemanticRepairRounds: 1,
+        citationOnFound: 'repair',
+        finishRepairs: 1,
+      }),
+    );
+    expect(
+      reserved.findings.some((entry) => entry.code === 'repair-pool-starves-semantic-round'),
+    ).toBe(false);
+    expect(
+      reserved.findings.some((entry) => entry.code === 'finish-repairs-exceed-repair-pool'),
+    ).toBe(false);
+    expect(reserved.budget.orchestrator?.repairPool).toEqual({
+      maxTotalRepairRounds: 2,
+      maxSemanticRepairRounds: 1,
+      mechanicalAllowance: 1,
+    });
+  });
+
+  it('a stage bound past the mechanical allowance names the pool as the refuser', () => {
+    const squeezed = preflightEstimate(
+      poolInput({ maxTotalRepairRounds: 1, maxSemanticRepairRounds: 1, finishRepairs: 1 }),
+    );
+    const finding = squeezed.findings.find(
+      (entry) => entry.code === 'finish-repairs-exceed-repair-pool',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('only 0');
+    expect(finding?.message).toContain('minus the semantic reserve 1');
+  });
+
+  it('a reserve the pool cannot hold mirrors the intake refusal as an error finding', () => {
+    const contradiction = preflightEstimate(
+      poolInput({ maxTotalRepairRounds: 1, maxSemanticRepairRounds: 2 }),
+    );
+    const finding = contradiction.findings.find(
+      (entry) => entry.code === 'repair-pool-refused-at-intake',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain('the run would refuse to start');
+  });
+
+  it('stays silent without an armed round, and byte identical without a declared pool', () => {
+    const unarmed = preflightEstimate(poolInput({ maxTotalRepairRounds: 1, finishRepairs: 1 }));
+    expect(
+      unarmed.findings.some((entry) => entry.code === 'repair-pool-starves-semantic-round'),
+    ).toBe(false);
+    const undeclared = preflightEstimate(
+      poolInput({ citationOnFound: 'repair', finishRepairs: 1 }),
+    );
+    expect(undeclared.findings.some((entry) => entry.code.startsWith('repair-pool'))).toBe(false);
+    expect(undeclared.budget.orchestrator?.repairPool).toBeUndefined();
+  });
+
+  it('throws typed on a malformed pool like every malformed input', () => {
+    expect(() => preflightEstimate(poolInput({ maxTotalRepairRounds: 1.5 }))).toThrow(
+      /maxTotalRepairRounds/,
+    );
+    expect(() => preflightEstimate(poolInput({ maxSemanticRepairRounds: -1 }))).toThrow(
+      /maxSemanticRepairRounds/,
+    );
+  });
+});

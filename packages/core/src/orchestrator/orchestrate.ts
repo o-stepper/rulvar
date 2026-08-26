@@ -882,9 +882,30 @@ export interface OrchestrateOptions {
    * decision and the dispatch resumes without a double consume. The
    * draft-gate pre-pass dispatches no provider work and spends
    * nothing, by design. Absent keeps every decision and refusal byte
-   * identical.
+   * identical. `maxSemanticRepairRounds` reserves rounds inside this
+   * pool for the semantic stage (RV4705).
    */
   maxTotalRepairRounds?: number;
+  /**
+   * The scoped semantic reserve inside the run repair pool (RV4705,
+   * the eighth comparison experiment's rerun): that run consumed its
+   * one-token pool on a MECHANICAL composition repair before the
+   * judges ruled, so the post-judge semantic round was refused while
+   * 38 census findings stood unconsumed, and the question contract's
+   * "exactly one bounded repair" meant exactly that round. Declared,
+   * this is BOTH a reserve and a cap: mechanical finish-validation
+   * grants may never consume the reserved rounds (they admit only
+   * while the total pool holds the UNSPENT reserve on top of them),
+   * and the semantic round itself is bounded by this number beside
+   * the total pool it still shares (a stage bound NARROWS the pool,
+   * never widens it, the RV4406 doctrine). Greater than a declared
+   * `maxTotalRepairRounds` refuses typed at construction: a reserve
+   * the pool cannot hold is a contradiction. Declared without a total
+   * pool it is the semantic round's own cap alone, and the mechanical
+   * grants stay unbounded exactly as before. Absent keeps every
+   * decision and refusal byte identical.
+   */
+  maxSemanticRepairRounds?: number;
   /**
    * Journaled coordination checkpoints (RV4410, the seventh
    * comparison experiment): with `true`, every settled await round
@@ -2136,6 +2157,22 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   }
   if (opts.maxTotalRepairRounds !== undefined) {
     requireNonNegativeInteger(opts.maxTotalRepairRounds, 'orchestrate maxTotalRepairRounds');
+  }
+  if (opts.maxSemanticRepairRounds !== undefined) {
+    requireNonNegativeInteger(opts.maxSemanticRepairRounds, 'orchestrate maxSemanticRepairRounds');
+    if (
+      opts.maxTotalRepairRounds !== undefined &&
+      opts.maxSemanticRepairRounds > opts.maxTotalRepairRounds
+    ) {
+      // The reserve lives INSIDE the pool (RV4705): a stage bound
+      // narrows the pool, never widens it (RV4406), so a reserve the
+      // pool cannot hold is a config contradiction, not a widening.
+      throw new ConfigError(
+        `orchestrate maxSemanticRepairRounds ${String(opts.maxSemanticRepairRounds)} cannot ` +
+          `exceed maxTotalRepairRounds ${String(opts.maxTotalRepairRounds)}: the semantic ` +
+          'reserve lives inside the run repair pool',
+      );
+    }
   }
   if (
     opts.coordinationCheckpoints !== undefined &&
@@ -4099,26 +4136,37 @@ export function makeOrchestratorWorkflow(
      * journal at every consultation, so live grants, replayed grants
      * and resumed segments all read the SAME counter and nothing can
      * double consume. A finish-validation 'repair' verdict is one
-     * token; a journaled `repair_pool_consume` decision (the semantic
-     * round's pre-dispatch consumption) is one token.
+     * MECHANICAL token; a journaled `repair_pool_consume` decision
+     * (the semantic round's pre-dispatch consumption) is one SEMANTIC
+     * token. The split exists for the scoped reserve (RV4705): the
+     * eighth comparison rerun's mechanical composition repair ate the
+     * one-token pool before the judges ruled, and the refused
+     * semantic round left 38 census findings standing.
      */
-    const runRepairPoolUsed = (): number => {
-      let used = 0;
+    const runRepairPoolCounts = (): { mechanical: number; semantic: number; total: number } => {
+      let mechanical = 0;
+      let semantic = 0;
       for (const entry of internals.replayer.snapshot()) {
         if (entry.kind !== 'decision') {
           continue;
         }
         const value = entry.value as { decisionType?: string; verdict?: string } | undefined;
         if (
-          (value?.decisionType === 'orchestrator_finish_validation' &&
-            value.verdict === 'repair') ||
-          value?.decisionType === 'repair_pool_consume'
+          value?.decisionType === 'orchestrator_finish_validation' &&
+          value.verdict === 'repair'
         ) {
-          used += 1;
+          mechanical += 1;
+        } else if (value?.decisionType === 'repair_pool_consume') {
+          semantic += 1;
         }
       }
-      return used;
+      return { mechanical, semantic, total: mechanical + semantic };
     };
+    /** The reserved rounds mechanics may not touch: the UNSPENT part of the reserve (RV4705). */
+    const semanticReserveHeldOf = (semanticUsed: number): number =>
+      opts?.maxSemanticRepairRounds === undefined
+        ? 0
+        : Math.max(0, opts.maxSemanticRepairRounds - semanticUsed);
     /**
      * The coordination checkpoint (RV4410): one compact decision per
      * settled await round, keyed by its ordinal so a replayed round
@@ -4147,8 +4195,19 @@ export function makeOrchestratorWorkflow(
         },
       });
     };
-    const runRepairPoolAdmits = (): boolean =>
-      opts?.maxTotalRepairRounds === undefined || runRepairPoolUsed() < opts.maxTotalRepairRounds;
+    const runRepairPoolAdmits = (): boolean => {
+      // The MECHANICAL admission (RV4406, scoped by RV4705): a
+      // finish-validation grant fits only while the pool holds it AND
+      // the unspent semantic reserve on top of it, so mechanics can
+      // never eat the round's reserved tokens. Without a total pool
+      // the reserve reserves against nothing and mechanics stay
+      // unbounded, byte for byte the RV4406 behavior.
+      if (opts?.maxTotalRepairRounds === undefined) {
+        return true;
+      }
+      const counts = runRepairPoolCounts();
+      return counts.total + semanticReserveHeldOf(counts.semantic) < opts.maxTotalRepairRounds;
+    };
     const checkpointAcceptanceTail = async (
       stage: 'composition' | 'claim-judge' | 'citation-judge',
     ): Promise<void> => {
@@ -6595,7 +6654,10 @@ export function makeOrchestratorWorkflow(
           maxRepairs,
           // The pool names itself exactly when IT refused a repair the
           // stage bound would have granted (RV4406); every other
-          // decision keeps its bytes.
+          // decision keeps its bytes. When the scoped reserve did the
+          // refusing (RV4705), the decision names the reserve and how
+          // much of it stands unspent, so a reader sees "the pool has
+          // room, but not for mechanics" instead of a bare exhaustion.
           ...(failed.length > 0 &&
           deterministicRepair?.outcome !== 'accepted' &&
           repairsUsed < maxRepairs &&
@@ -6603,6 +6665,12 @@ export function makeOrchestratorWorkflow(
             ? {
                 runRepairPoolExhausted: true,
                 maxTotalRepairRounds: opts?.maxTotalRepairRounds ?? null,
+                ...(opts?.maxSemanticRepairRounds === undefined
+                  ? {}
+                  : {
+                      maxSemanticRepairRounds: opts.maxSemanticRepairRounds,
+                      semanticReserveHeld: semanticReserveHeldOf(runRepairPoolCounts().semantic),
+                    }),
               }
             : {}),
           ...(deterministicRepair === undefined ? {} : { deterministicRepair }),
@@ -8915,15 +8983,42 @@ export function makeOrchestratorWorkflow(
         // machinery already refuses honestly on its path.
         await checkpointAcceptanceTail('composition');
       }
-      if (stagePhase === 'repair' && opts?.maxTotalRepairRounds !== undefined) {
+      if (
+        stagePhase === 'repair' &&
+        (opts?.maxTotalRepairRounds !== undefined || opts?.maxSemanticRepairRounds !== undefined)
+      ) {
         // The run repair pool (RV4406): consume-or-refuse strictly
         // BEFORE the round's dispatch. The refusal throws inside the
         // callers' own catch, so it wears the honest could-not-
         // dispatch envelope with the carried defects; the consume is
         // a keyed decision, so a crash between it and the dispatch
-        // resumes without a double consume.
-        const usedBefore = runRepairPoolUsed();
-        if (usedBefore >= opts.maxTotalRepairRounds) {
+        // resumes without a double consume. The scoped bound (RV4705)
+        // rules first with its own name: a round refused by its own
+        // cap must not read as a spent pool.
+        const counts = runRepairPoolCounts();
+        const usedBefore = counts.total;
+        if (
+          opts.maxSemanticRepairRounds !== undefined &&
+          counts.semantic >= opts.maxSemanticRepairRounds
+        ) {
+          throw new FailRunError(
+            `the semantic repair bound is spent (maxSemanticRepairRounds ` +
+              `${String(opts.maxSemanticRepairRounds)}, ${String(counts.semantic)} consumed); ` +
+              'the semantic repair round is refused before dispatch',
+            {
+              data: {
+                source: 'orchestrator_budget',
+                maxSemanticRepairRounds: opts.maxSemanticRepairRounds,
+                semanticRepairRoundsUsed: counts.semantic,
+                ...(opts.maxTotalRepairRounds === undefined
+                  ? {}
+                  : { maxTotalRepairRounds: opts.maxTotalRepairRounds }),
+                repairRoundsUsed: usedBefore,
+              },
+            },
+          );
+        }
+        if (opts.maxTotalRepairRounds !== undefined && usedBefore >= opts.maxTotalRepairRounds) {
           throw new FailRunError(
             `the run repair pool is spent (maxTotalRepairRounds ` +
               `${String(opts.maxTotalRepairRounds)}, ${String(usedBefore)} consumed); the ` +
@@ -8949,7 +9044,15 @@ export function makeOrchestratorWorkflow(
             stage: 'semantic',
             ...(repairTrigger === undefined ? {} : { trigger: repairTrigger }),
             tokensUsedAfter: usedBefore + 1,
-            maxTotalRepairRounds: opts.maxTotalRepairRounds,
+            ...(opts.maxTotalRepairRounds === undefined
+              ? {}
+              : { maxTotalRepairRounds: opts.maxTotalRepairRounds }),
+            ...(opts.maxSemanticRepairRounds === undefined
+              ? {}
+              : {
+                  maxSemanticRepairRounds: opts.maxSemanticRepairRounds,
+                  semanticRoundsUsedAfter: counts.semantic + 1,
+                }),
           },
         });
       }

@@ -715,3 +715,255 @@ describe('the run repair pool (RV4406): one lifetime bound over every repair gra
     expect(roundWire).toBeDefined();
   });
 });
+
+// ---- The scoped semantic reserve (RV4705): the eighth comparison
+// rerun's mechanical composition repair ate the one-token pool before
+// the judges ruled, and the armed round was refused over 38 standing
+// census findings; the question contract's "exactly one bounded
+// repair" meant that round.
+
+const NO_DRAFT_MARKER = {
+  name: 'no-draft-marker',
+  validate: (input: { text: string }) =>
+    input.text.includes('(draft)')
+      ? { ok: false as const, reasons: ['the draft marker must not ship'] }
+      : { ok: true as const },
+};
+
+/**
+ * The rerun's full trajectory: a coordination draft the gate rejects
+ * once, a composition candidate the finish validator rejects once,
+ * and judge findings that arm the semantic round.
+ */
+function reserveHarness(options: {
+  drafts: string[];
+  claimTurns: ScriptedTurn[];
+  citationTurns: ScriptedTurn[];
+  finals: string[];
+}) {
+  let orchTurn = 0;
+  let draftCall = 0;
+  const coordination = scriptedAdapter((req): ScriptedTurn => {
+    if (agentTypeOf(req) === 'worker') {
+      return { text: POOL_READING };
+    }
+    orchTurn += 1;
+    if (orchTurn === 1) {
+      return {
+        toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'read the span' } },
+      };
+    }
+    if (orchTurn === 2) {
+      return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+    }
+    const draft = options.drafts[Math.min(draftCall++, options.drafts.length - 1)];
+    return { toolCall: { name: 'finish', args: { result: draft } } };
+  });
+  let claimCall = 0;
+  let citationCall = 0;
+  const judge = scriptedAdapter(
+    (req): ScriptedTurn => {
+      if (textOf(req).includes('claim-consistency judge')) {
+        return options.claimTurns[Math.min(claimCall++, options.claimTurns.length - 1)];
+      }
+      return options.citationTurns[Math.min(citationCall++, options.citationTurns.length - 1)];
+    },
+    { id: 'judge' },
+  );
+  let synthCall = 0;
+  const synthesis = scriptedAdapter(
+    (): ScriptedTurn => ({
+      toolCall: {
+        name: 'finish',
+        args: { result: options.finals[Math.min(synthCall++, options.finals.length - 1)] },
+      },
+    }),
+    { id: 'strong' },
+  );
+  const { internals } = makeInternals({
+    adapters: [coordination, judge, synthesis],
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+    profiles: PROFILES,
+  });
+  return { internals, synthesis };
+}
+
+describe('the scoped semantic reserve (RV4705): mechanics cannot eat the round', () => {
+  it('intake: a malformed reserve or one the pool cannot hold refuses typed', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', { synthesis: {}, maxSemanticRepairRounds: -1 }),
+    ).toThrow(/maxSemanticRepairRounds/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: {},
+        maxTotalRepairRounds: 1,
+        maxSemanticRepairRounds: 2,
+      }),
+    ).toThrow(/cannot exceed maxTotalRepairRounds 1/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: {},
+        maxTotalRepairRounds: 1,
+        maxSemanticRepairRounds: 1,
+      }),
+    ).not.toThrow();
+  });
+
+  it('the rerun trajectory settles under {total: 3, semantic: 1}: draft, mechanical, and semantic all dispatch', async () => {
+    const rig = reserveHarness({
+      drafts: ['coordination (draft) before synthesis', 'coordination draft before synthesis'],
+      claimTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      citationTurns: [CITE_BAD, CITE_CLEAN],
+      finals: [MERGED_BAD.replace('## Exec', '## Exec (draft)'), MERGED_BAD, MERGED_FIXED],
+    });
+    const outcome = (await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        finishValidation: {
+          validators: [NO_DRAFT_MARKER],
+          maxRepairs: 1,
+          draftPolicy: 'contract',
+        },
+        maxTotalRepairRounds: 3,
+        maxSemanticRepairRounds: 1,
+      }),
+      undefined,
+    )) as { result: unknown };
+    expect(outcome.result).toBe(MERGED_FIXED);
+    // Composition, its granted mechanical repair turn, and the round.
+    expect(rig.synthesis.calls).toHaveLength(3);
+    const ledger = repairLedgerFromJournal(rig.internals.replayer.snapshot());
+    expect(ledger.draft).toBe(1);
+    expect(ledger.composition).toBe(1);
+    expect(ledger.semantic).toBe(1);
+    // The consume decision carries BOTH bounds and both counters.
+    const consume = rig.internals.replayer
+      .snapshot()
+      .find(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'repair_pool_consume',
+      );
+    expect(consume?.value).toMatchObject({
+      stage: 'semantic',
+      tokensUsedAfter: 2,
+      maxTotalRepairRounds: 3,
+      maxSemanticRepairRounds: 1,
+      semanticRoundsUsedAfter: 1,
+    });
+  });
+
+  it('under {total: 1, semantic: 1} the MECHANICAL grant is refused first, naming the held reserve', async () => {
+    const rig = reserveHarness({
+      drafts: ['coordination draft before synthesis'],
+      claimTurns: [JUDGE_AGREES],
+      citationTurns: [CITE_CLEAN],
+      finals: [MERGED_FIXED.replace('## Exec', '## Exec (draft)'), MERGED_FIXED],
+    });
+    const thrown = await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        finishValidation: {
+          validators: [NO_DRAFT_MARKER],
+          maxRepairs: 1,
+        },
+        maxTotalRepairRounds: 1,
+        maxSemanticRepairRounds: 1,
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    // One synthesis wire: the stage bound would have granted the
+    // repair, the reserve refused it, and no second candidate exists.
+    expect(rig.synthesis.calls).toHaveLength(1);
+    const verdictEntry = rig.internals.replayer
+      .snapshot()
+      .find(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation',
+      );
+    expect(verdictEntry?.value).toMatchObject({
+      verdict: 'rejected',
+      runRepairPoolExhausted: true,
+      maxTotalRepairRounds: 1,
+      maxSemanticRepairRounds: 1,
+      semanticReserveHeld: 1,
+    });
+  });
+
+  it('under {total: 1, semantic: 1} the reserved token still dispatches the round', async () => {
+    const rig = mergedHarness({
+      claimTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      citationTurns: [CITE_BAD, CITE_CLEAN],
+      finals: [MERGED_BAD, MERGED_FIXED],
+    });
+    const outcome = (await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        maxTotalRepairRounds: 1,
+        maxSemanticRepairRounds: 1,
+      }),
+      undefined,
+    )) as { result: unknown };
+    expect(outcome.result).toBe(MERGED_FIXED);
+    expect(rig.synthesis.calls).toHaveLength(2);
+  });
+
+  it('the scoped cap refuses the round with its own name, before dispatch', async () => {
+    const rig = mergedHarness({
+      claimTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      citationTurns: [CITE_BAD, CITE_CLEAN],
+      finals: [MERGED_BAD, MERGED_FIXED],
+    });
+    const thrown = await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        maxSemanticRepairRounds: 0,
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain('could not dispatch');
+    expect(String((thrown as FailRunError).message)).toContain('maxSemanticRepairRounds 0');
+    // The round composition was never paid.
+    expect(rig.synthesis.calls).toHaveLength(1);
+  });
+
+  it('declared without a total pool, the reserve is the round cap alone and journals alone', async () => {
+    const rig = mergedHarness({
+      claimTurns: [JUDGE_FINDS, JUDGE_AGREES],
+      citationTurns: [CITE_BAD, CITE_CLEAN],
+      finals: [MERGED_BAD, MERGED_FIXED],
+    });
+    const outcome = (await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...MERGED_OPTS,
+        maxSemanticRepairRounds: 1,
+      }),
+      undefined,
+    )) as { result: unknown };
+    expect(outcome.result).toBe(MERGED_FIXED);
+    const consume = rig.internals.replayer
+      .snapshot()
+      .find(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'repair_pool_consume',
+      );
+    expect(consume?.value).toMatchObject({
+      stage: 'semantic',
+      tokensUsedAfter: 1,
+      maxSemanticRepairRounds: 1,
+      semanticRoundsUsedAfter: 1,
+    });
+    expect('maxTotalRepairRounds' in ((consume?.value ?? {}) as Record<string, unknown>)).toBe(
+      false,
+    );
+  });
+});

@@ -10,7 +10,7 @@
 function acceptanceJudgePasses(stage?, onFound?): number;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L300)
+Defined in: [packages/core/src/orchestrator/admission.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L301)
 
 Worst-case claim judge dispatches of a declared posture
 (RV3402/RV4001): `'both'` dispatches the judge at the draft AND the
