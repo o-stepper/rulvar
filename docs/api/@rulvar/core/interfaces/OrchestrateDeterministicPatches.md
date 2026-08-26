@@ -6,7 +6,7 @@
 
 # Interface: OrchestrateDeterministicPatches
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:1752](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1752)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:1792](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1792)
 
 The deterministic-repair aggregate of the shipped run (RV3904, the
 fourth comparison experiment): the patches themselves stay on the
@@ -21,7 +21,7 @@ exists; every other envelope stays byte identical.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-decisions"></a> `decisions` | `number` | Finish decisions whose deterministic repair was accepted. | [packages/core/src/orchestrator/orchestrate.ts:1754](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1754) |
-| <a id="property-lastafterhash"></a> `lastAfterHash` | `string` | The LAST accepted repair's canonical post-patch hash; the judge rules on these bytes. | [packages/core/src/orchestrator/orchestrate.ts:1760](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1760) |
-| <a id="property-lastbeforehash"></a> `lastBeforeHash` | `string` | The LAST accepted repair's canonical pre-patch hash. | [packages/core/src/orchestrator/orchestrate.ts:1758](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1758) |
-| <a id="property-patches"></a> `patches` | `number` | Total individual patches across those decisions. | [packages/core/src/orchestrator/orchestrate.ts:1756](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1756) |
+| <a id="property-decisions"></a> `decisions` | `number` | Finish decisions whose deterministic repair was accepted. | [packages/core/src/orchestrator/orchestrate.ts:1794](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1794) |
+| <a id="property-lastafterhash"></a> `lastAfterHash` | `string` | The LAST accepted repair's canonical post-patch hash; the judge rules on these bytes. | [packages/core/src/orchestrator/orchestrate.ts:1800](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1800) |
+| <a id="property-lastbeforehash"></a> `lastBeforeHash` | `string` | The LAST accepted repair's canonical pre-patch hash. | [packages/core/src/orchestrator/orchestrate.ts:1798](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1798) |
+| <a id="property-patches"></a> `patches` | `number` | Total individual patches across those decisions. | [packages/core/src/orchestrator/orchestrate.ts:1796](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1796) |
