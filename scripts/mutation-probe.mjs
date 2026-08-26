@@ -6883,6 +6883,15 @@ export const MUTATIONS = [
     replace: '        if (false) {',
     test: 'packages/core/src/orchestrator/citation-audit.test.ts',
   },
+  {
+    id: 'truncated-units-reach-the-judge-whole',
+    doctrine:
+      "a unit the default cap clips is re-resolved at the bounded extended cap for the judge (RV4707): with the extension dropped, the seventh census's rows 81 and 105 read clipped windows again, the judge honestly rules unsupported over support 3..7 lines past the cut, and the verdict blames the composer for the resolver's clipping",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          if (resolved?.unit.truncated === true) {',
+    replace: '          if (false) {',
+    test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

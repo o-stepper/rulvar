@@ -122,9 +122,12 @@ import {
 } from './finish-validators.js';
 import {
   CITATION_JUDGE_SCHEMA,
+  CITATION_UNIT_JUDGE_EXTENSION_FACTOR,
   citationExcerptOf,
   citationGroundingLines,
   citationUnitExcerptOf,
+  MAX_CITATION_UNIT_EXCERPT_CHARS,
+  MAX_CITATION_UNIT_EXCERPT_LINES,
   parseCitationVerdicts,
   resolveCitationAuditPlan,
   sampleCitationRows,
@@ -8781,6 +8784,27 @@ export function makeOrchestratorWorkflow(
         // keeps the fixed window byte for byte.
         if (plan.resolver === 2) {
           const resolved = citationUnitExcerptOf(auditSpec.resolve, row);
+          // The truncated-unit extension, judge side only (RV4707):
+          // the seventh candidate's census rows 81 and 105 carried
+          // honest support 3..7 lines past the default clip and the
+          // judge honestly ruled unsupported over the incomplete
+          // window. A unit the default cap clips is re-resolved at
+          // the bounded extended cap for the judge's eyes; the
+          // stamped `extended` flag says which cap produced the
+          // excerpt, and untruncated units keep every byte.
+          if (resolved?.unit.truncated === true) {
+            const extended = citationUnitExcerptOf(auditSpec.resolve, row, {
+              maxLines: MAX_CITATION_UNIT_EXCERPT_LINES * CITATION_UNIT_JUDGE_EXTENSION_FACTOR,
+              maxChars: MAX_CITATION_UNIT_EXCERPT_CHARS * CITATION_UNIT_JUDGE_EXTENSION_FACTOR,
+            });
+            if (extended !== undefined) {
+              return {
+                ...row,
+                excerpt: extended.excerpt,
+                unit: { ...extended.unit, extended: true as const },
+              };
+            }
+          }
           return resolved === undefined
             ? row
             : { ...row, excerpt: resolved.excerpt, unit: resolved.unit };
