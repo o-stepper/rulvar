@@ -5231,9 +5231,9 @@ export const MUTATIONS = [
   {
     id: 'acceptance-reserve-unfit-severity',
     doctrine:
-      "an unfit tail under declared 'require' is an ERROR finding (RV4001): the fifth comparison harness gated on error findings only and sailed a $4.54 cap past a $4.82 tail; a severity downgrade re-opens exactly that seam, with the arithmetic on record and the boot refusal waiting",
+      "an unfit tail under declared 'require' is an ERROR finding (RV4001; 'checkpoint' estimates with require's genesis arithmetic since RV4701): the fifth comparison harness gated on error findings only and sailed a $4.54 cap past a $4.82 tail; a severity downgrade re-opens exactly that seam, with the arithmetic on record and the boot refusal waiting",
     file: 'packages/core/src/engine/preflight.ts',
-    find: "          severity: spec.acceptanceReserve === 'require' ? 'error' : 'warning',",
+    find: "          severity: spec.acceptanceReserve === 'warn' ? 'warning' : 'error',",
     replace: "          severity: 'warning',",
     test: 'packages/core/src/engine/preflight.test.ts',
   },
