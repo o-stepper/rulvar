@@ -695,6 +695,66 @@ export function citationUnitExcerptOf(
   );
 }
 
+/** Judged anchors a repair round carries grounding windows for at most. */
+export const MAX_GROUNDING_WINDOW_FINDINGS = 6;
+/** The whole grounding block's character budget inside one prompt. */
+export const MAX_GROUNDING_WINDOW_CHARS = 4800;
+
+/**
+ * The grounding windows a citation repair round rides (RV4601): the
+ * resolved unit of each judged anchor, so the composer repairs a
+ * citation against the bytes the judge actually read instead of
+ * guessing at a file it has never seen (the seventh comparison
+ * experiment's candidate moved anchors blind). Recomputed from the
+ * pure snapshot resolver at every prompt build, which is what keeps a
+ * resumed round byte identical: nothing new persists, and a pure
+ * resolver returns the same lines forever. Anchors that stopped
+ * resolving, repeated anchors, and anything past the finding or
+ * character budgets are silently absent; the block is an aid, never a
+ * verdict surface.
+ */
+export function citationGroundingLines(
+  findings: readonly Pick<CitationAuditFinding, 'anchor'>[],
+  resolve: (target: CitationTarget) => string | undefined,
+): string[] {
+  const lines: string[] = [];
+  const seen = new Set<string>();
+  let budget = MAX_GROUNDING_WINDOW_CHARS;
+  for (const finding of findings) {
+    if (lines.length >= MAX_GROUNDING_WINDOW_FINDINGS) {
+      break;
+    }
+    if (seen.has(finding.anchor)) {
+      continue;
+    }
+    seen.add(finding.anchor);
+    const parsed = RANGE_TAIL.exec(finding.anchor);
+    if (parsed === null) {
+      continue;
+    }
+    const line = Number(parsed[2]);
+    if (!Number.isSafeInteger(line) || line < 1) {
+      continue;
+    }
+    const endLine = parsed[3] === undefined ? undefined : Number(parsed[3]);
+    const unit = citationUnitExcerptOf(resolve, {
+      path: parsed[1] ?? '',
+      line,
+      ...(endLine === undefined ? {} : { endLine }),
+    });
+    if (unit === undefined) {
+      continue;
+    }
+    const entry = `${finding.anchor} (${unit.unit.type}):\n${unit.excerpt}`;
+    if (entry.length > budget) {
+      break;
+    }
+    budget -= entry.length;
+    lines.push(entry);
+  }
+  return lines;
+}
+
 /** The audit judge's structured verdict schema (mirrors the claim judge). */
 export const CITATION_JUDGE_SCHEMA = {
   type: 'object',

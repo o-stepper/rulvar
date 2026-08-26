@@ -21,8 +21,10 @@ import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/tes
 import type { CitationTarget } from './finish-validators.js';
 import {
   citationExcerptOf,
+  citationGroundingLines,
   citationUnitExcerptOf,
   clauseAround,
+  MAX_GROUNDING_WINDOW_FINDINGS,
   resolveCitationAuditPlan,
   sampleCitationRows,
 } from './citation-audit.js';
@@ -726,5 +728,151 @@ describe('comment context boundaries (RV4401)', () => {
     const resolved = citationUnitExcerptOf(resolveBoundary, { path: 'plain.md', line: 1 });
     expect(resolved?.unit.type).toBe('section');
     expect(resolved?.excerpt).toContain('Prose below the title.');
+  });
+});
+
+describe('citationGroundingLines (RV4601)', () => {
+  it('resolves the unit of each finding anchor, deduped, skipping the unresolvable', () => {
+    const lines = citationGroundingLines(
+      [{ anchor: 'engine.ts:2' }, { anchor: 'engine.ts:2' }, { anchor: 'missing.ts:1' }],
+      resolve,
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('engine.ts:2 (comment-declaration):');
+    expect(lines[0]).toContain('drainChildren(run);');
+  });
+
+  it('keeps range semantics for a ranged anchor', () => {
+    const lines = citationGroundingLines([{ anchor: 'guide.md:18-19' }], resolve);
+    expect(lines[0]).toContain('guide.md:18-19 (paragraph):');
+    expect(lines[0]).toContain('L19: journal itself');
+    expect(lines[0]).not.toContain('L20:');
+  });
+
+  it('honors the finding and character budgets', () => {
+    const findings = Array.from({ length: MAX_GROUNDING_WINDOW_FINDINGS + 3 }, (_, index) => ({
+      anchor: `engine.ts:${String(index + 1)}`,
+    }));
+    expect(citationGroundingLines(findings, resolve).length).toBeLessThanOrEqual(
+      MAX_GROUNDING_WINDOW_FINDINGS,
+    );
+    const long = Array.from({ length: 24 }, () => 'x'.repeat(400));
+    const resolveLong = (target: CitationTarget): string | undefined =>
+      target.path === 'long.md' ? long[target.line - 1] : undefined;
+    const capped = citationGroundingLines(
+      [{ anchor: 'long.md:1' }, { anchor: 'long.md:5' }, { anchor: 'long.md:9' }],
+      resolveLong,
+    );
+    // Each unit clips at the excerpt char cap; the third would step
+    // past the block budget and is absent, never truncated mid entry.
+    expect(capped).toHaveLength(2);
+  });
+});
+
+describe('the grounding windows ride the citation round (RV4601)', () => {
+  const FINAL_BAD = 'final: the settle drains children first engine.ts:2.';
+  const FINAL_FIXED = 'final: the settle drains children first engine.ts:4.';
+  const textOfReq = (req: ChatRequest): string =>
+    req.messages
+      .flatMap((msg) => msg.parts)
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n');
+  const rig = () => {
+    let orchTurn = 0;
+    const coordination = scriptedAdapter((req): ScriptedTurn => {
+      const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)
+        ?.rulvar;
+      if (rulvar?.agentType === 'worker') {
+        return { text: 'the recorded reading' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'read' } },
+        };
+      }
+      if (orchTurn === 2) {
+        const handles: number[] = [];
+        for (const msg of req.messages) {
+          for (const part of msg.parts) {
+            if (part.type === 'tool-result') {
+              const result = part.result as { handle?: number };
+              if (typeof result?.handle === 'number') {
+                handles.push(result.handle);
+              }
+            }
+          }
+        }
+        return { toolCall: { name: 'await_all', args: { handles } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'draft' } } };
+    });
+    let judgeCall = 0;
+    const judge = scriptedAdapter(
+      (req): ScriptedTurn => {
+        judgeCall += 1;
+        const verdict = judgeCall === 1 ? 'unsupported' : 'supported';
+        const verdicts: { row: number; verdict: string; reason: string }[] = [];
+        for (const match of textOfReq(req).matchAll(/"row":(\d+)/gu)) {
+          verdicts.push({ row: Number(match[1]), verdict, reason: 'ruled' });
+        }
+        return { text: JSON.stringify({ verdicts }) };
+      },
+      { id: 'judge' },
+    );
+    let synthCall = 0;
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => {
+        synthCall += 1;
+        return {
+          toolCall: {
+            name: 'finish',
+            args: { result: synthCall === 1 ? FINAL_BAD : FINAL_FIXED },
+          },
+        };
+      },
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: { worker: { description: 'reads one span' } },
+    });
+    return { internals, synthesis };
+  };
+  const optsWith = (auditExtras: Record<string, unknown>) => ({
+    acceptance: { childPolicy: 'all-ok' as const },
+    synthesis: { limits: { maxTurns: 3 } },
+    citationAudit: {
+      resolve,
+      onFound: 'repair' as const,
+      judge: { model: 'judge:model' as const },
+      ...auditExtras,
+    },
+  });
+
+  it('a resolver 2 round carries the resolved units of the judged anchors', async () => {
+    const { internals, synthesis } = rig();
+    await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('goal', optsWith({ resolver: 2 })),
+      undefined,
+    );
+    expect(synthesis.calls).toHaveLength(2);
+    const roundPrompt = textOfReq(synthesis.calls[1]);
+    expect(roundPrompt).toContain('CITATION AUDIT FINDINGS');
+    expect(roundPrompt).toContain('CITATION GROUNDING:');
+    expect(roundPrompt).toContain('engine.ts:2 (comment-declaration):');
+    expect(roundPrompt).toContain('drainChildren(run);');
+  });
+
+  it('a resolver 1 round keeps its prompt bytes: no grounding block', async () => {
+    const { internals, synthesis } = rig();
+    await executeWorkflow(internals, makeOrchestratorWorkflow('goal', optsWith({})), undefined);
+    expect(synthesis.calls).toHaveLength(2);
+    const roundPrompt = textOfReq(synthesis.calls[1]);
+    expect(roundPrompt).toContain('CITATION AUDIT FINDINGS');
+    expect(roundPrompt).not.toContain('CITATION GROUNDING:');
   });
 });
