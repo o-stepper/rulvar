@@ -442,6 +442,18 @@ const terminalOutputClearsFloor = (
 };
 
 /**
+ * The verdict bijection's output floor per judged row (RV4706): one
+ * { row, verdict, reason } object with a one-sentence reason. The
+ * census rejudges of the seventh and eighth comparison experiments
+ * (145 and 215 rows) both overflowed a 9000-token judge cap and fit
+ * 32000, which brackets the per-row envelope this floor prices.
+ */
+export const CITATION_VERDICT_EST_TOKENS_PER_ROW = 70;
+
+/** The bijection's fixed frame beside the rows (RV4706): array, envelope, preamble. */
+export const CITATION_VERDICT_EST_BASE_TOKENS = 500;
+
+/**
  * The word ceiling of a 'digest' coordination draft (RV4210): the
  * digest is a structural evidence map the composing invocation writes
  * prose FROM, and the ceiling is the teeth that keep it from decaying
@@ -1196,6 +1208,23 @@ export interface OrchestrateCitationAudit {
     /** Admission estimate for the judge invocation, like AgentOpts.estCost. */
     estCost?: number;
   };
+  /**
+   * What an output cap too small for the verdict bijection does
+   * (RV4706, the census reruns of the seventh and eighth comparison
+   * experiments): a census carries the whole document's rows in ONE
+   * judge dispatch, and the { row, verdict, reason } bijection over
+   * them must fit `judge.limits.maxOutputTokensPerTurn` or the reply
+   * truncates mid-array; both census rejudges overflowed the seventh
+   * experiment's 9000-token cap and raised it to 32000 by hand. When
+   * the cap is DECLARED and sits below the floor estimate
+   * ({@link CITATION_VERDICT_EST_TOKENS_PER_ROW} per judged row plus
+   * {@link CITATION_VERDICT_EST_BASE_TOKENS}), 'fail' (the default)
+   * refuses typed BEFORE the provider call, naming both numbers;
+   * 'warn' logs the same numbers and dispatches anyway. An undeclared
+   * cap keeps every byte: the estimator cannot judge a resolution it
+   * does not see.
+   */
+  judgeOutputCapGuard?: 'fail' | 'warn';
   /**
    * What a non-supported verdict does. 'report' (the default) stamps
    * the meta and the findings on the envelope and changes nothing
@@ -3330,6 +3359,16 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     if (audit.judge?.estCost !== undefined) {
       requireNonNegativeNumber(audit.judge.estCost, 'orchestrate citationAudit.judge.estCost');
+    }
+    if (
+      audit.judgeOutputCapGuard !== undefined &&
+      audit.judgeOutputCapGuard !== 'fail' &&
+      audit.judgeOutputCapGuard !== 'warn'
+    ) {
+      throw new ConfigError(
+        `orchestrate citationAudit.judgeOutputCapGuard must be 'fail' or 'warn'; got ` +
+          JSON.stringify(audit.judgeOutputCapGuard),
+      );
     }
     if (
       audit.auditScope !== undefined &&
@@ -8850,6 +8889,53 @@ export function makeOrchestratorWorkflow(
         ...(auditSpec.judge?.effort === undefined ? {} : { effort: auditSpec.judge.effort }),
         ...(auditSpec.judge?.estCost === undefined ? {} : { estCost: auditSpec.judge.estCost }),
       };
+      // The bijection output-cap guard (RV4706): a census carries the
+      // whole document's rows in ONE dispatch, and the verdict
+      // bijection must fit the judge's declared output allowance or
+      // the reply truncates mid-array; both census rejudges overflowed
+      // the seventh experiment's 9000-token cap and raised it by hand.
+      // A declared cap below the floor estimate refuses typed BEFORE
+      // the provider call (or warns, by the declared posture), naming
+      // both numbers; an undeclared cap keeps every byte.
+      const declaredJudgeCap = auditSpec.judge?.limits?.maxOutputTokensPerTurn;
+      if (declaredJudgeCap !== undefined) {
+        const estimatedVerdictTokens =
+          CITATION_VERDICT_EST_TOKENS_PER_ROW * judgeRows.length + CITATION_VERDICT_EST_BASE_TOKENS;
+        if (declaredJudgeCap < estimatedVerdictTokens) {
+          if ((auditSpec.judgeOutputCapGuard ?? 'fail') === 'fail') {
+            throw new FailRunError(
+              `the citation judge's declared output cap ${String(declaredJudgeCap)} cannot ` +
+                `carry the verdict bijection over ${String(judgeRows.length)} rows ` +
+                `(estimated ${String(estimatedVerdictTokens)} tokens at ` +
+                `${String(CITATION_VERDICT_EST_TOKENS_PER_ROW)} per row plus ` +
+                `${String(CITATION_VERDICT_EST_BASE_TOKENS)}); raise ` +
+                'judge.limits.maxOutputTokensPerTurn, or declare ' +
+                "judgeOutputCapGuard: 'warn'",
+              {
+                data: {
+                  source: 'orchestrator_citation_audit',
+                  judgeOutputCap: declaredJudgeCap,
+                  judgeRows: judgeRows.length,
+                  estimatedVerdictTokens,
+                },
+              },
+            );
+          }
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'warn',
+              msg: 'orchestrator citation judge output cap below the verdict bijection estimate',
+              data: {
+                judgeOutputCap: declaredJudgeCap,
+                judgeRows: judgeRows.length,
+                estimatedVerdictTokens,
+              },
+            },
+            callingState.spanId,
+          );
+        }
+      }
       // RV4404: same checkpoint discipline as the claim judge.
       await checkpointAcceptanceTail('citation-judge');
       tailPassesDone.citation += 1;
