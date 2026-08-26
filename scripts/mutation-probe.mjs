@@ -6746,6 +6746,42 @@ export const MUTATIONS = [
       '        void handlePromise.then((handle) => {\n          if (!cancelled) {\n            unsub = handle.on(type, cb);\n          }\n        });',
     test: 'packages/core/src/engine/resume.test.ts',
   },
+  {
+    id: 'the-lexer-refuses-property-notation',
+    doctrine:
+      "a citation names a known source file extension, and a dotted config property is not one (RV4603): with the gate dropped, acceptance.minSpawnedChildren:4 counts as provenance again, the seventh comparison experiment's harness defect verbatim",
+    file: 'packages/evals/src/lexer.ts',
+    find: "    if (extension === undefined || !extensionSet.has(extension)) {\n      rejected.push({ raw, reason: 'unknown-extension' });\n      continue;\n    }",
+    replace: '',
+    test: 'packages/evals/src/lexer.test.ts',
+  },
+  {
+    id: 'ids-count-in-every-notation',
+    doctrine:
+      "requirement ids count in the colon, dash and table notations as ONE vocabulary (RV4603): with the colon demanded back, the seventh comparison experiment's winning answer counts zero of its 88 ids again and equivalent documents stop counting equal",
+    file: 'packages/evals/src/lexer.ts',
+    find: '    const ID = /\\b([A-Z])(\\d{2,4})\\b/gu;',
+    replace: '    const ID = /\\b([A-Z])(\\d{2,4}):/gu;',
+    test: 'packages/evals/src/lexer.test.ts',
+  },
+  {
+    id: 'fences-stay-outside-the-count',
+    doctrine:
+      'fenced code is stripped before both scans unless the host counts it on purpose (RV4603): with the strip dropped, a code block stuffed with anchors and ids inflates every count, the C06 counterexample both seventh experiment answers named',
+    file: 'packages/evals/src/lexer.ts',
+    find: "  const scope = fencedCode === 'excluded' ? stripFencedBlocks(text) : text;",
+    replace: '  const scope = text;',
+    test: 'packages/evals/src/lexer.test.ts',
+  },
+  {
+    id: 'the-range-tail-rides-the-anchor',
+    doctrine:
+      'a ranged citation keeps its tail on the raw anchor (RV4603): with the tail dropped, src/store.ts:20-31 and src/store.ts:20 collapse into one unique anchor and the corrected unique count drifts from the audit that read the ranges',
+    file: 'packages/evals/src/lexer.ts',
+    find: '    const tail = /^-(\\d+)/u.exec(scope.slice(match.index + match[0].length));\n    const raw = tail === null ? match[0] : `${match[0]}${tail[0]}`;',
+    replace: '    const tail = null;\n    const raw = match[0];',
+    test: 'packages/evals/src/lexer.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

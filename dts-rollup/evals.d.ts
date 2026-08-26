@@ -1,4 +1,4 @@
-import { ClaimCoverageGrade, ClaimPair, CompiledWorkflow, ContradictionSource, DeclaredLadder, Effort, Engine, EvidenceRef, Json, JsonSchema, KnowledgeSnapshot, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunFactsSheet, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow, WorkflowEvent } from "@rulvar/core";
+import { CitationTarget, ClaimCoverageGrade, ClaimPair, CompiledWorkflow, ContradictionSource, DeclaredLadder, Effort, Engine, EvidenceRef, Json, JsonSchema, KnowledgeSnapshot, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunFactsSheet, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow, WorkflowEvent } from "@rulvar/core";
 
 //#region src/envelope.d.ts
 /** Thrown when authorizing a run's ceiling would exceed the envelope. */
@@ -903,4 +903,76 @@ interface ClaimCorpusVerdict {
 */
 declare function runClaimCorpus(cases?: readonly ClaimCorpusCase[]): ClaimCorpusVerdict[];
 //#endregion
-export { type BenchmarkFingerprint, type BenchmarkMetricExtractor, type BenchmarkPercentiles, type BenchmarkReport, type BenchmarkRunRecord, type BenchmarkSpec, type BenchmarkVerification, CLAIM_CORPUS, type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type ClaimCorpusCase, type ClaimCorpusClass, type ClaimCorpusVerdict, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, FAULT_SCENARIO_NAMES, type FaultInjectionReport, type FaultScenarioArtifact, type FaultScenarioObservation, type FaultScenarioReport, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunBenchmarkOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunFaultInjectionOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runBenchmark, runCanary, runClaimCorpus, runEvalCase, runEvalMatrix, runEvalSuite, runFaultInjection, runSweepMatrix, runValueCheckpoint, rungRuleHolds };
+//#region src/lexer.d.ts
+/** Source file extensions a citation may name; lowercase, no dots. */
+declare const DEFAULT_CITATION_EXTENSIONS: readonly string[];
+/** Requirement id families of the comparison contract (N, R, C). */
+declare const DEFAULT_REQUIREMENT_FAMILIES: readonly string[];
+/** One accepted citation occurrence, in document order. */
+interface LexedCitation {
+  /** The raw span, range tail included. */
+  readonly raw: string;
+  readonly path: string;
+  readonly line: number;
+  readonly endLine?: number;
+  /** The H2 heading the occurrence sits under; '' before the first. */
+  readonly section: string;
+}
+/** One span the pattern matched and the lexer refused to count. */
+interface RejectedCitationSpan {
+  readonly raw: string;
+  readonly reason: "unknown-extension" | "unresolved";
+}
+/** One requirement id occurrence with the notation it was written in. */
+interface LexedRequirementId {
+  /** The id verbatim, e.g. 'N01'. */
+  readonly id: string;
+  readonly family: string;
+  readonly ordinal: number;
+  /**
+  * 'colon' for `N01:` (a period counts), 'dash' for a dash separated
+  * list item, 'table' for a table row cell, 'bare' otherwise.
+  */
+  readonly form: "colon" | "dash" | "table" | "bare";
+}
+/** The lex of one contract audited document. */
+interface ContractAuditLex {
+  /** Accepted citation occurrences, the headline count. */
+  readonly citationOccurrences: number;
+  readonly citations: readonly LexedCitation[];
+  /** Distinct accepted raw spans, in first occurrence order. */
+  readonly uniqueAnchors: readonly string[];
+  readonly rejected: readonly RejectedCitationSpan[];
+  /** Every id occurrence per family, in document order. */
+  readonly requirementIds: Readonly<Record<string, readonly LexedRequirementId[]>>;
+  /** Distinct ids per family, the contract set size. */
+  readonly distinctRequirementCounts: Readonly<Record<string, number>>;
+  /** Accepted citations per H2 section, in document order. */
+  readonly perSection: readonly {
+    heading: string;
+    citations: number;
+  }[];
+}
+interface ContractAuditLexOptions {
+  /** Overrides {@link DEFAULT_CITATION_PATTERN}; must expose `path:line`. */
+  pattern?: string;
+  /** Overrides {@link DEFAULT_CITATION_EXTENSIONS}; lowercase, no dots. */
+  extensions?: readonly string[];
+  /**
+  * The pure snapshot resolver (the citation audit contract). When
+  * present, a citation whose FIRST cited line does not resolve is
+  * rejected 'unresolved'; absent, extension acceptance stands alone.
+  */
+  resolve?: (target: CitationTarget) => string | undefined;
+  /** Overrides {@link DEFAULT_REQUIREMENT_FAMILIES}; single uppercase letters. */
+  families?: readonly string[];
+  /** 'excluded' (the default) strips fenced code before both scans. */
+  fencedCode?: "excluded" | "counted";
+}
+/**
+* Lexes one document under the shared contract audit grammar; see the
+* module comment for the doctrine. Malformed options refuse typed.
+*/
+declare function lexContractAudit(text: string, options?: ContractAuditLexOptions): ContractAuditLex;
+//#endregion
+export { type BenchmarkFingerprint, type BenchmarkMetricExtractor, type BenchmarkPercentiles, type BenchmarkReport, type BenchmarkRunRecord, type BenchmarkSpec, type BenchmarkVerification, CLAIM_CORPUS, type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type ClaimCorpusCase, type ClaimCorpusClass, type ClaimCorpusVerdict, type ContractAuditLex, type ContractAuditLexOptions, type CriterionOneReport, type CriterionTwoReport, DEFAULT_CITATION_EXTENSIONS, DEFAULT_REQUIREMENT_FAMILIES, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, FAULT_SCENARIO_NAMES, type FaultInjectionReport, type FaultScenarioArtifact, type FaultScenarioObservation, type FaultScenarioReport, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type LexedCitation, type LexedRequirementId, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RejectedCitationSpan, type RubricCriterion, type RubricGraderOptions, type RunBenchmarkOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunFaultInjectionOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, lexContractAudit, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runBenchmark, runCanary, runClaimCorpus, runEvalCase, runEvalMatrix, runEvalSuite, runFaultInjection, runSweepMatrix, runValueCheckpoint, rungRuleHolds };
