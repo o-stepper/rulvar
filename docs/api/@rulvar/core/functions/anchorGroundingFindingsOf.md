@@ -10,7 +10,7 @@
 function anchorGroundingFindingsOf(text, options): AnchorGroundingFinding[];
 ```
 
-Defined in: [packages/core/src/orchestrator/anchor-grounding.ts:388](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/anchor-grounding.ts#L388)
+Defined in: [packages/core/src/orchestrator/anchor-grounding.ts:465](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/anchor-grounding.ts#L465)
 
 The pure engine behind [anchorGroundingValidator](/api/@rulvar/core/functions/anchorGroundingValidator.md): every wrong
 line finding of `text` against the snapshot, in document order. The
