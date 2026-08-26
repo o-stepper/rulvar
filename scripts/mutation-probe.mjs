@@ -6852,8 +6852,8 @@ export const MUTATIONS = [
     doctrine:
       "the failed child's own reason survives into the acceptance decision (RV4703): with the suffix dropped, the decision reads \"child X settled 'error'\" while the terminal one entry away names the refused dispatch and the crossed account, exactly the dig the eighth comparison rerun forced",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: "            : `child ${record.nodeId} settled '${status}'` + settleReasonSuffix(record),",
-    replace: "            : `child ${record.nodeId} settled '${status}'`,",
+    find: "              : `child ${record.nodeId} settled '${status}'` + settleReasonSuffix(record),",
+    replace: "              : `child ${record.nodeId} settled '${status}'`,",
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
   {
@@ -6864,6 +6864,15 @@ export const MUTATIONS = [
     find: "      // The refused finalize names its stage (RV4703): the eighth\n      // comparison experiment's first run died exactly here, one\n      // millisecond and zero tokens, and every surface upstream said\n      // only \"settled 'error'\".\n      agentError = { kind: 'budget', retryable: false, stage: 'finalize' };",
     replace: "      agentError = { kind: 'budget', retryable: false };",
     test: 'packages/core/src/runtime/finalize-extract.test.ts',
+  },
+  {
+    id: 'terminal-floor-guards-the-salvage',
+    doctrine:
+      'a limit child\'s terminal output must clear the acceptance floor to be salvaged as validated output (RV4704, the eighth comparison experiment\'s first run): with the guard dropped, a 16-token finalize summary that carries no answer is promoted again, and the acceptance decision reads "validated terminal output" over bytes nobody could use',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          record.settled?.output !== undefined &&\n          terminalFloor.ok\n        ) {',
+    replace: '          record.settled?.output !== undefined\n        ) {',
+    test: 'packages/core/src/orchestrator/salvage-output.test.ts',
   },
 ];
 

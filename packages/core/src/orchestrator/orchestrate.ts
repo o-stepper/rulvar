@@ -367,6 +367,21 @@ export interface OrchestrateAcceptance {
    */
   acceptValidatedTerminalOutputOnLimit?: boolean;
   /**
+   * The character floor a limit child's STRING terminal output must
+   * clear, after trim, before the salvage arm above may accept it
+   * (RV4704, the eighth comparison experiment's first run): that run
+   * accepted a child as degraded-with-output on a 16-token finalize
+   * summary that carried no answer, and the acceptance decision read
+   * "validated terminal output" over bytes nobody could use. Default
+   * {@link DEFAULT_TERMINAL_OUTPUT_FLOOR_CHARS}; a below-floor string
+   * is a limit WITHOUT acceptance, its degraded note naming the
+   * character counts. Structured (schema-validated) outputs pass by
+   * their validation, exactly as before. 0 restores the pre-RV4704
+   * acceptance byte for byte. Nonnegative integer; policy only, never
+   * part of any identity.
+   */
+  minTerminalOutputChars?: number;
+  /**
    * The binding evidence floor (RV1207, the sixteenth comparison run;
    * default false). A salvage arm above accepts a limit child by the
    * work it carries, which says nothing about the DECLARED evidence
@@ -400,6 +415,31 @@ export interface OrchestrateAcceptance {
 
 /** How many rejected finishes are repaired by default: the plan's repair once. */
 export const DEFAULT_FINISH_MAX_REPAIRS = 1;
+
+/**
+ * The default character floor a limit child's string terminal output
+ * must clear, after trim, to be salvageable as validated output
+ * (RV4704): see OrchestrateAcceptance.minTerminalOutputChars.
+ */
+export const DEFAULT_TERMINAL_OUTPUT_FLOOR_CHARS = 80;
+
+/**
+ * RV4704: does a limit child's terminal output clear the acceptance
+ * floor? ONE function for the acceptance fold and the finish-validation
+ * salvage marker, so the two surfaces can never disagree about the
+ * same child. Non-string outputs pass by their schema validation.
+ */
+const terminalOutputClearsFloor = (
+  output: unknown,
+  minChars: number | undefined,
+): { ok: boolean; chars?: number; floor: number } => {
+  const floor = minChars ?? DEFAULT_TERMINAL_OUTPUT_FLOOR_CHARS;
+  if (typeof output !== 'string') {
+    return { ok: true, floor };
+  }
+  const chars = output.trim().length;
+  return { ok: chars >= floor, chars, floor };
+};
 
 /**
  * The word ceiling of a 'digest' coordination draft (RV4210): the
@@ -2241,6 +2281,14 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
           typeof acceptOutput,
       );
     }
+    const minTerminalChars = (opts.acceptance as { minTerminalOutputChars?: unknown })
+      .minTerminalOutputChars;
+    if (minTerminalChars !== undefined) {
+      requireNonNegativeInteger(
+        minTerminalChars as number,
+        'orchestrate acceptance.minTerminalOutputChars',
+      );
+    }
     const requireFloor = (opts.acceptance as { requireEvidenceFloor?: unknown })
       .requireEvidenceFloor;
     if (requireFloor !== undefined && typeof requireFloor !== 'boolean') {
@@ -3636,11 +3684,18 @@ function acceptancePromptLines(acceptance: OrchestrateAcceptance | undefined): s
     );
   }
   if (acceptance?.acceptValidatedTerminalOutputOnLimit === true) {
+    const floorChars = acceptance.minTerminalOutputChars ?? DEFAULT_TERMINAL_OUTPUT_FLOOR_CHARS;
     lines.push(
       'Terminal-output salvage is on: a child that ends at its limit WITH a final answer ' +
         '(its finalization reserve summary, already validated against the declared output ' +
         'schema) counts as a successful child for acceptance; its digest carries it after ' +
-        "the 'final:' marker and get_child_result (when enabled) pages it in full.",
+        "the 'final:' marker and get_child_result (when enabled) pages it in full." +
+        // The acceptance floor (RV4704): the contract the fold holds
+        // is the contract the coordination prompt states.
+        (floorChars > 0
+          ? ` A plain-text summary must clear a ${String(floorChars)}-character floor after ` +
+            'trim to count.'
+          : ''),
     );
   }
   return lines;
@@ -6174,7 +6229,11 @@ export function makeOrchestratorWorkflow(
       if (
         opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true &&
         settled.output !== null &&
-        settled.output !== undefined
+        settled.output !== undefined &&
+        // The acceptance floor (RV4704): a below-floor string is not
+        // salvageable output, so the validator's cited pool and the
+        // acceptance fold agree by the shared function.
+        terminalOutputClearsFloor(settled.output, opts.acceptance.minTerminalOutputChars).ok
       ) {
         return 'terminal-output';
       }
@@ -11147,11 +11206,24 @@ export function makeOrchestratorWorkflow(
           noteChild(record, status);
           continue;
         }
+        // The terminal-output acceptance floor (RV4704, the eighth
+        // comparison experiment's first run): that run promoted a
+        // limit child on a 16-token finalize summary that carried no
+        // answer, and the decision read "validated terminal output"
+        // over bytes nobody could use. A below-floor string falls
+        // through to the unaccepted branch below, its note naming the
+        // character counts; the SAME shared function marks the
+        // finish-validation salvage pool, so the two surfaces agree.
+        const terminalFloor = terminalOutputClearsFloor(
+          record.settled?.output,
+          opts.acceptance.minTerminalOutputChars,
+        );
         if (
           acceptOutput &&
           status === 'limit' &&
           record.settled?.output !== null &&
-          record.settled?.output !== undefined
+          record.settled?.output !== undefined &&
+          terminalFloor.ok
         ) {
           if (floorBlocks(record)) {
             hardDegraded += 1;
@@ -11189,7 +11261,17 @@ export function makeOrchestratorWorkflow(
         degradedReasons.push(
           status === 'running'
             ? `child ${record.nodeId} was still running when finish validated`
-            : `child ${record.nodeId} settled '${status}'` + settleReasonSuffix(record),
+            : acceptOutput === true &&
+                status === 'limit' &&
+                record.settled?.output !== null &&
+                record.settled?.output !== undefined &&
+                !terminalFloor.ok
+              ? `child ${record.nodeId} settled 'limit' with a terminal output below the ` +
+                `acceptance floor (${String(terminalFloor.chars ?? 0)} of ` +
+                `${String(terminalFloor.floor)} characters after trim): not accepted as ` +
+                'validated output' +
+                settleReasonSuffix(record)
+              : `child ${record.nodeId} settled '${status}'` + settleReasonSuffix(record),
         );
       }
       const childPolicy = opts.acceptance.childPolicy;
