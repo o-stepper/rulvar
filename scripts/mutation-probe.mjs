@@ -6910,6 +6910,24 @@ export const MUTATIONS = [
     replace: "      spec.acceptanceReserve !== 'require'\n    ) {",
     test: 'packages/core/src/engine/preflight.test.ts',
   },
+  {
+    id: 'coverage-needs-the-distinctive-part',
+    doctrine:
+      'window coverage silences by the LONGEST camel part, never any part (RV4708): with the any-part rule back, requireBounds is covered by the word "bounds" in a docstring about page caps, and the true wrong line with the declaration at 87 and 95 stays silent, the seventh census row 27',
+    file: 'packages/core/src/orchestrator/anchor-grounding.ts',
+    find: '  const longest = parts.reduce((left, right) => (right.length > left.length ? right : left));\n  return lower.includes(longest);',
+    replace: '  return parts.some((part) => lower.includes(part));',
+    test: 'packages/core/src/orchestrator/anchor-grounding.test.ts',
+  },
+  {
+    id: 'conviction-needs-the-composite-name',
+    doctrine:
+      "a camel part convicts only inside a composite identifier (RV4708): with the guard dropped, freestanding prose words place identifiers they never spell, the codex corpus's honest negative claim about ExecutionScope is convicted by bare 'execution' comment lines, and every false flag burns a bounded repair",
+    file: 'packages/core/src/orchestrator/anchor-grounding.ts',
+    find: '      if (\n        spelled.toLowerCase() !== part &&\n        (/[^a-zA-Z]/u.test(spelled) || /[a-z][A-Z]/u.test(spelled))\n      ) {',
+    replace: '      if (spelled.length > 0) {',
+    test: 'packages/core/src/orchestrator/anchor-grounding.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
