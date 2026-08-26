@@ -9210,6 +9210,10 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_SYNTHESIS_NOTE_MAX_TURNS.md"
           },
           {
+            "text": "DEFAULT_TERMINAL_OUTPUT_FLOOR_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_TERMINAL_OUTPUT_FLOOR_CHARS.md"
+          },
+          {
             "text": "deriverV1",
             "link": "/api/@rulvar/rulvar/variables/deriverV1.md"
           },
