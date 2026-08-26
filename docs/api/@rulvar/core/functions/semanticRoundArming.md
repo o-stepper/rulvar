@@ -10,7 +10,7 @@
 function semanticRoundArming(posture): SemanticRoundArming;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:351](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L351)
+Defined in: [packages/core/src/orchestrator/admission.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L352)
 
 The ONE arming derivation (RV4304): the acceptance tail's money and
 the capacity estimate's wires both read it, the

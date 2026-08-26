@@ -6,7 +6,7 @@
 
 # Interface: SemanticRoundArming
 
-Defined in: [packages/core/src/orchestrator/admission.ts:326](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L326)
+Defined in: [packages/core/src/orchestrator/admission.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L327)
 
 What the declared posture arms (RV4304): the one derivation.
 
@@ -14,7 +14,7 @@ What the declared posture arms (RV4304): the one derivation.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-citationroundarmed"></a> `citationRoundArmed` | `boolean` | The citation audit's bounded round. | [packages/core/src/orchestrator/admission.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L330) |
-| <a id="property-citationroundrejudgesclaim"></a> `citationRoundRejudgesClaim` | `boolean` | The citation round rewrote the shipped document, so a configured claim pass past the draft rejudges it, ONE more claim pass; with the claim round ALSO armed the two are the same merged round and its own rejudge already counts, so this is false there (RV4202). | [packages/core/src/orchestrator/admission.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L339) |
-| <a id="property-claimroundarmed"></a> `claimRoundArmed` | `boolean` | The claim pass's own bounded round ('repair', never at 'draft'). | [packages/core/src/orchestrator/admission.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L328) |
-| <a id="property-roundarmed"></a> `roundArmed` | `boolean` | Any armed round: exactly one composition is bought either way (RV4202). | [packages/core/src/orchestrator/admission.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L332) |
+| <a id="property-citationroundarmed"></a> `citationRoundArmed` | `boolean` | The citation audit's bounded round. | [packages/core/src/orchestrator/admission.ts:331](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L331) |
+| <a id="property-citationroundrejudgesclaim"></a> `citationRoundRejudgesClaim` | `boolean` | The citation round rewrote the shipped document, so a configured claim pass past the draft rejudges it, ONE more claim pass; with the claim round ALSO armed the two are the same merged round and its own rejudge already counts, so this is false there (RV4202). | [packages/core/src/orchestrator/admission.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L340) |
+| <a id="property-claimroundarmed"></a> `claimRoundArmed` | `boolean` | The claim pass's own bounded round ('repair', never at 'draft'). | [packages/core/src/orchestrator/admission.ts:329](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L329) |
+| <a id="property-roundarmed"></a> `roundArmed` | `boolean` | Any armed round: exactly one composition is bought either way (RV4202). | [packages/core/src/orchestrator/admission.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L333) |

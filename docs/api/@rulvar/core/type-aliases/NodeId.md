@@ -10,6 +10,6 @@
 type NodeId = string;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L52)
+Defined in: [packages/core/src/orchestrator/admission.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L53)
 
 Plan-node identity; engine-minted ULID.

@@ -10,7 +10,7 @@
 function spawnDepthOf(childScope): number;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:824](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L824)
+Defined in: [packages/core/src/orchestrator/admission.ts:905](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L905)
 
 Nesting depth of a child scope: its workflow, agent, and plan-node segments.
 
