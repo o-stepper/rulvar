@@ -10,7 +10,7 @@
 function anchorGroundingValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/anchor-grounding.ts:630](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/anchor-grounding.ts#L630)
+Defined in: [packages/core/src/orchestrator/anchor-grounding.ts:709](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/anchor-grounding.ts#L709)
 
 The wrong line lint as a finish validator. Each finding is one
 reason naming the anchor, the resolved window, the asserted tokens

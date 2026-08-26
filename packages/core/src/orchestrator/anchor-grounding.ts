@@ -259,7 +259,84 @@ function tokenMatches(token: GroundingToken, haystack: string): boolean {
     const stem = stemOf(token.value);
     return (haystack.match(/[A-Za-z]{4,}/gu) ?? []).some((word) => stemOf(word) === stem);
   }
-  return camelParts(token.value).some((part) => lower.includes(part));
+  // The camel tail of COVERAGE is the longest part (RV4708, the
+  // seventh candidate's census row 27): any-part matching silenced
+  // `requireBounds` behind the word "bounds" in a docstring about
+  // page caps while the real declaration lived at lines 87 and 95 of
+  // the same file, and the true wrong line stayed silent. The longest
+  // part keeps the benefit of the doubt with the anchor (a window
+  // discussing 'execution' plausibly grounds ExecutionScope), while a
+  // generic short half no longer can.
+  const parts = camelParts(token.value);
+  if (parts.length === 0) {
+    return false;
+  }
+  const longest = parts.reduce((left, right) => (right.length > left.length ? right : left));
+  return lower.includes(longest);
+}
+
+/**
+ * The CONVICTION match, the suggestion channel (RV4708): a flag needs
+ * somewhere to point, and that somewhere must carry the identifier
+ * ITSELF, the whole token or a word crossing into its second camel
+ * segment, never a camel part. Under the old shared rule the codex
+ * corpus's honestly cited negative claim about `ExecutionScope` (the
+ * file nowhere contains it, which is the claim) would have been
+ * convicted by bare 'execution' prose lines the moment coverage
+ * tightened: parts can argue a window grounds a claim, but they can
+ * never place the identifier at a different line. Coverage stays
+ * {@link tokenMatches}; the asymmetry is the point, silencing is
+ * cheaper than convicting.
+ */
+function tokenConvicts(token: GroundingToken, haystack: string): boolean {
+  if (token.kind === 'symbol') {
+    return haystack.includes(token.value);
+  }
+  if (wholeToken(haystack, token.value)) {
+    return true;
+  }
+  const lower = haystack.toLowerCase();
+  const base = token.value.toLowerCase();
+  // The prefix rule convicts SINGLE-segment tokens only: for a camel
+  // compound, a word crossing the segment boundary by one letter is
+  // indistinguishable from a plural coincidence ('executions' is
+  // byte-for-byte a prefix of ExecutionScope the way 'postgres' is of
+  // PostgreSQL), and a conviction cannot stand on a coincidence.
+  const segments = token.value.match(/[A-Z]?[a-z0-9]+|[A-Z]+(?![a-z])/gu) ?? [];
+  if (
+    segments.length < 2 &&
+    (lower.match(/[a-z]{6,}/gu) ?? []).some((word) => base.startsWith(word))
+  ) {
+    return true;
+  }
+  if (token.kind === 'word') {
+    const stem = stemOf(token.value);
+    return (haystack.match(/[A-Za-z]{4,}/gu) ?? []).some((word) => stemOf(word) === stem);
+  }
+  // A camel part convicts ONLY inside a COMPOSITE identifier: the
+  // haystack must spell a larger NAME containing the part, marked by
+  // identifier glue or a case seam ('telemetry' inside
+  // '@acme/telemetry' places OpenTelemetry, the pinned RV4601 case),
+  // never a freestanding prose word or its bare plural ('execution',
+  // 'executions', 'bounds' in a comment sentence place nothing).
+  return camelParts(token.value).some((part) => {
+    const escaped = part.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+    const matcher = new RegExp(`[\\w.@/-]*${escaped}[\\w.@/-]*`, 'giu');
+    for (let match = matcher.exec(haystack); match !== null; match = matcher.exec(haystack)) {
+      if (match[0].length === 0) {
+        matcher.lastIndex += 1;
+        continue;
+      }
+      const spelled = match[0];
+      if (
+        spelled.toLowerCase() !== part &&
+        (/[^a-zA-Z]/u.test(spelled) || /[a-z][A-Z]/u.test(spelled))
+      ) {
+        return true;
+      }
+    }
+    return false;
+  });
 }
 
 /**
@@ -460,7 +537,9 @@ export function anchorGroundingFindingsOf(
     const found: AnchorGroundingSuggestion[] = [];
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index] ?? '';
-      const token = tokens.find((candidate) => tokenMatches(candidate, line));
+      // The conviction channel (RV4708): a suggestion must carry the
+      // identifier itself, never a camel part.
+      const token = tokens.find((candidate) => tokenConvicts(candidate, line));
       if (token !== undefined) {
         found.push({ line: index + 1, token: token.value, text: line.trim().slice(0, 120) });
         if (found.length >= MAX_ANCHOR_GROUNDING_SUGGESTIONS) {

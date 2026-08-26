@@ -62,6 +62,94 @@ const FILES: Record<string, string[]> = {
 const resolve = (target: CitationTarget): string | undefined =>
   FILES[target.path]?.[target.line - 1];
 
+describe('distinctive window coverage (RV4708)', () => {
+  // The seventh candidate's census row 27: `requireBounds` cited at a
+  // docstring about page caps was silenced because the window carried
+  // the word "bounds" and any single camel part counted as coverage;
+  // the real declaration lived at lines 87 and 95 of the same file,
+  // and the true wrong line stayed silent.
+  const MCP_LINES: string[] = Array.from(
+    { length: 100 },
+    (_, i) => `filler line ${String(i + 1)}.`,
+  );
+  MCP_LINES[40] = '';
+  MCP_LINES[41] = '/**';
+  MCP_LINES[42] = ' * Cap on WIRE tools accepted from the list sweep,';
+  MCP_LINES[43] = ' * checked after each page: the sweep itself is the';
+  MCP_LINES[44] = ' * resource being capped, so allow cannot admit past it.';
+  MCP_LINES[45] = ' * Bounds the sweep where the tool cap bounds its volume.';
+  MCP_LINES[46] = ' */';
+  MCP_LINES[47] = 'maxTools?: number;';
+  MCP_LINES[48] = '';
+  MCP_LINES[86] = 'export function requireBounds(spec) {';
+  MCP_LINES[94] = '  return requireBounds(spec.limits);';
+  const resolveOver =
+    (lines: string[]) =>
+    (target: CitationTarget): string | undefined =>
+      target.path === 'src/mcp.ts' ? lines[target.line - 1] : undefined;
+
+  it('a generic camel half no longer silences the compound identifier', () => {
+    const findings = anchorGroundingFindingsOf(
+      'The requireBounds gate refuses an incomplete limits declaration src/mcp.ts:43.',
+      { resolve: resolveOver(MCP_LINES) },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.tokens).toEqual(['requireBounds']);
+    expect(findings[0]?.anchor).toBe('src/mcp.ts:43');
+    // The suggestions name the lines that carry the identifier whole.
+    expect(findings[0]?.suggestions.map((entry) => entry.line)).toEqual([87, 95]);
+  });
+
+  it('the longest camel part still covers: distinctive presence silences', () => {
+    const withRequire = [...MCP_LINES];
+    withRequire[44] = ' * resource being capped; we require a declared limit.';
+    const findings = anchorGroundingFindingsOf(
+      'The requireBounds gate refuses an incomplete limits declaration src/mcp.ts:43.',
+      { resolve: resolveOver(withRequire) },
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it('the whole token in the window covers exactly as before', () => {
+    const withWhole = [...MCP_LINES];
+    withWhole[44] = ' * resource being capped; requireBounds refuses gaps.';
+    const findings = anchorGroundingFindingsOf(
+      'The requireBounds gate refuses an incomplete limits declaration src/mcp.ts:43.',
+      { resolve: resolveOver(withWhole) },
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it('a freestanding prose word never convicts a compound identifier', () => {
+    // The codex corpus counterexample: 'execution' and 'executions' in
+    // comment prose could place ExecutionScope nowhere, yet the old
+    // per-part suggestion match convicted the anchor with them.
+    const withProse = [...MCP_LINES];
+    withProse[7] = 'each tool execution becomes a child span of its agent.';
+    withProse[8] = 'tool executions are grouped under their agent span.';
+    const findings = anchorGroundingFindingsOf(
+      'The ExecutionScope binding is absent from the attributes src/mcp.ts:43.',
+      { resolve: resolveOver(withProse) },
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it('a camel part convicts only inside a composite identifier', () => {
+    // The pinned RV4601 shape generalized: '@acme/telemetry' places
+    // OpenTelemetry, and an 'execution_scope' decision places
+    // ExecutionScope, because the file spells a larger NAME containing
+    // the part; bare prose never does.
+    const withComposite = [...MCP_LINES];
+    withComposite[7] = 'the execution_scope decision carries the binding.';
+    const findings = anchorGroundingFindingsOf(
+      'The ExecutionScope binding is absent from the attributes src/mcp.ts:43.',
+      { resolve: resolveOver(withComposite) },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.suggestions.map((entry) => entry.line)).toEqual([8]);
+  });
+});
+
 describe('the anchor grounding lint (RV4601)', () => {
   it('flags a json leaf anchor whose claim asserts identifiers living in another block', () => {
     const findings = anchorGroundingFindingsOf(
