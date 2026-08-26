@@ -409,6 +409,38 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
     expect((await store.load('FPR2')).length).toBe(before);
   });
 
+  it('a refused resume never sprays unhandled rejections through on() subscriptions (RV4602)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+      await ctx.agent('a');
+      return 'done';
+    });
+    await engine.run(simpleWf, undefined, { runId: 'FPR5', configFingerprint: 'cfg-v1' }).result;
+    const { engine: second } = makeEngine(store, 'MUST NOT RUN');
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      rejections.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const handle = second.resume('FPR5', simpleWf, { configFingerprint: 'cfg-v2' });
+      // The CLI progress renderer subscribes the whole event
+      // vocabulary before awaiting the result; each subscription used
+      // to derive an unhandled rejection from the refusal.
+      for (const type of ['run:start', 'agent:start', 'agent:end', 'log', 'run:end'] as const) {
+        handle.on(type, () => undefined);
+      }
+      await expect(handle.result).rejects.toThrow(/configFingerprint does not match/);
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled);
+    }
+  });
+
   it('one-sided fingerprints warn instead of failing: absence means NOT RECORDED (RV3210)', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });

@@ -1481,6 +1481,129 @@ export default {
   });
 });
 
+describe('the portable registry module (RV4602)', () => {
+  const HARNESS = `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
+export const portable = defineWorkflow({ name: 'portable' }, async (ctx) => ctx.agent('go'));
+`;
+  const configOf = (options: { registered: boolean; fingerprint?: string }): string =>
+    `import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING_DIST)};
+import { portable } from './harness.mjs';
+export default {
+  engineOptions: {
+    adapters: [new FakeAdapter({ agents: { '*': 'the recorded answer' } })],
+    defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+  },
+  workflows: {${options.registered ? ' portable ' : ''}},
+${options.fingerprint === undefined ? '' : `  configFingerprint: ${JSON.stringify(options.fingerprint)},\n`}};
+`;
+  const registryProject = (fingerprint?: string): string => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-registry-'));
+    writeFileSync(join(cwd, 'harness.mjs'), HARNESS, 'utf8');
+    writeFileSync(
+      join(cwd, 'rulvar.config.mjs'),
+      configOf({ registered: true, ...(fingerprint === undefined ? {} : { fingerprint }) }),
+      'utf8',
+    );
+    writeFileSync(
+      join(cwd, 'descriptor.mjs'),
+      "import { portable } from './harness.mjs';\nexport const workflows = { portable };\n",
+      'utf8',
+    );
+    return cwd;
+  };
+
+  it('resume and replay find the workflow through --registry when the config lacks it', async () => {
+    const cwd = registryProject();
+    const io = scriptedIo();
+    expect(await runCli(['run', 'portable'], { cwd, io })).toBe(0);
+    const runId = runIdOf(io);
+    // The registration disappears: the clean checkout shape that
+    // refused the seventh comparison experiment's replay.
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configOf({ registered: false }), 'utf8');
+    const refused = scriptedIo();
+    expect(await runCli(['replay', runId, '--assert-no-live'], { cwd, io: refused })).toBe(1);
+    expect(refused.errLines.join('\n')).toContain('--registry <file>');
+    const replay = scriptedIo();
+    expect(
+      await runCli(['replay', runId, '--assert-no-live', '--registry', 'descriptor.mjs'], {
+        cwd,
+        io: replay,
+      }),
+    ).toBe(0);
+    expect(replay.errLines.join('\n')).toContain('assert-no-live: PASS');
+    const resume = scriptedIo();
+    expect(
+      await runCli(['resume', runId, '--registry', 'descriptor.mjs'], { cwd, io: resume }),
+    ).toBe(0);
+  });
+
+  it('a descriptor exporting one workflow value serves the recorded name', async () => {
+    const cwd = registryProject();
+    const io = scriptedIo();
+    expect(await runCli(['run', 'portable'], { cwd, io })).toBe(0);
+    const runId = runIdOf(io);
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configOf({ registered: false }), 'utf8');
+    writeFileSync(
+      join(cwd, 'single.mjs'),
+      "import { portable } from './harness.mjs';\nexport const workflow = portable;\n",
+      'utf8',
+    );
+    const replay = scriptedIo();
+    expect(
+      await runCli(['replay', runId, '--assert-no-live', '--registry', 'single.mjs'], {
+        cwd,
+        io: replay,
+      }),
+    ).toBe(0);
+    expect(replay.errLines.join('\n')).toContain('assert-no-live: PASS');
+  });
+
+  it('the declared fingerprint is recorded at genesis and drift refuses before provider work', async () => {
+    const cwd = registryProject('harness:v1');
+    const io = scriptedIo();
+    expect(await runCli(['run', 'portable'], { cwd, io })).toBe(0);
+    const runId = runIdOf(io);
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configOf({ registered: false }), 'utf8');
+    writeFileSync(
+      join(cwd, 'drifted.mjs'),
+      "import { portable } from './harness.mjs';\nexport const workflows = { portable };\n" +
+        "export const configFingerprint = 'harness:v2';\n",
+      'utf8',
+    );
+    const drift = scriptedIo();
+    expect(await runCli(['resume', runId, '--registry', 'drifted.mjs'], { cwd, io: drift })).toBe(
+      1,
+    );
+    expect(drift.errLines.join('\n')).toContain('configFingerprint');
+    writeFileSync(
+      join(cwd, 'matching.mjs'),
+      "import { portable } from './harness.mjs';\nexport const workflows = { portable };\n" +
+        "export const configFingerprint = 'harness:v1';\n",
+      'utf8',
+    );
+    const clean = scriptedIo();
+    expect(await runCli(['resume', runId, '--registry', 'matching.mjs'], { cwd, io: clean })).toBe(
+      0,
+    );
+  });
+
+  it('a malformed fingerprint export refuses at module load, naming the file', async () => {
+    const cwd = registryProject();
+    const io = scriptedIo();
+    expect(await runCli(['run', 'portable'], { cwd, io })).toBe(0);
+    const runId = runIdOf(io);
+    writeFileSync(
+      join(cwd, 'bad.mjs'),
+      "import { portable } from './harness.mjs';\nexport const workflows = { portable };\n" +
+        "export const configFingerprint = '';\n",
+      'utf8',
+    );
+    const bad = scriptedIo();
+    expect(await runCli(['replay', runId, '--registry', 'bad.mjs'], { cwd, io: bad })).toBe(1);
+    expect(bad.errLines.join('\n')).toContain('configFingerprint that is not a non empty string');
+  });
+});
+
 describe('resume args safety and the dry-run preview (v1.23.0 review)', () => {
   const journalOf = (cwd: string, runId: string): string =>
     readFileSync(join(cwd, '.rulvar', `${runId}.jsonl`), 'utf8');

@@ -30,8 +30,8 @@ The canonical grammar, with no aliases:
 
 ```text
 rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--profile NAME] [--strict] [--acceptance-policy POLICY]
-rulvar resume <runId> [--args JSON] [--store PATH] [--dry-run] [--allow-args-change] [--strict] [--acceptance-policy POLICY]
-rulvar replay <runId> [--args JSON] [--store PATH] [--assert-no-live] [--compare-output-hash]
+rulvar resume <runId> [--args JSON] [--store PATH] [--registry FILE] [--dry-run] [--allow-args-change] [--strict] [--acceptance-policy POLICY]
+rulvar replay <runId> [--args JSON] [--store PATH] [--registry FILE] [--assert-no-live] [--compare-output-hash]
 rulvar runs ls [--store PATH]
 rulvar runs audit [--store PATH] [--repair] [--no-load-repair]
 rulvar inspect <runId> [--store PATH] [--candidates] [--candidate-bytes HASH]
@@ -87,7 +87,7 @@ Diagnostic output follows two rules. An error about a supplied `--args` value ne
 
 ## Configuration file discovery
 
-Commands assemble their engine from `rulvar.config.mjs` (or `rulvar.config.js`) in the working directory. The default export has three optional fields: `engineOptions` (anything `createEngine` accepts), `workflows` (the registry for by-name runs), and `kbSweep` (the `rulvar kb sweep` matrix). An absent config is fine; a workflow module passed to `rulvar run` may also carry `workflow`, `engineOptions`, and `workflows` as named exports.
+Commands assemble their engine from `rulvar.config.mjs` (or `rulvar.config.js`) in the working directory. The default export has four optional fields: `engineOptions` (anything `createEngine` accepts), `workflows` (the registry for by-name runs), `kbSweep` (the `rulvar kb sweep` matrix), and `configFingerprint` (the module's own configuration identity, recorded at genesis and verified on resume, RV4602). An absent config is fine; a workflow module passed to `rulvar run` may also carry `workflow`, `engineOptions`, `workflows`, and `configFingerprint` as named exports.
 
 ```ts
 // rulvar.config.mjs
@@ -107,6 +107,22 @@ export default {
 ```
 
 With that file in place, `rulvar run triage --budget-usd 2` starts the registered workflow against a JSONL journal in `.rulvar`.
+
+### Portable replay descriptors {#portable-replay-descriptors}
+
+A run started programmatically (an eval harness, a comparison experiment, a one-off script) records its workflow NAME in the journal, but the workflow VALUE lives in no `rulvar.config.mjs`, so `rulvar resume` and `rulvar replay` used to refuse it from any other checkout: the seventh comparison experiment's `replay --assert-no-live` died exactly there. `--registry FILE` (RV4602) closes the loop: the file is an ordinary module with the same named exports a workflow module carries (`workflows`, `engineOptions`, and since RV4602 `configFingerprint`), merged OVER the config registry for this one command. A run therefore travels as a three-part descriptor: the journal (the store directory or `--store PATH`), the args (`--args JSON`, verified against the genesis binding), and the registry module naming the workflow under its recorded name.
+
+```ts
+// descriptor.mjs, beside the exported journal
+import { comparisonWorkflow } from './harness.mjs';
+export const workflows = { 'comparison-v3': comparisonWorkflow };
+export const engineOptions = {
+  /* the adapters and pricing of the original run */
+};
+export const configFingerprint = 'harness:v3:2026-08-21';
+```
+
+`rulvar replay <runId> --store ./journal --registry ./descriptor.mjs --assert-no-live` then verifies the recorded run offline from a clean checkout. The `configFingerprint` export closes the drift loop the engine already enforces: `rulvar run` records it at genesis (from the workflow module or the config), and a resume or replay that supplies one is verified against the genesis record STRICTLY before ownership, meta writes, or any provider call, so a descriptor for the wrong configuration refuses typed instead of replaying under drifted policy. The engine's own immutability refusals (the execution scope, the scope normalization table, an `immutable-lifetime` budget) stand unchanged underneath; the workflow body hash check still warns or refuses on a drifted registry entry per its declared `bodyHash` policy.
 
 ## The plan command
 
