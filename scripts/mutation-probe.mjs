@@ -6838,6 +6838,42 @@ export const MUTATIONS = [
     replace: '    ...(finalHash === undefined ? {} : { finalHash }),',
     test: 'packages/core/src/orchestrator/semantic-verdict.test.ts',
   },
+  {
+    id: 'agent-end-carries-the-death-reason',
+    doctrine:
+      "agent:end carries the terminal's typed error (RV4703, the eighth comparison experiment's first run): with the carry dropped, the event says status 'error' and nothing else, and a live consumer needs a journal dig to learn the child died on a budget-refused finalize dispatch",
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '        ...(terminalPatch.error === undefined ? {} : { error: terminalPatch.error }),',
+    replace: '        ...{},',
+    test: 'packages/core/src/engine/invocation-events.test.ts',
+  },
+  {
+    id: 'acceptance-carries-the-child-reason',
+    doctrine:
+      "the failed child's own reason survives into the acceptance decision (RV4703): with the suffix dropped, the decision reads \"child X settled 'error'\" while the terminal one entry away names the refused dispatch and the crossed account, exactly the dig the eighth comparison rerun forced",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "              : `child ${record.nodeId} settled '${status}'` + settleReasonSuffix(record),",
+    replace: "              : `child ${record.nodeId} settled '${status}'`,",
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'finalize-refusal-names-its-stage',
+    doctrine:
+      "the budget-refused finalize stamps its stage on the typed error (RV4703): with the stamp dropped, the terminal says 'budget' without saying WHICH dispatch died, and the stage is back to phase forensics",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "      // The refused finalize names its stage (RV4703): the eighth\n      // comparison experiment's first run died exactly here, one\n      // millisecond and zero tokens, and every surface upstream said\n      // only \"settled 'error'\".\n      agentError = { kind: 'budget', retryable: false, stage: 'finalize' };",
+    replace: "      agentError = { kind: 'budget', retryable: false };",
+    test: 'packages/core/src/runtime/finalize-extract.test.ts',
+  },
+  {
+    id: 'terminal-floor-guards-the-salvage',
+    doctrine:
+      'a limit child\'s terminal output must clear the acceptance floor to be salvaged as validated output (RV4704, the eighth comparison experiment\'s first run): with the guard dropped, a 16-token finalize summary that carries no answer is promoted again, and the acceptance decision reads "validated terminal output" over bytes nobody could use',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          record.settled?.output !== undefined &&\n          terminalFloor.ok\n        ) {',
+    replace: '          record.settled?.output !== undefined\n        ) {',
+    test: 'packages/core/src/orchestrator/salvage-output.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

@@ -4384,7 +4384,7 @@ export async function runAgent<S extends SchemaSpec>(
       // arithmetic. Every downstream truth surface (the ctx terminal
       // entry, the RV2103 declined verdict) reads this message.
       status = 'error';
-      agentError = { kind: 'budget', retryable: false };
+      agentError = { kind: 'budget', retryable: false, stage: 'loop' };
       // The unfunded repair grant names itself (RV2207): a granted
       // repair turn refused here used to read like any other budget
       // stop, and the orchestrator could not tell a mid-work ceiling
@@ -4537,7 +4537,7 @@ export async function runAgent<S extends SchemaSpec>(
 
     if (outcome.aborted === 'budget') {
       status = 'cancelled';
-      agentError = { kind: 'budget', retryable: false };
+      agentError = { kind: 'budget', retryable: false, stage: 'loop' };
       break;
     }
     if (outcome.aborted === 'external') {
@@ -4695,7 +4695,7 @@ export async function runAgent<S extends SchemaSpec>(
           options.budget?.beforeTurn();
         } catch (thrown) {
           status = 'error';
-          agentError = { kind: 'budget', retryable: false };
+          agentError = { kind: 'budget', retryable: false, stage: 'summarize' };
           errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
           endPhase(summarizePhase, 'error');
           break;
@@ -4742,7 +4742,7 @@ export async function runAgent<S extends SchemaSpec>(
             throw thrown;
           }
           status = 'error';
-          agentError = { kind: 'budget', retryable: false };
+          agentError = { kind: 'budget', retryable: false, stage: 'summarize' };
           errorMessage = thrown.message;
           endPhase(summarizePhase, 'error');
           break;
@@ -4752,7 +4752,7 @@ export async function runAgent<S extends SchemaSpec>(
         usageApprox = usageApprox || summary.usageApprox;
         if (summary.aborted === 'budget') {
           status = 'cancelled';
-          agentError = { kind: 'budget', retryable: false };
+          agentError = { kind: 'budget', retryable: false, stage: 'summarize' };
           endPhase(summarizePhase, 'error', summarizeServed);
           break;
         }
@@ -5045,7 +5045,7 @@ export async function runAgent<S extends SchemaSpec>(
           status = 'cancelled';
         } else if (outcome.aborted === 'budget') {
           status = 'cancelled';
-          agentError = { kind: 'budget', retryable: false };
+          agentError = { kind: 'budget', retryable: false, stage: 'reserve-summary' };
         } else {
           // The boundary pins the summary into the terminal checkpoint,
           // so a replayed result reads the same window (turns included).
@@ -5102,7 +5102,11 @@ export async function runAgent<S extends SchemaSpec>(
       options.budget?.beforeTurn();
     } catch (thrown) {
       status = 'error';
-      agentError = { kind: 'budget', retryable: false };
+      // The refused finalize names its stage (RV4703): the eighth
+      // comparison experiment's first run died exactly here, one
+      // millisecond and zero tokens, and every surface upstream said
+      // only "settled 'error'".
+      agentError = { kind: 'budget', retryable: false, stage: 'finalize' };
       errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
       proceed = false;
     }
@@ -5214,7 +5218,7 @@ export async function runAgent<S extends SchemaSpec>(
           throw thrown;
         }
         status = 'error';
-        agentError = { kind: 'budget', retryable: false };
+        agentError = { kind: 'budget', retryable: false, stage: 'finalize' };
         errorMessage = thrown.message;
       }
       if (finalizeDispatch !== undefined) {
@@ -5238,7 +5242,7 @@ export async function runAgent<S extends SchemaSpec>(
             errorMessage = outcome.wireError.message;
           } else if (outcome.aborted === 'budget') {
             status = 'cancelled';
-            agentError = { kind: 'budget', retryable: false };
+            agentError = { kind: 'budget', retryable: false, stage: 'finalize' };
           } else if (outcome.aborted === 'idle') {
             status = 'error';
             agentError = { kind: 'transport', retryable: true };
@@ -5328,7 +5332,7 @@ export async function runAgent<S extends SchemaSpec>(
         options.budget?.beforeTurn();
       } catch (thrown) {
         status = 'error';
-        agentError = { kind: 'budget', retryable: false };
+        agentError = { kind: 'budget', retryable: false, stage: 'extract' };
         errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
         break;
       }
@@ -5383,7 +5387,7 @@ export async function runAgent<S extends SchemaSpec>(
           throw thrown;
         }
         status = 'error';
-        agentError = { kind: 'budget', retryable: false };
+        agentError = { kind: 'budget', retryable: false, stage: 'extract' };
         errorMessage = thrown.message;
         break;
       }
@@ -5407,7 +5411,7 @@ export async function runAgent<S extends SchemaSpec>(
           agentError = classifyWireError(outcome.wireError);
         } else if (outcome.aborted === 'budget') {
           status = 'cancelled';
-          agentError = { kind: 'budget', retryable: false };
+          agentError = { kind: 'budget', retryable: false, stage: 'extract' };
         }
         break;
       }

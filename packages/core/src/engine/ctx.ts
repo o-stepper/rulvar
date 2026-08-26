@@ -1791,6 +1791,9 @@ export function createCtx(
           // entry when it carries the RV3002 field, else from the RV509
           // decision path; absent exactly as before otherwise.
           ...(result.toolBudget === undefined ? {} : { toolBudget: result.toolBudget }),
+          // The death reason (RV4703): restored from the journaled
+          // terminal, the same bytes the live event carried.
+          ...(terminal?.error === undefined ? {} : { error: terminal.error }),
         },
         spanId,
         true,
@@ -3360,6 +3363,10 @@ export function createCtx(
         // The pressure snapshot (RV304): live telemetry only, exactly
         // like retryCount; a replayed agent:end omits it.
         ...(result.toolBudget === undefined ? {} : { toolBudget: result.toolBudget }),
+        // The death reason (RV4703): journaled on the terminal entry,
+        // so the replayed event carries the same bytes and neither
+        // surface needs a journal dig to say WHY status is 'error'.
+        ...(terminalPatch.error === undefined ? {} : { error: terminalPatch.error }),
       },
       spanId,
     );

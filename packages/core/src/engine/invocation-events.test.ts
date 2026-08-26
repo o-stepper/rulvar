@@ -153,6 +153,42 @@ describe('invocation events (RV-207)', () => {
     expect(replay.agents[0]?.retryCount).toBe(0);
   });
 
+  it('an errored agent carries its terminal error live AND replayed, byte for byte (RV4703)', async () => {
+    // The eighth comparison experiment's first run: the child's
+    // terminal entry named its budget-refused finalize dispatch while
+    // agent:end said status 'error' and nothing else, so the live
+    // stream needed a journal dig to say WHY.
+    const store = new InMemoryStore();
+    const engineOf = () =>
+      createEngine({
+        adapters: [
+          scriptedAdapter(() => ({
+            error: { code: 'agent', message: 'the worker exploded', retryable: false },
+          })),
+        ],
+        stores: { journal: store },
+        defaults: { routing: { loop: 'fake:model' } },
+      });
+    const dying = defineWorkflow({ name: 'dying' }, async (ctx) => {
+      const result = await ctx.agent('go', { result: 'full' });
+      return result.status;
+    });
+    const isEnd = (event: WorkflowEvent): event is Extract<WorkflowEvent, { type: 'agent:end' }> =>
+      event.type === 'agent:end';
+    const first = engineOf().run(dying, {});
+    const liveEvents = collect(first);
+    expect((await first.result).status).toBe('ok');
+    const liveEnd = liveEvents.find(isEnd);
+    expect(liveEnd?.status).toBe('error');
+    expect(liveEnd?.error?.message).toContain('the worker exploded');
+
+    const resumed = engineOf().resume(first.runId, dying, {});
+    const replayEvents = collect(resumed);
+    expect((await resumed.result).status).toBe('ok');
+    const replayEnd = replayEvents.find(isEnd);
+    expect(replayEnd?.error).toEqual(liveEnd?.error);
+  });
+
   it('the reducer keeps truncated streams honest: unmatched opens stay open', () => {
     const base = { runId: 'r', ts: 't', seq: 0 };
     const truncated: WorkflowEvent[] = [

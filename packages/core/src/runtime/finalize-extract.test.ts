@@ -12,6 +12,7 @@ import type { ToolDef } from '../l0/spi/toolsource.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { tool, toolContract } from '../tools/tool.js';
 import { recordingSink, scriptedAdapter, testCaps } from '../engine/test-harness.js';
+import { BudgetExhaustedError } from '../l0/errors.js';
 import { FINALIZE_SYNTHESIS_INSTRUCTION, runAgent, type ToolRuntime } from './agent-loop.js';
 import { EMIT_RESULT_TOOL } from './structured-output.js';
 import { mergeUsageLimits } from './usage-limits.js';
@@ -320,5 +321,43 @@ describe('separate extract over a tool-bearing transcript (M4-T01)', () => {
     const req = extractAdapter.calls[0];
     expect(req?.tools?.map((t) => t.name)).toEqual(['lookup', EMIT_RESULT_TOOL]);
     expect(req?.toolChoice).toEqual({ name: EMIT_RESULT_TOOL });
+  });
+});
+
+describe('the budget-refused finalize names its stage (RV4703)', () => {
+  // The eighth comparison experiment's first run: the child spent
+  // under its ceiling through the whole loop and died on a synchronous
+  // budget refusal of the finalize dispatch (one millisecond, zero
+  // tokens); every surface upstream said only "settled 'error'", and
+  // the stage was recovered from phase forensics.
+  it("the typed error carries kind 'budget', stage 'finalize', and the refusal's own message", async () => {
+    const loopAdapter = scriptedAdapter(() => ({ text: 'raw notes' }));
+    const finalizeAdapter = scriptedAdapter(() => ({ text: 'never reached' }), { id: 'strong' });
+    let dispatches = 0;
+    const result = await runAgent({
+      prompt: 'research the weather',
+      adapter: loopAdapter,
+      resolved: loopResolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([lookup]),
+      finalize: { adapter: finalizeAdapter, resolved: otherResolved('strong:big') },
+      budget: {
+        beforeTurn: () => {
+          dispatches += 1;
+          if (dispatches > 1) {
+            throw new BudgetExhaustedError(
+              "budget ceiling reached before turn dispatch on account 'agent:2': " +
+                'spent 1.3400 of 1.3500 USD',
+            );
+          }
+        },
+        onUsage: () => undefined,
+      },
+    });
+    expect(result.status).toBe('error');
+    expect(result.error).toEqual({ kind: 'budget', retryable: false, stage: 'finalize' });
+    expect(result.errorMessage).toContain('spent 1.3400 of 1.3500');
+    // Zero tokens: the refusal landed before the wire.
+    expect(finalizeAdapter.calls).toHaveLength(0);
   });
 });

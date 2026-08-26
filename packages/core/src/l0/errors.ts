@@ -523,6 +523,17 @@ export type AgentError = {
    * synthesis promise is redeemed, never a crash.
    */
   reason?: 'exposure-drained' | 'output-floor';
+  /**
+   * WHICH dispatch the budget killed (RV4703, the eighth comparison
+   * experiment's first run): its child spent under the ceiling
+   * through the whole loop and died on a synchronous budget refusal
+   * of the FINALIZE dispatch (one millisecond, zero tokens), and no
+   * surface named the stage; the cause was recovered from phase
+   * forensics. Stamped by the loop's own budget gates on 'budget'
+   * errors; carried to the wire in data and restored on read. Absent
+   * means the error predates the stamp or is not a budget refusal.
+   */
+  stage?: 'loop' | 'summarize' | 'reserve-summary' | 'finalize' | 'extract';
 };
 
 /**
@@ -537,6 +548,9 @@ export function agentErrorToWire(error: AgentError, message: string): WireError 
   }
   if (error.reason !== undefined) {
     data.reason = error.reason;
+  }
+  if (error.stage !== undefined) {
+    data.stage = error.stage;
   }
   if (error.issues !== undefined) {
     data.issues = error.issues.map((issue): Json => {
@@ -568,6 +582,15 @@ export function agentErrorFromWire(wire: WireError): AgentError {
   };
   if (typeof data.retryAfterMs === 'number') {
     error.retryAfterMs = data.retryAfterMs;
+  }
+  if (
+    data.stage === 'loop' ||
+    data.stage === 'summarize' ||
+    data.stage === 'reserve-summary' ||
+    data.stage === 'finalize' ||
+    data.stage === 'extract'
+  ) {
+    error.stage = data.stage;
   }
   if (Array.isArray(data.issues)) {
     error.issues = data.issues.map((raw): Issue => {

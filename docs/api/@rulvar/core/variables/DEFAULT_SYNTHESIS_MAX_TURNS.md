@@ -10,7 +10,7 @@
 const DEFAULT_SYNTHESIS_MAX_TURNS: 4 = 4;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:519](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L519)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:559](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L559)
 
 Default maxTurns of the synthesize invocation (RV-211): the finish
 call plus headroom for one validator repair exchange.

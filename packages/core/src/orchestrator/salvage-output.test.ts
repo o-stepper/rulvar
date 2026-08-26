@@ -562,3 +562,129 @@ describe('terminal-output salvage (P0.4 + P1.1)', () => {
     expect(replayAdapter.calls).toEqual([]);
   });
 });
+
+describe('the terminal-output acceptance floor (RV4704)', () => {
+  // The eighth comparison experiment's first run: a limit child was
+  // promoted as degraded-with-output on a 16-token finalize summary
+  // that carried no answer, and the acceptance decision read
+  // "validated terminal output" over bytes nobody could use.
+  function plainSalvageAdapter(
+    captures: { prompt?: string; digest?: string },
+    summaryText: string,
+  ) {
+    let orchTurn = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      const agentType = agentTypeOf(req);
+      if (agentType === 'solid') {
+        return { text: 'solid evidence' };
+      }
+      if (agentType === 'reserve') {
+        if (lastUserTextOf(req).includes('The tool budget is exhausted')) {
+          return { text: summaryText };
+        }
+        return {
+          toolCalls: [
+            { name: 'noop', args: {} },
+            { name: 'noop', args: {} },
+          ],
+        };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        const text = req.messages[0]?.parts.find((part) => part.type === 'text');
+        captures.prompt = (text as { text?: string } | undefined)?.text ?? '';
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'solid', prompt: 'task A' } },
+            // No outputSchemaRef: the reserve summary lands as a PLAIN
+            // STRING output, the eighth run's exact shape.
+            { name: 'spawn_agent', args: { agentType: 'reserve', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'the merged report' } } };
+    });
+  }
+
+  const SHORT_SUMMARY = 'inconclusive; ran out.';
+  const CONTENTFUL_SUMMARY =
+    'The cache doubles at dawn per cache.ts:12; writes reconcile before the audit row lands, ' +
+    'and the retry ladder never re-enters a settled span.';
+
+  it('a below-floor summary is a limit WITHOUT acceptance, its note naming the counts', async () => {
+    const { internals } = makeInternals({
+      adapters: [plainSalvageAdapter({}, SHORT_SUMMARY)],
+      routing: ROUTING,
+      profiles: PROFILES,
+      schemas: SCHEMAS,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: { childPolicy: 'all-ok', acceptValidatedTerminalOutputOnLimit: true },
+    });
+    const thrown = await executeWorkflow(internals, wf, undefined).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as {
+      degradedReasons?: string[];
+      salvagedTerminalOutputChildren?: unknown;
+    };
+    expect(data.salvagedTerminalOutputChildren).toBeUndefined();
+    const note = data.degradedReasons?.find((line) => line.includes('below the acceptance floor'));
+    expect(note).toContain(`${String(SHORT_SUMMARY.trim().length)} of 80 characters`);
+    expect(note).toContain('not accepted as validated output');
+  });
+
+  it('a contentful summary clears the default floor and salvages exactly as before', async () => {
+    const captures: { prompt?: string; digest?: string } = {};
+    const { internals } = makeInternals({
+      adapters: [plainSalvageAdapter(captures, CONTENTFUL_SUMMARY)],
+      routing: ROUTING,
+      profiles: PROFILES,
+      schemas: SCHEMAS,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: { childPolicy: 'all-ok', acceptValidatedTerminalOutputOnLimit: true },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as Envelope;
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.salvagedTerminalOutputChildren).toHaveLength(1);
+    // The coordination prompt states the floor the fold holds.
+    expect(captures.prompt).toContain('80-character floor');
+  });
+
+  it('minTerminalOutputChars 0 restores the pre-RV4704 acceptance byte for byte', async () => {
+    const { internals } = makeInternals({
+      adapters: [plainSalvageAdapter({}, SHORT_SUMMARY)],
+      routing: ROUTING,
+      profiles: PROFILES,
+      schemas: SCHEMAS,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: {
+        childPolicy: 'all-ok',
+        acceptValidatedTerminalOutputOnLimit: true,
+        minTerminalOutputChars: 0,
+      },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as Envelope;
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.salvagedTerminalOutputChildren).toHaveLength(1);
+  });
+
+  it('a malformed floor refuses typed at construction', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: {},
+        acceptance: { childPolicy: 'all-ok', minTerminalOutputChars: -1 },
+      }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: {},
+        acceptance: { childPolicy: 'all-ok', minTerminalOutputChars: 1.5 },
+      }),
+    ).toThrow(/minTerminalOutputChars/);
+  });
+});

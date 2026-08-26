@@ -47,6 +47,7 @@ type AgentEvents =
   costBasis?: CostBasis;
   costUsd: number;
   entryRef: number;
+  error?: WireError;
   exploration?: ExplorationSummary;
   hostRejected?: boolean;
   label?: string;
@@ -214,6 +215,7 @@ vocabulary.
   costBasis?: CostBasis;
   costUsd: number;
   entryRef: number;
+  error?: WireError;
   exploration?: ExplorationSummary;
   hostRejected?: boolean;
   label?: string;
@@ -232,6 +234,7 @@ vocabulary.
 | `costBasis?` | [`CostBasis`](/api/@rulvar/rulvar/type-aliases/CostBasis.md) | The fold behind `costUsd` (RV702): 'per-call' when every usage slice of the invocation (restored included) is covered by per-request records priced individually, the settled fold's own basis; 'aggregate-estimate' when it is not (the aggregate number is kept so restored spend is never silently dropped, and labeled so it is never mistaken for the per-request fold). Absent on streams recorded before RV702, which priced the aggregate. | `packages/core/dist/index.d.ts` |
 | `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `entryRef` | `number` | - | `packages/core/dist/index.d.ts` |
+| `error?` | [`WireError`](/api/@rulvar/rulvar/type-aliases/WireError.md) | The terminal's typed error (RV4703), verbatim from the journaled agent entry, so live and replayed streams carry the same value. The eighth comparison experiment's first run lost its child's death to exactly this absence: the child died on a budget-refused finalize dispatch, the terminal entry named it, and the event said status 'error' and nothing else. Absent when the agent settled without an error. | `packages/core/dist/index.d.ts` |
 | `exploration?` | [`ExplorationSummary`](/api/@rulvar/rulvar/interfaces/ExplorationSummary.md) | The exploration guard counters (RV-210). Present live whenever any exploration guard limit was configured for the invocation; on replay present only when the guard abort journaled it in the terminal error payload. | `packages/core/dist/index.d.ts` |
 | `hostRejected?` | `boolean` | Present and true when the invocation was aborted by the host's finish rejection (RV3702): the declared finish contract rejected the candidate past its repair bound. Journaled on the terminal agent entry (unlike retryCount), so a replayed agent:end carries it too and both surfaces of the RV3404 cut read the same count. | `packages/core/dist/index.d.ts` |
 | `label?` | `string` | - | `packages/core/dist/index.d.ts` |

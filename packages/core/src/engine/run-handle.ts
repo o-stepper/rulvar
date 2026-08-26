@@ -260,6 +260,17 @@ export interface ChildrenAtFailure {
 export interface AcceptanceChildSummary {
   child: string;
   status: string;
+  /**
+   * The child's own typed death reason (RV4703), from its settled
+   * terminal: present exactly when the child settled carrying an
+   * error. The eighth comparison experiment's first run rejected on
+   * "child settled 'error'" while the child's terminal named the
+   * budget-refused finalize dispatch; the roster is machine readable,
+   * so the reason is too. The message is bounded to 200 characters;
+   * `stage` names the dispatch a budget refusal killed, when the loop
+   * stamped one.
+   */
+  error?: { kind: string; stage?: string; message?: string };
   salvage?: 'partial' | 'terminal-output';
   evidence?: {
     recordedEntries: number;
