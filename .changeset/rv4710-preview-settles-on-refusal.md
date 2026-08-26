@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+`handle.preview` settles on a refused resume (RV4710, the RV4602 wave's observed tail). A pre-run refusal (a configFingerprint mismatch, a binding mismatch, an unknown workflow) rejected the resume's handlePromise before any inner handle existed, and `handle.preview` pended FOREVER: a caller awaiting the preview on a refused resume hung instead of reading the refusal. The preview now settles with the SAME terminal `result` reports: a pre-run refusal rejects it typed, a run that dies before its settle path rejects it with that death, and the ordinary settle keeps resolving it first (a reject on a settled promise is a no-op). The RV4602 posture holds byte for byte: a pre-attached catch keeps the refusal result's alone to REPORT, so an unobserved preview never sprays an unhandled rejection of its own. Beside it, `rfcs/sibling-anchor-fold.md` (RV4709) records the design question the seventh census's row 24 raised, an unsupported anchor whose clause carries a supported sibling, with the lean toward the byte-additive meta marker; code follows review, not this changeset.
