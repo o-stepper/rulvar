@@ -6892,6 +6892,24 @@ export const MUTATIONS = [
     replace: '          if (false) {',
     test: 'packages/core/src/orchestrator/citation-audit.test.ts',
   },
+  {
+    id: 'preflight-judges-the-child-ceiling',
+    doctrine:
+      "the child-ceiling feasibility line refuses a ceiling below the declared posture's own floor (RV4702, the eighth comparison experiment's first run): with the check dropped, estIsCeiling 1.35 over a 1.88 loop-plus-tail floor passes preflight in silence again, and the deterministic finalize starvation is discovered 6.74 USD later",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '        if (ceilingUsd < requiredFloorUsd) {',
+    replace: '        if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'preflight-speaks-the-checkpoint-vocabulary',
+    doctrine:
+      "preflight accepts the engine's whole acceptanceReserve vocabulary (RV4701): with 'checkpoint' dropped from the intake, the estimator refuses the very posture the runtime runs (RV4404), and a driver estimates its genesis arithmetic under a substituted 'require' again",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "      spec.acceptanceReserve !== 'require' &&\n      spec.acceptanceReserve !== 'checkpoint'\n    ) {",
+    replace: "      spec.acceptanceReserve !== 'require'\n    ) {",
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
