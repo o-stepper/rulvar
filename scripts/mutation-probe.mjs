@@ -4282,8 +4282,9 @@ export const MUTATIONS = [
     doctrine:
       'the logical aggregate PARTITIONS the journal at each settle boundary (RV2510): a running total that never resets reports segment two as having done every entry segment one did, which is the double count the fold exists to prevent',
     file: 'packages/core/src/stores/reconcile.ts',
-    find: '    entriesPerSegment.push(sinceLastSettle);\n    segmentWindows.push(window);\n    sinceLastSettle = 0;',
-    replace: '    entriesPerSegment.push(sinceLastSettle);\n    segmentWindows.push(window);',
+    find: '    entriesPerSegment.push(sinceLastSettle);\n    segmentWindows.push(window);\n    segmentFetches.push(fetchesThisSegment);\n    sinceLastSettle = 0;',
+    replace:
+      '    entriesPerSegment.push(sinceLastSettle);\n    segmentWindows.push(window);\n    segmentFetches.push(fetchesThisSegment);',
     test: 'packages/core/src/stores/reconcile.test.ts',
   },
   {
@@ -6781,6 +6782,42 @@ export const MUTATIONS = [
     find: '    const tail = /^-(\\d+)/u.exec(scope.slice(match.index + match[0].length));\n    const raw = tail === null ? match[0] : `${match[0]}${tail[0]}`;',
     replace: '    const tail = null;\n    const raw = match[0];',
     test: 'packages/evals/src/lexer.test.ts',
+  },
+  {
+    id: 'adapter-fetches-count-the-absorption',
+    doctrine:
+      'adapter fetches sum the HTTP requests each provider call decision absorbed, never the decision count again (RV4604): with the absorption dropped, the counter collapses into logicalWireRequests under a second name, and "16 versus 109" goes back to hand reconciliation',
+    file: 'packages/core/src/stores/reconcile.ts',
+    find: '      adapterFetches += fetches;\n      fetchesThisSegment += fetches;',
+    replace: '      adapterFetches += 1;\n      fetchesThisSegment += 1;',
+    test: 'packages/core/src/stores/reconcile.test.ts',
+  },
+  {
+    id: 'the-claim-meta-carries-its-precise-twin',
+    doctrine:
+      'the claim meta names its recipe beside the bare hash (RV4604): with the twin dropped, the only statement that judgedHash means JCS bytes is a doc comment, and the next provenance script rediscovers the recipe by trial like the seventh comparison experiment did',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '          // never the raw file.\n          judgedJcsSha256: judgedHash,',
+    replace: '          // never the raw file.',
+    test: 'packages/core/src/orchestrator/consistency.test.ts',
+  },
+  {
+    id: 'the-audit-meta-carries-its-precise-twin',
+    doctrine:
+      'the audit meta names its recipe beside the bare hash (RV4604): the same doctrine as the claim twin, on the surface the seventh comparison terminal actually shipped',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        // The precise twin (RV4604): the name states the recipe.\n        auditedJcsSha256: auditedHash,',
+    replace: '',
+    test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
+    id: 'the-verdict-names-the-judged-document',
+    doctrine:
+      "the semantic verdict's precise twin states both the recipe and the referent (RV4604): with it dropped, the overloaded finalHash stays the only name, and a reader must know from folklore that it is NOT draftToFinal.finalHash",
+    file: 'packages/core/src/orchestrator/semantic-verdict.ts',
+    find: '    ...(finalHash === undefined ? {} : { finalHash, judgedDocumentJcsSha256: finalHash }),',
+    replace: '    ...(finalHash === undefined ? {} : { finalHash }),',
+    test: 'packages/core/src/orchestrator/semantic-verdict.test.ts',
   },
 ];
 

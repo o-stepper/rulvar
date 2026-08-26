@@ -12708,6 +12708,16 @@ interface OrchestrateClaimConsistencyMeta {
   */
   judgedHash: string;
   /**
+  * The precise twin of `judgedHash` (RV4604): the same hex under a
+  * name that states the recipe, sha256 over the JCS canonical
+  * document (a string document hashes as its JSON encoding, so a
+  * file export's own sha DIFFERS; `verifyCandidateBytes` is the
+  * audit predicate). The seventh comparison experiment's provenance
+  * script rediscovered the recipe by trial because the bare name
+  * said nothing. Absent on metas recorded before the field.
+  */
+  judgedJcsSha256?: string;
+  /**
   * How many judge passes this stage's verdict lineage ran (RV3904,
   * the fourth comparison experiment): present exactly when the
   * bounded claim repair round is armed (`onFound: 'repair'`), so a
@@ -16276,7 +16286,8 @@ interface LogicalRunTelemetry {
     status: RunStatus;
     entries: number;
     activeMs?: number;
-    replayed?: true;
+    replayed?: true; /** Provider HTTP fetches THIS segment appended (RV4604). */
+    adapterFetches: number;
   }>;
   /**
   * Provider wire decisions across the WHOLE journal (RV4409): the
@@ -16287,6 +16298,17 @@ interface LogicalRunTelemetry {
   * reconciled "16 versus 109" by hand for exactly this reason.
   */
   logicalWireRequests?: number;
+  /**
+  * Provider HTTP fetches across the WHOLE journal (RV4604): the sum
+  * of every provider-call decision's absorbed `wireRequests` (absent
+  * reads one, the single-wire dispatch). The counter above counts
+  * DECISIONS; this one counts the HTTP requests those decisions
+  * absorbed, so the two figures the seventh comparison experiment
+  * reconciled by hand now carry their own names side by side, and
+  * `perSegment[].adapterFetches` says which segment actually paid
+  * for them (a pure-replay segment reads 0).
+  */
+  adapterFetches?: number;
 }
 /**
 * Folds a run's journal into the logical run's telemetry (RV2510): how
@@ -19239,6 +19261,14 @@ interface SemanticTerminalVerdict {
   verdict: "clean" | "findings" | "partial" | "vacuous" | "waived" | "not-judged";
   /** The judged document's hash: the claim judgedHash, else the audit auditedHash. */
   finalHash?: string;
+  /**
+  * The precise twin of `finalHash` (RV4604): the same hex under a
+  * name that states BOTH the recipe (sha256 over the JCS canonical
+  * document) and the referent (the judged document, which is the
+  * claim `judgedHash` else the audit `auditedHash`, and NOT the
+  * `draftToFinal.finalHash` the bare name collides with).
+  */
+  judgedDocumentJcsSha256?: string;
   /** The final claim-coverage grade, verbatim from the meta. */
   coverage?: string;
   /** Judged claim contradictions standing at settle. */

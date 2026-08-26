@@ -457,6 +457,10 @@ describe('the merged round (RV4202): both repairs armed grant the same one round
     // Both terminal verdicts describe the SHIPPED document.
     expect(outcome.claimConsistencyMeta?.judgedHash).toBe(outcome.draftToFinal?.finalHash);
     expect(outcome.citationAuditMeta?.auditedHash).toBe(outcome.draftToFinal?.finalHash);
+    // The precise twins ride beside the bare names (RV4604).
+    expect(
+      (outcome.citationAuditMeta as { auditedJcsSha256?: unknown } | undefined)?.auditedJcsSha256,
+    ).toBe(outcome.citationAuditMeta?.auditedHash);
     expect(outcome.claimConsistencyMeta).toMatchObject({
       passes: 2,
       firstPassFindings: 1,

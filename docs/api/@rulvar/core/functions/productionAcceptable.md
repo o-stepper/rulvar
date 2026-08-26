@@ -13,7 +13,7 @@ function productionAcceptable(verdict): {
 };
 ```
 
-Defined in: [packages/core/src/orchestrator/semantic-verdict.ts:251](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L251)
+Defined in: [packages/core/src/orchestrator/semantic-verdict.ts:259](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L259)
 
 The production acceptance predicate (RV4209): the one boolean a
 production consumer gates on, with the stable reason when it
@@ -49,5 +49,5 @@ rule instead of three re-derivations.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `ok` | `boolean` | [packages/core/src/orchestrator/semantic-verdict.ts:252](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L252) |
-| `reason?` | `string` | [packages/core/src/orchestrator/semantic-verdict.ts:253](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L253) |
+| `ok` | `boolean` | [packages/core/src/orchestrator/semantic-verdict.ts:260](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L260) |
+| `reason?` | `string` | [packages/core/src/orchestrator/semantic-verdict.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/semantic-verdict.ts#L261) |

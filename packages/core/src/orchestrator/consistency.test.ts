@@ -452,6 +452,8 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       coverage: 'full',
       judgedStage: 'draft',
       judgedHash,
+      // The precise twin (RV4604): same hex, the name states JCS sha256.
+      judgedJcsSha256: judgedHash,
     });
     // Exactly one judge invocation, carrying the pairs it must rule on.
     expect(judge.calls).toHaveLength(1);
@@ -497,6 +499,7 @@ describe('the claim-consistency pass wired into the orchestrator (RV1501, RV1502
       coverage: 'vacuous',
       judgedStage: 'draft',
       judgedHash: vacuousHash,
+      judgedJcsSha256: vacuousHash,
     });
   });
 

@@ -1651,6 +1651,16 @@ export interface OrchestrateClaimConsistencyMeta {
    */
   judgedHash: string;
   /**
+   * The precise twin of `judgedHash` (RV4604): the same hex under a
+   * name that states the recipe, sha256 over the JCS canonical
+   * document (a string document hashes as its JSON encoding, so a
+   * file export's own sha DIFFERS; `verifyCandidateBytes` is the
+   * audit predicate). The seventh comparison experiment's provenance
+   * script rediscovered the recipe by trial because the bare name
+   * said nothing. Absent on metas recorded before the field.
+   */
+  judgedJcsSha256?: string;
+  /**
    * How many judge passes this stage's verdict lineage ran (RV3904,
    * the fourth comparison experiment): present exactly when the
    * bounded claim repair round is armed (`onFound: 'repair'`), so a
@@ -8154,13 +8164,20 @@ export function makeOrchestratorWorkflow(
         // meta read, and its hash, so a grade rendered over a draft the
         // synthesis then replaced can never be read as a claim about
         // the shipped artifact.
+        const judgedHash = createHash('sha256')
+          .update(jcsSerialize(draft ?? null), 'utf8')
+          .digest('hex');
         return {
           ...bare,
           coverage: claimCoverageOf(bare),
           judgedStage: stage,
-          judgedHash: createHash('sha256')
-            .update(jcsSerialize(draft ?? null), 'utf8')
-            .digest('hex'),
+          judgedHash,
+          // The precise twin (RV4604): the same hex under a name that
+          // states the recipe, sha256 over the JCS canonical document.
+          // The seventh comparison experiment's provenance script had
+          // to rediscover by trial that the bare name meant JCS bytes,
+          // never the raw file.
+          judgedJcsSha256: judgedHash,
         };
       };
       // The low-coverage gate (RV1809) fires BEFORE the judge
@@ -8535,6 +8552,8 @@ export function makeOrchestratorWorkflow(
           judgeFailed?: true;
           judgeDeclined?: true;
           auditedHash: string;
+          /** The precise twin of `auditedHash` (RV4604): same hex, the name states JCS sha256. */
+          auditedJcsSha256: string;
           samplePerSection: number;
           maxSampled: number;
           /** Present exactly under the declared resolver 2 (RV4208). */
@@ -8634,6 +8653,8 @@ export function makeOrchestratorWorkflow(
         unresolved: mechanical.length,
         perSection,
         auditedHash,
+        // The precise twin (RV4604): the name states the recipe.
+        auditedJcsSha256: auditedHash,
         samplePerSection: plan.samplePerSection,
         maxSampled: plan.maxSampled,
         // The resolver generation on the meta (RV4208), stamped only

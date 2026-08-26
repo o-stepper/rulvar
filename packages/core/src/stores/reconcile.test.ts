@@ -347,7 +347,7 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
         startedAt: iso,
         value: {},
       }) as unknown as JournalEntry;
-    const wire = (seq: number, iso: string): JournalEntry =>
+    const wire = (seq: number, iso: string, wireRequests?: number): JournalEntry =>
       ({
         seq,
         kind: 'decision',
@@ -355,7 +355,11 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
         status: 'ok',
         site: 'wire',
         startedAt: iso,
-        value: { decisionType: 'provider-call', record: {} },
+        value: {
+          decisionType: 'provider-call',
+          record: {},
+          ...(wireRequests === undefined ? {} : { wireRequests }),
+        },
       }) as unknown as JournalEntry;
     const settleAt = (seq: number, runStatus: string, iso: string): JournalEntry =>
       ({
@@ -369,7 +373,8 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
       }) as unknown as JournalEntry;
     const total = logicalRunTelemetry([
       at(1, '2026-08-22T10:00:00.000Z'),
-      wire(2, '2026-08-22T10:00:10.000Z'),
+      // A pause_turn absorption: one decision, four HTTP fetches.
+      wire(2, '2026-08-22T10:00:10.000Z', 4),
       settleAt(3, 'exhausted', '2026-08-22T10:00:30.000Z'),
       // The operator gap: the resume starts five minutes later.
       wire(4, '2026-08-22T10:05:30.000Z'),
@@ -384,10 +389,13 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
     expect(total.calendarMs).toBe(341_000);
     expect(total.gapMs).toBe(301_000);
     expect(total.logicalWireRequests).toBe(2);
+    // The HTTP twin (RV4604): two decisions, but the first absorbed
+    // four fetches, so the counters never share a label again.
+    expect(total.adapterFetches).toBe(5);
     expect(total.perSegment).toEqual([
-      { status: 'exhausted', entries: 3, activeMs: 30_000 },
-      { status: 'ok', entries: 2, activeMs: 10_000 },
-      { status: 'ok', entries: 1, activeMs: 0, replayed: true },
+      { status: 'exhausted', entries: 3, activeMs: 30_000, adapterFetches: 4 },
+      { status: 'ok', entries: 2, activeMs: 10_000, adapterFetches: 1 },
+      { status: 'ok', entries: 1, activeMs: 0, replayed: true, adapterFetches: 0 },
     ]);
     // A journal with no stamps keeps the time fields ABSENT: not
     // recorded, never zero.
@@ -395,6 +403,7 @@ describe('the logical run telemetry over every segment (RV2510)', () => {
     expect(bare.activeMs).toBeUndefined();
     expect(bare.calendarMs).toBeUndefined();
     expect(bare.logicalWireRequests).toBe(0);
+    expect(bare.adapterFetches).toBe(0);
   });
 
   it('deliberately carries no cumulative figure: summing those double counts', () => {

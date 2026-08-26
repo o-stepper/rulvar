@@ -529,6 +529,8 @@ export interface LogicalRunTelemetry {
     entries: number;
     activeMs?: number;
     replayed?: true;
+    /** Provider HTTP fetches THIS segment appended (RV4604). */
+    adapterFetches: number;
   }>;
   /**
    * Provider wire decisions across the WHOLE journal (RV4409): the
@@ -539,6 +541,17 @@ export interface LogicalRunTelemetry {
    * reconciled "16 versus 109" by hand for exactly this reason.
    */
   logicalWireRequests?: number;
+  /**
+   * Provider HTTP fetches across the WHOLE journal (RV4604): the sum
+   * of every provider-call decision's absorbed `wireRequests` (absent
+   * reads one, the single-wire dispatch). The counter above counts
+   * DECISIONS; this one counts the HTTP requests those decisions
+   * absorbed, so the two figures the seventh comparison experiment
+   * reconciled by hand now carry their own names side by side, and
+   * `perSegment[].adapterFetches` says which segment actually paid
+   * for them (a pure-replay segment reads 0).
+   */
+  adapterFetches?: number;
 }
 
 /**
@@ -563,9 +576,12 @@ export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRu
   const statuses: RunStatus[] = [];
   const entriesPerSegment: number[] = [];
   const segmentWindows: Array<{ firstMs?: number; lastMs?: number }> = [];
+  const segmentFetches: number[] = [];
   let sinceLastSettle = 0;
   let window: { firstMs?: number; lastMs?: number } = {};
   let logicalWireRequests = 0;
+  let adapterFetches = 0;
+  let fetchesThisSegment = 0;
   const stampOf = (entry: JournalEntry): number | undefined => {
     const raw = (entry as { startedAt?: unknown }).startedAt;
     if (typeof raw !== 'string') {
@@ -584,11 +600,22 @@ export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRu
     if (entry.kind !== 'decision') {
       continue;
     }
-    const value = entry.value as { decisionType?: unknown; runStatus?: unknown } | undefined;
+    const value = entry.value as
+      { decisionType?: unknown; runStatus?: unknown; wireRequests?: unknown } | undefined;
     if (value?.decisionType === 'provider-call') {
       // The logical wire count (RV4409): one decision per billable
       // provider call, replay-deduped by the journal itself.
       logicalWireRequests += 1;
+      // The HTTP twin (RV4604): the fetches this decision absorbed,
+      // the cost-report fold's exact reading (absent reads one).
+      const fetches =
+        typeof value.wireRequests === 'number' &&
+        Number.isSafeInteger(value.wireRequests) &&
+        value.wireRequests > 0
+          ? value.wireRequests
+          : 1;
+      adapterFetches += fetches;
+      fetchesThisSegment += fetches;
     }
     if (
       value?.decisionType !== RUN_SETTLE_DECISION_TYPE ||
@@ -600,8 +627,10 @@ export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRu
     statuses.push(value.runStatus as RunStatus);
     entriesPerSegment.push(sinceLastSettle);
     segmentWindows.push(window);
+    segmentFetches.push(fetchesThisSegment);
     sinceLastSettle = 0;
     window = {};
+    fetchesThisSegment = 0;
   }
   const perSegment = statuses.map((status, index) => {
     const count = entriesPerSegment[index] ?? 0;
@@ -616,6 +645,7 @@ export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRu
       // segment did no new paid work, and its wall belongs to the
       // original segments, not to a 0.0 s rerun.
       ...(count <= 1 ? { replayed: true as const } : {}),
+      adapterFetches: segmentFetches[index] ?? 0,
     };
   });
   const activeMs = perSegment.reduce<number | undefined>(
@@ -642,6 +672,7 @@ export function logicalRunTelemetry(entries: readonly JournalEntry[]): LogicalRu
       : {}),
     ...(statuses.length === 0 ? {} : { perSegment }),
     logicalWireRequests,
+    adapterFetches,
   };
 }
 
