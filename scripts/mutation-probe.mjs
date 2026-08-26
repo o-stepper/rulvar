@@ -5231,9 +5231,9 @@ export const MUTATIONS = [
   {
     id: 'acceptance-reserve-unfit-severity',
     doctrine:
-      "an unfit tail under declared 'require' is an ERROR finding (RV4001): the fifth comparison harness gated on error findings only and sailed a $4.54 cap past a $4.82 tail; a severity downgrade re-opens exactly that seam, with the arithmetic on record and the boot refusal waiting",
+      "an unfit tail under declared 'require' is an ERROR finding (RV4001; 'checkpoint' estimates with require's genesis arithmetic since RV4701): the fifth comparison harness gated on error findings only and sailed a $4.54 cap past a $4.82 tail; a severity downgrade re-opens exactly that seam, with the arithmetic on record and the boot refusal waiting",
     file: 'packages/core/src/engine/preflight.ts',
-    find: "          severity: spec.acceptanceReserve === 'require' ? 'error' : 'warning',",
+    find: "          severity: spec.acceptanceReserve === 'warn' ? 'warning' : 'error',",
     replace: "          severity: 'warning',",
     test: 'packages/core/src/engine/preflight.test.ts',
   },
@@ -6891,6 +6891,24 @@ export const MUTATIONS = [
     find: '          if (resolved?.unit.truncated === true) {',
     replace: '          if (false) {',
     test: 'packages/core/src/orchestrator/citation-audit.test.ts',
+  },
+  {
+    id: 'preflight-judges-the-child-ceiling',
+    doctrine:
+      "the child-ceiling feasibility line refuses a ceiling below the declared posture's own floor (RV4702, the eighth comparison experiment's first run): with the check dropped, estIsCeiling 1.35 over a 1.88 loop-plus-tail floor passes preflight in silence again, and the deterministic finalize starvation is discovered 6.74 USD later",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '        if (ceilingUsd < requiredFloorUsd) {',
+    replace: '        if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
+  {
+    id: 'preflight-speaks-the-checkpoint-vocabulary',
+    doctrine:
+      "preflight accepts the engine's whole acceptanceReserve vocabulary (RV4701): with 'checkpoint' dropped from the intake, the estimator refuses the very posture the runtime runs (RV4404), and a driver estimates its genesis arithmetic under a substituted 'require' again",
+    file: 'packages/core/src/engine/preflight.ts',
+    find: "      spec.acceptanceReserve !== 'require' &&\n      spec.acceptanceReserve !== 'checkpoint'\n    ) {",
+    replace: "      spec.acceptanceReserve !== 'require'\n    ) {",
+    test: 'packages/core/src/engine/preflight.test.ts',
   },
 ];
 

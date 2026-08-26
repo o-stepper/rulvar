@@ -3284,7 +3284,7 @@ describe('the acceptance-tail twin (RV4001, the fifth comparison experiment)', (
       preflightEstimate(
         tailPostureInput({ declared: 'block' as unknown as 'require', ...EXPERIMENT }),
       ),
-    ).toThrow(/acceptanceReserve must be 'warn' or 'require'; got "block"/);
+    ).toThrow(/acceptanceReserve must be 'warn', 'require' or 'checkpoint'; got "block"/);
   });
 
   it("counts stage 'both' at two passes and the armed round at three", () => {
@@ -3445,5 +3445,132 @@ describe('the run repair pool findings (RV4705, the eighth comparison rerun)', (
     expect(() => preflightEstimate(poolInput({ maxSemanticRepairRounds: -1 }))).toThrow(
       /maxSemanticRepairRounds/,
     );
+  });
+});
+
+describe('the child-ceiling feasibility line (RV4702) and the checkpoint intake (RV4701)', () => {
+  // The eighth comparison experiment's first run: gpt-5.6-sol rates,
+  // a 36000-token worker prompt floor, 38 turns over 112 tool calls,
+  // a 14000-token output cap, and estIsCeiling promoting the declared
+  // 1.35 estimate into the child's hard ceiling. The loop's cached
+  // input floor plus one tail turn prices above 1.35, the child died
+  // at the finalize dispatch, and preflight had said nothing; the
+  // rerun's 2.40 cleared the same posture with every child ok.
+  const SOL_RATES = {
+    inputUsdPerMTok: 4,
+    outputUsdPerMTok: 20,
+    cacheReadUsdPerMTok: 0.4,
+    cacheWriteUsdPerMTok: 5,
+    tiers: [{ aboveInputTokens: 272000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+  };
+
+  function eighthInput(options: {
+    workerEstCost: number;
+    estIsCeiling?: boolean;
+    acceptanceReserve?: 'warn' | 'require' | 'checkpoint';
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [
+          scriptedAdapter(() => ({ text: 'unused' }), {
+            caps: testCaps({ maxOutputTokens: 128000, pricing: SOL_RATES }),
+          }),
+        ],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: { budgetUsd: 21.5 },
+      orchestrator: {
+        budget: {
+          capUsd: 10,
+          capFraction: 1.0,
+          synthesisReserveUsd: 1.9,
+          ...(options.estIsCeiling === undefined ? {} : { estIsCeiling: options.estIsCeiling }),
+          ...(options.acceptanceReserve === undefined
+            ? {}
+            : { acceptanceReserve: options.acceptanceReserve }),
+        },
+        synthesis: {
+          limits: { maxTurns: 5, maxOutputTokensPerTurn: 22000 },
+          estInputTokens: 45000,
+          estCost: 0.78,
+        },
+        limits: { maxTurns: 26, maxOutputTokensPerTurn: 16000 },
+        claimConsistency: { stage: 'final', onFound: 'repair', judge: { estCost: 0.32 } },
+      },
+      spawns: [
+        {
+          label: 'worker',
+          estCost: options.workerEstCost,
+          estInputTokens: 36000,
+          limits: { maxTurns: 38, maxToolCalls: 112, maxOutputTokensPerTurn: 14000 },
+        },
+      ],
+    };
+  }
+
+  it("run 1's 1.35 ceiling fails the line with named numbers; the rerun's 2.40 passes", () => {
+    const runOne = preflightEstimate(eighthInput({ workerEstCost: 1.35, estIsCeiling: true }));
+    const finding = runOne.findings.find(
+      (entry) => entry.code === 'child-ceiling-below-loop-floor',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.spawn).toBe('worker');
+    expect(finding?.message).toContain('1.3500 USD');
+    expect(finding?.message).toContain('estIsCeiling');
+    expect(finding?.message).toContain('loop input floor');
+    const row = runOne.spawns.find((entry) => entry.label === 'worker');
+    expect(row?.estCeiling?.fits).toBe(false);
+    expect(row?.estCeiling?.ceilingUsd).toBe(1.35);
+    // The floor separates the two configs the experiment actually ran.
+    expect(row?.estCeiling?.requiredFloorUsd).toBeGreaterThan(1.35);
+    expect(row?.estCeiling?.requiredFloorUsd).toBeLessThanOrEqual(2.4);
+
+    const rerun = preflightEstimate(eighthInput({ workerEstCost: 2.4, estIsCeiling: true }));
+    expect(rerun.findings.some((entry) => entry.code === 'child-ceiling-below-loop-floor')).toBe(
+      false,
+    );
+    expect(rerun.spawns.find((entry) => entry.label === 'worker')?.estCeiling?.fits).toBe(true);
+  });
+
+  it('without estIsCeiling the row and the finding stay absent, byte identical', () => {
+    const report = preflightEstimate(eighthInput({ workerEstCost: 1.35 }));
+    expect(report.findings.some((entry) => entry.code === 'child-ceiling-below-loop-floor')).toBe(
+      false,
+    );
+    expect('estCeiling' in (report.spawns[0] ?? {})).toBe(false);
+  });
+
+  it('an explicit spawn budget is the ceiling the line judges, winning over the estimate', () => {
+    const input = eighthInput({ workerEstCost: 1.35, estIsCeiling: true });
+    const worker = input.spawns?.[0] as { budgetUsd?: number };
+    worker.budgetUsd = 5;
+    const roomy = preflightEstimate(input);
+    expect(roomy.findings.some((entry) => entry.code === 'child-ceiling-below-loop-floor')).toBe(
+      false,
+    );
+    expect(roomy.spawns[0]?.estCeiling?.ceilingUsd).toBe(5);
+  });
+
+  it("accepts acceptanceReserve 'checkpoint' with require's genesis arithmetic (RV4701)", () => {
+    const checkpoint = preflightEstimate(
+      eighthInput({ workerEstCost: 2.4, acceptanceReserve: 'checkpoint' }),
+    );
+    expect(checkpoint.budget.orchestrator?.acceptanceReserve?.declared).toBe('checkpoint');
+    expect(checkpoint.budget.orchestrator?.acceptanceReserve?.fits).toBe(true);
+    expect(() =>
+      preflightEstimate(eighthInput({ workerEstCost: 2.4, acceptanceReserve: 'maybe' as never })),
+    ).toThrow(/'warn', 'require' or 'checkpoint'/);
+  });
+
+  it("an unfit tail under 'checkpoint' is an error naming the first checkpoint (RV4701)", () => {
+    const input = eighthInput({ workerEstCost: 2.4, acceptanceReserve: 'checkpoint' });
+    if (input.orchestrator?.budget !== undefined) {
+      input.orchestrator.budget.capUsd = 2;
+    }
+    const report = preflightEstimate(input);
+    const finding = report.findings.find((entry) => entry.code === 'acceptance-reserve-unfit');
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain("budget.acceptanceReserve 'checkpoint'");
+    expect(finding?.message).toContain('re-checks this same arithmetic');
   });
 });

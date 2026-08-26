@@ -18351,6 +18351,26 @@ interface PreflightSpawnReport {
   * envelope and three seats dying against it.
   */
   cachedLoopInputFloorUsd?: number;
+  /**
+  * The estIsCeiling feasibility line (RV4702, the eighth comparison
+  * experiment's first run): present exactly when the orchestrator
+  * budget declares `estIsCeiling: true` and the floors price.
+  * `ceilingUsd` is the child's hard ceiling under that flag (the
+  * explicit spawn budget, else the declared estimate), and
+  * `requiredFloorUsd` the cheapest honest reading of the declared
+  * posture: the loop input floor across the projected turns
+  * (cache-aware when the policy allows) plus ONE tail turn at the
+  * declared floor, the finalize-shaped dispatch that run died on. A
+  * ceiling below the floor cannot finish the loop it admits at the
+  * declared prices, by construction; that run shipped 1.35 against
+  * roughly 1.88, preflight said nothing, and the death cost 6.74
+  * USD.
+  */
+  estCeiling?: {
+    ceilingUsd: number;
+    requiredFloorUsd: number;
+    fits: boolean;
+  };
   /** Executed-call ceiling across any tool mix; null = unlimited. */
   executedToolCallCeiling: number | null;
   /**
@@ -18420,7 +18440,7 @@ interface PreflightReport {
       * formulas; they now compute one.
       */
       acceptanceReserve?: {
-        declared: "warn" | "require";
+        declared: "warn" | "require" | "checkpoint";
         requiredUsd: number; /** Absent when no cap resolves; the runtime then refuses under 'require'. */
         effectiveCapUsd?: number; /** Exact fill admits, exactly the runtime gate. */
         fits: boolean;

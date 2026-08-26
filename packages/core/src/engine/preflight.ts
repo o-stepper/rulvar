@@ -468,6 +468,22 @@ export interface PreflightSpawnReport {
    * envelope and three seats dying against it.
    */
   cachedLoopInputFloorUsd?: number;
+  /**
+   * The estIsCeiling feasibility line (RV4702, the eighth comparison
+   * experiment's first run): present exactly when the orchestrator
+   * budget declares `estIsCeiling: true` and the floors price.
+   * `ceilingUsd` is the child's hard ceiling under that flag (the
+   * explicit spawn budget, else the declared estimate), and
+   * `requiredFloorUsd` the cheapest honest reading of the declared
+   * posture: the loop input floor across the projected turns
+   * (cache-aware when the policy allows) plus ONE tail turn at the
+   * declared floor, the finalize-shaped dispatch that run died on. A
+   * ceiling below the floor cannot finish the loop it admits at the
+   * declared prices, by construction; that run shipped 1.35 against
+   * roughly 1.88, preflight said nothing, and the death cost 6.74
+   * USD.
+   */
+  estCeiling?: { ceilingUsd: number; requiredFloorUsd: number; fits: boolean };
   /** Executed-call ceiling across any tool mix; null = unlimited. */
   executedToolCallCeiling: number | null;
   /**
@@ -539,7 +555,7 @@ export interface PreflightReport {
        * formulas; they now compute one.
        */
       acceptanceReserve?: {
-        declared: 'warn' | 'require';
+        declared: 'warn' | 'require' | 'checkpoint';
         requiredUsd: number;
         /** Absent when no cap resolves; the runtime then refuses under 'require'. */
         effectiveCapUsd?: number;
@@ -1063,11 +1079,16 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     if (
       spec?.acceptanceReserve !== undefined &&
       spec.acceptanceReserve !== 'warn' &&
-      spec.acceptanceReserve !== 'require'
+      spec.acceptanceReserve !== 'require' &&
+      spec.acceptanceReserve !== 'checkpoint'
     ) {
+      // The full engine vocabulary (RV4701): the runtime has accepted
+      // 'checkpoint' since RV4404 while this intake knew only the
+      // first two, so the eighth comparison driver had to estimate
+      // its genesis arithmetic under a substituted 'require'.
       throw new ConfigError(
-        "preflight.orchestrator.budget.acceptanceReserve must be 'warn' or 'require'; got " +
-          JSON.stringify(spec.acceptanceReserve),
+        "preflight.orchestrator.budget.acceptanceReserve must be 'warn', 'require' or " +
+          `'checkpoint'; got ${JSON.stringify(spec.acceptanceReserve)}`,
       );
     }
     if (input.orchestrator.synthesis?.estCost !== undefined) {
@@ -1258,7 +1279,11 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     // past it the way it sailed past the advisory warnings. Under
     // 'warn' the same arithmetic surfaces as a warning, exactly the
     // declared posture's contract: findings in preflight, nothing at
-    // runtime.
+    // runtime. Under 'checkpoint' (RV4701/RV4404) the genesis
+    // arithmetic is require's, so an unfit tail is the same ERROR:
+    // the first paid acceptance-tail dispatch re-checks this exact
+    // sum at the money actually spent and would refuse it already at
+    // the genesis numbers.
     if (spec?.acceptanceReserve !== undefined) {
       const { requiredUsd, terms } = acceptanceTailRequiredUsd({
         ...(spec.synthesisReserveUsd === undefined
@@ -1299,7 +1324,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       if (!fits) {
         const termsLine = formatAcceptanceTailTerms(terms);
         say({
-          severity: spec.acceptanceReserve === 'require' ? 'error' : 'warning',
+          severity: spec.acceptanceReserve === 'warn' ? 'warning' : 'error',
           code: 'acceptance-reserve-unfit',
           message:
             (effectiveCapUsd === undefined
@@ -1311,8 +1336,12 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             (spec.acceptanceReserve === 'require'
               ? '; the run would refuse to start before its first wire (RV3907): raise the ' +
                 'cap or lower the declared tail'
-              : '; the run would start with its acceptance machinery funded by luck: raise ' +
-                "the cap, lower the declared tail, or declare 'require' to refuse instead"),
+              : spec.acceptanceReserve === 'checkpoint'
+                ? '; the first paid acceptance-tail dispatch re-checks this same arithmetic ' +
+                  'at the money actually spent (RV4404) and would refuse it already at the ' +
+                  'genesis numbers: raise the cap or lower the declared tail'
+                : '; the run would start with its acceptance machinery funded by luck: raise ' +
+                  "the cap, lower the declared tail, or declare 'require' to refuse instead"),
         });
       }
     }
@@ -1509,6 +1538,49 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           "defaults.cache { mode: 'off' } or scope the opt-out to the profiles that need it",
         spawn: label,
       });
+    }
+
+    // The child-ceiling feasibility line (RV4702, the eighth
+    // comparison experiment's first run): under budget.estIsCeiling
+    // the spawn's declared estimate IS the child's hard ceiling
+    // (the explicit spawn budget wins, RV4404), and that run's 1.35
+    // ceiling deterministically starved its child's finalize dispatch
+    // after an honest loop; preflight admitted the plan without a
+    // word, and the death cost 6.74 USD. The floor here is the
+    // cheapest honest reading of the declared posture: the loop's
+    // input floor across its projected turns (cache-aware unless the
+    // policy is off) plus ONE tail turn at the declared floor, the
+    // finalize-shaped dispatch that run died on. A ceiling below it
+    // cannot finish the loop it admits at the declared prices, by
+    // construction; error level, because the starvation is
+    // deterministic, not a headroom taste.
+    let estCeilingRow: { ceilingUsd: number; requiredFloorUsd: number; fits: boolean } | undefined;
+    if (input.orchestrator?.budget?.estIsCeiling === true) {
+      const ceilingUsd = spec.budgetUsd ?? spec.estCost ?? profile?.estCost;
+      const loopFloorUsd =
+        engine.defaults?.cache?.mode === 'off'
+          ? uncachedLoopInputFloorUsd
+          : (cachedLoopInputFloorUsd ?? uncachedLoopInputFloorUsd);
+      if (ceilingUsd !== undefined && loopFloorUsd !== undefined && turnFloorUsd !== undefined) {
+        const requiredFloorUsd = loopFloorUsd + turnFloorUsd;
+        estCeilingRow = { ceilingUsd, requiredFloorUsd, fits: ceilingUsd >= requiredFloorUsd };
+        if (ceilingUsd < requiredFloorUsd) {
+          say({
+            severity: 'error',
+            code: 'child-ceiling-below-loop-floor',
+            message:
+              `spawn '${label}' rides budget.estIsCeiling with a hard child ceiling of ` +
+              `${ceilingUsd.toFixed(4)} USD, below the ${requiredFloorUsd.toFixed(4)} USD ` +
+              `floor of its own declared posture (loop input floor ${loopFloorUsd.toFixed(4)} ` +
+              `across ${String(projectedProviderTurns)} projected turns plus one tail turn at ` +
+              `${turnFloorUsd.toFixed(4)}): the ceiling deterministically starves the child's ` +
+              'tail dispatch at the declared prices (the eighth comparison experiment died at ' +
+              'exactly this line); raise the estimate, declare an explicit spawn budget, or ' +
+              'drop estIsCeiling',
+            spawn: label,
+          });
+        }
+      }
     }
 
     for (const row of toolCeilings) {
@@ -1874,6 +1946,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       ...(turnFloorUsd === undefined ? {} : { turnFloorUsd }),
       ...(uncachedLoopInputFloorUsd === undefined ? {} : { uncachedLoopInputFloorUsd }),
       ...(cachedLoopInputFloorUsd === undefined ? {} : { cachedLoopInputFloorUsd }),
+      ...(estCeilingRow === undefined ? {} : { estCeiling: estCeilingRow }),
       executedToolCallCeiling,
       projectedProviderTurns,
       toolCeilings,
