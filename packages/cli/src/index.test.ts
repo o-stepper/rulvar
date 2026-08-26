@@ -2741,7 +2741,12 @@ describe('inspect acceptance and quota rendering (RV806)', () => {
     expect(text).toContain('logical run: active 2297.0 s, calendar 2631.0 s, operator gap 334.0 s');
     expect(text).toContain('segment 1: exhausted after 96 entries; active 2100.0 s');
     expect(text).toContain('segment 2: ok after 55 entries; active 197.0 s');
-    expect(text).toContain('logical wires: 109 provider calls across the whole run');
+    // Both counters by name (RV4604): the fixture's wires are single
+    // fetch dispatches, so the HTTP twin equals the decision count.
+    expect(text).toContain(
+      'logical wires: 109 provider calls across the whole run; adapter fetches: ' +
+        '109 HTTP requests those calls absorbed',
+    );
   });
 
   it("prints the five terminal axes side by side over the seventh run's shape (RV4403)", async () => {

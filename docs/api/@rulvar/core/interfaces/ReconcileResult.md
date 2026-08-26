@@ -6,11 +6,11 @@
 
 # Interface: ReconcileResult
 
-Defined in: [packages/core/src/stores/reconcile.ts:994](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L994)
+Defined in: [packages/core/src/stores/reconcile.ts:1025](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L1025)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-audit"></a> `audit` | [`RunStateAudit`](/api/@rulvar/core/interfaces/RunStateAudit.md) | - | [packages/core/src/stores/reconcile.ts:995](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L995) |
-| <a id="property-repaired"></a> `repaired` | `boolean` | True when a divergent meta row was rewritten from the journal. | [packages/core/src/stores/reconcile.ts:997](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L997) |
+| <a id="property-audit"></a> `audit` | [`RunStateAudit`](/api/@rulvar/core/interfaces/RunStateAudit.md) | - | [packages/core/src/stores/reconcile.ts:1026](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L1026) |
+| <a id="property-repaired"></a> `repaired` | `boolean` | True when a divergent meta row was rewritten from the journal. | [packages/core/src/stores/reconcile.ts:1028](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L1028) |

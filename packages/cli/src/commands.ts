@@ -875,11 +875,18 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
       break;
     }
     if (logical.logicalWireRequests !== undefined && logical.logicalWireRequests > 0) {
+      // Both counters by name (RV4604): the seventh comparison
+      // experiment reconciled "16 versus 109" by hand because the two
+      // figures shared a label; a resumed segment re-reads its prefix
+      // without re-paying it, so the per-segment fetches stay smaller
+      // by design.
       context.io.out(
         `logical wires: ${String(logical.logicalWireRequests)} provider call` +
-          `${logical.logicalWireRequests === 1 ? '' : 's'} across the whole run (a resumed ` +
-          'segment re-reads its prefix without re-paying it, so segment adapter fetches are ' +
-          'a different, smaller counter by design)',
+          `${logical.logicalWireRequests === 1 ? '' : 's'} across the whole run` +
+          (logical.adapterFetches === undefined
+            ? ''
+            : `; adapter fetches: ${String(logical.adapterFetches)} HTTP request` +
+              `${logical.adapterFetches === 1 ? '' : 's'} those calls absorbed`),
       );
     }
   }

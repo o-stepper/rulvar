@@ -30,6 +30,9 @@ describe('semanticTerminalVerdictOf precedence (RV4209)', () => {
     });
     expect(verdict?.verdict).toBe('clean');
     expect(verdict?.finalHash).toBe('a'.repeat(64));
+    // The precise twin (RV4604): the same hex under the name that
+    // states the recipe and the referent.
+    expect(verdict?.judgedDocumentJcsSha256).toBe('a'.repeat(64));
     expect(productionAcceptable(verdict).ok).toBe(true);
   });
 

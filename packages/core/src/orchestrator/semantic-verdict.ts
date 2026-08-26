@@ -38,6 +38,14 @@ export interface SemanticTerminalVerdict {
   verdict: 'clean' | 'findings' | 'partial' | 'vacuous' | 'waived' | 'not-judged';
   /** The judged document's hash: the claim judgedHash, else the audit auditedHash. */
   finalHash?: string;
+  /**
+   * The precise twin of `finalHash` (RV4604): the same hex under a
+   * name that states BOTH the recipe (sha256 over the JCS canonical
+   * document) and the referent (the judged document, which is the
+   * claim `judgedHash` else the audit `auditedHash`, and NOT the
+   * `draftToFinal.finalHash` the bare name collides with).
+   */
+  judgedDocumentJcsSha256?: string;
   /** The final claim-coverage grade, verbatim from the meta. */
   coverage?: string;
   /** Judged claim contradictions standing at settle. */
@@ -219,7 +227,7 @@ export function semanticTerminalVerdictOf(
               : 'clean';
   return {
     verdict,
-    ...(finalHash === undefined ? {} : { finalHash }),
+    ...(finalHash === undefined ? {} : { finalHash, judgedDocumentJcsSha256: finalHash }),
     ...(coverage === undefined ? {} : { coverage }),
     contradictions,
     unsupportedCitations,
