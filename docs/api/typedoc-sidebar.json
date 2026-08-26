@@ -799,6 +799,18 @@
             "link": "/api/@rulvar/core/interfaces/AiSdkBridgeRegulatedPosture.md"
           },
           {
+            "text": "AnchorGroundingFinding",
+            "link": "/api/@rulvar/core/interfaces/AnchorGroundingFinding.md"
+          },
+          {
+            "text": "AnchorGroundingOptions",
+            "link": "/api/@rulvar/core/interfaces/AnchorGroundingOptions.md"
+          },
+          {
+            "text": "AnchorGroundingSuggestion",
+            "link": "/api/@rulvar/core/interfaces/AnchorGroundingSuggestion.md"
+          },
+          {
             "text": "AppliedPricingRow",
             "link": "/api/@rulvar/core/interfaces/AppliedPricingRow.md"
           },
@@ -2863,6 +2875,14 @@
         "collapsed": true,
         "items": [
           {
+            "text": "ANCHOR_GROUNDING_GRACE_LINES",
+            "link": "/api/@rulvar/core/variables/ANCHOR_GROUNDING_GRACE_LINES.md"
+          },
+          {
+            "text": "ANCHOR_GROUNDING_JSON_LEAF_SLACK",
+            "link": "/api/@rulvar/core/variables/ANCHOR_GROUNDING_JSON_LEAF_SLACK.md"
+          },
+          {
             "text": "AWAIT_SCHEMA",
             "link": "/api/@rulvar/core/variables/AWAIT_SCHEMA.md"
           },
@@ -3231,6 +3251,18 @@
             "link": "/api/@rulvar/core/variables/MASKED_SECRET.md"
           },
           {
+            "text": "MAX_ANCHOR_GROUNDING_FINDINGS",
+            "link": "/api/@rulvar/core/variables/MAX_ANCHOR_GROUNDING_FINDINGS.md"
+          },
+          {
+            "text": "MAX_ANCHOR_GROUNDING_SCAN_LINES",
+            "link": "/api/@rulvar/core/variables/MAX_ANCHOR_GROUNDING_SCAN_LINES.md"
+          },
+          {
+            "text": "MAX_ANCHOR_GROUNDING_SUGGESTIONS",
+            "link": "/api/@rulvar/core/variables/MAX_ANCHOR_GROUNDING_SUGGESTIONS.md"
+          },
+          {
             "text": "MAX_CHILD_RESULT_PAGE_CHARS",
             "link": "/api/@rulvar/core/variables/MAX_CHILD_RESULT_PAGE_CHARS.md"
           },
@@ -3257,6 +3289,14 @@
           {
             "text": "MAX_DEPTH_CEILING",
             "link": "/api/@rulvar/core/variables/MAX_DEPTH_CEILING.md"
+          },
+          {
+            "text": "MAX_GROUNDING_WINDOW_CHARS",
+            "link": "/api/@rulvar/core/variables/MAX_GROUNDING_WINDOW_CHARS.md"
+          },
+          {
+            "text": "MAX_GROUNDING_WINDOW_FINDINGS",
+            "link": "/api/@rulvar/core/variables/MAX_GROUNDING_WINDOW_FINDINGS.md"
           },
           {
             "text": "MAX_RUN_FACTS_SHEET_CHARS",
@@ -3421,6 +3461,14 @@
             "link": "/api/@rulvar/core/functions/agentTypeBucket.md"
           },
           {
+            "text": "anchorGroundingFindingsOf",
+            "link": "/api/@rulvar/core/functions/anchorGroundingFindingsOf.md"
+          },
+          {
+            "text": "anchorGroundingValidator",
+            "link": "/api/@rulvar/core/functions/anchorGroundingValidator.md"
+          },
+          {
             "text": "applyClaimOps",
             "link": "/api/@rulvar/core/functions/applyClaimOps.md"
           },
@@ -3575,6 +3623,10 @@
           {
             "text": "citationExcerptOf",
             "link": "/api/@rulvar/core/functions/citationExcerptOf.md"
+          },
+          {
+            "text": "citationGroundingLines",
+            "link": "/api/@rulvar/core/functions/citationGroundingLines.md"
           },
           {
             "text": "citationJudgePassOf",
@@ -6778,6 +6830,18 @@
             "link": "/api/@rulvar/rulvar/interfaces/AiSdkBridgeRegulatedPosture.md"
           },
           {
+            "text": "AnchorGroundingFinding",
+            "link": "/api/@rulvar/rulvar/interfaces/AnchorGroundingFinding.md"
+          },
+          {
+            "text": "AnchorGroundingOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/AnchorGroundingOptions.md"
+          },
+          {
+            "text": "AnchorGroundingSuggestion",
+            "link": "/api/@rulvar/rulvar/interfaces/AnchorGroundingSuggestion.md"
+          },
+          {
             "text": "AnthropicAdapterOptions",
             "link": "/api/@rulvar/rulvar/interfaces/AnthropicAdapterOptions.md"
           },
@@ -8878,6 +8942,14 @@
         "collapsed": true,
         "items": [
           {
+            "text": "ANCHOR_GROUNDING_GRACE_LINES",
+            "link": "/api/@rulvar/rulvar/variables/ANCHOR_GROUNDING_GRACE_LINES.md"
+          },
+          {
+            "text": "ANCHOR_GROUNDING_JSON_LEAF_SLACK",
+            "link": "/api/@rulvar/rulvar/variables/ANCHOR_GROUNDING_JSON_LEAF_SLACK.md"
+          },
+          {
             "text": "ANTHROPIC_MODELS",
             "link": "/api/@rulvar/rulvar/variables/ANTHROPIC_MODELS.md"
           },
@@ -9250,6 +9322,18 @@
             "link": "/api/@rulvar/rulvar/variables/MASKED_SECRET.md"
           },
           {
+            "text": "MAX_ANCHOR_GROUNDING_FINDINGS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_ANCHOR_GROUNDING_FINDINGS.md"
+          },
+          {
+            "text": "MAX_ANCHOR_GROUNDING_SCAN_LINES",
+            "link": "/api/@rulvar/rulvar/variables/MAX_ANCHOR_GROUNDING_SCAN_LINES.md"
+          },
+          {
+            "text": "MAX_ANCHOR_GROUNDING_SUGGESTIONS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_ANCHOR_GROUNDING_SUGGESTIONS.md"
+          },
+          {
             "text": "MAX_CHILD_RESULT_PAGE_CHARS",
             "link": "/api/@rulvar/rulvar/variables/MAX_CHILD_RESULT_PAGE_CHARS.md"
           },
@@ -9276,6 +9360,14 @@
           {
             "text": "MAX_DEPTH_CEILING",
             "link": "/api/@rulvar/rulvar/variables/MAX_DEPTH_CEILING.md"
+          },
+          {
+            "text": "MAX_GROUNDING_WINDOW_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_GROUNDING_WINDOW_CHARS.md"
+          },
+          {
+            "text": "MAX_GROUNDING_WINDOW_FINDINGS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_GROUNDING_WINDOW_FINDINGS.md"
           },
           {
             "text": "MAX_RUN_FACTS_SHEET_CHARS",
@@ -9448,6 +9540,14 @@
             "link": "/api/@rulvar/rulvar/functions/agentTypeBucket.md"
           },
           {
+            "text": "anchorGroundingFindingsOf",
+            "link": "/api/@rulvar/rulvar/functions/anchorGroundingFindingsOf.md"
+          },
+          {
+            "text": "anchorGroundingValidator",
+            "link": "/api/@rulvar/rulvar/functions/anchorGroundingValidator.md"
+          },
+          {
             "text": "anthropic",
             "link": "/api/@rulvar/rulvar/functions/anthropic.md"
           },
@@ -9606,6 +9706,10 @@
           {
             "text": "citationExcerptOf",
             "link": "/api/@rulvar/rulvar/functions/citationExcerptOf.md"
+          },
+          {
+            "text": "citationGroundingLines",
+            "link": "/api/@rulvar/rulvar/functions/citationGroundingLines.md"
           },
           {
             "text": "citationJudgePassOf",

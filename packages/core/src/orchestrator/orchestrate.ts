@@ -123,6 +123,7 @@ import {
 import {
   CITATION_JUDGE_SCHEMA,
   citationExcerptOf,
+  citationGroundingLines,
   citationUnitExcerptOf,
   parseCitationVerdicts,
   resolveCitationAuditPlan,
@@ -9451,6 +9452,31 @@ export function makeOrchestratorWorkflow(
                 'lines say, and keep every other sentence byte identical. ' +
                 JSON.stringify(carriedCitationFindings),
             ]),
+        // The grounding windows riding the same armed round (RV4601):
+        // the seventh comparison experiment's composer repaired
+        // anchors it had never seen, so a resolver 2 round now carries
+        // the resolved unit of each judged anchor, recomputed from the
+        // pure snapshot resolver at prompt build (a resumed round
+        // rebuilds byte identical windows; nothing new persists).
+        // Present exactly while a citation round's composition
+        // dispatches, so every other prompt keeps its bytes.
+        ...(carriedCitationFindings === undefined || carriedCitationFindings.length === 0
+          ? []
+          : (() => {
+              const audit = opts?.citationAudit;
+              if (audit === undefined || audit.resolver !== 2) {
+                return [];
+              }
+              const grounding = citationGroundingLines(carriedCitationFindings, audit.resolve);
+              return grounding.length === 0
+                ? []
+                : [
+                    'CITATION GROUNDING: the resolved unit of each judged anchor, read from ' +
+                      'the same snapshot the judge read; repair each citation against these ' +
+                      'actual bytes.\n' +
+                      grounding.join('\n'),
+                  ];
+            })()),
         // The uncovered citing sentences riding a coverage-armed round
         // (RV4202): present exactly while such a round's composition
         // dispatches, so every other prompt keeps its bytes.

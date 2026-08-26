@@ -5734,6 +5734,52 @@ export const MUTATIONS = [
     test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
   },
   {
+    id: 'anchor-grounding-words-never-decide',
+    doctrine:
+      'the anchor lint decides on identifier tokens alone, never plain words (RV4601): with the filter collapsed, every paraphrased prose word convicts its anchor, the lint cries wolf on well grounded sentences, and the bounded repairs it exists to protect burn on its own noise',
+    file: 'packages/core/src/orchestrator/anchor-grounding.ts',
+    find: "      const deciding = clauseTokens.filter((token) => token.kind !== 'word');",
+    replace: '      const deciding = clauseTokens;',
+    test: 'packages/core/src/orchestrator/anchor-grounding.test.ts',
+  },
+  {
+    id: 'anchor-grounding-needs-somewhere-to-point',
+    doctrine:
+      'the anchor lint flags only when the asserted token lives elsewhere in the cited file (RV4601): with the gate dropped, a negated claim citing a file for what it does NOT contain is convicted for telling the truth, the impossible-repair class the cited-value identity doctrine exists to refuse',
+    file: 'packages/core/src/orchestrator/anchor-grounding.ts',
+    find: '      if (outside.length === 0) {\n        continue;\n      }',
+    replace: '',
+    test: 'packages/core/src/orchestrator/anchor-grounding.test.ts',
+  },
+  {
+    id: 'anchor-grounding-json-block-is-structural',
+    doctrine:
+      "a .json anchor resolves to its structural brace block, never the paragraph unit (RV4601): with the branch dropped, the generous paragraph window swallows the dependencies below the exports block, and the seventh comparison candidate's caret citation at pointer/package.json:10 passes again",
+    file: 'packages/core/src/orchestrator/anchor-grounding.ts',
+    find: "      if (path.toLowerCase().endsWith('.json')) {",
+    replace: '      if (false) {',
+    test: 'packages/core/src/orchestrator/anchor-grounding.test.ts',
+  },
+  {
+    id: 'grounding-windows-hold-their-budget',
+    doctrine:
+      'the grounding block never steps past its character budget (RV4601): with the cap dropped, six clipped units of a long document inflate every armed round prompt unboundedly, and the aid meant to save a blind repair starts pricing like a second document',
+    file: 'packages/core/src/orchestrator/citation-audit.ts',
+    find: '    if (entry.length > budget) {\n      break;\n    }',
+    replace: '',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
+    id: 'grounding-rides-only-resolver-two',
+    doctrine:
+      'the grounding block rides a resolver 2 round only (RV4601): with the gate widened, every existing v1 repair prompt gains new bytes, and the byte discipline that keeps replayed rounds stable across the upgrade is gone',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '              const audit = opts?.citationAudit;\n              if (audit === undefined || audit.resolver !== 2) {\n                return [];\n              }',
+    replace:
+      '              const audit = opts?.citationAudit;\n              if (audit === undefined) {\n                return [];\n              }',
+    test: 'packages/core/src/orchestrator/citation-resolver-v2.test.ts',
+  },
+  {
     id: 'coordination-checkpoints-are-opt-in-bytes',
     doctrine:
       'a coordination checkpoint is journal bytes only under the declared opt-in (RV4410): with the guard collapsed, every existing config gains a new decision per await round, and the byte discipline that keeps replays stable across the upgrade is gone',
