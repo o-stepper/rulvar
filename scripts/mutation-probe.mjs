@@ -5848,8 +5848,27 @@ export const MUTATIONS = [
     doctrine:
       'a spent run repair pool refuses the semantic round BEFORE dispatch (RV4406): with the refusal collapsed, the round composes past the one lifetime bound the host declared, and the pool becomes advisory prose over paid work',
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '        const usedBefore = runRepairPoolUsed();\n        if (usedBefore >= opts.maxTotalRepairRounds) {',
-    replace: '        const usedBefore = runRepairPoolUsed();\n        if (false) {',
+    find: '        if (opts.maxTotalRepairRounds !== undefined && usedBefore >= opts.maxTotalRepairRounds) {',
+    replace: '        if (opts.maxTotalRepairRounds !== undefined && false) {',
+    test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
+    id: 'semantic-reserve-shields-the-round',
+    doctrine:
+      "the mechanical grant admits only past the UNSPENT semantic reserve (RV4705, the eighth comparison rerun): with the reserve dropped from the admission, a finish-validation repair eats the round's reserved token, the judges' findings stand unconsumed, and the scoped pool the host declared decays to the very global pool whose starvation it exists to fix",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      return counts.total + semanticReserveHeldOf(counts.semantic) < opts.maxTotalRepairRounds;',
+    replace: '      return counts.total < opts.maxTotalRepairRounds;',
+    test: 'packages/core/src/orchestrator/semantic-round.test.ts',
+  },
+  {
+    id: 'semantic-cap-binds-its-own-round',
+    doctrine:
+      "the scoped bound rules the round with its own name (RV4705): with the check dropped, maxSemanticRepairRounds 0 dispatches the very round it forbids, and the reserve's cap half becomes prose while its shield half still starves the mechanics",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '        if (\n          opts.maxSemanticRepairRounds !== undefined &&\n          counts.semantic >= opts.maxSemanticRepairRounds\n        ) {',
+    replace:
+      '        if (\n          opts.maxSemanticRepairRounds !== undefined &&\n          counts.semantic >= opts.maxSemanticRepairRounds &&\n          false\n        ) {',
     test: 'packages/core/src/orchestrator/semantic-round.test.ts',
   },
   {

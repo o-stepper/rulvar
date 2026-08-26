@@ -8214,6 +8214,24 @@ interface WireCapacitySpec extends SemanticRoundPosture {
   citationJudgeWires?: number;
   /** Separate extract dispatches, when the finish rides one (RV3908 spares the schema'd final). */
   extractWires?: number;
+  /**
+  * Mirrors OrchestrateOptions.maxTotalRepairRounds (RV4406, scoped
+  * by RV4705): the one run-wide pool every provider-dispatching
+  * repair grant consumes from. Declared, the estimate reports
+  * `repairWiresCeiling`, the pool-bounded worst case of every repair
+  * wire; the eighth comparison rerun's plan had a one-token pool
+  * under an armed round plus a mechanical grant, a worst case the
+  * estimate could not express.
+  */
+  maxTotalRepairRounds?: number;
+  /**
+  * Mirrors OrchestrateOptions.maxSemanticRepairRounds (RV4705): the
+  * scoped semantic reserve inside the pool. It shrinks the
+  * mechanical share of `repairWiresCeiling` exactly like the runtime
+  * split; greater than the declared total refuses typed, the intake
+  * contradiction.
+  */
+  maxSemanticRepairRounds?: number;
 }
 /** What one orchestration plan costs in wires, base and worst case (RV4005). */
 interface WireCapacityEstimate {
@@ -8246,6 +8264,17 @@ interface WireCapacityEstimate {
   wiresWithRound: number;
   /** repairRoundDeltaWires / baseWires: the round's overhead share. */
   roundOverheadShare: number;
+  /**
+  * The pool-bounded worst case of every repair wire (RV4705),
+  * present exactly when `maxTotalRepairRounds` was declared: each
+  * pool token is one repair event, so the ceiling maximizes over the
+  * round dispatched beside the mechanical grants the pool still
+  * holds (mechanics never draw the declared reserve, and the round
+  * consumes at least one token) and the all-mechanical pool. Absent,
+  * the pool is undeclared and repair wires are bounded only by the
+  * stage bounds the spec does not carry.
+  */
+  repairWiresCeiling?: number;
 }
 /**
 * The wire capacity of a declared orchestration plan (RV4005, the
@@ -11946,9 +11975,30 @@ interface OrchestrateOptions {
   * decision and the dispatch resumes without a double consume. The
   * draft-gate pre-pass dispatches no provider work and spends
   * nothing, by design. Absent keeps every decision and refusal byte
-  * identical.
+  * identical. `maxSemanticRepairRounds` reserves rounds inside this
+  * pool for the semantic stage (RV4705).
   */
   maxTotalRepairRounds?: number;
+  /**
+  * The scoped semantic reserve inside the run repair pool (RV4705,
+  * the eighth comparison experiment's rerun): that run consumed its
+  * one-token pool on a MECHANICAL composition repair before the
+  * judges ruled, so the post-judge semantic round was refused while
+  * 38 census findings stood unconsumed, and the question contract's
+  * "exactly one bounded repair" meant exactly that round. Declared,
+  * this is BOTH a reserve and a cap: mechanical finish-validation
+  * grants may never consume the reserved rounds (they admit only
+  * while the total pool holds the UNSPENT reserve on top of them),
+  * and the semantic round itself is bounded by this number beside
+  * the total pool it still shares (a stage bound NARROWS the pool,
+  * never widens it, the RV4406 doctrine). Greater than a declared
+  * `maxTotalRepairRounds` refuses typed at construction: a reserve
+  * the pool cannot hold is a contradiction. Declared without a total
+  * pool it is the semantic round's own cap alone, and the mechanical
+  * grants stay unbounded exactly as before. Absent keeps every
+  * decision and refusal byte identical.
+  */
+  maxSemanticRepairRounds?: number;
   /**
   * Journaled coordination checkpoints (RV4410, the seventh
   * comparison experiment): with `true`, every settled await round
@@ -18014,6 +18064,25 @@ interface PreflightOrchestratorSpec {
     onFound?: "report" | "repair" | "fail";
   };
   /**
+  * Mirrors OrchestrateOptions.maxTotalRepairRounds (RV4406): the one
+  * run-wide pool every provider-dispatching repair grant consumes
+  * from. Declaring it lets the estimator judge the pool against the
+  * armed semantic round and the mechanical grants that share it
+  * (RV4705): the eighth comparison rerun's mechanical composition
+  * repair drained a one-token pool before the judges ruled, and the
+  * armed round was refused over 38 standing findings; preflight said
+  * nothing. Absent keeps the report and findings byte identical.
+  */
+  maxTotalRepairRounds?: number;
+  /**
+  * Mirrors OrchestrateOptions.maxSemanticRepairRounds (RV4705): the
+  * scoped semantic reserve inside the pool. Declared beside a total
+  * pool it shrinks the mechanical allowance the findings judge;
+  * greater than the total mirrors the intake ConfigError as an error
+  * finding, because the run would refuse to start.
+  */
+  maxSemanticRepairRounds?: number;
+  /**
   * The `reserve-line-headroom` threshold in coordination turn floors
   * (RV2201; previously hardwired to 2): the finding warns when the
   * admitted wave's steady state sits closer to the reserve line than
@@ -18272,6 +18341,19 @@ interface PreflightReport {
         effectiveCapUsd?: number; /** Exact fill admits, exactly the runtime gate. */
         fits: boolean;
         terms: AcceptanceTailTerms;
+      };
+      /**
+      * The run repair pool and its scoped semantic reserve (RV4705),
+      * present when either bound is declared: `mechanicalAllowance`
+      * is what finish-validation grants can actually draw (the total
+      * minus the unspent reserve), the figure the eighth comparison
+      * rerun needed before its mechanical repair ate the armed
+      * round's only token.
+      */
+      repairPool?: {
+        maxTotalRepairRounds?: number;
+        maxSemanticRepairRounds?: number; /** The pool minus the reserve; absent without a declared total. */
+        mechanicalAllowance?: number;
       };
     };
   };

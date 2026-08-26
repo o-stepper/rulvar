@@ -150,6 +150,8 @@ export function capacitySheet(spec: CapacitySheetSpec): CapacitySheet {
   given('judgeWires', spec.plan.judgeWires, 'wires');
   given('citationJudgeWires', spec.plan.citationJudgeWires, 'wires');
   given('extractWires', spec.plan.extractWires, 'wires');
+  given('maxTotalRepairRounds', spec.plan.maxTotalRepairRounds, 'count');
+  given('maxSemanticRepairRounds', spec.plan.maxSemanticRepairRounds, 'count');
   if (spec.plan.coordinationWires === undefined) {
     // The named assumption, not a zero (RV4304): the sixth run's
     // model silently excluded the loop and answered anyway.
@@ -194,6 +196,20 @@ export function capacitySheet(spec: CapacitySheetSpec): CapacitySheet {
       note: 'repairRoundDeltaWires / baseWires',
     },
   );
+  if (estimate.repairWiresCeiling !== undefined) {
+    // The pool-bounded worst case (RV4705): present exactly when the
+    // plan declared its run repair pool, so a sheet without the row
+    // still says nothing it cannot know.
+    planFigures.push({
+      name: 'repairWiresCeiling',
+      value: estimate.repairWiresCeiling,
+      unit: 'wires',
+      provenance: 'derived',
+      note:
+        'pool-bounded repair worst case: the round beside the mechanical grants the pool still ' +
+        'holds, or the all-mechanical pool, whichever costs more wires',
+    });
+  }
   if (spec.retries !== undefined) {
     requireFiniteNonNegative(spec.retries, 'capacitySheet retries');
     planFigures.push({ name: 'retries', value: spec.retries, unit: 'wires', provenance: 'given' });

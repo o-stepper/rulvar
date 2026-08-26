@@ -19,6 +19,7 @@
 import { ConfigError } from '../l0/errors.js';
 import {
   requireFraction,
+  requireNonNegativeInteger,
   requireNonNegativeNumber,
   requirePositiveInteger,
 } from '../l0/validate-numbers.js';
@@ -563,6 +564,24 @@ export interface WireCapacitySpec extends SemanticRoundPosture {
   citationJudgeWires?: number;
   /** Separate extract dispatches, when the finish rides one (RV3908 spares the schema'd final). */
   extractWires?: number;
+  /**
+   * Mirrors OrchestrateOptions.maxTotalRepairRounds (RV4406, scoped
+   * by RV4705): the one run-wide pool every provider-dispatching
+   * repair grant consumes from. Declared, the estimate reports
+   * `repairWiresCeiling`, the pool-bounded worst case of every repair
+   * wire; the eighth comparison rerun's plan had a one-token pool
+   * under an armed round plus a mechanical grant, a worst case the
+   * estimate could not express.
+   */
+  maxTotalRepairRounds?: number;
+  /**
+   * Mirrors OrchestrateOptions.maxSemanticRepairRounds (RV4705): the
+   * scoped semantic reserve inside the pool. It shrinks the
+   * mechanical share of `repairWiresCeiling` exactly like the runtime
+   * split; greater than the declared total refuses typed, the intake
+   * contradiction.
+   */
+  maxSemanticRepairRounds?: number;
 }
 
 /** What one orchestration plan costs in wires, base and worst case (RV4005). */
@@ -596,6 +615,17 @@ export interface WireCapacityEstimate {
   wiresWithRound: number;
   /** repairRoundDeltaWires / baseWires: the round's overhead share. */
   roundOverheadShare: number;
+  /**
+   * The pool-bounded worst case of every repair wire (RV4705),
+   * present exactly when `maxTotalRepairRounds` was declared: each
+   * pool token is one repair event, so the ceiling maximizes over the
+   * round dispatched beside the mechanical grants the pool still
+   * holds (mechanics never draw the declared reserve, and the round
+   * consumes at least one token) and the all-mechanical pool. Absent,
+   * the pool is undeclared and repair wires are bounded only by the
+   * stage bounds the spec does not carry.
+   */
+  repairWiresCeiling?: number;
 }
 
 /**
@@ -629,6 +659,8 @@ export function wireCapacityEstimate(spec: WireCapacitySpec): WireCapacityEstima
     'claimOnFound',
     'citationOnFound',
     'claimConfigured',
+    'maxTotalRepairRounds',
+    'maxSemanticRepairRounds',
   ];
   for (const key of Object.keys(spec)) {
     if (!known.includes(key)) {
@@ -679,6 +711,30 @@ export function wireCapacityEstimate(spec: WireCapacitySpec): WireCapacityEstima
   requireNonNegativeNumber(coordinationWires, 'wireCapacityEstimate coordinationWires');
   requireNonNegativeNumber(synthesisWires, 'wireCapacityEstimate synthesisWires');
   requireNonNegativeNumber(extractWires, 'wireCapacityEstimate extractWires');
+  // The run repair pool (RV4705): the same intake contract the
+  // runtime holds, so a plan the run would refuse cannot estimate.
+  if (spec.maxTotalRepairRounds !== undefined) {
+    requireNonNegativeInteger(
+      spec.maxTotalRepairRounds,
+      'wireCapacityEstimate maxTotalRepairRounds',
+    );
+  }
+  if (spec.maxSemanticRepairRounds !== undefined) {
+    requireNonNegativeInteger(
+      spec.maxSemanticRepairRounds,
+      'wireCapacityEstimate maxSemanticRepairRounds',
+    );
+    if (
+      spec.maxTotalRepairRounds !== undefined &&
+      spec.maxSemanticRepairRounds > spec.maxTotalRepairRounds
+    ) {
+      throw new ConfigError(
+        `wireCapacityEstimate maxSemanticRepairRounds ${String(spec.maxSemanticRepairRounds)} ` +
+          `cannot exceed maxTotalRepairRounds ${String(spec.maxTotalRepairRounds)}: the ` +
+          'semantic reserve lives inside the run repair pool',
+      );
+    }
+  }
   // The declared posture switches the round arithmetic (RV4304): the
   // sixth comparison run's model priced the round as a constant while
   // the merged round dispatches 3 wires, and its judge counts were
@@ -794,13 +850,38 @@ export function wireCapacityEstimate(spec: WireCapacitySpec): WireCapacityEstima
     judgeWires +
     citationJudgeWires +
     extractWires;
+  // The pool-bounded repair worst case (RV4705): each pool token is
+  // one repair EVENT, the one semantic round costs the delta and a
+  // mechanical grant costs one wire, so the ceiling maximizes over
+  // the two trajectories (the round dispatched beside the mechanical
+  // grants the pool still holds, or an all-mechanical pool), under
+  // exactly the runtime split: mechanics never draw the reserve, and
+  // the dispatched round consumes at least one token.
+  const mechanicalRepairDeltaWires = 1;
+  const totalPool = spec.maxTotalRepairRounds;
+  const semanticReserve = spec.maxSemanticRepairRounds;
+  const repairWiresCeiling =
+    totalPool === undefined
+      ? undefined
+      : (() => {
+          const reserve = semanticReserve ?? 0;
+          const roundAllowed =
+            totalPool >= 1 && (semanticReserve === undefined || semanticReserve >= 1);
+          const withRound = roundAllowed
+            ? repairRoundDeltaWires +
+              (totalPool - Math.max(1, reserve)) * mechanicalRepairDeltaWires
+            : 0;
+          const withoutRound = (totalPool - reserve) * mechanicalRepairDeltaWires;
+          return Math.max(withRound, withoutRound, 0);
+        })();
   return {
     basis: 'declared-estimate',
     baseWires,
     repairRoundDeltaWires,
-    mechanicalRepairDeltaWires: 1,
+    mechanicalRepairDeltaWires,
     wiresWithRound: baseWires + repairRoundDeltaWires,
     roundOverheadShare: baseWires === 0 ? 0 : repairRoundDeltaWires / baseWires,
+    ...(repairWiresCeiling === undefined ? {} : { repairWiresCeiling }),
   };
 }
 
