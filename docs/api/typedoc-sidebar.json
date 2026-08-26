@@ -4965,6 +4965,14 @@
             "link": "/api/@rulvar/evals/interfaces/ClaimCorpusVerdict.md"
           },
           {
+            "text": "ContractAuditLex",
+            "link": "/api/@rulvar/evals/interfaces/ContractAuditLex.md"
+          },
+          {
+            "text": "ContractAuditLexOptions",
+            "link": "/api/@rulvar/evals/interfaces/ContractAuditLexOptions.md"
+          },
+          {
             "text": "CriterionOneReport",
             "link": "/api/@rulvar/evals/interfaces/CriterionOneReport.md"
           },
@@ -5033,6 +5041,14 @@
             "link": "/api/@rulvar/evals/interfaces/JudgeSpec.md"
           },
           {
+            "text": "LexedCitation",
+            "link": "/api/@rulvar/evals/interfaces/LexedCitation.md"
+          },
+          {
+            "text": "LexedRequirementId",
+            "link": "/api/@rulvar/evals/interfaces/LexedRequirementId.md"
+          },
+          {
             "text": "MatrixCell",
             "link": "/api/@rulvar/evals/interfaces/MatrixCell.md"
           },
@@ -5047,6 +5063,10 @@
           {
             "text": "OrchestratedCase",
             "link": "/api/@rulvar/evals/interfaces/OrchestratedCase.md"
+          },
+          {
+            "text": "RejectedCitationSpan",
+            "link": "/api/@rulvar/evals/interfaces/RejectedCitationSpan.md"
           },
           {
             "text": "RubricCriterion",
@@ -5129,6 +5149,14 @@
             "link": "/api/@rulvar/evals/variables/CLAIM_CORPUS.md"
           },
           {
+            "text": "DEFAULT_CITATION_EXTENSIONS",
+            "link": "/api/@rulvar/evals/variables/DEFAULT_CITATION_EXTENSIONS.md"
+          },
+          {
+            "text": "DEFAULT_REQUIREMENT_FAMILIES",
+            "link": "/api/@rulvar/evals/variables/DEFAULT_REQUIREMENT_FAMILIES.md"
+          },
+          {
             "text": "FAULT_SCENARIO_NAMES",
             "link": "/api/@rulvar/evals/variables/FAULT_SCENARIO_NAMES.md"
           },
@@ -5173,6 +5201,10 @@
           {
             "text": "judgeGrader",
             "link": "/api/@rulvar/evals/functions/judgeGrader.md"
+          },
+          {
+            "text": "lexContractAudit",
+            "link": "/api/@rulvar/evals/functions/lexContractAudit.md"
           },
           {
             "text": "normalizeCanaryOutput",

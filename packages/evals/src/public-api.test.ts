@@ -28,4 +28,10 @@ describe('@rulvar/evals root surface', () => {
     expect(evals.agentTypeRuleHolds(baseline, better)).toBe(true);
     expect(evals.agentTypeRuleHolds(better, baseline)).toBe(false);
   });
+
+  it('exports the contract audit lexer (RV4603)', () => {
+    expect(typeof evals.lexContractAudit).toBe('function');
+    expect(Array.isArray(evals.DEFAULT_CITATION_EXTENSIONS)).toBe(true);
+    expect(evals.DEFAULT_REQUIREMENT_FAMILIES).toEqual(['N', 'R', 'C']);
+  });
 });

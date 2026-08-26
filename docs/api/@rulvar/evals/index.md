@@ -61,6 +61,8 @@ pnpm add -D @rulvar/evals
 | [CheckpointReport](/api/@rulvar/evals/interfaces/CheckpointReport.md) | - |
 | [ClaimCorpusCase](/api/@rulvar/evals/interfaces/ClaimCorpusCase.md) | One adversarial case: a draft, its contradicting evidence, and the mechanical expectations. |
 | [ClaimCorpusVerdict](/api/@rulvar/evals/interfaces/ClaimCorpusVerdict.md) | One case's verdict: mechanical expectations against the folds' output. |
+| [ContractAuditLex](/api/@rulvar/evals/interfaces/ContractAuditLex.md) | The lex of one contract audited document. |
+| [ContractAuditLexOptions](/api/@rulvar/evals/interfaces/ContractAuditLexOptions.md) | - |
 | [CriterionOneReport](/api/@rulvar/evals/interfaces/CriterionOneReport.md) | - |
 | [CriterionTwoReport](/api/@rulvar/evals/interfaces/CriterionTwoReport.md) | - |
 | [EvalCase](/api/@rulvar/evals/interfaces/EvalCase.md) | One quality-measurement case. The shape is the documented interface verbatim; display names derive from the workflow name (the suite runner disambiguates duplicates by ordinal). |
@@ -78,10 +80,13 @@ pnpm add -D @rulvar/evals
 | [GraderVerdict](/api/@rulvar/evals/interfaces/GraderVerdict.md) | One grader's outcome for one case. |
 | [JudgeGraderOptions](/api/@rulvar/evals/interfaces/JudgeGraderOptions.md) | - |
 | [JudgeSpec](/api/@rulvar/evals/interfaces/JudgeSpec.md) | A judge invocation specification. The judge runs through the engine as an ordinary journaled, budgeted invocation; model selection is subject to the router quality floors, and @rulvar/evals ships NO default judge model: weak defaults for judging are forbidden, so the model is always explicit. |
+| [LexedCitation](/api/@rulvar/evals/interfaces/LexedCitation.md) | One accepted citation occurrence, in document order. |
+| [LexedRequirementId](/api/@rulvar/evals/interfaces/LexedRequirementId.md) | One requirement id occurrence with the notation it was written in. |
 | [MatrixCell](/api/@rulvar/evals/interfaces/MatrixCell.md) | One configuration under comparison. |
 | [MatrixCellReport](/api/@rulvar/evals/interfaces/MatrixCellReport.md) | - |
 | [MeasuredClaimInput](/api/@rulvar/evals/interfaces/MeasuredClaimInput.md) | - |
 | [OrchestratedCase](/api/@rulvar/evals/interfaces/OrchestratedCase.md) | - |
+| [RejectedCitationSpan](/api/@rulvar/evals/interfaces/RejectedCitationSpan.md) | One span the pattern matched and the lexer refused to count. |
 | [RubricCriterion](/api/@rulvar/evals/interfaces/RubricCriterion.md) | - |
 | [RubricGraderOptions](/api/@rulvar/evals/interfaces/RubricGraderOptions.md) | - |
 | [RunBenchmarkOptions](/api/@rulvar/evals/interfaces/RunBenchmarkOptions.md) | - |
@@ -109,6 +114,8 @@ pnpm add -D @rulvar/evals
 | Variable | Description |
 | ------ | ------ |
 | [CLAIM\_CORPUS](/api/@rulvar/evals/variables/CLAIM_CORPUS.md) | The shipped corpus, one case per failure class, adversarial by design. |
+| [DEFAULT\_CITATION\_EXTENSIONS](/api/@rulvar/evals/variables/DEFAULT_CITATION_EXTENSIONS.md) | Source file extensions a citation may name; lowercase, no dots. |
+| [DEFAULT\_REQUIREMENT\_FAMILIES](/api/@rulvar/evals/variables/DEFAULT_REQUIREMENT_FAMILIES.md) | Requirement id families of the comparison contract (N, R, C). |
 | [FAULT\_SCENARIO\_NAMES](/api/@rulvar/evals/variables/FAULT_SCENARIO_NAMES.md) | The scenario names in run order. |
 | [JUDGE\_VERDICT\_SCHEMA](/api/@rulvar/evals/variables/JUDGE_VERDICT_SCHEMA.md) | The default judge verdict shape. |
 | [SWEEP\_THRESHOLD\_DEFAULTS](/api/@rulvar/evals/variables/SWEEP_THRESHOLD_DEFAULTS.md) | - |
@@ -124,6 +131,7 @@ pnpm add -D @rulvar/evals
 | [flipStaleOnCanaryDrift](/api/@rulvar/evals/functions/flipStaleOnCanaryDrift.md) | Flips the model's ACTIVE eval-measured claims to stale when their recorded canary fingerprint differs from the fresh one. Claims without a recorded fingerprint have no baseline and stay untouched (the documented no-probe posture); a second run is an idempotent noop. CAS-rebased like every maintenance commit; the retries run no engine work and pay nothing. |
 | [goldenGrader](/api/@rulvar/evals/functions/goldenGrader.md) | - |
 | [judgeGrader](/api/@rulvar/evals/functions/judgeGrader.md) | - |
+| [lexContractAudit](/api/@rulvar/evals/functions/lexContractAudit.md) | Lexes one document under the shared contract audit grammar; see the module comment for the doctrine. Malformed options refuse typed. |
 | [normalizeCanaryOutput](/api/@rulvar/evals/functions/normalizeCanaryOutput.md) | The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace. |
 | [renderCheckpointReport](/api/@rulvar/evals/functions/renderCheckpointReport.md) | The deterministic render for the M12 gate docs amendment. |
 | [rubricGrader](/api/@rulvar/evals/functions/rubricGrader.md) | - |

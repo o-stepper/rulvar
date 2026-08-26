@@ -99,3 +99,13 @@ export {
   type ClaimCorpusClass,
   type ClaimCorpusVerdict,
 } from './claim-corpus.js';
+export {
+  DEFAULT_CITATION_EXTENSIONS,
+  DEFAULT_REQUIREMENT_FAMILIES,
+  lexContractAudit,
+  type ContractAuditLex,
+  type ContractAuditLexOptions,
+  type LexedCitation,
+  type LexedRequirementId,
+  type RejectedCitationSpan,
+} from './lexer.js';
