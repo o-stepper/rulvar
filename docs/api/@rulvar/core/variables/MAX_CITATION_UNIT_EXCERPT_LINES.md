@@ -10,7 +10,7 @@
 const MAX_CITATION_UNIT_EXCERPT_LINES: 20 = 20;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L167)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L176)
 
 Resolver v2's unit bounds (RV4401). A unit excerpt exists to carry
 the WHOLE bounded logical unit, so its caps must fit the package's

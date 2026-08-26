@@ -13,7 +13,7 @@ function citationExcerptOf(
    window): string | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:427](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L427)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:447](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L447)
 
 Resolves one sampled citation's excerpt through the host's pure
 snapshot resolver. The FIRST cited line failing to resolve returns

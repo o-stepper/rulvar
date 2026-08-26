@@ -11,12 +11,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError } from '../l0/errors.js';
+import { ConfigError, FailRunError } from '../l0/errors.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 import { acceptanceTailRequiredUsd, formatAcceptanceTailTerms } from './admission.js';
 import {
   citationExcerptOf,
+  citationUnitExcerptOf,
   parseCitationVerdicts,
   resolveCitationAuditPlan,
   sampleCitationRows,
@@ -605,5 +606,226 @@ describe('the audit wired into the orchestrator (RV4004)', () => {
     )) as Record<string, unknown>;
     expect('citationAuditMeta' in outcome).toBe(false);
     expect('citationFindings' in outcome).toBe(false);
+  });
+});
+
+// ---- The truncated-unit extension, judge side only (RV4707): the
+// seventh candidate's census rows 81 and 105 carried honest support
+// 3..7 lines past the default 20-line clip, and the judge honestly
+// ruled unsupported over the incomplete window.
+
+const LONG_SNAPSHOT: Record<string, string> = Object.fromEntries(
+  Array.from({ length: 27 }, (_, i) => [
+    `notes.md:${String(i + 1)}`,
+    i === 23 ? 'the retry ladder caps at three attempts' : `filler line ${String(i + 1)}`,
+  ]),
+);
+const resolveLong = (target: { path: string; line: number }): string | undefined =>
+  LONG_SNAPSHOT[`${target.path}:${String(target.line)}`];
+
+describe('the truncated-unit judge extension (RV4707)', () => {
+  it('the pure resolver honors declared caps and refuses junk typed', () => {
+    const row = { path: 'notes.md', line: 1 };
+    const clipped = citationUnitExcerptOf(resolveLong, row);
+    expect(clipped?.unit).toMatchObject({ lines: 20, truncated: true });
+    expect(clipped?.excerpt).not.toContain('three attempts');
+    const extended = citationUnitExcerptOf(resolveLong, row, { maxLines: 40, maxChars: 3200 });
+    expect(extended?.unit).toMatchObject({ lines: 27 });
+    expect(extended?.unit.truncated).toBeUndefined();
+    expect(extended?.excerpt).toContain('L24: the retry ladder caps at three attempts');
+    expect(() => citationUnitExcerptOf(resolveLong, row, { maxLines: 0 })).toThrow(
+      /maxLines must be a positive integer/,
+    );
+    expect(() => citationUnitExcerptOf(resolveLong, row, { maxChars: 1.5 })).toThrow(
+      /maxChars must be a positive integer/,
+    );
+  });
+
+  it("a truncated unit reaches the judge at the extended cap, stamped 'extended'", async () => {
+    const doc = [
+      '# Audit',
+      '',
+      '## Grid',
+      '',
+      'The retry ladder caps at three attempts [notes.md:1].',
+    ].join('\n');
+    let judgePromptSeen = '';
+    const coordination = scriptedAdapter((): ScriptedTurn => ({
+      toolCall: { name: 'finish', args: { result: 'the coordination draft' } },
+    }));
+    const judge = scriptedAdapter(
+      (req): ScriptedTurn => {
+        judgePromptSeen = req.messages
+          .flatMap((msg) => msg.parts)
+          .filter((part) => part.type === 'text')
+          .map((part) => (part as { text: string }).text)
+          .join('\n');
+        return {
+          text: JSON.stringify({
+            verdicts: [{ row: 0, verdict: 'supported', reason: 'entails' }],
+          }),
+        };
+      },
+      { id: 'judge' },
+    );
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: doc } } }),
+      { id: 'strong' },
+    );
+    const { internals } = makeInternals({
+      adapters: [coordination, judge, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const outcome = (await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...AUDIT_BASE,
+        citationAudit: { resolve: resolveLong, resolver: 2, judge: { model: 'judge:model' } },
+      }),
+      undefined,
+    )) as { citationAuditMeta?: Record<string, unknown> };
+    expect(outcome.citationAuditMeta).toMatchObject({ sampled: 1, supported: 1 });
+    // The judge read the support the default clip used to hide, and
+    // the unit says which cap produced the excerpt.
+    expect(judgePromptSeen).toContain('the retry ladder caps at three attempts');
+    expect(judgePromptSeen).toContain('"extended":true');
+    expect(judgePromptSeen).toContain('"lines":27');
+  });
+});
+
+// ---- The bijection output-cap guard (RV4706): the census rejudges of
+// the seventh and eighth comparison experiments (145 and 215 rows)
+// both overflowed a 9000-token judge cap and raised it to 32000 by
+// hand; the guard makes that arithmetic a pre-wire refusal.
+
+const FINAL_CENSUS = [
+  '# Audit',
+  '',
+  '## Grid',
+  '',
+  ...Array.from(
+    { length: 215 },
+    (_, i) => `Claim ${String(i)}: the retry ladder caps at three attempts [src/retry.ts:24].`,
+  ),
+].join('\n');
+
+const CENSUS_VERDICTS = JSON.stringify({
+  verdicts: Array.from({ length: 215 }, (_, i) => ({
+    row: i,
+    verdict: 'supported',
+    reason: 'entails',
+  })),
+});
+
+const CENSUS_AUDIT = {
+  resolve: resolveSnapshot,
+  resolver: 2 as const,
+  auditScope: 'all' as const,
+};
+
+describe('the census output-cap guard (RV4706)', () => {
+  it('a 9000-token cap refuses a 215-row census typed, before the wire', async () => {
+    const rig = auditHarness({
+      finals: [FINAL_CENSUS],
+      judgeTurns: () => ({ text: CENSUS_VERDICTS }),
+    });
+    const thrown = await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...AUDIT_BASE,
+        citationAudit: {
+          ...CENSUS_AUDIT,
+          judge: { model: 'judge:model', limits: { maxTurns: 3, maxOutputTokensPerTurn: 9000 } },
+        },
+      }),
+      undefined,
+    ).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect(String((thrown as FailRunError).message)).toContain('9000');
+    expect(String((thrown as FailRunError).message)).toContain('215 rows');
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data).toMatchObject({
+      source: 'orchestrator_citation_audit',
+      judgeOutputCap: 9000,
+      judgeRows: 215,
+      estimatedVerdictTokens: 215 * 70 + 500,
+    });
+    // The whole point: zero provider calls were paid for the refusal.
+    expect(rig.judgeCalls()).toBe(0);
+  });
+
+  it('a 32000-token cap carries the same census and the judge dispatches once', async () => {
+    const rig = auditHarness({
+      finals: [FINAL_CENSUS],
+      judgeTurns: () => ({ text: CENSUS_VERDICTS }),
+    });
+    const outcome = (await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...AUDIT_BASE,
+        citationAudit: {
+          ...CENSUS_AUDIT,
+          judge: { model: 'judge:model', limits: { maxTurns: 3, maxOutputTokensPerTurn: 32000 } },
+        },
+      }),
+      undefined,
+    )) as { citationAuditMeta?: Record<string, unknown> };
+    expect(outcome.citationAuditMeta).toMatchObject({
+      sampled: 215,
+      supported: 215,
+      auditScope: 'all',
+      judgeInvoked: true,
+    });
+    expect(rig.judgeCalls()).toBe(1);
+  });
+
+  it("the declared 'warn' posture logs the numbers and dispatches anyway", async () => {
+    const rig = auditHarness({
+      finals: [FINAL_CENSUS],
+      judgeTurns: () => ({ text: CENSUS_VERDICTS }),
+    });
+    const outcome = (await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...AUDIT_BASE,
+        citationAudit: {
+          ...CENSUS_AUDIT,
+          judgeOutputCapGuard: 'warn',
+          judge: { model: 'judge:model', limits: { maxTurns: 3, maxOutputTokensPerTurn: 9000 } },
+        },
+      }),
+      undefined,
+    )) as { citationAuditMeta?: Record<string, unknown> };
+    expect(outcome.citationAuditMeta).toMatchObject({ sampled: 215, judgeInvoked: true });
+    expect(rig.judgeCalls()).toBe(1);
+  });
+
+  it('a junk guard value refuses typed at intake; an undeclared cap keeps every byte', async () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        ...AUDIT_BASE,
+        citationAudit: {
+          ...CENSUS_AUDIT,
+          judgeOutputCapGuard: 'maybe' as unknown as 'fail',
+          judge: { model: 'judge:model' },
+        },
+      }),
+    ).toThrow(/judgeOutputCapGuard must be 'fail' or 'warn'/);
+    // No declared cap: the guard cannot judge a resolution it does not
+    // see, and the census dispatches exactly as before.
+    const rig = auditHarness({
+      finals: [FINAL_CENSUS],
+      judgeTurns: () => ({ text: CENSUS_VERDICTS }),
+    });
+    const outcome = (await executeWorkflow(
+      rig.internals,
+      makeOrchestratorWorkflow('audit the executor', {
+        ...AUDIT_BASE,
+        citationAudit: { ...CENSUS_AUDIT, judge: { model: 'judge:model' } },
+      }),
+      undefined,
+    )) as { citationAuditMeta?: Record<string, unknown> };
+    expect(outcome.citationAuditMeta).toMatchObject({ sampled: 215, judgeInvoked: true });
   });
 });

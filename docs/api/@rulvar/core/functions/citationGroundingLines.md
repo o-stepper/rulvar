@@ -10,7 +10,7 @@
 function citationGroundingLines(findings, resolve): string[];
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:716](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L716)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:758](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L758)
 
 The grounding windows a citation repair round rides (RV4601): the
 resolved unit of each judged anchor, so the composer repairs a

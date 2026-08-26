@@ -10,4 +10,4 @@
 const DEFAULT_CITATION_SAMPLE_PER_SECTION: 2 = 2;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L153)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L162)

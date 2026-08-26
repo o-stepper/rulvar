@@ -10,4 +10,4 @@
 const DEFAULT_CITATION_MAX_SAMPLED: 24 = 24;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L154)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L163)

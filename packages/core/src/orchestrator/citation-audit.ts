@@ -91,6 +91,15 @@ export interface CitationExcerptUnit {
   lines: number;
   /** Present when the line or char caps clipped the unit. */
   truncated?: true;
+  /**
+   * Present when the JUDGE-side extended cap resolved this unit
+   * (RV4707): the default cap clipped it, and the row was re-resolved
+   * at {@link CITATION_UNIT_JUDGE_EXTENSION_FACTOR} times the bounds
+   * so the judge reads the support the clip used to hide. Stamped by
+   * the orchestrator's row mapping, never by the pure resolver; a
+   * unit carrying BOTH flags still clips at the extended cap.
+   */
+  extended?: true;
 }
 
 /** One judged (or mechanically decided) non-supported citation. */
@@ -166,6 +175,17 @@ export const MAX_CITATION_EXCERPT_CHARS = 800;
  */
 export const MAX_CITATION_UNIT_EXCERPT_LINES = 20;
 export const MAX_CITATION_UNIT_EXCERPT_CHARS = 1600;
+
+/**
+ * The judge-side extension factor over the default unit caps (RV4707,
+ * the seventh candidate's census rejudge): rows 81 and 105 of that
+ * census carried honest support 3..7 lines past the 20-line clip, and
+ * the judge honestly ruled unsupported over the incomplete window. A
+ * row whose DEFAULT unit truncates is re-resolved for the judge at
+ * this factor times the line and char bounds, still bounded; the
+ * linter side keeps the default unit with its own grace tail.
+ */
+export const CITATION_UNIT_JUDGE_EXTENSION_FACTOR = 2;
 
 /** A citation with an optional `-end` range tail on the line half. */
 const citationWithRange = (pattern: string): RegExp => new RegExp(pattern, 'gu');
@@ -517,7 +537,29 @@ const COMMENT_UPWARD_LINES = 12;
 export function citationUnitExcerptOf(
   resolve: (target: CitationTarget) => string | undefined,
   row: Pick<CitationAuditRow, 'path' | 'line' | 'endLine'>,
+  /**
+   * Overrides of the unit bounds (RV4707): the judge-side extended
+   * re-resolution of a truncated unit passes the default bounds times
+   * {@link CITATION_UNIT_JUDGE_EXTENSION_FACTOR}. Absent keeps the
+   * default caps byte for byte; positive integers, refused typed
+   * otherwise, because a junk cap would silently unclip every unit.
+   */
+  caps?: { maxLines?: number; maxChars?: number },
 ): { excerpt: string; unit: CitationExcerptUnit } | undefined {
+  if (caps?.maxLines !== undefined && (!Number.isInteger(caps.maxLines) || caps.maxLines < 1)) {
+    throw new ConfigError(
+      `citationUnitExcerptOf caps.maxLines must be a positive integer; got ` +
+        String(caps.maxLines),
+    );
+  }
+  if (caps?.maxChars !== undefined && (!Number.isInteger(caps.maxChars) || caps.maxChars < 1)) {
+    throw new ConfigError(
+      `citationUnitExcerptOf caps.maxChars must be a positive integer; got ` +
+        String(caps.maxChars),
+    );
+  }
+  const maxLines = caps?.maxLines ?? MAX_CITATION_UNIT_EXCERPT_LINES;
+  const maxChars = caps?.maxChars ?? MAX_CITATION_UNIT_EXCERPT_CHARS;
   const lineAt = (line: number): string | undefined =>
     line < 1 ? undefined : resolve({ path: row.path, line });
   const anchor = lineAt(row.line);
@@ -532,7 +574,7 @@ export function citationUnitExcerptOf(
     const lines: string[] = [];
     let truncated = false;
     for (let line = firstLine; ; line += 1) {
-      if (lines.length >= MAX_CITATION_UNIT_EXCERPT_LINES) {
+      if (lines.length >= maxLines) {
         truncated = true;
         break;
       }
@@ -546,8 +588,8 @@ export function citationUnitExcerptOf(
       lines.push(`L${String(line)}: ${text}`);
     }
     let excerpt = lines.join('\n');
-    if (excerpt.length > MAX_CITATION_UNIT_EXCERPT_CHARS) {
-      excerpt = `${excerpt.slice(0, MAX_CITATION_UNIT_EXCERPT_CHARS)}…`;
+    if (excerpt.length > maxChars) {
+      excerpt = `${excerpt.slice(0, maxChars)}…`;
       truncated = true;
     }
     return {

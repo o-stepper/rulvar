@@ -7,7 +7,10 @@
 # Function: citationUnitExcerptOf()
 
 ```ts
-function citationUnitExcerptOf(resolve, row): 
+function citationUnitExcerptOf(
+   resolve, 
+   row, 
+   caps?): 
   | {
   excerpt: string;
   unit: CitationExcerptUnit;
@@ -15,7 +18,7 @@ function citationUnitExcerptOf(resolve, row):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/citation-audit.ts:517](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L517)
+Defined in: [packages/core/src/orchestrator/citation-audit.ts:537](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/citation-audit.ts#L537)
 
 Resolver v2's excerpt: the bounded LOGICAL UNIT the cited line
 belongs to (RV4208), through the same pure line resolver v1 reads.
@@ -61,10 +64,13 @@ doctrine verdict v1 renders.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `resolve` | (`target`) => `string` \| `undefined` |
-| `row` | `Pick`\&lt;[`CitationAuditRow`](/api/@rulvar/core/interfaces/CitationAuditRow.md), `"path"` \| `"line"` \| `"endLine"`\&gt; |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `resolve` | (`target`) => `string` \| `undefined` | - |
+| `row` | `Pick`\&lt;[`CitationAuditRow`](/api/@rulvar/core/interfaces/CitationAuditRow.md), `"path"` \| `"line"` \| `"endLine"`\&gt; | - |
+| `caps?` | \{ `maxChars?`: `number`; `maxLines?`: `number`; \} | Overrides of the unit bounds (RV4707): the judge-side extended re-resolution of a truncated unit passes the default bounds times [CITATION\_UNIT\_JUDGE\_EXTENSION\_FACTOR](/api/@rulvar/core/variables/CITATION_UNIT_JUDGE_EXTENSION_FACTOR.md). Absent keeps the default caps byte for byte; positive integers, refused typed otherwise, because a junk cap would silently unclip every unit. |
+| `caps.maxChars?` | `number` | - |
+| `caps.maxLines?` | `number` | - |
 
 ## Returns
 

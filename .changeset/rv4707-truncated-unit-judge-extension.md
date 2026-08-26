@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+Truncated units reach the judge whole (RV4707, the seventh candidate's census rejudge). Rows 81 and 105 of that census carried honest support 3..7 lines past the 20-line unit clip (a paragraph ending at L839 with the support at 842; a comment-declaration ending at L25 with the support at 32), and the judge honestly ruled unsupported over the incomplete windows: the verdict blamed the composer for the resolver's clipping. `citationUnitExcerptOf` now takes optional bounds (`caps: { maxLines?, maxChars? }`, positive integers, refused typed otherwise; absent keeps the default caps byte for byte), and the orchestrator's judge-side row mapping re-resolves a unit the DEFAULT cap clipped at `CITATION_UNIT_JUDGE_EXTENSION_FACTOR` (2) times the line and char bounds, still bounded, stamping `extended: true` on the unit so the prompt says which cap produced the excerpt; a unit still clipping at the extended cap keeps its `truncated` flag beside it. Judge side only: the anchor grounding lint keeps the default unit with its own grace tail, and untruncated units keep every byte. A probe pins the extension.
