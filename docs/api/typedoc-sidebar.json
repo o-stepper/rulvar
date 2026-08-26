@@ -2907,6 +2907,18 @@
             "link": "/api/@rulvar/core/variables/CITATION_JUDGE_SCHEMA.md"
           },
           {
+            "text": "CITATION_UNIT_JUDGE_EXTENSION_FACTOR",
+            "link": "/api/@rulvar/core/variables/CITATION_UNIT_JUDGE_EXTENSION_FACTOR.md"
+          },
+          {
+            "text": "CITATION_VERDICT_EST_BASE_TOKENS",
+            "link": "/api/@rulvar/core/variables/CITATION_VERDICT_EST_BASE_TOKENS.md"
+          },
+          {
+            "text": "CITATION_VERDICT_EST_TOKENS_PER_ROW",
+            "link": "/api/@rulvar/core/variables/CITATION_VERDICT_EST_TOKENS_PER_ROW.md"
+          },
+          {
             "text": "CLAIM_JUDGE_LABEL",
             "link": "/api/@rulvar/core/variables/CLAIM_JUDGE_LABEL.md"
           },
@@ -9012,6 +9024,18 @@
           {
             "text": "CITATION_JUDGE_SCHEMA",
             "link": "/api/@rulvar/rulvar/variables/CITATION_JUDGE_SCHEMA.md"
+          },
+          {
+            "text": "CITATION_UNIT_JUDGE_EXTENSION_FACTOR",
+            "link": "/api/@rulvar/rulvar/variables/CITATION_UNIT_JUDGE_EXTENSION_FACTOR.md"
+          },
+          {
+            "text": "CITATION_VERDICT_EST_BASE_TOKENS",
+            "link": "/api/@rulvar/rulvar/variables/CITATION_VERDICT_EST_BASE_TOKENS.md"
+          },
+          {
+            "text": "CITATION_VERDICT_EST_TOKENS_PER_ROW",
+            "link": "/api/@rulvar/rulvar/variables/CITATION_VERDICT_EST_TOKENS_PER_ROW.md"
           },
           {
             "text": "CLAIM_JUDGE_LABEL",

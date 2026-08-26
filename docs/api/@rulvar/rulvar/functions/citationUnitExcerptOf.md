@@ -7,7 +7,10 @@
 # Function: citationUnitExcerptOf()
 
 ```ts
-function citationUnitExcerptOf(resolve, row): 
+function citationUnitExcerptOf(
+   resolve, 
+   row, 
+   caps?): 
   | {
   excerpt: string;
   unit: CitationExcerptUnit;
@@ -65,6 +68,9 @@ doctrine verdict v1 renders.
 | ------ | ------ |
 | `resolve` | (`target`) => `string` \| `undefined` |
 | `row` | `Pick`\&lt;[`CitationAuditRow`](/api/@rulvar/rulvar/interfaces/CitationAuditRow.md), `"path"` \| `"line"` \| `"endLine"`\&gt; |
+| `caps?` | \{ `maxChars?`: `number`; `maxLines?`: `number`; \} |
+| `caps.maxChars?` | `number` |
+| `caps.maxLines?` | `number` |
 
 ## Returns
 
