@@ -3433,9 +3433,21 @@ export function createEngine(options: CreateEngineOptions): Engine {
     resumeOptions?: ResumeOptions,
   ): ResumeHandle<R> {
     let previewResolve: (preview: ResumePreview) => void = () => undefined;
-    const preview = new Promise<ResumePreview>((resolve) => {
+    let previewReject: (reason: unknown) => void = () => undefined;
+    const preview = new Promise<ResumePreview>((resolve, reject) => {
       previewResolve = resolve;
+      previewReject = reject;
     });
+    // A refused or dead resume settles the preview typed too (RV4710,
+    // the RV4602 wave's observed tail): the refusal used to reject
+    // handlePromise before any handle existed and the preview pended
+    // FOREVER, so a caller awaiting handle.preview on a refused
+    // resume hung instead of reading the same typed refusal that
+    // result reports. The pre-attached catch keeps the RV4602
+    // posture byte for byte: the refusal stays result's alone to
+    // REPORT, and an unobserved preview never sprays an unhandled
+    // rejection of its own.
+    void preview.catch(() => undefined);
     const handlePromise = (async () => {
       // The override values are validated first, before any store read
       // (RV2208), exactly like their RunOptions counterparts.
@@ -3827,6 +3839,14 @@ export function createEngine(options: CreateEngineOptions): Engine {
 
     // The handle facade defers to the async-loaded inner handle.
     const result = handlePromise.then((handle) => handle.result);
+    // The preview settles with the SAME terminal result reports
+    // (RV4710): a pre-run refusal rejects it typed, a run that dies
+    // before its settle path rejects it with that death, and the
+    // ordinary settle already resolved it first (a reject on a
+    // settled promise is a no-op).
+    void (result as Promise<unknown>).catch((refused: unknown) => {
+      previewReject(refused);
+    });
     return {
       runId,
       result: result as Promise<RunOutcome<R>>,

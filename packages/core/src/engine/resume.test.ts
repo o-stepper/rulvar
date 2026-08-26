@@ -441,6 +441,63 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
     }
   });
 
+  it('a refused resume settles handle.preview typed instead of hanging it (RV4710)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+      await ctx.agent('a');
+      return 'done';
+    });
+    await engine.run(simpleWf, undefined, { runId: 'FPR6', configFingerprint: 'cfg-v1' }).result;
+    const { engine: second } = makeEngine(store, 'MUST NOT RUN');
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      rejections.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const handle = second.resume('FPR6', simpleWf, { configFingerprint: 'cfg-v2' });
+      // The preview settles with the SAME typed refusal result
+      // reports; before RV4710 it pended forever.
+      await expect(handle.preview).rejects.toThrow(/configFingerprint does not match/);
+      await expect(handle.result).rejects.toThrow(/configFingerprint does not match/);
+      // The RV4602 posture holds: an unobserved preview elsewhere
+      // never sprays an unhandled rejection of its own.
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled);
+    }
+  });
+
+  it("an untouched preview on a refused resume stays quiet: the refusal is result's to report", async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+      await ctx.agent('a');
+      return 'done';
+    });
+    await engine.run(simpleWf, undefined, { runId: 'FPR7', configFingerprint: 'cfg-v1' }).result;
+    const { engine: second } = makeEngine(store, 'MUST NOT RUN');
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      rejections.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const handle = second.resume('FPR7', simpleWf, { configFingerprint: 'cfg-v2' });
+      await expect(handle.result).rejects.toThrow(/configFingerprint does not match/);
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled);
+    }
+  });
+
   it('one-sided fingerprints warn instead of failing: absence means NOT RECORDED (RV3210)', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });
