@@ -433,6 +433,17 @@ type AgentError = {
   * synthesis promise is redeemed, never a crash.
   */
   reason?: "exposure-drained" | "output-floor";
+  /**
+  * WHICH dispatch the budget killed (RV4703, the eighth comparison
+  * experiment's first run): its child spent under the ceiling
+  * through the whole loop and died on a synchronous budget refusal
+  * of the FINALIZE dispatch (one millisecond, zero tokens), and no
+  * surface named the stage; the cause was recovered from phase
+  * forensics. Stamped by the loop's own budget gates on 'budget'
+  * errors; carried to the wire in data and restored on read. Absent
+  * means the error predates the stamp or is not a budget refusal.
+  */
+  stage?: "loop" | "summarize" | "reserve-summary" | "finalize" | "extract";
 };
 /**
 * Projects an AgentError to its WireError form: code 'agent', with kind,
@@ -2555,6 +2566,16 @@ type AgentEvents = {
   * telemetry only, absent on replay.
   */
   toolBudget?: ToolBudgetSummary;
+  /**
+  * The terminal's typed error (RV4703), verbatim from the journaled
+  * agent entry, so live and replayed streams carry the same value.
+  * The eighth comparison experiment's first run lost its child's
+  * death to exactly this absence: the child died on a budget-refused
+  * finalize dispatch, the terminal entry named it, and the event
+  * said status 'error' and nothing else. Absent when the agent
+  * settled without an error.
+  */
+  error?: WireError;
 } | {
   type: "agent:error";
   agentType: string;
@@ -14151,6 +14172,21 @@ interface ChildrenAtFailure {
 interface AcceptanceChildSummary {
   child: string;
   status: string;
+  /**
+  * The child's own typed death reason (RV4703), from its settled
+  * terminal: present exactly when the child settled carrying an
+  * error. The eighth comparison experiment's first run rejected on
+  * "child settled 'error'" while the child's terminal named the
+  * budget-refused finalize dispatch; the roster is machine readable,
+  * so the reason is too. The message is bounded to 200 characters;
+  * `stage` names the dispatch a budget refusal killed, when the loop
+  * stamped one.
+  */
+  error?: {
+    kind: string;
+    stage?: string;
+    message?: string;
+  };
   salvage?: "partial" | "terminal-output";
   evidence?: {
     recordedEntries: number;

@@ -1419,6 +1419,41 @@ describe('acceptance: the child completion policy (v1.40.0 improvement plan)', (
     expect((decisions[0]?.value as { verdict?: string }).verdict).toBe('rejected');
   });
 
+  it("the failed child's own reason rides the acceptance note and roster row (RV4703)", async () => {
+    // The eighth comparison experiment's first run rejected on "child
+    // X settled 'error'" while the child's terminal named the refused
+    // dispatch; the reason must not stop one journal entry short of
+    // the decision a reader consults first.
+    const adapter = twoChildAdapter(FAILING_B);
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', { acceptance: { childPolicy: 'all-ok' } });
+    const thrown = await executeWorkflow(internals, wf, undefined).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as { degradedReasons?: string[] };
+    const note = data.degradedReasons?.find((line) => line.includes("settled 'error'"));
+    expect(note).toContain('task B exploded');
+    const decision = (await store.load('test-run')).find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    );
+    const children = (
+      decision?.value as {
+        children?: Array<{ status: string; error?: { kind: string; message?: string } }>;
+      }
+    ).children;
+    const errored = children?.find((row) => row.status === 'error');
+    expect(errored?.error?.message).toContain('task B exploded');
+    expect(typeof errored?.error?.kind).toBe('string');
+    // The healthy child's row keeps its bytes: no error field at all.
+    const healthy = children?.find((row) => row.status === 'ok');
+    expect(healthy !== undefined && 'error' in healthy).toBe(false);
+  });
+
   it('minSuccessful accepts a partial and reports the degraded child', async () => {
     const adapter = twoChildAdapter(FAILING_B);
     const { internals } = makeInternals({

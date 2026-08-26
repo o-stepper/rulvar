@@ -430,6 +430,16 @@ export type AgentEvents =
        * telemetry only, absent on replay.
        */
       toolBudget?: ToolBudgetSummary;
+      /**
+       * The terminal's typed error (RV4703), verbatim from the journaled
+       * agent entry, so live and replayed streams carry the same value.
+       * The eighth comparison experiment's first run lost its child's
+       * death to exactly this absence: the child died on a budget-refused
+       * finalize dispatch, the terminal entry named it, and the event
+       * said status 'error' and nothing else. Absent when the agent
+       * settled without an error.
+       */
+      error?: WireError;
     }
   | { type: 'agent:error'; agentType: string; label?: string; error: WireError; willRetry: boolean }
   /**

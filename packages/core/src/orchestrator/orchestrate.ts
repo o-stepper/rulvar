@@ -11033,6 +11033,40 @@ export function makeOrchestratorWorkflow(
       // contract, with waivedBySalvage on a below-floor child a
       // salvage arm accepted anyway.
       const childrenSummary: AcceptanceChildSummary[] = [];
+      // The child's own death reason survives into the acceptance
+      // (RV4703): the eighth comparison experiment's first run
+      // rejected on "child X settled 'error'" while the child's
+      // terminal named the budget-refused finalize dispatch and the
+      // crossed account; the acceptance decision is where a reader
+      // looks first, so the reason must not stop one entry short of
+      // it. The prose note carries a bounded suffix, the roster row
+      // the typed form; children without an error keep every byte.
+      const settleReasonOf = (
+        record: (typeof sortedRecords)[number],
+      ): { kind: string; stage?: string; message?: string } | undefined => {
+        const error = record.settled?.error;
+        if (error === undefined) {
+          return undefined;
+        }
+        const message = record.settled?.errorMessage;
+        return {
+          kind: error.kind,
+          ...(error.stage === undefined ? {} : { stage: error.stage }),
+          ...(message === undefined ? {} : { message: message.slice(0, 200) }),
+        };
+      };
+      const settleReasonSuffix = (record: (typeof sortedRecords)[number]): string => {
+        const reason = settleReasonOf(record);
+        if (reason === undefined) {
+          return '';
+        }
+        return (
+          ` (${reason.kind}` +
+          (reason.stage === undefined ? '' : ` at the ${reason.stage} dispatch`) +
+          (reason.message === undefined ? '' : `: ${reason.message}`) +
+          ')'
+        );
+      };
       const noteChild = (
         record: (typeof sortedRecords)[number],
         status: string,
@@ -11041,9 +11075,11 @@ export function makeOrchestratorWorkflow(
         floorBlocked?: true,
       ): void => {
         const evidence = record.settled?.evidence;
+        const reason = settleReasonOf(record);
         childrenSummary.push({
           child: record.nodeId,
           status,
+          ...(reason === undefined ? {} : { error: reason }),
           ...(salvage === undefined ? {} : { salvage }),
           ...(evidence === undefined
             ? {}
@@ -11153,7 +11189,7 @@ export function makeOrchestratorWorkflow(
         degradedReasons.push(
           status === 'running'
             ? `child ${record.nodeId} was still running when finish validated`
-            : `child ${record.nodeId} settled '${status}'`,
+            : `child ${record.nodeId} settled '${status}'` + settleReasonSuffix(record),
         );
       }
       const childPolicy = opts.acceptance.childPolicy;

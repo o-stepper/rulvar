@@ -180,4 +180,18 @@ describe('AgentError wire projection (M1-T02)', () => {
       ConfigError,
     );
   });
+
+  it('round-trips the budget refusal stage, and drops a junk stage on read (RV4703)', () => {
+    const agentError: AgentError = { kind: 'budget', retryable: false, stage: 'finalize' };
+    const wire = throughJson(agentErrorToWire(agentError, 'refused'));
+    expect((wire.data as { stage?: unknown }).stage).toBe('finalize');
+    expect(agentErrorFromWire(wire)).toEqual(agentError);
+    const junk = agentErrorFromWire({
+      code: 'agent',
+      message: 'refused',
+      retryable: false,
+      data: { kind: 'budget', stage: 'warp-drive' },
+    });
+    expect('stage' in junk).toBe(false);
+  });
 });
