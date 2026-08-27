@@ -1,5 +1,42 @@
 # @rulvar/evals
 
+## 1.251.0
+
+### Minor Changes
+
+- ba7e1e1: The shared contract audit lexer (RV4603, the seventh comparison experiment's P2.1). Every hand rolled comparison harness rediscovers the same two counting defects, and the seventh experiment's post audit shipped both: it counted `acceptance.minSpawnedChildren:4`, a config property in citation clothing, as a citation occurrence, and recognized zero of the winning answer's 88 requirement ids because they were written as dash led list items instead of the colon form the counter expected; both texts carried the full N48/R24/C16 sets and the report recounted them by hand. `lexContractAudit(text, options?)` exports that recount as a grammar: the citation shape is the engine's own `DEFAULT_CITATION_PATTERN` with the citation audit's range tail semantics, fenced code strips by default via the shared `stripFencedBlocks`, a citation must name a known source file extension (`DEFAULT_CITATION_EXTENSIONS`) and, under a supplied pure snapshot `resolve`, must resolve its first line; refused spans land in `rejected` with reasons instead of disappearing. Requirement ids accept the colon, dash and table notations as one vocabulary with per occurrence forms and DISTINCT per family counts. On the seventh experiment's frozen records the lexer reproduces the corrected numbers exactly: 292/276 for the winner with the one property notation rejected, 145/128 for the candidate, 48/24/16 on both sides in both notations. Probes pin the extension gate, the one vocabulary, the fence strip, and the range tail.
+
+### Patch Changes
+
+- e7e829c: The negative scenario citation convention (plan 47 B1..B3): a hypothetical is never
+  a line fact. The orchestration guide gains a section with the paste-ready composer
+  block (cite the DEFENSE the scenario attacks, mark the scenario as inference), the
+  profiles guide carries the census evidence the mandate question waited for (sample
+  buys honesty, census buys completeness; the floor still does not require the census),
+  the audit section documents its own surface (`auditScope` census, the RV4706 output
+  cap guard, the RV4707 truncated unit extension), and regression fixtures pin what the
+  convention buys from the deterministic layers: the genre form is lint silent by
+  design, the convention form lints clean, a moved defense line convicts with line
+  suggestions, and the contract audit lexer keeps every count over the rewrite. No
+  runtime change.
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+  - @rulvar/anthropic@1.251.0
+  - @rulvar/openai@1.251.0
+  - @rulvar/plan@1.251.0
+  - @rulvar/testing@1.251.0
+
 ## 1.250.0
 
 ### Patch Changes

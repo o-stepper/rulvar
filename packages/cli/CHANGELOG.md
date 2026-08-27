@@ -1,5 +1,28 @@
 # @rulvar/cli
 
+## 1.251.0
+
+### Minor Changes
+
+- 7c58fb2: The portable replay descriptor (RV4602, the seventh comparison experiment's P1.2 remainder). A programmatic run records its workflow NAME in the journal, but the workflow VALUE lives in no `rulvar.config.mjs`, so the seventh experiment's `replay --assert-no-live` refused from a clean checkout. `rulvar resume` and `rulvar replay` now accept `--registry FILE`, an ordinary module whose named exports (`workflows`, `engineOptions`, and the new `configFingerprint`) merge over the config for that one command, so a run travels as a three part descriptor: the journal, the args, and the registry module naming the workflow under its recorded name; a module exporting a single `workflow` value serves the recorded name too. The `configFingerprint` export closes the drift loop the engine already enforces: `rulvar run` records it at genesis (from the workflow module or the config), and a resume or replay that supplies one is verified against the genesis record strictly before ownership, meta writes, or any provider call, refusing typed on drift instead of replaying under changed policy; the CLI never supplied it before, so every fingerprinted run degraded to the one sided warning. In core, a refused resume now rejects its `result` alone: each `on()` subscription of the deferred resume facade used to derive its own unhandled rejection from the refusal, and the CLI progress renderer subscribes fourteen event types. Probes pin the genesis recording, the resume verification, the replay registry load, and the quiet refusal.
+
+### Patch Changes
+
+- b3e465a: Precise hash and counter namespaces (RV4604, the seventh comparison experiment's P2.2 remainder). Every hash on the lineage and provenance surfaces is one recipe, sha256 over the JCS canonical value, and the seventh experiment's provenance script had to rediscover that by trial because the bare names said nothing; the invoice's 16 logical calls beside 109 wire fetches were reconciled by hand for the same reason. The precise names now ride beside the bare ones, same hex, additive everywhere: `judgedJcsSha256` on the claim meta, `auditedJcsSha256` on the audit meta, and `judgedDocumentJcsSha256` on the semantic terminal verdict, whose bare `finalHash` collides with `draftToFinal.finalHash` while meaning the judged document. On the counter side `logicalRunTelemetry` now carries `adapterFetches`, the sum of every provider call decision's absorbed `wireRequests` (absent reads one) beside the decision count `logicalWireRequests`, plus `perSegment[].adapterFetches` naming which segment actually paid for them (a pure replay segment reads 0); `rulvar inspect` prints both counters by name on the logical wires line. Probes pin the absorption sum, both meta twins, and the verdict's referent naming.
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+
 ## 1.250.0
 
 ### Minor Changes

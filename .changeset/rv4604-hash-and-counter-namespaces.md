@@ -1,6 +1,0 @@
----
-'@rulvar/core': minor
-'@rulvar/cli': patch
----
-
-Precise hash and counter namespaces (RV4604, the seventh comparison experiment's P2.2 remainder). Every hash on the lineage and provenance surfaces is one recipe, sha256 over the JCS canonical value, and the seventh experiment's provenance script had to rediscover that by trial because the bare names said nothing; the invoice's 16 logical calls beside 109 wire fetches were reconciled by hand for the same reason. The precise names now ride beside the bare ones, same hex, additive everywhere: `judgedJcsSha256` on the claim meta, `auditedJcsSha256` on the audit meta, and `judgedDocumentJcsSha256` on the semantic terminal verdict, whose bare `finalHash` collides with `draftToFinal.finalHash` while meaning the judged document. On the counter side `logicalRunTelemetry` now carries `adapterFetches`, the sum of every provider call decision's absorbed `wireRequests` (absent reads one) beside the decision count `logicalWireRequests`, plus `perSegment[].adapterFetches` naming which segment actually paid for them (a pure replay segment reads 0); `rulvar inspect` prints both counters by name on the logical wires line. Probes pin the absorption sum, both meta twins, and the verdict's referent naming.
