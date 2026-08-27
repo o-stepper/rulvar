@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/effects",
-  "version": "1.250.0",
+  "version": "1.251.0",
   "description": "Rulvar effect lane runtime: the adapter seam, provider capability matrix, reconciler, and the kill point conformance kit (rfcs/effects.md).",
   "type": "module",
   "license": "Apache-2.0",

@@ -18,6 +18,24 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+
 ### 1.250.0
 
 #### Patch Changes
@@ -2338,6 +2356,24 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+
 ### 1.250.0
 
 #### Patch Changes
@@ -4453,6 +4489,29 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.251.0
+
+#### Minor Changes
+
+- 7c58fb2: The portable replay descriptor (RV4602, the seventh comparison experiment's P1.2 remainder). A programmatic run records its workflow NAME in the journal, but the workflow VALUE lives in no `rulvar.config.mjs`, so the seventh experiment's `replay --assert-no-live` refused from a clean checkout. `rulvar resume` and `rulvar replay` now accept `--registry FILE`, an ordinary module whose named exports (`workflows`, `engineOptions`, and the new `configFingerprint`) merge over the config for that one command, so a run travels as a three part descriptor: the journal, the args, and the registry module naming the workflow under its recorded name; a module exporting a single `workflow` value serves the recorded name too. The `configFingerprint` export closes the drift loop the engine already enforces: `rulvar run` records it at genesis (from the workflow module or the config), and a resume or replay that supplies one is verified against the genesis record strictly before ownership, meta writes, or any provider call, refusing typed on drift instead of replaying under changed policy; the CLI never supplied it before, so every fingerprinted run degraded to the one sided warning. In core, a refused resume now rejects its `result` alone: each `on()` subscription of the deferred resume facade used to derive its own unhandled rejection from the refusal, and the CLI progress renderer subscribes fourteen event types. Probes pin the genesis recording, the resume verification, the replay registry load, and the quiet refusal.
+
+#### Patch Changes
+
+- b3e465a: Precise hash and counter namespaces (RV4604, the seventh comparison experiment's P2.2 remainder). Every hash on the lineage and provenance surfaces is one recipe, sha256 over the JCS canonical value, and the seventh experiment's provenance script had to rediscover that by trial because the bare names said nothing; the invoice's 16 logical calls beside 109 wire fetches were reconciled by hand for the same reason. The precise names now ride beside the bare ones, same hex, additive everywhere: `judgedJcsSha256` on the claim meta, `auditedJcsSha256` on the audit meta, and `judgedDocumentJcsSha256` on the semantic terminal verdict, whose bare `finalHash` collides with `draftToFinal.finalHash` while meaning the judged document. On the counter side `logicalRunTelemetry` now carries `adapterFetches`, the sum of every provider call decision's absorbed `wireRequests` (absent reads one) beside the decision count `logicalWireRequests`, plus `perSegment[].adapterFetches` naming which segment actually paid for them (a pure replay segment reads 0); `rulvar inspect` prints both counters by name on the logical wires line. Probes pin the absorption sum, both meta twins, and the verdict's referent naming.
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
 
 ### 1.250.0
 
@@ -7163,6 +7222,36 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.251.0
+
+#### Minor Changes
+
+- 5982be8: The anchor grounding lint and the grounding windows (RV4601, the seventh comparison experiment's P1.3 remainder). `anchorGroundingValidator` is a zero cost finish validator that catches physically valid citations pointing at the WRONG LINE, the class both of the seventh candidate's audited defects lived in: `pointer/package.json:10` (the exports block) cited for a caret dependency at line 23, and `packages/rulvar/package.json:2` (the name line) cited for dependencies at lines 32..34; both resolved, neither sentence asserted an inline code value, so `citationTargetsValidator` and `citedValueValidator` were structurally blind. The lint extracts the claim's identifier vocabulary (inline code spans, scoped packages, dotted, snake and camel identifiers, the caret and tilde written as words), resolves each anchor to its logical unit (`citationUnitExcerptOf` with a grace tail below; a `.json` anchor takes its structural brace block instead, because the generous paragraph unit would swallow the very lines the citation should have named), lints compound sentences per anchor against the nearest claim clause and then once as a whole, and refuses only when a deciding token is absent from the resolved window yet present elsewhere in the cited file, naming the exact lines that carry it. Plain words, identity spans, path tokens, and tokens absent from the whole file never flag; on the seventh corpus the shipped heuristic flags exactly the two wrong anchors with their exact line suggestions and nothing else. `anchorGroundingFindingsOf` exports the engine for harnesses. Beside it, a `'repair'` round under `citationAudit.resolver: 2` now carries the `CITATION GROUNDING:` block (`citationGroundingLines`, capped at 6 anchors and 4800 characters): the resolved unit of each judged anchor, recomputed from the pure snapshot resolver at prompt build, so the composer repairs a citation against the bytes the judge actually read instead of moving anchors blind, and a resumed round rebuilds byte identical windows with nothing new persisted. Probes pin that words never decide, that a flag needs somewhere to point, the structural json block, the grounding budget, and the resolver 2 gate.
+- b3e465a: Precise hash and counter namespaces (RV4604, the seventh comparison experiment's P2.2 remainder). Every hash on the lineage and provenance surfaces is one recipe, sha256 over the JCS canonical value, and the seventh experiment's provenance script had to rediscover that by trial because the bare names said nothing; the invoice's 16 logical calls beside 109 wire fetches were reconciled by hand for the same reason. The precise names now ride beside the bare ones, same hex, additive everywhere: `judgedJcsSha256` on the claim meta, `auditedJcsSha256` on the audit meta, and `judgedDocumentJcsSha256` on the semantic terminal verdict, whose bare `finalHash` collides with `draftToFinal.finalHash` while meaning the judged document. On the counter side `logicalRunTelemetry` now carries `adapterFetches`, the sum of every provider call decision's absorbed `wireRequests` (absent reads one) beside the decision count `logicalWireRequests`, plus `perSegment[].adapterFetches` naming which segment actually paid for them (a pure replay segment reads 0); `rulvar inspect` prints both counters by name on the logical wires line. Probes pin the absorption sum, both meta twins, and the verdict's referent naming.
+- c4e5d6a: The preflight honesty pair (RV4702, RV4701; the eighth comparison experiment's first run). RV4702, the child-ceiling feasibility line: under `budget.estIsCeiling` the spawn's declared estimate is the child's hard ceiling (the explicit spawn budget wins), and that run's 1.35 ceiling deterministically starved its child's finalize dispatch after an honest loop; preflight admitted the plan without a word and the death cost 6.74 USD. Each spawn's report now carries `estCeiling` ({ ceilingUsd, requiredFloorUsd, fits }), the floor being the cheapest honest reading of the declared posture: the loop's input floor across its projected turns (cache-aware unless the policy is off) plus ONE tail turn at the declared floor, the finalize-shaped dispatch that run died on. A ceiling below the floor is the ERROR finding `child-ceiling-below-loop-floor` with every number named, because the starvation is deterministic at the declared prices, not a headroom taste; the run-1 config fails the line and the rerun's 2.40 passes it, exactly the two points the experiment paid to learn. RV4701: `preflightEstimate` accepts `budget.acceptanceReserve: 'checkpoint'`, the posture the runtime has accepted since RV4404, instead of refusing it typed while the engine runs it (the eighth driver had to estimate its genesis arithmetic under a substituted 'require'). Checkpoint estimates with require's genesis arithmetic, the echo carries the declared literal, and an unfit tail is the same error with its own remedy line: the first paid acceptance-tail dispatch re-checks this exact sum at the money actually spent and would refuse it already at the genesis numbers. Probes pin the feasibility refusal and the widened vocabulary.
+- c6fc3da: The child's death reason survives every surface it used to die on (RV4703, the eighth comparison experiment's first run). That run's child spent under its ceiling through the whole loop and died on a synchronous budget refusal of the FINALIZE dispatch (one millisecond, zero tokens): the journaled terminal named the crossed account, but `agent:end` said status 'error' and nothing else, the acceptance decision said "child X settled 'error'" and nothing else, and the stage was recovered from phase forensics. Three carries close the gap. `AgentError.stage` names WHICH dispatch a budget refusal killed ('loop', 'summarize', 'reserve-summary', 'finalize', 'extract'): every budget gate of the agent loop stamps it, the wire projection carries it in data, and the reader restores it typed. The `agent:end` event carries the terminal's typed `error` verbatim from the journaled entry, so the live stream and the replayed stream say WHY without a journal dig, byte for byte the same value. The acceptance fold carries the reason forward: the degraded note reads "settled 'error' (budget at the finalize dispatch: ...)" with the message bounded at 200 characters, and the machine roster row (`AcceptanceChildSummary`) gains a typed `error` field with the kind, the stage when stamped, and the bounded message. Children without an error keep every byte. Probes pin the event carry, the acceptance carry, and the finalize stamp.
+- c6fc3da: An empty terminal is not validated output on limit (RV4704, the eighth comparison experiment's first run). That run's acceptance promoted a limit child as degraded-with-output on a 16-token finalize summary that carried no answer, and the decision read "validated terminal output" over bytes nobody could use. The salvage arm now holds a character floor: a limit child's STRING terminal output must clear `acceptance.minTerminalOutputChars` (default `DEFAULT_TERMINAL_OUTPUT_FLOOR_CHARS`, 80) after trim before `acceptValidatedTerminalOutputOnLimit` may accept it. A below-floor string is a limit WITHOUT acceptance: it counts against the policy like any unsalvageable limit child, and its degraded note names the character counts ("N of M characters after trim: not accepted as validated output"). ONE shared function judges the floor for the acceptance fold and the finish-validation salvage marker, so the validator's cited pool and the verdict can never disagree about the same child; structured (schema-validated) outputs pass by their validation exactly as before, and the coordination prompt line states the floor the fold holds. 0 restores the previous acceptance byte for byte. A probe pins the guard.
+- 0ae8b85: The scoped semantic repair reserve (RV4705, the eighth comparison experiment's rerun). That run declared `maxTotalRepairRounds: 1` for the question contract's "exactly one bounded repair" and the pool spent it on a MECHANICAL composition repair before the judges ruled: the anchor grounding lint fired at the draft, the finish-validation grant consumed the pool's only token to clean it, and the post-judge semantic round was refused over 38 standing census findings, one contradiction, and 24 uncovered sentences; the contract meant the post-judge round, the config could not say so. `maxSemanticRepairRounds` now reserves rounds inside the pool for the semantic stage: it is BOTH a reserve and a cap. Mechanical finish-validation grants admit only while the pool holds them plus the UNSPENT reserve on top (a refusal names `maxSemanticRepairRounds` and `semanticReserveHeld` beside `runRepairPoolExhausted` on the verdict decision, so a reader sees "the pool has room, but not for mechanics"), and the semantic round is bounded by the reserve beside the total pool it still shares, refusing with its own name (`the semantic repair bound is spent`) instead of masquerading as a spent pool. A reserve greater than the pool refuses typed at construction; declared without a total pool it is the round's own cap alone; absent keeps every decision and refusal byte identical, the RV4406 covenant. The `repair_pool_consume` decision carries the semantic counters exactly when the reserve is declared. The static surfaces reflect the split: `preflightEstimate` accepts both bounds, echoes them with the mechanical allowance under `budget.orchestrator.repairPool`, warns `repair-pool-starves-semantic-round` on the rerun's exact shape (an armed round over an undivided pool the mechanical grants can drain), warns `finish-repairs-exceed-repair-pool` when the stage bound promises more grants than the mechanics' share, and mirrors the contradiction as the `repair-pool-refused-at-intake` error; `wireCapacityEstimate` accepts both keys and reports `repairWiresCeiling`, the pool-bounded worst case of every repair wire, with the capacity sheet carrying it as a derived row. Probes pin that the reserve shields the round from the mechanics and that the scoped cap binds its own round.
+- 7932936: The census fits its own verdicts, or the judge never dispatches (RV4706). A census (`auditScope: 'all'`) carries the whole document's rows in ONE citation-judge dispatch, and the { row, verdict, reason } bijection over them must fit the judge's declared output allowance or the reply truncates mid-array: the census rejudges of the seventh and eighth comparison experiments (145 and 215 rows) both overflowed the seventh's 9000-token cap and raised it to 32000 by hand, an arithmetic nobody enforced. Before the citation judge dispatches, a DECLARED `judge.limits.maxOutputTokensPerTurn` is now checked against the bijection floor (`CITATION_VERDICT_EST_TOKENS_PER_ROW`, 70, per judged row plus `CITATION_VERDICT_EST_BASE_TOKENS`, 500): a cap below it refuses typed BEFORE the provider call under the default `judgeOutputCapGuard: 'fail'` (`data.source` 'orchestrator_citation_audit', with the cap, the row count, and the estimate all named), or logs the same numbers and dispatches under a declared `'warn'`. A 215-row census against 9000 refuses with zero provider calls; against 32000 it dispatches once, exactly the two configurations the experiments paid to learn. An undeclared cap keeps every byte: the guard cannot judge a resolution it does not see. A probe pins the pre-wire refusal.
+- 7932936: Truncated units reach the judge whole (RV4707, the seventh candidate's census rejudge). Rows 81 and 105 of that census carried honest support 3..7 lines past the 20-line unit clip (a paragraph ending at L839 with the support at 842; a comment-declaration ending at L25 with the support at 32), and the judge honestly ruled unsupported over the incomplete windows: the verdict blamed the composer for the resolver's clipping. `citationUnitExcerptOf` now takes optional bounds (`caps: { maxLines?, maxChars? }`, positive integers, refused typed otherwise; absent keeps the default caps byte for byte), and the orchestrator's judge-side row mapping re-resolves a unit the DEFAULT cap clipped at `CITATION_UNIT_JUDGE_EXTENSION_FACTOR` (2) times the line and char bounds, still bounded, stamping `extended: true` on the unit so the prompt says which cap produced the excerpt; a unit still clipping at the extended cap keeps its `truncated` flag beside it. Judge side only: the anchor grounding lint keeps the default unit with its own grace tail, and untruncated units keep every byte. A probe pins the extension.
+- 88da0ed: Distinctive window coverage and composite-name conviction in the anchor grounding lint (RV4708, the seventh candidate's census row 27). Coverage counted any camel part of five or more characters, so `requireBounds` cited at a docstring about page caps was silenced by the word "bounds" while the real declaration lived at lines 87 and 95 of the same file, and the true wrong line stayed silent. Coverage now silences by the LONGEST camel part (the benefit of the doubt stays with the anchor: a window discussing 'execution' plausibly grounds ExecutionScope), never by a generic short half. The suggestion channel tightened symmetrically into a CONVICTION channel, because a flag needs somewhere to point and that somewhere must carry the identifier itself: the whole token; the 6+ prefix rule for single-segment tokens only (for a camel compound, a word crossing the segment boundary by one letter is indistinguishable from a plural coincidence: 'executions' is byte-for-byte a prefix of ExecutionScope the way 'postgres' is of PostgreSQL); or a camel part spelled inside a COMPOSITE identifier, marked by glue or a case seam ('telemetry' inside '@acme/telemetry' places OpenTelemetry, the pinned RV4601 case; an `execution_scope` decision places ExecutionScope), never a freestanding prose word or its bare plural. Validated over the eighth experiment's corpora: the rerun candidate's 215 anchors stay at zero findings, and the codex hand's document keeps its true findings while the prose-part convictions of honestly cited negative claims die. Probes pin the distinctive coverage and the composite conviction.
+- 06c0e85: `handle.preview` settles on a refused resume (RV4710, the RV4602 wave's observed tail). A pre-run refusal (a configFingerprint mismatch, a binding mismatch, an unknown workflow) rejected the resume's handlePromise before any inner handle existed, and `handle.preview` pended FOREVER: a caller awaiting the preview on a refused resume hung instead of reading the refusal. The preview now settles with the SAME terminal `result` reports: a pre-run refusal rejects it typed, a run that dies before its settle path rejects it with that death, and the ordinary settle keeps resolving it first (a reject on a settled promise is a no-op). The RV4602 posture holds byte for byte: a pre-attached catch keeps the refusal result's alone to REPORT, so an unobserved preview never sprays an unhandled rejection of its own. Beside it, `rfcs/sibling-anchor-fold.md` (RV4709) records the design question the seventh census's row 24 raised, an unsupported anchor whose clause carries a supported sibling, with the lean toward the byte-additive meta marker; code follows review, not this changeset.
+
+#### Patch Changes
+
+- e7e829c: The negative scenario citation convention (plan 47 B1..B3): a hypothetical is never
+  a line fact. The orchestration guide gains a section with the paste-ready composer
+  block (cite the DEFENSE the scenario attacks, mark the scenario as inference), the
+  profiles guide carries the census evidence the mandate question waited for (sample
+  buys honesty, census buys completeness; the floor still does not require the census),
+  the audit section documents its own surface (`auditScope` census, the RV4706 output
+  cap guard, the RV4707 truncated unit extension), and regression fixtures pin what the
+  convention buys from the deterministic layers: the genre form is lint silent by
+  design, the convention form lints clean, a moved defense line convicts with line
+  suggestions, and the contract audit lexer keeps every count over the rewrite. No
+  runtime change.
+- 7c58fb2: The portable replay descriptor (RV4602, the seventh comparison experiment's P1.2 remainder). A programmatic run records its workflow NAME in the journal, but the workflow VALUE lives in no `rulvar.config.mjs`, so the seventh experiment's `replay --assert-no-live` refused from a clean checkout. `rulvar resume` and `rulvar replay` now accept `--registry FILE`, an ordinary module whose named exports (`workflows`, `engineOptions`, and the new `configFingerprint`) merge over the config for that one command, so a run travels as a three part descriptor: the journal, the args, and the registry module naming the workflow under its recorded name; a module exporting a single `workflow` value serves the recorded name too. The `configFingerprint` export closes the drift loop the engine already enforces: `rulvar run` records it at genesis (from the workflow module or the config), and a resume or replay that supplies one is verified against the genesis record strictly before ownership, meta writes, or any provider call, refusing typed on drift instead of replaying under changed policy; the CLI never supplied it before, so every fingerprinted run degraded to the one sided warning. In core, a refused resume now rejects its `result` alone: each `on()` subscription of the deferred resume facade used to derive its own unhandled rejection from the refusal, and the CLI progress renderer subscribes fourteen event types. Probes pin the genesis recording, the resume verification, the replay registry load, and the quiet refusal.
 
 ### 1.250.0
 
@@ -10113,6 +10202,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/effects
 
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+  - @rulvar/store-conformance@1.251.0
+
 ### 1.250.0
 
 #### Minor Changes
@@ -10136,6 +10244,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/store-conformance@1.250.0
 
 ## eslint-plugin-rulvar
+
+### 1.251.0
 
 ### 1.250.0
 
@@ -10741,6 +10851,43 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.251.0
+
+#### Minor Changes
+
+- ba7e1e1: The shared contract audit lexer (RV4603, the seventh comparison experiment's P2.1). Every hand rolled comparison harness rediscovers the same two counting defects, and the seventh experiment's post audit shipped both: it counted `acceptance.minSpawnedChildren:4`, a config property in citation clothing, as a citation occurrence, and recognized zero of the winning answer's 88 requirement ids because they were written as dash led list items instead of the colon form the counter expected; both texts carried the full N48/R24/C16 sets and the report recounted them by hand. `lexContractAudit(text, options?)` exports that recount as a grammar: the citation shape is the engine's own `DEFAULT_CITATION_PATTERN` with the citation audit's range tail semantics, fenced code strips by default via the shared `stripFencedBlocks`, a citation must name a known source file extension (`DEFAULT_CITATION_EXTENSIONS`) and, under a supplied pure snapshot `resolve`, must resolve its first line; refused spans land in `rejected` with reasons instead of disappearing. Requirement ids accept the colon, dash and table notations as one vocabulary with per occurrence forms and DISTINCT per family counts. On the seventh experiment's frozen records the lexer reproduces the corrected numbers exactly: 292/276 for the winner with the one property notation rejected, 145/128 for the candidate, 48/24/16 on both sides in both notations. Probes pin the extension gate, the one vocabulary, the fence strip, and the range tail.
+
+#### Patch Changes
+
+- e7e829c: The negative scenario citation convention (plan 47 B1..B3): a hypothetical is never
+  a line fact. The orchestration guide gains a section with the paste-ready composer
+  block (cite the DEFENSE the scenario attacks, mark the scenario as inference), the
+  profiles guide carries the census evidence the mandate question waited for (sample
+  buys honesty, census buys completeness; the floor still does not require the census),
+  the audit section documents its own surface (`auditScope` census, the RV4706 output
+  cap guard, the RV4707 truncated unit extension), and regression fixtures pin what the
+  convention buys from the deterministic layers: the genre form is lint silent by
+  design, the convention form lints clean, a moved defense line convicts with line
+  suggestions, and the contract audit lexer keeps every count over the rewrite. No
+  runtime change.
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+  - @rulvar/anthropic@1.251.0
+  - @rulvar/openai@1.251.0
+  - @rulvar/plan@1.251.0
+  - @rulvar/testing@1.251.0
 
 ### 1.250.0
 
@@ -13705,6 +13852,24 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+
 ### 1.250.0
 
 #### Patch Changes
@@ -15231,6 +15396,24 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
 
 ### 1.250.0
 
@@ -17557,6 +17740,24 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+
 ### 1.250.0
 
 #### Patch Changes
@@ -19787,6 +19988,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+  - eslint-plugin-rulvar@1.251.0
 
 ### 1.250.0
 
@@ -22225,6 +22445,26 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+  - @rulvar/anthropic@1.251.0
+  - @rulvar/openai@1.251.0
 
 ### 1.250.0
 
@@ -25000,6 +25240,24 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+
 ### 1.250.0
 
 #### Minor Changes
@@ -27251,6 +27509,24 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
+
 ### 1.250.0
 
 #### Minor Changes
@@ -28795,6 +29071,24 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
 
 ### 1.250.0
 
@@ -30971,6 +31265,24 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.251.0
+
+#### Patch Changes
+
+- Updated dependencies [e7e829c]
+- Updated dependencies [5982be8]
+- Updated dependencies [7c58fb2]
+- Updated dependencies [b3e465a]
+- Updated dependencies [c4e5d6a]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [c6fc3da]
+- Updated dependencies [0ae8b85]
+- Updated dependencies [7932936]
+- Updated dependencies [7932936]
+- Updated dependencies [88da0ed]
+- Updated dependencies [06c0e85]
+  - @rulvar/core@1.251.0
 
 ### 1.250.0
 
