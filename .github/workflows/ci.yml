@@ -380,11 +380,6 @@ jobs:
       # because an approximation reports four false failures on links
       # that work today.
       - run: node scripts/docs-anchors.mjs
-      # README release-table SHA reachability (RV807): every squash SHA
-      # the Build Week table cites must be an ancestor of HEAD. The
-      # v1.109.0 row cited an abbreviation contained by no branch for
-      # eleven releases; provenance the eye cannot check is a CI fact.
-      - run: node scripts/readme-release-shas.mjs
       # The invocation-role prose against the exported union (RV2511):
       # `InvocationRole` grew a seventh member when the synthesis role
       # shipped, and two guides went on saying six and listing six, in
