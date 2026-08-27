@@ -150,6 +150,66 @@ describe('distinctive window coverage (RV4708)', () => {
   });
 });
 
+describe('the negative scenario citation convention', () => {
+  // The eighth comparison experiment's rerun census: 19 of 38 unsupported
+  // rows were one genre, a negative scenario citing the line of the thing
+  // it attacks, as if the bytes carried the failure. The judge is right
+  // (bytes never entail a hypothetical), and the lint is silent by design
+  // (a scenario's vocabulary lives all over its subject), so the cure is
+  // the composition convention documented in the orchestration guide:
+  // cite the DEFENSE, mark the scenario as inference. These fixtures pin
+  // what the convention buys from the deterministic layers.
+  const LEASE_LINES: string[] = Array.from(
+    { length: 40 },
+    (_, i) => `filler line ${String(i + 1)}.`,
+  );
+  LEASE_LINES[0] = '/**';
+  LEASE_LINES[1] = ' * The append fence: an append carrying a stale or released';
+  LEASE_LINES[2] = ' * lease rejects with the typed LeaseFencedError and the entry';
+  LEASE_LINES[3] = ' * never becomes visible.';
+  LEASE_LINES[4] = ' */';
+  LEASE_LINES[5] = 'export function guardAppend(input: Lease): void {';
+  LEASE_LINES[6] = '  if (input.stale) {';
+  LEASE_LINES[7] = '    throw new LeaseFencedError();';
+  LEASE_LINES[8] = '  }';
+  LEASE_LINES[9] = '}';
+  LEASE_LINES[10] = '';
+  LEASE_LINES[38] = '';
+  LEASE_LINES[39] = 'export function unrelatedHelper(): void {}';
+  const resolveLease = (target: CitationTarget): string | undefined =>
+    target.path === 'src/lease-store.ts' ? LEASE_LINES[target.line - 1] : undefined;
+
+  it('the genre form is silent by design: a hypothetical belongs to the judge', () => {
+    const findings = anchorGroundingFindingsOf(
+      'N32: a stale lease writes a terminal entry (`src/lease-store.ts:6`).',
+      { resolve: resolveLease },
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it('the convention form lints clean: the citation claims what the bytes carry', () => {
+    const findings = anchorGroundingFindingsOf(
+      'N32: a stale lease writes a terminal entry. Inference: the append fence at ' +
+        '`src/lease-store.ts:2` rejects a stale or released lease with the typed ' +
+        'LeaseFencedError before the entry becomes visible.',
+      { resolve: resolveLease },
+    );
+    expect(findings).toEqual([]);
+  });
+
+  it('the convention makes the anchor lintable: a moved defense line convicts', () => {
+    const findings = anchorGroundingFindingsOf(
+      'N32: a stale lease writes a terminal entry. Inference: the append fence at ' +
+        '`src/lease-store.ts:40` rejects a stale or released lease with the typed ' +
+        'LeaseFencedError before the entry becomes visible.',
+      { resolve: resolveLease },
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.tokens).toEqual(['LeaseFencedError']);
+    expect(findings[0]?.suggestions.map((entry) => entry.line)).toEqual([3, 8]);
+  });
+});
+
 describe('the anchor grounding lint (RV4601)', () => {
   it('flags a json leaf anchor whose claim asserts identifiers living in another block', () => {
     const findings = anchorGroundingFindingsOf(
