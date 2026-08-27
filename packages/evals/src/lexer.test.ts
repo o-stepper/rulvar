@@ -101,6 +101,30 @@ describe('the contract audit lexer (RV4603)', () => {
     expect(lex.distinctRequirementCounts).toEqual({ P: 1 });
   });
 
+  it('the negative scenario convention keeps the contract surface countable', () => {
+    // The eighth rerun's census lesson rewritten per the convention (cite
+    // the defense, mark the scenario as inference): the rewrite must cost
+    // the audit none of its counts, or the cure trades a semantic defect
+    // for a mechanical one.
+    const lex = lexContractAudit(
+      '## 11. Negative scenarios\n\n' +
+        'N32: a stale lease writes a terminal entry. Inference: the append fence at ' +
+        'src/lease-store.ts:2 rejects a stale lease before the entry becomes visible.\n\n' +
+        'N36: an unknown effect is dispatched again. Inference: the lookup budget guard ' +
+        'at src/reconciler.ts:120 quarantines the machine instead.\n',
+      {
+        resolve: (target) =>
+          target.path === 'src/lease-store.ts' || target.path === 'src/reconciler.ts'
+            ? 'a defense line'
+            : undefined,
+      },
+    );
+    expect(lex.citationOccurrences).toBe(2);
+    expect(lex.distinctRequirementCounts.N).toBe(2);
+    expect(lex.rejected).toEqual([]);
+    expect(lex.perSection).toEqual([{ heading: '## 11. Negative scenarios', citations: 2 }]);
+  });
+
   it('refuses malformed options typed', () => {
     expect(() => lexContractAudit('', { pattern: '(' })).toThrow(ConfigError);
     expect(() => lexContractAudit('', { pattern: 'a*' })).toThrow(ConfigError);
