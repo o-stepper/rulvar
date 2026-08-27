@@ -5,9 +5,9 @@ description: The authoritative table of every Rulvar package, with layer placeme
 
 # Packages
 
-Rulvar ships as sixteen packages from a single monorepo: fifteen under the `@rulvar` npm scope, plus `eslint-plugin-rulvar`, which follows the ESLint plugin naming convention. The packages release lockstep at one version, currently <!-- version:lockstep -->1.250.0<!-- /version -->, with a single exemption: `@rulvar/compat` is versioned independently and currently sits at <!-- version:compat -->0.1.1<!-- /version -->. Every package is ESM only, requires Node.js >= 22.12.0, and is licensed Apache-2.0.
+Rulvar ships as seventeen packages from a single monorepo: sixteen under the `@rulvar` npm scope, plus `eslint-plugin-rulvar`, which follows the ESLint plugin naming convention. The packages release lockstep at one version, currently <!-- version:lockstep -->1.250.0<!-- /version -->, with a single exemption: `@rulvar/compat` is versioned independently and currently sits at <!-- version:compat -->0.1.1<!-- /version -->. Every package is ESM only, requires Node.js >= 22.12.0, and is licensed Apache-2.0.
 
-A seventeenth npm name exists: the unscoped `rulvar`, a pointer package that re-exports the umbrella so a bare install still lands on the real library. Documentation and install commands always use the scoped names.
+An eighteenth npm name exists: the unscoped `rulvar`, a pointer package that re-exports the umbrella so a bare install still lands on the real library. Documentation and install commands always use the scoped names.
 
 ::: tip
 Looking for the generated TypeScript signatures? Every package has an index in the [API reference](/api/); each package name in the table below links to its index.

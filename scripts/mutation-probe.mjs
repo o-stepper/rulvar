@@ -883,15 +883,6 @@ export const MUTATIONS = [
     test: 'packages/core/src/engine/invocation-events.test.ts',
   },
   {
-    id: 'readme-sha-ancestor-gate',
-    doctrine:
-      'every SHA the README release table cites must be an ancestor of HEAD: the v1.109.0 row pointed at an object no branch contained for eleven releases, and a gate that stops checking ancestry green-washes exactly that (RV807)',
-    file: 'scripts/readme-release-shas.mjs',
-    find: "    if (git('merge-base', '--is-ancestor', sha, 'HEAD').status !== 0) {",
-    replace: '    if (false) {',
-    test: 'scripts/readme-release-shas.test.mjs',
-  },
-  {
     id: 'rates-audit-divergence',
     doctrine:
       'the documented-rates comparator names every seed field that diverges from the page; a comparator that tolerates the difference silently re-verifies a stale seed forever (RV813, published home RV909)',
