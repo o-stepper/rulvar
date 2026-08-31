@@ -2216,688 +2216,714 @@ export function createCtx(
       internals.budget.admitSpawn(commitReserveUsd, budgetAccount);
     }
 
-    // Worktree lifecycle: acquired before the
-    // dispatch entry so an acquire failure never leaves a dangling
-    // running entry. A dangling redispatch acquires a FRESH tree from the
-    // same ref; tools are at-least-once and SHOULD be idempotent.
+    // The reserve bracket (RV4801, the ninth experiment P0): the finally
+    // below releases EXACTLY the committed clamp, a single release per
+    // admission, thrown paths included. Releasing the raw estimate erased SIBLING
+    // reservations on shared ancestor accounts, because the chain release
+    // floors at zero per account; and a throw between the admission above
+    // and the slot settle (the worktree acquire, the dispatch append)
+    // used to skip the release entirely, parking the committed reserve
+    // for the rest of the run.
     let acquired:
       Awaited<ReturnType<NonNullable<RunInternals['isolation']>['acquire']>> | undefined;
-    if (typeof isolation === 'object' && isolation.kind === 'worktree') {
-      const acquireInput: { runId: string; spanId: string; ref?: string } = {
-        runId: internals.runId,
-        spanId: state.spanId,
-      };
-      if (isolation.ref !== undefined) {
-        acquireInput.ref = isolation.ref;
-      }
-      acquired = await internals.isolation?.acquire(acquireInput);
-    }
-
-    const spanId = internals.spans.mint(state.spanId);
-    // memoizeOutcome is a policy field fixed in the entry payload at
-    // dispatch time; the M2 predicate reads it from the ENTRY, never
-    // from current code.
+    let spanId: string;
     let running: JournalEntry;
-    if (danglingRunning !== undefined) {
-      // At-least-once redispatch: the terminal will reference the
-      // original dispatch entry.
-      running = danglingRunning;
-    } else {
-      const runningInput: Parameters<Replayer['appendRunning']>[0] = {
-        scope: state.scope,
-        key: identityKey,
-        kind: 'agent',
-        spanId,
-      };
-      if (opts.memoizeOutcome !== undefined) {
-        runningInput.memoizeOutcome = opts.memoizeOutcome;
-      }
-      {
-        // The resolved isolation is recorded on the dispatch root so the
-        // DedupIndex donor rules can read it from the journal (worktree
-        // grafts degrade unless pinned). 'none' stays
-        // implicit, so isolation-free journals are byte-identical.
-        const isolationTag = canonicalIsolationTag(isolation);
-        if (isolationTag !== 'none') {
-          runningInput.value = { isolation: isolationTag };
-        }
-      }
-      running = await internals.replayer.appendRunning(runningInput);
-    }
-    (opts as InternalAgentHooks)[kOnRunning]?.(running.seq);
-
-    const agentSink = {
-      emit: (body: { type: string } & Record<string, unknown>) =>
-        internals.events.emit(body, spanId),
-    };
-    // Turn-boundary checkpoints live at a deterministic ref derived from
-    // the dispatch seq, overwritten per boundary; only a dangling
-    // redispatch restores (cancelled entries rerun from scratch per the
-    // predicate).
-    const ckptRef = checkpointRefFor(internals.runId, running.seq);
+    let ckptRef: string;
     let checkpointWritten = false;
-    const checkpointPlumbing: NonNullable<Parameters<typeof runAgent<S>>[0]['checkpoint']> = {
-      load: async () => {
-        if (danglingRunning === undefined) {
-          // Park/unpark continuation and the DEF-5 graft boot (M7-T08):
-          // a fresh dispatch may boot from a retained donor checkpoint.
-          const bootRef = (opts as InternalAgentHooks)[kBootCheckpoint];
-          if (bootRef !== undefined) {
-            const donorBlob = await internals.transcripts.get(bootRef);
-            return donorBlob === null ? undefined : decodeCheckpoint(donorBlob);
-          }
-          return undefined;
-        }
-        const blob = await internals.transcripts.get(ckptRef);
-        return blob === null ? undefined : decodeCheckpoint(blob);
-      },
-      save: async (checkpointState) => {
-        await internals.transcripts.put(
-          ckptRef,
-          encodeCheckpoint(checkpointState),
-          internals.lease,
-        );
-        checkpointWritten = true;
-      },
-    };
-    const branchOrRunSignal = state.signal ?? internals.runSignal;
-    let toolRuntime: ToolRuntime | undefined;
-    if (toolset.tools.length > 0) {
-      const toolSignals: AbortSignal[] = [];
-      if (branchOrRunSignal !== undefined) {
-        toolSignals.push(branchOrRunSignal);
-      }
-      if (internals.budget.signal !== undefined) {
-        toolSignals.push(internals.budget.signal);
-      }
-      const toolSignal =
-        toolSignals.length > 0 ? AbortSignal.any(toolSignals) : new AbortController().signal;
-      const contextFor = (): ReturnType<typeof buildToolContext> =>
-        buildToolContext({
-          runId: internals.runId,
-          agentType,
-          ...(opts.label === undefined ? {} : { label: opts.label }),
-          cwd: acquired?.cwd ?? process.cwd(),
-          isolation,
-          signal: toolSignal,
-          mintSpan: () => internals.spans.mint(spanId),
-          emitLog: (toolSpanId, level, msg, data) =>
-            internals.events.emit(
-              data === undefined ? { type: 'log', level, msg } : { type: 'log', level, msg, data },
-              toolSpanId,
-            ),
-        });
-      // The chain is the single approval surface for every dispatch,
-      // regardless of tool origin. Profile layers
-      // merge over engine defaults; an ask verdict suspends on the
-      // journal in the agent's child scope.
-      const compiledChain = compilePermissionChain(
-        internals.defaults.permissions,
-        profile?.permissions,
-      );
-      // 'readonly' isolation compiles a deny rule for tools declaring
-      // risk write or destructive into this spawn's chain (tools guide,
-      // IsolationSpec table). Worktree isolation isolates the filesystem
-      // instead, and 'none' adds nothing.
-      const readonlyDeny: PermissionRule = { risk: ['write', 'destructive'] };
-      const chain =
-        isolation === 'readonly'
-          ? { ...compiledChain, deny: [...compiledChain.deny, readonlyDeny] }
-          : compiledChain;
-      toolRuntime = {
-        defs: toolset.tools,
-        contracts: toolset.contracts,
-        contextFor,
-        permission: async (call) => {
-          const def = toolset.tools.find((candidate) => candidate.name === call.name);
-          if (def === undefined) {
-            // Unknown names fall through: the loop reports them to the
-            // model as error tool results.
-            return { kind: 'allow', input: call.args };
-          }
-          const verdict = await evaluatePermission(chain, def, call.args, contextFor());
-          // Audit telemetry rides tool:end (M5-T05).
-          const audit = {
-            verdict: verdict.verdict,
-            decidedBy: verdict.decidedBy,
-            ...('rule' in verdict && verdict.rule !== undefined
-              ? { rule: verdict.rule as unknown as Json }
-              : {}),
-            ...(verdict.advisory === undefined
-              ? {}
-              : { advisory: verdict.advisory as unknown as Json }),
-          };
-          if (verdict.verdict === 'allow') {
-            return { kind: 'allow', input: verdict.input, audit };
-          }
-          if (verdict.verdict === 'deny') {
-            return {
-              kind: 'deny',
-              audit,
-              reason:
-                verdict.decidedBy === 'deny-rule'
-                  ? 'a deny rule matched'
-                  : `denied by ${verdict.decidedBy}`,
-            };
-          }
-          return {
-            kind: 'ask',
-            audit,
-            input: verdict.input,
-            suspend: async () => {
-              if (internals.external === undefined) {
-                throw new ConfigError(
-                  'tool approvals require the engine run context (createEngine)',
-                );
-              }
-              // The opt-in approval deadline (RV1107): computed from the
-              // merged chain at suspension time and journaled ON the
-              // entry; the registry arms the timer from the entry, so
-              // the deadline survives resume and a config change never
-              // moves an already-journaled one.
-              const approvalDeadlineMs = chain.approvalDeadlineMs;
-              const decision = await internals.external.awaitApproval({
-                scope: agentScope(state.scope, running.seq),
-                spanId: internals.spans.mint(spanId),
-                toolName: call.name,
-                input: verdict.input as Json,
-                ...(def.risk === undefined ? {} : { risk: def.risk }),
-                ...(approvalDeadlineMs === undefined
-                  ? {}
-                  : {
-                      deadlineAt: new Date(internals.now() + approvalDeadlineMs).toISOString(),
-                    }),
-                onPending: (entry, replayed) =>
-                  internals.events.emit(
-                    { type: 'approval:pending', toolName: call.name, entryRef: entry.seq },
-                    spanId,
-                    replayed,
-                  ),
-              });
-              if (decision.decision !== 'allow') {
-                return decision;
-              }
-              // The consumption recheck (RV4008): a recorded allow is
-              // consulted ONE more time at the moment it is about to
-              // license the effect. A journaled revocation beats it (an
-              // allow granted, crashed over, and revoked must never
-              // dispatch on resume), and an expired grant denies the
-              // same way; both read only what the journal already holds,
-              // so live and resumed consumption agree.
-              if (decision.entryRef !== undefined) {
-                const revocation = internals.replayer
-                  .snapshot()
-                  .find(
-                    (entry) =>
-                      entry.kind === 'decision' &&
-                      (entry.value as { decisionType?: unknown; targetRef?: unknown } | undefined)
-                        ?.decisionType === 'approval_revoked' &&
-                      (entry.value as { targetRef?: unknown }).targetRef === decision.entryRef,
-                  );
-                if (revocation !== undefined) {
-                  const why = (revocation.value as { principal?: unknown; reason?: unknown }) ?? {};
-                  const principal = typeof why.principal === 'string' ? why.principal : 'unknown';
-                  const reason = typeof why.reason === 'string' ? why.reason : 'no reason recorded';
-                  return {
-                    decision: 'deny',
-                    reason: `the recorded allow was revoked by ${principal}: ${reason}`,
-                  };
-                }
-              }
-              if (
-                decision.expiresAt !== undefined &&
-                // Fail closed: an unparsable expiry recorded past the
-                // registry's own validation (a raw store append) must
-                // deny, not silently stand forever.
-                !(Date.parse(decision.expiresAt) >= internals.now())
-              ) {
-                return {
-                  decision: 'deny',
-                  reason: `the recorded allow expired at ${decision.expiresAt}`,
-                };
-              }
-              return decision;
-            },
-          };
-        },
-      };
-      // Non-inprocess dispatch (RV-216): route the call through the
-      // registered ToolExecutorProvider. The tool span is minted under the
-      // agent span exactly like an inprocess call, and the idempotency key
-      // is a pure function of the LOGICAL invocation (runId, agent-entry
-      // seq, per-agent ordinal, tool, args) plus, at derivation 2, the
-      // run's generation token (RV403; see deriveExecIdempotencyKey and
-      // deriveExecIdempotencyKeyV2): a crash-and-resume redispatch of the
-      // same call reuses its key, two separate calls sharing arguments
-      // never collide, and a deleted-then-recreated runId never reuses
-      // the dead incarnation's keys. A provider throw surfaces to the
-      // loop as the call's error tool result.
-      if (internals.executors !== undefined) {
-        const executors = internals.executors;
-        const execKey = internals.execKey;
-        // The containing agent's dispatch-entry seq scopes the idempotency
-        // key to THIS invocation: it is journal-deterministic and an
-        // at-least-once redispatch reuses the same entry, so the key is
-        // stable across resume while distinct agents never share it (P0.4).
-        const agentSeq = running.seq;
-        toolRuntime.executeExternal = async (def, args, ordinal) => {
-          const tag = def.executor as Exclude<typeof def.executor, 'inprocess'>;
-          const provider = executors[tag];
-          if (provider === undefined) {
-            throw new ConfigError(
-              `no executor registered for '${def.executor}'; register one via ` +
-                'createEngine({ executors }) ' +
-                '(https://docs.rulvar.com/guide/isolated-executor)',
-            );
-          }
-          const toolSpanId = internals.spans.mint(spanId);
-          return provider.run({
-            executor: tag,
-            tool: def.name,
-            args,
-            spec: def.executorSpec ?? null,
-            ctx: {
-              runId: internals.runId,
-              spanId: toolSpanId,
-              agentType,
-              idempotencyKey:
-                execKey !== undefined && execKey.version === 2
-                  ? deriveExecIdempotencyKeyV2(
-                      internals.runId,
-                      execKey.genesis,
-                      agentSeq,
-                      ordinal,
-                      def.name,
-                      args,
-                    )
-                  : deriveExecIdempotencyKey(internals.runId, agentSeq, ordinal, def.name, args),
-              signal: toolSignal,
-              log: (level, msg, data) =>
-                internals.events.emit(
-                  data === undefined
-                    ? { type: 'log', level, msg }
-                    : { type: 'log', level, msg, data },
-                  toolSpanId,
-                ),
-            },
-          });
-        };
-      }
-    }
-    const runAgentOptions: Parameters<typeof runAgent<S>>[0] = {
-      prompt,
-      adapter,
-      resolved: loopResolved,
-      limits,
-      events: agentSink,
-      // The versioned compat flag (RV1810): only when the host asked.
-      ...(internals.telemetry?.quotaDeniedAgentError === true
-        ? { quotaDeniedAgentError: true }
-        : {}),
-      transcript: {
-        mintRef: internals.mintTranscriptRef,
-        put: (ref, blob) => internals.transcripts.put(ref, blob, internals.lease),
-      },
-      budget: {
-        beforeTurn: () => internals.budget.beforeTurn(budgetAccount),
-        maxAffordableOutputTokens: (servedBy, estimatedInputTokens) =>
-          internals.budget.maxAffordableOutputTokens(servedBy, estimatedInputTokens, budgetAccount),
-        // The extension's grant admission (RV301): the same chain
-        // headroom the clamp above prices.
-        remainingUsd: () => internals.budget.remainingUsd(budgetAccount),
-        // The in-flight exposure admission (RV711): wired ONLY when the
-        // cap is configured, so the default hooks object stays
-        // byte-identical in shape and the loop's default path inert.
-        // The strict pricing gate (RV1508): wired ONLY when armed, the
-        // exposure admission's rule, so the default hooks object and
-        // the loop's default path stay byte identical.
-        ...(internals.budget.strictPricing === undefined
-          ? {}
-          : {
-              assertPricedDispatch: (servedBy: ModelRef) =>
-                internals.budget.assertPricedDispatch(servedBy),
-            }),
-        ...(internals.budget.maxInFlightExposureUsd === undefined
-          ? {}
-          : {
-              // Layer 2b against the exposure ceiling (RV2503): the
-              // clamp reads the same room admitTurnExposure below
-              // charges, so a shortened plan is admitted instead of
-              // refused whenever the budget can still pay for it.
-              maxExposureOutputTokens: (servedBy: ModelRef, estimatedInputTokens: number) =>
-                internals.budget.maxExposureOutputTokens(servedBy, estimatedInputTokens),
-              admitTurnExposure: (
-                servedBy: ModelRef,
-                estimatedInputTokens: number,
-                plannedOutputTokens: number,
-              ) =>
-                // Holds are attributed to this invocation (RV2001) so
-                // its terminal can return whatever a lost attempt
-                // closure leaked; the dispatch seq is unique per
-                // logical invocation, redispatches included.
-                internals.budget.reserveTurnExposure(
-                  servedBy,
-                  estimatedInputTokens,
-                  plannedOutputTokens,
-                  `agent:${running.seq}`,
-                ),
-              // The exposure-wait pair (RV1902): wired with the cap so
-              // an opted-in root dispatch can park on the next hold
-              // release instead of settling a transient refusal.
-              awaitExposureRelease: (signal?: AbortSignal) =>
-                internals.budget.awaitExposureRelease(signal),
-              liveExposureUsd: () => internals.budget.liveExposureUsd,
-            }),
-        onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy, budgetAccount),
-        // The per-call marginal meter (RV1101): every provider call
-        // debits against its own accumulation, so a long-context tier
-        // crossed by the call's total re-prices the call live exactly
-        // as the settled fold will.
-        openCallMeter: (servedBy) => internals.budget.openCallMeter(servedBy, budgetAccount),
-        // Layer 3 severs through the whole account chain: the account's
-        // own subtree signal composed with the run root (M6-T06).
-        signal:
-          budgetAccount === ROOT_ACCOUNT
-            ? internals.budget.signal
-            : AbortSignal.any(
-                [internals.budget.signal, internals.budget.signalOf(budgetAccount)].filter(
-                  (signal): signal is AbortSignal => signal !== undefined,
-                ),
-              ),
-      },
-      priceUsd: internals.priceUsd,
-      agentType,
-      role: primaryRole,
-      now: internals.now,
-    };
-    if (toolRuntime !== undefined) {
-      runAgentOptions.tools = toolRuntime;
-    }
-    if (escalation !== undefined) {
-      runAgentOptions.escalation = { minSpendUsd: escalation.minSpendUsd ?? 0 };
-    }
-    const terminalTool = (opts as InternalAgentHooks)[kTerminalTool];
-    if (terminalTool !== undefined) {
-      runAgentOptions.terminalTool = terminalTool;
-    }
-    {
-      // The flavor rides through verbatim (RV2002): true is the
-      // orchestrate-owned root wait, 'child' the spawned-child wait
-      // whose drained arm dies typed instead of forcing the finish.
-      const exposureWait = (opts as InternalAgentHooks)[kExposureWait];
-      if (exposureWait === true || exposureWait === 'child') {
-        runAgentOptions.exposureWait = exposureWait;
-      }
-    }
-    runAgentOptions.checkpoint = checkpointPlumbing;
-    if (opts.schema !== undefined) {
-      runAgentOptions.schema = opts.schema;
-    }
-    if (canonicalSchema !== undefined) {
-      runAgentOptions.canonicalSchema = canonicalSchema;
-    }
-    if (extract !== undefined) {
-      runAgentOptions.extract = extract;
-    }
-    if (finalize !== undefined) {
-      runAgentOptions.finalize = finalize;
-    }
-    {
-      // The prompt-cache policy chain (RV2006): call over profile over
-      // engine; absent everywhere stays absent, which the loop reads
-      // as 'auto' (hints on explicit-caching adapters only).
-      const cachePolicy = opts.cache ?? profile?.cache ?? internals.defaults.cache;
-      if (cachePolicy !== undefined) {
-        runAgentOptions.cache = cachePolicy;
-      }
-    }
-    // The incremental billing rows (RV2008): every ProviderCallRecord
-    // journals as its wire call settles, keyed deterministically by the
-    // dispatch seq and the record ordinal, so a process crash loses at
-    // most the one in-flight turn instead of the invocation's whole
-    // history (~$0.99 of the parity root's dispatches lived only in
-    // memory). The append is asynchronous by design: the loop never
-    // blocks its dispatch path on journal IO, and the terminal entry
-    // still carries the complete set, which cost-audit cross-checks
-    // against these rows. A failed append warns and the terminal set
-    // remains the canonical fold input, so the row lane degrades to
-    // exactly the pre-RV2008 durability, never worse.
-    runAgentOptions.billing = {
-      onProviderCall: (record) => {
-        const append: Promise<void> = internals.replayer
-          .appendSinglePhase({
-            scope: state.scope,
-            key: `pc:${String(running.seq)}:${String(record.ordinal)}`,
-            kind: 'decision',
-            status: 'ok',
-            spanId,
-            site: 'provider-call',
-            value: {
-              decisionType: 'provider-call',
-              agentRef: running.seq,
-              record: record as unknown as Json,
-            },
-          })
-          .then(() => undefined)
-          .catch((thrown: unknown) => {
-            internals.events.emit(
-              {
-                type: 'log',
-                level: 'warn',
-                msg:
-                  'incremental billing row failed to append; the terminal entry remains the ' +
-                  `canonical record (${thrown instanceof Error ? thrown.message : String(thrown)})`,
-              },
-              spanId,
-            );
-          });
-        // The awaited receipt posture (RV3405): under
-        // defaults.billingReceipts 'awaited' the loop awaits this
-        // settled append before the turn proceeds, so the receipt of
-        // the wire being paid for at the moment of a crash is exactly
-        // the one that survived. The catch above keeps a failed append
-        // a loud degradation to the terminal lane in BOTH postures,
-        // never a run failure. The 'intent' posture (RV4006) awaits
-        // receipts too: fire-and-forget receipts beside durable
-        // intents would leave every intent looking open until the
-        // terminal landed.
-        if (
-          internals.defaults.billingReceipts === 'awaited' ||
-          internals.defaults.billingReceipts === 'intent'
-        ) {
-          return append;
-        }
-        void append;
-      },
-      // The pre-wire intent lane (RV4006): under the 'intent' posture
-      // every dispatched wire attempt journals its intent BEFORE the
-      // provider could bill, awaited (intent before effect, the RV601
-      // precedent), keyed by dispatch seq, ordinal, and attempt so a
-      // failover retry writes its own row. A failed append REFUSES
-      // the dispatch by letting the rejection surface: a wire whose
-      // intent could not be made durable must not be able to bill,
-      // the executor ledger's own rule. Absent in the other postures,
-      // so their dispatch path is byte identical.
-      ...(internals.defaults.billingReceipts === 'intent'
-        ? {
-            onProviderIntent: (intent: {
-              ordinal: number;
-              role: InvocationRole;
-              servedBy: ModelRef;
-              attempt: number;
-              request: { messages: unknown };
-            }): Promise<void> =>
-              internals.replayer
-                .appendSinglePhase({
-                  scope: state.scope,
-                  key: `pi:${String(running.seq)}:${String(intent.ordinal)}:${String(intent.attempt)}`,
-                  kind: 'decision',
-                  status: 'ok',
-                  spanId,
-                  site: 'provider-intent',
-                  value: {
-                    decisionType: 'provider-intent',
-                    agentRef: running.seq,
-                    ordinal: intent.ordinal,
-                    role: intent.role,
-                    servedBy: intent.servedBy,
-                    attempt: intent.attempt,
-                    requestFingerprint: createHash('sha256')
-                      .update(jcsSerialize(intent.request.messages as Json), 'utf8')
-                      .digest('hex'),
-                  },
-                })
-                .then(() => undefined),
-          }
-        : {}),
-    };
-    runAgentOptions.summarize = summarize;
-    if (profile?.compaction !== undefined) {
-      runAgentOptions.compaction = profile.compaction;
-    }
-    if (profile?.evidenceContract !== undefined) {
-      // The declared floor reaches the loop (RV507); the loop acts on
-      // it only under enforce: 'refuse', so 'warn' and absence keep the
-      // historical preflight-only behavior byte for byte.
-      runAgentOptions.evidenceContract = profile.evidenceContract;
-    }
-    {
-      // The durable tool-budget decisions (RV509): a grant and the
-      // window entry journal the moment they fire, bound to this
-      // dispatch by targetRef (stable across a dangling redispatch),
-      // through the serialized queue. Since RV601 the loop AWAITS these
-      // appends before the grant lifts an expiry or the window binds a
-      // call: an extension authorizes future tool work whose effects
-      // are external, so the precedent is intent-before-effect, not the
-      // fire-and-forget of a rand entry that merely records a value the
-      // caller already holds. On a resume the state read back from
-      // those entries reaches the loop as `restored`, cap included, so
-      // a granted-but-unspent extension survives the crash, a window
-      // entry stays truthful after a grant moved the counts back out,
-      // and drifting live limits cannot revoke the raise the journal
-      // recorded. Grant-free runs never call the hooks, keeping their
-      // journals byte-identical.
-      const durableRestored = readToolBudgetDecisions(internals.replayer.snapshot(), running.seq);
-      runAgentOptions.toolBudgetDurability = {
-        ...(durableRestored === undefined
-          ? {}
-          : {
-              restored: {
-                extensionsGranted: durableRestored.extensionsGranted,
-                finalizationWindowEntered: durableRestored.finalizationWindowEntered,
-                ...(durableRestored.cap === undefined ? {} : { cap: durableRestored.cap }),
-              },
-            }),
-        onExtensionGrant: async (grant) => {
-          await internals.replayer.appendSinglePhase({
-            scope: state.scope,
-            key: '',
-            kind: 'decision',
-            status: 'ok',
-            spanId,
-            value: {
-              decisionType: TOOL_BUDGET_EXTENSION_DECISION,
-              targetRef: running.seq,
-              ...grant,
-            },
-          });
-        },
-        onWindowEntry: async (entry) => {
-          await internals.replayer.appendSinglePhase({
-            scope: state.scope,
-            key: '',
-            kind: 'decision',
-            status: 'ok',
-            spanId,
-            value: {
-              decisionType: FINALIZATION_WINDOW_DECISION,
-              targetRef: running.seq,
-              ...entry,
-            },
-          });
-        },
-      };
-    }
-    if (loopFallbacks.length > 0) {
-      runAgentOptions.fallbacks = loopFallbacks;
-    }
-    if (retryPolicy !== undefined) {
-      runAgentOptions.retry = { policy: retryPolicy };
-    }
-    if (internals.quota !== undefined) {
-      const quota = internals.quota;
-      // The ctx layer completes the reservation request with what the
-      // loop cannot know: the run id, the tenant (the engine's, or
-      // the run scope's under tenantFrom 'scope', RV4205), and the
-      // scope dimensions for dimension-matched rules.
-      const reservationTenant =
-        quota.tenantFrom === 'scope' ? internals.executionScope?.tenant : quota.tenant;
-      const reservationScope = internals.executionScope;
-      runAgentOptions.quota = {
-        reserve: (request) =>
-          quota.limiter.reserve({
-            ...request,
-            runId: internals.runId,
-            ...(reservationTenant === undefined ? {} : { tenant: reservationTenant }),
-            ...(reservationScope === undefined ? {} : { scope: reservationScope }),
-          }),
-        reconcile: (reservationId, usage, actual) =>
-          quota.limiter.reconcile(reservationId, usage, actual),
-        onLimiterError: quota.onLimiterError,
-        reserveContinuations: quota.reserveContinuations,
-        maxDenials: quota.maxDenials,
-      };
-      const limiterRelease = quota.limiter.release?.bind(quota.limiter);
-      if (limiterRelease !== undefined) {
-        runAgentOptions.quota.release = limiterRelease;
-      }
-    }
-    if (internals.providerLimiter !== undefined) {
-      const limiter = internals.providerLimiter;
-      runAgentOptions.providerSlot = (key, fn, signal) =>
-        limiter.withSlot(
-          key,
-          fn,
-          () =>
-            internals.events.emit(
-              { type: 'agent:queued', agentType, label: opts.label, providerKey: key },
-              spanId,
-            ),
-          signal,
-        );
-    }
-    if (opts.stream !== undefined) {
-      runAgentOptions.stream = opts.stream;
-    }
-    if (opts.label !== undefined) {
-      runAgentOptions.label = opts.label;
-    }
-    if (branchOrRunSignal !== undefined) {
-      runAgentOptions.signal = branchOrRunSignal;
-    }
-
-    const exitActivity = internals.external?.enter();
+    let branchOrRunSignal: AbortSignal | undefined;
     let result: Awaited<ReturnType<typeof runAgent<S>>>;
     try {
-      // The branch/run signal rides into the slot wait: a cancelled run
-      // frees its queued spawns instead of leaving them parked behind a
-      // held slot (v1.34.0 review P2-4).
-      result = await internals.semaphore.withSlot(
-        () => runAgent<S>(runAgentOptions),
-        () => internals.events.emit({ type: 'agent:queued', agentType, label: opts.label }, spanId),
-        branchOrRunSignal,
-      );
+      // Worktree lifecycle: acquired before the
+      // dispatch entry so an acquire failure never leaves a dangling
+      // running entry. A dangling redispatch acquires a FRESH tree from the
+      // same ref; tools are at-least-once and SHOULD be idempotent.
+      if (typeof isolation === 'object' && isolation.kind === 'worktree') {
+        const acquireInput: { runId: string; spanId: string; ref?: string } = {
+          runId: internals.runId,
+          spanId: state.spanId,
+        };
+        if (isolation.ref !== undefined) {
+          acquireInput.ref = isolation.ref;
+        }
+        acquired = await internals.isolation?.acquire(acquireInput);
+      }
+
+      spanId = internals.spans.mint(state.spanId);
+      // memoizeOutcome is a policy field fixed in the entry payload at
+      // dispatch time; the M2 predicate reads it from the ENTRY, never
+      // from current code.
+      if (danglingRunning !== undefined) {
+        // At-least-once redispatch: the terminal will reference the
+        // original dispatch entry.
+        running = danglingRunning;
+      } else {
+        const runningInput: Parameters<Replayer['appendRunning']>[0] = {
+          scope: state.scope,
+          key: identityKey,
+          kind: 'agent',
+          spanId,
+        };
+        if (opts.memoizeOutcome !== undefined) {
+          runningInput.memoizeOutcome = opts.memoizeOutcome;
+        }
+        {
+          // The resolved isolation is recorded on the dispatch root so the
+          // DedupIndex donor rules can read it from the journal (worktree
+          // grafts degrade unless pinned). 'none' stays
+          // implicit, so isolation-free journals are byte-identical.
+          const isolationTag = canonicalIsolationTag(isolation);
+          if (isolationTag !== 'none') {
+            runningInput.value = { isolation: isolationTag };
+          }
+        }
+        running = await internals.replayer.appendRunning(runningInput);
+      }
+      (opts as InternalAgentHooks)[kOnRunning]?.(running.seq);
+
+      const agentSink = {
+        emit: (body: { type: string } & Record<string, unknown>) =>
+          internals.events.emit(body, spanId),
+      };
+      // Turn-boundary checkpoints live at a deterministic ref derived from
+      // the dispatch seq, overwritten per boundary; only a dangling
+      // redispatch restores (cancelled entries rerun from scratch per the
+      // predicate).
+      ckptRef = checkpointRefFor(internals.runId, running.seq);
+      const checkpointPlumbing: NonNullable<Parameters<typeof runAgent<S>>[0]['checkpoint']> = {
+        load: async () => {
+          if (danglingRunning === undefined) {
+            // Park/unpark continuation and the DEF-5 graft boot (M7-T08):
+            // a fresh dispatch may boot from a retained donor checkpoint.
+            const bootRef = (opts as InternalAgentHooks)[kBootCheckpoint];
+            if (bootRef !== undefined) {
+              const donorBlob = await internals.transcripts.get(bootRef);
+              return donorBlob === null ? undefined : decodeCheckpoint(donorBlob);
+            }
+            return undefined;
+          }
+          const blob = await internals.transcripts.get(ckptRef);
+          return blob === null ? undefined : decodeCheckpoint(blob);
+        },
+        save: async (checkpointState) => {
+          await internals.transcripts.put(
+            ckptRef,
+            encodeCheckpoint(checkpointState),
+            internals.lease,
+          );
+          checkpointWritten = true;
+        },
+      };
+      branchOrRunSignal = state.signal ?? internals.runSignal;
+      let toolRuntime: ToolRuntime | undefined;
+      if (toolset.tools.length > 0) {
+        const toolSignals: AbortSignal[] = [];
+        if (branchOrRunSignal !== undefined) {
+          toolSignals.push(branchOrRunSignal);
+        }
+        if (internals.budget.signal !== undefined) {
+          toolSignals.push(internals.budget.signal);
+        }
+        const toolSignal =
+          toolSignals.length > 0 ? AbortSignal.any(toolSignals) : new AbortController().signal;
+        const contextFor = (): ReturnType<typeof buildToolContext> =>
+          buildToolContext({
+            runId: internals.runId,
+            agentType,
+            ...(opts.label === undefined ? {} : { label: opts.label }),
+            cwd: acquired?.cwd ?? process.cwd(),
+            isolation,
+            signal: toolSignal,
+            mintSpan: () => internals.spans.mint(spanId),
+            emitLog: (toolSpanId, level, msg, data) =>
+              internals.events.emit(
+                data === undefined
+                  ? { type: 'log', level, msg }
+                  : { type: 'log', level, msg, data },
+                toolSpanId,
+              ),
+          });
+        // The chain is the single approval surface for every dispatch,
+        // regardless of tool origin. Profile layers
+        // merge over engine defaults; an ask verdict suspends on the
+        // journal in the agent's child scope.
+        const compiledChain = compilePermissionChain(
+          internals.defaults.permissions,
+          profile?.permissions,
+        );
+        // 'readonly' isolation compiles a deny rule for tools declaring
+        // risk write or destructive into this spawn's chain (tools guide,
+        // IsolationSpec table). Worktree isolation isolates the filesystem
+        // instead, and 'none' adds nothing.
+        const readonlyDeny: PermissionRule = { risk: ['write', 'destructive'] };
+        const chain =
+          isolation === 'readonly'
+            ? { ...compiledChain, deny: [...compiledChain.deny, readonlyDeny] }
+            : compiledChain;
+        toolRuntime = {
+          defs: toolset.tools,
+          contracts: toolset.contracts,
+          contextFor,
+          permission: async (call) => {
+            const def = toolset.tools.find((candidate) => candidate.name === call.name);
+            if (def === undefined) {
+              // Unknown names fall through: the loop reports them to the
+              // model as error tool results.
+              return { kind: 'allow', input: call.args };
+            }
+            const verdict = await evaluatePermission(chain, def, call.args, contextFor());
+            // Audit telemetry rides tool:end (M5-T05).
+            const audit = {
+              verdict: verdict.verdict,
+              decidedBy: verdict.decidedBy,
+              ...('rule' in verdict && verdict.rule !== undefined
+                ? { rule: verdict.rule as unknown as Json }
+                : {}),
+              ...(verdict.advisory === undefined
+                ? {}
+                : { advisory: verdict.advisory as unknown as Json }),
+            };
+            if (verdict.verdict === 'allow') {
+              return { kind: 'allow', input: verdict.input, audit };
+            }
+            if (verdict.verdict === 'deny') {
+              return {
+                kind: 'deny',
+                audit,
+                reason:
+                  verdict.decidedBy === 'deny-rule'
+                    ? 'a deny rule matched'
+                    : `denied by ${verdict.decidedBy}`,
+              };
+            }
+            return {
+              kind: 'ask',
+              audit,
+              input: verdict.input,
+              suspend: async () => {
+                if (internals.external === undefined) {
+                  throw new ConfigError(
+                    'tool approvals require the engine run context (createEngine)',
+                  );
+                }
+                // The opt-in approval deadline (RV1107): computed from the
+                // merged chain at suspension time and journaled ON the
+                // entry; the registry arms the timer from the entry, so
+                // the deadline survives resume and a config change never
+                // moves an already-journaled one.
+                const approvalDeadlineMs = chain.approvalDeadlineMs;
+                const decision = await internals.external.awaitApproval({
+                  scope: agentScope(state.scope, running.seq),
+                  spanId: internals.spans.mint(spanId),
+                  toolName: call.name,
+                  input: verdict.input as Json,
+                  ...(def.risk === undefined ? {} : { risk: def.risk }),
+                  ...(approvalDeadlineMs === undefined
+                    ? {}
+                    : {
+                        deadlineAt: new Date(internals.now() + approvalDeadlineMs).toISOString(),
+                      }),
+                  onPending: (entry, replayed) =>
+                    internals.events.emit(
+                      { type: 'approval:pending', toolName: call.name, entryRef: entry.seq },
+                      spanId,
+                      replayed,
+                    ),
+                });
+                if (decision.decision !== 'allow') {
+                  return decision;
+                }
+                // The consumption recheck (RV4008): a recorded allow is
+                // consulted ONE more time at the moment it is about to
+                // license the effect. A journaled revocation beats it (an
+                // allow granted, crashed over, and revoked must never
+                // dispatch on resume), and an expired grant denies the
+                // same way; both read only what the journal already holds,
+                // so live and resumed consumption agree.
+                if (decision.entryRef !== undefined) {
+                  const revocation = internals.replayer
+                    .snapshot()
+                    .find(
+                      (entry) =>
+                        entry.kind === 'decision' &&
+                        (entry.value as { decisionType?: unknown; targetRef?: unknown } | undefined)
+                          ?.decisionType === 'approval_revoked' &&
+                        (entry.value as { targetRef?: unknown }).targetRef === decision.entryRef,
+                    );
+                  if (revocation !== undefined) {
+                    const why =
+                      (revocation.value as { principal?: unknown; reason?: unknown }) ?? {};
+                    const principal = typeof why.principal === 'string' ? why.principal : 'unknown';
+                    const reason =
+                      typeof why.reason === 'string' ? why.reason : 'no reason recorded';
+                    return {
+                      decision: 'deny',
+                      reason: `the recorded allow was revoked by ${principal}: ${reason}`,
+                    };
+                  }
+                }
+                if (
+                  decision.expiresAt !== undefined &&
+                  // Fail closed: an unparsable expiry recorded past the
+                  // registry's own validation (a raw store append) must
+                  // deny, not silently stand forever.
+                  !(Date.parse(decision.expiresAt) >= internals.now())
+                ) {
+                  return {
+                    decision: 'deny',
+                    reason: `the recorded allow expired at ${decision.expiresAt}`,
+                  };
+                }
+                return decision;
+              },
+            };
+          },
+        };
+        // Non-inprocess dispatch (RV-216): route the call through the
+        // registered ToolExecutorProvider. The tool span is minted under the
+        // agent span exactly like an inprocess call, and the idempotency key
+        // is a pure function of the LOGICAL invocation (runId, agent-entry
+        // seq, per-agent ordinal, tool, args) plus, at derivation 2, the
+        // run's generation token (RV403; see deriveExecIdempotencyKey and
+        // deriveExecIdempotencyKeyV2): a crash-and-resume redispatch of the
+        // same call reuses its key, two separate calls sharing arguments
+        // never collide, and a deleted-then-recreated runId never reuses
+        // the dead incarnation's keys. A provider throw surfaces to the
+        // loop as the call's error tool result.
+        if (internals.executors !== undefined) {
+          const executors = internals.executors;
+          const execKey = internals.execKey;
+          // The containing agent's dispatch-entry seq scopes the idempotency
+          // key to THIS invocation: it is journal-deterministic and an
+          // at-least-once redispatch reuses the same entry, so the key is
+          // stable across resume while distinct agents never share it (P0.4).
+          const agentSeq = running.seq;
+          toolRuntime.executeExternal = async (def, args, ordinal) => {
+            const tag = def.executor as Exclude<typeof def.executor, 'inprocess'>;
+            const provider = executors[tag];
+            if (provider === undefined) {
+              throw new ConfigError(
+                `no executor registered for '${def.executor}'; register one via ` +
+                  'createEngine({ executors }) ' +
+                  '(https://docs.rulvar.com/guide/isolated-executor)',
+              );
+            }
+            const toolSpanId = internals.spans.mint(spanId);
+            return provider.run({
+              executor: tag,
+              tool: def.name,
+              args,
+              spec: def.executorSpec ?? null,
+              ctx: {
+                runId: internals.runId,
+                spanId: toolSpanId,
+                agentType,
+                idempotencyKey:
+                  execKey !== undefined && execKey.version === 2
+                    ? deriveExecIdempotencyKeyV2(
+                        internals.runId,
+                        execKey.genesis,
+                        agentSeq,
+                        ordinal,
+                        def.name,
+                        args,
+                      )
+                    : deriveExecIdempotencyKey(internals.runId, agentSeq, ordinal, def.name, args),
+                signal: toolSignal,
+                log: (level, msg, data) =>
+                  internals.events.emit(
+                    data === undefined
+                      ? { type: 'log', level, msg }
+                      : { type: 'log', level, msg, data },
+                    toolSpanId,
+                  ),
+              },
+            });
+          };
+        }
+      }
+      const runAgentOptions: Parameters<typeof runAgent<S>>[0] = {
+        prompt,
+        adapter,
+        resolved: loopResolved,
+        limits,
+        events: agentSink,
+        // The versioned compat flag (RV1810): only when the host asked.
+        ...(internals.telemetry?.quotaDeniedAgentError === true
+          ? { quotaDeniedAgentError: true }
+          : {}),
+        transcript: {
+          mintRef: internals.mintTranscriptRef,
+          put: (ref, blob) => internals.transcripts.put(ref, blob, internals.lease),
+        },
+        budget: {
+          beforeTurn: () => internals.budget.beforeTurn(budgetAccount),
+          maxAffordableOutputTokens: (servedBy, estimatedInputTokens) =>
+            internals.budget.maxAffordableOutputTokens(
+              servedBy,
+              estimatedInputTokens,
+              budgetAccount,
+            ),
+          // The extension's grant admission (RV301): the same chain
+          // headroom the clamp above prices.
+          remainingUsd: () => internals.budget.remainingUsd(budgetAccount),
+          // The in-flight exposure admission (RV711): wired ONLY when the
+          // cap is configured, so the default hooks object stays
+          // byte-identical in shape and the loop's default path inert.
+          // The strict pricing gate (RV1508): wired ONLY when armed, the
+          // exposure admission's rule, so the default hooks object and
+          // the loop's default path stay byte identical.
+          ...(internals.budget.strictPricing === undefined
+            ? {}
+            : {
+                assertPricedDispatch: (servedBy: ModelRef) =>
+                  internals.budget.assertPricedDispatch(servedBy),
+              }),
+          ...(internals.budget.maxInFlightExposureUsd === undefined
+            ? {}
+            : {
+                // Layer 2b against the exposure ceiling (RV2503): the
+                // clamp reads the same room admitTurnExposure below
+                // charges, so a shortened plan is admitted instead of
+                // refused whenever the budget can still pay for it.
+                maxExposureOutputTokens: (servedBy: ModelRef, estimatedInputTokens: number) =>
+                  internals.budget.maxExposureOutputTokens(servedBy, estimatedInputTokens),
+                admitTurnExposure: (
+                  servedBy: ModelRef,
+                  estimatedInputTokens: number,
+                  plannedOutputTokens: number,
+                ) =>
+                  // Holds are attributed to this invocation (RV2001) so
+                  // its terminal can return whatever a lost attempt
+                  // closure leaked; the dispatch seq is unique per
+                  // logical invocation, redispatches included.
+                  internals.budget.reserveTurnExposure(
+                    servedBy,
+                    estimatedInputTokens,
+                    plannedOutputTokens,
+                    `agent:${running.seq}`,
+                  ),
+                // The exposure-wait pair (RV1902): wired with the cap so
+                // an opted-in root dispatch can park on the next hold
+                // release instead of settling a transient refusal.
+                awaitExposureRelease: (signal?: AbortSignal) =>
+                  internals.budget.awaitExposureRelease(signal),
+                liveExposureUsd: () => internals.budget.liveExposureUsd,
+              }),
+          onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy, budgetAccount),
+          // The per-call marginal meter (RV1101): every provider call
+          // debits against its own accumulation, so a long-context tier
+          // crossed by the call's total re-prices the call live exactly
+          // as the settled fold will.
+          openCallMeter: (servedBy) => internals.budget.openCallMeter(servedBy, budgetAccount),
+          // Layer 3 severs through the whole account chain: the account's
+          // own subtree signal composed with the run root (M6-T06).
+          signal:
+            budgetAccount === ROOT_ACCOUNT
+              ? internals.budget.signal
+              : AbortSignal.any(
+                  [internals.budget.signal, internals.budget.signalOf(budgetAccount)].filter(
+                    (signal): signal is AbortSignal => signal !== undefined,
+                  ),
+                ),
+        },
+        priceUsd: internals.priceUsd,
+        agentType,
+        role: primaryRole,
+        now: internals.now,
+      };
+      if (toolRuntime !== undefined) {
+        runAgentOptions.tools = toolRuntime;
+      }
+      if (escalation !== undefined) {
+        runAgentOptions.escalation = { minSpendUsd: escalation.minSpendUsd ?? 0 };
+      }
+      const terminalTool = (opts as InternalAgentHooks)[kTerminalTool];
+      if (terminalTool !== undefined) {
+        runAgentOptions.terminalTool = terminalTool;
+      }
+      {
+        // The flavor rides through verbatim (RV2002): true is the
+        // orchestrate-owned root wait, 'child' the spawned-child wait
+        // whose drained arm dies typed instead of forcing the finish.
+        const exposureWait = (opts as InternalAgentHooks)[kExposureWait];
+        if (exposureWait === true || exposureWait === 'child') {
+          runAgentOptions.exposureWait = exposureWait;
+        }
+      }
+      runAgentOptions.checkpoint = checkpointPlumbing;
+      if (opts.schema !== undefined) {
+        runAgentOptions.schema = opts.schema;
+      }
+      if (canonicalSchema !== undefined) {
+        runAgentOptions.canonicalSchema = canonicalSchema;
+      }
+      if (extract !== undefined) {
+        runAgentOptions.extract = extract;
+      }
+      if (finalize !== undefined) {
+        runAgentOptions.finalize = finalize;
+      }
+      {
+        // The prompt-cache policy chain (RV2006): call over profile over
+        // engine; absent everywhere stays absent, which the loop reads
+        // as 'auto' (hints on explicit-caching adapters only).
+        const cachePolicy = opts.cache ?? profile?.cache ?? internals.defaults.cache;
+        if (cachePolicy !== undefined) {
+          runAgentOptions.cache = cachePolicy;
+        }
+      }
+      // The incremental billing rows (RV2008): every ProviderCallRecord
+      // journals as its wire call settles, keyed deterministically by the
+      // dispatch seq and the record ordinal, so a process crash loses at
+      // most the one in-flight turn instead of the invocation's whole
+      // history (~$0.99 of the parity root's dispatches lived only in
+      // memory). The append is asynchronous by design: the loop never
+      // blocks its dispatch path on journal IO, and the terminal entry
+      // still carries the complete set, which cost-audit cross-checks
+      // against these rows. A failed append warns and the terminal set
+      // remains the canonical fold input, so the row lane degrades to
+      // exactly the pre-RV2008 durability, never worse.
+      runAgentOptions.billing = {
+        onProviderCall: (record) => {
+          const append: Promise<void> = internals.replayer
+            .appendSinglePhase({
+              scope: state.scope,
+              key: `pc:${String(running.seq)}:${String(record.ordinal)}`,
+              kind: 'decision',
+              status: 'ok',
+              spanId,
+              site: 'provider-call',
+              value: {
+                decisionType: 'provider-call',
+                agentRef: running.seq,
+                record: record as unknown as Json,
+              },
+            })
+            .then(() => undefined)
+            .catch((thrown: unknown) => {
+              internals.events.emit(
+                {
+                  type: 'log',
+                  level: 'warn',
+                  msg:
+                    'incremental billing row failed to append; the terminal entry remains the ' +
+                    `canonical record (${thrown instanceof Error ? thrown.message : String(thrown)})`,
+                },
+                spanId,
+              );
+            });
+          // The awaited receipt posture (RV3405): under
+          // defaults.billingReceipts 'awaited' the loop awaits this
+          // settled append before the turn proceeds, so the receipt of
+          // the wire being paid for at the moment of a crash is exactly
+          // the one that survived. The catch above keeps a failed append
+          // a loud degradation to the terminal lane in BOTH postures,
+          // never a run failure. The 'intent' posture (RV4006) awaits
+          // receipts too: fire-and-forget receipts beside durable
+          // intents would leave every intent looking open until the
+          // terminal landed.
+          if (
+            internals.defaults.billingReceipts === 'awaited' ||
+            internals.defaults.billingReceipts === 'intent'
+          ) {
+            return append;
+          }
+          void append;
+        },
+        // The pre-wire intent lane (RV4006): under the 'intent' posture
+        // every dispatched wire attempt journals its intent BEFORE the
+        // provider could bill, awaited (intent before effect, the RV601
+        // precedent), keyed by dispatch seq, ordinal, and attempt so a
+        // failover retry writes its own row. A failed append REFUSES
+        // the dispatch by letting the rejection surface: a wire whose
+        // intent could not be made durable must not be able to bill,
+        // the executor ledger's own rule. Absent in the other postures,
+        // so their dispatch path is byte identical.
+        ...(internals.defaults.billingReceipts === 'intent'
+          ? {
+              onProviderIntent: (intent: {
+                ordinal: number;
+                role: InvocationRole;
+                servedBy: ModelRef;
+                attempt: number;
+                request: { messages: unknown };
+              }): Promise<void> =>
+                internals.replayer
+                  .appendSinglePhase({
+                    scope: state.scope,
+                    key: `pi:${String(running.seq)}:${String(intent.ordinal)}:${String(intent.attempt)}`,
+                    kind: 'decision',
+                    status: 'ok',
+                    spanId,
+                    site: 'provider-intent',
+                    value: {
+                      decisionType: 'provider-intent',
+                      agentRef: running.seq,
+                      ordinal: intent.ordinal,
+                      role: intent.role,
+                      servedBy: intent.servedBy,
+                      attempt: intent.attempt,
+                      requestFingerprint: createHash('sha256')
+                        .update(jcsSerialize(intent.request.messages as Json), 'utf8')
+                        .digest('hex'),
+                    },
+                  })
+                  .then(() => undefined),
+            }
+          : {}),
+      };
+      runAgentOptions.summarize = summarize;
+      if (profile?.compaction !== undefined) {
+        runAgentOptions.compaction = profile.compaction;
+      }
+      if (profile?.evidenceContract !== undefined) {
+        // The declared floor reaches the loop (RV507); the loop acts on
+        // it only under enforce: 'refuse', so 'warn' and absence keep the
+        // historical preflight-only behavior byte for byte.
+        runAgentOptions.evidenceContract = profile.evidenceContract;
+      }
+      {
+        // The durable tool-budget decisions (RV509): a grant and the
+        // window entry journal the moment they fire, bound to this
+        // dispatch by targetRef (stable across a dangling redispatch),
+        // through the serialized queue. Since RV601 the loop AWAITS these
+        // appends before the grant lifts an expiry or the window binds a
+        // call: an extension authorizes future tool work whose effects
+        // are external, so the precedent is intent-before-effect, not the
+        // fire-and-forget of a rand entry that merely records a value the
+        // caller already holds. On a resume the state read back from
+        // those entries reaches the loop as `restored`, cap included, so
+        // a granted-but-unspent extension survives the crash, a window
+        // entry stays truthful after a grant moved the counts back out,
+        // and drifting live limits cannot revoke the raise the journal
+        // recorded. Grant-free runs never call the hooks, keeping their
+        // journals byte-identical.
+        const durableRestored = readToolBudgetDecisions(internals.replayer.snapshot(), running.seq);
+        runAgentOptions.toolBudgetDurability = {
+          ...(durableRestored === undefined
+            ? {}
+            : {
+                restored: {
+                  extensionsGranted: durableRestored.extensionsGranted,
+                  finalizationWindowEntered: durableRestored.finalizationWindowEntered,
+                  ...(durableRestored.cap === undefined ? {} : { cap: durableRestored.cap }),
+                },
+              }),
+          onExtensionGrant: async (grant) => {
+            await internals.replayer.appendSinglePhase({
+              scope: state.scope,
+              key: '',
+              kind: 'decision',
+              status: 'ok',
+              spanId,
+              value: {
+                decisionType: TOOL_BUDGET_EXTENSION_DECISION,
+                targetRef: running.seq,
+                ...grant,
+              },
+            });
+          },
+          onWindowEntry: async (entry) => {
+            await internals.replayer.appendSinglePhase({
+              scope: state.scope,
+              key: '',
+              kind: 'decision',
+              status: 'ok',
+              spanId,
+              value: {
+                decisionType: FINALIZATION_WINDOW_DECISION,
+                targetRef: running.seq,
+                ...entry,
+              },
+            });
+          },
+        };
+      }
+      if (loopFallbacks.length > 0) {
+        runAgentOptions.fallbacks = loopFallbacks;
+      }
+      if (retryPolicy !== undefined) {
+        runAgentOptions.retry = { policy: retryPolicy };
+      }
+      if (internals.quota !== undefined) {
+        const quota = internals.quota;
+        // The ctx layer completes the reservation request with what the
+        // loop cannot know: the run id, the tenant (the engine's, or
+        // the run scope's under tenantFrom 'scope', RV4205), and the
+        // scope dimensions for dimension-matched rules.
+        const reservationTenant =
+          quota.tenantFrom === 'scope' ? internals.executionScope?.tenant : quota.tenant;
+        const reservationScope = internals.executionScope;
+        runAgentOptions.quota = {
+          reserve: (request) =>
+            quota.limiter.reserve({
+              ...request,
+              runId: internals.runId,
+              ...(reservationTenant === undefined ? {} : { tenant: reservationTenant }),
+              ...(reservationScope === undefined ? {} : { scope: reservationScope }),
+            }),
+          reconcile: (reservationId, usage, actual) =>
+            quota.limiter.reconcile(reservationId, usage, actual),
+          onLimiterError: quota.onLimiterError,
+          reserveContinuations: quota.reserveContinuations,
+          maxDenials: quota.maxDenials,
+        };
+        const limiterRelease = quota.limiter.release?.bind(quota.limiter);
+        if (limiterRelease !== undefined) {
+          runAgentOptions.quota.release = limiterRelease;
+        }
+      }
+      if (internals.providerLimiter !== undefined) {
+        const limiter = internals.providerLimiter;
+        runAgentOptions.providerSlot = (key, fn, signal) =>
+          limiter.withSlot(
+            key,
+            fn,
+            () =>
+              internals.events.emit(
+                { type: 'agent:queued', agentType, label: opts.label, providerKey: key },
+                spanId,
+              ),
+            signal,
+          );
+      }
+      if (opts.stream !== undefined) {
+        runAgentOptions.stream = opts.stream;
+      }
+      if (opts.label !== undefined) {
+        runAgentOptions.label = opts.label;
+      }
+      if (branchOrRunSignal !== undefined) {
+        runAgentOptions.signal = branchOrRunSignal;
+      }
+
+      const exitActivity = internals.external?.enter();
+      try {
+        // The branch/run signal rides into the slot wait: a cancelled run
+        // frees its queued spawns instead of leaving them parked behind a
+        // held slot (v1.34.0 review P2-4).
+        result = await internals.semaphore.withSlot(
+          () => runAgent<S>(runAgentOptions),
+          () =>
+            internals.events.emit({ type: 'agent:queued', agentType, label: opts.label }, spanId),
+          branchOrRunSignal,
+        );
+      } finally {
+        exitActivity?.();
+        // The terminal backstop (RV2001): every settle of this
+        // invocation, thrown paths included, returns whatever in-flight
+        // exposure its dispatches still hold. The attempt finally owns
+        // the normal release, so this is money a lost closure leaked;
+        // leaving it parked would starve the exposure wait on estimates
+        // no live dispatch is holding (the parity quiescence deadlock).
+        internals.budget.releaseExposureHolder(`agent:${running.seq}`);
+      }
     } finally {
-      exitActivity?.();
-      // The terminal backstop (RV2001): every settle of this
-      // invocation, thrown paths included, returns whatever in-flight
-      // exposure its dispatches still hold. The attempt finally owns
-      // the normal release, so this is money a lost closure leaked;
-      // leaving it parked would starve the exposure wait on estimates
-      // no live dispatch is holding (the parity quiescence deadlock).
-      internals.budget.releaseExposureHolder(`agent:${running.seq}`);
+      // Exactly what the admission committed comes back, never the raw
+      // estimate, on every settle of the bracket: ok, error, and thrown
+      // alike.
+      internals.budget.releaseReserve(commitReserveUsd, budgetAccount);
     }
-    internals.budget.releaseReserve(reserve, budgetAccount);
 
     // Quota drift telemetry (the v1.71 experiment review, P0.5
     // resized): the loop's live 429 observations held against the
