@@ -690,7 +690,11 @@ Default to the phase chain. A human script (or a planner-written one) with `ctx.
 - Use **mode (c)** when the plan must change mid-flight: wide fan-out whose next step depends on results that cannot wait for a phase boundary. Mid-run replanning is the only real justification for an LLM orchestrator; if the plan never changes, a script is strictly better, cheaper, and easier to audit.
 - Add **PlanRunner** on top of mode (c) when that replanning needs structure: typed revisions with rebase, dedup and reuse across revisions, and guaranteed termination under guards.
 
-Quality patterns (adversarial panels, judge panels, loop-until-dry, completeness critics) are recipes and prompt templates over these three modes, never engine flags; see [Examples](/guide/examples).
+Quality patterns (adversarial panels, judge panels, loop-until-dry, completeness critics, verifier lanes) are recipes and prompt templates over these three modes, never engine flags; see [Examples](/guide/examples).
+
+### The verifier lane {#verifier-lane}
+
+Mode (c)'s synthesis guards all judge the synthesis AFTER it exists: the contradiction pass bounds disagreement, the claim-consistency pass holds the finish text against the children's own evidence. The verifier lane is the complementary screen BEFORE synthesis, and like every pattern above it is a recipe over the modes, never an engine flag: each specialist's strongest claims meet a separate verifier with a mandate to refute them against the cited sources, the synthesis builds on the survivors, and the refuted claims arrive as named refutations rather than silence. Pin the verifier to a stronger model than the specialists (an agent profile with a role quality floor, or the per-call `model` option): a claim that got past one model needs a better skeptic, not another believer. In mode (c), declare the verifier as a spawnable profile and instruct the coordinator to route the strongest claims through it before `finish`; in a script it is a page of `ctx.parallel`. The runnable recipe and its zero-cost test live in [Verifier lane](/guide/examples#verifier-lane). The ninth comparison benchmark is the cautionary tale: the losing answer's decisive gap was a strong claim that reached the synthesis unscreened.
 
 ## Why there is no fourth mode
 

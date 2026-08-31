@@ -12,6 +12,7 @@ import { adversarialPanel } from './adversarial-panel.js';
 import { judgePanel } from './judge-panel.js';
 import { loopUntilDry } from './loop-until-dry.js';
 import { completenessCritic } from './completeness-critic.js';
+import { verifierLane } from './verifier-lane.js';
 
 describe('adversarial panel (recipe)', () => {
   it('survives when a majority fail to refute; falls when a majority refute', async () => {
@@ -152,5 +153,82 @@ describe('completeness critic (recipe)', () => {
     }).result;
     expect(outcome.value?.revisions).toBe(2);
     expect(outcome.value?.outstandingGaps).toEqual(['still incomplete']);
+  });
+});
+
+describe('verifier lane (recipe)', () => {
+  it('the strongest claims meet a refuting verifier before the synthesis', async () => {
+    // The correctness specialist lists its LOW claim first: the pick
+    // is by severity, not by listing order, so the high claim is the
+    // one that meets the verifier and the typo never does.
+    const reports: Record<string, unknown> = {
+      'specialist-correctness': {
+        claims: [
+          { claim: 'a comment typo', severity: 'low', evidence: 'src/budget.ts:12' },
+          {
+            claim: 'the release bracket leaks a reserve',
+            severity: 'high',
+            evidence: 'src/budget.ts:2900',
+          },
+        ],
+      },
+      'specialist-security': {
+        claims: [
+          {
+            claim: 'the token rides the journal in clear text',
+            severity: 'high',
+            evidence: 'src/journal.ts:88',
+          },
+        ],
+      },
+      'specialist-operations': {
+        claims: [
+          { claim: 'the lock has no timeout', severity: 'medium', evidence: 'src/lock.ts:41' },
+        ],
+      },
+    };
+    const verdicts: Record<string, unknown> = {
+      'verify-correctness': { verdict: 'confirmed', reason: 'reproduced against the source' },
+      'verify-security': {
+        verdict: 'refuted',
+        reason: 'the journal stores a redacted hash, src/journal.ts:90',
+      },
+      'verify-operations': { verdict: 'confirmed', reason: 'the acquire call sets no timeout' },
+    };
+    let synthesisPrompt = '';
+    const engine = createTestEngine({
+      agents: {
+        '*': (call: FakeCall) => {
+          const label = call.label ?? '';
+          if (label.startsWith('specialist-')) {
+            return JSON.stringify(reports[label]);
+          }
+          if (label.startsWith('verify-')) {
+            return JSON.stringify(verdicts[label]);
+          }
+          synthesisPrompt = call.prompt;
+          return 'the verified report';
+        },
+      },
+    });
+    const outcome = await engine.run(verifierLane, { task: 'review the engine' }).result;
+    expect(outcome.status).toBe('ok');
+    // One strongest claim per lane met the verifier; the refuted one
+    // is dropped from the confirmed set, with its reason kept.
+    expect(outcome.value?.confirmed.map((entry) => entry.lane).sort()).toEqual([
+      'correctness',
+      'operations',
+    ]);
+    expect(outcome.value?.confirmed.map((entry) => entry.severity)).toContain('high');
+    expect(outcome.value?.refuted).toHaveLength(1);
+    expect(outcome.value?.refuted[0]?.claim).toContain('clear text');
+    expect(outcome.value?.synthesis).toBe('the verified report');
+    // The synthesis prompt builds on the survivors and NAMES the
+    // refutation instead of silently thinning the report.
+    expect(synthesisPrompt).toContain('the release bracket leaks a reserve');
+    expect(synthesisPrompt).toContain('REFUTED');
+    expect(synthesisPrompt).toContain('redacted hash');
+    expect(synthesisPrompt).not.toContain('a comment typo');
+    expect(outcome.cost.totalUsd).toBe(0);
   });
 });
