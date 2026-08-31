@@ -18,6 +18,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+
 ### 1.251.0
 
 #### Patch Changes
@@ -2356,6 +2367,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+
 ### 1.251.0
 
 #### Patch Changes
@@ -4489,6 +4511,32 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.252.0
+
+#### Minor Changes
+
+- 517ed00: The host surface hardens on two seams (RV4803, RV4805). The price table is now
+  SNAPSHOTTED at `createEngine`: pricing resolution used to read the caller's live
+  object on every debit, so a host mutating its table mid-run silently changed
+  what wires cost after the strict gates had judged the original; the clone severs
+  the alias (a rates update is a new engine with a bumped `pricingVersion`), and a
+  table the structured clone cannot take refuses typed at construction. The HTTP
+  shell's `POST /runs` body gains the regulated posture subset of `RunOptions`
+  (`budgetPolicy`, `maxInFlightExposureUsd`, `configFingerprint`, `scope`,
+  `scopePolicy`), so a remote caller can start a run under the immutable lifetime
+  ceiling and the bounded execution scope; authentication, price tables, adapters,
+  stores, and secrets stay with the host process by doctrine and never enter the
+  body.
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
 
 ### 1.251.0
 
@@ -7222,6 +7270,83 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.252.0
+
+#### Minor Changes
+
+- 52d807f: The direct dispatch records what it committed, and announces it (RV4802, RV4806).
+  The dispatch entry's value part now carries `reserveUsd`, the committed clamp of
+  its admission, and a journaled rerun re-admits that RECORDED number instead of
+  re-pricing history: the budgets doctrine (reserves are recovered, never
+  re-estimated) extended to the direct `ctx.agent` path, with the recompute kept as
+  the fallback for journals from before the field. Plain direct dispatches now emit
+  `spawn:admitted` (entryRef is the dispatch entry, additive `reserveUsd`, the
+  recovered re-admission marked `replayed`) and a budget refusal emits
+  `spawn:rejected`, closing the observability asymmetry the ninth experiment
+  surfaced; dispatches tracked by an orchestrating layer (spawn tools, the
+  extension seam, the coordinator) or by a lineage decision keep their single
+  existing announcement. `spawn:admitted` events gain optional `reserveUsd` (the
+  `ctx.workflow` path reports its verdict reserve) and `logicalTaskId` becomes
+  optional (absent on direct budget admissions). The cassette corpus is
+  re-recorded and the frozen-fixture lock refreshed through its ceremony
+  (hashVersion-bump): the dispatch VALUE grew one recorded field while the
+  identity profile and every hash rule stay untouched, so replay identity is
+  unchanged and the re-recorded fixtures are the same scenarios with the committed
+  reserve visible on their dispatch rows.
+- a7e589d: The durable admission bracket hardens on every seam the ninth experiment named
+  (RV4804). The queued wait honors a verdict's `retryAfterMs` verbatim for its
+  next sleep (`pollMs` stays the fallback cadence) and ends with the RUN: the
+  run's cancel signal rides into the wait, so host abort and the deadline stop
+  the polling, cancel the ticket best effort, and hand the run to its own
+  cancellation machinery, where before a cancelled run camped in the queue
+  forever. Renew failures are announced, never fatal: the first failure warns, a
+  verify recover that no longer answers `granted` emits the new
+  `admission:lease-lost` event once (the scheduler expired the grant and may
+  re-admit the capacity while the holder is alive), and the run continues,
+  because the wire quota still gates every dispatch and the settle release is
+  idempotent. The postgres scheduler takes its schema-scoped advisory lock under
+  a `lock_timeout` bound (`lockTimeoutMs`, default 10 seconds, validated typed):
+  a holder that hangs mid-transaction used to block every lifecycle call of the
+  whole fleet forever; past the bound the call refuses with the typed retryable
+  `LeaseHeldError` instead of camping.
+- 76e95eb: The await digest carries the child's tool budget pressure (RV4807). The ninth
+  experiment's durability specialist starved at 30 of 30 tool calls and the
+  coordinator could not see it: the aggregate reached only the synthesis policy
+  facts, so nothing respawned the specialist or accepted the degradation
+  knowingly. `TaskDigest` now folds the REPLAY-STABLE subset of the child's
+  `toolBudget` (`used` and `cap`, the pair the terminal journals; the derived
+  `capHit`, present and true when the executed-call cap was reached, whatever the
+  status says; `extensionsGranted` and `finalizationWindowEntered` from their
+  decision entries); the live-only fidelity fields stay out so a digest folds
+  byte-identically live and resumed, and a child without a tool budget folds byte
+  for byte as before.
+
+#### Patch Changes
+
+- 3ccb6cf: The direct dispatch reserve bracket (RV4801, the ninth experiment P0). Admission of
+  a direct `ctx.agent` commits the allowance clamped reserve, but the settle released
+  the RAW estimate; the chain release floors at zero per account, so one clamped
+  child's settle erased SIBLING reservations on shared ancestor accounts, and
+  projected admission then admitted new spawns against money already promised to live
+  children. The settle now releases exactly the committed clamp, and the release rides
+  a finally spanning admission to settle, so a throw between them (the worktree
+  acquire, the dispatch append, the loop itself) returns the reserve instead of
+  parking it for the rest of the run. Regression tests pin the sibling survival, the
+  throw path, the journaled rerun, and the ledger arithmetic; two mutation probes hold
+  the released amount and the finally placement.
+- 517ed00: The host surface hardens on two seams (RV4803, RV4805). The price table is now
+  SNAPSHOTTED at `createEngine`: pricing resolution used to read the caller's live
+  object on every debit, so a host mutating its table mid-run silently changed
+  what wires cost after the strict gates had judged the original; the clone severs
+  the alias (a rates update is a new engine with a bumped `pricingVersion`), and a
+  table the structured clone cannot take refuses typed at construction. The HTTP
+  shell's `POST /runs` body gains the regulated posture subset of `RunOptions`
+  (`budgetPolicy`, `maxInFlightExposureUsd`, `configFingerprint`, `scope`,
+  `scopePolicy`), so a remote caller can start a run under the immutable lifetime
+  ceiling and the bounded execution scope; authentication, price tables, adapters,
+  stores, and secrets stay with the host process by doctrine and never enter the
+  body.
 
 ### 1.251.0
 
@@ -10202,6 +10327,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/effects
 
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+  - @rulvar/store-conformance@1.252.0
+
 ### 1.251.0
 
 #### Patch Changes
@@ -10244,6 +10381,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/store-conformance@1.250.0
 
 ## eslint-plugin-rulvar
+
+### 1.252.0
 
 ### 1.251.0
 
@@ -10851,6 +10990,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+  - @rulvar/anthropic@1.252.0
+  - @rulvar/openai@1.252.0
+  - @rulvar/plan@1.252.0
+  - @rulvar/testing@1.252.0
 
 ### 1.251.0
 
@@ -13852,6 +14006,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+
 ### 1.251.0
 
 #### Patch Changes
@@ -15396,6 +15561,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
 
 ### 1.251.0
 
@@ -17740,6 +17916,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+
 ### 1.251.0
 
 #### Patch Changes
@@ -19988,6 +20175,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+  - eslint-plugin-rulvar@1.252.0
 
 ### 1.251.0
 
@@ -22445,6 +22644,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+  - @rulvar/anthropic@1.252.0
+  - @rulvar/openai@1.252.0
 
 ### 1.251.0
 
@@ -25240,6 +25452,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+
 ### 1.251.0
 
 #### Patch Changes
@@ -27509,6 +27732,36 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.252.0
+
+#### Minor Changes
+
+- a7e589d: The durable admission bracket hardens on every seam the ninth experiment named
+  (RV4804). The queued wait honors a verdict's `retryAfterMs` verbatim for its
+  next sleep (`pollMs` stays the fallback cadence) and ends with the RUN: the
+  run's cancel signal rides into the wait, so host abort and the deadline stop
+  the polling, cancel the ticket best effort, and hand the run to its own
+  cancellation machinery, where before a cancelled run camped in the queue
+  forever. Renew failures are announced, never fatal: the first failure warns, a
+  verify recover that no longer answers `granted` emits the new
+  `admission:lease-lost` event once (the scheduler expired the grant and may
+  re-admit the capacity while the holder is alive), and the run continues,
+  because the wire quota still gates every dispatch and the settle release is
+  idempotent. The postgres scheduler takes its schema-scoped advisory lock under
+  a `lock_timeout` bound (`lockTimeoutMs`, default 10 seconds, validated typed):
+  a holder that hangs mid-transaction used to block every lifecycle call of the
+  whole fleet forever; past the bound the call refuses with the typed retryable
+  `LeaseHeldError` instead of camping.
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
+
 ### 1.251.0
 
 #### Patch Changes
@@ -29071,6 +29324,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
 
 ### 1.251.0
 
@@ -31265,6 +31529,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.252.0
+
+#### Patch Changes
+
+- Updated dependencies [3ccb6cf]
+- Updated dependencies [52d807f]
+- Updated dependencies [517ed00]
+- Updated dependencies [a7e589d]
+- Updated dependencies [76e95eb]
+  - @rulvar/core@1.252.0
 
 ### 1.251.0
 
