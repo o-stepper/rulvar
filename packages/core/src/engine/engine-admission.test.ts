@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AdmissionRejectedError } from '../l0/errors.js';
+import { admitRunUnit } from '../admission/engine-bracket.js';
 import { MemoryAdmissionScheduler } from '../admission/memory.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from './engine.js';
@@ -152,5 +153,145 @@ describe('the engine admission bracket', () => {
       'op-probe',
     );
     expect(probe.state).toBe('queued');
+  });
+});
+
+describe('the hardened admission bracket (RV4804)', () => {
+  const ticketOf = (unitId: string): import('../l0/spi/admission.js').AdmissionTicket => ({
+    unitId,
+    generation: 'g1',
+    state: 'queued',
+    reservation: { wires: 1 },
+    weight: 1,
+    arrivalSeq: 0,
+    startTag: 0,
+    finishTag: 1,
+    enqueuedAtMs: 0,
+  });
+  function fakeScheduler(
+    overrides: Partial<import('../l0/spi/admission.js').AdmissionScheduler>,
+  ): import('../l0/spi/admission.js').AdmissionScheduler {
+    return {
+      enqueue: () => Promise.resolve({ state: 'granted', ticket: ticketOf('x') }),
+      recover: () => Promise.resolve({ state: 'unknown' }),
+      renew: () => Promise.resolve(),
+      checkpointCover: () => Promise.resolve(),
+      release: () => Promise.resolve(),
+      cancel: () => Promise.resolve(),
+      rebind: () => Promise.resolve({ state: 'denied', reason: 'unused' }),
+      pump: () => Promise.resolve([]),
+      ...overrides,
+    };
+  }
+
+  it('the queued verdict retryAfterMs sets the next sleep, pollMs stays the fallback', async () => {
+    // pollMs is a deliberately absurd 30 s: without honoring the 15 ms
+    // hint the first poll alone would outlast the test. The grant
+    // arrives on the first poll after the hinted sleep.
+    let polls = 0;
+    const sched = fakeScheduler({
+      enqueue: () =>
+        Promise.resolve({ state: 'queued', ticket: ticketOf('r'), position: 1, retryAfterMs: 15 }),
+      recover: (_unit, _generation, opId) => {
+        if (opId.includes(':poll:')) {
+          polls += 1;
+          return Promise.resolve({ state: 'granted', ticket: ticketOf('r') });
+        }
+        return Promise.resolve({ state: 'unknown' });
+      },
+    });
+    const startedAt = Date.now();
+    const teardown = await admitRunUnit(
+      { scheduler: sched, pollMs: 30_000 },
+      { unitId: 'r', generation: 'g1' },
+    );
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
+    expect(polls).toBe(1);
+    await teardown();
+  });
+
+  it('an aborted run stops waiting, cancels its ticket, and settles as a no-op', async () => {
+    const cancels: string[] = [];
+    const releases: string[] = [];
+    const controller = new AbortController();
+    const sched = fakeScheduler({
+      recover: () => Promise.resolve({ state: 'queued', ticket: ticketOf('r'), position: 3 }),
+      cancel: (_unit, _generation, opId) => {
+        cancels.push(opId);
+        return Promise.resolve();
+      },
+      release: (_unit, _generation, _actuals, opId) => {
+        releases.push(opId);
+        return Promise.resolve();
+      },
+    });
+    setTimeout(() => controller.abort('host cancelled'), 20);
+    const teardown = await admitRunUnit(
+      { scheduler: sched, pollMs: 60_000 },
+      { unitId: 'r', generation: 'g1', signal: controller.signal },
+    );
+    expect(cancels).toHaveLength(1);
+    await teardown();
+    // The abandoned wait settles as a no-op: nothing was granted, so
+    // nothing releases.
+    expect(releases).toHaveLength(0);
+  });
+
+  it('renew failures announce once, and the lost lease emits admission:lease-lost once', async () => {
+    const events: Array<{ type: string } & Record<string, unknown>> = [];
+    let renews = 0;
+    const sched = fakeScheduler({
+      renew: () => {
+        renews += 1;
+        return Promise.reject(new Error('lease is gone'));
+      },
+      // The identity recover answers unknown (fresh unit); the verify
+      // recover after a failed renew answers unknown too: the ticket
+      // expired under the holder, which is exactly the lost lease.
+    });
+    const teardown = await admitRunUnit(
+      { scheduler: sched, pollMs: 10, renewMs: 12 },
+      { unitId: 'r', generation: 'g1', telemetry: { emit: (body) => events.push(body) } },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    await teardown();
+    expect(renews).toBeGreaterThanOrEqual(2);
+    const warns = events.filter((event) => event.type === 'log' && event.level === 'warn');
+    // The first failure and the lost lease: announced once each, not
+    // once per tick.
+    expect(warns).toHaveLength(2);
+    const lost = events.filter((event) => event.type === 'admission:lease-lost');
+    expect(lost).toHaveLength(1);
+    expect(lost[0]).toMatchObject({ unitId: 'r', generation: 'g1' });
+  });
+
+  it('a run cancelled while queued settles cancelled instead of polling forever', async () => {
+    const now = { ms: 0 };
+    const sched = scheduler(now, 2);
+    await sched.enqueue(
+      {
+        unitId: 'plug',
+        generation: 'g1',
+        resolvedTenant: 'acme',
+        reservation: { wires: 2 },
+      },
+      'op-plug',
+    );
+    const engine = engineOver(new InMemoryStore(), {
+      scheduler: sched,
+      tenant: 'acme',
+      pollMs: 10,
+    });
+    const handle = engine.run(wf, undefined, {
+      runId: 'ADMIT-CANCEL',
+      deadlineAt: new Date(Date.now() + 120).toISOString(),
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('cancelled');
+    // The queued ticket did not stay camped in the queue.
+    const ticket = Object.values(sched.snapshot().tickets).find(
+      (row) => row.ticket.unitId === 'ADMIT-CANCEL',
+    );
+    expect(ticket?.ticket.state).not.toBe('queued');
   });
 });

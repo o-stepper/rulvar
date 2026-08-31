@@ -250,6 +250,20 @@ A ticket reserves, per level, up to four measures: wires, tokens, dollars, expos
    resume) is the reason bucket keys are trustworthy: without value normalization,
    `Region` and `region` values split one tenant's traffic across two buckets and
    under count both.
+5. The engine bracket's wait and lease seams, hardened (RV4804). The queued wait
+   honors a verdict's `retryAfterMs` verbatim for its next sleep, with `pollMs` as the
+   fallback cadence, and it ends with the RUN: the run's cancel signal (host abort and
+   the deadline both ride it) stops the wait, cancels the ticket best effort, and hands
+   the run to its own cancellation machinery, where before a cancelled run polled the
+   queue forever. Renew failures are announced, never fatal: the first failure warns,
+   a verify `recover` that no longer answers `granted` emits `admission:lease-lost`
+   once (the scheduler expired the grant and may re-admit the capacity while the
+   holder is alive), and the run continues, because item 1 already gates every wire
+   and the settle release is idempotent. On the store side, the postgres scheduler
+   takes its schema-scoped advisory lock under a `lock_timeout` bound
+   (`lockTimeoutMs`, default 10 seconds): a holder that hangs mid-transaction used to
+   block every lifecycle call of the whole fleet forever, and past the bound the call
+   refuses with the typed retryable `LeaseHeldError` instead of camping.
 
 ## 6. Gap analysis: debt the current paths do and do not express
 

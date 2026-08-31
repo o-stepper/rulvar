@@ -92,6 +92,11 @@ type AdaptiveEvents =
   type: "spawn:rejected";
 }
   | {
+  generation: string;
+  type: "admission:lease-lost";
+  unitId: string;
+}
+  | {
   entryRef: number;
   gate: "mechanical" | "judge" | "spot-check";
   logicalTaskId: string;
@@ -357,6 +362,24 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 | `entryRef?` | `number` | The journaled admission decision entry; absent for the pre-admission config gates (orchestrate maxSpawns), which reject before anything is journaled. | `packages/core/dist/index.d.ts` |
 | `logicalTaskId?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `type` | `"spawn:rejected"` | - | `packages/core/dist/index.d.ts` |
+
+***
+
+### Type Literal
+
+```ts
+{
+  generation: string;
+  type: "admission:lease-lost";
+  unitId: string;
+}
+```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `generation` | `string` | - | `packages/core/dist/index.d.ts` |
+| `type` | `"admission:lease-lost"` | The durable admission lease of this run expired under a live holder (RV4804): a renew failed and the scheduler's own answer no longer says `granted`, so the reserved capacity may be re-granted to another run while this one is alive. Announced once per run, never fatal: the wire-level quota still gates every dispatch and the settle release stays idempotent. Environmental telemetry, exactly like the rest of admission: nothing of it is journaled. | `packages/core/dist/index.d.ts` |
+| `unitId` | `string` | - | `packages/core/dist/index.d.ts` |
 
 ***
 

@@ -6,16 +6,17 @@
 
 # Interface: PostgresAdmissionSchedulerOptions
 
-Defined in: [packages/store-postgres/src/admission.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L28)
+Defined in: [packages/store-postgres/src/admission.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L29)
 
 ## Properties
 
-| Property | Type | Defined in |
-| ------ | ------ | ------ |
-| <a id="property-config"></a> `config` | `Omit`\&lt;[`MemoryAdmissionOptions`](/api/@rulvar/rulvar/interfaces/MemoryAdmissionOptions.md), `"state"` \| `"now"`\&gt; | [packages/store-postgres/src/admission.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L32) |
-| <a id="property-max"></a> `max?` | `number` | [packages/store-postgres/src/admission.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L35) |
-| <a id="property-now"></a> `now?` | () => `number` | [packages/store-postgres/src/admission.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L34) |
-| <a id="property-pool"></a> `pool?` | `Pool` | [packages/store-postgres/src/admission.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L30) |
-| <a id="property-schedulerid"></a> `schedulerId?` | `string` | [packages/store-postgres/src/admission.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L33) |
-| <a id="property-schema"></a> `schema?` | `string` | [packages/store-postgres/src/admission.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L31) |
-| <a id="property-url"></a> `url?` | `string` | [packages/store-postgres/src/admission.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L29) |
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-config"></a> `config` | `Omit`\&lt;[`MemoryAdmissionOptions`](/api/@rulvar/rulvar/interfaces/MemoryAdmissionOptions.md), `"state"` \| `"now"`\&gt; | - | [packages/store-postgres/src/admission.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L33) |
+| <a id="property-locktimeoutms"></a> `lockTimeoutMs?` | `number` | Bound on waiting for the schema-scoped advisory lock, in milliseconds (RV4804): a holder that hangs mid-transaction used to block every lifecycle call of the whole fleet forever. Past the bound the call refuses with the typed retryable LeaseHeldError instead of camping; default 10000, and a positive integer is required. | [packages/store-postgres/src/admission.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L45) |
+| <a id="property-max"></a> `max?` | `number` | - | [packages/store-postgres/src/admission.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L36) |
+| <a id="property-now"></a> `now?` | () => `number` | - | [packages/store-postgres/src/admission.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L35) |
+| <a id="property-pool"></a> `pool?` | `Pool` | - | [packages/store-postgres/src/admission.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L31) |
+| <a id="property-schedulerid"></a> `schedulerId?` | `string` | - | [packages/store-postgres/src/admission.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L34) |
+| <a id="property-schema"></a> `schema?` | `string` | - | [packages/store-postgres/src/admission.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L32) |
+| <a id="property-url"></a> `url?` | `string` | - | [packages/store-postgres/src/admission.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L30) |

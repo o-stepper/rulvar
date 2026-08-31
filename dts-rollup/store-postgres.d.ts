@@ -391,6 +391,15 @@ interface PostgresAdmissionSchedulerOptions {
   schedulerId?: string;
   now?: () => number;
   max?: number;
+  /**
+  * Bound on waiting for the schema-scoped advisory lock, in
+  * milliseconds (RV4804): a holder that hangs mid-transaction used to
+  * block every lifecycle call of the whole fleet forever. Past the
+  * bound the call refuses with the typed retryable LeaseHeldError
+  * instead of camping; default 10000, and a positive integer is
+  * required.
+  */
+  lockTimeoutMs?: number;
 }
 declare class PostgresAdmissionScheduler implements AdmissionScheduler {
   private readonly pool;
@@ -399,8 +408,16 @@ declare class PostgresAdmissionScheduler implements AdmissionScheduler {
   private readonly config;
   private readonly schedulerId;
   private readonly now;
+  private readonly lockTimeoutMs;
   private boot;
   constructor(options: PostgresAdmissionSchedulerOptions);
+  /**
+  * Takes the advisory lock under the configured bound (RV4804):
+  * set_config is transaction local, so the timeout dies with the
+  * transaction, and the postgres lock_not_available error (55P03)
+  * maps to the typed retryable LeaseHeldError.
+  */
+  private lockedBy;
   close(): Promise<void>;
   private table;
   private booted;
