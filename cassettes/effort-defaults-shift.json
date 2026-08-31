@@ -233,7 +233,10 @@
       "kind": "agent",
       "status": "running",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:13.000Z"
+      "startedAt": "2026-02-01T00:00:13.000Z",
+      "value": {
+        "reserveUsd": 0.5
+      }
     },
     {
       "hashVersion": 2,

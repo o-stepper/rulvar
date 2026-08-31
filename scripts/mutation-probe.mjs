@@ -6938,6 +6938,16 @@ export const MUTATIONS = [
       '    } finally {\n    }\n    internals.budget.releaseReserve(commitReserveUsd, budgetAccount);',
     test: 'packages/core/src/engine/ctx-reserve-release.test.ts',
   },
+  {
+    id: 'rerun-readmits-the-recorded-reserve',
+    doctrine:
+      'a journaled rerun re-admits the RECORDED committed reserve (RV4802): with the recorded number ignored, recovery re-prices history, a price table or count basis change between crash and resume moves the number the bracket holds, and the budgets doctrine (recovered, never re-estimated) is false on the direct dispatch path',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '    const commitReserveUsd =\n      recordedReserveUsd ??\n      (allowanceHeadroomUsd === undefined ? reserve : Math.min(reserve, allowanceHeadroomUsd));',
+    replace:
+      '    const commitReserveUsd =\n      allowanceHeadroomUsd === undefined ? reserve : Math.min(reserve, allowanceHeadroomUsd);',
+    test: 'packages/core/src/engine/accountseed.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

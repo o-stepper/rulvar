@@ -104,7 +104,10 @@ describe('reruns of journaled invocations re-admit as recovered (RV1505)', () =>
     // 0.0006 USD of the 0.001 USD ceiling; on resume the floor (50
     // output tokens at 10 USD per MTok = 0.0005 USD) no longer fits
     // spent + floor, and only skipping the gate for the journaled
-    // rerun lets the count and the recovered admission proceed.
+    // rerun lets the recovered admission proceed. Since RV4802 the
+    // rerun re-admits the RECORDED reserve of its original dispatch
+    // and never re-counts: the count is priced egress whose result
+    // recovery would discard.
     const crash = { now: true };
     const { make, counted } = storedEngine(
       (call) =>
@@ -140,9 +143,9 @@ describe('reruns of journaled invocations re-admit as recovered (RV1505)', () =>
     expect(resumed.error?.message ?? '').not.toContain('budget ceiling reached');
     expect(resumed.status).toBe('ok');
     expect((resumed.value as { first: string }).first).toBe('ok');
-    // The rerun still priced its recovered reserve through the count;
-    // only the refusal arm is out of its way.
-    expect(counted.length).toBeGreaterThan(countsBefore);
+    // The rerun re-admitted the recorded reserve without re-counting
+    // (RV4802): the count total stands where segment 1 left it.
+    expect(counted.length).toBe(countsBefore);
     expect(adapter.calls).toHaveLength(1);
   });
 });
@@ -196,5 +199,62 @@ describe('re-opened sub-accounts seed their settled spend (RV1505)', () => {
     expect(resumed.error?.message ?? '').toContain('budget ceiling reached on account');
     expect(resumed.error?.message ?? '').toContain('kid');
     expect(adapter.calls).toHaveLength(0);
+  });
+});
+
+describe('the direct dispatch reserve is recovered, never re-estimated (RV4802)', () => {
+  it('a rerun re-admits the recorded number under a changed estimate basis', async () => {
+    // Segment 1 prices the reserve through countTokens at 100k input
+    // tokens: 0.1 USD input plus the 4096-token output allowance at 10
+    // USD per MTok, about 0.141 USD, recorded on the dispatch entry.
+    // Before the resume the count basis inflates to 2M tokens (a
+    // re-estimate would commit about 2.04 USD). The rerun re-admits
+    // the RECORDED number and never re-counts: the committed trail's
+    // peak on resume stays an order of magnitude under the recompute,
+    // and the count total stands where segment 1 left it.
+    const crash = { now: true };
+    const counts = { value: 100_000 };
+    const { make, counted } = storedEngine(
+      (call) =>
+        call === 0 && crash.now
+          ? {
+              usage: { inputTokens: 100, outputTokens: 0 },
+              error: { code: 'server', message: 'upstream fault', retryable: false },
+            }
+          : { text: 'ok', usage: { inputTokens: 10, outputTokens: 5 } },
+      () => counts.value,
+    );
+    const wf = defineWorkflow({ name: 'recorded' }, async (ctx) => {
+      return ctx.agent('probe');
+    });
+
+    const first = await make().engine.run(wf, undefined, {
+      runId: 'RECORDED-RESERVE',
+      budgetUsd: 10,
+    }).result;
+    expect(first.status).toBe('error');
+    const countsBefore = counted.length;
+
+    counts.value = 2_000_000;
+    crash.now = false;
+    const handle = make().engine.resume('RECORDED-RESERVE', wf);
+    const trail: number[] = [];
+    const drain = (async () => {
+      for await (const event of handle.events) {
+        if (event.type === 'budget:update') {
+          trail.push((event as { committedReserveUsd: number }).committedReserveUsd);
+        }
+      }
+    })();
+    const resumed = await handle.result;
+    await drain;
+    expect(resumed.status).toBe('ok');
+    // Exactly the recorded 0.14096 (0.1 USD of counted input plus the
+    // 0.04096 USD output allowance): not the 2.04 recompute, and not
+    // the flat fallback a skipped count would admit if the recorded
+    // number were ignored.
+    const peak = Math.max(...trail);
+    expect(peak).toBeCloseTo(0.14096, 4);
+    expect(counted.length).toBe(countsBefore);
   });
 });

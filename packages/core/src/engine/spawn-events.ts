@@ -20,9 +20,12 @@ export function emitSpawnAdmitted(
     entryRef: number;
     verdict: 'admit' | 'reuse_full' | 'admit_graft';
     agentType: string;
-    logicalTaskId: string;
+    /** Absent on direct ctx.agent budget admissions (RV4806). */
+    logicalTaskId?: string;
     /** Absent on lineage-layer admissions (ctx.agent roots). */
     spawnUnitsAfter?: number;
+    /** The committed reserve of the admission, when it commits one (RV4806). */
+    reserveUsd?: number;
     spanId: string;
     replayed?: boolean;
   },
@@ -33,8 +36,9 @@ export function emitSpawnAdmitted(
       entryRef: input.entryRef,
       verdict: input.verdict,
       agentType: input.agentType,
-      logicalTaskId: input.logicalTaskId,
+      ...(input.logicalTaskId === undefined ? {} : { logicalTaskId: input.logicalTaskId }),
       ...(input.spawnUnitsAfter === undefined ? {} : { spawnUnitsAfter: input.spawnUnitsAfter }),
+      ...(input.reserveUsd === undefined ? {} : { reserveUsd: input.reserveUsd }),
     },
     input.spanId,
     input.replayed,
