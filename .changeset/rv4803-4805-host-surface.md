@@ -1,6 +1,6 @@
 ---
 '@rulvar/core': patch
-'@rulvar/cli': patch
+'@rulvar/cli': minor
 ---
 
 The host surface hardens on two seams (RV4803, RV4805). The price table is now

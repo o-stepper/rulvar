@@ -1,5 +1,5 @@
 ---
-'@rulvar/core': patch
+'@rulvar/core': minor
 ---
 
 The await digest carries the child's tool budget pressure (RV4807). The ninth
