@@ -10,7 +10,7 @@
 const DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN: 50000 = 50_000;
 ```
 
-Defined in: [packages/cli/src/server.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L156)
+Defined in: [packages/cli/src/server.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L158)
 
 The default per-run replay-buffer bound (RV409): generous enough
 that any ordinary run keeps its full replay (lifecycle events number

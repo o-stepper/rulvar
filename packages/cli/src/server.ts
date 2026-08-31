@@ -44,6 +44,7 @@ import {
   validateDetachedResolution,
   type CostReport,
   type Engine,
+  type ExecutionScope,
   type JournalEntry,
   type JournalStore,
   type Json,
@@ -55,6 +56,7 @@ import {
   type RunMeta,
   type RunOptions,
   type RunOutcome,
+  type ScopePolicy,
   type Usage,
   type WireError,
   type Workflow,
@@ -159,7 +161,17 @@ export interface RulvarServer {
   fetch(req: Request): Promise<Response>;
 }
 
-/** POST /runs request body. */
+/**
+ * POST /runs request body. The options mirror the per-run subset of
+ * RunOptions a REMOTE caller may legitimately set (RV4805): identity,
+ * money bounds, deadline, the regulated posture fields (budgetPolicy,
+ * maxInFlightExposureUsd, configFingerprint, scope, scopePolicy). What
+ * stays with the HOST process by doctrine and never enters this body:
+ * authentication (out of scope for the embedded server), price tables,
+ * adapters, stores, redaction patterns, and secrets; those are
+ * createEngine configuration, owned by the process that constructed
+ * the engine.
+ */
 interface StartRunBody {
   workflow?: string;
   args?: Json;
@@ -169,6 +181,16 @@ interface StartRunBody {
     name?: string;
     tags?: string[];
     deadlineAt?: string;
+    /** 'immutable-lifetime' pins the genesis budget across every resume. */
+    budgetPolicy?: 'segment' | 'immutable-lifetime';
+    /** The opt-in in-flight exposure cap in USD (RV711/RV1902). */
+    maxInFlightExposureUsd?: number;
+    /** The caller's config identity, asserted against resume drift. */
+    configFingerprint?: string;
+    /** The bounded execution scope recorded at genesis (RV4007). */
+    scope?: ExecutionScope;
+    /** Unknown scope fields 'drop' or 'reject', plus normalization. */
+    scopePolicy?: ScopePolicy;
   };
 }
 
@@ -510,6 +532,17 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       ...(body.options?.name === undefined ? {} : { name: body.options.name }),
       ...(body.options?.tags === undefined ? {} : { tags: body.options.tags }),
       ...(body.options?.deadlineAt === undefined ? {} : { deadlineAt: body.options.deadlineAt }),
+      ...(body.options?.budgetPolicy === undefined
+        ? {}
+        : { budgetPolicy: body.options.budgetPolicy }),
+      ...(body.options?.maxInFlightExposureUsd === undefined
+        ? {}
+        : { maxInFlightExposureUsd: body.options.maxInFlightExposureUsd }),
+      ...(body.options?.configFingerprint === undefined
+        ? {}
+        : { configFingerprint: body.options.configFingerprint }),
+      ...(body.options?.scope === undefined ? {} : { scope: body.options.scope }),
+      ...(body.options?.scopePolicy === undefined ? {} : { scopePolicy: body.options.scopePolicy }),
     };
     const handle = engine.run(
       workflow as unknown as Workflow<unknown, unknown>,

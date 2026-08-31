@@ -15,6 +15,7 @@ import {
   defineWorkflow,
   EVENT_SEGMENT_STRIDE,
   normalizeEntry,
+  readRunMeta,
   RUN_SETTLE_DECISION_TYPE,
   tool,
   type Engine,
@@ -1326,4 +1327,53 @@ describe('offline resolution picks the validator by flavor (RV1408)', () => {
     expect(resolved.status).toBe(200);
     expect(await bodyOf(resolved)).toMatchObject({ applied: true, resumed: false });
   }, 15_000);
+});
+
+describe('regulated posture through POST /runs (RV4805)', () => {
+  it('carries the regulated RunOptions subset into the run and its recorded meta', async () => {
+    const { server, engine } = assemble();
+    const started = await post(server, '/runs', {
+      workflow: 'yieldy',
+      args: { events: 1 },
+      options: {
+        budgetUsd: 5,
+        budgetPolicy: 'immutable-lifetime',
+        maxInFlightExposureUsd: 4,
+        configFingerprint: 'posture-v1',
+        scope: { tenant: 'acme', project: 'trial' },
+        scopePolicy: { unknown: 'reject' },
+      },
+    });
+    expect(started.status).toBe(201);
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    await untilStatus(server, runId, 'ok');
+    // The posture landed durably: genesis meta records the immutable
+    // ceiling policy and the bounded scope (RV4007/RV3902); what stays
+    // with the host (pricing, stores, auth) never rode the body.
+    const meta = await readRunMeta(engine.stores.journal, runId);
+    expect(meta).toMatchObject({
+      budgetUsd: 5,
+      budgetPolicy: 'immutable-lifetime',
+      scope: { tenant: 'acme', project: 'trial' },
+    });
+  });
+
+  it('a malformed regulated option refuses as the typed 400 before any run exists', async () => {
+    const { server } = assemble();
+    const bad = await post(server, '/runs', {
+      workflow: 'yieldy',
+      args: { events: 1 },
+      options: { budgetPolicy: 'lifetime' },
+    });
+    expect(bad.status).toBe(400);
+    expect(JSON.stringify(await bodyOf(bad))).toContain('budgetPolicy');
+
+    const badExposure = await post(server, '/runs', {
+      workflow: 'yieldy',
+      args: { events: 1 },
+      options: { maxInFlightExposureUsd: -1 },
+    });
+    expect(badExposure.status).toBe(400);
+    expect(JSON.stringify(await bodyOf(badExposure))).toContain('maxInFlightExposureUsd');
+  });
 });

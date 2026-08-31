@@ -1627,6 +1627,22 @@ function quiescenceWatchdogUnregister(force: () => void): void {
 
 export function createEngine(options: CreateEngineOptions): Engine {
   const adapters = buildAdapterRegistry(options.adapters);
+  // The price table is SNAPSHOTTED at construction (RV4803): pricing
+  // resolution used to read the caller's live object on every debit,
+  // so a host mutating its table mid-run silently changed what wires
+  // cost after the strict gates had judged the original. The clone
+  // severs the alias: a rates update is a new engine with a bumped
+  // pricingVersion, never a mutation of a running one.
+  let pricing: PriceTable | undefined;
+  if (options.pricing !== undefined) {
+    try {
+      pricing = structuredClone(options.pricing);
+    } catch {
+      throw new ConfigError(
+        'createEngine pricing must be plain data: the table is snapshotted at construction (RV4803)',
+      );
+    }
+  }
   const rawJournal = options.stores?.journal ?? new InMemoryStore();
   const rawTranscripts = options.stores?.transcripts ?? new InMemoryTranscriptStore();
   // The serialization hook wraps the stores, so stored bytes and every
@@ -1842,7 +1858,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
   // the model as unpriced, never a silent zero.
   const pricingOf = (servedBy: ModelRef): Pricing | undefined => {
     const { adapterId, model } = parseModelRef(servedBy);
-    return resolvePricing(servedBy, options.pricing, adapters.get(adapterId)?.caps(model).pricing);
+    return resolvePricing(servedBy, pricing, adapters.get(adapterId)?.caps(model).pricing);
   };
 
   const priceUsd = (servedBy: ModelRef | undefined, usage: Usage): number | undefined => {
@@ -2382,7 +2398,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       semaphore: new Semaphore(options.concurrency?.perRun ?? DEFAULT_PER_RUN_CONCURRENCY),
       providerLimiter,
       ...(quotaRuntime === undefined ? {} : { quota: quotaRuntime }),
-      ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
+      ...(pricing === undefined ? {} : { pricingVersion: pricing.pricingVersion }),
       ...(options.budgetDefaults?.flatReserveUsd === undefined
         ? {}
         : { flatReserveUsd: options.budgetDefaults.flatReserveUsd }),
@@ -3198,7 +3214,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           // pin exactly that). Under the opt-in, table-missing models
           // that resolved through caps are part of the applied set.
           const appliedPricing =
-            options.pricing === undefined
+            pricing === undefined
               ? undefined
               : snapshotJournalPricing(replayer.snapshot(), pricingOf);
           try {
@@ -3224,11 +3240,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
                 // never overwrites the live baseline.
                 ...(semanticFacts === undefined ? {} : semanticFacts),
                 ...(lifted === undefined ? {} : lifted),
-                ...(appliedPricing === undefined || options.pricing === undefined
+                ...(appliedPricing === undefined || pricing === undefined
                   ? {}
                   : {
                       pricing: appliedPricing as unknown as Json,
-                      pricingVersion: options.pricing.pricingVersion,
+                      pricingVersion: pricing.pricingVersion,
                     }),
               },
             });
