@@ -1,6 +1,6 @@
 ---
-'@rulvar/core': patch
-'@rulvar/store-postgres': patch
+'@rulvar/core': minor
+'@rulvar/store-postgres': minor
 ---
 
 The durable admission bracket hardens on every seam the ninth experiment named

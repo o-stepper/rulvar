@@ -1,5 +1,5 @@
 ---
-'@rulvar/core': patch
+'@rulvar/core': minor
 ---
 
 The direct dispatch records what it committed, and announces it (RV4802, RV4806).
