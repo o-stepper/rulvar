@@ -1,11 +1,11 @@
 ---
 title: Example patterns
-description: The four quality-pattern recipes shipped in the repository, adversarial panel, judge panel, loop-until-dry, and completeness critic, as runnable workflows over the public ctx API.
+description: The five quality-pattern recipes shipped in the repository, adversarial panel, judge panel, loop-until-dry, completeness critic, and verifier lane, as runnable workflows over the public ctx API.
 ---
 
 # Example patterns
 
-Four quality-pattern recipes live in [`examples/src`](https://github.com/o-stepper/rulvar/tree/main/examples/src) inside the repository. Each one is a real `defineWorkflow`, not a snippet, and each doubles as an integration test that runs through the full engine on `FakeAdapter` with zero live calls.
+Five quality-pattern recipes live in [`examples/src`](https://github.com/o-stepper/rulvar/tree/main/examples/src) inside the repository. Each one is a real `defineWorkflow`, not a snippet, and each doubles as an integration test that runs through the full engine on `FakeAdapter` with zero live calls.
 
 The patterns are **recipes, never engine flags**. Rulvar ships no "adversarial" mode, no "judge" mode, no "loop" mode, no "critic" mode. Every pattern below is ordinary prompt-shaped composition over the same `ctx` primitives you already know from [Workflows](/guide/workflows): `ctx.agent`, `ctx.parallel`, `ctx.phase`. That is deliberate. Because the patterns are plain code, they journal, replay, and budget exactly like everything else, and you can bend them to your problem without waiting for a framework release.
 
@@ -15,6 +15,7 @@ The patterns are **recipes, never engine flags**. Rulvar ships no "adversarial" 
 | Judge panel | Several approaches are viable and you want the best one | N attempts from different angles, each scored; the top wins |
 | Loop-until-dry | The work has unknown size (bugs, edge cases, missing items) | Keep finding until K consecutive empty rounds |
 | Completeness critic | A draft is easy but gaps are the failure mode | Draft, then "what is missing?" drives revision passes |
+| Verifier lane | The synthesis will repeat the strongest claims the loudest, and a wrong strong claim is the expensive one | Each lane's strongest claims meet a refuting verifier before synthesis; survivors build the report |
 
 ::: tip Run the examples
 The examples package is private and not published; it exists as the teaching and integration-test corpus. Run it from a repository clone:
@@ -226,6 +227,87 @@ export const completenessCritic = defineWorkflow(
 The critic returns structured gaps, and the revision prompt receives exactly those gaps. Nothing is lost in paraphrase between the two calls, because the handoff is code.
 
 **Journal and budget.** Each stage runs inside its own `ctx.phase`, and phases are structural for cost attribution: `CostReport.byPhase` reads `draft`, `critique`, and `revise` as separate buckets, so you can see at a glance whether revisions are eating the budget. The journal records the stages sequentially, and a resume mid-revision replays the draft and every completed critique without paying for them again.
+
+## Verifier lane
+
+A synthesis repeats its specialists' strongest claims the loudest, so a wrong strong claim is the expensive one: it survives condensation, lands in the final report, and drives the decision the report exists for. The verifier lane screens exactly those claims before the synthesis can amplify them. Plain code picks each specialist's strongest claims (severity order, then report order; no agent decides what gets checked), a separate verifier receives every picked claim with a mandate to **refute it against the cited sources**, and the synthesis builds only on the survivors while naming what fell.
+
+```mermaid
+flowchart LR
+    S1[specialists] -->|strongest claims| V[refuting verifier]
+    V -->|confirmed| Syn[synthesis]
+    V -->|refuted, with reasons| Syn
+```
+
+Condensed from [`verifier-lane.ts`](https://github.com/o-stepper/rulvar/blob/main/examples/src/verifier-lane.ts):
+
+```ts
+const verdictSchema = z.strictObject({
+  verdict: z.enum(['confirmed', 'refuted']),
+  reason: z.string(),
+});
+
+const SEVERITY_RANK = { high: 0, medium: 1, low: 2 } as const;
+
+export const verifierLane = defineWorkflow(
+  { name: 'verifier-lane' },
+  async (ctx: Ctx, args: VerifierLaneArgs) => {
+    const lanes = args.lanes ?? ['correctness', 'security', 'operations'];
+    const reports = await ctx.parallel(
+      lanes.map((lane) => async () => ({
+        lane,
+        claims: (
+          await ctx.agent(
+            `You are the ${lane} specialist. Report your claims on: ${args.task}. ` +
+              `Cite the source for every claim in its evidence field.`,
+            { schema: reportSchema, label: `specialist-${lane}` },
+          )
+        ).claims,
+      })),
+    );
+    // Plain code picks what gets checked: severity order, then report order.
+    const picked = reports.flatMap(({ lane, claims }) =>
+      [...claims]
+        .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
+        .slice(0, args.strongestPerLane ?? 1)
+        .map((entry) => ({ lane, ...entry })),
+    );
+    const verified = await ctx.parallel(
+      picked.map((finding) => async () => {
+        const verifyOpts = { schema: verdictSchema, label: `verify-${finding.lane}` };
+        const ruled = await ctx.agent(
+          `You are the verifier. Try to REFUTE this ${finding.lane} claim against the ` +
+            `cited sources before it reaches the synthesis; confirm only what survives ` +
+            `your best attempt to break it.\n\nClaim: ${finding.claim}\n` +
+            `Evidence: ${finding.evidence}`,
+          args.verifierModel === undefined
+            ? verifyOpts
+            : { ...verifyOpts, model: args.verifierModel },
+        );
+        return { ...finding, verdict: ruled.verdict, reason: ruled.reason };
+      }),
+    );
+    const confirmed = verified.filter((entry) => entry.verdict === 'confirmed');
+    const refuted = verified.filter((entry) => entry.verdict === 'refuted');
+    const synthesis = String(
+      await ctx.agent(
+        `Synthesize the final report for "${args.task}" from the CONFIRMED claims ` +
+          `only:\n${JSON.stringify(confirmed)}\n\nThese claims were checked and ` +
+          `REFUTED; do not assert them, name them as dropped:\n` +
+          `${JSON.stringify(refuted.map(({ claim, reason }) => ({ claim, reason })))}`,
+        { label: 'synthesis' },
+      ),
+    );
+    return { task: args.task, synthesis, confirmed, refuted };
+  },
+);
+```
+
+Pin the verifier to a **stronger model than the specialists**: the per-call `model` option (the recipe's `verifierModel`), an agent profile, or a role quality floor in engine config, see [Model routing](/guide/model-routing). The lane exists because a claim that got past one model needs a better skeptic, not another believer; run the verifier at the specialists' own strength and the screening mostly measures agreement. The refute mandate lives in the prompt with the cited evidence beside it, so the verifier reads sources, not vibes, and the refuted claims still reach the synthesis prompt as named refutations: the screening is visible in the artifact, never a silent thinning.
+
+Where the [adversarial panel](#adversarial-panel) votes N skeptics on ONE claim, the verifier lane screens MANY claims once each, so its cost scales with `lanes` times `strongestPerLane`, without a vote multiplier. The patterns compose: when one surviving claim is important enough for a jury, hand it to the panel afterwards.
+
+**Journal and budget.** Specialists, verifier calls, and the synthesis are ordinary journaled invocations: each verifier call runs in its own parallel branch, a flake in one never poisons the others, and on resume the settled verdicts replay from the journal while only the interrupted call runs live. `CostReport.byModel` splits specialist spend from verifier spend whenever the verifier runs on its own stronger model, which is also the honest way to see what the screening costs.
 
 ## Test them like the repository does
 
