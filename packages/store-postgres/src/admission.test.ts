@@ -107,3 +107,51 @@ describeDb('admission conformance (postgres)', () => {
     },
   );
 });
+
+describe('the advisory lock bound (RV4804)', () => {
+  it('a malformed lockTimeoutMs refuses typed at construction', () => {
+    expect(
+      () =>
+        new PostgresAdmissionScheduler({
+          url: 'postgres://unused',
+          config: CONFIG,
+          lockTimeoutMs: 0,
+        }),
+    ).toThrow('lockTimeoutMs');
+  });
+});
+
+describeDb('the advisory lock bound over a live schema (RV4804)', () => {
+  it('a held scheduler lock refuses typed and retryable past lockTimeoutMs', async () => {
+    // A holder that hangs mid-transaction used to block every
+    // lifecycle call of the whole fleet forever; the bound turns the
+    // camp into the typed retryable LeaseHeldError.
+    const schema = `rulvar_admlk_${SUITE_ID}`;
+    schemas.push(schema);
+    const sched = new PostgresAdmissionScheduler({
+      url: url ?? '',
+      schema,
+      config: CONFIG,
+      lockTimeoutMs: 200,
+      now: () => 0,
+    });
+    expect((await sched.enqueue(request('warm'), 'op-warm')).state).toBe('granted');
+    const pool = new pg.Pool({ connectionString: url, max: 1 });
+    const client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, $2))', [
+      `rulvar-adm:${schema}:default`,
+      0x52_55_4c_41,
+    ]);
+    try {
+      await expect(sched.recover('warm', 'g1', 'op-blocked')).rejects.toMatchObject({
+        code: 'lease_held',
+      });
+    } finally {
+      await client.query('ROLLBACK');
+      client.release();
+      await pool.end();
+      await sched.close();
+    }
+  }, 15_000);
+});

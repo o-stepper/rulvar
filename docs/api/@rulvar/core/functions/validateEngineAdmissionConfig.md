@@ -10,7 +10,7 @@
 function validateEngineAdmissionConfig(config): void;
 ```
 
-Defined in: [packages/core/src/admission/engine-bracket.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/engine-bracket.ts#L46)
+Defined in: [packages/core/src/admission/engine-bracket.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/engine-bracket.ts#L56)
 
 ## Parameters
 

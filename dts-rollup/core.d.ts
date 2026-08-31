@@ -2813,6 +2813,20 @@ type AdaptiveEvents = {
   agentType: string;
   logicalTaskId?: string;
 } | {
+  /**
+  * The durable admission lease of this run expired under a live
+  * holder (RV4804): a renew failed and the scheduler's own answer
+  * no longer says `granted`, so the reserved capacity may be
+  * re-granted to another run while this one is alive. Announced
+  * once per run, never fatal: the wire-level quota still gates
+  * every dispatch and the settle release stays idempotent.
+  * Environmental telemetry, exactly like the rest of admission:
+  * nothing of it is journaled.
+  */
+  type: "admission:lease-lost";
+  unitId: string;
+  generation: string;
+} | {
   type: "verify:failed";
   entryRef: number;
   logicalTaskId: string;
@@ -8675,11 +8689,29 @@ interface AdmitRunUnitInput {
   scope?: AdmissionScopeDimensions;
   resolvedTenant?: string;
   tenantFromScope?: boolean;
+  /**
+  * The run's cancel signal (RV4804): host abort and the run deadline
+  * both ride it (requestCancel), so an abort while queued ends the
+  * wait instead of polling a dead run's ticket forever.
+  */
+  signal?: AbortSignal;
+  /**
+  * The run's event sink (RV4804): renew failures and a lost lease are
+  * environmental facts worth announcing; absent, the bracket stays
+  * silent exactly as before.
+  */
+  telemetry?: {
+    emit(body: {
+      type: string;
+    } & Record<string, unknown>): void;
+  };
 }
 /**
-* Admits one run unit: resolves when the ticket is granted, throws the
-* typed AdmissionRejectedError on the terminal denied verdict, and
-* returns the settle teardown (clear the renew timer, release).
+* Admits one run unit: resolves when the ticket is granted (or when
+* the run signal aborts, after cancelling the ticket best effort),
+* throws the typed AdmissionRejectedError on the terminal denied
+* verdict, and returns the settle teardown (clear the renew timer,
+* release).
 */
 declare function admitRunUnit(config: EngineAdmissionConfig, unit: AdmitRunUnitInput): Promise<() => Promise<void>>;
 //#endregion

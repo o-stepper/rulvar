@@ -6,7 +6,7 @@
 
 # Class: PostgresAdmissionScheduler
 
-Defined in: [packages/store-postgres/src/admission.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L38)
+Defined in: [packages/store-postgres/src/admission.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L48)
 
 ## Implements
 
@@ -20,7 +20,7 @@ Defined in: [packages/store-postgres/src/admission.ts:38](https://github.com/o-s
 new PostgresAdmissionScheduler(options): PostgresAdmissionScheduler;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L47)
+Defined in: [packages/store-postgres/src/admission.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L58)
 
 #### Parameters
 
@@ -43,7 +43,7 @@ cancel(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L176)
+Defined in: [packages/store-postgres/src/admission.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L216)
 
 Cancels a queued ticket (nothing to refund); granted ones release.
 
@@ -75,7 +75,7 @@ checkpointCover(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L158)
+Defined in: [packages/store-postgres/src/admission.ts:198](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L198)
 
 Durably checkpoints a consumption cover BEFORE the covered batch
 (the intent-before-effect doctrine applied to capacity): monotone
@@ -108,7 +108,7 @@ conservative expiry refund provable rather than optimistic.
 close(): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L65)
+Defined in: [packages/store-postgres/src/admission.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L111)
 
 #### Returns
 
@@ -122,7 +122,7 @@ Defined in: [packages/store-postgres/src/admission.ts:65](https://github.com/o-s
 enqueue(request, opId): Promise<AdmissionTicketDecision>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L146)
+Defined in: [packages/store-postgres/src/admission.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L186)
 
 Conditional create by `(unitId, generation)` plus immediate grant
 when every matched level admits; `opId` makes retries idempotent.
@@ -150,7 +150,7 @@ when every matched level admits; `opId` makes retries idempotent.
 pump(opId): Promise<AdmissionTicket[]>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L189)
+Defined in: [packages/store-postgres/src/admission.ts:229](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L229)
 
 Advances the scheduler: expires stale leases (conservative
 settlement), then grants queued tickets in SFQ order while every
@@ -182,7 +182,7 @@ rebind(
 opId): Promise<AdmissionTicketDecision>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L180)
+Defined in: [packages/store-postgres/src/admission.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L220)
 
 The failover transfer (RFC section 4.2, item 4): atomically
 acquires the TARGET hierarchy's capacity and level-2 slot and
@@ -220,7 +220,7 @@ recover(
 opId): Promise<AdmissionRecovery>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L150)
+Defined in: [packages/store-postgres/src/admission.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L190)
 
 The resumed unit's recovery: `granted` renews the lease, a queued
 ticket reports its surviving position, and `unknown` means
@@ -254,7 +254,7 @@ release(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L167)
+Defined in: [packages/store-postgres/src/admission.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L207)
 
 Release with actuals: the unused remainder refunds to each level,
 over-consumption beyond the reservation lands as bucket debt (it
@@ -289,7 +289,7 @@ renew(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/store-postgres/src/admission.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L154)
+Defined in: [packages/store-postgres/src/admission.ts:194](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/admission.ts#L194)
 
 Renews a granted ticket's lease; unknown tickets are no-ops.
 

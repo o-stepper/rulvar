@@ -92,6 +92,11 @@ type AdaptiveEvents =
   type: "spawn:rejected";
 }
   | {
+  generation: string;
+  type: "admission:lease-lost";
+  unitId: string;
+}
+  | {
   entryRef: number;
   gate: "mechanical" | "judge" | "spot-check";
   logicalTaskId: string;
@@ -372,6 +377,24 @@ facts of the ONE journaled acceptance decision.
 
 ```ts
 {
+  generation: string;
+  type: "admission:lease-lost";
+  unitId: string;
+}
+```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `generation` | `string` | - | [packages/core/src/l0/events.ts:751](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L751) |
+| `type` | `"admission:lease-lost"` | The durable admission lease of this run expired under a live holder (RV4804): a renew failed and the scheduler's own answer no longer says `granted`, so the reserved capacity may be re-granted to another run while this one is alive. Announced once per run, never fatal: the wire-level quota still gates every dispatch and the settle release stays idempotent. Environmental telemetry, exactly like the rest of admission: nothing of it is journaled. | [packages/core/src/l0/events.ts:749](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L749) |
+| `unitId` | `string` | - | [packages/core/src/l0/events.ts:750](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L750) |
+
+***
+
+### Type Literal
+
+```ts
+{
   entryRef: number;
   gate: "mechanical" | "judge" | "spot-check";
   logicalTaskId: string;
@@ -503,7 +526,7 @@ facts of the ONE journaled acceptance decision.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `code` | `"HASH_VERSION_TOO_OLD"` \| `"HASH_VERSION_TOO_NEW"` | - | [packages/core/src/l0/events.ts:771](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L771) |
-| `found` | `number` | - | [packages/core/src/l0/events.ts:772](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L772) |
-| `type` | `"journal:compat"` | Declared for hosts; not emitted today. The compatibility scan runs strictly before a run's event stream exists, so the refusal travels only as the typed JournalCompatibilityError (which carries the same fields). | [packages/core/src/l0/events.ts:770](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L770) |
-| `window` | \[`number`, `number`\] | - | [packages/core/src/l0/events.ts:773](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L773) |
+| `code` | `"HASH_VERSION_TOO_OLD"` \| `"HASH_VERSION_TOO_NEW"` | - | [packages/core/src/l0/events.ts:786](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L786) |
+| `found` | `number` | - | [packages/core/src/l0/events.ts:787](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L787) |
+| `type` | `"journal:compat"` | Declared for hosts; not emitted today. The compatibility scan runs strictly before a run's event stream exists, so the refusal travels only as the typed JournalCompatibilityError (which carries the same fields). | [packages/core/src/l0/events.ts:785](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L785) |
+| `window` | \[`number`, `number`\] | - | [packages/core/src/l0/events.ts:788](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L788) |

@@ -12,9 +12,11 @@ function admitRunUnit(config, unit): Promise<() => Promise<void>>;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Admits one run unit: resolves when the ticket is granted, throws the
-typed AdmissionRejectedError on the terminal denied verdict, and
-returns the settle teardown (clear the renew timer, release).
+Admits one run unit: resolves when the ticket is granted (or when
+the run signal aborts, after cancelling the ticket best effort),
+throws the typed AdmissionRejectedError on the terminal denied
+verdict, and returns the settle teardown (clear the renew timer,
+release).
 
 ## Parameters
 

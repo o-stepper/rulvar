@@ -2575,6 +2575,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
         admissionTeardown = await admitRunUnit(admissionRuntime, {
           unitId: runId,
           generation: typeof genesis === 'string' ? genesis : runId,
+          // The run's cancel signal rides into the queued wait
+          // (RV4804): host abort and the deadline both requestCancel,
+          // so a cancelled run stops polling and its ticket cancels
+          // instead of camping in the queue; the run then settles
+          // through its own cancellation machinery.
+          signal: controller.signal,
+          telemetry: {
+            emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId),
+          },
           ...(executionScope === undefined ? {} : { scope: executionScope }),
           ...((quotaRuntime?.tenantFrom ?? admissionRuntime.tenantFrom) === 'scope'
             ? {

@@ -11,6 +11,7 @@ import pg from 'pg';
 
 import {
   ConfigError,
+  LeaseHeldError,
   MemoryAdmissionScheduler,
   type AdmissionRecovery,
   type AdmissionRequest,
@@ -33,6 +34,15 @@ export interface PostgresAdmissionSchedulerOptions {
   schedulerId?: string;
   now?: () => number;
   max?: number;
+  /**
+   * Bound on waiting for the schema-scoped advisory lock, in
+   * milliseconds (RV4804): a holder that hangs mid-transaction used to
+   * block every lifecycle call of the whole fleet forever. Past the
+   * bound the call refuses with the typed retryable LeaseHeldError
+   * instead of camping; default 10000, and a positive integer is
+   * required.
+   */
+  lockTimeoutMs?: number;
 }
 
 export class PostgresAdmissionScheduler implements AdmissionScheduler {
@@ -42,6 +52,7 @@ export class PostgresAdmissionScheduler implements AdmissionScheduler {
   private readonly config: Omit<MemoryAdmissionOptions, 'state' | 'now'>;
   private readonly schedulerId: string;
   private readonly now: () => number;
+  private readonly lockTimeoutMs: number;
   private boot: Promise<void> | undefined;
 
   constructor(options: PostgresAdmissionSchedulerOptions) {
@@ -60,6 +71,41 @@ export class PostgresAdmissionScheduler implements AdmissionScheduler {
     this.config = options.config;
     this.schedulerId = options.schedulerId ?? 'default';
     this.now = options.now ?? wallClock;
+    const lockTimeoutMs = options.lockTimeoutMs ?? 10_000;
+    if (!Number.isInteger(lockTimeoutMs) || lockTimeoutMs <= 0) {
+      throw new ConfigError(
+        'PostgresAdmissionScheduler lockTimeoutMs must be a positive integer of milliseconds',
+      );
+    }
+    this.lockTimeoutMs = lockTimeoutMs;
+  }
+
+  /**
+   * Takes the advisory lock under the configured bound (RV4804):
+   * set_config is transaction local, so the timeout dies with the
+   * transaction, and the postgres lock_not_available error (55P03)
+   * maps to the typed retryable LeaseHeldError.
+   */
+  private async lockedBy(client: pg.PoolClient, key: string): Promise<void> {
+    await client.query("SELECT set_config('lock_timeout', $1, true)", [
+      `${String(this.lockTimeoutMs)}ms`,
+    ]);
+    try {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, $2))', [
+        key,
+        LOCK_SEED,
+      ]);
+    } catch (thrown) {
+      if ((thrown as { code?: string }).code === '55P03') {
+        throw new LeaseHeldError(
+          `the admission scheduler lock '${key}' stayed held past ${String(this.lockTimeoutMs)} ` +
+            'ms; another process is inside the scheduler transaction (retry, or raise ' +
+            'lockTimeoutMs)',
+          { cause: thrown },
+        );
+      }
+      throw thrown;
+    }
   }
 
   async close(): Promise<void> {
@@ -84,10 +130,7 @@ export class PostgresAdmissionScheduler implements AdmissionScheduler {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, $2))', [
-        `rulvar-adm-boot:${this.schema}`,
-        LOCK_SEED,
-      ]);
+      await this.lockedBy(client, `rulvar-adm-boot:${this.schema}`);
       if (this.schema !== 'public') {
         await client.query(`CREATE SCHEMA IF NOT EXISTS "${this.schema}"`);
       }
@@ -112,10 +155,7 @@ export class PostgresAdmissionScheduler implements AdmissionScheduler {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, $2))', [
-        `rulvar-adm:${this.schema}:${this.schedulerId}`,
-        LOCK_SEED,
-      ]);
+      await this.lockedBy(client, `rulvar-adm:${this.schema}:${this.schedulerId}`);
       const rows = (
         await client.query(`SELECT payload FROM ${this.table()} WHERE id = $1`, [this.schedulerId])
       ).rows as Array<{ payload: string }>;

@@ -6697,8 +6697,8 @@ export const MUTATIONS = [
     doctrine:
       'the run proceeds ONLY on a granted ticket (RV4510): with the verdict collapsed to true, a terminally denied run marches into dispatch on a ticket it never held',
     file: 'packages/core/src/admission/engine-bracket.ts',
-    find: "    granted = decision.state === 'granted';\n  }\n  let waitedMs = 0;",
-    replace: '    granted = true;\n  }\n  let waitedMs = 0;',
+    find: "  let granted = recovered.state === 'granted';",
+    replace: '  let granted = true;',
     test: 'packages/core/src/engine/engine-admission.test.ts',
   },
   {
@@ -6947,6 +6947,33 @@ export const MUTATIONS = [
     replace:
       '    const commitReserveUsd =\n      allowanceHeadroomUsd === undefined ? reserve : Math.min(reserve, allowanceHeadroomUsd);',
     test: 'packages/core/src/engine/accountseed.test.ts',
+  },
+  {
+    id: 'abandoned-wait-cancels-its-ticket',
+    doctrine:
+      'the admission wait ends with the RUN and cancels its ticket (RV4804): with the cancel dropped, an aborted run walks away leaving its queued ticket camped at the scheduler, holding a queue position for work that will never start until the lease machinery happens to sweep it',
+    file: 'packages/core/src/admission/engine-bracket.ts',
+    find: '      await scheduler.cancel(unit.unitId, unit.generation, opId);',
+    replace: '      void opId;',
+    test: 'packages/core/src/engine/engine-admission.test.ts',
+  },
+  {
+    id: 'lost-lease-is-announced',
+    doctrine:
+      'a lease that expired under a live holder is announced (RV4804): with the verify condition dead, the scheduler re-grants the reserved capacity to another run while this one is alive and nobody ever learns, the exact silence the ninth experiment charged the old swallowed renew catch with',
+    file: 'packages/core/src/admission/engine-bracket.ts',
+    find: "        if (!settled && state.state !== 'granted' && !leaseLostAnnounced) {",
+    replace: '        if (false as boolean) {',
+    test: 'packages/core/src/engine/engine-admission.test.ts',
+  },
+  {
+    id: 'retry-after-is-honored-verbatim',
+    doctrine:
+      "the queued verdict's retryAfterMs sets the next sleep verbatim (RV4804): with the hint ignored, the bracket polls at its fixed cadence against a scheduler that just said when to come back, exactly the header promise the ninth experiment found unimplemented",
+    file: 'packages/core/src/admission/engine-bracket.ts',
+    find: "    granted = decision.state === 'granted';\n    if (decision.state === 'queued' && decision.retryAfterMs !== undefined) {\n      nextWaitMs = decision.retryAfterMs;\n    }\n  }\n  let waitedMs = 0;",
+    replace: "    granted = decision.state === 'granted';\n  }\n  let waitedMs = 0;",
+    test: 'packages/core/src/engine/engine-admission.test.ts',
   },
 ];
 
