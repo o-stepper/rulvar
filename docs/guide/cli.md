@@ -218,7 +218,7 @@ The server is host-embedded, and auth belongs to host middleware. Do not expose 
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/runs` | Start a run of a registered workflow. Body: `{ workflow, args?, options? }` where `options` accepts `runId`, `budgetUsd`, `name`, `tags`, `deadlineAt`. Answers `201` with `{ runId, status, workflow }` and a `Location` header. |
+| `POST` | `/runs` | Start a run of a registered workflow. Body: `{ workflow, args?, options? }` where `options` accepts `runId`, `budgetUsd`, `name`, `tags`, `deadlineAt`, and, since RV4805, the regulated posture subset of `RunOptions`: `budgetPolicy` (`'immutable-lifetime'` pins the genesis ceiling across every resume), `maxInFlightExposureUsd`, `configFingerprint`, `scope`, and `scopePolicy`. Answers `201` with `{ runId, status, workflow }` and a `Location` header. What never enters this body stays with the host process by doctrine: authentication (host middleware, OQ-16), price tables, adapters, stores, redaction patterns, and secrets are `createEngine` configuration owned by the process that constructed the engine. |
 | `GET` | `/runs/:id` | Run status. A run tracked in this process reports the live outcome, including the `pending` list of open suspensions; any other known run reports its stored metadata. |
 | `GET` | `/runs/:id/events` | SSE event stream with `Last-Event-ID` reconnection. |
 | `POST` | `/runs/:id/external/:key` | Resolve an `awaitExternal` suspension or an approval. |

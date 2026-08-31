@@ -233,7 +233,7 @@ const engine = createEngine({
 
 ## The versioned price table
 
-Cost accounting needs prices, and prices change. The engine takes a versioned price table whose entries win over any adapter-reported `caps.pricing` (that field is a fallback only). The first-party adapters export their seed rows as ready-made tables, `ANTHROPIC_PRICING` (`anthropic-2026-07-31`) and `OPENAI_PRICING` (`openai-2026-08-23`), each mirroring the provider's official price list as of its version date:
+Cost accounting needs prices, and prices change. The engine takes a versioned price table whose entries win over any adapter-reported `caps.pricing` (that field is a fallback only). The table is SNAPSHOTTED at `createEngine` (RV4803): the engine prices every debit from its own construction-time copy, so mutating the object you passed changes nothing on a live engine. A rates update is a new engine with a bumped `pricingVersion`, never a mutation of a running one. The first-party adapters export their seed rows as ready-made tables, `ANTHROPIC_PRICING` (`anthropic-2026-07-31`) and `OPENAI_PRICING` (`openai-2026-08-23`), each mirroring the provider's official price list as of its version date:
 
 ```ts
 import { createEngine, type PriceTable } from '@rulvar/core';
