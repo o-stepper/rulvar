@@ -20,6 +20,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import type { JournalEntry } from '../l0/entries.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { createEngine } from './engine.js';
 import { defineWorkflow } from './ctx.js';
@@ -30,7 +31,7 @@ function storedEngine(script: (call: number) => ScriptedTurn, countTokens?: () =
   const store = new InMemoryStore();
   const transcripts = new InMemoryTranscriptStore();
   const counted: number[] = [];
-  const make = () => {
+  const make = (journal: InMemoryStore = store) => {
     const base = scriptedAdapter((_req, call) => script(call));
     const adapter =
       countTokens === undefined
@@ -47,7 +48,7 @@ function storedEngine(script: (call: number) => ScriptedTurn, countTokens?: () =
       adapter: base,
       engine: createEngine({
         adapters: [adapter],
-        stores: { journal: store, transcripts },
+        stores: { journal, transcripts },
         defaults: { routing: { loop: 'fake:model' } },
       }),
     };
@@ -104,12 +105,14 @@ describe('reruns of journaled invocations re-admit as recovered (RV1505)', () =>
     // 0.0006 USD of the 0.001 USD ceiling; on resume the floor (50
     // output tokens at 10 USD per MTok = 0.0005 USD) no longer fits
     // spent + floor, and only skipping the gate for the journaled
-    // rerun lets the recovered admission proceed. Since RV4802 the
-    // rerun re-admits the RECORDED reserve of its original dispatch
-    // and never re-counts: the count is priced egress whose result
-    // recovery would discard.
+    // rerun lets the count and the recovered admission proceed. The
+    // resume runs over a journal from BEFORE the recorded reserve
+    // shipped (the field is stripped below): a rerun WITH a recorded
+    // number never reaches the count at all (RV4802), so the fallback
+    // recompute path is exactly where the floor's scope rule still
+    // has work to do.
     const crash = { now: true };
-    const { make, counted } = storedEngine(
+    const { store, make, counted } = storedEngine(
       (call) =>
         call === 0 && crash.now
           ? {
@@ -138,14 +141,38 @@ describe('reruns of journaled invocations re-admit as recovered (RV1505)', () =>
     const countsBefore = counted.length;
 
     crash.now = false;
-    const { adapter, engine } = make();
+    // The pre-RV4802 journal shape: the running entries carry no
+    // recorded reserve, so the rerun takes the fallback recompute.
+    const prior = await store.load('RERUN-FLOOR-GATE');
+    const stripped = new InMemoryStore({ quiet: true });
+    const meta = await store.getMeta('RERUN-FLOOR-GATE');
+    if (meta !== undefined) {
+      await stripped.putMeta(meta);
+    }
+    for (const entry of prior) {
+      if (entry.kind === 'agent' && entry.status === 'running') {
+        const { reserveUsd: _dropped, ...valueRest } = (entry.value ?? {}) as {
+          reserveUsd?: number;
+        } & Record<string, unknown>;
+        const { value: _value, ...entryRest } = entry;
+        await stripped.append(
+          'RERUN-FLOOR-GATE',
+          (Object.keys(valueRest).length === 0
+            ? entryRest
+            : { ...entryRest, value: valueRest }) as JournalEntry,
+        );
+      } else {
+        await stripped.append('RERUN-FLOOR-GATE', entry);
+      }
+    }
+    const { adapter, engine } = make(stripped);
     const resumed = await engine.resume('RERUN-FLOOR-GATE', wf).result;
     expect(resumed.error?.message ?? '').not.toContain('budget ceiling reached');
     expect(resumed.status).toBe('ok');
     expect((resumed.value as { first: string }).first).toBe('ok');
-    // The rerun re-admitted the recorded reserve without re-counting
-    // (RV4802): the count total stands where segment 1 left it.
-    expect(counted.length).toBe(countsBefore);
+    // The fallback rerun still priced its recovered reserve through
+    // the count; only the refusal arm is out of its way.
+    expect(counted.length).toBeGreaterThan(countsBefore);
     expect(adapter.calls).toHaveLength(1);
   });
 });
