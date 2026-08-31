@@ -11,7 +11,7 @@ Rulvar is an embeddable engine, not a platform. It lives inside your Node.js app
 
 ```mermaid
 flowchart TB
-    l6["L6 shells\n@rulvar/cli · @rulvar/testing · @rulvar/evals · @rulvar/store-conformance"]
+    l6["L6 shells\n@rulvar/cli · @rulvar/testing · @rulvar/evals · @rulvar/store-conformance · @rulvar/effects"]
     l5["L5 authoring\nInProcessRunner · @rulvar/planner"]
     l4["L4 orchestration\nrun engine · ctx · budget · scheduler · event stream · @rulvar/plan"]
     l3["L3 execution\nagent runtime · tool system · MCP bus"]
