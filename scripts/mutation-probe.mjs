@@ -6975,6 +6975,15 @@ export const MUTATIONS = [
     replace: "    granted = decision.state === 'granted';\n  }\n  let waitedMs = 0;",
     test: 'packages/core/src/engine/engine-admission.test.ts',
   },
+  {
+    id: 'starved-child-is-visible-at-await',
+    doctrine:
+      'the await digest folds the tool budget pressure (RV4807): with the fold severed, a specialist starved at its cap reads as a clean settle at the await, the coordinator neither respawns nor accepts the degradation knowingly, and the ninth experiment ships a truncated investigation as complete',
+    file: 'packages/core/src/orchestrator/handles.ts',
+    find: '  const budget = result.toolBudget;',
+    replace: '  const budget = undefined as typeof result.toolBudget;',
+    test: 'packages/core/src/orchestrator/handles.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

@@ -6,7 +6,7 @@
 
 # Interface: OrchestratorRuntime
 
-Defined in: [packages/core/src/orchestrator/handles.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L158)
+Defined in: [packages/core/src/orchestrator/handles.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L178)
 
 The engine seam the spawn tools close over (never on ToolContext).
 
@@ -18,7 +18,7 @@ The engine seam the spawn tools close over (never on ToolContext).
 awaitAll(handles): Promise<TaskDigest[]>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L180)
+Defined in: [packages/core/src/orchestrator/handles.ts:200](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L200)
 
 #### Parameters
 
@@ -38,7 +38,7 @@ Defined in: [packages/core/src/orchestrator/handles.ts:180](https://github.com/o
 awaitAny(handles): Promise<TaskDigest>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L179)
+Defined in: [packages/core/src/orchestrator/handles.ts:199](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L199)
 
 #### Parameters
 
@@ -61,7 +61,7 @@ cancel(handle, reason?): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L181)
+Defined in: [packages/core/src/orchestrator/handles.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L201)
 
 #### Parameters
 
@@ -85,7 +85,7 @@ Defined in: [packages/core/src/orchestrator/handles.ts:181](https://github.com/o
 getChildResult(handle, opts?): Promise<ChildResultPage>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L185)
+Defined in: [packages/core/src/orchestrator/handles.ts:205](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L205)
 
 A page of a settled child's full output; opt-in `get_child_result` (RV-201).
 
@@ -110,7 +110,7 @@ A page of a settled child's full output; opt-in `get_child_result` (RV-201).
 getSettledChildResults(handles, opts?): Promise<ChildResultPage[]>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L202)
+Defined in: [packages/core/src/orchestrator/handles.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L222)
 
 First pages of SEVERAL settled children in one call; opt-in
 `get_settled_child_results` (RV1807). Refuses typed BEFORE any
@@ -141,7 +141,7 @@ readChildArtifact(
 opts?): Promise<ChildArtifactPage>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L190)
+Defined in: [packages/core/src/orchestrator/handles.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L210)
 
 A page of a settled child's artifact content; opt-in `read_child_artifact` (RV-201).
 
@@ -169,7 +169,7 @@ spawn(params, origin?): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L159)
+Defined in: [packages/core/src/orchestrator/handles.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L179)
 
 #### Parameters
 
@@ -205,7 +205,7 @@ Defined in: [packages/core/src/orchestrator/handles.ts:159](https://github.com/o
 waitForEvents(triggers): Promise<unknown>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L183)
+Defined in: [packages/core/src/orchestrator/handles.ts:203](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L203)
 
 Sleep until a coalesced WakeDigest (M6-T09).
 

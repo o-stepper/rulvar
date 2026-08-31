@@ -27,6 +27,26 @@ export interface TaskDigest {
   costUsd: number;
   artifactsIndex: string[];
   /**
+   * The child's tool budget pressure, the replay-stable subset only
+   * (RV4807, the ninth experiment: a specialist starved at 30 of 30
+   * tool calls and the coordinator could not see it at await, so
+   * nothing respawned or accepted the degradation knowingly). Present
+   * exactly when the child ran under a tool budget: `used` and `cap`
+   * are the durable pair the terminal journals (RV3002),
+   * `extensionsGranted` and `finalizationWindowEntered` ride their
+   * decision entries, and `capHit` is derived from the durable pair
+   * (true when the executed-call cap was reached). The live-only
+   * fidelity fields (units, notices, limiter) stay out: a digest must
+   * fold byte-identically live and resumed.
+   */
+  toolBudget?: {
+    used: number;
+    cap?: number;
+    capHit?: boolean;
+    extensionsGranted?: number;
+    finalizationWindowEntered?: boolean;
+  };
+  /**
    * The child's replay-stable execution facts (RV1503), present only
    * under the `executionFacts` opt-in: what the run itself observed,
    * so the composing root can grade `live-observed` honestly instead
@@ -260,6 +280,7 @@ export function digestOf(
   result: AgentResult<unknown>,
   includeFacts?: boolean,
 ): TaskDigest {
+  const budget = result.toolBudget;
   return {
     nodeId: record.nodeId,
     logicalTaskId: record.logicalTaskId,
@@ -268,6 +289,27 @@ export function digestOf(
     costUsd: result.costUsd,
     artifactsIndex: (result.artifacts ?? []).map((artifact) => artifact.id),
     ...(includeFacts === true ? { facts: executionFactsOf(result) } : {}),
+    // The replay-stable budget subset only (RV4807): absent fields stay
+    // absent so a digest without pressure is byte identical to before.
+    ...(budget === undefined
+      ? {}
+      : {
+          toolBudget: {
+            used: budget.used,
+            ...(budget.cap === undefined
+              ? {}
+              : {
+                  cap: budget.cap,
+                  ...(budget.used >= budget.cap ? { capHit: true } : {}),
+                }),
+            ...(budget.extensionsGranted === undefined
+              ? {}
+              : { extensionsGranted: budget.extensionsGranted }),
+            ...(budget.finalizationWindowEntered === undefined
+              ? {}
+              : { finalizationWindowEntered: budget.finalizationWindowEntered }),
+          },
+        }),
   };
 }
 
