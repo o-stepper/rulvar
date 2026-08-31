@@ -173,7 +173,7 @@ const run = orchestrate(
 
 ## Package map
 
-Rulvar ships as 16 packages. All release in lockstep with identical versions; the sole exemption is `@rulvar/compat`, which is versioned independently. Install commands always use the scoped form, for example `pnpm add @rulvar/core`; the unscoped npm name is not the library. See [Packages](/reference/packages) and [Versioning](/reference/versioning).
+Rulvar ships as seventeen packages; an eighteenth npm name, the unscoped `rulvar` pointer, re-exports the umbrella. Sixteen packages release in lockstep with identical versions; the sole exemption is `@rulvar/compat`, which is versioned independently. Install commands always use the scoped form, for example `pnpm add @rulvar/core`; the unscoped npm name is not the library. See [Packages](/reference/packages) and [Versioning](/reference/versioning).
 
 | Package | Layer | What it ships |
 |---|---|---|
@@ -186,6 +186,7 @@ Rulvar ships as 16 packages. All release in lockstep with identical versions; th
 | `@rulvar/store-postgres` | L1 | `PostgresStore` implementing the same contract over node-postgres, for multi-process and multi-host deployments |
 | `@rulvar/executor` | L1 | Reference isolated tool executors behind the `ToolExecutorProvider` seam: the subprocess and docker container adapters, the side-effect ledger, and the executor conformance kit |
 | `@rulvar/store-conformance` | L6 | Executable conformance kit for store adapters: atomicity, total per-run order, read-your-writes, opaque payloads, fencing |
+| `@rulvar/effects` | L6 | The effect lane runtime: the adapter seam that cannot send without an attempt record, the provider capability matrix, the crash-window dispatcher, and the kill point kit |
 | `@rulvar/compat` | L2 ext | Frozen key-derivation profiles for retired journal hash versions; independently versioned; attaches via `extraDerivers` |
 | `@rulvar/plan` | L4 ext | The `planRunner` extension, the run ledger, escalation extensions, and model ladder configuration for the dynamic orchestrator |
 | `@rulvar/planner` | L5 | The flagship hybrid: the plan agent, `compileScript`, `WorkerSandboxRunner`, and the self-repair loop over lint diagnostics |
@@ -209,6 +210,7 @@ flowchart BT
     postgres["@rulvar/store-postgres"] --> core
     executor["@rulvar/executor"] --> core
     conform["@rulvar/store-conformance"] --> core
+    effects["@rulvar/effects"] --> core
     compat["@rulvar/compat"] --> core
     plan["@rulvar/plan"] --> core
     planner["@rulvar/planner"] --> core
@@ -220,9 +222,10 @@ flowchart BT
     cli -. rulvar plan .-> planner
     cli -. rulvar kb inbox, kb gate .-> plan
     cli -. rulvar kb sweep .-> evals
+    cli -. rulvar effects sweep .-> effects
 ```
 
-Every solid arrow is a declared dependency on core types or the public API. `eslint-plugin-rulvar` depends on nothing in Rulvar (ESLint peer only), and `@rulvar/cli` loads `@rulvar/planner` dynamically for the `plan` command alone, so the other commands work without it installed.
+Every solid arrow is a declared dependency on core types or the public API. `eslint-plugin-rulvar` depends on nothing in Rulvar (ESLint peer only), and the dotted arrows are the CLI's four optional companions, each loaded dynamically by the one command that needs it (`rulvar plan`, the `kb` commands, `rulvar effects sweep`), so every other command works with none of them installed.
 
 ::: tip @rulvar/plan versus @rulvar/planner
 The names are close by design; they preserve established vocabulary. `@rulvar/planner` is the flagship hybrid mode: the plan agent that writes scripts, `compileScript`, and the worker sandbox. `@rulvar/plan` is the opt-in extension of the dynamic orchestrator: `planRunner` and the plan-as-typed-data machinery. See [The planner](/guide/planner) and [Adaptive orchestration](/guide/adaptive-orchestration).
