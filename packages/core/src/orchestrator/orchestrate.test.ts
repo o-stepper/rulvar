@@ -7617,3 +7617,62 @@ describe('the child roster a journal already holds (RV2702)', () => {
     expect(outcome.childStatusCounts).toEqual({ ok: 2 });
   });
 });
+
+describe('the digest carries the tool budget pressure (RV4807)', () => {
+  it('a child starved at its cap is visible to the coordinator at await', async () => {
+    // The ninth experiment's durability specialist hit 30 of 30 tool
+    // calls and the workflow could not see it: the await digest had no
+    // budget lane, so the coordinator neither respawned nor accepted
+    // the degradation knowingly. The child here runs under
+    // maxToolCalls 1 and asks for a second call, settling 'limit';
+    // the await_all digest the model reads on its next turn now names
+    // used, cap, and capHit.
+    const probe = tool({
+      name: 'probe_tool',
+      description: 'answers one probe',
+      parameters: { type: 'object' },
+      execute: () => Promise.resolve('probed'),
+    });
+    let workerTurn = 0;
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        workerTurn += 1;
+        return { toolCall: { name: 'probe_tool', args: {} } };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig deep' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: { done: true } } } };
+    });
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: {
+        worker: {
+          description: 'digs with one tool call',
+          tools: [probe],
+          limits: { maxTurns: 8, maxToolCalls: 1 },
+        },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('measure the pressure', {});
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toEqual({ done: true });
+    expect(workerTurn).toBeGreaterThanOrEqual(2);
+
+    // The digest reached the model with the replay-stable budget lane.
+    const finishReq = adapter.calls.filter((req) => agentTypeOf(req) === '').at(-1);
+    const digestPart = JSON.stringify(finishReq?.messages.at(-1)?.parts);
+    expect(digestPart).toContain('"toolBudget"');
+    expect(digestPart).toContain('"used":1');
+    expect(digestPart).toContain('"cap":1');
+    expect(digestPart).toContain('"capHit":true');
+  });
+});

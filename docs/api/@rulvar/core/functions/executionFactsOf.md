@@ -10,7 +10,7 @@
 function executionFactsOf(result): ChildExecutionFacts;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L73)
+Defined in: [packages/core/src/orchestrator/handles.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L93)
 
 Folds one settled child's replay-stable execution facts (RV1503).
 Per dispatch record: the wire count is the adapter-reported

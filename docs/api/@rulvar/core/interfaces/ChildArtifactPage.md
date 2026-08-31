@@ -6,7 +6,7 @@
 
 # Interface: ChildArtifactPage
 
-Defined in: [packages/core/src/orchestrator/handles.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L130)
+Defined in: [packages/core/src/orchestrator/handles.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L150)
 
 One page of a settled child's artifact CONTENT, returned by the opt-in
 `read_child_artifact` tool. Inline artifact `data` serializes to a
@@ -19,12 +19,12 @@ like [ChildResultPage](/api/@rulvar/core/interfaces/ChildResultPage.md).
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-artifactid"></a> `artifactId` | `string` | - | [packages/core/src/orchestrator/handles.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L132) |
-| <a id="property-content"></a> `content` | `string` | - | [packages/core/src/orchestrator/handles.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L137) |
-| <a id="property-files"></a> `files?` | `string`[] | The changed file list for a `patch` artifact; absent otherwise. | [packages/core/src/orchestrator/handles.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L140) |
-| <a id="property-handle"></a> `handle` | `number` | - | [packages/core/src/orchestrator/handles.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L131) |
-| <a id="property-hasmore"></a> `hasMore` | `boolean` | - | [packages/core/src/orchestrator/handles.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L138) |
-| <a id="property-kind"></a> `kind` | `string` | - | [packages/core/src/orchestrator/handles.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L133) |
-| <a id="property-label"></a> `label?` | `string` | - | [packages/core/src/orchestrator/handles.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L134) |
-| <a id="property-offset"></a> `offset` | `number` | - | [packages/core/src/orchestrator/handles.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L136) |
-| <a id="property-totalchars"></a> `totalChars` | `number` | - | [packages/core/src/orchestrator/handles.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L135) |
+| <a id="property-artifactid"></a> `artifactId` | `string` | - | [packages/core/src/orchestrator/handles.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L152) |
+| <a id="property-content"></a> `content` | `string` | - | [packages/core/src/orchestrator/handles.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L157) |
+| <a id="property-files"></a> `files?` | `string`[] | The changed file list for a `patch` artifact; absent otherwise. | [packages/core/src/orchestrator/handles.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L160) |
+| <a id="property-handle"></a> `handle` | `number` | - | [packages/core/src/orchestrator/handles.ts:151](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L151) |
+| <a id="property-hasmore"></a> `hasMore` | `boolean` | - | [packages/core/src/orchestrator/handles.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L158) |
+| <a id="property-kind"></a> `kind` | `string` | - | [packages/core/src/orchestrator/handles.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L153) |
+| <a id="property-label"></a> `label?` | `string` | - | [packages/core/src/orchestrator/handles.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L154) |
+| <a id="property-offset"></a> `offset` | `number` | - | [packages/core/src/orchestrator/handles.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L156) |
+| <a id="property-totalchars"></a> `totalChars` | `number` | - | [packages/core/src/orchestrator/handles.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L155) |

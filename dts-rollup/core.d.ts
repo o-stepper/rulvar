@@ -10934,6 +10934,26 @@ interface TaskDigest {
   costUsd: number;
   artifactsIndex: string[];
   /**
+  * The child's tool budget pressure, the replay-stable subset only
+  * (RV4807, the ninth experiment: a specialist starved at 30 of 30
+  * tool calls and the coordinator could not see it at await, so
+  * nothing respawned or accepted the degradation knowingly). Present
+  * exactly when the child ran under a tool budget: `used` and `cap`
+  * are the durable pair the terminal journals (RV3002),
+  * `extensionsGranted` and `finalizationWindowEntered` ride their
+  * decision entries, and `capHit` is derived from the durable pair
+  * (true when the executed-call cap was reached). The live-only
+  * fidelity fields (units, notices, limiter) stay out: a digest must
+  * fold byte-identically live and resumed.
+  */
+  toolBudget?: {
+    used: number;
+    cap?: number;
+    capHit?: boolean;
+    extensionsGranted?: number;
+    finalizationWindowEntered?: boolean;
+  };
+  /**
   * The child's replay-stable execution facts (RV1503), present only
   * under the `executionFacts` opt-in: what the run itself observed,
   * so the composing root can grade `live-observed` honestly instead
