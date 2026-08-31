@@ -2217,8 +2217,8 @@ export function createCtx(
     }
 
     // The reserve bracket (RV4801, the ninth experiment P0): the finally
-    // below releases EXACTLY the committed clamp, exactly once, thrown
-    // paths included. Releasing the raw estimate instead erased SIBLING
+    // below releases EXACTLY the committed clamp, a single release per
+    // admission, thrown paths included. Releasing the raw estimate erased SIBLING
     // reservations on shared ancestor accounts, because the chain release
     // floors at zero per account; and a throw between the admission above
     // and the slot settle (the worktree acquire, the dispatch append)
