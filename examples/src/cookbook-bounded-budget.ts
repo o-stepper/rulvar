@@ -6,7 +6,10 @@
  * orchestrator's own sub-account cap with an explicit at-cap policy. A
  * spawn the remaining budget cannot fund is REFUSED by admission as a
  * typed tool error the model sees and works around; the run itself
- * keeps going and finishes under the ceiling.
+ * keeps going and finishes under the ceiling. The corpus test prices
+ * the fake calls (`capsOverrides.pricing` on FakeAdapter), so the
+ * refusal it asserts is against dollars actually spent, not against a
+ * declaration alone.
  */
 import type { OrchestrateOptions, RunOptions } from '@rulvar/core';
 

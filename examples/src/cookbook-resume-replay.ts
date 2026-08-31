@@ -36,12 +36,16 @@ export const briefThenSummarize: Workflow<{ topic: string }, string> = defineWor
  * Runs the workflow to terminal on `first`, then resumes the SAME runId
  * on `fresh` (a different engine over the same durable store) and
  * compares the values. Resume takes the SAME args: arguments are not
- * journaled, so the host supplies them and the engine's binding gate
- * refuses a mismatch instead of silently re-running different work. The
- * caller asserts the store level facts that make this a proof: the
- * fresh adapter received zero calls and the journal bytes did not
- * change, which together mean the resumed value came from the journal,
- * not from a re-run.
+ * journaled, so the host supplies them again. The engine RECORDS the
+ * binding (`RunMeta.argsHash` over the canonical form) and does not
+ * enforce it, because hosts may transform args legitimately; a host
+ * that wants the refusal compares `hashRunArgs(args)` against the
+ * recorded hash before resuming, exactly what the CLI's `rulvar
+ * resume` does. Silently changed args change the logical run and
+ * re-pay every args-dependent call. The caller asserts the store level
+ * facts that make this a proof: the fresh adapter received zero calls
+ * and the journal bytes did not change, which together mean the
+ * resumed value came from the journal, not from a re-run.
  */
 export async function runThenResume<A, R>(
   first: Engine,

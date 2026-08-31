@@ -105,8 +105,10 @@ export async function runThenResume<A, R>(
   runId: string,
 ) {
   const firstOutcome = await first.run(workflow, args, { runId }).result;
-  // Arguments are not journaled: the host supplies the SAME args, and
-  // the binding gate refuses a mismatch instead of re-running quietly.
+  // Arguments are not journaled: the host supplies the SAME args. The
+  // engine records the binding (RunMeta.argsHash) and does not enforce
+  // it; a host that wants the refusal compares hashRunArgs(args) with
+  // the recorded hash first, exactly what the CLI does.
   const resumedOutcome = await fresh.resume(runId, workflow, { args }).result;
   return {
     identicalValue:
@@ -129,12 +131,12 @@ declare const engine: Engine;
 const handle = orchestrate(
   engine,
   "count every bag the budget allows",
-  boundedBudgetOptions({ orchestratorCapUsd: 1, finalizeReserveUsd: 0.05 }),
-  { budgetUsd: 1 }, // the root ceiling over the WHOLE tree, frozen into RunMeta
+  boundedBudgetOptions({ orchestratorCapUsd: 2, finalizeReserveUsd: 0.1 }),
+  { budgetUsd: 2 }, // the root ceiling over the WHOLE tree, frozen into RunMeta
 );
 ```
 
-The test's journal shows exactly `['admit', 'reject']` spawn admission verdicts: the first child fit under the remaining budget, the second declared a ceiling the root could no longer fund, and the refusal reached the model as a tool error, never a crash.
+The corpus test prices the fake calls (`capsOverrides.pricing` on `FakeAdapter`), and its two spawns declare the SAME child ceiling. The journal shows exactly `['admit', 'reject']`: the ask that fit the fresh ceiling at genesis is refused after the first child's real spend, because the remainder the second admission read had genuinely been paid out, and the refusal reached the model as a typed tool error, never a crash. The final cost lands above a dollar and under the ceiling, so the bound the test asserts is over money that actually moved.
 
 ## Long HITL suspension
 

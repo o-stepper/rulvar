@@ -77,8 +77,12 @@ function decisionsOf(entries: readonly JournalEntry[], decisionType: string): Jo
 function engineWith(
   agents: ConstructorParameters<typeof FakeAdapter>[0]['agents'],
   profiles: Record<string, object>,
+  capsOverrides?: ConstructorParameters<typeof FakeAdapter>[0]['capsOverrides'],
 ) {
-  const adapter = new FakeAdapter({ agents });
+  const adapter = new FakeAdapter({
+    agents,
+    ...(capsOverrides === undefined ? {} : { capsOverrides }),
+  });
   const store = new InMemoryStore({ quiet: true });
   const engine = createEngine({
     adapters: [adapter],
@@ -309,31 +313,37 @@ describe('resume and replay verification (cookbook)', () => {
 });
 
 describe('bounded-budget orchestration (cookbook)', () => {
-  it('admits what the ceiling can fund, refuses the rest typed, and still finishes', async () => {
+  it('the same declared ceiling admits at genesis and is refused after real spend', async () => {
+    // The fake calls are PRICED (capsOverrides.pricing): input rates
+    // stay low so prompt noise stays noise, and the counter's long
+    // report is what actually moves the dollars. Both spawns declare
+    // the SAME child ceiling, so the only difference between their
+    // verdicts is the money the first child really spent.
     let orchTurn = 0;
     const { adapter, store, engine } = engineWith(
       {
-        'count the beans': 'beans counted',
+        // About 150k output tokens, so about 1.2 USD at 8 USD per
+        // MTok, well inside the declared 1.4 USD child ceiling.
+        'count the beans': 'bean '.repeat(120_000).trimEnd(),
         'You are the orchestrator': (call: FakeCall) => {
           orchTurn += 1;
           if (orchTurn === 1) {
-            // Two spawns: one the remaining root budget funds, one whose
-            // declared child ceiling exceeds what is left. Admission
-            // funds the first and refuses the second as a tool error the
-            // model sees and works around.
-            return fakeToolCalls(
-              {
-                name: 'spawn_agent',
-                args: { agentType: 'counter', prompt: 'count the beans', budgetUsd: 0.04 },
-              },
-              {
-                name: 'spawn_agent',
-                args: { agentType: 'counter', prompt: 'count the beans', budgetUsd: 0.45 },
-              },
-            );
+            return fakeToolCalls({
+              name: 'spawn_agent',
+              args: { agentType: 'counter', prompt: 'count the beans', budgetUsd: 1.4 },
+            });
           }
           if (orchTurn === 2) {
             return fakeToolCalls({ name: 'await_all', args: { handles: handlesIn(call.req) } });
+          }
+          if (orchTurn === 3) {
+            // The identical ask again. At genesis 1.4 fit the fresh
+            // ceiling; now the remainder is real spend short of
+            // funding it, and admission refuses on those dollars.
+            return fakeToolCalls({
+              name: 'spawn_agent',
+              args: { agentType: 'counter', prompt: 'count the beans', budgetUsd: 1.4 },
+            });
           }
           return fakeToolCalls({
             name: 'finish',
@@ -342,23 +352,35 @@ describe('bounded-budget orchestration (cookbook)', () => {
         },
       },
       { counter: { description: 'counts one bag' } },
+      { pricing: { inputUsdPerMTok: 10, outputUsdPerMTok: 8 } },
     );
     const outcome = await orchestrate(
       engine,
       'count every bag the budget allows',
-      boundedBudgetOptions({ orchestratorCapUsd: 1, finalizeReserveUsd: 0.05 }),
-      { ...rootCeiling(1), runId: 'CB-BUDGET' },
+      boundedBudgetOptions({ orchestratorCapUsd: 2, finalizeReserveUsd: 0.1 }),
+      { ...rootCeiling(2), runId: 'CB-BUDGET' },
     ).result;
     expect(outcome.status).toBe('ok');
-    const admissions = decisionsOf(await store.load('CB-BUDGET'), 'spawn-admission').map(
-      (e) => (e.value as { decision?: { verdict?: { kind?: string } } }).decision?.verdict?.kind,
-    );
-    expect(admissions).toEqual(['admit', 'reject']);
+    const decisions = decisionsOf(await store.load('CB-BUDGET'), 'spawn-admission').map((e) => {
+      const value = e.value as {
+        spec?: { budgetUsd?: number };
+        decision?: { verdict?: { kind?: string; reason?: { code?: string } } };
+      };
+      return {
+        declared: value.spec?.budgetUsd,
+        kind: value.decision?.verdict?.kind,
+        code: value.decision?.verdict?.reason?.code,
+      };
+    });
+    expect(decisions.map((d) => d.declared)).toEqual([1.4, 1.4]);
+    expect(decisions.map((d) => d.kind)).toEqual(['admit', 'reject']);
+    expect(decisions[1]?.code).toBe('budget');
     // The refusal reached the model as a typed tool error, not a crash.
     const conversation = JSON.stringify(adapter.calls.at(-1)?.req.messages ?? []);
     expect(conversation).toContain('rejected');
-    // Nothing priced here, and the ceiling held.
-    expect(outcome.cost.totalUsd).toBeLessThanOrEqual(1);
+    // Real dollars moved, and the root ceiling held over them.
+    expect(outcome.cost.totalUsd).toBeGreaterThan(1);
+    expect(outcome.cost.totalUsd).toBeLessThanOrEqual(2);
   });
 });
 

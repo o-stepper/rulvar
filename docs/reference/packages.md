@@ -80,7 +80,7 @@ The Layer column in the table below uses the labels of the architecture's layer 
 
 ## Dependency graph
 
-Solid arrows are declared runtime dependencies; the dotted arrows are the CLI's three optional companions, each dynamically imported by the specific command that needs it (`rulvar plan` uses `@rulvar/planner`, `rulvar kb inbox` and `rulvar kb gate` use `@rulvar/plan`, and `rulvar kb sweep` uses `@rulvar/evals`), so the CLI's declared dependency stays `@rulvar/core` only. Internal dependencies are declared with the pnpm workspace protocol and resolve to the exact lockstep version at publish time.
+Solid arrows are declared runtime dependencies; the dotted arrows are the CLI's four optional companions, each dynamically imported by the specific command that needs it (`rulvar plan` uses `@rulvar/planner`, `rulvar kb inbox` and `rulvar kb gate` use `@rulvar/plan`, `rulvar kb sweep` uses `@rulvar/evals`, and `rulvar effects sweep` uses `@rulvar/effects`), so the CLI's declared dependency stays `@rulvar/core` only. Internal dependencies are declared with the pnpm workspace protocol and resolve to the exact lockstep version at publish time.
 
 ```mermaid
 graph TD
