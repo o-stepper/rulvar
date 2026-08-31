@@ -6919,6 +6919,25 @@ export const MUTATIONS = [
     replace: '      if (spelled.length > 0) {',
     test: 'packages/core/src/orchestrator/anchor-grounding.test.ts',
   },
+  {
+    id: 'release-the-committed-clamp',
+    doctrine:
+      'the settle releases EXACTLY the committed clamp, never the raw estimate (RV4801): the chain release floors at zero per account, so handing it the raw estimate of a clamped admission erases sibling reservations on shared ancestors, the ninth experiment P0 that let projected admission spend money already promised to live children',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '      internals.budget.releaseReserve(commitReserveUsd, budgetAccount);',
+    replace: '      internals.budget.releaseReserve(reserve, budgetAccount);',
+    test: 'packages/core/src/engine/ctx-reserve-release.test.ts',
+  },
+  {
+    id: 'release-rides-the-finally',
+    doctrine:
+      'the reserve release rides the finally of the dispatch bracket (RV4801): moved after the block, a throw between admission and the slot settle, the worktree acquire included, parks the committed reserve for the rest of the run and starves every later admission on money no live dispatch is holding',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '    } finally {\n      // Exactly what the admission committed comes back, never the raw\n      // estimate, on every settle of the bracket: ok, error, and thrown\n      // alike.\n      internals.budget.releaseReserve(commitReserveUsd, budgetAccount);\n    }',
+    replace:
+      '    } finally {\n    }\n    internals.budget.releaseReserve(commitReserveUsd, budgetAccount);',
+    test: 'packages/core/src/engine/ctx-reserve-release.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

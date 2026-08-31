@@ -880,3 +880,46 @@ describe('the repair reserve, the mechanical leg (RV3802)', () => {
     expect(clean.accountView('run')?.repairReserveUsd).toBe(0);
   });
 });
+
+describe('the reserve ledger under a chain release (RV4801)', () => {
+  it('releasing exactly what each admission committed keeps every account at the sum of its live reserves', () => {
+    // The caller contract behind the direct dispatch bracket: admission
+    // commits the allowance clamped reserve on every chain account, so
+    // the settle must hand back that same clamp. Walking a full admit
+    // and release cycle, clamped and unclamped alike, every account's
+    // committedReserveUsd equals the sum of the reserves still live.
+    const budget = new RunBudget({ ceilingUsd: 10 });
+    budget.openAccount('wf:kid:0', { ceilingUsd: 3, kind: 'child-allowance' });
+    budget.admitSpawn(0.5); // the child workflow itself, on the root
+    budget.admitSpawn(0.4, 'wf:kid:0'); // sibling A, live throughout
+    const headroom = budget.allowanceHeadroomOf('wf:kid:0');
+    expect(headroom).toBeCloseTo(2.6, 12);
+    budget.admitSpawn(Math.min(50, headroom ?? 50), 'wf:kid:0'); // B, clamped
+    expect(budget.accountView('wf:kid:0')?.committedReserveUsd).toBeCloseTo(3, 12);
+    expect(budget.committedReserveUsd).toBeCloseTo(3.5, 12);
+
+    budget.releaseReserve(2.6, 'wf:kid:0'); // B settles: exactly its commit
+    expect(budget.accountView('wf:kid:0')?.committedReserveUsd).toBeCloseTo(0.4, 12);
+    expect(budget.committedReserveUsd).toBeCloseTo(0.9, 12);
+
+    budget.releaseReserve(0.4, 'wf:kid:0'); // A settles
+    expect(budget.accountView('wf:kid:0')?.committedReserveUsd).toBeCloseTo(0, 12);
+    expect(budget.committedReserveUsd).toBeCloseTo(0.5, 12);
+
+    budget.releaseReserve(0.5); // the child workflow settles
+    expect(budget.committedReserveUsd).toBe(0);
+  });
+
+  it('an over-release floors at zero per account and erases siblings, which is why the bracket never passes the raw estimate', () => {
+    const budget = new RunBudget({ ceilingUsd: 10 });
+    budget.openAccount('wf:kid:0', { ceilingUsd: 3, kind: 'child-allowance' });
+    budget.admitSpawn(0.4, 'wf:kid:0');
+    budget.admitSpawn(2.6, 'wf:kid:0');
+    // The raw estimate of the clamped admission: the floor makes the
+    // erasure silent instead of throwing, so only the caller's
+    // discipline separates a settle from a wipe of the whole chain.
+    budget.releaseReserve(50, 'wf:kid:0');
+    expect(budget.accountView('wf:kid:0')?.committedReserveUsd).toBe(0);
+    expect(budget.committedReserveUsd).toBe(0);
+  });
+});
