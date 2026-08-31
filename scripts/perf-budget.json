@@ -5,7 +5,7 @@
       "journalAppends": 10,
       "journalLoads": 0,
       "providerDispatches": 3,
-      "events": 23
+      "events": 26
     },
     "resume": {
       "firstSegmentDispatches": 1,

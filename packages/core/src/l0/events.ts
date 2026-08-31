@@ -693,11 +693,20 @@ export type AdaptiveEvents =
     }
   | {
       type: 'spawn:admitted';
+      /**
+       * The journaled admission decision entry, or, on direct
+       * `ctx.agent` budget admissions (RV4806), the dispatch entry
+       * itself: no decision entry exists on that path.
+       */
       entryRef: number;
       /** The admitting arms of the unified AdmitVerdict union. */
       verdict: 'admit' | 'reuse_full' | 'admit_graft';
       agentType: string;
-      logicalTaskId: string;
+      /**
+       * Absent on direct `ctx.agent` budget admissions (RV4806): no
+       * lineage layer minted a logical task id for a plain dispatch.
+       */
+      logicalTaskId?: string;
       /**
        * Spawn-unit balance after the budget-layer debit. Present on
        * budget-layer admissions (the orchestrator spawn tools and
@@ -706,6 +715,13 @@ export type AdaptiveEvents =
        * itself (v1.22.0 review P2-5).
        */
       spawnUnitsAfter?: number;
+      /**
+       * The COMMITTED reserve of this admission in USD, the allowance
+       * clamped number the settle releases (RV4801); present on the
+       * admissions that commit one (direct `ctx.agent` dispatches and
+       * `ctx.workflow` children, RV4806).
+       */
+      reserveUsd?: number;
     }
   | {
       type: 'spawn:rejected';

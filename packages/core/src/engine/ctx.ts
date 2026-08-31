@@ -1924,6 +1924,14 @@ export function createCtx(
     // approach signature ride the entry's value part and are read back on
     // resume, never re-minted. Applicability outside PlanRunner is per
     // declared lineage only.
+    //
+    // A rejection inside the block throws, so surviving it with the
+    // condition true means the lineage layer admitted AND emitted its
+    // spawn:admitted; the budget layer below then stays quiet on the
+    // event, one admitted event per spawn (RV4806).
+    const lineageAdmitted =
+      (opts.lineage !== undefined || opts.approach !== undefined) &&
+      internals.admission !== undefined;
     if (
       (opts.lineage !== undefined || opts.approach !== undefined) &&
       internals.admission !== undefined
@@ -2091,7 +2099,24 @@ export function createCtx(
         state.spanId,
       );
     }
+    // A journaled rerun re-admits the RECORDED committed reserve when
+    // the original dispatch recorded one (RV4802): recovery reads
+    // history instead of re-pricing it, so a price-table change between
+    // crash and resume cannot move the number the bracket holds and
+    // releases, and the count below never runs for it (its result would
+    // be unused egress). Journals from before the field fall back to
+    // the recomputed clamp; junk in the field does too, admission never
+    // trusts a number it cannot type.
+    const recordedRaw =
+      matched.kind === 'live'
+        ? undefined
+        : (matched.running.value as { reserveUsd?: unknown } | null | undefined)?.reserveUsd;
+    const recordedReserveUsd =
+      typeof recordedRaw === 'number' && Number.isFinite(recordedRaw) && recordedRaw >= 0
+        ? recordedRaw
+        : undefined;
     if (
+      recordedReserveUsd === undefined &&
       opts.estCost === undefined &&
       profile?.estCost === undefined &&
       adapter.countTokens &&
@@ -2117,9 +2142,10 @@ export function createCtx(
         // The refusal arm gates NEW work only: a journaled rerun
         // re-admits as recovered below, so there is nothing this floor
         // could refuse for it, while the seeded spend of the rerun's
-        // own prior attempt would fail this very check (RV1505). The
-        // count still runs either way: recovered reserves are sized by
-        // the same arithmetic as fresh ones.
+        // own prior attempt would fail this very check (RV1505). A
+        // rerun without a recorded reserve still counts here: its
+        // fallback reserve is sized by the same arithmetic as a fresh
+        // one (RV4802).
         internals.budget.refuseSpawnIfInfeasible(
           floorHeadroomUsd === undefined
             ? floorReserveUsd
@@ -2200,8 +2226,11 @@ export function createCtx(
     // an admitted plan op dispatchable by construction). A FULL
     // allowance still rejects inside admitSpawn.
     const allowanceHeadroomUsd = internals.budget.allowanceHeadroomOf(budgetAccount);
+    // The RECORDED reserve of a journaled rerun wins over the
+    // recomputed clamp (RV4802, extracted above the count).
     const commitReserveUsd =
-      allowanceHeadroomUsd === undefined ? reserve : Math.min(reserve, allowanceHeadroomUsd);
+      recordedReserveUsd ??
+      (allowanceHeadroomUsd === undefined ? reserve : Math.min(reserve, allowanceHeadroomUsd));
     if (journaledRerun) {
       // The recoverInFlight rule at the dispatch layer (RV1505): the
       // original dispatch passed projected admission before its entry
@@ -2213,7 +2242,20 @@ export function createCtx(
       // still bound every dollar the rerun actually spends.
       internals.budget.admitRecovered(commitReserveUsd, budgetAccount);
     } else {
-      internals.budget.admitSpawn(commitReserveUsd, budgetAccount);
+      try {
+        internals.budget.admitSpawn(commitReserveUsd, budgetAccount);
+      } catch (thrown) {
+        // The budget boundary announces its refusal like every other
+        // admission boundary (RV4806). Nothing is journaled at this
+        // point, so no entryRef, exactly the config-gate shape; the
+        // caller still sees the typed refusal.
+        emitSpawnRejected(internals.events, {
+          code: thrown instanceof RulvarError ? thrown.code : 'error',
+          agentType,
+          spanId: state.spanId,
+        });
+        throw thrown;
+      }
     }
 
     // The reserve bracket (RV4801, the ninth experiment P0): the finally
@@ -2270,15 +2312,41 @@ export function createCtx(
           // The resolved isolation is recorded on the dispatch root so the
           // DedupIndex donor rules can read it from the journal (worktree
           // grafts degrade unless pinned). 'none' stays
-          // implicit, so isolation-free journals are byte-identical.
+          // implicit. The committed reserve rides the same value part
+          // (RV4802): a rerun's recovery reads it back instead of
+          // re-pricing history, the budgets doctrine (recovered, never
+          // re-estimated) extended to the direct dispatch.
           const isolationTag = canonicalIsolationTag(isolation);
-          if (isolationTag !== 'none') {
-            runningInput.value = { isolation: isolationTag };
-          }
+          runningInput.value = {
+            reserveUsd: commitReserveUsd,
+            ...(isolationTag === 'none' ? {} : { isolation: isolationTag }),
+          };
         }
         running = await internals.replayer.appendRunning(runningInput);
       }
       (opts as InternalAgentHooks)[kOnRunning]?.(running.seq);
+      // Budget-layer admission telemetry on the direct path (RV4806):
+      // the workflow and orchestrator spawn paths already announce, and
+      // a direct dispatch was invisible to spawn observability. The
+      // entryRef is the dispatch entry itself (no decision entry exists
+      // here), reserveUsd is the committed clamp, and the recovered
+      // re-admission carries the standard replayed marker, never
+      // presented as a fresh live admission. Suppressed when an
+      // orchestrating layer tracks this dispatch by its handle
+      // (kOnRunning): the spawn tools, the extension seam, and the
+      // coordinator announce through their own admission telemetry,
+      // one admitted event per spawn. Lineage-carrying dispatches
+      // already announced at their decision entry.
+      if (!lineageAdmitted && (opts as InternalAgentHooks)[kOnRunning] === undefined) {
+        emitSpawnAdmitted(internals.events, {
+          entryRef: running.seq,
+          verdict: 'admit',
+          agentType,
+          reserveUsd: commitReserveUsd,
+          spanId,
+          ...(journaledRerun ? { replayed: true } : {}),
+        });
+      }
 
       const agentSink = {
         emit: (body: { type: string } & Record<string, unknown>) =>
@@ -4036,6 +4104,7 @@ export function createCtx(
       agentType: name,
       logicalTaskId: verdict.lineage.logicalTaskId,
       spawnUnitsAfter: verdict.spawnUnitsAfter,
+      reserveUsd: verdict.reserve.reserveUsd,
       spanId,
       replayed: decisionReplayed ? true : undefined,
     });

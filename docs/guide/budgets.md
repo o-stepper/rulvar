@@ -183,18 +183,23 @@ snapshot, including every op of a multi-op revision. A dispatch refused by
 facts that changed after admission lands the node terminally `failed` through
 a journaled `plan.decision` instead of stranding it.
 
-Reserves ride the journaled admission decision entry, so on resume they are
-recovered from the journal, never re-estimated: a price-table change between
-crash and resume does not move an already-committed number (see
-[Durability](/guide/durability)). Since RV1505 the same rule covers the
-dispatch itself: a rerun of a journaled invocation (a dangling dispatch, or a
-non-replayable terminal retried by resume) re-admits as RECOVERED rather than
-re-clearing projected admission, because the resume seed already carries the
-dollars that invocation's prior attempt burned, and holding the continuation
-to spent plus a fresh reserve against the ceiling would refuse exactly the
-work the money was spent on. Projected admission gates NEW work only; the
-per-turn guard, the pre-dispatch output bound, and the severing signal still
-bound every dollar a rerun actually spends.
+Reserves ride the journal, so on resume they are recovered from it, never
+re-estimated: a price-table change between crash and resume does not move an
+already-committed number (see [Durability](/guide/durability)). The recovery
+reads two records. Workflow children and orchestrator spawns recover the
+reserve their journaled admission decision entry recorded; a direct
+`ctx.agent` dispatch records its committed reserve on the dispatch entry
+itself (`reserveUsd` in the entry's value part) and recovers exactly that
+number, skipping even the `countTokens` estimate whose result recovery would
+discard. A journal written before the field falls back to a recomputed
+clamp. Since RV1505 the rerun of a journaled invocation (a dangling
+dispatch, or a non-replayable terminal retried by resume) re-admits as
+RECOVERED rather than re-clearing projected admission, because the resume
+seed already carries the dollars that invocation's prior attempt burned, and
+holding the continuation to spent plus a fresh reserve against the ceiling
+would refuse exactly the work the money was spent on. Projected admission
+gates NEW work only; the per-turn guard, the pre-dispatch output bound, and
+the severing signal still bound every dollar a rerun actually spends.
 
 You can tighten admission per call or per profile with an `estCost` hint:
 

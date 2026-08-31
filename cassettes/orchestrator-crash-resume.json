@@ -11,7 +11,10 @@
       "kind": "agent",
       "status": "running",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z"
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "reserveUsd": 0.5
+      }
     },
     {
       "hashVersion": 2,
@@ -73,7 +76,7 @@
             },
             "spawnUnitsAfter": 499,
             "lineage": {
-              "logicalTaskId": "01KZCW4YDA5DZFPMWPB3HY8BCM",
+              "logicalTaskId": "01M1BXW3G9294Y42QZ1GCWZHE9",
               "isNew": true,
               "depth": 1
             }
@@ -83,9 +86,9 @@
             "childrenOfParentBefore": 0,
             "depth": 1
           },
-          "nodeId": "01KZCW4YDA5DZFPMWPB3HY8BCN",
+          "nodeId": "01M1BXW3G9294Y42QZ1GCWZHEA",
           "lineage": {
-            "logicalTaskId": "01KZCW4YDA5DZFPMWPB3HY8BCM",
+            "logicalTaskId": "01M1BXW3G9294Y42QZ1GCWZHE9",
             "relation": "first",
             "attemptOrdinal": 0,
             "ancestry": [],
@@ -107,7 +110,10 @@
       "kind": "agent",
       "status": "running",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z"
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "reserveUsd": 0.5
+      }
     },
     {
       "hashVersion": 2,
@@ -140,7 +146,7 @@
             },
             "spawnUnitsAfter": 498,
             "lineage": {
-              "logicalTaskId": "01KZCW4YDBXE52SCVSFC1ZTNHF",
+              "logicalTaskId": "01M1BXW3GAQTB0NYF6NN3T3ETV",
               "isNew": true,
               "depth": 1
             }
@@ -150,9 +156,9 @@
             "childrenOfParentBefore": 1,
             "depth": 1
           },
-          "nodeId": "01KZCW4YDBXE52SCVSFC1ZTNHG",
+          "nodeId": "01M1BXW3GAQTB0NYF6NN3T3ETW",
           "lineage": {
-            "logicalTaskId": "01KZCW4YDBXE52SCVSFC1ZTNHF",
+            "logicalTaskId": "01M1BXW3GAQTB0NYF6NN3T3ETV",
             "relation": "first",
             "attemptOrdinal": 0,
             "ancestry": [],
@@ -174,7 +180,10 @@
       "kind": "agent",
       "status": "running",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z"
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "reserveUsd": 0.5
+      }
     },
     {
       "hashVersion": 2,
@@ -226,6 +235,7 @@
       },
       "servedBy": "fake:fake-model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "worker",
         "role": "loop",
         "budgetAccount": "run"
@@ -328,6 +338,7 @@
       },
       "servedBy": "fake:fake-model",
       "costAttribution": {
+        "phase": "fan-out",
         "agentType": "worker",
         "role": "loop",
         "budgetAccount": "run"
@@ -352,7 +363,7 @@
   ],
   "extra": {
     "checkpoints": {
-      "m6-orchestrator-crash/ckpt/0": "AXsidiI6MSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IllvdSBhcmUgdGhlIG9yY2hlc3RyYXRvciBvZiBhIG11bHRpLWFnZW50IHJ1bi5cbkdPQUw6IG02IGNhc3NldHRlOiBnYXRoZXIgdHdvIGZhY3RzXG5cbkRlY29tcG9zZSB0aGUgZ29hbCBpbnRvIGNoaWxkIGFnZW50cyB3aXRoIHNwYXduX2FnZW50IG9yIHBhcmFsbGVsX2FnZW50cyxcbndhaXQgb24gdGhlaXIgaGFuZGxlcyB3aXRoIGF3YWl0X2FueSBvciBhd2FpdF9hbGwsIGNhbmNlbCBzdHJhZ2dsZXJzIHdpdGhcbmNhbmNlbF9hZ2VudCwgYW5kIHRlcm1pbmF0ZSB3aXRoIGZpbmlzaCh7IHJlc3VsdCB9KSB3aGVuIHRoZSBnb2FsIGlzIG1ldC5cblNwYXduIG9ubHkgd2hhdCB0aGUgZ29hbCBuZWVkcy4ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsInBhcnRzIjpbeyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtaQ1c0WUQ5REdEUjlINzlGVFgzVlRYUiIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEEifX0seyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtaQ1c0WUQ5REdEUjlINzlGVFgzVlRYUyIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEIifX1dfSx7InJvbGUiOiJ0b29sIiwicGFydHMiOlt7InR5cGUiOiJ0b29sLXJlc3VsdCIsImlkIjoiMDFLWkNXNFlEOURHRFI5SDc5RlRYM1ZUWFIiLCJuYW1lIjoic3Bhd25fYWdlbnQiLCJyZXN1bHQiOnsiaGFuZGxlIjozfX0seyJ0eXBlIjoidG9vbC1yZXN1bHQiLCJpZCI6IjAxS1pDVzRZRDlER0RSOUg3OUZUWDNWVFhTIiwibmFtZSI6InNwYXduX2FnZW50IiwicmVzdWx0Ijp7ImhhbmRsZSI6NX19XX1dLCJ0dXJucyI6MSwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJ1c2FnZUJ5TW9kZWwiOlt7InNlcnZlZEJ5IjoiZmFrZTpmYWtlLW1vZGVsIiwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJyb2xlIjoib3JjaGVzdHJhdGUifV0sInRvb2xDYWxsc1VzZWQiOjIsInNjaGVtYUF0dGVtcHRzIjowLCJjb21wYWN0aW9uIjpbXSwicHJvdmlkZXJDYWxscyI6W3sib3JkaW5hbCI6MSwicm9sZSI6Im9yY2hlc3RyYXRlIiwic2VydmVkQnkiOiJmYWtlOmZha2UtbW9kZWwiLCJhdHRlbXB0IjoxLCJvdXRjb21lIjoib2siLCJ1c2FnZSI6eyJpbnB1dFRva2VucyI6ODUsIm91dHB1dFRva2VucyI6MTYsImNhY2hlUmVhZFRva2VucyI6MCwiY2FjaGVXcml0ZVRva2VucyI6MH19XX0="
+      "m6-orchestrator-crash/ckpt/0": "AXsidiI6MSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IllvdSBhcmUgdGhlIG9yY2hlc3RyYXRvciBvZiBhIG11bHRpLWFnZW50IHJ1bi5cbkdPQUw6IG02IGNhc3NldHRlOiBnYXRoZXIgdHdvIGZhY3RzXG5cbkRlY29tcG9zZSB0aGUgZ29hbCBpbnRvIGNoaWxkIGFnZW50cyB3aXRoIHNwYXduX2FnZW50IG9yIHBhcmFsbGVsX2FnZW50cyxcbndhaXQgb24gdGhlaXIgaGFuZGxlcyB3aXRoIGF3YWl0X2FueSBvciBhd2FpdF9hbGwsIGNhbmNlbCBzdHJhZ2dsZXJzIHdpdGhcbmNhbmNlbF9hZ2VudCwgYW5kIHRlcm1pbmF0ZSB3aXRoIGZpbmlzaCh7IHJlc3VsdCB9KSB3aGVuIHRoZSBnb2FsIGlzIG1ldC5cblNwYXduIG9ubHkgd2hhdCB0aGUgZ29hbCBuZWVkcy4ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsInBhcnRzIjpbeyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMU0xQlhXM0c3RUVYQUhQVFZIRERUS1hTNSIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEEifX0seyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMU0xQlhXM0c3RUVYQUhQVFZIRERUS1hTNiIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEIifX1dfSx7InJvbGUiOiJ0b29sIiwicGFydHMiOlt7InR5cGUiOiJ0b29sLXJlc3VsdCIsImlkIjoiMDFNMUJYVzNHN0VFWEFIUFRWSEREVEtYUzUiLCJuYW1lIjoic3Bhd25fYWdlbnQiLCJyZXN1bHQiOnsiaGFuZGxlIjozfX0seyJ0eXBlIjoidG9vbC1yZXN1bHQiLCJpZCI6IjAxTTFCWFczRzdFRVhBSFBUVkhERFRLWFM2IiwibmFtZSI6InNwYXduX2FnZW50IiwicmVzdWx0Ijp7ImhhbmRsZSI6NX19XX1dLCJ0dXJucyI6MSwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJ1c2FnZUJ5TW9kZWwiOlt7InNlcnZlZEJ5IjoiZmFrZTpmYWtlLW1vZGVsIiwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJyb2xlIjoib3JjaGVzdHJhdGUifV0sInRvb2xDYWxsc1VzZWQiOjIsInNjaGVtYUF0dGVtcHRzIjowLCJjb21wYWN0aW9uIjpbXSwicHJvdmlkZXJDYWxscyI6W3sib3JkaW5hbCI6MSwicm9sZSI6Im9yY2hlc3RyYXRlIiwic2VydmVkQnkiOiJmYWtlOmZha2UtbW9kZWwiLCJhdHRlbXB0IjoxLCJvdXRjb21lIjoib2siLCJ1c2FnZSI6eyJpbnB1dFRva2VucyI6ODUsIm91dHB1dFRva2VucyI6MTYsImNhY2hlUmVhZFRva2VucyI6MCwiY2FjaGVXcml0ZVRva2VucyI6MH19XX0="
     }
   }
 }

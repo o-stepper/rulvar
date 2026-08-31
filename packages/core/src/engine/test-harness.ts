@@ -190,8 +190,12 @@ export function recordingSink(): RecordedEvents {
   const all: Array<{ type: string } & Record<string, unknown>> = [];
   return {
     all,
-    emit(body, spanId) {
-      all.push(spanId === undefined ? body : { ...body, spanId });
+    emit(body, spanId, replayed) {
+      all.push({
+        ...body,
+        ...(spanId === undefined ? {} : { spanId }),
+        ...(replayed === true ? { replayed: true } : {}),
+      });
     },
     ofType(type: string) {
       return all.filter((event) => event.type === type);

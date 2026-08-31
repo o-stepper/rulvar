@@ -78,7 +78,8 @@ type AdaptiveEvents =
   | {
   agentType: string;
   entryRef: number;
-  logicalTaskId: string;
+  logicalTaskId?: string;
+  reserveUsd?: number;
   spawnUnitsAfter?: number;
   type: "spawn:admitted";
   verdict: "admit" | "reuse_full" | "admit_graft";
@@ -317,7 +318,8 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 {
   agentType: string;
   entryRef: number;
-  logicalTaskId: string;
+  logicalTaskId?: string;
+  reserveUsd?: number;
   spawnUnitsAfter?: number;
   type: "spawn:admitted";
   verdict: "admit" | "reuse_full" | "admit_graft";
@@ -327,8 +329,9 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | `agentType` | `string` | - | `packages/core/dist/index.d.ts` |
-| `entryRef` | `number` | - | `packages/core/dist/index.d.ts` |
-| `logicalTaskId` | `string` | - | `packages/core/dist/index.d.ts` |
+| `entryRef` | `number` | The journaled admission decision entry, or, on direct `ctx.agent` budget admissions (RV4806), the dispatch entry itself: no decision entry exists on that path. | `packages/core/dist/index.d.ts` |
+| `logicalTaskId?` | `string` | Absent on direct `ctx.agent` budget admissions (RV4806): no lineage layer minted a logical task id for a plain dispatch. | `packages/core/dist/index.d.ts` |
+| `reserveUsd?` | `number` | The COMMITTED reserve of this admission in USD, the allowance clamped number the settle releases (RV4801); present on the admissions that commit one (direct `ctx.agent` dispatches and `ctx.workflow` children, RV4806). | `packages/core/dist/index.d.ts` |
 | `spawnUnitsAfter?` | `number` | Spawn-unit balance after the budget-layer debit. Present on budget-layer admissions (the orchestrator spawn tools and ctx.workflow children); absent on lineage-layer admissions (ctx.agent roots), whose spawn-unit debit rides the dispatch itself (v1.22.0 review P2-5). | `packages/core/dist/index.d.ts` |
 | `type` | `"spawn:admitted"` | - | `packages/core/dist/index.d.ts` |
 | `verdict` | `"admit"` \| `"reuse_full"` \| `"admit_graft"` | - | `packages/core/dist/index.d.ts` |
