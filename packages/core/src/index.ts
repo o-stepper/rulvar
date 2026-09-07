@@ -45,6 +45,7 @@ export * from './tools/isolation.js';
 export * from './tools/research.js';
 export * from './tools/progress.js';
 export * from './engine/profile-templates.js';
+export * from './runtime/evidence-categories.js';
 export * from './engine/audit.js';
 export * from './journal/identity.js';
 export * from './journal/lineage.js';

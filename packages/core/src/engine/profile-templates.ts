@@ -26,6 +26,8 @@ import {
   type ResearchEvidenceEntry,
 } from '../tools/research.js';
 import { attestToolset, resolveToolset, type ToolsetAttestation } from '../tools/toolset-hash.js';
+import { ConfigError } from '../l0/errors.js';
+import type { OrchestrateAcceptance } from '../orchestrator/orchestrate.js';
 import type { AgentProfile, EvidenceContract } from './ctx.js';
 
 /**
@@ -181,6 +183,106 @@ export function reviewAgentProfile(options: AgentProfileTemplateOptions = {}): A
         'partial.',
     tools: [progressReportTool(), ...(options.tools ?? [])],
     limits: mergeLimits(REVIEW_PROFILE_LIMITS, options.limits),
+  };
+}
+
+/**
+ * The fan out template's stop conditions (RV4905): the research
+ * template's, plus the finalization machinery a capped specialist
+ * needs to end with a recorded summary instead of a cut. The window
+ * reserves the last six calls for bookkeeping, widens for an
+ * outstanding evidence deficit, and lands an allowlisted overrun
+ * softly; the reserve grants the summary turn; the extension converts
+ * remaining money into calls, proactively for an evidence deficit.
+ */
+export const RESEARCH_FAN_OUT_LIMITS: UsageLimits = {
+  ...RESEARCH_PROFILE_LIMITS,
+  finalizationReserve: { maxOutputTokens: 8000 },
+  finalizationWindow: { reserveCalls: 6, reserveForEvidenceDeficit: true, onSurplus: 'answer' },
+  toolBudgetExtension: { increment: 12, maxExtensions: 3, coverEvidenceDeficit: true },
+};
+
+/** Options of {@link researchFanOut}: the research template's plus the money and the roster. */
+export interface ResearchFanOutOptions extends ResearchAgentProfileOptions {
+  /**
+   * The declared money per child, in USD: the profile's `estCost`, the
+   * extension's headroom floor (a tenth of it), and the figure the
+   * acceptance's limit profile measures spend against.
+   */
+  budgetUsd: number;
+  /** Children the acceptance requires spawned; absent leaves the roster floor off. */
+  children?: number;
+  /** The character floor a limit child's terminal output must clear to be salvaged. */
+  minTerminalOutputChars?: number;
+  /** The finalization reserve summary allowance; default 8000. */
+  summaryMaxOutputTokens?: number;
+}
+
+/** What {@link researchFanOut} returns: the profile, the evidence accessor, the acceptance. */
+export interface ResearchFanOutResult extends ResearchAgentProfileResult {
+  /** The acceptance that pairs with the profile; pass it as `orchestrate` acceptance. */
+  acceptance: OrchestrateAcceptance;
+}
+
+/**
+ * The fan out preset (RV4905, the tenth comparison experiment): every
+ * mechanism a capped specialist needs already existed, spread over
+ * four guide pages, and the experiment's harness assembled them wrong:
+ * a call cap a quarter below the template with no extension to convert
+ * the unspent money, and an all ok acceptance with no salvage arm, so
+ * one surplus bookkeeping call rejected the whole run at 22 percent of
+ * its budget. The preset returns the research profile with
+ * {@link RESEARCH_FAN_OUT_LIMITS} merged under the caller's `limits`,
+ * `estCost` set to the declared money, and the acceptance that pairs
+ * with it: `all-ok` with both salvage arms, `onUnreachable: 'notify'`,
+ * the binding evidence floor when a contract is declared, the roster
+ * floor when `children` is given. Pair it with `childBrief: 'goal'` so
+ * every child reads the task.
+ */
+export function researchFanOut(options: ResearchFanOutOptions): ResearchFanOutResult {
+  const { budgetUsd, children, minTerminalOutputChars, summaryMaxOutputTokens, limits, ...rest } =
+    options;
+  if (typeof budgetUsd !== 'number' || !Number.isFinite(budgetUsd) || budgetUsd <= 0) {
+    throw new ConfigError(
+      `researchFanOut budgetUsd must be a positive finite number; got ${JSON.stringify(budgetUsd)}`,
+    );
+  }
+  if (children !== undefined && (!Number.isInteger(children) || children <= 0)) {
+    throw new ConfigError(
+      `researchFanOut children must be a positive integer; got ${JSON.stringify(children)}`,
+    );
+  }
+  const extension = RESEARCH_FAN_OUT_LIMITS.toolBudgetExtension ?? {
+    increment: 12,
+    maxExtensions: 3,
+  };
+  const kit = researchAgentProfile({
+    ...rest,
+    limits: mergeLimits(
+      {
+        ...RESEARCH_FAN_OUT_LIMITS,
+        finalizationReserve: { maxOutputTokens: summaryMaxOutputTokens ?? 8000 },
+        toolBudgetExtension: {
+          ...extension,
+          minHeadroomUsd: Math.round(budgetUsd * 0.1 * 10_000) / 10_000,
+        },
+      },
+      limits,
+    ),
+  });
+  const acceptance: OrchestrateAcceptance = {
+    childPolicy: 'all-ok',
+    acceptPartialChildren: true,
+    acceptValidatedTerminalOutputOnLimit: true,
+    onUnreachable: 'notify',
+    ...(rest.evidenceContract === undefined ? {} : { requireEvidenceFloor: true }),
+    ...(children === undefined ? {} : { minSpawnedChildren: children }),
+    ...(minTerminalOutputChars === undefined ? {} : { minTerminalOutputChars }),
+  };
+  return {
+    profile: { ...kit.profile, estCost: budgetUsd },
+    evidence: kit.evidence,
+    acceptance,
   };
 }
 

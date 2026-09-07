@@ -81,6 +81,11 @@ import {
   type ExplorationSummary,
   type FinalizationWindowBudget,
 } from './exploration.js';
+import {
+  classifyEvidenceFile,
+  EVIDENCE_CATEGORIES,
+  type EvidenceCategory,
+} from './evidence-categories.js';
 import type { CostBasis, ToolBudgetSummary } from '../l0/events.js';
 import { NoProgressDetector, type AbortClass } from './no-progress.js';
 import { latestProgressReport, type ProgressReport } from '../tools/progress.js';
@@ -247,7 +252,13 @@ export interface AgentResult<T> {
    * Live-window derived like `partial`: a checkpointless restore that
    * lost the window reports what the restored window shows.
    */
-  evidence?: { recordedEntries: number; minEntries: number; met: boolean };
+  evidence?: {
+    recordedEntries: number;
+    minEntries: number;
+    met: boolean;
+    /** The per category verdict (RV4908), present when the contract declared a distribution. */
+    byCategory?: Partial<Record<EvidenceCategory, { recorded: number; required: number }>>;
+  };
   /**
    * The recorded evidence entry CONTENT (the RV1501 entries plumbing):
    * each successful `record_evidence` execution's claim plus its file
@@ -307,7 +318,12 @@ export interface AgentResult<T> {
    * outcome (the refusal is deterministic from the paid transcript, so
    * a rerun would only re-pay the same bounded failure).
    */
-  evidenceFloor?: { recordedEntries: number; minEntries: number };
+  evidenceFloor?: {
+    recordedEntries: number;
+    minEntries: number;
+    /** The per category shortfall (RV4908), present when a distribution was declared. */
+    byCategory?: Partial<Record<EvidenceCategory, { recorded: number; required: number }>>;
+  };
 }
 
 /** One 429's provider-normalized limits, per (provider, model). */
@@ -453,6 +469,34 @@ function countRecordedEvidence(messages: readonly Msg[]): number {
       ).length,
     0,
   );
+}
+
+/**
+ * The files of the successful record_evidence executions in a window,
+ * in record order (RV4908): each result pairs with its call by id, and
+ * the call's `file` argument is what the category classifier reads.
+ * Window derived exactly like the count above, so live and resumed
+ * segments classify the same entries; a call without a string file
+ * classifies as implementation.
+ */
+function recordedEvidenceFiles(messages: readonly Msg[]): string[] {
+  const fileByCall = new Map<string, string>();
+  const files: string[] = [];
+  for (const message of messages) {
+    for (const part of message.parts) {
+      if (part.type === 'tool-call' && part.name === 'record_evidence') {
+        const file = (part.args as { file?: unknown } | undefined)?.file;
+        fileByCall.set(part.id, typeof file === 'string' ? file : '');
+      } else if (
+        part.type === 'tool-result' &&
+        part.name === 'record_evidence' &&
+        (part.result as { recorded?: unknown } | undefined)?.recorded === true
+      ) {
+        files.push(fileByCall.get(part.id) ?? '');
+      }
+    }
+  }
+  return files;
 }
 
 /** Collection bounds of the recorded entry content (the pair caps). */
@@ -717,7 +761,14 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * same total. Absent, and under 'warn', the loop is byte-identical to
    * before.
    */
-  evidenceContract?: { minEntries: number; enforce?: 'warn' | 'refuse' };
+  evidenceContract?: {
+    minEntries: number;
+    enforce?: 'warn' | 'refuse';
+    /** The required spread over source categories (RV4908); see the ctx contract. */
+    distribution?: Partial<Record<EvidenceCategory, number>>;
+    /** Replaces the default path classifier (RV4908). */
+    classify?: (file: string) => EvidenceCategory;
+  };
   /**
    * The durable parallel of the tool budget summary (RV509): the caller
    * journals an extension grant and the finalization-window entry as
@@ -2214,8 +2265,10 @@ export async function runAgent<S extends SchemaSpec>(
     if (cap === undefined || extensionGrants >= extension.maxExtensions) {
       return undefined;
     }
-    const recorded = countRecordedEvidence(messages);
-    const deficit = minEntries - recorded;
+    // The effective shortfall (RV4908): the category gap counts too.
+    const shortfall = evidenceShortfallOf(messages);
+    const recorded = shortfall?.recorded ?? 0;
+    const deficit = shortfall?.deficit ?? 0;
     if (deficit <= 0 || cap - toolCallsUsed >= deficit) {
       return undefined;
     }
@@ -2268,6 +2321,8 @@ export async function runAgent<S extends SchemaSpec>(
     reserve: number;
     budget: FinalizationWindowBudget;
     evidenceDeficit?: number;
+    /** The per category shortfall behind the deficit (RV4908). */
+    evidenceDetail?: string;
   }[] = [];
   /**
    * The outstanding evidence deficit (RV1208): entries the declared
@@ -2275,10 +2330,75 @@ export async function runAgent<S extends SchemaSpec>(
    * the RV507 refusal and the RV809 trigger read, so every surface
    * counts one way. Zero without a contract or once the floor is met.
    */
-  const evidenceDeficit = (): number => {
-    const minEntries = options.evidenceContract?.minEntries;
-    return minEntries === undefined ? 0 : Math.max(0, minEntries - countRecordedEvidence(messages));
+  /**
+   * The contract's shortfall over a message window (RV4908): the total
+   * against minEntries and, with a declared distribution, each category
+   * against its count, the deficit being the larger of the two gaps.
+   * One fold behind the window deficit, the RV809 trigger, the surplus
+   * gate, and the terminal verdict, so every surface counts one way.
+   */
+  const evidenceShortfallOf = (
+    window: readonly Msg[],
+  ):
+    | {
+        recorded: number;
+        deficit: number;
+        met: boolean;
+        byCategory?: Partial<Record<EvidenceCategory, { recorded: number; required: number }>>;
+        detail?: string;
+      }
+    | undefined => {
+    const contract = options.evidenceContract;
+    if (contract === undefined) {
+      return undefined;
+    }
+    const files = recordedEvidenceFiles(window);
+    const recorded = files.length;
+    let deficit = Math.max(0, contract.minEntries - recorded);
+    let met = recorded >= contract.minEntries;
+    if (contract.distribution === undefined) {
+      return { recorded, deficit, met };
+    }
+    const classify = contract.classify ?? classifyEvidenceFile;
+    const counts: Record<EvidenceCategory, number> = {
+      implementation: 0,
+      tests: 0,
+      docs: 0,
+      examples: 0,
+    };
+    for (const file of files) {
+      const category = classify(file);
+      if (category in counts) {
+        counts[category] += 1;
+      }
+    }
+    const byCategory: Partial<Record<EvidenceCategory, { recorded: number; required: number }>> =
+      {};
+    const shortfalls: string[] = [];
+    let categoryDeficit = 0;
+    for (const category of EVIDENCE_CATEGORIES) {
+      const required = contract.distribution[category];
+      if (required === undefined) {
+        continue;
+      }
+      byCategory[category] = { recorded: counts[category], required };
+      const short = Math.max(0, required - counts[category]);
+      if (short > 0) {
+        shortfalls.push(`${category}: ${String(short)} more`);
+      }
+      categoryDeficit += short;
+    }
+    deficit = Math.max(deficit, categoryDeficit);
+    met = met && categoryDeficit === 0;
+    return {
+      recorded,
+      deficit,
+      met,
+      byCategory,
+      ...(shortfalls.length === 0 ? {} : { detail: shortfalls.join(', ') }),
+    };
   };
+  const evidenceDeficit = (): number => evidenceShortfallOf(messages)?.deficit ?? 0;
   /**
    * The effective reserve (RV1208). With reserveForEvidenceDeficit and
    * a declared contract, the reserved tail is at least the outstanding
@@ -2364,7 +2484,8 @@ export async function runAgent<S extends SchemaSpec>(
       return;
     }
     const reserve = reserveFor(state.budget);
-    const deficit = evidenceDeficit();
+    const shortfall = evidenceShortfallOf(messages);
+    const deficit = shortfall?.deficit ?? 0;
     // The widening, as one predicate both the notice and the journaled
     // decision read (RV2601). A turns entry never widened anything, and
     // without the opt-in the reserve IS the configured one.
@@ -2377,7 +2498,12 @@ export async function runAgent<S extends SchemaSpec>(
       windowNoticeFired = true;
       // The deficit line belongs to the widened CALLS reserve (RV1208);
       // a turns entry never widened anything.
-      const entryDeficit = widenedByDeficit ? { evidenceDeficit: deficit } : {};
+      const entryDeficit = widenedByDeficit
+        ? {
+            evidenceDeficit: deficit,
+            ...(shortfall?.detail === undefined ? {} : { evidenceDetail: shortfall.detail }),
+          }
+        : {};
       pendingWindowNotices.push({
         remaining: state.remaining,
         reserve,
@@ -2436,6 +2562,7 @@ export async function runAgent<S extends SchemaSpec>(
    */
   const flushWindowNotices = (): void => {
     for (const entry of pendingWindowNotices.splice(0)) {
+      const detail = evidenceShortfallOf(messages)?.detail;
       const live = windowActive();
       const deficit = evidenceDeficit();
       const text =
@@ -2445,6 +2572,7 @@ export async function runAgent<S extends SchemaSpec>(
               entry.reserve,
               entry.budget,
               entry.evidenceDeficit,
+              entry.evidenceDetail,
             )
           : finalizationWindowNoticeText(
               live.remaining,
@@ -2455,6 +2583,7 @@ export async function runAgent<S extends SchemaSpec>(
                 deficit > 0
                 ? deficit
                 : undefined,
+              detail,
             );
       messages.push({ role: 'user', parts: [{ type: 'text', text }] });
     }
@@ -2501,13 +2630,11 @@ export async function runAgent<S extends SchemaSpec>(
     if (!tail.every((call) => windowAllows(call.name))) {
       return false;
     }
-    const minEntries = options.evidenceContract?.minEntries;
-    if (
-      minEntries !== undefined &&
-      countRecordedEvidence(messages) +
-        countRecordedEvidence([{ role: 'tool', parts: [...batchParts] }]) <
-        minEntries
-    ) {
+    // The floor, the batch's own results counted (RV4908: by category too).
+    const floorOpen =
+      (evidenceShortfallOf([...messages, { role: 'tool', parts: [...batchParts] }])?.deficit ?? 0) >
+      0;
+    if (floorOpen) {
       return false;
     }
     return surplusTurnsUsed() === 0;
@@ -5713,17 +5840,33 @@ export async function runAgent<S extends SchemaSpec>(
   // The same counter the RV809 deficit trigger reads at boundaries.
   const recordedEvidenceEntries =
     evidenceFloor === undefined ? undefined : countRecordedEvidence(messages);
-  let evidenceRefusal: { recordedEntries: number; minEntries: number } | undefined;
-  if (evidenceFloor?.enforce === 'refuse' && status === 'ok') {
+  // The category verdict (RV4908) rides the same fold; without a
+  // declared distribution it is the total against the floor, as before.
+  const evidenceVerdict = evidenceShortfallOf(messages);
+  let evidenceRefusal:
+    | {
+        recordedEntries: number;
+        minEntries: number;
+        byCategory?: Partial<Record<EvidenceCategory, { recorded: number; required: number }>>;
+      }
+    | undefined;
+  if (evidenceFloor?.enforce === 'refuse' && status === 'ok' && evidenceVerdict !== undefined) {
     const recordedEntries = recordedEvidenceEntries ?? 0;
-    if (recordedEntries < evidenceFloor.minEntries) {
+    if (!evidenceVerdict.met) {
       status = 'error';
       output = null;
-      evidenceRefusal = { recordedEntries, minEntries: evidenceFloor.minEntries };
+      evidenceRefusal = {
+        recordedEntries,
+        minEntries: evidenceFloor.minEntries,
+        ...(evidenceVerdict.byCategory === undefined
+          ? {}
+          : { byCategory: evidenceVerdict.byCategory }),
+      };
       agentError = { kind: 'terminal', retryable: false };
       errorMessage =
         `evidence contract unmet: ${String(recordedEntries)} of ` +
-        `${String(evidenceFloor.minEntries)} required evidence entries recorded`;
+        `${String(evidenceFloor.minEntries)} required evidence entries recorded` +
+        (evidenceVerdict.detail === undefined ? '' : ` (${evidenceVerdict.detail})`);
     }
   }
 
@@ -5769,7 +5912,10 @@ export async function runAgent<S extends SchemaSpec>(
     result.evidence = {
       recordedEntries: recordedEvidenceEntries,
       minEntries: evidenceFloor.minEntries,
-      met: recordedEvidenceEntries >= evidenceFloor.minEntries,
+      met: evidenceVerdict?.met ?? recordedEvidenceEntries >= evidenceFloor.minEntries,
+      ...(evidenceVerdict?.byCategory === undefined
+        ? {}
+        : { byCategory: evidenceVerdict.byCategory }),
     };
   }
   // The recorded entry content (the RV1501 entries plumbing): present

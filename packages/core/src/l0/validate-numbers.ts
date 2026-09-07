@@ -109,14 +109,41 @@ export function validateEvidenceContract(value: unknown, site: string): void {
         `enforce? }; got ${typeof value}`,
     );
   }
-  const { minEntries, estCallsPerEntry, overheadCalls, calibration, enforce } = value as {
-    minEntries?: unknown;
-    estCallsPerEntry?: unknown;
-    overheadCalls?: unknown;
-    calibration?: unknown;
-    enforce?: unknown;
-  };
+  const { minEntries, estCallsPerEntry, overheadCalls, calibration, enforce, distribution } =
+    value as {
+      minEntries?: unknown;
+      estCallsPerEntry?: unknown;
+      overheadCalls?: unknown;
+      calibration?: unknown;
+      enforce?: unknown;
+      distribution?: unknown;
+      classify?: unknown;
+    };
   requirePositiveInteger(minEntries as number, `${site}.minEntries`);
+  // The category distribution (RV4908): positive integers over the
+  // four known categories only, so a typo never declares a floor no
+  // file can ever classify into.
+  if (distribution !== undefined) {
+    if (typeof distribution !== 'object' || distribution === null || Array.isArray(distribution)) {
+      throw new ConfigError(
+        `${site}.distribution must be an object over implementation, tests, docs, examples; ` +
+          `got ${typeof distribution}`,
+      );
+    }
+    for (const [category, count] of Object.entries(distribution as Record<string, unknown>)) {
+      if (!['implementation', 'tests', 'docs', 'examples'].includes(category)) {
+        throw new ConfigError(
+          `${site}.distribution names an unknown category '${category}'; the categories are ` +
+            'implementation, tests, docs, examples',
+        );
+      }
+      requirePositiveInteger(count as number, `${site}.distribution.${category}`);
+    }
+  }
+  const classify = (value as { classify?: unknown }).classify;
+  if (classify !== undefined && typeof classify !== 'function') {
+    throw new ConfigError(`${site}.classify must be a function; got ${typeof classify}`);
+  }
   if (estCallsPerEntry !== undefined) {
     requirePositiveInteger(estCallsPerEntry as number, `${site}.estCallsPerEntry`);
   }

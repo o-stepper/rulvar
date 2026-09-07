@@ -3574,3 +3574,58 @@ describe('the child-ceiling feasibility line (RV4702) and the checkpoint intake 
     expect(finding?.message).toContain('re-checks this same arithmetic');
   });
 });
+
+describe('the money that cannot become calls (RV4905)', () => {
+  const reportOf = (spawn: object) =>
+    preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: { routing: { loop: SERVED } },
+      },
+      run: { budgetUsd: 5 },
+      spawns: [{ label: 'worker', ...spawn }],
+    });
+
+  it('a softened cap beside declared money and no extension is named at info', () => {
+    const report = reportOf({
+      limits: { maxTurns: 8, maxToolCalls: 36, toolBudgetNotices: true },
+      estCost: 1.05,
+    });
+    const finding = report.findings.find((entry) => entry.code === 'tool-cap-binds-before-budget');
+    expect(finding?.severity).toBe('info');
+    expect(finding?.spawn).toBe('worker');
+    expect(finding?.message).toContain('caps executed calls at 36 beside 1.0500 USD');
+    expect(finding?.message).toContain('toolBudgetExtension');
+  });
+
+  it('an extension, or no declared money, silences it', () => {
+    const extended = reportOf({
+      limits: {
+        maxTurns: 8,
+        maxToolCalls: 36,
+        toolBudgetExtension: { increment: 12, maxExtensions: 3 },
+      },
+      estCost: 1.05,
+    });
+    expect(extended.findings.some((entry) => entry.code === 'tool-cap-binds-before-budget')).toBe(
+      false,
+    );
+    const unpriced = reportOf({
+      limits: { maxTurns: 8, maxToolCalls: 36, toolBudgetNotices: true },
+    });
+    expect(unpriced.findings.some((entry) => entry.code === 'tool-cap-binds-before-budget')).toBe(
+      false,
+    );
+  });
+
+  it('a declared distribution raises the evidence call floor past minEntries (RV4908)', () => {
+    const report = reportOf({
+      limits: { maxTurns: 8, maxToolCalls: 10, toolBudgetNotices: true },
+      evidenceContract: { minEntries: 2, distribution: { implementation: 3, tests: 2 } },
+    });
+    const finding = report.findings.find((entry) => entry.code === 'tool-cap-below-evidence-floor');
+    expect(finding?.message).toContain(
+      'an evidence contract of 5 entries (the category distribution sums past minEntries)',
+    );
+  });
+});

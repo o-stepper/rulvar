@@ -8077,3 +8077,81 @@ describe('the output allowance line (RV4904)', () => {
     expect(JSON.stringify(bare.calls[0]?.messages[0]?.parts)).not.toContain('repair turn with');
   });
 });
+
+describe('the run brief (RV4907, the tenth comparison experiment)', () => {
+  // The coordinator copied the harness role strings verbatim into every
+  // spawn prompt and no specialist ever read the frozen task; the brief
+  // joins every child's prompt before admission.
+  function briefRun(childBrief: string | undefined, goal: string, prompt = 'task A') {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'did it' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return { toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt } } };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: { done: true } } } };
+    });
+    const made = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow(goal, childBrief === undefined ? {} : { childBrief });
+    return { adapter, ...made, run: () => executeWorkflow(made.internals, wf, undefined) };
+  }
+  const workerPrompt = (adapter: { calls: ChatRequest[] }): string => {
+    const request = adapter.calls.find((req) => agentTypeOf(req) === 'worker');
+    const part = request?.messages[0]?.parts.find((p) => p.type === 'text') as
+      { text: string } | undefined;
+    return part?.text ?? '';
+  };
+
+  it("'goal' prepends the goal to every child prompt, in the journal and on the wire", async () => {
+    const { adapter, store, run } = briefRun('goal', 'Map the error handling of this repository');
+    await run();
+    expect(workerPrompt(adapter)).toBe('Map the error handling of this repository\n\ntask A');
+    const specs = admissionEntries(await store.load('test-run')).map(
+      (entry) => (entry.value as { spec?: { prompt?: string } }).spec?.prompt,
+    );
+    expect(specs).toEqual(['Map the error handling of this repository\n\ntask A']);
+    const coordination = adapter.calls.find((req) => agentTypeOf(req) === '');
+    expect(JSON.stringify(coordination?.messages[0]?.parts)).toContain(
+      'receives the GOAL above as its brief',
+    );
+  });
+
+  it('a declared string is the brief, and the coordination prompt says so', async () => {
+    const { adapter, run } = briefRun('Read the frozen question first.', 'map it');
+    await run();
+    expect(workerPrompt(adapter)).toBe('Read the frozen question first.\n\ntask A');
+    const coordination = adapter.calls.find((req) => agentTypeOf(req) === '');
+    expect(JSON.stringify(coordination?.messages[0]?.parts)).toContain(
+      'receives the declared run brief',
+    );
+  });
+
+  it('without a brief an under briefed spawn is named at warn and nothing else changes', async () => {
+    const { adapter, events, run } = briefRun(undefined, 'g'.repeat(2500), 'x');
+    await run();
+    expect(workerPrompt(adapter)).toBe('x');
+    const warning = events.all.find(
+      (event) =>
+        event.type === 'log' && String(event.msg).startsWith('child prompt may be under briefed'),
+    );
+    expect(String(warning?.msg)).toContain(
+      "spawn 'worker' carries 1 characters against a goal of 2500",
+    );
+    const coordination = adapter.calls.find((req) => agentTypeOf(req) === '');
+    expect(JSON.stringify(coordination?.messages[0]?.parts)).not.toContain('brief');
+  });
+
+  it('rejects an empty brief synchronously at construction', () => {
+    expect(() => makeOrchestratorWorkflow('g', { childBrief: '' })).toThrow(/childBrief/);
+  });
+});

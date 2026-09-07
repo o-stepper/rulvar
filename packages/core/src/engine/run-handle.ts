@@ -278,6 +278,12 @@ export interface AcceptanceChildSummary {
     met: boolean;
     waivedBySalvage?: true;
     floorRequired?: true;
+    /**
+     * The per category verdict (RV4908), present when the child's
+     * contract declared a distribution: recorded against required for
+     * each declared category; `met` above is false while any is short.
+     */
+    byCategory?: Partial<Record<string, { recorded: number; required: number }>>;
   };
 }
 

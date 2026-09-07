@@ -10,6 +10,6 @@
 const BUDGET_ABORT_REASON: "rulvar:budget-ceiling" = 'rulvar:budget-ceiling';
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:435](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L435)
+Defined in: [packages/core/src/runtime/agent-loop.ts:451](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L451)
 
 Reason marker distinguishing a budget-ceiling abort from host cancellation.

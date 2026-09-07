@@ -10,7 +10,7 @@
 function pilotAgentProfile(options): Promise<PilotAgentProfileResult>;
 ```
 
-Defined in: [packages/core/src/engine/profile-templates.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L227)
+Defined in: [packages/core/src/engine/profile-templates.ts:329](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L329)
 
 The read-only pilot preset (RV1606): the
 [production profiles guide](https://docs.rulvar.com/guide/production-profiles)'s

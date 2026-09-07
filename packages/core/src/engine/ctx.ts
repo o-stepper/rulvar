@@ -118,6 +118,7 @@ import {
   validateUsageLimits,
   type UsageLimits,
 } from '../runtime/usage-limits.js';
+import type { EvidenceCategory } from '../runtime/evidence-categories.js';
 import { buildToolContext } from '../tools/context.js';
 import { latestProgressReport } from '../tools/progress.js';
 import {
@@ -272,6 +273,30 @@ export interface EvidenceContract {
    * re-paying the invocation. Non-ok terminals are never re-judged.
    */
   enforce?: 'warn' | 'refuse';
+  /**
+   * The required spread of entries over source categories (RV4908, the
+   * tenth comparison experiment): the task demanded citations across
+   * implementation, tests, documentation, and examples, the contract
+   * could say only `minEntries`, the specialists cited documentation
+   * alone, and the judge took the points. Each declared category must
+   * reach its count of successful `record_evidence` executions whose
+   * `file` classifies into it (`classifyEvidenceFile` by default: test
+   * files and test directories are `tests`, an `examples` directory is
+   * `examples`, a `docs` directory or a prose file is `docs`,
+   * everything else `implementation`; `classify` replaces it). The
+   * effective floor is the larger of `minEntries` and the categories'
+   * sum: the finalization window's deficit and widened reserve, the
+   * RV809 proactive grant, the surplus gate, the terminal verdict
+   * (`evidence.byCategory`, `met` only when every category is met),
+   * and the `enforce: 'refuse'` refusal all read the per category
+   * shortfall, and the window notice names it ("record 3 more evidence
+   * entries first (implementation: 2 more, tests: 1 more)"). Preflight
+   * sizes the evidence call floor to the effective floor. Absent, every
+   * surface keeps its bytes. Policy, never identity.
+   */
+  distribution?: Partial<Record<EvidenceCategory, number>>;
+  /** Replaces the default path classifier; must return one of the four categories. */
+  classify?: (file: string) => EvidenceCategory;
 }
 
 /**

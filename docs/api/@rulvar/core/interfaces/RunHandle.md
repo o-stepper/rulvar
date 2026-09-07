@@ -6,7 +6,7 @@
 
 # Interface: RunHandle\&lt;R\&gt;
 
-Defined in: [packages/core/src/engine/run-handle.ts:489](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L489)
+Defined in: [packages/core/src/engine/run-handle.ts:495](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L495)
 
 ## Extended by
 
@@ -22,9 +22,9 @@ Defined in: [packages/core/src/engine/run-handle.ts:489](https://github.com/o-st
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | [packages/core/src/engine/run-handle.ts:492](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L492) |
-| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | [packages/core/src/engine/run-handle.ts:491](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L491) |
-| <a id="property-runid"></a> `runId` | `string` | [packages/core/src/engine/run-handle.ts:490](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L490) |
+| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | [packages/core/src/engine/run-handle.ts:498](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L498) |
+| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | [packages/core/src/engine/run-handle.ts:497](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L497) |
+| <a id="property-runid"></a> `runId` | `string` | [packages/core/src/engine/run-handle.ts:496](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L496) |
 
 ## Methods
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:489](https://github.com/o-st
 cancel(reason?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:516](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L516)
+Defined in: [packages/core/src/engine/run-handle.ts:522](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L522)
 
 Cooperative cancellation; the run settles 'cancelled' with a complete CostReport.
 
@@ -56,7 +56,7 @@ Cooperative cancellation; the run settles 'cancelled' with a complete CostReport
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:493](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L493)
+Defined in: [packages/core/src/engine/run-handle.ts:499](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L499)
 
 #### Type Parameters
 
@@ -83,7 +83,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:493](https://github.com/o-st
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:503](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L503)
+Defined in: [packages/core/src/engine/run-handle.ts:509](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L509)
 
 Resolves an open awaitExternal suspension (DEF-4 signature): applied
 when this attempt wins the first-closing-wins fold; repeated
@@ -109,7 +109,7 @@ throws InvalidResolutionError and journals nothing.
 revokeApproval(key, options): Promise<ApprovalRevocationOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:511](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L511)
+Defined in: [packages/core/src/engine/run-handle.ts:517](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L517)
 
 Revokes a tool approval (RV4008): a still-open approval is denied
 through the ordinary arbitration, and a RECORDED allow gains a

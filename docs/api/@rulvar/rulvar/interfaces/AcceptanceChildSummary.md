@@ -17,7 +17,8 @@ Defined in: `packages/core/dist/index.d.ts`
 | `error.kind` | `string` | - | `packages/core/dist/index.d.ts` |
 | `error.message?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `error.stage?` | `string` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-evidence"></a> `evidence?` | \{ `floorRequired?`: `true`; `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \} | - | `packages/core/dist/index.d.ts` |
+| <a id="property-evidence"></a> `evidence?` | \{ `byCategory?`: `Partial`\&lt;`Record`\&lt;`string`, \{ `recorded`: `number`; `required`: `number`; \}\&gt;\&gt;; `floorRequired?`: `true`; `met`: `boolean`; `minEntries`: `number`; `recordedEntries`: `number`; `waivedBySalvage?`: `true`; \} | - | `packages/core/dist/index.d.ts` |
+| `evidence.byCategory?` | `Partial`\&lt;`Record`\&lt;`string`, \{ `recorded`: `number`; `required`: `number`; \}\&gt;\&gt; | The per category verdict (RV4908), present when the child's contract declared a distribution: recorded against required for each declared category; `met` above is false while any is short. | `packages/core/dist/index.d.ts` |
 | `evidence.floorRequired?` | `true` | - | `packages/core/dist/index.d.ts` |
 | `evidence.met` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `evidence.minEntries` | `number` | - | `packages/core/dist/index.d.ts` |

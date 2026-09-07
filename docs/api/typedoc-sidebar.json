@@ -1823,6 +1823,14 @@
             "link": "/api/@rulvar/core/interfaces/ResearchEvidenceEntry.md"
           },
           {
+            "text": "ResearchFanOutOptions",
+            "link": "/api/@rulvar/core/interfaces/ResearchFanOutOptions.md"
+          },
+          {
+            "text": "ResearchFanOutResult",
+            "link": "/api/@rulvar/core/interfaces/ResearchFanOutResult.md"
+          },
+          {
             "text": "ResolutionLayer",
             "link": "/api/@rulvar/core/interfaces/ResolutionLayer.md"
           },
@@ -2447,6 +2455,10 @@
           {
             "text": "EscalationKind",
             "link": "/api/@rulvar/core/type-aliases/EscalationKind.md"
+          },
+          {
+            "text": "EvidenceCategory",
+            "link": "/api/@rulvar/core/type-aliases/EvidenceCategory.md"
           },
           {
             "text": "EvidenceRef",
@@ -3175,6 +3187,10 @@
             "link": "/api/@rulvar/core/variables/EVENT_SEGMENT_STRIDE.md"
           },
           {
+            "text": "EVIDENCE_CATEGORIES",
+            "link": "/api/@rulvar/core/variables/EVIDENCE_CATEGORIES.md"
+          },
+          {
             "text": "EXPOSURE_WAIT_SWEEP_MS",
             "link": "/api/@rulvar/core/variables/EXPOSURE_WAIT_SWEEP_MS.md"
           },
@@ -3357,6 +3373,10 @@
           {
             "text": "READ_CHILD_ARTIFACT_TOOL_NAME",
             "link": "/api/@rulvar/core/variables/READ_CHILD_ARTIFACT_TOOL_NAME.md"
+          },
+          {
+            "text": "RESEARCH_FAN_OUT_LIMITS",
+            "link": "/api/@rulvar/core/variables/RESEARCH_FAN_OUT_LIMITS.md"
           },
           {
             "text": "RESEARCH_PROFILE_LIMITS",
@@ -3699,6 +3719,10 @@
           {
             "text": "classifyAttemptOutcome",
             "link": "/api/@rulvar/core/functions/classifyAttemptOutcome.md"
+          },
+          {
+            "text": "classifyEvidenceFile",
+            "link": "/api/@rulvar/core/functions/classifyEvidenceFile.md"
           },
           {
             "text": "clauseAround",
@@ -4379,6 +4403,10 @@
           {
             "text": "researchAgentProfile",
             "link": "/api/@rulvar/core/functions/researchAgentProfile.md"
+          },
+          {
+            "text": "researchFanOut",
+            "link": "/api/@rulvar/core/functions/researchFanOut.md"
           },
           {
             "text": "reservationMinus",
@@ -7934,6 +7962,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/ResearchEvidenceEntry.md"
           },
           {
+            "text": "ResearchFanOutOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/ResearchFanOutOptions.md"
+          },
+          {
+            "text": "ResearchFanOutResult",
+            "link": "/api/@rulvar/rulvar/interfaces/ResearchFanOutResult.md"
+          },
+          {
             "text": "ResolutionLayer",
             "link": "/api/@rulvar/rulvar/interfaces/ResolutionLayer.md"
           },
@@ -8558,6 +8594,10 @@
           {
             "text": "EscalationKind",
             "link": "/api/@rulvar/rulvar/type-aliases/EscalationKind.md"
+          },
+          {
+            "text": "EvidenceCategory",
+            "link": "/api/@rulvar/rulvar/type-aliases/EvidenceCategory.md"
           },
           {
             "text": "EvidenceRef",
@@ -9298,6 +9338,10 @@
             "link": "/api/@rulvar/rulvar/variables/EVENT_SEGMENT_STRIDE.md"
           },
           {
+            "text": "EVIDENCE_CATEGORIES",
+            "link": "/api/@rulvar/rulvar/variables/EVIDENCE_CATEGORIES.md"
+          },
+          {
             "text": "EXPOSURE_WAIT_SWEEP_MS",
             "link": "/api/@rulvar/rulvar/variables/EXPOSURE_WAIT_SWEEP_MS.md"
           },
@@ -9488,6 +9532,10 @@
           {
             "text": "recommendedDefaults",
             "link": "/api/@rulvar/rulvar/variables/recommendedDefaults.md"
+          },
+          {
+            "text": "RESEARCH_FAN_OUT_LIMITS",
+            "link": "/api/@rulvar/rulvar/variables/RESEARCH_FAN_OUT_LIMITS.md"
           },
           {
             "text": "RESEARCH_PROFILE_LIMITS",
@@ -9834,6 +9882,10 @@
           {
             "text": "classifyAttemptOutcome",
             "link": "/api/@rulvar/rulvar/functions/classifyAttemptOutcome.md"
+          },
+          {
+            "text": "classifyEvidenceFile",
+            "link": "/api/@rulvar/rulvar/functions/classifyEvidenceFile.md"
           },
           {
             "text": "clauseAround",
@@ -10526,6 +10578,10 @@
           {
             "text": "researchAgentProfile",
             "link": "/api/@rulvar/rulvar/functions/researchAgentProfile.md"
+          },
+          {
+            "text": "researchFanOut",
+            "link": "/api/@rulvar/rulvar/functions/researchFanOut.md"
           },
           {
             "text": "reservationMinus",

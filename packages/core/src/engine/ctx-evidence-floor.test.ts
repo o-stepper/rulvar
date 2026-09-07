@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 import type { AgentResult } from '../runtime/agent-loop.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { ConfigError } from '../l0/errors.js';
+import { validateEvidenceContract } from '../l0/validate-numbers.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { tool } from '../tools/tool.js';
 import { createCtx } from './ctx.js';
@@ -62,7 +63,11 @@ function recordThenFinish(calls: number) {
 
 function diggerInternals(
   outcomes: ReadonlyArray<'recorded' | 'duplicate' | 'error'>,
-  contract: { minEntries: number; enforce?: 'warn' | 'refuse' },
+  contract: {
+    minEntries: number;
+    enforce?: 'warn' | 'refuse';
+    distribution?: Partial<Record<'implementation' | 'tests' | 'docs' | 'examples', number>>;
+  },
   adapter: ReturnType<typeof scriptedAdapter>,
   priorEntries?: JournalEntry[],
 ) {
@@ -309,5 +314,89 @@ describe('the evidence verdict on the settled result (RV806)', () => {
     );
     expect(result.status).toBe('ok');
     expect(result.evidence).toBeUndefined();
+  });
+});
+
+describe('the evidence distribution binds the verdict by category (RV4908)', () => {
+  /** Records the given files in order, then finishes with plain text. */
+  function recordFilesThenFinish(files: string[]) {
+    return scriptedAdapter((_req, call) =>
+      call < files.length
+        ? { toolCall: { name: 'record_evidence', args: { file: files[call] } } }
+        : { text: 'done' },
+    );
+  }
+
+  it("a met total with a short category refuses under enforce 'refuse', naming the gap", async () => {
+    const adapter = recordFilesThenFinish(['docs/guide/agents.md', 'docs/guide/budgets.md']);
+    const { internals } = diggerInternals(
+      ['recorded', 'recorded'],
+      { minEntries: 2, enforce: 'refuse', distribution: { implementation: 1 } },
+      adapter,
+    );
+    const result = fullResult(
+      await createCtx(internals).agent('dig', { agentType: 'digger', result: 'full' }),
+    );
+    expect(result.status).toBe('error');
+    expect(result.errorMessage).toBe(
+      'evidence contract unmet: 2 of 2 required evidence entries recorded (implementation: 1 more)',
+    );
+    expect(result.evidence).toEqual({
+      recordedEntries: 2,
+      minEntries: 2,
+      met: false,
+      byCategory: { implementation: { recorded: 0, required: 1 } },
+    });
+    await internals.replayer.flush();
+    const terminal = internals.replayer
+      .snapshot()
+      .find((entry) => entry.kind === 'agent' && entry.status === 'error');
+    expect(
+      (terminal?.error?.data as { evidenceFloor?: unknown } | undefined)?.evidenceFloor,
+    ).toEqual({
+      recordedEntries: 2,
+      minEntries: 2,
+      byCategory: { implementation: { recorded: 0, required: 1 } },
+    });
+  });
+
+  it('every category met settles ok with the per category verdict on the result', async () => {
+    const adapter = recordFilesThenFinish(['docs/guide/agents.md', 'src/engine.ts']);
+    const { internals } = diggerInternals(
+      ['recorded', 'recorded'],
+      { minEntries: 2, enforce: 'refuse', distribution: { implementation: 1, docs: 1 } },
+      adapter,
+    );
+    const result = fullResult(
+      await createCtx(internals).agent('dig', { agentType: 'digger', result: 'full' }),
+    );
+    expect(result.status).toBe('ok');
+    expect(result.evidence).toEqual({
+      recordedEntries: 2,
+      minEntries: 2,
+      met: true,
+      byCategory: {
+        implementation: { recorded: 1, required: 1 },
+        docs: { recorded: 1, required: 1 },
+      },
+    });
+  });
+
+  it('a malformed distribution is refused by the contract validator', () => {
+    expect(() =>
+      validateEvidenceContract({ minEntries: 1, distribution: { tests: 0 } }, 'contract'),
+    ).toThrow(ConfigError);
+    expect(() =>
+      validateEvidenceContract({ minEntries: 1, distribution: { fixtures: 1 } }, 'contract'),
+    ).toThrow(ConfigError);
+    expect(() =>
+      validateEvidenceContract({ minEntries: 1, classify: 'implementation' }, 'contract'),
+    ).toThrow(ConfigError);
+    expect(() =>
+      validateEvidenceContract(
+        { minEntries: 1, distribution: { tests: 1, docs: 2 }, classify: () => 'docs' },
+        'contract',
+      ),
+    ).not.toThrow();
   });
 });

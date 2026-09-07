@@ -14,6 +14,10 @@ Options of [researchAgentProfile](/api/@rulvar/rulvar/functions/researchAgentPro
 
 - [`RepositoryResearchToolsetOptions`](/api/@rulvar/rulvar/interfaces/RepositoryResearchToolsetOptions.md)
 
+## Extended by
+
+- [`ResearchFanOutOptions`](/api/@rulvar/rulvar/interfaces/ResearchFanOutOptions.md)
+
 ## Properties
 
 | Property | Type | Description | Inherited from | Defined in |

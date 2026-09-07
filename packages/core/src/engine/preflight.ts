@@ -1868,6 +1868,32 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     if (positiveCallCap || limits.toolUnits !== undefined) {
       anyCappedSpawn = true;
     }
+    // The money that cannot become calls (RV4905): a positive call cap
+    // beside declared money and no extension means the cap binds first
+    // and the rest of the money stays unspent; the tenth comparison
+    // experiment's four specialists expired at maxToolCalls with 18 to
+    // 30 percent of their money spent. Info, not a stop: a cap can be
+    // the deliberate regulator; the finding names the missing
+    // conversion.
+    const declaredMoneyUsd = spec.budgetUsd ?? spec.estCost ?? profile?.estCost;
+    if (
+      positiveCallCap &&
+      declaredMoneyUsd !== undefined &&
+      declaredMoneyUsd > 0 &&
+      limits.toolBudgetExtension === undefined
+    ) {
+      say({
+        severity: 'info',
+        code: 'tool-cap-binds-before-budget',
+        message:
+          `spawn '${label}' caps executed calls at ${String(limits.maxToolCalls)} beside ` +
+          `${declaredMoneyUsd.toFixed(4)} USD of declared money and no toolBudgetExtension: ` +
+          'when the cap binds first the unspent money stays unspent; declare ' +
+          'toolBudgetExtension (coverEvidenceDeficit, minHeadroomUsd) so remaining money ' +
+          'converts into calls, or size the cap to the money',
+        spawn: label,
+      });
+    }
     // The evidence floor (RV303): the experiment relation nobody
     // computed: 14 mandatory evidence entries against an 84-call cap.
     // Declared estimates only, in the spirit of every honest floor
@@ -1903,14 +1929,26 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         });
       }
       const overhead = evidenceContract.overheadCalls ?? DEFAULT_EVIDENCE_OVERHEAD_CALLS;
-      const floor = Math.ceil(evidenceContract.minEntries * perEntry) + overhead;
+      // The effective floor (RV4908): the larger of minEntries and the
+      // declared category distribution's sum, the same figure the
+      // runtime's deficit reads.
+      const distributed = Object.values(evidenceContract.distribution ?? {}).reduce(
+        (sum, count) => sum + (count ?? 0),
+        0,
+      );
+      const requiredEntries = Math.max(evidenceContract.minEntries, distributed);
+      const floor = Math.ceil(requiredEntries * perEntry) + overhead;
       if (executedToolCallCeiling < floor) {
         say({
           severity: 'warning',
           code: 'tool-cap-below-evidence-floor',
           message:
             `spawn '${label}' declares an evidence contract of ` +
-            `${String(evidenceContract.minEntries)} entries; at ${String(perEntry)} estimated ` +
+            `${String(requiredEntries)} entries` +
+            (requiredEntries > evidenceContract.minEntries
+              ? ' (the category distribution sums past minEntries)'
+              : '') +
+            `; at ${String(perEntry)} estimated ` +
             `calls per entry plus ${String(overhead)} overhead calls the floor is ` +
             `${String(floor)} executed calls, but the effective executed-call ceiling is ` +
             `${String(executedToolCallCeiling)}: the cap cannot fit the contract; raise the ` +
