@@ -8038,3 +8038,42 @@ describe('the acceptance forecast (RV4903) and the child limit profile (RV4906)'
     ).toThrow(/onUnreachable/);
   });
 });
+
+describe('the output allowance line (RV4904)', () => {
+  it('rides the coordination prompt only under a declared repair turn allowance', async () => {
+    const finishNow = () =>
+      scriptedAdapter((): ScriptedTurn => ({
+        toolCall: { name: 'finish', args: { result: { done: true } } },
+      }));
+    const declared = finishNow();
+    const withAllowance = makeInternals({
+      adapters: [declared],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    await executeWorkflow(
+      withAllowance.internals,
+      makeOrchestratorWorkflow('answer', {
+        limits: { maxOutputTokensPerTurn: 100, repairTurnMaxOutputTokens: 4000 },
+      }),
+      undefined,
+    );
+    const prompt = JSON.stringify(declared.calls[0]?.messages[0]?.parts);
+    expect(prompt).toContain('Each of your turns is cut at 100 output tokens, reasoning included');
+    expect(prompt).toContain('a rejected finish gets one repair turn with 4000 output tokens');
+    expect(declared.calls[0]?.maxOutputTokens).toBe(100);
+
+    const bare = finishNow();
+    const withoutAllowance = makeInternals({
+      adapters: [bare],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    await executeWorkflow(
+      withoutAllowance.internals,
+      makeOrchestratorWorkflow('answer', { limits: { maxOutputTokensPerTurn: 100 } }),
+      undefined,
+    );
+    expect(JSON.stringify(bare.calls[0]?.messages[0]?.parts)).not.toContain('repair turn with');
+  });
+});

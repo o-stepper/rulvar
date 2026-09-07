@@ -37,6 +37,7 @@ absent on replay.
 | <a id="property-finalizationwindowentered"></a> `finalizationWindowEntered?` | `boolean` | Present and true when the finalization window activated at least once this invocation (RV302). | `packages/core/dist/index.d.ts` |
 | <a id="property-limiter"></a> `limiter?` | `"maxToolCalls"` \| `"toolUnits"` | The tool budget limiter that ended the loop, on that 'limit' only. | `packages/core/dist/index.d.ts` |
 | <a id="property-noticesfired"></a> `noticesFired?` | `number`[] | Notice thresholds (fractions of the cap) whose notices entered the conversation; present when at least one fired. | `packages/core/dist/index.d.ts` |
+| <a id="property-surplusanswerturn"></a> `surplusAnswerTurn?` | `boolean` | Present and true when the window's surplus answer turn was granted this segment (RV4902): the budget expired inside the window on allowlisted calls with the floor met, and the invocation got one answer turn instead of the limit. Live only, like the reserve flag. | `packages/core/dist/index.d.ts` |
 | <a id="property-unitsmax"></a> `unitsMax?` | `number` | The weighted budget; present when toolUnits is configured. | `packages/core/dist/index.d.ts` |
 | <a id="property-unitsused"></a> `unitsUsed?` | `number` | Weighted units spent; present when toolUnits is configured. | `packages/core/dist/index.d.ts` |
 | <a id="property-used"></a> `used` | `number` | Executed tool calls (the loop's own counter). | `packages/core/dist/index.d.ts` |

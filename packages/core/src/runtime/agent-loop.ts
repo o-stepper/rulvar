@@ -72,6 +72,8 @@ import {
   crossedNoticeThresholds,
   ExplorationGuard,
   explorationTrackingEnabled,
+  FINALIZATION_SURPLUS_NOTICE_PREFIX,
+  finalizationSurplusNoticeText,
   finalizationWindowNoticeText,
   finalizationWindowRefusalText,
   toolBudgetExtensionNoticeText,
@@ -289,6 +291,15 @@ export interface AgentResult<T> {
    * recoveries; absent when zero.
    */
   schemaRecoveredTerminalExchanges?: number;
+  /**
+   * Terminal tool exchanges whose ARGUMENTS were cut at the turn's
+   * output token allowance before the JSON closed (RV4904): a subset
+   * of schemaRejectedTerminalExchanges, window derived like it, absent
+   * when zero. The tenth comparison experiment's coordinator lost its
+   * first finish exactly so, under a 15000 token allowance of which
+   * 10061 went to reasoning, and read only "failed validation".
+   */
+  truncatedTerminalExchanges?: number;
   /**
    * The evidence floor refusal detail (RV507): present ONLY when an
    * enforced contract refused an otherwise-ok settle. The ctx layer
@@ -1455,6 +1466,41 @@ function assistantMsg(turn: CollectedTurn, retained: Part[] = []): Msg {
 }
 
 /**
+ * What a turn cut at its output token allowance looked like (RV4904):
+ * the allowance the request declared (absent when the adapter default
+ * applied), and the usage the turn reported.
+ */
+interface TurnCut {
+  allowance?: number;
+  outputTokens: number;
+  reasoningTokens?: number;
+}
+
+/**
+ * The truncation sentence (RV4904): unparsed arguments after a turn
+ * that ended at its output token allowance are named as the cut they
+ * are, with the arithmetic the model needs to size the retry. The
+ * tenth comparison experiment's coordinator read "failed validation"
+ * over a finish cut at 15000 tokens with 10061 of them reasoning, and
+ * the repair re paid the whole document under the same cut.
+ */
+function truncatedArgumentsText(toolName: string, rawChars: number, cut: TurnCut): string {
+  return (
+    `the turn ended at its output token allowance (finish reason 'max-tokens') before the ` +
+    `arguments for '${toolName}' closed: ${String(rawChars)} characters arrived; the turn ` +
+    `produced ${String(cut.outputTokens)} output tokens` +
+    (cut.reasoningTokens === undefined
+      ? ''
+      : ` (${String(cut.reasoningTokens)} of them reasoning)`) +
+    (cut.allowance === undefined
+      ? ' against the adapter default allowance'
+      : ` against an allowance of ${String(cut.allowance)}`) +
+    '; shorten the result, split it across calls, lower the reasoning effort, or raise ' +
+    'limits.maxOutputTokensPerTurn (https://docs.rulvar.com/guide/agents#output-truncation)'
+  );
+}
+
+/**
  * The adapter parse-failure wrapper, recognized by exact shape: both
  * first-class wires deliver tool arguments their single strict
  * JSON.parse rejected as `{__unparsed: raw}` and nothing else.
@@ -1617,6 +1663,8 @@ async function executeToolCall(options: {
   events?: RuntimeEventSink;
   audit?: GateAudit;
   now: () => number;
+  /** The turn ended at its output allowance (RV4904); names unparsed arguments as cut. */
+  turnCut?: TurnCut;
 }): Promise<Part> {
   const { call, runtime } = options;
   const def = runtime.defs.find((candidate) => candidate.name === call.name);
@@ -1667,6 +1715,23 @@ async function executeToolCall(options: {
     }
   }
   if (!validation.valid) {
+    // The cut named as a cut (RV4904): unparsed arguments on a turn that
+    // ended at its output allowance are truncation, not a schema slip,
+    // and the model needs the arithmetic to size its retry.
+    const cutRaw = options.turnCut === undefined ? undefined : unparsedMarkerOf(call.args);
+    if (cutRaw !== undefined && options.turnCut !== undefined) {
+      const truncation = truncatedArgumentsText(call.name, cutRaw.length, options.turnCut);
+      options.events?.emit({ type: 'log', level: 'warn', msg: truncation });
+      return finish(
+        {
+          error: `arguments for '${call.name}' failed validation`,
+          issues: validation.issues.map((issue) => issue.message),
+          truncation,
+        },
+        'error',
+        'truncated-arguments',
+      );
+    }
     return finish(
       {
         error: `arguments for '${call.name}' failed validation`,
@@ -2406,6 +2471,47 @@ export async function runAgent<S extends SchemaSpec>(
     }
     return limits.toolUnits?.costs?.[name] === 0;
   };
+  /**
+   * The surplus answer turn (RV4902): the tool budget expired inside
+   * the window on a tail of ALLOWLISTED calls (the bookkeeping the
+   * window itself invited) while the declared evidence floor is met
+   * (the batch's own results counted), and no surplus turn was granted
+   * yet. Counted from the message window, so a resumed segment grants
+   * the same single turn. The tenth comparison experiment's specialist
+   * died at 36 of 36 on one surplus record_evidence call with nine
+   * entries over a floor of four and a finished report in hand.
+   */
+  let surplusAnswerGranted = false;
+  const surplusTurnsUsed = (): number =>
+    messages.filter(
+      (message) =>
+        message.role === 'user' &&
+        message.parts.some(
+          (part) =>
+            part.type === 'text' && part.text.startsWith(FINALIZATION_SURPLUS_NOTICE_PREFIX),
+        ),
+    ).length;
+  const surplusAnswerAdmits = (
+    tail: readonly ToolCallRequest[],
+    batchParts: readonly Part[],
+  ): boolean => {
+    if (finalizationWindow?.onSurplus !== 'answer' || windowActive() === undefined) {
+      return false;
+    }
+    if (!tail.every((call) => windowAllows(call.name))) {
+      return false;
+    }
+    const minEntries = options.evidenceContract?.minEntries;
+    if (
+      minEntries !== undefined &&
+      countRecordedEvidence(messages) +
+        countRecordedEvidence([{ role: 'tool', parts: [...batchParts] }]) <
+        minEntries
+    ) {
+      return false;
+    }
+    return surplusTurnsUsed() === 0;
+  };
   const modelRetryCounts = new Map<string, number>();
   // Compaction state (M4-T03): the estimate is the last loop turn's
   // inputTokens + outputTokens; points record the turns at which
@@ -2669,6 +2775,8 @@ export async function runAgent<S extends SchemaSpec>(
   const runToolCalls = async (
     calls: ToolCallRequest[],
     priorParts: Part[],
+    /** The turn ended at its output allowance (RV4904); absent otherwise. */
+    turnCut?: TurnCut,
   ): Promise<{
     parts: Part[];
     limitHit: boolean;
@@ -2680,6 +2788,8 @@ export async function runAgent<S extends SchemaSpec>(
     limiter?: 'maxToolCalls' | 'toolUnits';
     /** How many of the batch's calls were not admitted (P1.1). */
     skipped?: number;
+    /** The window's surplus answer turn was granted at this expiry (RV4902). */
+    surplus?: { limiter: 'maxToolCalls' | 'toolUnits'; skipped: number };
   }> => {
     const runtime = options.tools;
     if (runtime === undefined) {
@@ -2761,6 +2871,30 @@ export async function runAgent<S extends SchemaSpec>(
           terminalName !== undefined &&
           (terminalAdmitted || tail.some((candidate) => candidate.name === terminalName));
         if (!admitsTerminal) {
+          // The surplus answer turn (RV4902): an overrun on the window's
+          // own bookkeeping calls with the floor met grants ONE answer
+          // turn instead of the limit; the tail is answered typed so the
+          // next request is well formed.
+          if (surplusAnswerAdmits(tail, parts)) {
+            for (const skippedCall of tail) {
+              parts.push(
+                errorPart(skippedCall, {
+                  error:
+                    'skipped: the tool budget is exhausted inside the finalization window; ' +
+                    'the call was not executed',
+                  limiter: expiredLimiter,
+                  skipped: true,
+                  surplus: true,
+                }),
+              );
+            }
+            surplusAnswerGranted = true;
+            return {
+              parts,
+              limitHit: false,
+              surplus: { limiter: expiredLimiter, skipped: tail.length },
+            };
+          }
           closeSkippedTail(tail, expiredLimiter);
           return {
             parts,
@@ -2939,17 +3073,30 @@ export async function runAgent<S extends SchemaSpec>(
           }
         }
         if (validation === undefined || !validation.valid) {
+          // The cut named as a cut (RV4904): the rejection line keeps
+          // its exact bytes (the window derived counter reads them),
+          // and the truncation rides beside it with the arithmetic.
+          const cutRaw = turnCut === undefined ? undefined : unparsedMarkerOf(gatedCall.args);
+          const truncation =
+            cutRaw === undefined || turnCut === undefined
+              ? undefined
+              : truncatedArgumentsText(gatedCall.name, cutRaw.length, turnCut);
+          if (truncation !== undefined) {
+            events?.emit({ type: 'log', level: 'warn', msg: truncation });
+          }
           events?.emit({
             type: 'tool:end',
             toolName: gatedCall.name,
             toolCallId: call.id,
             outcome: 'error',
             durationMs: now() - gateStartedAt,
+            ...(truncation === undefined ? {} : { errorCode: 'truncated-arguments' }),
           });
           parts.push(
             errorPart(call, {
               error: terminalSchemaRejectionMessage(gatedCall.name),
               issues: validation === undefined ? [] : validation.issues.map((i) => i.message),
+              ...(truncation === undefined ? {} : { truncation }),
             }),
           );
           continue;
@@ -3087,6 +3234,7 @@ export async function runAgent<S extends SchemaSpec>(
         ...(events === undefined ? {} : { events }),
         ...(gateAudit === undefined ? {} : { audit: gateAudit }),
         now,
+        ...(turnCut === undefined ? {} : { turnCut }),
       });
       parts.push(executedPart);
       if (guard !== undefined) {
@@ -3155,7 +3303,7 @@ export async function runAgent<S extends SchemaSpec>(
       }
       return part;
     });
-    const { parts, limitHit, escalated, finished, guardTrip, limiter, skipped } =
+    const { parts, limitHit, escalated, finished, guardTrip, limiter, skipped, surplus } =
       await runToolCalls([restored.pending.awaiting, ...restored.pending.remaining], priorParts);
     if (parts.length > 0) {
       messages.push({ role: 'tool', parts });
@@ -3197,6 +3345,19 @@ export async function runAgent<S extends SchemaSpec>(
       flushExtensionNotices();
       flushWindowNotices();
       maybePushBudgetNotice();
+      if (surplus !== undefined) {
+        // The surplus answer notice (RV4902) closes the boundary: the
+        // model reads the typed skips, then the one turn it has.
+        messages.push({
+          role: 'user',
+          parts: [
+            {
+              type: 'text',
+              text: finalizationSurplusNoticeText(surplus.skipped, options.terminalTool?.name),
+            },
+          ],
+        });
+      }
       await saveBoundary();
     }
   }
@@ -4483,6 +4644,14 @@ export async function runAgent<S extends SchemaSpec>(
           part.name === options.terminalTool?.name &&
           (part as { isError?: boolean }).isError === true,
       );
+    // The repair turn allowance (RV4904): a granted repair turn requests
+    // repairTurnMaxOutputTokens when declared; every other turn keeps
+    // the per turn allowance, and an undeclared option keeps every
+    // request byte identical.
+    const turnAllowance =
+      repairTurnWire && limits.repairTurnMaxOutputTokens !== undefined
+        ? limits.repairTurnMaxOutputTokens
+        : limits.maxOutputTokensPerTurn;
 
     const signals: AbortSignal[] = [];
     if (options.signal !== undefined) {
@@ -4505,6 +4674,9 @@ export async function runAgent<S extends SchemaSpec>(
             limits,
             options.tools?.contracts,
           );
+          if (repairTurnWire && limits.repairTurnMaxOutputTokens !== undefined) {
+            req = { ...req, maxOutputTokens: limits.repairTurnMaxOutputTokens };
+          }
           if (
             options.schema !== undefined &&
             options.canonicalSchema !== undefined &&
@@ -4664,8 +4836,19 @@ export async function runAgent<S extends SchemaSpec>(
     // next model turn.
     if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
       noProgress.recordTurn({ toolCalls: outcome.turn.toolCalls.length });
-      const { parts, limitHit, escalated, finished, guardTrip, limiter, skipped } =
-        await runToolCalls(outcome.turn.toolCalls, []);
+      // The cut, when the turn ended at its output allowance (RV4904).
+      const turnCut: TurnCut | undefined =
+        outcome.finish?.reason === 'max-tokens'
+          ? {
+              outputTokens: outcome.usage.outputTokens,
+              ...(outcome.usage.reasoningTokens === undefined
+                ? {}
+                : { reasoningTokens: outcome.usage.reasoningTokens }),
+              ...(turnAllowance === undefined ? {} : { allowance: turnAllowance }),
+            }
+          : undefined;
+      const { parts, limitHit, escalated, finished, guardTrip, limiter, skipped, surplus } =
+        await runToolCalls(outcome.turn.toolCalls, [], turnCut);
       if (parts.length > 0) {
         messages.push({ role: 'tool', parts });
       }
@@ -4720,6 +4903,19 @@ export async function runAgent<S extends SchemaSpec>(
       flushExtensionNotices();
       flushWindowNotices();
       maybePushBudgetNotice();
+      if (surplus !== undefined) {
+        // The surplus answer notice (RV4902) closes the boundary: the
+        // model reads the typed skips, then the one turn it has.
+        messages.push({
+          role: 'user',
+          parts: [
+            {
+              type: 'text',
+              text: finalizationSurplusNoticeText(surplus.skipped, options.terminalTool?.name),
+            },
+          ],
+        });
+      }
       // Compaction check at the tool turn boundary (M4-T03): the
       // estimate is the last loop turn's usage against the loop model's
       // contextWindow. Compaction runs BEFORE the boundary checkpoint,
@@ -5637,6 +5833,9 @@ export async function runAgent<S extends SchemaSpec>(
     if (windowEntered) {
       toolBudget.finalizationWindowEntered = true;
     }
+    if (surplusAnswerGranted) {
+      toolBudget.surplusAnswerTurn = true;
+    }
     if (limitLimiter !== undefined) {
       toolBudget.limiter = limitLimiter;
     }
@@ -5667,6 +5866,26 @@ export async function runAgent<S extends SchemaSpec>(
         );
   if (schemaRejectedTerminalExchanges > 0) {
     result.schemaRejectedTerminalExchanges = schemaRejectedTerminalExchanges;
+  }
+  // The cut subset (RV4904), window derived exactly like the count above.
+  const truncatedTerminalExchanges =
+    terminalName === undefined
+      ? 0
+      : messages.reduce(
+          (count, message) =>
+            count +
+            message.parts.filter(
+              (part) =>
+                part.type === 'tool-result' &&
+                part.name === terminalName &&
+                (part as { isError?: boolean }).isError === true &&
+                typeof (part.result as { truncation?: unknown } | undefined)?.truncation ===
+                  'string',
+            ).length,
+          0,
+        );
+  if (truncatedTerminalExchanges > 0) {
+    result.truncatedTerminalExchanges = truncatedTerminalExchanges;
   }
   if (schemaRecoveredTerminalExchanges > 0) {
     result.schemaRecoveredTerminalExchanges = schemaRecoveredTerminalExchanges;

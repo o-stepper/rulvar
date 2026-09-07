@@ -6,7 +6,7 @@
 
 # Interface: MechanicalGateVerdict
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L112)
+Defined in: [packages/core/src/runtime/agent-loop.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L114)
 
 The verdict of one mechanical acceptance gate evaluation.
 
@@ -14,5 +14,5 @@ The verdict of one mechanical acceptance gate evaluation.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-detail"></a> `detail?` | `string` | [packages/core/src/runtime/agent-loop.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L114) |
-| <a id="property-pass"></a> `pass` | `boolean` | [packages/core/src/runtime/agent-loop.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L113) |
+| <a id="property-detail"></a> `detail?` | `string` | [packages/core/src/runtime/agent-loop.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L116) |
+| <a id="property-pass"></a> `pass` | `boolean` | [packages/core/src/runtime/agent-loop.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L115) |
