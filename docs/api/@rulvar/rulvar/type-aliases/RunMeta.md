@@ -12,6 +12,7 @@ type RunMeta = {
   argsProvided?: boolean;
   budgetPolicy?: "immutable-lifetime";
   budgetUsd?: number;
+  clampTurnToExposure?: true;
   configFingerprint?: string;
   execKeyDerivation?: number;
   genesis?: string;
@@ -132,6 +133,28 @@ RV2208, by rewriting this field for the run's remaining life).
 Absent when the run started without a ceiling. Stores must
 round-trip the field (the conformance kit checks); a store that
 drops it degrades a resumed run to uncapped.
+
+***
+
+### clampTurnToExposure?
+
+```ts
+optional clampTurnToExposure?: true;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The opt in lone dispatch exposure clamp
+(RunOptions.clampTurnToExposure, RV2503), recorded at genesis only
+when armed so resume restores the posture (RV4913): the option
+used to be per segment and unrecorded, so a resumed segment ran
+WITHOUT the clamp and a queue worker could never re arm it. Only
+the exact literal `true` is recorded and honored; absence means
+off, which keeps every run recorded before the field byte
+identical on resume. Stores must round trip the field (the
+conformance kit checks); a store that drops it degrades a resumed
+run to the historical refusal of an overshooting lone dispatch,
+never to an invented clamp.
 
 ***
 

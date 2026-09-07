@@ -6,7 +6,7 @@
 
 # Interface: Worker
 
-Defined in: [packages/cli/src/worker.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L109)
+Defined in: [packages/cli/src/worker.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L167)
 
 ## Methods
 
@@ -16,13 +16,34 @@ Defined in: [packages/cli/src/worker.ts:109](https://github.com/o-stepper/rulvar
 active(): string[];
 ```
 
-Defined in: [packages/cli/src/worker.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L121)
+Defined in: [packages/cli/src/worker.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L187)
 
-runIds currently held by this worker.
+runIds occupying a slot: runs held under a lease, plus evicted runs
+(a failed renew) still unwinding their cancel. A slot frees only
+when its run settles, never before the cancel lands (RV4913).
 
 #### Returns
 
 `string`[]
+
+***
+
+### lastSweepError()
+
+```ts
+lastSweepError(): unknown;
+```
+
+Defined in: [packages/cli/src/worker.ts:194](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L194)
+
+Readiness (RV4913): the error of the most recent sweep that failed
+against the store, or undefined once a later sweep completed. A
+store outage used to be a silent idle; with this flag a health
+probe can report a worker that polls a store it cannot read.
+
+#### Returns
+
+`unknown`
 
 ***
 
@@ -32,7 +53,7 @@ runIds currently held by this worker.
 start(): void;
 ```
 
-Defined in: [packages/cli/src/worker.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L111)
+Defined in: [packages/cli/src/worker.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L169)
 
 Begins sweeping on the poll cadence. Idempotent.
 
@@ -48,9 +69,10 @@ Begins sweeping on the poll cadence. Idempotent.
 stop(): Promise<void>;
 ```
 
-Defined in: [packages/cli/src/worker.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L119)
+Defined in: [packages/cli/src/worker.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L181)
 
-Stops sweeping, cancels in-flight runs, releases held leases.
+Stops sweeping, cancels in flight runs (evicted runs included) and
+waits for their settle, releases held leases.
 
 #### Returns
 
@@ -64,11 +86,12 @@ Stops sweeping, cancels in-flight runs, releases held leases.
 sweep(): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/worker.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L117)
+Defined in: [packages/cli/src/worker.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L176)
 
 One sweep: lease and resume eligible runs up to the concurrency
 cap. Returns the number of runs picked up. Exposed so hosts and
-tests can drive the worker deterministically without timers.
+tests can drive the worker deterministically without timers. A
+store failure rejects here and raises `lastSweepError()`.
 
 #### Returns
 

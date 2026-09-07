@@ -217,6 +217,10 @@
           {
             "text": "PreflightDeclaration",
             "link": "/api/@rulvar/cli/type-aliases/PreflightDeclaration.md"
+          },
+          {
+            "text": "WorkerResumeOptions",
+            "link": "/api/@rulvar/cli/type-aliases/WorkerResumeOptions.md"
           }
         ]
       },

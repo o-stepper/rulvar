@@ -1323,6 +1323,20 @@ type RunMeta = {
     allowUnpriced?: string[];
   };
   /**
+  * The opt in lone dispatch exposure clamp
+  * (RunOptions.clampTurnToExposure, RV2503), recorded at genesis only
+  * when armed so resume restores the posture (RV4913): the option
+  * used to be per segment and unrecorded, so a resumed segment ran
+  * WITHOUT the clamp and a queue worker could never re arm it. Only
+  * the exact literal `true` is recorded and honored; absence means
+  * off, which keeps every run recorded before the field byte
+  * identical on resume. Stores must round trip the field (the
+  * conformance kit checks); a store that drops it degrades a resumed
+  * run to the historical refusal of an overshooting lone dispatch,
+  * never to an invented clamp.
+  */
+  clampTurnToExposure?: true;
+  /**
   * The host-declared config identity (RunOptions.configFingerprint,
   * RV3210): an opaque pin over what the workflow body closes over,
   * recorded at genesis and compared on every resume that asserts one.
@@ -9365,9 +9379,12 @@ interface RunOptions {
   * dispatch refuses through the usual typed `in-flight-exposure`
   * path, so the drained-refusal terminals (RV1902, RV2002, RV2003)
   * keep their shapes. Absent, every byte of dispatch behavior is
-  * historical. Like `strictPricing`, this is a per-segment posture: it
-  * is not recorded in RunMeta and a resumed segment carries only what
-  * its own options declare.
+  * historical. Like `strictPricing`, the armed posture is recorded in
+  * RunMeta at genesis and restored on every resume (RV4913): a
+  * resumed segment used to carry only what its own options declared,
+  * and a bare resume (the queue worker's) silently dropped the clamp.
+  * Only `true` is recorded; a run recorded before the field resumes
+  * exactly as it always did.
   */
   clampTurnToExposure?: boolean;
   /**

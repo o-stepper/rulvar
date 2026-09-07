@@ -409,6 +409,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             maxInFlightExposureUsd: 0.07,
             budgetPolicy: 'immutable-lifetime',
             strictPricing: { maxRatesAgeDays: 30, allowUnpriced: ['local:llama'] },
+            clampTurnToExposure: true,
             segments: 3,
             argsProvided: true,
             argsHash: 'a'.repeat(64),
@@ -471,6 +472,15 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             roundTripped.strictPricing.allowUnpriced?.[0] === 'local:llama',
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (strictPricing)',
+        );
+        // The lone dispatch exposure clamp (RV4913): a store that drops
+        // it degrades a resumed run to the historical refusal of an
+        // overshooting lone dispatch, the same silent loosening failure
+        // mode as the pricing gate.
+        ensure(
+          roundTripped?.clampTurnToExposure === true,
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (clampTurnToExposure)',
         );
         ensure(
           roundTripped?.segments === 3,
