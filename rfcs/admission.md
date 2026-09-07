@@ -19,9 +19,10 @@ caps exactly two things, reserved wires per level and, on any level configured w
 `concurrency`, the number of active grants (RV4909, plan 49): tokens, dollars, and exposure
 ride the ticket for the holder's own accounting and are never limited by admission, money
 being the budget layer's bound; (8) an expired grant's concurrency slot parks under its
-possibly live holder and returns only through that holder's own settlement or an operator
-cancel by identity (RV4910, plan 49), and the engine bracket's `onLeaseLost` arm decides
-whether the run continues (the default) or is cancelled, pinned by conformance rows 5 and 13.
+possibly live holder and returns only through that holder's own release, cancel, or re
+enqueue under its identity, or an operator cancel by identity (RV4910, plan 49), and the
+engine bracket's `onLeaseLost` arm decides whether the run continues (the default) or is
+cancelled, pinned by conformance rows 5 and 13.
 Originally: accepted design (RV4302, plan 43), hardened by an adversarial review pass
 (5 blocker findings; every one incorporated). The declarative scope value normalization
 table shipped with the plan 43 train (section 5).
@@ -171,8 +172,9 @@ postgres) does not leak into the new seam: level keys are canonical bytes everyw
 3. Weighted fair queue, ONE algorithm, stated fully and reproducibly: START TIME
    FAIR QUEUING (SFQ), hierarchical (first across tenants, then across provider
    accounts within the chosen tenant). The service cost of a ticket is its reserved
-   WIRES, the one scheduler unit; tokens, dollars, and exposure are reservation
-   dimensions that gate feasibility, never scheduling cost, so the cost function is
+   WIRES, the one scheduler unit and the one measure feasibility is judged on (section
+   4.3, RV4909); tokens, dollars, and exposure ride the ticket for the holder's own
+   accounting and enter neither feasibility nor scheduling cost, so the cost function is
    total. Persistent per queue state is exactly (virtual time `V`, per member finish
    tag). The rules, all of them: a ticket's start tag is max(its member's finish
    tag, `V` at arrival); its finish tag is start tag plus cost over weight; the

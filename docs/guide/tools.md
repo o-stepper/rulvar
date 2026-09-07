@@ -176,7 +176,7 @@ flowchart LR
     U --> T[Terminal default]
 ```
 
-Configuration lives on the engine (`defaults.permissions`, a `PermissionConfig`) and on agent profiles (`permissions`, an `AgentProfilePermissions`). The layers merge engine-first; the profile's `canUseTool` wins over the engine's since there is a single slot:
+Configuration lives on the engine (`defaults.permissions`, a `PermissionConfig`), on agent profiles (`permissions`, an `AgentProfilePermissions`), and, when a child's profile opts in with `inheritPermissions: true` (RV4912), on the spawning agent's own chain, which becomes a third layer between the two. The layers compile into one chain in a fixed order and the chain is evaluated in fixed stages; the definitive list follows the example:
 
 ```ts
 import { createEngine } from '@rulvar/core';
@@ -210,6 +210,24 @@ const engine = createEngine({
 });
 ```
 
+The chain is compiled once per spawn and evaluated once per tool call. Compilation concatenates the layers in this order, and nothing later reorders them:
+
+1. **The engine layer**, `defaults.permissions`: its hooks, deny table, ask table, `canUseTool`, `strictApprovals`, `approvalDeadlineMs` and `hookAllow`.
+2. **The spawning agent's layer**, only when the child's profile declares `inheritPermissions: true` (RV4912): that agent's own chain compiled with no engine layer (its hooks, tables, `canUseTool`, modes and deadline, whatever it inherited itself, and the deny rule its `'readonly'` isolation compiled), so the engine layer is applied once, never twice. Undeclared or `false` ignores the layer byte for byte; a non boolean value is a `ConfigError` at compile.
+3. **The child's own profile layer**, `permissions` on the profile, with its declared `preset` compiled into the same deny and ask tables last of all, never as a further layer.
+
+Within the compiled chain the hooks run engine, inherited, profile; the deny tables and the ask tables concatenate engine, inherited, profile, preset; `canUseTool` and `approvalDeadlineMs` are single slots resolved profile over inherited over engine; and `strictApprovals` and `hookAllow` merge monotonically (any layer arming `true` or `'advisory'` arms the chain, so a child cannot loosen what it inherited). Evaluation then runs these stages in order, short circuiting at the first decisive verdict:
+
+1. **Hooks**, in registration order across the three layers. `undefined` passes; `{ modifiedInput }` substitutes the input and continues, and every later stage reads the modified input; `'deny'` and `'ask'` decide at once (`decidedBy: 'hook'`). An `'allow'` depends on the mode: under `hookAllow: 'decisive'` (the default) it decides at once, except that with `strictApprovals: true` over a tool declaring `needsApproval` it neither decides nor stops later hooks; under `hookAllow: 'advisory'` it ends the hook stage and is HELD until the deny tables have spoken, with the same `strictApprovals` exception, under which it falls through unheld.
+2. **Deny rules**, engine, inherited, profile, preset: the first match denies (`decidedBy: 'deny-rule'`, the rule reported).
+3. **A held allow** (advisory mode, no deny rule matched) now decides `allow` with `decidedBy: 'hook'`; nothing below is consulted.
+4. **Ask rules**, in the same order: the first match asks (`decidedBy: 'ask-rule'`).
+5. **Unmatchable shell segments**: for a tool that has argv rules in either table, a command carrying command substitution, process substitution or a here document, or a call whose input carries no command at all, asks (`decidedBy: 'ask-rule'`, no rule).
+6. **`canUseTool`**, the single resolved slot: `'allow'` decides, even over `needsApproval`, unless `strictApprovals` holds over a `needsApproval` tool, when it falls through; `'deny'` decides; `{ modifiedInput }` substitutes and continues.
+7. **The terminal default**: `ask` when the tool declares `needsApproval: true`, else `allow` (`decidedBy: 'default'`).
+
+Advisory domain rule matches never decide anything at any stage; they ride the verdict for the `tool:end` audit fields.
+
 **Hooks** are closures, run in deterministic registration order, sync or async. `'allow'`, `'deny'`, and `'ask'` are decisive and stop the chain. `{ modifiedInput }` substitutes the input and continues: the modified input is what later layers evaluate and what `execute` eventually receives. `undefined` passes through. The hook above gates your own `http_fetch` tool; Rulvar ships no tool of that name.
 
 **Deny rules and ask rules** are declarative tables with no closures. A rule matches by tool name, by declared risk class (`'undeclared'` matches every tool without declared risk), by argv pattern for shell tools, or by network domain. A match in the deny layer denies; a match in the ask layer asks. Rules never allow: allow only ever results from falling through to `canUseTool` or the terminal default, which is what lets presets compile into the chain without creating a bypass channel. Because closures cannot cross the worker sandbox, a compiled workflow running there carries only these declarative tables; hooks and `canUseTool` are host-side layers (see [orchestration modes](/guide/orchestration-modes)).
@@ -233,7 +251,29 @@ const permissions: PermissionConfig = {
 
 **`strictApprovals`** (RV1507) is the opt-in monotonic composition for platform profiles. The decisive `'allow'` above is deliberate for tests and trusted hosts, and it is also a fail-open hazard: one blanket `canUseTool` (or one allowing hook) silently retires every `needsApproval` declaration in the toolset. With `strictApprovals: true`, an ALLOW from a hook or from `canUseTool` over a `needsApproval` tool falls through instead of deciding, so the terminal default still asks; `deny` and `ask` keep their power (tightening stays decisive), `{ modifiedInput }` still applies, and tools without the declaration keep the historical composition byte for byte. The flag merges monotonically across the engine and profile layers: either level arms it, a profile cannot loosen an engine-armed mode, and a non-boolean value is a `ConfigError` at compile, so a stray `'true'` string can never silently disarm the mode it names.
 
-**`hookAllow`** (RV4911) is the opt in precedence of a hook's allow over the deny tables. Under the documented order a hook's `'allow'` decides before the deny rules are read, so for a tool without `needsApproval` one engine level allow hook silently retires a profile deny rule, the deny rule that `'readonly'` isolation compiles, and the pilot profile's denial; that order is `hookAllow: 'decisive'`, the default, byte identical. With `hookAllow: 'advisory'` the allow still ends the hook layer (which hooks run does not change) but it is held: the deny rules are evaluated over the hook modified input, a match denies, and only then does the held allow decide, still reported as `decidedBy: 'hook'`; ask rules, `canUseTool` and the terminal default are not consulted, exactly as before. `deny` and `ask` verdicts keep their power, `{ modifiedInput }` still applies, and `strictApprovals` keeps its own precedence (over a `needsApproval` tool the allow falls through instead of being held). The mode merges monotonically across the engine, inherited and profile layers (any layer arms it), a value outside the two is a `ConfigError` at compile, and [the regulated floor](/guide/production-profiles#the-regulated-floor-one-call-refusals-typed) forces `'advisory'`, refuses `'decisive'` by field name, and hashes the mode and every permission layer into its posture.
+**`hookAllow`** (RV4911) is the precedence of a hook's allow over the deny tables, and it defaults to `'decisive'`: the allow decides before any deny rule is read, so for a tool without `needsApproval` one engine level allow hook retires a profile deny rule, the deny rule that `'readonly'` isolation compiles, and the pilot profile's denial. The opt in `'advisory'` holds the allow: which hooks run does not change (the allow still ends the hook stage), the deny tables are evaluated over the hook modified input, a match denies, and only then does the held allow decide, still reported as `decidedBy: 'hook'`; ask rules, `canUseTool` and the terminal default stay unconsulted, exactly as before. `deny` and `ask` verdicts keep their power under both modes, `{ modifiedInput }` still applies, and `strictApprovals` keeps its own precedence. The mode merges monotonically across the engine, inherited and profile layers, a value outside the two is a `ConfigError` at compile, and [the regulated floor](/guide/production-profiles#the-regulated-floor-one-call-refusals-typed) forces `'advisory'` on the engine defaults, refuses an explicit `'decisive'` by field name at either level, and hashes the mode and every permission layer into its posture. Who decides first, by mode and by tool:
+
+| Tool | `hookAllow: 'decisive'` (the default) | `hookAllow: 'advisory'` |
+|---|---|---|
+| without `needsApproval` | the hook's allow decides at once; no deny rule is read | the deny tables read the hook modified input and a match denies; otherwise the held allow decides |
+| with `needsApproval`, `strictApprovals` off | the hook's allow decides at once and retires the `needsApproval` ask | the deny tables first, then the held allow, which still retires the `needsApproval` ask |
+| with `needsApproval`, `strictApprovals` on | the allow neither decides nor stops later hooks; deny rules, ask rules and `canUseTool` (whose allow falls through too) run, and the terminal default asks | the same as under decisive: the allow falls through unheld, and the terminal default asks |
+
+Before 1.253.0 every chain evaluated under the decisive order and no option could change it, so an allow from a hook silently retired the deny rules of every tool without `needsApproval` (the Codex review of 973add91 that the owner confirmed found it, with no test covering the composition); 1.253.0 closes it with the advisory precedence, which the regulated profile forces and whose decisive counterpart it refuses.
+
+```ts
+import { compilePermissionChain, evaluatePermission } from '@rulvar/core';
+
+const chain = compilePermissionChain(
+  { hooks: [() => 'allow'], hookAllow: 'advisory' }, // engine layer: a blanket allow, held
+  { deny: [{ risk: 'destructive' }] },               // profile layer
+);
+
+const verdict = await evaluatePermission(chain, dropTable, { table: 'orders' });
+// { verdict: 'deny', decidedBy: 'deny-rule', rule: { risk: 'destructive' }, ... }
+// drop_table declares risk 'destructive'; under the default 'decisive' the same
+// call is { verdict: 'allow', decidedBy: 'hook' } and the deny rule is never read
+```
 
 The three verdicts mean:
 
@@ -305,9 +345,9 @@ The result names the verdict, the deciding layer (`'hook'`, `'deny-rule'`, `'ask
 
 ## Subagent inheritance
 
-Permission configuration is never inherited implicitly. A child agent gets the engine layer plus its own profile's layers unless its profile opts in with `inheritPermissions: true` (RV4912). The default is false: a locked down parent does not silently loosen or tighten its children.
+Permission configuration is never inherited implicitly. A child agent gets the engine layer plus its own profile's layers unless its profile opts in with `inheritPermissions: true` (RV4912). The default is false: a locked down parent does not silently loosen or tighten its children. Before 1.253.0 the field was declared and read nowhere, so the documented opt in inherited nothing (the Codex review of 973add91 that the owner confirmed found the dead flag); 1.253.0 wires it.
 
-Under the opt in the spawning agent's layer is prefixed ahead of the child's own. The spawning agent is the nearest enclosing running agent: the child was spawned from one of that agent's tools, through any `ctx.phase`, `ctx.parallel`, `ctx.pipeline` or `ctx.workflow` scope the tool opened, the orchestrator's `spawn_agent` and `parallel_agents` included (the coordinator runs without a profile, so today it hands down an empty layer). Its layer is its own chain above the engine layer: its own hooks, rules, `canUseTool`, `strictApprovals`, `approvalDeadlineMs` and `hookAllow`, whatever it inherited itself, and the deny rule its `'readonly'` isolation compiled. The precedence is exact: hooks run engine, inherited, then the child's own; the deny and ask tables concatenate in the same order with the child's preset last; `canUseTool` and `approvalDeadlineMs` resolve child over inherited over engine; `strictApprovals` and `hookAllow` merge monotonically, so a child cannot loosen what it inherited; and the engine layer is applied once, never twice. A parent deny therefore reaches the child. `inheritPermissions: false` or undeclared keeps the child's chain byte identical, a non boolean value is a `ConfigError` at compile, and in a workflow body outside any agent there is no spawning agent, so the opt in inherits nothing. Permissions are policy, never identity: the inherited layer does not enter the child's spawn identity. Under [the regulated floor](/guide/production-profiles#the-regulated-floor-one-call-refusals-typed) the opt in compiles and enters the hashed posture, because the layers a child can inherit are exactly the hashed ones.
+Under the opt in the spawning agent's layer becomes the second layer of [the permission chain](#the-permission-chain), between the engine layer and the child's own. The spawning agent is the nearest enclosing running agent: the child was spawned from one of that agent's tools, through any `ctx.phase`, `ctx.parallel`, `ctx.pipeline` or `ctx.workflow` scope the tool opened, the orchestrator's `spawn_agent` and `parallel_agents` included (the coordinator runs without a profile, so today it hands down an empty layer). Its layer is its own chain compiled with no engine layer: its own hooks, rules, `canUseTool`, `strictApprovals`, `approvalDeadlineMs` and `hookAllow`, whatever it inherited itself, and the deny rule its `'readonly'` isolation compiled, carried on the same scope state the ctx primitives already use and replaced by the next agent's own layer. The compiled order does the rest: a parent deny reaches the child, a child cannot loosen a mode its parent armed, and the engine layer is applied once, never twice. `inheritPermissions: false` or undeclared keeps the child's chain byte identical, a non boolean value is a `ConfigError` at compile, in a workflow body outside any agent there is no spawning agent, so the opt in inherits nothing, and a grandchild inherits from its own spawning agent, never from an ancestor that agent declined to inherit from. Permissions are policy, never identity: the inherited layer does not enter the child's spawn identity. Under [the regulated floor](/guide/production-profiles#the-regulated-floor-one-call-refusals-typed) the opt in compiles and enters the hashed posture, because the layers a child can inherit are exactly the hashed ones.
 
 ## Ask approvals surface to the host
 
