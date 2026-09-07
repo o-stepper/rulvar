@@ -857,3 +857,191 @@ describe('durable window entry before the gated call (RV601)', () => {
     }
   });
 });
+
+describe('the window notice is rendered at delivery, not at entry (RV4901, the tenth comparison experiment)', () => {
+  // The tenth comparison experiment's security specialist entered the
+  // window on the third call of a six call record_evidence batch. The
+  // notice was composed right there, from the counts of that instant
+  // and a deficit counted over the history alone, and delivered after
+  // the batch: "7 of the reserved final 7 tool calls remain, record 4
+  // more evidence entries first" when 3 calls remained and all six
+  // entries were already recorded. The model obeyed to the letter,
+  // the fourth extra call died at the cap, and a child with 9 entries
+  // over a floor of 4 and a finished report settled 'limit'.
+  const evidenceRecorder = (executions: { count: number }) =>
+    tool({
+      name: 'record_evidence',
+      description: 'records one evidence entry',
+      parameters: z.strictObject({}),
+      execute: () => {
+        executions.count += 1;
+        return Promise.resolve({ recorded: true });
+      },
+    });
+  const records = (n: number) => ({
+    toolCalls: Array.from({ length: n }, () => ({ name: 'record_evidence', args: {} })),
+  });
+
+  it('a batch that enters the window mid way is told the counts that bind after it', async () => {
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    // The specialist's own behavior: search, then one batch of six
+    // entries, then exactly what the notice says (record N more when it
+    // asks, finish otherwise).
+    const adapter = scriptedAdapter((req, call) => {
+      if (call === 0) {
+        return reads(4);
+      }
+      if (call === 1) {
+        return records(6);
+      }
+      const asked = /record (\d+) more evidence/u.exec(windowNotices(req).at(-1) ?? '');
+      return asked === null
+        ? { toolCall: { name: 'finish', args: { result: 'done' } } }
+        : records(Number(asked[1]));
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 8,
+        maxToolCalls: 12,
+        toolBudgetNotices: true,
+        // Deficit 4 plus the summary call widens the reserve to 5, so
+        // the window opens before the FOURTH call of the batch, with
+        // five calls remaining and a deficit of four by the history.
+        finalizationWindow: {
+          reserveCalls: 4,
+          allow: ['record_evidence'],
+          reserveForEvidenceDeficit: true,
+        },
+      }),
+      evidenceContract: { minEntries: 4 },
+      tools: runtimeOf([
+        readTool(readExecutions),
+        evidenceRecorder(recordExecutions),
+        finishTool(),
+      ]),
+      terminalTool: { name: 'finish' },
+    });
+    // Six entries, no surplus, an ok settle: the notice named the two
+    // calls that actually remained and no deficit, so the model
+    // finished instead of recording four entries it already had.
+    expect(result.status).toBe('ok');
+    expect(readExecutions.count).toBe(4);
+    expect(recordExecutions.count).toBe(6);
+    expect(result.toolBudget?.finalizationWindowEntered).toBe(true);
+    const last = adapter.calls.at(-1) as { messages: Msg[] };
+    expect(windowNotices(last)).toEqual([
+      'Finalization window: 2 of the reserved final 4 tool calls remain. Only finalization ' +
+        'tools (and the terminal tool) may execute now; record your evidence and finish with ' +
+        'what you have.',
+    ]);
+    // The budget notice flushed right after it agrees on the count.
+    expect(textsOf(last, 'Tool budget notice:')).toEqual([
+      'Tool budget notice: 10 of 12 tool calls used; 2 remaining. Prioritize the highest ' +
+        'value calls and finish with what you have.',
+    ]);
+  });
+
+  it('an entry at the batch boundary reads exactly as before when the batch recorded nothing', async () => {
+    // The pre RV4901 bytes for the common case: the window opens on the
+    // last call of a search batch, so the counts at the entry ARE the
+    // counts at the flush, and the deficit is the whole declared floor.
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    const adapter = scriptedAdapter((req) =>
+      windowNotices(req).length === 0
+        ? reads(1)
+        : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 12,
+        maxToolCalls: 10,
+        finalizationWindow: {
+          reserveCalls: 1,
+          allow: ['record_evidence'],
+          reserveForEvidenceDeficit: true,
+        },
+      }),
+      evidenceContract: { minEntries: 3 },
+      tools: runtimeOf([
+        readTool(readExecutions),
+        evidenceRecorder(recordExecutions),
+        finishTool(),
+      ]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    expect(readExecutions.count).toBe(6);
+    expect(windowNotices(adapter.calls.at(-1) as { messages: Msg[] })).toEqual([
+      'Finalization window: 4 of the reserved final 4 tool calls remain. Only finalization ' +
+        'tools (and the terminal tool) may execute now; record your evidence and finish with ' +
+        'what you have. This tail is reserved for your declared evidence floor: record 3 ' +
+        'more evidence entries first.',
+    ]);
+  });
+
+  it('a window a boundary grant re opened before the flush keeps its entry snapshot', async () => {
+    // The one case the live regime cannot describe: the RV809 deficit
+    // grant fires at the same boundary, BEFORE the flush, and moves the
+    // remaining budget back out of the window. The live arithmetic is
+    // then no window at all, so the entry is delivered as it always
+    // was, after the grant notice that explains the new count.
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(5) : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 6,
+        maxToolCalls: 8,
+        toolBudgetExtension: { increment: 5, maxExtensions: 1, coverEvidenceDeficit: true },
+        // Reads stay allowlisted so the batch keeps executing inside
+        // the window; the entry fires before the fourth read (five
+        // remaining against a reserve of five), and the fifth read
+        // leaves three remaining, short of the deficit of four.
+        finalizationWindow: {
+          reserveCalls: 1,
+          allow: ['read', 'record_evidence'],
+          reserveForEvidenceDeficit: true,
+        },
+      }),
+      evidenceContract: { minEntries: 4 },
+      tools: runtimeOf([
+        readTool(readExecutions),
+        evidenceRecorder(recordExecutions),
+        finishTool(),
+      ]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    expect(readExecutions.count).toBe(5);
+    expect(result.toolBudget?.extensionsGranted).toBe(1);
+    const last = adapter.calls.at(-1) as { messages: Msg[] };
+    const userTexts = last.messages
+      .filter((msg) => msg.role === 'user')
+      .flatMap((msg) => msg.parts)
+      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+      .map((part) => part.text);
+    const grantAt = userTexts.findIndex((text) => text.startsWith('Tool budget extended:'));
+    const windowAt = userTexts.findIndex((text) => text.startsWith('Finalization window:'));
+    expect(grantAt).toBeGreaterThan(-1);
+    expect(windowAt).toBe(grantAt + 1);
+    expect(userTexts[windowAt]).toBe(
+      'Finalization window: 5 of the reserved final 5 tool calls remain. Only finalization ' +
+        'tools (and the terminal tool) may execute now; record your evidence and finish with ' +
+        'what you have. This tail is reserved for your declared evidence floor: record 4 ' +
+        'more evidence entries first.',
+    );
+  });
+});

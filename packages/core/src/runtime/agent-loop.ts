@@ -2180,7 +2180,30 @@ export async function runAgent<S extends SchemaSpec>(
   const windowConfigured = finalizationWindow !== undefined || finalizationTurns !== undefined;
   let windowEntered = false;
   let windowNoticeFired = false;
-  const pendingWindowNotices: string[] = [];
+  /**
+   * The queued window entry (RV4901): the FACT of the entry with the
+   * counts the loop saw when it fired. The model visible notice is
+   * rendered at the flush, from the live counters AFTER the batch's
+   * results joined the history, never from these numbers while the
+   * batch is still executing. The entry is detected call by call inside
+   * a batch, but a user message may not interleave a tool batch, so the
+   * delivery waits for the boundary, and text composed at the entry
+   * went stale in between: the tenth comparison experiment's security
+   * specialist entered the window on the third call of a six call
+   * record_evidence batch and read, after the batch, "7 of the reserved
+   * final 7 tool calls remain, record 4 more evidence entries first"
+   * when 3 calls remained and every entry was already recorded. It
+   * obeyed, the fourth call died at the cap, and a child with 9 entries
+   * over a floor of 4 and a finished report settled 'limit'. The entry
+   * snapshot is kept for the ONE case live rendering cannot describe: a
+   * boundary grant that re opened the budget before the flush.
+   */
+  const pendingWindowNotices: {
+    remaining: number;
+    reserve: number;
+    budget: FinalizationWindowBudget;
+    evidenceDeficit?: number;
+  }[] = [];
   /**
    * The outstanding evidence deficit (RV1208): entries the declared
    * floor still needs, from the same successful-record_evidence window
@@ -2287,16 +2310,15 @@ export async function runAgent<S extends SchemaSpec>(
     const commit = (): void => {
       windowEntered = true;
       windowNoticeFired = true;
-      pendingWindowNotices.push(
-        finalizationWindowNoticeText(
-          state.remaining,
-          reserve,
-          state.budget,
-          // The deficit line belongs to the widened CALLS reserve
-          // (RV1208); a turns entry never widened anything.
-          widenedByDeficit ? deficit : undefined,
-        ),
-      );
+      // The deficit line belongs to the widened CALLS reserve (RV1208);
+      // a turns entry never widened anything.
+      const entryDeficit = widenedByDeficit ? { evidenceDeficit: deficit } : {};
+      pendingWindowNotices.push({
+        remaining: state.remaining,
+        reserve,
+        budget: state.budget,
+        ...entryDeficit,
+      });
       events?.emit({
         type: 'log',
         level: 'info',
@@ -2335,8 +2357,40 @@ export async function runAgent<S extends SchemaSpec>(
         : {}),
     }).then(commit);
   };
+  /**
+   * Delivers the queued entry as the one time notice (RV4901), rendered
+   * from the regime that binds at THIS boundary: the binding dimension's
+   * live remaining, its live reserve, and the deficit counted over the
+   * history the batch's results just joined, so the numbers the model
+   * reads are the numbers the next call is judged by, and the tool
+   * budget notice flushed right after it agrees on the remaining count.
+   * A deficit the batch closed prints no deficit line. When a boundary
+   * grant moved the counts back OUT of the window before the flush, the
+   * live regime is not a window at all, so the entry snapshot is
+   * delivered as it always was, byte for byte.
+   */
   const flushWindowNotices = (): void => {
-    for (const text of pendingWindowNotices.splice(0)) {
+    for (const entry of pendingWindowNotices.splice(0)) {
+      const live = windowActive();
+      const deficit = evidenceDeficit();
+      const text =
+        live === undefined
+          ? finalizationWindowNoticeText(
+              entry.remaining,
+              entry.reserve,
+              entry.budget,
+              entry.evidenceDeficit,
+            )
+          : finalizationWindowNoticeText(
+              live.remaining,
+              reserveFor(live.budget),
+              live.budget,
+              live.budget !== 'turns' &&
+                finalizationWindow?.reserveForEvidenceDeficit === true &&
+                deficit > 0
+                ? deficit
+                : undefined,
+            );
       messages.push({ role: 'user', parts: [{ type: 'text', text }] });
     }
   };
