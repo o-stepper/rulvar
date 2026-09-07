@@ -12,9 +12,10 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-approvaldeadlinems"></a> `approvalDeadlineMs?` | `number` | The merged opt-in approval deadline; profile over engine (RV1107). | `packages/core/dist/index.d.ts` |
+| <a id="property-approvaldeadlinems"></a> `approvalDeadlineMs?` | `number` | The merged opt-in approval deadline; profile over inherited over engine (RV1107). | `packages/core/dist/index.d.ts` |
 | <a id="property-ask"></a> `ask` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-canusetool"></a> `canUseTool?` | [`CanUseTool`](/api/@rulvar/rulvar/type-aliases/CanUseTool.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-deny"></a> `deny` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | - | `packages/core/dist/index.d.ts` |
+| <a id="property-hookallow"></a> `hookAllow?` | `"advisory"` | Present exactly when a layer armed the advisory hook allow (RV4911). | `packages/core/dist/index.d.ts` |
 | <a id="property-hooks"></a> `hooks` | [`PermissionHook`](/api/@rulvar/rulvar/type-aliases/PermissionHook.md)[] | - | `packages/core/dist/index.d.ts` |
-| <a id="property-strictapprovals"></a> `strictApprovals?` | `boolean` | The monotonic OR of both layers' strictApprovals (RV1507). | `packages/core/dist/index.d.ts` |
+| <a id="property-strictapprovals"></a> `strictApprovals?` | `boolean` | The monotonic OR of every layer's strictApprovals (RV1507). | `packages/core/dist/index.d.ts` |

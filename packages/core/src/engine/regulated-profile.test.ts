@@ -11,6 +11,7 @@ import type { ChatRequest } from '../l0/messages.js';
 import type { OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import type { RegulatedPostureDescriptor } from '../l0/spi/regulated-posture.js';
 import type { ToolSource } from '../l0/spi/toolsource.js';
+import type { AgentProfilePermissions, PermissionConfig } from '../runtime/permission-chain.js';
 import { createEngine, type CreateEngineOptions, type RunOptions } from './engine.js';
 import { defineWorkflow } from './ctx.js';
 import { scriptedAdapter } from './test-harness.js';
@@ -37,11 +38,12 @@ describe('compileRegulatedProfile (RV4009)', () => {
   it('fills the floor: strict approvals, intent receipts, error determinism, welded ceilings', () => {
     const compiled = compileRegulatedProfile(BASE());
     expect(compiled.engine.defaults?.permissions?.strictApprovals).toBe(true);
+    expect(compiled.engine.defaults?.permissions?.hookAllow).toBe('advisory');
     expect(compiled.engine.defaults?.billingReceipts).toBe('intent');
     expect(compiled.engine.determinism?.mode).toBe('error');
     expect(compiled.run.budgetPolicy).toBe('immutable-lifetime');
     expect(compiled.run.strictPricing).toBe(true);
-    expect(compiled.run.configFingerprint).toMatch(/^regulated:4:[0-9a-f]{64}$/);
+    expect(compiled.run.configFingerprint).toMatch(/^regulated:5:[0-9a-f]{64}$/);
     expect(compiled.profileHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -132,6 +134,68 @@ describe('compileRegulatedProfile (RV4009)', () => {
             },
           }),
         /coveragePolicy/,
+      ],
+      [
+        'decisive hook allow on the engine',
+        () =>
+          compileRegulatedProfile({
+            ...BASE(),
+            engine: {
+              ...BASE().engine,
+              defaults: {
+                routing: { loop: 'fake:model' },
+                permissions: { hookAllow: 'decisive' },
+              },
+            },
+          }),
+        /defaults\.permissions\.hookAllow must be 'advisory' or absent \(RV4911\)/,
+      ],
+      [
+        'decisive hook allow on a profile',
+        () =>
+          compileRegulatedProfile({
+            ...BASE(),
+            engine: {
+              ...BASE().engine,
+              defaults: {
+                routing: { loop: 'fake:model' },
+                profiles: { helper: { permissions: { hookAllow: 'decisive' } } },
+              },
+            },
+          }),
+        /defaults\.profiles\.helper\.permissions\.hookAllow/,
+      ],
+      [
+        'malformed hook allow',
+        () =>
+          compileRegulatedProfile({
+            ...BASE(),
+            engine: {
+              ...BASE().engine,
+              defaults: {
+                routing: { loop: 'fake:model' },
+                permissions: { hookAllow: 'yes' as unknown as 'advisory' },
+              },
+            },
+          }),
+        /hookAllow/,
+      ],
+      [
+        'non boolean inheritance opt in',
+        () =>
+          compileRegulatedProfile({
+            ...BASE(),
+            engine: {
+              ...BASE().engine,
+              defaults: {
+                routing: { loop: 'fake:model' },
+                profiles: {
+                  helper: { permissions: { inheritPermissions: 'yes' as unknown as boolean } },
+                },
+              },
+            },
+          }),
+        /defaults\.profiles\.helper\.permissions\.inheritPermissions must be a boolean/,
       ],
       [
         'attestation-less tools profile',
@@ -678,7 +742,7 @@ describe('the regulated semantic acceptance (RV4201)', () => {
       },
     });
     expect(repairArmed.profileHash).not.toBe(failClosed.profileHash);
-    expect(failClosed.run.configFingerprint).toMatch(/^regulated:4:/);
+    expect(failClosed.run.configFingerprint).toMatch(/^regulated:5:/);
   });
 
   it('the waiver terms move the hash: forbid, a pin, and a different pin are three postures (RV4203)', () => {
@@ -1233,7 +1297,7 @@ describe('the regulated deliverable contract (RV4303, v4)', () => {
     ).toThrow(/citationAudit\.resolver must be 2 or absent \(RV4303\)/);
   });
 
-  it('the golden posture hash: the v4 map bytes are pinned, every key on purpose', () => {
+  it('the golden posture hash: the v5 map bytes are pinned, every key on purpose', () => {
     // An absolute pin, deliberately: the profileHash is a versioned
     // attestation surface, so ANY movement of the hashed map must be a
     // conscious edit of this literal beside a REGULATED_VERSION
@@ -1241,8 +1305,90 @@ describe('the regulated deliverable contract (RV4303, v4)', () => {
     // Everything below is deterministic (no clocks, no randomness).
     const compiled = compileRegulatedProfile({ ...BASE(), orchestrate: ORCH() });
     expect(compiled.profileHash).toBe(
-      '0fdf65cd4f31b18ea6bd9e0403dc9c094cb5826d3b55959d79a91c447b181913',
+      '7dfd1a860a146c1d8cae0980599b536834ac241f8e836b924524c3a53ed0742b',
     );
-    expect(compiled.run.configFingerprint).toBe(`regulated:4:${compiled.profileHash}`);
+    expect(compiled.run.configFingerprint).toBe(`regulated:5:${compiled.profileHash}`);
+  });
+});
+
+/**
+ * The permission layers in the hashed posture (RV4911, RV4912, plan
+ * 49). The v4 map hashed none of them: a config whose engine allow hook
+ * retired every deny rule carried the same fingerprint as one without
+ * it. The v5 floor forces the advisory hook allow, refuses the decisive
+ * one by name, and records every layer the options reach.
+ */
+describe('the permission layers enter the hashed posture (RV4911, RV4912, v5)', () => {
+  const withEngine = (permissions: PermissionConfig): ReturnType<typeof compileRegulatedProfile> =>
+    compileRegulatedProfile({
+      ...BASE(),
+      engine: {
+        ...BASE().engine,
+        defaults: { routing: { loop: 'fake:model' }, permissions },
+      },
+    });
+  const withProfile = (
+    permissions: AgentProfilePermissions | undefined,
+  ): ReturnType<typeof compileRegulatedProfile> =>
+    compileRegulatedProfile({
+      ...BASE(),
+      engine: {
+        ...BASE().engine,
+        defaults: {
+          routing: { loop: 'fake:model' },
+          profiles: { helper: permissions === undefined ? {} : { permissions } },
+        },
+      },
+    });
+
+  it("fills hookAllow 'advisory' and preserves a declared one", () => {
+    expect(compileRegulatedProfile(BASE()).engine.defaults?.permissions?.hookAllow).toBe(
+      'advisory',
+    );
+    expect(withEngine({ hookAllow: 'advisory' }).engine.defaults?.permissions?.hookAllow).toBe(
+      'advisory',
+    );
+    expect(withEngine({ hookAllow: 'advisory' }).profileHash).toBe(
+      compileRegulatedProfile(BASE()).profileHash,
+    );
+  });
+
+  it('a hook or a canUseTool moves the hash by presence: closures are counted, never read', () => {
+    const bare = compileRegulatedProfile(BASE()).profileHash;
+    const hooked = withEngine({ hooks: [() => undefined] }).profileHash;
+    expect(hooked).not.toBe(bare);
+    // The same count with a different closure hashes the same, by
+    // design: the map counts what it cannot read.
+    expect(withEngine({ hooks: [() => 'deny'] }).profileHash).toBe(hooked);
+    expect(withEngine({ hooks: [() => undefined, () => undefined] }).profileHash).not.toBe(hooked);
+    expect(withEngine({ canUseTool: () => 'allow' }).profileHash).not.toBe(bare);
+    expect(withProfile({ hooks: [() => undefined] }).profileHash).not.toBe(bare);
+    expect(withProfile({ canUseTool: () => 'allow' }).profileHash).not.toBe(bare);
+    // A profile that declares no permissions contributes no key.
+    expect(withProfile(undefined).profileHash).toBe(bare);
+  });
+
+  it('the declarative layers move the hash: a rule, a preset, and the inheritance opt in', () => {
+    expect(withProfile({ deny: [{ tool: 'rm' }] }).profileHash).not.toBe(
+      withProfile({ deny: [{ tool: 'ls' }] }).profileHash,
+    );
+    expect(withProfile({ ask: [{ risk: 'write' }] }).profileHash).not.toBe(
+      withProfile({}).profileHash,
+    );
+    expect(withProfile({ preset: 'strict' }).profileHash).not.toBe(
+      withProfile({ preset: 'standard' }).profileHash,
+    );
+    expect(withEngine({ deny: [{ tool: 'rm' }] }).profileHash).not.toBe(
+      withEngine({ deny: [] }).profileHash,
+    );
+    const inheriting = withProfile({ inheritPermissions: true });
+    expect(inheriting.engine.defaults?.profiles?.helper?.permissions?.inheritPermissions).toBe(
+      true,
+    );
+    expect(inheriting.profileHash).not.toBe(withProfile({ inheritPermissions: false }).profileHash);
+    // The false and the undeclared opt in read the same: both inherit nothing.
+    expect(withProfile({ inheritPermissions: false }).profileHash).toBe(
+      withProfile({}).profileHash,
+    );
   });
 });

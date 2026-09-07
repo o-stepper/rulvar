@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
 import type { Artifact } from '../runtime/agent-loop.js';
+import type { PermissionConfig } from '../runtime/permission-chain.js';
 import { GitWorktreeProvider } from '../tools/isolation.js';
 import { tool } from '../tools/tool.js';
 import { createCtx } from './ctx.js';
@@ -148,6 +149,7 @@ describe("'readonly' isolation compiles a write/destructive deny rule into the s
   const driveOnce = async (
     risk: 'read' | 'write' | 'destructive',
     isolation: 'readonly' | undefined,
+    permissions?: PermissionConfig,
   ): Promise<{ ran: boolean; secondRequest: string }> => {
     const ran = { value: false };
     const adapter = scriptedAdapter((_req, call) =>
@@ -156,6 +158,7 @@ describe("'readonly' isolation compiles a write/destructive deny rule into the s
     const { internals } = makeInternals({
       adapters: [adapter],
       routing: { loop: 'fake:model' },
+      ...(permissions === undefined ? {} : { permissions }),
     });
     const ctx = createCtx(internals);
     const result = await ctx.agent('use the probe', {
@@ -185,5 +188,19 @@ describe("'readonly' isolation compiles a write/destructive deny rule into the s
   it('leaves write tools allowed without isolation', async () => {
     const { ran } = await driveOnce('write', undefined);
     expect(ran).toBe(true);
+  });
+
+  it('an engine allow hook clears the readonly rule under the decisive default, the documented order (RV4911)', async () => {
+    const { ran } = await driveOnce('write', 'readonly', { hooks: [() => 'allow'] });
+    expect(ran).toBe(true);
+  });
+
+  it("under hookAllow 'advisory' the readonly rule holds against the engine allow hook (RV4911)", async () => {
+    const { ran, secondRequest } = await driveOnce('write', 'readonly', {
+      hooks: [() => 'allow'],
+      hookAllow: 'advisory',
+    });
+    expect(ran).toBe(false);
+    expect(secondRequest).toMatch(/deny/i);
   });
 });

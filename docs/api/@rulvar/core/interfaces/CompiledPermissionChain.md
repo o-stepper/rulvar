@@ -6,15 +6,16 @@
 
 # Interface: CompiledPermissionChain
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L108)
+Defined in: [packages/core/src/runtime/permission-chain.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L140)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-approvaldeadlinems"></a> `approvalDeadlineMs?` | `number` | The merged opt-in approval deadline; profile over engine (RV1107). | [packages/core/src/runtime/permission-chain.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L116) |
-| <a id="property-ask"></a> `ask` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | - | [packages/core/src/runtime/permission-chain.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L111) |
-| <a id="property-canusetool"></a> `canUseTool?` | [`CanUseTool`](/api/@rulvar/core/type-aliases/CanUseTool.md) | - | [packages/core/src/runtime/permission-chain.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L112) |
-| <a id="property-deny"></a> `deny` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | - | [packages/core/src/runtime/permission-chain.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L110) |
-| <a id="property-hooks"></a> `hooks` | [`PermissionHook`](/api/@rulvar/core/type-aliases/PermissionHook.md)[] | - | [packages/core/src/runtime/permission-chain.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L109) |
-| <a id="property-strictapprovals"></a> `strictApprovals?` | `boolean` | The monotonic OR of both layers' strictApprovals (RV1507). | [packages/core/src/runtime/permission-chain.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L114) |
+| <a id="property-approvaldeadlinems"></a> `approvalDeadlineMs?` | `number` | The merged opt-in approval deadline; profile over inherited over engine (RV1107). | [packages/core/src/runtime/permission-chain.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L148) |
+| <a id="property-ask"></a> `ask` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | - | [packages/core/src/runtime/permission-chain.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L143) |
+| <a id="property-canusetool"></a> `canUseTool?` | [`CanUseTool`](/api/@rulvar/core/type-aliases/CanUseTool.md) | - | [packages/core/src/runtime/permission-chain.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L144) |
+| <a id="property-deny"></a> `deny` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | - | [packages/core/src/runtime/permission-chain.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L142) |
+| <a id="property-hookallow"></a> `hookAllow?` | `"advisory"` | Present exactly when a layer armed the advisory hook allow (RV4911). | [packages/core/src/runtime/permission-chain.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L150) |
+| <a id="property-hooks"></a> `hooks` | [`PermissionHook`](/api/@rulvar/core/type-aliases/PermissionHook.md)[] | - | [packages/core/src/runtime/permission-chain.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L141) |
+| <a id="property-strictapprovals"></a> `strictApprovals?` | `boolean` | The monotonic OR of every layer's strictApprovals (RV1507). | [packages/core/src/runtime/permission-chain.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L146) |

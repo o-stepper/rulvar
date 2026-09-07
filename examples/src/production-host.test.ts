@@ -1,7 +1,7 @@
 /**
  * The production host reference, executed (RV4307): composite identity
  * with normalization on every genesis surface, fail-closed provider
- * account routing, the regulated v4 compile with the host's own
+ * account routing, the regulated v5 compile with the host's own
  * contract, and the production gate refusing what nothing judged. All
  * on FakeAdapter, zero live calls: Fake/VCR evidence by design, and
  * the dossier says so.
@@ -95,7 +95,7 @@ describe('the production host reference (RV4307)', () => {
     );
   });
 
-  it('the regulated v4 compile takes the host contract and hashes the enforced posture', () => {
+  it('the regulated v5 compile takes the host contract and hashes the enforced posture', () => {
     const profile = productionRegulatedProfile({
       engine: {
         adapters: [new FakeAdapter({ agents: { '*': 'x' } })],
@@ -107,7 +107,9 @@ describe('the production host reference (RV4307)', () => {
       judgeModel: 'fake:fake-model',
       validators: [{ name: 'host-contract', validate: () => ({ ok: true }) }],
     });
-    expect(profile.run.configFingerprint).toMatch(/^regulated:4:[0-9a-f]{64}$/);
+    expect(profile.run.configFingerprint).toMatch(/^regulated:5:[0-9a-f]{64}$/);
+    // The v5 floor forces the advisory hook allow (RV4911).
+    expect(profile.engine.defaults?.permissions?.hookAllow).toBe('advisory');
     // The floor filled the plan 42 knobs the host left absent (RV4303).
     expect(profile.orchestrate?.finishValidation?.candidatePersistence).toBe('hash-only');
     expect(profile.orchestrate?.citationAudit?.resolver).toBe(2);

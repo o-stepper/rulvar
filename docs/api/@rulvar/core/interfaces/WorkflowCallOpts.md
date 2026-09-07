@@ -6,7 +6,7 @@
 
 # Interface: WorkflowCallOpts
 
-Defined in: [packages/core/src/engine/ctx.ts:671](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L671)
+Defined in: [packages/core/src/engine/ctx.ts:672](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L672)
 
 Options of ctx.workflow; `key` replaces args in the child identity.
 
@@ -14,6 +14,6 @@ Options of ctx.workflow; `key` replaces args in the child identity.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-approach"></a> `approach?` | `string` | Approach slug entering approachSig (DEF-3). | [packages/core/src/engine/ctx.ts:676](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L676) |
-| <a id="property-key"></a> `key?` | `string` | - | [packages/core/src/engine/ctx.ts:672](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L672) |
-| <a id="property-lineage"></a> `lineage?` | [`SpawnLineageOpt`](/api/@rulvar/core/interfaces/SpawnLineageOpt.md) | Lineage continuation (DEF-3); embedded in the admission decision entry. | [packages/core/src/engine/ctx.ts:674](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L674) |
+| <a id="property-approach"></a> `approach?` | `string` | Approach slug entering approachSig (DEF-3). | [packages/core/src/engine/ctx.ts:677](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L677) |
+| <a id="property-key"></a> `key?` | `string` | - | [packages/core/src/engine/ctx.ts:673](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L673) |
+| <a id="property-lineage"></a> `lineage?` | [`SpawnLineageOpt`](/api/@rulvar/core/interfaces/SpawnLineageOpt.md) | Lineage continuation (DEF-3); embedded in the admission decision entry. | [packages/core/src/engine/ctx.ts:675](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L675) |

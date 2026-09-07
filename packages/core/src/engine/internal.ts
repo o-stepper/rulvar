@@ -6,6 +6,7 @@
  * orchestration packages never import this module (they build
  * exclusively from the public API).
  */
+import type { CompiledPermissionChain } from '../runtime/permission-chain.js';
 import type { Ctx, RunInternals } from './ctx.js';
 
 /** Mirror of the private ScopeState travelling through AsyncLocalStorage. */
@@ -13,6 +14,13 @@ export interface CtxScopeState {
   scope: string;
   spanId: string;
   phase?: string;
+  /**
+   * The permission layer of the nearest enclosing running agent
+   * (RV4912): its chain above the engine layer, which a child whose
+   * profile declares `inheritPermissions: true` prefixes ahead of its
+   * own. Absent outside any agent.
+   */
+  permissions?: CompiledPermissionChain;
   /**
    * What dispatched the semantic repair round riding this scope
    * (RV4105; the RV4202 values ride the same channel): stamped into
