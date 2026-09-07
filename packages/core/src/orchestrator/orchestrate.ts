@@ -10722,6 +10722,24 @@ export function makeOrchestratorWorkflow(
       // The sectional line rides the coordination prompt only when the
       // coordination finish actually carries the sectional schema
       // (RV808b): the validator-bound loop or the draft gate.
+      // The output allowance line (RV4904) rides ONLY under a declared
+      // repair turn allowance, so every other config keeps its exact
+      // prompt bytes: the tenth comparison experiment's coordinator
+      // composed a 28 KB finish under a 15000 token allowance it was
+      // never told about, with 10061 of those tokens spent on reasoning.
+      ...(opts?.limits?.repairTurnMaxOutputTokens === undefined
+        ? []
+        : [
+            (opts.limits.maxOutputTokensPerTurn === undefined
+              ? "Each of your turns is cut at the model's default output allowance, reasoning " +
+                'included'
+              : `Each of your turns is cut at ${String(opts.limits.maxOutputTokensPerTurn)} ` +
+                'output tokens, reasoning included') +
+              `; a rejected finish gets one repair turn with ` +
+              `${String(opts.limits.repairTurnMaxOutputTokens)} output tokens. Size ` +
+              'finish({ result }) to fit the allowance, and split a long document across ' +
+              'sections when it cannot.',
+          ]),
       ...finishValidationPromptLines(
         validationSpec,
         coordSectionalFinish ? 'rejected-attempt' : undefined,

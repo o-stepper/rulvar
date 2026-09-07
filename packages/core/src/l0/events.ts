@@ -294,6 +294,13 @@ export interface ToolBudgetSummary {
    * once this invocation (RV302).
    */
   finalizationWindowEntered?: boolean;
+  /**
+   * Present and true when the window's surplus answer turn was granted
+   * this segment (RV4902): the budget expired inside the window on
+   * allowlisted calls with the floor met, and the invocation got one
+   * answer turn instead of the limit. Live only, like the reserve flag.
+   */
+  surplusAnswerTurn?: boolean;
   /** The tool budget limiter that ended the loop, on that 'limit' only. */
   limiter?: 'maxToolCalls' | 'toolUnits';
 }

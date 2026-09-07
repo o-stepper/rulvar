@@ -18,8 +18,9 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-finalizationturns"></a> `finalizationTurns?` | \{ `allow?`: `string`[]; `reserveTurns`: `number`; \} | RV1405: the trailing turns of maxTurns reserved for the finalization regime. | `packages/core/dist/index.d.ts` |
 | `finalizationTurns.allow?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `finalizationTurns.reserveTurns` | `number` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-finalizationwindow"></a> `finalizationWindow?` | \{ `allow?`: `string`[]; `reserveCalls`: `number`; `reserveForEvidenceDeficit?`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |
+| <a id="property-finalizationwindow"></a> `finalizationWindow?` | \{ `allow?`: `string`[]; `onSurplus?`: `"limit"` \| `"answer"`; `reserveCalls`: `number`; `reserveForEvidenceDeficit?`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |
 | `finalizationWindow.allow?` | `string`[] | - | `packages/core/dist/index.d.ts` |
+| `finalizationWindow.onSurplus?` | `"limit"` \| `"answer"` | - | `packages/core/dist/index.d.ts` |
 | `finalizationWindow.reserveCalls` | `number` | - | `packages/core/dist/index.d.ts` |
 | `finalizationWindow.reserveForEvidenceDeficit?` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxcallspertool"></a> `maxCallsPerTool?` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
@@ -29,6 +30,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-maxtoolcalls"></a> `maxToolCalls?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxturns"></a> `maxTurns` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-noprogressturns"></a> `noProgressTurns?` | `number` | Default DEFAULT_NO_PROGRESS_TURNS. | `packages/core/dist/index.d.ts` |
+| <a id="property-repairturnmaxoutputtokens"></a> `repairTurnMaxOutputTokens?` | `number` | RV4904: the output allowance of a granted repair turn. | `packages/core/dist/index.d.ts` |
 | <a id="property-streamidletimeoutms"></a> `streamIdleTimeoutMs` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-timeoutms"></a> `timeoutMs?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-toolbudgetextension"></a> `toolBudgetExtension?` | \{ `coverEvidenceDeficit?`: `boolean`; `increment`: `number`; `maxExtensions`: `number`; `minHeadroomUsd?`: `number`; `requireNewEvidence?`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |

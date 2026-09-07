@@ -10,7 +10,7 @@
 type MechanicalGateProfile = (artifacts) => MechanicalGateVerdict;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L124)
+Defined in: [packages/core/src/runtime/agent-loop.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L126)
 
 A mechanical acceptance gate: an engine-registered NAMED pure function
 over AgentResult.artifacts.

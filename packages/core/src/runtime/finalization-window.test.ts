@@ -1045,3 +1045,276 @@ describe('the window notice is rendered at delivery, not at entry (RV4901, the t
     );
   });
 });
+
+describe('the surplus answer turn (RV4902, the tenth comparison experiment)', () => {
+  // The security specialist died at 36 of 36 on ONE surplus
+  // record_evidence call, with nine entries over a floor of four and a
+  // finished report in hand: an overrun on the bookkeeping the window
+  // itself invited was a terminal limit. Under onSurplus 'answer' the
+  // tail is answered typed and the model gets exactly one answer turn.
+  const evidenceRecorder = (executions: { count: number }) =>
+    tool({
+      name: 'record_evidence',
+      description: 'records one evidence entry',
+      parameters: z.strictObject({}),
+      execute: () => {
+        executions.count += 1;
+        return Promise.resolve({ recorded: true });
+      },
+    });
+  const records = (n: number) => ({
+    toolCalls: Array.from({ length: n }, () => ({ name: 'record_evidence', args: {} })),
+  });
+  const surplusNotices = (req: { messages: Msg[] }): string[] =>
+    textsOf(req, 'Finalization surplus:');
+  const limitsOf = (onSurplus?: 'limit' | 'answer') =>
+    mergeUsageLimits({
+      maxTurns: 8,
+      maxToolCalls: 6,
+      finalizationWindow: {
+        reserveCalls: 2,
+        allow: ['record_evidence'],
+        ...(onSurplus === undefined ? {} : { onSurplus }),
+      },
+    });
+  const SURPLUS_NOTICE =
+    'Finalization surplus: the tool budget expired inside the finalization window and 1 ' +
+    'allowlisted call was skipped; your declared evidence floor is met. Answer now: call the ' +
+    "'finish' tool with your final result; any further tool call ends the run at the limit.";
+
+  it('an allowlisted overrun with the floor met grants one answer turn and settles ok', async () => {
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    // Four reads open the window on their last call; three records
+    // then overrun the cap by one; the model finishes on the granted turn.
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? reads(4)
+        : call === 1
+          ? records(3)
+          : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: limitsOf('answer'),
+      evidenceContract: { minEntries: 2 },
+      tools: runtimeOf([
+        readTool(readExecutions),
+        evidenceRecorder(recordExecutions),
+        finishTool(),
+      ]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('done');
+    expect(recordExecutions.count).toBe(2);
+    expect(result.toolBudget).toEqual({
+      used: 6,
+      cap: 6,
+      finalizationWindowEntered: true,
+      surplusAnswerTurn: true,
+    });
+    const last = adapter.calls.at(-1) as { messages: Msg[] };
+    expect(surplusNotices(last)).toEqual([SURPLUS_NOTICE]);
+    // The skipped call is answered typed, with the surplus named.
+    const skipped = refusalsOf(last, 'record_evidence');
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]).toEqual({
+      error:
+        'skipped: the tool budget is exhausted inside the finalization window; the call was ' +
+        'not executed',
+      limiter: 'maxToolCalls',
+      skipped: true,
+      surplus: true,
+    });
+  });
+
+  it('an overrun with the floor still open stays a limit', async () => {
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? reads(4)
+        : call === 1
+          ? records(3)
+          : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: limitsOf('answer'),
+      evidenceContract: { minEntries: 4 },
+      tools: runtimeOf([
+        readTool(readExecutions),
+        evidenceRecorder(recordExecutions),
+        finishTool(),
+      ]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('limit');
+    expect(result.toolBudget?.limiter).toBe('maxToolCalls');
+    expect(result.toolBudget?.surplusAnswerTurn).toBeUndefined();
+    for (const call of adapter.calls) {
+      expect(surplusNotices(call as { messages: Msg[] })).toHaveLength(0);
+    }
+  });
+
+  it('an overrun on a call outside the allowlist stays a limit', async () => {
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? reads(4)
+        : call === 1
+          ? {
+              toolCalls: [
+                { name: 'record_evidence', args: {} },
+                { name: 'record_evidence', args: {} },
+                { name: 'read', args: {} },
+              ],
+            }
+          : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: limitsOf('answer'),
+      evidenceContract: { minEntries: 2 },
+      tools: runtimeOf([
+        readTool(readExecutions),
+        evidenceRecorder(recordExecutions),
+        finishTool(),
+      ]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('limit');
+    expect(recordExecutions.count).toBe(2);
+    for (const call of adapter.calls) {
+      expect(surplusNotices(call as { messages: Msg[] })).toHaveLength(0);
+    }
+  });
+
+  it('the answer turn is granted once: a further tool call ends the run at the limit', async () => {
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? reads(4) : call === 1 ? records(3) : records(1),
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: limitsOf('answer'),
+      evidenceContract: { minEntries: 2 },
+      tools: runtimeOf([
+        readTool(readExecutions),
+        evidenceRecorder(recordExecutions),
+        finishTool(),
+      ]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('limit');
+    expect(result.toolBudget?.limiter).toBe('maxToolCalls');
+    expect(result.toolBudget?.surplusAnswerTurn).toBe(true);
+    expect(adapter.calls).toHaveLength(3);
+    expect(surplusNotices(adapter.calls.at(-1) as { messages: Msg[] })).toHaveLength(1);
+  });
+
+  it('the default posture keeps the historical limit byte for byte', async () => {
+    const readExecutions = { count: 0 };
+    const recordExecutions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? reads(4)
+        : call === 1
+          ? records(3)
+          : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: limitsOf(),
+      evidenceContract: { minEntries: 2 },
+      tools: runtimeOf([
+        readTool(readExecutions),
+        evidenceRecorder(recordExecutions),
+        finishTool(),
+      ]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('limit');
+    expect(adapter.calls).toHaveLength(2);
+    expect(result.toolBudget).toEqual({
+      used: 6,
+      cap: 6,
+      finalizationWindowEntered: true,
+      limiter: 'maxToolCalls',
+    });
+  });
+
+  it('a segment restored inside the granted turn finishes on it and never gets a second', async () => {
+    // The pre kill segment carried the surplus notice; the restored
+    // window counts it, so the finish is admitted and a further tool
+    // call would end the run, exactly as in the live segment.
+    const restoredMessages = (): Msg[] => [
+      { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+      { role: 'user', parts: [{ type: 'text', text: SURPLUS_NOTICE }] },
+    ];
+    const restoredState = (): CheckpointState => ({
+      v: 1,
+      messages: restoredMessages(),
+      turns: 2,
+      usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      toolCallsUsed: 6,
+      schemaAttempts: 0,
+      compaction: [],
+    });
+    const recordExecutions = { count: 0 };
+    const finishing = scriptedAdapter(() => ({
+      toolCall: { name: 'finish', args: { result: 'done' } },
+    }));
+    const finished = await runAgent({
+      prompt: 'go',
+      adapter: finishing,
+      resolved,
+      limits: limitsOf('answer'),
+      evidenceContract: { minEntries: 2 },
+      tools: runtimeOf([evidenceRecorder(recordExecutions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      checkpoint: { load: () => Promise.resolve(restoredState()), save: () => Promise.resolve() },
+    });
+    expect(finished.status).toBe('ok');
+    expect(surplusNotices(finishing.calls[0] as { messages: Msg[] })).toHaveLength(1);
+    const overrunning = scriptedAdapter(() => records(1));
+    const overrun = await runAgent({
+      prompt: 'go',
+      adapter: overrunning,
+      resolved,
+      limits: limitsOf('answer'),
+      evidenceContract: { minEntries: 2 },
+      tools: runtimeOf([evidenceRecorder(recordExecutions), finishTool()]),
+      terminalTool: { name: 'finish' },
+      checkpoint: { load: () => Promise.resolve(restoredState()), save: () => Promise.resolve() },
+    });
+    expect(overrun.status).toBe('limit');
+    expect(overrunning.calls).toHaveLength(1);
+    expect(recordExecutions.count).toBe(0);
+  });
+
+  it('rejects a malformed onSurplus typed', () => {
+    expect(() =>
+      validateUsageLimits(
+        {
+          maxToolCalls: 6,
+          finalizationWindow: { reserveCalls: 2, onSurplus: 'maybe' as unknown as 'answer' },
+        },
+        'limits',
+      ),
+    ).toThrow(ConfigError);
+  });
+});

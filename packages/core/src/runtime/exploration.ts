@@ -381,6 +381,29 @@ export function finalizationWindowNoticeText(
 }
 
 /**
+ * The one time surplus notice (RV4902): the tool budget expired inside
+ * the finalization window on allowlisted bookkeeping calls while the
+ * declared evidence floor was already met, and the invocation grants
+ * ONE answer turn instead of settling limit. Deterministic for given
+ * counts, like the notices above; its prefix is what the loop counts
+ * to grant the turn a single time across live and resumed segments.
+ */
+export function finalizationSurplusNoticeText(skipped: number, terminalName?: string): string {
+  return (
+    `Finalization surplus: the tool budget expired inside the finalization window and ` +
+    `${String(skipped)} allowlisted ${skipped === 1 ? 'call was' : 'calls were'} skipped; ` +
+    `your declared evidence floor is met. Answer now` +
+    (terminalName === undefined
+      ? ' with your final text'
+      : `: call the '${terminalName}' tool with your final result`) +
+    `; any further tool call ends the run at the limit.`
+  );
+}
+
+/** The prefix the loop counts surplus turns by (RV4902). */
+export const FINALIZATION_SURPLUS_NOTICE_PREFIX = 'Finalization surplus:';
+
+/**
  * The typed window refusal a non-allowlisted call receives (RV302):
  * the same posture as the guard denials above, visible to the model,
  * never terminal, consuming no budget.

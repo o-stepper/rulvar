@@ -7012,6 +7012,25 @@ export const MUTATIONS = [
     replace: '    const hit = false as boolean;',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'surplus-answer-turn-needs-the-floor',
+    doctrine:
+      "the surplus answer turn is granted only with the declared evidence floor met, the batch's own results counted (RV4902): with the gate severed, an overrun with the floor still open gets a free answer turn and settles ok over an unmet contract, the exact promotion the binding floor exists to refuse",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: "      countRecordedEvidence(messages) +\n        countRecordedEvidence([{ role: 'tool', parts: [...batchParts] }]) <\n        minEntries\n    ) {\n      return false;\n    }",
+    replace:
+      "      countRecordedEvidence(messages) +\n        countRecordedEvidence([{ role: 'tool', parts: [...batchParts] }]) <\n        minEntries\n    ) {\n      return true;\n    }",
+    test: 'packages/core/src/runtime/finalization-window.test.ts',
+  },
+  {
+    id: 'truncated-terminal-call-is-named',
+    doctrine:
+      "a terminal call cut at the turn's output allowance is named as a cut with its arithmetic (RV4904): with the naming severed, the tenth comparison experiment's coordinator reads only 'failed validation' over a finish that died at 15000 tokens with 10061 of them reasoning, and re pays the whole document under the same cut",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          const cutRaw = turnCut === undefined ? undefined : unparsedMarkerOf(gatedCall.args);',
+    replace: '          const cutRaw = undefined as string | undefined;',
+    test: 'packages/core/src/runtime/truncated-terminal.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

@@ -20,6 +20,18 @@ export interface UsageLimits {
   maxToolCalls?: number;
   /** Unlimited by default (model caps still apply). */
   maxOutputTokensPerTurn?: number;
+  /**
+   * The output allowance of a granted repair turn (RV4904, the tenth
+   * comparison experiment): the turn that follows a rejected terminal
+   * tool exchange requests this many output tokens instead of
+   * `maxOutputTokensPerTurn`. The experiment's coordinator composed its
+   * finish under a 15000 token allowance of which 10061 went to
+   * reasoning, the arguments were cut before the JSON closed, and the
+   * repair turn re paid the whole document under the same cut. The
+   * budget clamp and the model's own maximum still apply on top.
+   * Absent by default, so every request keeps its bytes.
+   */
+  repairTurnMaxOutputTokens?: number;
   /** Per-agent wall clock; unlimited by default. */
   timeoutMs?: number;
   /** Gap between stream events; default 120000. */
@@ -194,6 +206,25 @@ export interface UsageLimits {
      * earlier window entry changes recorded model requests.
      */
     reserveForEvidenceDeficit?: boolean;
+    /**
+     * What one overrun inside the window does (RV4902, the tenth
+     * comparison experiment). The default 'limit' keeps the historical
+     * rule: a not admitted call at the cap ends the invocation as
+     * status 'limit', whatever the call was. Under 'answer', when the
+     * budget expires inside the window on a tail of ALLOWLISTED calls
+     * (bookkeeping the window itself invited) while the declared
+     * evidence floor is already met (or none is declared), the tail is
+     * answered with typed skipped results and the model gets exactly
+     * ONE more turn, told so by a plain user message, in which only the
+     * terminal tool (or a plain text answer) completes; any further
+     * tool call ends the run at the limit exactly as before. The
+     * experiment's specialist died at 36 of 36 on one surplus
+     * record_evidence call with nine entries over a floor of four and
+     * a finished report in hand. Off by default: the skipped results
+     * and the notice enter the conversation, so enabling it changes
+     * recorded model requests.
+     */
+    onSurplus?: 'limit' | 'answer';
   };
   /**
    * The turns-axis finalization reserve (RV1405, the seventeenth
@@ -229,6 +260,8 @@ export interface EffectiveUsageLimits {
   maxTurns: number;
   maxToolCalls?: number;
   maxOutputTokensPerTurn?: number;
+  /** RV4904: the output allowance of a granted repair turn. */
+  repairTurnMaxOutputTokens?: number;
   timeoutMs?: number;
   streamIdleTimeoutMs: number;
   /** Default DEFAULT_NO_PROGRESS_TURNS. */
@@ -255,6 +288,8 @@ export interface EffectiveUsageLimits {
     allow?: string[];
     /** RV1208: widen the reserve to the outstanding evidence deficit plus the summary. */
     reserveForEvidenceDeficit?: boolean;
+    /** RV4902: one answer turn after an allowlisted overrun with the floor met. */
+    onSurplus?: 'limit' | 'answer';
   };
   /** RV1405: the trailing turns of maxTurns reserved for the finalization regime. */
   finalizationTurns?: {
@@ -285,6 +320,10 @@ export function mergeUsageLimits(
   const maxOutputTokensPerTurn = pick('maxOutputTokensPerTurn');
   if (maxOutputTokensPerTurn !== undefined) {
     merged.maxOutputTokensPerTurn = maxOutputTokensPerTurn;
+  }
+  const repairTurnMaxOutputTokens = pick('repairTurnMaxOutputTokens');
+  if (repairTurnMaxOutputTokens !== undefined) {
+    merged.repairTurnMaxOutputTokens = repairTurnMaxOutputTokens;
   }
   const timeoutMs = pick('timeoutMs');
   if (timeoutMs !== undefined) {
@@ -358,6 +397,9 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
   }
   if (limits.maxOutputTokensPerTurn !== undefined) {
     requirePositiveInteger(limits.maxOutputTokensPerTurn, `${site}.maxOutputTokensPerTurn`);
+  }
+  if (limits.repairTurnMaxOutputTokens !== undefined) {
+    requirePositiveInteger(limits.repairTurnMaxOutputTokens, `${site}.repairTurnMaxOutputTokens`);
   }
   if (limits.timeoutMs !== undefined) {
     requirePositiveInteger(limits.timeoutMs, `${site}.timeoutMs`);
@@ -465,16 +507,23 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
     if (typeof window !== 'object' || window === null || Array.isArray(window)) {
       throw new ConfigError(`${site}.finalizationWindow must be { reserveCalls, allow? }`);
     }
-    const { reserveCalls, allow, reserveForEvidenceDeficit } = window as {
+    const { reserveCalls, allow, reserveForEvidenceDeficit, onSurplus } = window as {
       reserveCalls?: unknown;
       allow?: unknown;
       reserveForEvidenceDeficit?: unknown;
+      onSurplus?: unknown;
     };
     requirePositiveInteger(reserveCalls as number, `${site}.finalizationWindow.reserveCalls`);
     if (reserveForEvidenceDeficit !== undefined && typeof reserveForEvidenceDeficit !== 'boolean') {
       throw new ConfigError(
         `${site}.finalizationWindow.reserveForEvidenceDeficit must be a boolean; ` +
           `got ${typeof reserveForEvidenceDeficit}`,
+      );
+    }
+    if (onSurplus !== undefined && onSurplus !== 'limit' && onSurplus !== 'answer') {
+      throw new ConfigError(
+        `${site}.finalizationWindow.onSurplus must be 'limit' or 'answer'; ` +
+          `got ${JSON.stringify(onSurplus)}`,
       );
     }
     if (allow !== undefined) {
