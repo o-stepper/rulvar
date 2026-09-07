@@ -6,8 +6,8 @@
  * promotes a deployment. Four runnable pieces, each an arrangement of
  * shipped primitives and nothing new: the composite identity with its
  * declarative value normalization (RV4302), provider account routing
- * as a host decision over the scope (RV4205), the regulated floor v4
- * compile (RV4303), and the production acceptance gate (RV4209), the
+ * as a host decision over the scope (RV4205), the regulated floor v5
+ * compile (RV4303, RV4911), and the production acceptance gate (RV4209), the
  * same predicate `rulvar drive --acceptance-policy production` applies.
  * Everything here executes on FakeAdapter with zero live calls, and
  * the dossier labels it accordingly: Fake/VCR evidence, never
@@ -92,13 +92,13 @@ export function providerAccountAdapter(
 }
 
 /**
- * The regulated floor v4 (RV4303), compiled from the host's own
- * declarations: the validators are the host's acceptance criteria (the
- * floor refuses their omission rather than inventing them), the
+ * The regulated floor v5 (RV4303, RV4911), compiled from the host's
+ * own declarations: the validators are the host's acceptance criteria
+ * (the floor refuses their omission rather than inventing them), the
  * citation resolver is the host's pure snapshot function, and the
  * claim judge model is the host's routing decision. What comes back is
  * DATA plus the posture hash: `run.configFingerprint` reads
- * `regulated:4:<profileHash>`, genesis records it, and a resume
+ * `regulated:5:<profileHash>`, genesis records it, and a resume
  * asserting a different fingerprint refuses before ownership.
  */
 export function productionRegulatedProfile(options: {

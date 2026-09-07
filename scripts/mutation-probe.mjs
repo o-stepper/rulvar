@@ -1762,9 +1762,9 @@ export const MUTATIONS = [
     doctrine:
       'the profile deadline overrides the engine default, most specific wins (RV1107): with the merge inverted, a profile that tightened its approvals to seconds silently waits on the engine-wide deadline instead',
     file: 'packages/core/src/runtime/permission-chain.ts',
-    find: '  const approvalDeadlineMs = profile?.approvalDeadlineMs ?? engine?.approvalDeadlineMs;',
+    find: '  const approvalDeadlineMs =\n    profile?.approvalDeadlineMs ?? inherited?.approvalDeadlineMs ?? engine?.approvalDeadlineMs;',
     replace:
-      '  const approvalDeadlineMs = engine?.approvalDeadlineMs ?? profile?.approvalDeadlineMs;',
+      '  const approvalDeadlineMs =\n    engine?.approvalDeadlineMs ?? inherited?.approvalDeadlineMs ?? profile?.approvalDeadlineMs;',
     test: 'packages/core/src/engine/approval-deadline.test.ts',
   },
   {
@@ -2529,9 +2529,9 @@ export const MUTATIONS = [
     doctrine:
       'the strict flag merges as OR across layers (RV1507): under AND, a profile without the flag silently loosens an engine-armed safety posture',
     file: 'packages/core/src/runtime/permission-chain.ts',
-    find: '  const strictApprovals = engine?.strictApprovals === true || profile?.strictApprovals === true;',
+    find: '  const strictApprovals =\n    engine?.strictApprovals === true ||\n    inherited?.strictApprovals === true ||\n    profile?.strictApprovals === true;',
     replace:
-      '  const strictApprovals = engine?.strictApprovals === true && profile?.strictApprovals === true;',
+      '  const strictApprovals =\n    engine?.strictApprovals === true &&\n    inherited?.strictApprovals === true &&\n    profile?.strictApprovals === true;',
     test: 'packages/core/src/runtime/permission-chain.test.ts',
   },
   {
@@ -7257,6 +7257,33 @@ export const MUTATIONS = [
     find: '  if (extraDockerArgs.length > 0) {',
     replace: '  if (false) {',
     test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'hook-allow-advisory-holds-for-deny-rules',
+    doctrine:
+      "under hookAllow 'advisory' a hook's allow is held until the deny tables have spoken (RV4911): decisive again, one engine allow hook silently retires every profile deny rule, the readonly isolation rule and the pilot denial",
+    file: 'packages/core/src/runtime/permission-chain.ts',
+    find: "    if (verdict === 'allow' && holdHookAllow) {",
+    replace: "    if (false && verdict === 'allow' && holdHookAllow) {",
+    test: 'packages/core/src/runtime/permission-chain.test.ts',
+  },
+  {
+    id: 'regulated-hook-allow-forced-advisory',
+    doctrine:
+      'the regulated floor refuses an explicit decisive hook allow by name (RV4911): silently rewritten, a config that fights the floor compiles into a posture its author never wrote',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: "  if (permissions.hookAllow !== undefined && permissions.hookAllow !== 'advisory') {",
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'inherited-permissions-prefix-the-child-chain',
+    doctrine:
+      "inheritPermissions: true prefixes the spawning agent's layer ahead of the child's own (RV4912): unwired, the documented opt in is a dead fuse and a parent deny never reaches the child",
+    file: 'packages/core/src/runtime/permission-chain.ts',
+    find: '  const inherited = profile?.inheritPermissions === true ? parent : undefined;',
+    replace: '  const inherited = undefined;',
+    test: 'packages/core/src/engine/ctx-permission-inheritance.test.ts',
   },
 ];
 

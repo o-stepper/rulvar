@@ -6779,17 +6779,46 @@ interface PermissionConfig {
   * approval waits indefinitely.
   */
   approvalDeadlineMs?: number;
+  /**
+  * The precedence of a hook's allow over the deny tables (RV4911, the
+  * tenth comparison experiment's review). Under the documented order a
+  * hook's 'allow' decides before the deny rules are read, so for a
+  * tool without needsApproval one engine level allow hook silently
+  * retires every profile deny rule, the readonly isolation rule and
+  * the pilot profile's denial. 'decisive' is that order, the default,
+  * byte identical. Under 'advisory' the allow still ends the hook
+  * layer (which hooks run does not change) but it is HELD: the deny
+  * rules are evaluated over the hook modified input, a match denies,
+  * and only then does the held allow decide (ask rules, canUseTool and
+  * the terminal default are not consulted, exactly as before). Deny
+  * and ask verdicts keep their power, input modification still
+  * applies, and strictApprovals keeps its own precedence over the
+  * allow. Merges monotonically across the engine, inherited and
+  * profile layers: any layer arming 'advisory' arms it. A value
+  * outside the two refuses at compile (the RV610 posture).
+  */
+  hookAllow?: "decisive" | "advisory";
 }
 /**
 * Profile-level permissions.
-* inheritPermissions governs SUBAGENT inheritance (mode c orchestrators,
-* M6+): children get their own config only unless explicitly opted in.
-* It is carried as data here and consumed by the spawning layers.
+* inheritPermissions governs SUBAGENT inheritance: a child gets the
+* engine layer and its own profile layers only, unless the profile opts
+* in, in which case the spawning agent's layer (its chain above the
+* engine layer) is prefixed ahead of the child's own (RV4912). The
+* spawning layers carry that layer on the scope state and hand it to
+* compilePermissionChain as its third argument.
 */
 interface AgentProfilePermissions extends PermissionConfig {
   /** Compiles into deny/ask rules; ships in M5. */
   preset?: "strict" | "standard" | "open";
-  /** Default false. */
+  /**
+  * Default false: the child's chain is the engine layer plus its own
+  * profile layers. True prefixes the spawning agent's chain above the
+  * engine layer (its hooks, rules, canUseTool, modes, and the deny
+  * rule its readonly isolation compiled) ahead of the child's own
+  * layers, so a parent deny reaches the child (RV4912). A non boolean
+  * refuses at compile.
+  */
   inheritPermissions?: boolean;
 }
 interface CompiledPermissionChain {
@@ -6797,10 +6826,12 @@ interface CompiledPermissionChain {
   deny: PermissionRule[];
   ask: PermissionRule[];
   canUseTool?: CanUseTool;
-  /** The monotonic OR of both layers' strictApprovals (RV1507). */
+  /** The monotonic OR of every layer's strictApprovals (RV1507). */
   strictApprovals?: boolean;
-  /** The merged opt-in approval deadline; profile over engine (RV1107). */
+  /** The merged opt-in approval deadline; profile over inherited over engine (RV1107). */
   approvalDeadlineMs?: number;
+  /** Present exactly when a layer armed the advisory hook allow (RV4911). */
+  hookAllow?: "advisory";
 }
 type PermissionVerdict = ({
   verdict: "allow";
@@ -6830,8 +6861,19 @@ type PermissionVerdict = ({
 * profile's canUseTool wins over the engine's (a single slot by
 * construction). A declared preset compiles INTO the same layers, after
 * the host-authored rules, never as a fifth layer (M5-T05).
+*
+* The third argument is the spawning agent's layer (RV4912): its own
+* chain compiled with NO engine layer, so the engine layer is never
+* applied twice. It takes effect only when the profile declares
+* `inheritPermissions: true`, and then sits between the engine layer
+* and the profile's own layers: hooks run engine, inherited, profile;
+* the deny and ask tables concatenate in the same order with the
+* preset last; canUseTool and the approval deadline resolve profile
+* over inherited over engine; strictApprovals and hookAllow merge
+* monotonically across all three. Undeclared and false ignore the
+* argument and keep the historical chain byte for byte.
 */
-declare function compilePermissionChain(engine?: PermissionConfig, profile?: AgentProfilePermissions): CompiledPermissionChain;
+declare function compilePermissionChain(engine?: PermissionConfig, profile?: AgentProfilePermissions, parent?: PermissionConfig): CompiledPermissionChain;
 /**
 * Evaluates the chain for one dispatch, or OFFLINE against a
 * hypothetical call by tool name (the dry-run API: nothing executes;

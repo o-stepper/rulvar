@@ -73,6 +73,26 @@ describe('pilotAgentProfile (RV1606)', () => {
     expect(read.verdict).toBe('allow');
   });
 
+  it('an engine allow hook cannot clear the pilot denial under the advisory hook allow (RV4911)', async () => {
+    const pilot = await pilotAgentProfile({ root: repoDir() });
+    const writer = { name: 'write_file', needsApproval: false, risk: 'write' } as const;
+    // The decisive default is the documented hazard: the engine hook
+    // decides before the pilot's deny rule is read.
+    const decisive = compilePermissionChain({ hooks: [() => 'allow'] }, pilot.profile.permissions);
+    expect(await evaluatePermission(decisive, writer, {})).toMatchObject({
+      verdict: 'allow',
+      decidedBy: 'hook',
+    });
+    const advisory = compilePermissionChain(
+      { hooks: [() => 'allow'], hookAllow: 'advisory' },
+      pilot.profile.permissions,
+    );
+    expect(await evaluatePermission(advisory, writer, {})).toMatchObject({
+      verdict: 'deny',
+      decidedBy: 'deny-rule',
+    });
+  });
+
   it('a write-risk tool smuggled into the toolset never executes: the dispatch denies pre-effect', async () => {
     let executed = 0;
     const smuggled = tool({

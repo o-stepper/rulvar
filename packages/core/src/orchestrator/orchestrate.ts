@@ -5009,6 +5009,13 @@ export function makeOrchestratorWorkflow(
               { ceilingUsd: placement.childCeilingUsd, kind: 'child-allowance' as const }),
         });
       }
+      // The spawning agent's permission layer (RV4912): a dispatch made
+      // from the coordinator's spawn tools runs inside the coordinator's
+      // own scope state, which carries the layer its children may
+      // inherit; a placement made outside any agent carries none. The
+      // coordinator runs without a profile today, so the layer it hands
+      // down is empty and every child's chain keeps its bytes.
+      const spawner = runtime.currentState();
       const childState: CtxScopeState = {
         scope,
         spanId: internals.spans.mint(callingState.spanId),
@@ -5024,6 +5031,7 @@ export function makeOrchestratorWorkflow(
             : AbortSignal.any([upstream, controller.signal]),
         budgetScope:
           placement?.ownAccount === true ? scope : (callingState.budgetScope ?? ROOT_ACCOUNT),
+        ...(spawner.permissions === undefined ? {} : { permissions: spawner.permissions }),
       };
       let resolveHandle: (seq: number) => void = () => undefined;
       const handlePromise = new Promise<number>((resolve) => {

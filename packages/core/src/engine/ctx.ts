@@ -110,6 +110,7 @@ import {
   compilePermissionChain,
   evaluatePermission,
   type AgentProfilePermissions,
+  type CompiledPermissionChain,
   type PermissionConfig,
   type PermissionRule,
 } from '../runtime/permission-chain.js';
@@ -777,6 +778,17 @@ interface ScopeState {
   signal?: AbortSignal;
   /** The nearest enclosing budget account; the run root when absent (M6-T06). */
   budgetScope?: string;
+  /**
+   * The permission layer of the nearest enclosing running agent
+   * (RV4912): its chain above the engine layer (its own hooks, rules,
+   * canUseTool and modes, whatever it inherited itself, and the deny
+   * rule its readonly isolation compiled). A child spawned from one of
+   * that agent's tools prefixes it ahead of its own layers when its
+   * profile declares `inheritPermissions: true`. Rides every scope the
+   * agent's tools open (phase, branch, stage, child workflow) and is
+   * replaced by the next agent's own layer. Absent outside any agent.
+   */
+  permissions?: CompiledPermissionChain;
 }
 
 /**
@@ -2408,6 +2420,12 @@ export function createCtx(
       };
       branchOrRunSignal = state.signal ?? internals.runSignal;
       let toolRuntime: ToolRuntime | undefined;
+      // The layer this agent hands its own children (RV4912): its chain
+      // above the engine layer, carried on the scope state its loop
+      // runs under, so a nested spawn from one of its tools can inherit
+      // it when the child's profile opts in. Absent without tools:
+      // nothing can spawn from an agent that has none.
+      let inheritableLayer: CompiledPermissionChain | undefined;
       if (toolset.tools.length > 0) {
         const toolSignals: AbortSignal[] = [];
         if (branchOrRunSignal !== undefined) {
@@ -2438,10 +2456,14 @@ export function createCtx(
         // The chain is the single approval surface for every dispatch,
         // regardless of tool origin. Profile layers
         // merge over engine defaults; an ask verdict suspends on the
-        // journal in the agent's child scope.
+        // journal in the agent's child scope. The spawning agent's
+        // layer rides the scope state and sits between the two when
+        // the profile declares inheritPermissions (RV4912); the compile
+        // ignores it otherwise.
         const compiledChain = compilePermissionChain(
           internals.defaults.permissions,
           profile?.permissions,
+          state.permissions,
         );
         // 'readonly' isolation compiles a deny rule for tools declaring
         // risk write or destructive into this spawn's chain (tools guide,
@@ -2452,6 +2474,15 @@ export function createCtx(
           isolation === 'readonly'
             ? { ...compiledChain, deny: [...compiledChain.deny, readonlyDeny] }
             : compiledChain;
+        // The same chain compiled with NO engine layer is what a child
+        // inherits (RV4912), the readonly rule included, so the engine
+        // layer is never applied twice and a child cannot do what this
+        // agent could not.
+        const ownLayer = compilePermissionChain(undefined, profile?.permissions, state.permissions);
+        inheritableLayer =
+          isolation === 'readonly'
+            ? { ...ownLayer, deny: [...ownLayer.deny, readonlyDeny] }
+            : ownLayer;
         toolRuntime = {
           defs: toolset.tools,
           contracts: toolset.contracts,
@@ -3000,12 +3031,21 @@ export function createCtx(
       }
 
       const exitActivity = internals.external?.enter();
+      // The loop runs under a scope state carrying this agent's own
+      // permission layer (RV4912), so a spawn made from one of its
+      // tools finds its parent through the same async context the ctx
+      // primitives already use; every other field of the state is the
+      // caller's, unchanged. Without tools nothing can spawn and the
+      // state stays the caller's object.
+      const agentLayer = inheritableLayer;
+      const agentState: ScopeState =
+        agentLayer === undefined ? state : { ...state, permissions: agentLayer };
       try {
         // The branch/run signal rides into the slot wait: a cancelled run
         // frees its queued spawns instead of leaving them parked behind a
         // held slot (v1.34.0 review P2-4).
         result = await internals.semaphore.withSlot(
-          () => runAgent<S>(runAgentOptions),
+          () => als.run(agentState, () => runAgent<S>(runAgentOptions)),
           () =>
             internals.events.emit({ type: 'agent:queued', agentType, label: opts.label }, spanId),
           branchOrRunSignal,
@@ -3739,6 +3779,9 @@ export function createCtx(
         if (state.budgetScope !== undefined) {
           branchState.budgetScope = state.budgetScope;
         }
+        if (state.permissions !== undefined) {
+          branchState.permissions = state.permissions;
+        }
         const promise = als.run(branchState, task);
         if (abortSiblings) {
           promise.catch((thrown: unknown) => {
@@ -3867,6 +3910,9 @@ export function createCtx(
         }
         if (state.budgetScope !== undefined) {
           stageState.budgetScope = state.budgetScope;
+        }
+        if (state.permissions !== undefined) {
+          stageState.permissions = state.permissions;
         }
         try {
           value = await als.run(stageState, () => stages[stageIndex](value));
@@ -4188,6 +4234,12 @@ export function createCtx(
     }
     if (state.phase !== undefined) {
       childState.phase = state.phase;
+    }
+    // The enclosing agent's permission layer crosses the workflow
+    // boundary unchanged (RV4912): the spawning agent of an agent the
+    // child workflow starts is still the nearest enclosing one.
+    if (state.permissions !== undefined) {
+      childState.permissions = state.permissions;
     }
 
     internals.events.emit({ type: 'child:start', workflow: name, scope: childScope }, spanId);

@@ -47,6 +47,7 @@ import type {
   ToolExecutorRegulatedPosture,
 } from '../l0/spi/regulated-posture.js';
 import type { OrchestrateOptions } from '../orchestrator/orchestrate.js';
+import type { AgentProfilePermissions, PermissionRule } from '../runtime/permission-chain.js';
 import type { ToolsOption } from '../tools/toolset-hash.js';
 import { normalizeExecutionScope, type CreateEngineOptions, type RunOptions } from './engine.js';
 
@@ -98,7 +99,25 @@ export interface RegulatedProfile {
 // hashes the resolver generation, the persistence mode, and the
 // required-contract fact into the map. The meaning of the map changed
 // again, and a v3 hash must never collide with a v4 reading.
-const REGULATED_VERSION = 4;
+//
+// 5 since RV4911 and RV4912 (plan 49): the v4 map hashed no permission
+// layer at all. A hook's allow decided before the deny tables for
+// every tool without needsApproval, so one engine level allow hook
+// silently retired every profile deny rule, the readonly isolation
+// rule and the pilot profile's denial, and the hash never moved: a
+// config with that hook and a config without it carried the same
+// fingerprint. The v5 floor forces `permissions.hookAllow: 'advisory'`
+// (the deny tables speak before a hook's allow decides) and refuses the
+// decisive precedence by name, hashes that mode, and records every
+// permission layer the options reach: the hook count and the
+// canUseTool presence (closures cannot be hashed by content, so the
+// map counts them instead of implying it read them), the deny and ask
+// tables verbatim, the preset, and the inheritance opt in, for the
+// engine defaults and for every profile that declares permissions. The
+// wired inheritance (RV4912) draws only on those hashed layers. The
+// meaning of the map changed again, and a v4 hash must never collide
+// with a v5 reading.
+const REGULATED_VERSION = 5;
 
 function refuse(field: string, requirement: string): never {
   throw new ConfigError(
@@ -434,6 +453,34 @@ function wrapReasserting<T extends object>(construction: T, frozen: string): T {
   });
 }
 
+/** One permission layer as the hashed posture map records it (RV4911, RV4912). */
+interface PermissionLayerPosture {
+  hooks: number;
+  canUseTool: boolean;
+  deny: PermissionRule[];
+  ask: PermissionRule[];
+  preset?: AgentProfilePermissions['preset'];
+  inheritPermissions?: true;
+}
+
+/**
+ * Reads one permission layer into the hashed map: the closure layers as
+ * counts and presence (a hook or a canUseTool has no hashable content,
+ * so the map records that it exists instead of implying it read it),
+ * the declarative tables verbatim, the preset by name, and the
+ * inheritance opt in when armed.
+ */
+function permissionLayerPosture(config: AgentProfilePermissions): PermissionLayerPosture {
+  return {
+    hooks: config.hooks?.length ?? 0,
+    canUseTool: typeof config.canUseTool === 'function',
+    deny: config.deny ?? [],
+    ask: config.ask ?? [],
+    ...(config.preset === undefined ? {} : { preset: config.preset }),
+    ...(config.inheritPermissions === true ? { inheritPermissions: true as const } : {}),
+  };
+}
+
 export function compileRegulatedProfile(input: {
   engine: CreateEngineOptions;
   run: RunOptions;
@@ -461,6 +508,22 @@ export function compileRegulatedProfile(input: {
     refuse('defaults.permissions.strictApprovals', 'must not be false (RV1507 monotonic mode)');
   }
   permissions.strictApprovals = true;
+  // The deny tables speak before a hook's allow decides (RV4911): under
+  // the decisive default one engine level allow hook silently retires
+  // every profile deny rule, the readonly isolation rule and the pilot
+  // denial for tools without needsApproval. The floor forces the
+  // advisory precedence; an explicit decisive value refuses by name,
+  // and so does a malformed one, instead of being rewritten beneath
+  // the host (never a silent overwrite).
+  if (permissions.hookAllow !== undefined && permissions.hookAllow !== 'advisory') {
+    refuse(
+      'defaults.permissions.hookAllow',
+      "must be 'advisory' or absent (RV4911): under 'decisive' a hook's allow decides " +
+        'before the deny tables, so one engine allow hook silently retires every profile ' +
+        'deny rule and the readonly isolation rule',
+    );
+  }
+  permissions.hookAllow = 'advisory';
   defaults.permissions = permissions;
   if (defaults.billingReceipts !== undefined && defaults.billingReceipts !== 'intent') {
     refuse('defaults.billingReceipts', "must be 'intent' (RV4006 pre-wire intents)");
@@ -477,6 +540,29 @@ export function compileRegulatedProfile(input: {
   for (const [name, profile] of Object.entries(defaults.profiles ?? {})) {
     if (profile.permissions?.strictApprovals === false) {
       refuse(`defaults.profiles.${name}.permissions.strictApprovals`, 'must not be false');
+    }
+    // The hook allow precedence merges monotonically, so a profile
+    // cannot loosen the engine's 'advisory'; a profile that declares
+    // the decisive value still fights the floor and refuses (RV4911).
+    if (
+      profile.permissions?.hookAllow !== undefined &&
+      profile.permissions.hookAllow !== 'advisory'
+    ) {
+      refuse(
+        `defaults.profiles.${name}.permissions.hookAllow`,
+        "must be 'advisory' or absent (RV4911)",
+      );
+    }
+    // The inheritance opt in enters the hashed map (RV4912), so it is
+    // judged here like the chain compile would judge it at spawn time.
+    if (
+      profile.permissions?.inheritPermissions !== undefined &&
+      typeof profile.permissions.inheritPermissions !== 'boolean'
+    ) {
+      refuse(
+        `defaults.profiles.${name}.permissions.inheritPermissions`,
+        'must be a boolean when given (RV4912)',
+      );
     }
     if (profile.tools !== undefined && profile.toolsetAttestation === undefined) {
       refuse(
@@ -1008,9 +1094,28 @@ export function compileRegulatedProfile(input: {
             candidatePersistence: orchestrate.finishValidation?.candidatePersistence,
           },
         };
+  // The permission layers (RV4911, RV4912): the forced hook allow
+  // precedence and, per layer, what the chain will be built from. The
+  // closures are counted, never read (the RV4009 rule: a hash must not
+  // imply what it cannot verify), the tables enter verbatim, and a
+  // profile that declares no permissions contributes no key, so the
+  // inherited layers a child can draw on are exactly the hashed ones.
+  const permissionLayers = {
+    engine: permissionLayerPosture(permissions),
+    profiles: Object.fromEntries(
+      Object.entries(defaults.profiles ?? {}).flatMap(
+        ([name, profile]): Array<[string, PermissionLayerPosture]> =>
+          profile.permissions === undefined
+            ? []
+            : [[name, permissionLayerPosture(profile.permissions)]],
+      ),
+    ),
+  };
   const posture = {
     regulated: REGULATED_VERSION,
     strictApprovals: true,
+    hookAllow: 'advisory',
+    permissionLayers,
     billingReceipts: 'intent',
     determinism: 'error',
     // The construction postures (RV4101): what attested, sorted for
