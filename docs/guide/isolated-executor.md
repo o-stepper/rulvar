@@ -67,7 +67,7 @@ The child's stdout, trimmed, is the JSON result; empty stdout is the null result
 
 - **The environment is replaced, not inherited.** The child sees only the variables you allowlist (`allowEnv`) plus the ones the executor injects, so host credentials in `process.env` never reach the tool. This is the usual exfiltration path, closed by default.
 - **Per-call short-lived credentials.** `credentials` is called fresh for each dispatch and its result is injected as child environment; a rotating or request-scoped token is minted at use and never lives in the host environment.
-- **A fresh ephemeral working directory per call**, removed afterward, so nothing leaks between calls and the tool has scratch space that is not the host cwd.
+- **A fresh ephemeral working directory per call**, removed afterward, so nothing leaks between calls and the tool has scratch space that is not the host cwd. Under [worktree isolation](/guide/tools#worktree-isolation) the child starts in the acquired tree instead (the request's `cwd`, RV4914), `RULVAR_SCRATCH` names the ephemeral directory, still minted and still removed, and the ledger row names the tree.
 - **A hard timeout** (`timeoutMs`) that escalates SIGTERM to SIGKILL, and a **bounded output capture** (`maxOutputBytes`) that kills a runaway writer, so neither a hang nor a flood of output can wedge or exhaust the host.
 
 What it does NOT do on its own: a plain child process still shares the host filesystem and network, so it can read world-readable files and open sockets. Two honest options close that gap. Pass a **`sandbox` launcher** whose argv is prepended to the command, where a real sandbox plugs in:
@@ -76,16 +76,19 @@ What it does NOT do on its own: a plain child process still shares the host file
 import { subprocessExecutor } from '@rulvar/executor';
 
 const executor = subprocessExecutor({
-  // bwrap gives the child a private mount namespace and no network.
-  sandbox: ({ workdir }) => [
+  // bwrap gives the child a private mount namespace and no network; the
+  // worktree, when the request carries one (RV4914), is bound beside the
+  // ephemeral workdir so the child can start in it.
+  sandbox: ({ workdir, request }) => [
     'bwrap',
     '--unshare-all',
     '--die-with-parent',
     '--bind',
     workdir,
     workdir,
+    ...(request.cwd === undefined ? [] : ['--bind', request.cwd, request.cwd]),
     '--chdir',
-    workdir,
+    request.cwd ?? workdir,
   ],
 });
 ```
@@ -116,9 +119,13 @@ const engine = createEngine({
 
 By default it drops the network entirely (`--network none`), mounts the root filesystem read-only (`--read-only`, with the ephemeral workdir the one writable path at `/work`), caps memory, CPU, and process count, and drops all Linux capabilities (`--cap-drop ALL`). Host credentials never enter the container: it starts from the image environment plus exactly the variables the executor forwards by name, and those values live in the docker CLI process's environment, not in the argv. A microVM adapter (Firecracker, gVisor, Kata) implements the same `ToolExecutorProvider` seam; this docker adapter is the batteries-included reference.
 
+Under [worktree isolation](/guide/tools#worktree-isolation) the request carries the acquired tree as `cwd` (RV4914): the container bind mounts it as the work mount (`workMount`, default `/work`) and mounts the ephemeral directory beside it (`scratchMount`, default `/scratch`, exported to the tool program as `RULVAR_SCRATCH`), so the tool's writes land in the tree the patch is collected from, and both ledger phases name the tree (`cwd` and `workMount` on the row). Without a worktree the ephemeral directory is the work mount, byte for byte as before.
+
+Two rules govern the argv since RV4915. `extraDockerArgs` are placed BEFORE the hardening flags, so a repeated single valued flag (`--memory`, `--cpus`, `--pids-limit`, `--read-only`) resolves to the fixed value docker reads last, and a conflicting `--network` fails the dispatch at the daemon instead of running with it; list valued flags such as `--cap-add` accumulate whatever the order, which is why the [regulated floor](/guide/production-profiles#the-regulated-floor-one-call-refusals-typed) refuses any extra flag rather than denylisting some. And a tool whose `executorSpec` names an `image` runs in that image instead of the executor's, digest pinned only (`name@sha256:<64 hex>`): a tag on the spec refuses typed (`config`) before any launch, because the spec rides the toolset authority hash as the attestation of what runs, and a tag is not a pin.
+
 ## The side-effect ledger and approval binding
 
-Every dispatch, success or failure, is recorded to the executor's `ToolEffectLedger`: the idempotency key, the tool, a content `argsHash`, the workdir, the outcome, and timing.
+Every dispatch, success or failure, is recorded to the executor's `ToolEffectLedger`: the idempotency key, the tool, a content `argsHash`, the workdir, the outcome, and timing, plus, under worktree isolation, the tree the tool ran in (`cwd`, and `workMount` for a container; RV4914).
 
 ```ts
 import { subprocessExecutor, memoryEffectLedger } from '@rulvar/executor';

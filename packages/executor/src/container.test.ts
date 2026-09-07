@@ -7,7 +7,7 @@
  * The tool programs are busybox shell one-liners over the same
  * stdin/stdout protocol, so the image needs no Node.
  */
-import { chmodSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -19,10 +19,11 @@ import {
   type ToolEffectLedger,
   type ToolEffectRecord,
 } from './spi.js';
-import type { IsolatedExecRequest } from '@rulvar/core';
+import { compileRegulatedProfile, type IsolatedExecRequest } from '@rulvar/core';
 
 const RUN_DOCKER = process.env.RULVAR_DOCKER_TESTS === '1';
 const IMAGE = process.env.RULVAR_DOCKER_IMAGE ?? 'busybox:1.36';
+const DIGEST = `ghcr.io/acme/tool-sandbox@sha256:${'a'.repeat(64)}`;
 
 // A stub standing in for the docker CLI: it reports the argv it was given
 // and which forwarded env vars reached it, then answers the protocol. This
@@ -42,7 +43,8 @@ writeFileSync(
     'tool: process.env.RULVAR_TOOL ?? null,' +
     'idem: process.env.RULVAR_IDEMPOTENCY_KEY ?? null,' +
     'cred: process.env.RV_CRED ?? null,' +
-    'host: process.env.RV_LEAKED ?? null' +
+    'host: process.env.RV_LEAKED ?? null,' +
+    'scratch: process.env.RULVAR_SCRATCH ?? null' +
     '}));process.exit(0);});',
   'utf8',
 );
@@ -382,13 +384,14 @@ describe.skipIf(!RUN_DOCKER)('containerExecutor (docker-gated, RV-216)', () => {
   });
 });
 
-describe('describeRegulatedPosture (RV4204)', () => {
-  it('attests the ledger, the forwarded env, the ceilings, and the container isolation', () => {
+describe('describeRegulatedPosture (RV4204, complete since RV4915)', () => {
+  it('attests the ledger, the forwarded env, the ceilings, and the whole container seam', () => {
     const posture = containerExecutor({
       image: 'node:22-alpine',
       forwardEnv: ['CI'],
       network: 'none',
       timeoutMs: 10_000,
+      extraDockerArgs: ['--label', 'team=acme'],
     }).describeRegulatedPosture?.();
     expect(posture).toEqual({
       regulatedPosture: 1,
@@ -397,7 +400,257 @@ describe('describeRegulatedPosture (RV4204)', () => {
       ledger: false,
       allowEnv: ['CI'],
       bounds: { timeoutMs: 10_000, maxOutputBytes: 1024 * 1024 },
-      isolation: { flavor: 'container', network: 'none', readOnlyRoot: true },
+      isolation: {
+        flavor: 'container',
+        network: 'none',
+        readOnlyRoot: true,
+        image: 'node:22-alpine',
+        capDrop: ['ALL'],
+        memory: '256m',
+        cpus: '1.0',
+        pidsLimit: 128,
+        workMount: '/work',
+        scratchMount: '/scratch',
+        extraDockerArgs: ['--label', 'team=acme'],
+      },
     });
   });
+
+  it('the real construction compiles under the regulated floor when hardened, and refuses by name when not', () => {
+    const run = { budgetUsd: 5, scope: { tenant: 'acme' } };
+    const compile = (options: Parameters<typeof containerExecutor>[0]) =>
+      compileRegulatedProfile({
+        engine: {
+          adapters: [],
+          executors: { container: containerExecutor({ ledger: memoryEffectLedger(), ...options }) },
+        },
+        run,
+      });
+    const compiled = compile({ image: DIGEST });
+    expect(compiled.profileHash).toMatch(/^[0-9a-f]{64}$/);
+    // A tagged image is not a pin.
+    expect(() => compile({ image: 'ghcr.io/acme/tool:v3' })).toThrow(
+      /construction\['container'\]\.isolation\.image/,
+    );
+    // A raw flag list is refused outright, not denylisted.
+    expect(() => compile({ image: DIGEST, extraDockerArgs: ['--label', 'team=acme'] })).toThrow(
+      /construction\['container'\]\.isolation\.extraDockerArgs must be empty/,
+    );
+    // The host network beneath a fingerprint that would read none.
+    expect(() => compile({ image: DIGEST, network: 'host' })).toThrow(
+      /construction\['container'\]\.isolation\.network must be 'none'/,
+    );
+    // The image moves the fingerprint.
+    const other = compile({ image: `ghcr.io/acme/tool-sandbox@sha256:${'b'.repeat(64)}` });
+    expect(other.profileHash).not.toBe(compiled.profileHash);
+  });
 });
+
+function worktreeRequest(
+  tool: string,
+  cwd: string,
+  spec?: IsolatedExecRequest['spec'],
+): IsolatedExecRequest {
+  return {
+    executor: 'container',
+    tool,
+    args: {},
+    spec: spec ?? { command: '/bin/true' },
+    cwd,
+    ctx: {
+      runId: 'wt-run',
+      spanId: 'wt-span',
+      agentType: 'c',
+      idempotencyKey: 'wt-key',
+      signal: new AbortController().signal,
+      log: () => undefined,
+    },
+  };
+}
+
+describe('the worktree cwd reaches the container (RV4914, stubbed docker)', () => {
+  it('bind mounts the request cwd as the work mount, keeps the ephemeral dir as scratch, and ledgers the mount', async () => {
+    const worktree = mkdtempSync(join(tmpdir(), 'rulvar-cwt-'));
+    const workdirBase = mkdtempSync(join(tmpdir(), 'rulvar-cwt-scratch-'));
+    const ledger = memoryEffectLedger();
+    const executor = containerExecutor({
+      image: 'acme/img:pinned',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+      workdirBase,
+      ledger,
+    });
+    const result = (await executor.run(worktreeRequest('patch', worktree))) as {
+      argv: string[];
+      scratch: string | null;
+    };
+    const argv = result.argv.join(' ');
+    // The worktree is the work mount and the working directory.
+    expect(argv).toContain(`-v ${worktree}:/work -w /work`);
+    // The ephemeral directory rides beside it as scratch, and the tool
+    // program is told where.
+    expect(argv).toMatch(new RegExp(`-v ${workdirBase}/rulvar-cexec-patch-\\S+:/scratch`));
+    expect(argv).toContain('-e RULVAR_SCRATCH');
+    expect(result.scratch).toBe('/scratch');
+    // The extra flags still precede the image, and the hardening flags hold.
+    expect(argv).toContain('--network none');
+    expect(argv).toContain('--read-only');
+    // Both ledger phases name the mount.
+    expect(ledger.intents()).toHaveLength(1);
+    expect(ledger.intents()[0]?.cwd).toBe(worktree);
+    expect(ledger.intents()[0]?.workMount).toBe('/work');
+    expect(ledger.entries()[0]?.cwd).toBe(worktree);
+    expect(ledger.entries()[0]?.workMount).toBe('/work');
+    // The scratch directory never survives the dispatch.
+    expect(readdirSync(workdirBase)).toHaveLength(0);
+  });
+
+  it('a request without a cwd keeps the historical shape: one mount, no scratch, no ledger field', async () => {
+    const ledger = memoryEffectLedger();
+    const executor = containerExecutor({
+      image: 'acme/img:pinned',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+      ledger,
+    });
+    const result = (await executor.run(containerRequest('plain'))) as {
+      argv: string[];
+      scratch: string | null;
+    };
+    const argv = result.argv.join(' ');
+    expect(argv).toMatch(/-v \S+:\/work -w \/work/);
+    expect(argv).not.toContain('/scratch');
+    expect(argv).not.toContain('RULVAR_SCRATCH');
+    expect(result.scratch).toBeNull();
+    expect(Object.hasOwn(ledger.intents()[0] ?? {}, 'cwd')).toBe(false);
+    expect(Object.hasOwn(ledger.entries()[0] ?? {}, 'cwd')).toBe(false);
+    expect(Object.hasOwn(ledger.entries()[0] ?? {}, 'workMount')).toBe(false);
+  });
+});
+
+describe('the extra flags precede the hardening flags (RV4915, stubbed docker)', () => {
+  it('a hostile --network host, --memory and --read-only=false in extraDockerArgs are trailed by the fixed flags', async () => {
+    const executor = containerExecutor({
+      image: 'acme/img:pinned',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+      extraDockerArgs: ['--network', 'host', '--memory', '8g', '--read-only=false'],
+    });
+    const result = (await executor.run(containerRequest('probe'))) as { argv: string[] };
+    const argv = result.argv;
+    // The extras sit right after the subcommand, before every hardening flag.
+    expect(argv.slice(0, 8)).toEqual([
+      'run',
+      '--rm',
+      '-i',
+      '--network',
+      'host',
+      '--memory',
+      '8g',
+      '--read-only=false',
+    ]);
+    // Each fixed flag is the LAST occurrence of its name, which is the one
+    // docker resolves a single valued flag to.
+    expect(argv[argv.lastIndexOf('--network') + 1]).toBe('none');
+    expect(argv[argv.lastIndexOf('--memory') + 1]).toBe('256m');
+    expect(argv.lastIndexOf('--read-only')).toBeGreaterThan(argv.indexOf('--read-only=false'));
+    // The image still comes after everything.
+    expect(argv.indexOf('acme/img:pinned')).toBeGreaterThan(argv.lastIndexOf('--cap-drop'));
+  });
+
+  it('with no extra flags the argv is byte identical to before', async () => {
+    const executor = containerExecutor({
+      image: 'acme/img:pinned',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+    });
+    const result = (await executor.run(containerRequest('probe'))) as { argv: string[] };
+    expect(result.argv.slice(0, 5)).toEqual(['run', '--rm', '-i', '--network', 'none']);
+  });
+});
+
+describe('a per tool image on the executorSpec (RV4915, stubbed docker)', () => {
+  it('a digest pinned executorSpec.image selects the image for that dispatch', async () => {
+    const executor = containerExecutor({
+      image: 'acme/img:pinned',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+    });
+    const result = (await executor.run({
+      ...containerRequest('pinned'),
+      spec: { command: '/bin/true', image: DIGEST },
+    })) as { argv: string[] };
+    expect(result.argv).toContain(DIGEST);
+    expect(result.argv).not.toContain('acme/img:pinned');
+    expect(result.argv[result.argv.indexOf(DIGEST) + 1]).toBe('/bin/true');
+  });
+
+  it('a tagged executorSpec.image refuses typed before any launch: a tag is not a pin', async () => {
+    const ledger = memoryEffectLedger();
+    const workdirBase = mkdtempSync(join(tmpdir(), 'rulvar-cimg-'));
+    const executor = containerExecutor({
+      image: 'acme/img:pinned',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+      workdirBase,
+      ledger,
+    });
+    await expect(
+      executor.run({
+        ...containerRequest('tagged'),
+        spec: { command: '/bin/true', image: 'acme/img:latest' },
+      }),
+    ).rejects.toMatchObject({ name: 'ExecutorError', code: 'config' });
+    // Refused before the workdir and before the ledger: nothing ran.
+    expect(ledger.intents()).toHaveLength(0);
+    expect(ledger.entries()).toHaveLength(0);
+    expect(readdirSync(workdirBase)).toHaveLength(0);
+  });
+});
+
+describe.skipIf(!RUN_DOCKER)(
+  'the worktree cwd against the real daemon (RV4914, docker-gated)',
+  () => {
+    it('the tool writes into the mounted worktree and the scratch mount, and only the scratch dir is removed', async () => {
+      const worktree = mkdtempSync(join(tmpdir(), 'rulvar-cwt-real-'));
+      writeFileSync(join(worktree, 'seed.txt'), 'seed', 'utf8');
+      const workdirBase = mkdtempSync(join(tmpdir(), 'rulvar-cwt-real-scratch-'));
+      const executor = containerExecutor({ image: IMAGE, workdirBase });
+      const result = (await executor.run(
+        worktreeRequest('patch', worktree, {
+          command: 'sh',
+          args: [
+            '-c',
+            'cp /work/seed.txt /work/out.txt && echo scratch-ok > "$RULVAR_SCRATCH/s" && ' +
+              'printf \'{"seed":"%s","scratch":"%s","pwd":"%s"}\' "$(cat /work/seed.txt)" ' +
+              '"$(cat "$RULVAR_SCRATCH/s")" "$(pwd)"',
+          ],
+        }),
+      )) as { seed: string; scratch: string; pwd: string };
+      expect(result.seed).toBe('seed');
+      expect(result.scratch).toBe('scratch-ok');
+      expect(result.pwd).toBe('/work');
+      // The write landed in the host worktree, where the patch is collected.
+      expect(readFileSync(join(worktree, 'out.txt'), 'utf8')).toBe('seed');
+      // The scratch directory did not survive the dispatch.
+      expect(readdirSync(workdirBase)).toHaveLength(0);
+    }, 60_000);
+
+    it('a hostile extra flag is overridden by the trailing hardening flag (RV4915)', async () => {
+      const executor = containerExecutor({
+        image: IMAGE,
+        extraDockerArgs: ['--read-only=false', '--memory', '8g'],
+      });
+      const result = (await executor.run(
+        request(
+          'hardened',
+          'if echo x > /rvtest 2>/dev/null; then w=true; else w=false; fi; ' +
+            'm=$(cat /sys/fs/cgroup/memory.max 2>/dev/null || cat /sys/fs/cgroup/memory/memory.limit_in_bytes); ' +
+            'printf \'{"wrote":%s,"memory":"%s"}\' "$w" "$m"',
+        ),
+      )) as { wrote: boolean; memory: string };
+      expect(result.wrote).toBe(false);
+      expect(result.memory).toBe(String(256 * 1024 * 1024));
+    }, 60_000);
+  },
+);

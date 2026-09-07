@@ -10,7 +10,7 @@
 function subprocessTool<S>(init): ToolDef<S>;
 ```
 
-Defined in: [packages/executor/src/subprocess.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L339)
+Defined in: [packages/executor/src/subprocess.ts:357](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/subprocess.ts#L357)
 
 Defines a tool that runs under a subprocess (or container) executor.
 The returned ToolDef declares `executor: 'subprocess'` and carries the

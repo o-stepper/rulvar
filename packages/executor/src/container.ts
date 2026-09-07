@@ -5,7 +5,9 @@
  * entirely (`--network none`), mounts the root filesystem read-only
  * (`--read-only`), caps memory, CPU, and process count, and drops all
  * Linux capabilities (`--cap-drop ALL`). The only writable path is the
- * per-call ephemeral workdir, bind-mounted at `/work`.
+ * work mount at `/work`: the per-call ephemeral workdir, or, under
+ * worktree isolation (RV4914), the acquired worktree the request carries
+ * as `cwd`, with the ephemeral workdir mounted beside it at `/scratch`.
  *
  * Host credentials never enter the container: the container starts from
  * the image's environment plus exactly the variables the executor
@@ -39,8 +41,36 @@ const wallClock: () => number = Date.now.bind(globalThis);
 /** The default host variables the docker CLI needs to reach its daemon. */
 const DEFAULT_DAEMON_ENV = ['PATH', 'HOME', 'DOCKER_HOST', 'DOCKER_TLS_VERIFY', 'DOCKER_CERT_PATH'];
 
+/** The digest pinned image reference form docker accepts: name[:tag]@sha256:<64 hex>. */
+const IMAGE_DIGEST = /^[^@\s]+@sha256:[0-9a-f]{64}$/;
+
+/**
+ * The image one dispatch runs in (RV4915). The tools guide has said
+ * since RV1802 that an `executorSpec` naming a pinned image digest puts
+ * the pin inside the toolset authority hash, and the executor read only
+ * `command` and `args` from the spec, so the pinned image was attested
+ * and never used. A spec image is honored now, digest pinned only: a
+ * tag on the spec would ride the attestation as a pin it is not.
+ */
+function resolveImage(specImage: unknown, fallback: string, tool: string): string {
+  if (specImage === undefined) return fallback;
+  if (typeof specImage !== 'string' || !IMAGE_DIGEST.test(specImage)) {
+    throw new ExecutorError(
+      'config',
+      `tool '${tool}' names executorSpec.image ${JSON.stringify(specImage)}, which is not ` +
+        'pinned by digest (name@sha256:<64 hex>): a per tool image rides the toolset authority ' +
+        'hash as the attestation of what runs, and a tag is not a pin',
+    );
+  }
+  return specImage;
+}
+
 export interface ContainerExecutorOptions {
-  /** The image the tool runs in (required). */
+  /**
+   * The image the tool runs in (required). A tool whose `executorSpec`
+   * names an `image` pinned by digest runs in that image instead
+   * (RV4915); the regulated floor requires this one to be pinned too.
+   */
   image: string;
   /** The docker-compatible CLI. Default 'docker'. */
   docker?: string;
@@ -56,9 +86,27 @@ export interface ContainerExecutorOptions {
   readOnly?: boolean;
   /** Capabilities to drop. Default ['ALL']. */
   capDrop?: readonly string[];
-  /** Where the ephemeral workdir is mounted inside the container. Default '/work'. */
+  /**
+   * Where the work directory is mounted inside the container: the
+   * ephemeral workdir, or the acquired worktree when the request carries
+   * a `cwd` (RV4914). Default '/work'.
+   */
   workMount?: string;
-  /** Extra raw `docker run` flags, appended before the image. */
+  /**
+   * Where the ephemeral workdir is mounted when the work mount is a
+   * worktree (RV4914); the tool program reads the path from
+   * `RULVAR_SCRATCH`. Default '/scratch'.
+   */
+  scratchMount?: string;
+  /**
+   * Extra raw `docker run` flags, placed BEFORE the hardening flags
+   * (RV4915) so a repeated single valued flag (`--memory`,
+   * `--pids-limit`, `--read-only`) resolves to the fixed value and a
+   * conflicting `--network` fails the dispatch at the daemon instead of
+   * running with it. List valued flags such as `--cap-add` accumulate
+   * whatever the order, which is why the regulated floor refuses any
+   * extra flag rather than denylisting some.
+   */
   extraDockerArgs?: readonly string[];
   /** Host env names forwarded INTO the container (not the daemon env). Default none. */
   forwardEnv?: readonly string[];
@@ -103,6 +151,7 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
   const readOnly = options.readOnly ?? true;
   const capDrop = options.capDrop ?? ['ALL'];
   const workMount = options.workMount ?? '/work';
+  const scratchMount = options.scratchMount ?? '/scratch';
   const timeoutMs = options.timeoutMs ?? 30_000;
   const killGraceMs = options.killGraceMs ?? 5_000;
   const maxOutputBytes = options.maxOutputBytes ?? 1024 * 1024;
@@ -122,11 +171,28 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
       ledger: options.ledger !== undefined,
       allowEnv: [...(options.forwardEnv ?? [])],
       bounds: { timeoutMs, maxOutputBytes },
-      isolation: { flavor: 'container', network, readOnlyRoot: readOnly },
+      // The whole seam (RV4915): the image, the dropped capabilities,
+      // the limits, the mount paths, and the raw extra flags verbatim,
+      // so the regulated floor can judge each by name and hash the
+      // rest; before this it saw the network mode and the root posture
+      // and nothing else that decides what the container can do.
+      isolation: {
+        flavor: 'container',
+        network,
+        readOnlyRoot: readOnly,
+        image: options.image,
+        capDrop: [...capDrop],
+        memory,
+        cpus,
+        pidsLimit,
+        workMount,
+        scratchMount,
+        extraDockerArgs: [...(options.extraDockerArgs ?? [])],
+      },
     }),
 
     async run(request) {
-      const spec = (request.spec ?? {}) as { command?: unknown; args?: unknown };
+      const spec = (request.spec ?? {}) as { command?: unknown; args?: unknown; image?: unknown };
       const command = typeof spec.command === 'string' ? spec.command : options.command;
       if (command === undefined || command === '') {
         throw new ExecutorError(
@@ -138,6 +204,12 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
         ? spec.args.filter((a): a is string => typeof a === 'string')
         : [];
       const toolArgs = [...(options.args ?? []), ...specArgs];
+      const image = resolveImage(spec.image, options.image, request.tool);
+      // The acquired worktree (RV4914): present exactly when the
+      // dispatching agent runs under worktree isolation. It becomes the
+      // work mount, so the tool's writes land in the tree the patch is
+      // collected from, and the ledger rows name the mount.
+      const worktree = request.cwd;
 
       const workdir = await mkdtemp(join(workdirBase, `rulvar-cexec-${request.tool}-`));
       const startedAt = now();
@@ -158,6 +230,7 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
             argsHash,
             executor: request.executor,
             workdir,
+            ...(worktree === undefined ? {} : { cwd: worktree, workMount }),
             startedAt,
             attemptId,
           });
@@ -210,15 +283,41 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
         env.RULVAR_TOOL = request.tool;
         env.RULVAR_RUN_ID = request.ctx.runId;
         env.RULVAR_IDEMPOTENCY_KEY = request.ctx.idempotencyKey;
+        if (worktree !== undefined) {
+          // The scratch mount's container path, so a tool program whose
+          // cwd is the worktree can still find its ephemeral directory.
+          env.RULVAR_SCRATCH = scratchMount;
+          forwardNames.add('RULVAR_SCRATCH');
+        }
 
-        const dockerArgs: string[] = ['run', '--rm', '-i', '--network', network];
+        const dockerArgs: string[] = ['run', '--rm', '-i'];
+        // The host's extra flags go FIRST (RV4915): docker resolves a
+        // repeated single valued flag to its last occurrence, so the
+        // fixed hardening flags below win over a repeated --memory,
+        // --pids-limit or --read-only=false, and a conflicting --network
+        // fails the dispatch at the daemon instead of running with it.
+        // Before this the extra flags trailed the hardening flags, and
+        // ['--network', 'host'] ran with the host network beneath a
+        // regulated fingerprint that attested none. List valued flags
+        // (--cap-add) accumulate whatever the order, which is why the
+        // regulated floor refuses extra flags outright rather than
+        // trusting this order alone.
+        dockerArgs.push(...(options.extraDockerArgs ?? []));
+        dockerArgs.push('--network', network);
         dockerArgs.push('--memory', memory, '--cpus', cpus, '--pids-limit', String(pidsLimit));
         if (readOnly) dockerArgs.push('--read-only');
         for (const cap of capDrop) dockerArgs.push('--cap-drop', cap);
         for (const name of forwardNames) dockerArgs.push('-e', name);
-        dockerArgs.push('-v', `${workdir}:${workMount}`, '-w', workMount);
-        dockerArgs.push(...(options.extraDockerArgs ?? []));
-        dockerArgs.push(options.image, command, ...toolArgs);
+        if (worktree === undefined) {
+          dockerArgs.push('-v', `${workdir}:${workMount}`, '-w', workMount);
+        } else {
+          // The worktree is the work mount (RV4914), so the tool's writes
+          // land in the tree the patch is collected from; the ephemeral
+          // directory stays mounted beside it as scratch.
+          dockerArgs.push('-v', `${worktree}:${workMount}`, '-w', workMount);
+          dockerArgs.push('-v', `${workdir}:${scratchMount}`);
+        }
+        dockerArgs.push(image, command, ...toolArgs);
 
         let child;
         try {
@@ -293,6 +392,7 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
             argsHash,
             executor: request.executor,
             workdir,
+            ...(worktree === undefined ? {} : { cwd: worktree, workMount }),
             startedAt,
             attemptId,
             durationMs,

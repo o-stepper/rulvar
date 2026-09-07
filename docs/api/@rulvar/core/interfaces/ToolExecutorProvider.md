@@ -6,7 +6,7 @@
 
 # Interface: ToolExecutorProvider
 
-Defined in: [packages/core/src/l0/spi/executor.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L80)
+Defined in: [packages/core/src/l0/spi/executor.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L92)
 
 The isolated tool executor seam. A provider runs one dispatch to its
 JSON result. A thrown error becomes the call's error tool result, never
@@ -23,7 +23,7 @@ stays durable.
 optional describeRegulatedPosture(): RegulatedPostureDescriptor;
 ```
 
-Defined in: [packages/core/src/l0/spi/executor.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L90)
+Defined in: [packages/core/src/l0/spi/executor.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L102)
 
 The construction-side posture attestation (RV4204): a PURE
 snapshot of what the executor chose at construction (ledger,
@@ -43,7 +43,7 @@ see the `regulated-posture` module.
 run(request): Promise<Json>;
 ```
 
-Defined in: [packages/core/src/l0/spi/executor.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L82)
+Defined in: [packages/core/src/l0/spi/executor.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/executor.ts#L94)
 
 Runs one dispatch to its JSON result; throws to signal tool failure.
 
