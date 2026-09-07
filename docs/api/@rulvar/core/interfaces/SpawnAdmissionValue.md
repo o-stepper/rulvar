@@ -6,7 +6,7 @@
 
 # Interface: SpawnAdmissionValue
 
-Defined in: [packages/core/src/orchestrator/handles.ts:317](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L317)
+Defined in: [packages/core/src/orchestrator/handles.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L332)
 
 The journaled spawn-admission payload the runtime writes and recovers.
 
@@ -14,12 +14,12 @@ The journaled spawn-admission payload the runtime writes and recovers.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-childscope"></a> `childScope` | `string` | [packages/core/src/orchestrator/handles.ts:323](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L323) |
-| <a id="property-decision"></a> `decision` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/orchestrator/handles.ts:326](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L326) |
-| <a id="property-decisiontype"></a> `decisionType` | `"spawn-admission"` | [packages/core/src/orchestrator/handles.ts:318](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L318) |
-| <a id="property-name"></a> `name` | `string` | [packages/core/src/orchestrator/handles.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L322) |
-| <a id="property-orchestratorscope"></a> `orchestratorScope` | `string` | [packages/core/src/orchestrator/handles.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L320) |
-| <a id="property-origin"></a> `origin` | `"spawn_agent"` \| `"parallel_agents"` | [packages/core/src/orchestrator/handles.ts:319](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L319) |
-| <a id="property-parentaccountscope"></a> `parentAccountScope` | `string` | [packages/core/src/orchestrator/handles.ts:324](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L324) |
-| <a id="property-spawnordinal"></a> `spawnOrdinal` | `number` | [packages/core/src/orchestrator/handles.ts:321](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L321) |
-| <a id="property-spec"></a> `spec` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/orchestrator/handles.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L325) |
+| <a id="property-childscope"></a> `childScope` | `string` | [packages/core/src/orchestrator/handles.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L338) |
+| <a id="property-decision"></a> `decision` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/orchestrator/handles.ts:341](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L341) |
+| <a id="property-decisiontype"></a> `decisionType` | `"spawn-admission"` | [packages/core/src/orchestrator/handles.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L333) |
+| <a id="property-name"></a> `name` | `string` | [packages/core/src/orchestrator/handles.ts:337](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L337) |
+| <a id="property-orchestratorscope"></a> `orchestratorScope` | `string` | [packages/core/src/orchestrator/handles.ts:335](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L335) |
+| <a id="property-origin"></a> `origin` | `"spawn_agent"` \| `"parallel_agents"` | [packages/core/src/orchestrator/handles.ts:334](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L334) |
+| <a id="property-parentaccountscope"></a> `parentAccountScope` | `string` | [packages/core/src/orchestrator/handles.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L339) |
+| <a id="property-spawnordinal"></a> `spawnOrdinal` | `number` | [packages/core/src/orchestrator/handles.ts:336](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L336) |
+| <a id="property-spec"></a> `spec` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | [packages/core/src/orchestrator/handles.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L340) |

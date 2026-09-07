@@ -699,6 +699,10 @@
             "link": "/api/@rulvar/core/interfaces/AbandonFold.md"
           },
           {
+            "text": "AcceptanceChildLimitProfile",
+            "link": "/api/@rulvar/core/interfaces/AcceptanceChildLimitProfile.md"
+          },
+          {
             "text": "AcceptanceChildSummary",
             "link": "/api/@rulvar/core/interfaces/AcceptanceChildSummary.md"
           },
@@ -6776,6 +6780,10 @@
           {
             "text": "AbandonFold",
             "link": "/api/@rulvar/rulvar/interfaces/AbandonFold.md"
+          },
+          {
+            "text": "AcceptanceChildLimitProfile",
+            "link": "/api/@rulvar/rulvar/interfaces/AcceptanceChildLimitProfile.md"
           },
           {
             "text": "AcceptanceChildSummary",

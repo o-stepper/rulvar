@@ -47,6 +47,15 @@ export interface TaskDigest {
     finalizationWindowEntered?: boolean;
   };
   /**
+   * The acceptance forecast (RV4903), present on await digests under
+   * `acceptance.onUnreachable: 'notify' | 'degrade'` once the declared
+   * policy can no longer be met: the reasons name the settled children
+   * the policy will not count and the spawn capacity that cannot
+   * replace them. Absent under the default posture and while the
+   * policy is still reachable, so every other digest keeps its bytes.
+   */
+  acceptanceForecast?: { verdict: 'rejected'; reasons: string[] };
+  /**
    * The child's replay-stable execution facts (RV1503), present only
    * under the `executionFacts` opt-in: what the run itself observed,
    * so the composing root can grade `live-observed` honestly instead
@@ -169,6 +178,12 @@ export interface SpawnRecord {
   /** Settles with the child's full result; never rejects. */
   result: Promise<AgentResult<unknown>>;
   settled?: AgentResult<unknown>;
+  /**
+   * The child's declared money (RV4906): the spawn's `budgetUsd`, else
+   * the profile's `estCost`; absent when neither was declared. Read by
+   * the acceptance fold's binding constraint profile.
+   */
+  ceilingUsd?: number;
   abort: () => void;
   /** The spawn's escalation flavor, captured at dispatch. */
   escalationFlavor?: 'A' | 'B';

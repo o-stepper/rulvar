@@ -414,6 +414,71 @@ export interface OrchestrateAcceptance {
    * exactly what it was before this shipped.
    */
   requireEvidenceFloor?: boolean;
+  /**
+   * What the run does once the declared policy can no longer be met
+   * (RV4903, the tenth comparison experiment): a child settled 'limit'
+   * under 'all-ok' with no salvage arm, the finish could never be
+   * accepted, and the engine said nothing while the coordinator spent
+   * four minutes and a third of the run's money composing and
+   * repairing a document the acceptance then rejected. The forecast
+   * folds at every child settle from the SAME per child arms the
+   * acceptance fold applies (ok, the two salvage arms, the binding
+   * evidence floor) plus the roster floor and the spawns `maxSpawns`
+   * still admits: under 'all-ok' one unaccepted settled child is final
+   * (the policy judges every spawned child, so a replacement cannot
+   * remove it from the roster); under `{ minSuccessful: N }` the
+   * successes, the running children, and the admissible spawns must
+   * reach N. Default 'continue' keeps every byte: no forecast is
+   * computed. 'notify' journals one `orchestrator_acceptance_forecast`
+   * decision when the forecast first turns, emits a `log` warning, and
+   * stamps `acceptanceForecast: { verdict: 'rejected', reasons }` on
+   * every later await digest, so the coordinator finishes with what it
+   * has instead of composing toward a rejection. 'fail-fast' does the
+   * same and settles the run at once: the stragglers are cancelled,
+   * the coordination loop breaks before its next paid turn, and the
+   * run fails with the typed FailRunError (data.source
+   * 'orchestrator_acceptance_forecast') carrying the settled roster,
+   * every child's paid output preserved in the journal. 'degrade'
+   * notifies like 'notify' and, at the finish, accepts the unmet
+   * policy as `completion: 'partial'` with the shortfall named in
+   * degradedReasons and `acceptedByDegrade: true` on the decision, so
+   * a configured synthesis still composes over the settled children.
+   * Policy only, never part of any identity; the digest field changes
+   * recorded tool result bytes exactly like the other digest opt ins.
+   */
+  onUnreachable?: 'continue' | 'notify' | 'fail-fast' | 'degrade';
+}
+
+/**
+ * The binding constraint profile of an acceptance roster (RV4906): what
+ * ended the children, so an outcome can say "the tool cap bound, not
+ * the money". The tenth comparison experiment's four specialists all
+ * expired at maxToolCalls with 18 to 30 percent of their declared
+ * budgets spent and no surface named it. Present on the journaled
+ * acceptance decision, the result envelope, and a rejection's error
+ * data exactly when at least one child ran under a tool budget;
+ * `rulvar cost-audit` prints the same figures from the journal.
+ */
+export interface AcceptanceChildLimitProfile {
+  /** Children in the roster. */
+  children: number;
+  /** Of those, the children that ran under a tool budget. */
+  underToolBudget: number;
+  /** Children whose executed calls reached their effective cap. */
+  capHit: number;
+  /** Children that entered the finalization window. */
+  windowEntered: number;
+  /**
+   * Children that reached the cap with under half of their declared
+   * money spent (the spawn's `budgetUsd`, else the profile's
+   * `estCost`); a child with no declared money is never counted here.
+   */
+  starved: number;
+  /**
+   * The median of spent over declared money across the children that
+   * declared any, rounded to three decimals; absent when none did.
+   */
+  budgetUsedShareMedian?: number;
 }
 
 /** How many rejected finishes are repaired by default: the plan's repair once. */
@@ -2332,6 +2397,19 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     if (minSpawned !== undefined) {
       requirePositiveInteger(minSpawned as number, 'orchestrate acceptance.minSpawnedChildren');
     }
+    const onUnreachable = (opts.acceptance as { onUnreachable?: unknown }).onUnreachable;
+    if (
+      onUnreachable !== undefined &&
+      onUnreachable !== 'continue' &&
+      onUnreachable !== 'notify' &&
+      onUnreachable !== 'fail-fast' &&
+      onUnreachable !== 'degrade'
+    ) {
+      throw new ConfigError(
+        "orchestrate acceptance.onUnreachable must be 'continue', 'notify', 'fail-fast' or " +
+          `'degrade'; got ${JSON.stringify(onUnreachable)}`,
+      );
+    }
   }
   if (opts.finishValidation !== undefined) {
     // The runtime JS/JSON boundary: the type system cannot hold it.
@@ -3740,7 +3818,168 @@ function acceptancePromptLines(acceptance: OrchestrateAcceptance | undefined): s
           : ''),
     );
   }
+  // The forecast vocabulary (RV4903) rides the prompt ONLY under a
+  // declared posture, so every other config keeps its exact bytes.
+  const onUnreachable = acceptance?.onUnreachable ?? 'continue';
+  if (onUnreachable !== 'continue') {
+    lines.push(
+      'The host forecasts the declared acceptance policy at every child settle. ' +
+        (onUnreachable === 'fail-fast'
+          ? 'Once the policy can no longer be met the run fails at once, typed, with the ' +
+            'settled children preserved; you get no further turn, so spawn only what the ' +
+            'policy can still accept.'
+          : 'Once the policy can no longer be met, every await digest carries ' +
+            "acceptanceForecast: { verdict: 'rejected', reasons }. " +
+            (onUnreachable === 'degrade'
+              ? 'Your finish will then be accepted as a PARTIAL completion with the shortfall ' +
+                'named; compose the best result from the settled children and finish.'
+              : 'Your finish will then be rejected whatever it carries; stop composing, cancel ' +
+                'the stragglers, and finish at once with a compact result.')),
+    );
+  }
   return lines;
+}
+
+/**
+ * The acceptance forecast fold (RV4903): whether a finish could still
+ * be accepted, from the roster, the declared policy, and the spawns
+ * still admissible. Applies the SAME per child arms as the acceptance
+ * fold (ok, terminal output salvage, partial salvage, the binding
+ * evidence floor) so the two never disagree about a child; a child
+ * still running counts as a possible success, and so does every spawn
+ * `maxSpawns` still admits (an undefined capacity is unbounded). Under
+ * 'all-ok' one unaccepted settled child is final: the policy judges
+ * every spawned child, so a replacement cannot remove it from the
+ * roster. Reasons are returned only for an unreachable forecast.
+ */
+function forecastAcceptance(
+  records: readonly SpawnRecord[],
+  acceptance: OrchestrateAcceptance,
+  spawnCapacity: number | undefined,
+): { reachable: boolean; reasons: string[]; childStatusCounts: Record<string, number> } {
+  const requireFloor = acceptance.requireEvidenceFloor === true;
+  const acceptOutput = acceptance.acceptValidatedTerminalOutputOnLimit === true;
+  const acceptPartial = acceptance.acceptPartialChildren === true;
+  const childStatusCounts: Record<string, number> = {};
+  const reasons: string[] = [];
+  let successes = 0;
+  let running = 0;
+  let unaccepted = 0;
+  for (const record of [...records].sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)) {
+    const settled = record.settled;
+    const status = settled?.status ?? 'running';
+    childStatusCounts[status] = (childStatusCounts[status] ?? 0) + 1;
+    if (settled === undefined) {
+      running += 1;
+      continue;
+    }
+    const evidence = settled.evidence;
+    const floorBlocked = requireFloor && evidence !== undefined && !evidence.met;
+    const salvaged =
+      status === 'limit' &&
+      ((acceptOutput &&
+        settled.output !== null &&
+        settled.output !== undefined &&
+        terminalOutputClearsFloor(settled.output, acceptance.minTerminalOutputChars).ok) ||
+        (acceptPartial && settled.partial !== undefined));
+    if ((status === 'ok' || salvaged) && !floorBlocked) {
+      successes += 1;
+      continue;
+    }
+    unaccepted += 1;
+    reasons.push(
+      floorBlocked
+        ? `child ${record.nodeId} settled '${status}' below its declared evidence floor ` +
+            `(${String(evidence?.recordedEntries ?? 0)} of ${String(evidence?.minEntries ?? 0)} ` +
+            'entries recorded) and the acceptance policy requires the evidence floor'
+        : `child ${record.nodeId} settled '${status}'` +
+            (status === 'limit' ? ' with nothing the policy salvages' : '') +
+            (settled.errorMessage === undefined ? '' : `: ${settled.errorMessage.slice(0, 200)}`),
+    );
+  }
+  const spawned = records.length;
+  const capacity = spawnCapacity ?? Number.POSITIVE_INFINITY;
+  const minSpawned = acceptance.minSpawnedChildren;
+  let reachable = true;
+  if (minSpawned !== undefined && spawned + capacity < minSpawned) {
+    reachable = false;
+    reasons.push(
+      `${String(spawned)} children were spawned and ${String(capacity)} more can be admitted ` +
+        `under maxSpawns, short of the roster floor of ${String(minSpawned)}`,
+    );
+  }
+  if (acceptance.childPolicy === 'all-ok') {
+    if (unaccepted > 0) {
+      reachable = false;
+      reasons.push(
+        'the policy requires every spawned child ok, so no later spawn can repair the roster',
+      );
+    }
+  } else if (successes + running + capacity < acceptance.childPolicy.minSuccessful) {
+    reachable = false;
+    reasons.push(
+      `${String(successes)} children succeeded, ${String(running)} still run, and ` +
+        `${String(capacity)} more can be admitted under maxSpawns: short of the ` +
+        `${String(acceptance.childPolicy.minSuccessful)} successes the policy requires`,
+    );
+  }
+  return { reachable, reasons: reachable ? [] : reasons, childStatusCounts };
+}
+
+/**
+ * Folds the binding constraint profile (RV4906) over a roster; absent
+ * when no child ran under a tool budget, so decisions of tool budget
+ * free runs keep their bytes.
+ */
+function childLimitProfileOf(
+  records: readonly SpawnRecord[],
+): AcceptanceChildLimitProfile | undefined {
+  let underToolBudget = 0;
+  let capHit = 0;
+  let windowEntered = 0;
+  let starved = 0;
+  const shares: number[] = [];
+  for (const record of records) {
+    const settled = record.settled;
+    const budget = settled?.toolBudget;
+    if (settled === undefined || budget === undefined) {
+      continue;
+    }
+    underToolBudget += 1;
+    const hit = budget.cap !== undefined && budget.used >= budget.cap;
+    if (hit) {
+      capHit += 1;
+    }
+    if (budget.finalizationWindowEntered === true) {
+      windowEntered += 1;
+    }
+    if (record.ceilingUsd !== undefined && record.ceilingUsd > 0) {
+      const share = settled.costUsd / record.ceilingUsd;
+      shares.push(share);
+      if (hit && share < 0.5) {
+        starved += 1;
+      }
+    }
+  }
+  if (underToolBudget === 0) {
+    return undefined;
+  }
+  shares.sort((a, b) => a - b);
+  const middle = shares.length / 2;
+  const median =
+    shares.length === 0
+      ? undefined
+      : shares.length % 2 === 1
+        ? shares[Math.floor(middle)]
+        : ((shares[middle - 1] ?? 0) + (shares[middle] ?? 0)) / 2;
+  return {
+    children: records.length,
+    underToolBudget,
+    capHit,
+    windowEntered,
+    starved,
+    ...(median === undefined ? {} : { budgetUsedShareMedian: Math.round(median * 1000) / 1000 }),
+  };
 }
 
 /**
@@ -4521,6 +4760,111 @@ export function makeOrchestratorWorkflow(
      * per attempt regardless: they are journal identity, not quota.
      */
     let admittedSpawnCount = 0;
+    /**
+     * The acceptance forecast (RV4903): folded at every child settle
+     * from the same per child arms the acceptance fold applies, inert
+     * under the default 'continue'. Declared HERE, before dispatchChild,
+     * because a recovered child's settle hook can fire during the
+     * recovery scan.
+     */
+    const forecastMode = opts?.acceptance?.onUnreachable ?? 'continue';
+    let acceptanceForecast: { verdict: 'rejected'; reasons: string[] } | undefined;
+    const forecastAbort = new AbortController();
+    let forecastTermination: FailRunError | undefined;
+    const forecastKey = 'acceptance-forecast';
+    const forecastDigestFields = (): {
+      acceptanceForecast?: { verdict: 'rejected'; reasons: string[] };
+    } =>
+      (forecastMode === 'notify' || forecastMode === 'degrade') && acceptanceForecast !== undefined
+        ? { acceptanceForecast }
+        : {};
+    const noteAcceptanceForecast = async (): Promise<void> => {
+      const acceptance = opts?.acceptance;
+      if (
+        forecastMode === 'continue' ||
+        acceptance === undefined ||
+        acceptanceForecast !== undefined
+      ) {
+        return;
+      }
+      const forecast = forecastAcceptance(
+        [...byOrdinal.values()],
+        acceptance,
+        opts?.maxSpawns === undefined
+          ? undefined
+          : Math.max(0, opts.maxSpawns - admittedSpawnCount),
+      );
+      if (forecast.reachable) {
+        return;
+      }
+      acceptanceForecast = { verdict: 'rejected', reasons: forecast.reasons };
+      // ONE journaled decision: a resume finds the forecast it already
+      // rendered instead of announcing it twice.
+      const prior = internals.replayer
+        .snapshot()
+        .find(
+          (entry) =>
+            entry.kind === 'decision' &&
+            entry.scope === callingState.scope &&
+            entry.key === forecastKey,
+        );
+      if (prior === undefined) {
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: forecastKey,
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-acceptance-forecast',
+          value: {
+            decisionType: 'orchestrator_acceptance_forecast',
+            verdict: 'rejected',
+            mode: forecastMode,
+            reasons: forecast.reasons,
+            childStatusCounts: forecast.childStatusCounts,
+          },
+        });
+      }
+      internals.events.emit(
+        {
+          type: 'log',
+          level: 'warn',
+          msg: 'orchestrator acceptance forecast: the declared policy can no longer be met',
+          data: {
+            mode: forecastMode,
+            reasons: forecast.reasons,
+            childStatusCounts: forecast.childStatusCounts,
+          },
+        },
+        callingState.spanId,
+      );
+      if (forecastMode !== 'fail-fast') {
+        return;
+      }
+      forecastTermination = new FailRunError(
+        'the orchestrator acceptance policy can no longer be met and ' +
+          `acceptance.onUnreachable is 'fail-fast': ${forecast.reasons.join('; ')}`,
+        {
+          data: {
+            source: 'orchestrator_acceptance_forecast',
+            completion: 'rejected',
+            childPolicy: acceptance.childPolicy as unknown as Json,
+            childStatusCounts: forecast.childStatusCounts,
+            degradedReasons: forecast.reasons,
+          },
+        },
+      );
+      // The stragglers are cancelled and the coordination loop breaks
+      // before its next paid turn; the settle path throws the typed
+      // failure once the loop returns. Result promises never reject,
+      // so every cancelled child still settles its record.
+      for (const record of byOrdinal.values()) {
+        if (record.settled === undefined) {
+          record.abort();
+        }
+      }
+      forecastAbort.abort('rulvar:acceptance-forecast');
+    };
     let orchSeq: number | undefined;
     // Wake substrate (M6-T09): coalescing state plus settle listeners.
     const deliveredNodeIds = new Set<string>();
@@ -4683,12 +5027,17 @@ export function makeOrchestratorWorkflow(
                 (preRootFailure === undefined ? '' : `: ${JSON.stringify(preRootFailure)}`),
             );
       }
+      // The declared money (RV4906): the spawn's own budget, else the
+      // profile's estimate; absent when neither was declared.
+      const declaredBudgetUsd =
+        spec.budgetUsd ?? internals.defaults.profiles?.[spec.agentType]?.estCost;
       const record: SpawnRecord = {
         handle,
         spawnOrdinal,
         nodeId: identity.nodeId,
         logicalTaskId: identity.logicalTaskId,
         result: settledResult,
+        ...(declaredBudgetUsd === undefined ? {} : { ceilingUsd: declaredBudgetUsd }),
         abort: () => {
           controller.abort('rulvar:cancel_agent');
         },
@@ -4698,6 +5047,11 @@ export function makeOrchestratorWorkflow(
       };
       void settledResult.then(async (settled) => {
         record.settled = settled;
+        // The acceptance forecast (RV4903) folds at every settle; inert
+        // under the default, with no tick spent.
+        if (forecastMode !== 'continue') {
+          await noteAcceptanceForecast();
+        }
         // Incremental synthesis (RV-211 remainder): the note dispatches
         // the moment the child settles, so note wall time overlaps the
         // still-running fan-out instead of stacking post-fan-in. Inert
@@ -5442,7 +5796,9 @@ export function makeOrchestratorWorkflow(
           .map((record) => record.handle)
           .sort((a, b) => a - b);
         await journalCoordinationCheckpoint(settledHandles);
-        return { ...digest, settledHandles };
+        // The forecast stamp (RV4903) rides ONLY under a notifying
+        // posture, so every other digest keeps its bytes.
+        return { ...digest, settledHandles, ...forecastDigestFields() };
       },
       async awaitAll(handles: number[]): Promise<TaskDigest[]> {
         await recoveryDone;
@@ -5464,7 +5820,9 @@ export function makeOrchestratorWorkflow(
             .map((record) => record.handle)
             .sort((a, b) => a - b),
         );
-        return digests;
+        // The forecast stamp (RV4903) on every digest of the batch,
+        // ONLY under a notifying posture.
+        return digests.map((digest) => ({ ...digest, ...forecastDigestFields() }));
       },
       async waitForEvents(rawTriggers: unknown): Promise<unknown> {
         await recoveryDone;
@@ -7358,10 +7716,18 @@ export function makeOrchestratorWorkflow(
     orchestratorState.phase = orchestratorState.phase ?? 'coordination';
     // Without validators the break signal IS the forced finish signal,
     // byte identical to the pre RV-204 behavior.
+    // The fail fast forecast (RV4903) joins the break signals ONLY
+    // under its posture, so every other composition stays what it was.
     const loopBreakSignal =
-      validationSpec === undefined
-        ? forcedFinishController.signal
-        : AbortSignal.any([forcedFinishController.signal, validationAbort.signal]);
+      forecastMode === 'fail-fast'
+        ? AbortSignal.any([
+            forcedFinishController.signal,
+            ...(validationSpec === undefined ? [] : [validationAbort.signal]),
+            forecastAbort.signal,
+          ])
+        : validationSpec === undefined
+          ? forcedFinishController.signal
+          : AbortSignal.any([forcedFinishController.signal, validationAbort.signal]);
     orchestratorState.signal =
       callingState.signal === undefined
         ? loopBreakSignal
@@ -11039,6 +11405,12 @@ export function makeOrchestratorWorkflow(
       // validator's ConfigError passes through untouched).
       enrichSynthesisFailure(validationTermination);
     }
+    if (forecastTermination !== undefined) {
+      // The fail fast forecast (RV4903) aborted the loop; the typed
+      // failure wins over the cancelled status, and the journaled
+      // forecast decision makes a resume identical.
+      throw forecastTermination;
+    }
     if (orchestratorAccount !== undefined) {
       internals.cost.orchestrator.spentUsd =
         internals.budget.accountView(orchestratorAccount)?.spentUsd ?? 0;
@@ -11155,6 +11527,17 @@ export function makeOrchestratorWorkflow(
        * earlier decision keeps its exact bytes.
        */
       unsettledAtFinish?: string[];
+      /**
+       * The binding constraint profile of the roster (RV4906): present
+       * when at least one child ran under a tool budget, absent
+       * otherwise and on decisions written before this shipped.
+       */
+      childLimitProfile?: AcceptanceChildLimitProfile;
+      /**
+       * The degrade posture accepted an unmet policy (RV4903): present
+       * and true exactly then, so every other decision keeps its bytes.
+       */
+      acceptedByDegrade?: true;
     }
     const acceptanceKey = 'acceptance';
     const priorAcceptance = internals.replayer
@@ -11397,7 +11780,7 @@ export function makeOrchestratorWorkflow(
             `requires at least ${String(minSpawned)} spawned children`,
         );
       }
-      const accepted =
+      const policyMet =
         rosterMet &&
         (childPolicy === 'all-ok'
           ? hardDegraded === 0
@@ -11409,6 +11792,31 @@ export function makeOrchestratorWorkflow(
               salvaged.length +
               salvagedOutput.length >=
             childPolicy.minSuccessful);
+      // The degrade posture (RV4903): an unmet policy is accepted as a
+      // partial completion with the shortfall named, so a configured
+      // synthesis still composes over the settled children instead of
+      // the run settling with nothing.
+      const acceptedByDegrade = !policyMet && opts.acceptance.onUnreachable === 'degrade';
+      if (acceptedByDegrade) {
+        degradedReasons.push(
+          'the acceptance policy was not met (' +
+            (childPolicy === 'all-ok'
+              ? 'every child ok'
+              : `at least ${String(childPolicy.minSuccessful)} children ok`) +
+            (minSpawned === undefined
+              ? ''
+              : `, with at least ${String(minSpawned)} spawned children`) +
+            ") and acceptance.onUnreachable is 'degrade': the finish is accepted as a " +
+            'partial completion',
+        );
+      }
+      const accepted = policyMet || acceptedByDegrade;
+      // The binding constraint profile (RV4906): which children ended
+      // at their tool cap, which entered the finalization window, and
+      // how much of their declared money they had spent, so an outcome
+      // can say "the cap bound, not the budget". Present only when at
+      // least one child ran under a tool budget.
+      const childLimitProfile = childLimitProfileOf(sortedRecords);
       decision = {
         decisionType: 'orchestrator_acceptance',
         verdict: accepted ? 'accepted' : 'rejected',
@@ -11416,6 +11824,8 @@ export function makeOrchestratorWorkflow(
         childPolicy,
         childStatusCounts,
         degradedReasons,
+        ...(acceptedByDegrade ? { acceptedByDegrade: true as const } : {}),
+        ...(childLimitProfile === undefined ? {} : { childLimitProfile }),
         ...(minSpawned === undefined
           ? {}
           : { minSpawnedChildren: minSpawned, spawnedChildren: sortedRecords.length }),
@@ -11432,6 +11842,24 @@ export function makeOrchestratorWorkflow(
           ? {}
           : { synthesisSkipped: 'synthesis_skipped_by_acceptance' as const }),
       };
+      if (childLimitProfile !== undefined && childLimitProfile.starved > 0) {
+        // The starvation line (RV4906): the tenth comparison
+        // experiment's four specialists expired at their call cap with
+        // 18 to 30 percent of their money spent, and the extension
+        // that converts money into calls was never configured.
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'info',
+            msg:
+              `${String(childLimitProfile.starved)} of ${String(childLimitProfile.children)} ` +
+              'children ended at the tool cap with under half of their declared budget ' +
+              'spent; consider toolBudgetExtension or a larger maxToolCalls',
+            data: { childLimitProfile: childLimitProfile as unknown as Json },
+          },
+          callingState.spanId,
+        );
+      }
       await internals.replayer.appendSinglePhase({
         scope: callingState.scope,
         key: acceptanceKey,
@@ -11521,6 +11949,9 @@ export function makeOrchestratorWorkflow(
             ...(decision.synthesisSkipped === undefined
               ? {}
               : { synthesisSkipped: decision.synthesisSkipped }),
+            ...(decision.childLimitProfile === undefined
+              ? {}
+              : { childLimitProfile: decision.childLimitProfile as unknown as Json }),
             // The explicit pass summary (RV1906): a rejected run's
             // absent contradictions field used to be indistinguishable
             // from a pass that ran and found nothing; the summary says
@@ -12968,6 +13399,13 @@ export function makeOrchestratorWorkflow(
       // journaled before it shipped, so those envelopes stay byte
       // identical.
       ...(decision.children === undefined ? {} : { acceptanceChildren: decision.children }),
+      // The binding constraint profile (RV4906) and the degrade
+      // acceptance (RV4903): absent unless present on the decision, so
+      // every pre-existing envelope stays byte identical.
+      ...(decision.childLimitProfile === undefined
+        ? {}
+        : { childLimitProfile: decision.childLimitProfile }),
+      ...(decision.acceptedByDegrade === undefined ? {} : { acceptedByDegrade: true as const }),
       // The recovery trace (cycle 77): absent when zero, so every
       // pre-existing envelope stays byte identical.
       ...(envelopeSchemaRecovered === 0

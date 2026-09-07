@@ -15,6 +15,7 @@ One spawned child tracked by the orchestrator runtime.
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-abort"></a> `abort` | () => `void` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-ceilingusd"></a> `ceilingUsd?` | `number` | The child's declared money (RV4906): the spawn's `budgetUsd`, else the profile's `estCost`; absent when neither was declared. Read by the acceptance fold's binding constraint profile. | `packages/core/dist/index.d.ts` |
 | <a id="property-escalationflavor"></a> `escalationFlavor?` | `"A"` \| `"B"` | The spawn's escalation flavor, captured at dispatch. | `packages/core/dist/index.d.ts` |
 | <a id="property-handle"></a> `handle` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-logicaltaskid"></a> `logicalTaskId` | `string` | - | `packages/core/dist/index.d.ts` |

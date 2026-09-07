@@ -1572,10 +1572,55 @@ function invoiceByAgentType(
 }
 
 /** The one JSON shape of a run's audit, shared by both command forms. */
+/**
+ * The binding constraint profile of the run's acceptance roster
+ * (RV4906), read from the journaled acceptance decision: which
+ * children ended at their tool cap, which entered the finalization
+ * window, how many reached the cap with under half of their declared
+ * money spent, and the median spent share. The tenth comparison
+ * experiment's four specialists all expired at maxToolCalls with 18 to
+ * 30 percent of their budgets spent, and no surface said so. Absent on
+ * journals without the field, so they render byte for byte.
+ */
+function childLimitProfileFromJournal(entries: readonly JournalEntry[]):
+  | {
+      children: number;
+      underToolBudget: number;
+      capHit: number;
+      windowEntered: number;
+      starved: number;
+      budgetUsedShareMedian?: number;
+    }
+  | undefined {
+  for (const entry of entries) {
+    if (entry.kind !== 'decision') {
+      continue;
+    }
+    const value = entry.value as
+      { decisionType?: unknown; childLimitProfile?: unknown } | undefined;
+    if (value?.decisionType !== 'orchestrator_acceptance') {
+      continue;
+    }
+    const profile = value.childLimitProfile;
+    if (typeof profile === 'object' && profile !== null && !Array.isArray(profile)) {
+      return profile as {
+        children: number;
+        underToolBudget: number;
+        capHit: number;
+        windowEntered: number;
+        starved: number;
+        budgetUsedShareMedian?: number;
+      };
+    }
+  }
+  return undefined;
+}
+
 function costAuditRunJson(
   runId: string,
   audit: RunCostAudit,
   repairs?: RepairLedger,
+  childLimitProfile?: ReturnType<typeof childLimitProfileFromJournal>,
 ): Record<string, unknown> {
   const byAgentType = invoiceByAgentType(audit.invoice.rows);
   return {
@@ -1602,6 +1647,9 @@ function costAuditRunJson(
     // journal proves a repair was paid for: a journal without one
     // (every pre-RV4002 journal among them) renders byte for byte.
     ...(repairs === undefined || repairs.total === 0 ? {} : { repairs }),
+    // The binding constraint profile (RV4906), present exactly when the
+    // journaled acceptance decision carries it.
+    ...(childLimitProfile === undefined ? {} : { childLimitProfile }),
     checks: audit.checks,
   };
 }
@@ -1667,8 +1715,11 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
     const repairs = repairLedgerFromJournal(entries, (servedBy, usage) =>
       assembled.priceUsd(servedBy, usage),
     );
+    const childLimitProfile = childLimitProfileFromJournal(entries);
     if (json) {
-      context.io.out(JSON.stringify(costAuditRunJson(runId, audit, repairs), null, 2));
+      context.io.out(
+        JSON.stringify(costAuditRunJson(runId, audit, repairs, childLimitProfile), null, 2),
+      );
       return audit.failed.length === 0 ? 0 : 1;
     }
     context.io.out(
@@ -1717,6 +1768,20 @@ export async function costAuditCommand(argv: string[], context: CommandContext):
             (row.costUsd === undefined ? '' : ` | ${usdOf(row.costUsd)}`),
         );
       }
+    }
+    // The binding constraint line (RV4906): what ended the children,
+    // from the journaled acceptance decision; absent on journals
+    // without the profile, so they render byte for byte.
+    if (childLimitProfile !== undefined) {
+      context.io.out(
+        `children at the tool cap: ${String(childLimitProfile.capHit)} of ` +
+          `${String(childLimitProfile.underToolBudget)} under a tool budget ` +
+          `(${String(childLimitProfile.children)} in the roster) | finalization window entered ` +
+          `${String(childLimitProfile.windowEntered)} | starved ${String(childLimitProfile.starved)}` +
+          (childLimitProfile.budgetUsedShareMedian === undefined
+            ? ''
+            : ` | median budget share ${childLimitProfile.budgetUsedShareMedian.toFixed(3)}`),
+      );
     }
     // The unknown-outcome intent lane (RV4006): wires whose intent
     // was journaled before dispatch and whose outcome this journal

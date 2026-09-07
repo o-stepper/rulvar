@@ -6,7 +6,7 @@
 
 # Interface: ChildResultPage
 
-Defined in: [packages/core/src/orchestrator/handles.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L125)
+Defined in: [packages/core/src/orchestrator/handles.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L134)
 
 One page of a settled child's FULL output, returned by the opt-in
 `get_child_result` tool. The digest is a wake signal truncated to 400
@@ -26,11 +26,11 @@ journal state, so a resume reproduces it with no new spend.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-artifacts"></a> `artifacts` | \{ `id`: `string`; `kind`: `string`; `label?`: `string`; \}[] | The child's artifacts, id and kind, so the model knows what `read_child_artifact` can fetch. | [packages/core/src/orchestrator/handles.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L137) |
-| <a id="property-content"></a> `content` | `string` | The page: `content.length` is at most the requested (clamped) maxChars. | [packages/core/src/orchestrator/handles.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L133) |
-| <a id="property-facts"></a> `facts?` | [`ChildExecutionFacts`](/api/@rulvar/core/interfaces/ChildExecutionFacts.md) | The child's execution facts (RV1503), under the `executionFacts` opt-in only. | [packages/core/src/orchestrator/handles.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L139) |
-| <a id="property-handle"></a> `handle` | `number` | - | [packages/core/src/orchestrator/handles.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L126) |
-| <a id="property-hasmore"></a> `hasMore` | `boolean` | True when more characters remain past this page; call again with a higher offset. | [packages/core/src/orchestrator/handles.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L135) |
-| <a id="property-offset"></a> `offset` | `number` | The character offset this page starts at, counted from zero. | [packages/core/src/orchestrator/handles.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L131) |
-| <a id="property-status"></a> `status` | `string` | - | [packages/core/src/orchestrator/handles.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L127) |
-| <a id="property-totalchars"></a> `totalChars` | `number` | Length of the whole serialized result, in characters. | [packages/core/src/orchestrator/handles.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L129) |
+| <a id="property-artifacts"></a> `artifacts` | \{ `id`: `string`; `kind`: `string`; `label?`: `string`; \}[] | The child's artifacts, id and kind, so the model knows what `read_child_artifact` can fetch. | [packages/core/src/orchestrator/handles.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L146) |
+| <a id="property-content"></a> `content` | `string` | The page: `content.length` is at most the requested (clamped) maxChars. | [packages/core/src/orchestrator/handles.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L142) |
+| <a id="property-facts"></a> `facts?` | [`ChildExecutionFacts`](/api/@rulvar/core/interfaces/ChildExecutionFacts.md) | The child's execution facts (RV1503), under the `executionFacts` opt-in only. | [packages/core/src/orchestrator/handles.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L148) |
+| <a id="property-handle"></a> `handle` | `number` | - | [packages/core/src/orchestrator/handles.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L135) |
+| <a id="property-hasmore"></a> `hasMore` | `boolean` | True when more characters remain past this page; call again with a higher offset. | [packages/core/src/orchestrator/handles.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L144) |
+| <a id="property-offset"></a> `offset` | `number` | The character offset this page starts at, counted from zero. | [packages/core/src/orchestrator/handles.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L140) |
+| <a id="property-status"></a> `status` | `string` | - | [packages/core/src/orchestrator/handles.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L136) |
+| <a id="property-totalchars"></a> `totalChars` | `number` | Length of the whole serialized result, in characters. | [packages/core/src/orchestrator/handles.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L138) |
