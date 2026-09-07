@@ -13,6 +13,7 @@ What [researchAgentProfile](/api/@rulvar/rulvar/functions/researchAgentProfile.m
 ## Extended by
 
 - [`PilotAgentProfileResult`](/api/@rulvar/rulvar/interfaces/PilotAgentProfileResult.md)
+- [`ResearchFanOutResult`](/api/@rulvar/rulvar/interfaces/ResearchFanOutResult.md)
 
 ## Properties
 

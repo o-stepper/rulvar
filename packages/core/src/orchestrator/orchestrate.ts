@@ -976,6 +976,22 @@ export interface OrchestrateOptions {
    * bounded regardless through the coordination turn's own tool budget.
    */
   maxSpawns?: number;
+  /**
+   * The brief every child receives (RV4907, the tenth comparison
+   * experiment): children see only what the coordinator writes into
+   * each spawn's `prompt`, and in that run the coordinator copied the
+   * harness role strings verbatim, so no specialist ever read the
+   * frozen task. 'goal' prepends the orchestration goal itself; any
+   * other string prepends that text. The brief joins the prompt BEFORE
+   * admission, so the journaled spawn spec, the child's identity, and
+   * the dispatched prompt all carry one prompt (keep it stable across
+   * a resume). The coordination prompt says the brief is automatic, so
+   * the coordinator writes task specific instructions only. Without
+   * it, a spawn whose prompt is under 15 percent of a goal longer than
+   * 2000 characters logs `child prompt may be under briefed` at warn,
+   * and nothing else changes.
+   */
+  childBrief?: string;
   /** The orchestrator's own budget sub-account (cap enforcement layers only in M6). */
   budget?: OrchestratorBudgetSpec;
   /**
@@ -2288,6 +2304,15 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   }
   if (opts.maxSpawns !== undefined) {
     requireNonNegativeInteger(opts.maxSpawns, 'orchestrate maxSpawns');
+  }
+  if (
+    opts.childBrief !== undefined &&
+    (typeof opts.childBrief !== 'string' || opts.childBrief.length === 0)
+  ) {
+    throw new ConfigError(
+      "orchestrate childBrief must be 'goal' or a nonempty string; got " +
+        JSON.stringify(opts.childBrief),
+    );
   }
   if (opts.renderBudgetChars !== undefined) {
     requireNonNegativeInteger(opts.renderBudgetChars, 'orchestrate renderBudgetChars');
@@ -4772,6 +4797,38 @@ export function makeOrchestratorWorkflow(
     const forecastAbort = new AbortController();
     let forecastTermination: FailRunError | undefined;
     const forecastKey = 'acceptance-forecast';
+    /**
+     * The run brief (RV4907): joins every spawn's prompt before anything
+     * reads it, so the journaled spec, the identity, and the dispatch
+     * carry one prompt. Without a brief, an under briefed spawn is
+     * named at warn and nothing else changes.
+     */
+    const briefText =
+      opts?.childBrief === undefined
+        ? undefined
+        : opts.childBrief === 'goal'
+          ? goal
+          : opts.childBrief;
+    const briefedSpawn = (params: SpawnAgentParams): SpawnAgentParams => {
+      if (briefText === undefined) {
+        if (goal.length > 2000 && params.prompt.length < goal.length * 0.15) {
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'warn',
+              msg:
+                `child prompt may be under briefed: spawn '${params.agentType}' carries ` +
+                `${String(params.prompt.length)} characters against a goal of ` +
+                `${String(goal.length)}; declare orchestrate childBrief so every child ` +
+                'receives the task',
+            },
+            callingState.spanId,
+          );
+        }
+        return params;
+      }
+      return { ...params, prompt: `${briefText}\n\n${params.prompt}` };
+    };
     const forecastDigestFields = (): {
       acceptanceForecast?: { verdict: 'rejected'; reasons: string[] };
     } =>
@@ -5516,10 +5573,12 @@ export function makeOrchestratorWorkflow(
     const executionFactsEnabled = opts?.executionFacts === true;
     const orchestratorRuntime: OrchestratorRuntime = {
       async spawn(
-        params: SpawnAgentParams,
+        rawParams: SpawnAgentParams,
         origin: 'spawn_agent' | 'parallel_agents' = 'spawn_agent',
       ): Promise<{ handle: number }> {
         await recoveryDone;
+        // The run brief (RV4907) joins the prompt first.
+        const params = briefedSpawn(rawParams);
         if (origin === 'spawn_agent' && opts?.requireBatchSpawn === 'reject-spawn-agent') {
           // The batch-spawn discipline (RV2005): a config-gate refusal
           // strictly before any journal append or payment, exactly the
@@ -10722,6 +10781,17 @@ export function makeOrchestratorWorkflow(
       // The sectional line rides the coordination prompt only when the
       // coordination finish actually carries the sectional schema
       // (RV808b): the validator-bound loop or the draft gate.
+      // The brief line (RV4907) rides ONLY under a declared brief, so
+      // every other config keeps its exact prompt bytes.
+      ...(opts?.childBrief === undefined
+        ? []
+        : [
+            opts.childBrief === 'goal'
+              ? 'Every child automatically receives the GOAL above as its brief, prepended to ' +
+                'the prompt you write; write task specific instructions only.'
+              : 'Every child automatically receives the declared run brief, prepended to the ' +
+                'prompt you write; write task specific instructions only.',
+          ]),
       // The output allowance line (RV4904) rides ONLY under a declared
       // repair turn allowance, so every other config keeps its exact
       // prompt bytes: the tenth comparison experiment's coordinator

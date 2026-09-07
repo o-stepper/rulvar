@@ -64,6 +64,42 @@ export function evidenceResearchOptions(spec: {
 
 The test drives the full loop: the child reports three citations, the orchestrator reads the full report through `get_child_result`, its first lossy synthesis (one citation kept, two invented) is rejected with both defect kinds named, and the repaired finish lands as `completion: 'complete'` with the verdicts journaled.
 
+## Research fan out
+
+The tenth comparison experiment assembled its fan out by hand and paid for every seam: the children never received the task text, the call cap sat a quarter below the template with no extension to convert the unspent money, and an `all-ok` acceptance with no salvage arm rejected the whole run on one specialist's surplus bookkeeping call at 22 percent of the budget. The recipe composes the shipped pieces instead: [`researchFanOut()`](/guide/orchestration-modes#partial-child-salvage-and-profile-templates) pairs the research profile with the acceptance that salvages what it can and forecasts what it cannot, `childBrief: 'goal'` hands every child the goal, and the evidence contract can demand the spread of sources the task actually wants.
+
+From [`cookbook-fan-out.ts`](https://github.com/o-stepper/rulvar/blob/main/examples/src/cookbook-fan-out.ts):
+
+```ts
+import { researchFanOut, type OrchestrateOptions } from "@rulvar/core";
+
+export function fanOutResearch(spec: {
+  root: string;
+  budgetUsd: number;
+  children: number;
+  minEntries?: number;
+}): { profile: AgentProfile; options: OrchestrateOptions } {
+  const kit = researchFanOut({
+    root: spec.root,
+    budgetUsd: spec.budgetUsd,
+    children: spec.children,
+    evidenceContract: { minEntries: spec.minEntries ?? 4 },
+  });
+  return {
+    profile: kit.profile,
+    options: {
+      profiles: ["researcher"],
+      maxSpawns: spec.children + 1,
+      childBrief: "goal",
+      acceptance: kit.acceptance,
+      exposeChildResultTools: true,
+    },
+  };
+}
+```
+
+The test drives two specialists through the assembly: each one reads the goal before its own task, records a verified citation, and settles; the coordination prompt tells the coordinator the brief is automatic, and the accepted envelope's `childLimitProfile` names what bound the roster (nothing, this time: no child hit its cap or entered the window).
+
 ## Strict all-children-success
 
 Run status `ok` proves that `finish` validated, nothing more. The acceptance policy makes child success part of the contract, and the recipe shows the whole read path: an accepted run returns the envelope, a violated policy fails the run with the typed `fail_run` error, and a small helper extracts the child status counts from the public `outcome.error` without disturbing any other error handling. From [`cookbook-strict-success.ts`](https://github.com/o-stepper/rulvar/blob/main/examples/src/cookbook-strict-success.ts):

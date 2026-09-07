@@ -14,11 +14,14 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { ConfigError } from '../l0/errors.js';
 import { PROGRESS_REPORT_TOOL_NAME } from '../tools/progress.js';
 import { createCtx } from './ctx.js';
+import { validateUsageLimits } from '../runtime/usage-limits.js';
 import {
   IMPLEMENTATION_PROFILE_LIMITS,
   implementationAgentProfile,
+  RESEARCH_FAN_OUT_LIMITS,
   RESEARCH_PROFILE_LIMITS,
   researchAgentProfile,
+  researchFanOut,
   REVIEW_PROFILE_LIMITS,
   reviewAgentProfile,
 } from './profile-templates.js';
@@ -128,5 +131,64 @@ describe('profile templates (RV-210 close-out)', () => {
       toolUnitsUsed: 8,
       byTool: { report_progress: 1, read_file: 2, search_files: 2 },
     });
+  });
+});
+
+describe('the fan out preset (RV4905, the tenth comparison experiment)', () => {
+  it('pairs the finalization machinery with the acceptance that salvages what it can', () => {
+    const { profile, acceptance, evidence } = researchFanOut({
+      root: dir,
+      budgetUsd: 2,
+      children: 4,
+      evidenceContract: { minEntries: 4 },
+    });
+    expect(profile.limits).toEqual({
+      ...RESEARCH_FAN_OUT_LIMITS,
+      finalizationReserve: { maxOutputTokens: 8000 },
+      toolBudgetExtension: {
+        increment: 12,
+        maxExtensions: 3,
+        coverEvidenceDeficit: true,
+        minHeadroomUsd: 0.2,
+      },
+    });
+    expect(() => validateUsageLimits(profile.limits ?? {}, 'preset')).not.toThrow();
+    expect(profile.estCost).toBe(2);
+    expect(profile.evidenceContract).toEqual({ minEntries: 4 });
+    expect(acceptance).toEqual({
+      childPolicy: 'all-ok',
+      acceptPartialChildren: true,
+      acceptValidatedTerminalOutputOnLimit: true,
+      onUnreachable: 'notify',
+      requireEvidenceFloor: true,
+      minSpawnedChildren: 4,
+    });
+    expect(evidence()).toEqual([]);
+  });
+
+  it('leaves the roster and evidence floors off when nothing declares them, and merges overrides per key', () => {
+    const { profile, acceptance } = researchFanOut({
+      root: dir,
+      budgetUsd: 1,
+      summaryMaxOutputTokens: 4000,
+      minTerminalOutputChars: 400,
+      limits: { maxToolCalls: 60, finalizationWindow: { reserveCalls: 3 } },
+    });
+    expect(profile.limits?.maxToolCalls).toBe(60);
+    expect(profile.limits?.finalizationWindow).toEqual({ reserveCalls: 3 });
+    expect(profile.limits?.finalizationReserve).toEqual({ maxOutputTokens: 4000 });
+    expect(profile.evidenceContract).toBeUndefined();
+    expect(acceptance).toEqual({
+      childPolicy: 'all-ok',
+      acceptPartialChildren: true,
+      acceptValidatedTerminalOutputOnLimit: true,
+      onUnreachable: 'notify',
+      minTerminalOutputChars: 400,
+    });
+  });
+
+  it('refuses a malformed budget or roster typed', () => {
+    expect(() => researchFanOut({ root: dir, budgetUsd: 0 })).toThrow(ConfigError);
+    expect(() => researchFanOut({ root: dir, budgetUsd: 1, children: 1.5 })).toThrow(ConfigError);
   });
 });

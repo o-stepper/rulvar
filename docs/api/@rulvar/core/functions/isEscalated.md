@@ -10,7 +10,7 @@
 function isEscalated<T>(r): r is EscalatedResult<T>;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:337](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L337)
+Defined in: [packages/core/src/runtime/agent-loop.ts:353](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L353)
 
 ## Type Parameters
 

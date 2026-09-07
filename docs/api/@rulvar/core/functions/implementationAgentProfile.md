@@ -10,7 +10,7 @@
 function implementationAgentProfile(options?): AgentProfile;
 ```
 
-Defined in: [packages/core/src/engine/profile-templates.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L154)
+Defined in: [packages/core/src/engine/profile-templates.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L156)
 
 The implementation child template: the caller's task tools plus the
 progress contract, with [IMPLEMENTATION\_PROFILE\_LIMITS](/api/@rulvar/core/variables/IMPLEMENTATION_PROFILE_LIMITS.md) as the

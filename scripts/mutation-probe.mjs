@@ -7017,9 +7017,8 @@ export const MUTATIONS = [
     doctrine:
       "the surplus answer turn is granted only with the declared evidence floor met, the batch's own results counted (RV4902): with the gate severed, an overrun with the floor still open gets a free answer turn and settles ok over an unmet contract, the exact promotion the binding floor exists to refuse",
     file: 'packages/core/src/runtime/agent-loop.ts',
-    find: "      countRecordedEvidence(messages) +\n        countRecordedEvidence([{ role: 'tool', parts: [...batchParts] }]) <\n        minEntries\n    ) {\n      return false;\n    }",
-    replace:
-      "      countRecordedEvidence(messages) +\n        countRecordedEvidence([{ role: 'tool', parts: [...batchParts] }]) <\n        minEntries\n    ) {\n      return true;\n    }",
+    find: '    if (floorOpen) {\n      return false;\n    }',
+    replace: '    if (floorOpen) {\n      return true;\n    }',
     test: 'packages/core/src/runtime/finalization-window.test.ts',
   },
   {
@@ -7030,6 +7029,24 @@ export const MUTATIONS = [
     find: '          const cutRaw = turnCut === undefined ? undefined : unparsedMarkerOf(gatedCall.args);',
     replace: '          const cutRaw = undefined as string | undefined;',
     test: 'packages/core/src/runtime/truncated-terminal.test.ts',
+  },
+  {
+    id: 'child-brief-prefixes-the-prompt',
+    doctrine:
+      "the declared run brief joins every child's prompt before admission (RV4907): with the join severed, the children read only what the coordinator wrote, and the tenth comparison experiment's specialists work a task they were never shown while the coordination prompt promises them the brief",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      return { ...params, prompt: `${briefText}\\n\\n${params.prompt}` };',
+    replace: '      return params;',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'evidence-distribution-binds-the-verdict',
+    doctrine:
+      "a declared evidence distribution binds the terminal verdict by category (RV4908): with the category gap dropped from the fold, a child that cited documentation alone over a contract demanding implementation entries meets its floor, the window never widens for the gap, and the tenth comparison experiment's judge takes the points again",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    deficit = Math.max(deficit, categoryDeficit);\n    met = met && categoryDeficit === 0;',
+    replace: '    deficit = Math.max(deficit, 0);\n    met = met && true;',
+    test: 'packages/core/src/engine/ctx-evidence-floor.test.ts',
   },
 ];
 

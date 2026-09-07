@@ -1318,3 +1318,81 @@ describe('the surplus answer turn (RV4902, the tenth comparison experiment)', ()
     ).toThrow(ConfigError);
   });
 });
+
+describe('the evidence distribution widens the reserve and names the category (RV4908)', () => {
+  it('a met total with a short category still widens the reserve, and the notice names the gap', async () => {
+    // The tenth comparison experiment's task wanted citations across
+    // implementation, tests, docs, and examples; the specialists cited
+    // documentation alone, and no contract could say otherwise.
+    const readExecutions = { count: 0 };
+    const recorded: string[] = [];
+    const recorder = tool({
+      name: 'record_evidence',
+      description: 'records one evidence entry',
+      parameters: z.strictObject({ file: z.string() }),
+      execute: (input) => {
+        recorded.push(input.file);
+        return Promise.resolve({ recorded: true });
+      },
+    });
+    const record = (file: string) => ({ toolCall: { name: 'record_evidence', args: { file } } });
+    const adapter = scriptedAdapter((req, call) => {
+      if (call === 0) {
+        return {
+          toolCalls: [
+            { name: 'record_evidence', args: { file: 'docs/guide/agents.md' } },
+            { name: 'record_evidence', args: { file: 'docs/guide/budgets.md' } },
+          ],
+        };
+      }
+      const notice = windowNotices(req).at(-1);
+      if (notice === undefined) {
+        return reads(1);
+      }
+      return recorded.length < 4
+        ? record(recorded.length === 2 ? 'src/a.ts' : 'src/b.ts')
+        : { toolCall: { name: 'finish', args: { result: 'done' } } };
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({
+        maxTurns: 14,
+        maxToolCalls: 10,
+        finalizationWindow: {
+          reserveCalls: 1,
+          allow: ['record_evidence'],
+          reserveForEvidenceDeficit: true,
+        },
+      }),
+      evidenceContract: { minEntries: 2, distribution: { implementation: 2 } },
+      tools: runtimeOf([readTool(readExecutions), recorder, finishTool()]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    // Two docs entries met minEntries, but the implementation category
+    // was two short: the reserve widened to three, so the window opened
+    // after five reads (seven calls used), not after nine.
+    expect(readExecutions.count).toBe(5);
+    expect(recorded).toEqual([
+      'docs/guide/agents.md',
+      'docs/guide/budgets.md',
+      'src/a.ts',
+      'src/b.ts',
+    ]);
+    const notices = windowNotices(adapter.calls.at(-1) as { messages: Msg[] });
+    expect(notices).toEqual([
+      'Finalization window: 3 of the reserved final 3 tool calls remain. Only finalization ' +
+        'tools (and the terminal tool) may execute now; record your evidence and finish with ' +
+        'what you have. This tail is reserved for your declared evidence floor: record 2 ' +
+        'more evidence entries first (implementation: 2 more).',
+    ]);
+    expect(result.evidence).toEqual({
+      recordedEntries: 4,
+      minEntries: 2,
+      met: true,
+      byCategory: { implementation: { recorded: 2, required: 2 } },
+    });
+  });
+});

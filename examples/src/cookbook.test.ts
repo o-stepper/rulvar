@@ -23,6 +23,7 @@ import {
 import { FakeAdapter, fakeToolCalls, FAKE_MODEL_REF, type FakeCall } from '@rulvar/testing';
 
 import { evidenceResearchOptions } from './cookbook-evidence-research.js';
+import { fanOutResearch } from './cookbook-fan-out.js';
 import { explainStrictFailure, strictSuccessOptions } from './cookbook-strict-success.js';
 import {
   isPartial,
@@ -604,4 +605,85 @@ describe('isolated tool execution (cookbook)', () => {
       }
     },
   );
+});
+
+describe('research fan out (cookbook)', () => {
+  it('every specialist reads the goal, records its evidence, and the accepted envelope profiles the roster', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'rulvar-fan-out-'));
+    writeFileSync(join(root, 'engine.ts'), 'export const boundary = 1;\n');
+    const goal = 'Map the error handling of this repository, citing the implementation.';
+    const recipe = fanOutResearch({ root, budgetUsd: 1, children: 2, minEntries: 1 });
+    let orchTurn = 0;
+    const seenPrompts: string[] = [];
+    const { adapter, engine } = engineWith(
+      {
+        'inspect the module': (call: FakeCall) => {
+          const first = call.req.messages[0]?.parts.find((part) => part.type === 'text') as
+            { text: string } | undefined;
+          const recorded = JSON.stringify(call.req.messages).includes('"recorded":true');
+          if (!recorded) {
+            seenPrompts.push(first?.text ?? '');
+          }
+          // One kit backs the profile, so the two specialists pool their
+          // evidence: a distinct claim per task keeps the second record
+          // from landing as a duplicate.
+          const task = call.prompt.split(': ').at(-1) ?? 'module';
+          return recorded
+            ? 'the boundary lives in engine.ts'
+            : fakeToolCalls({
+                name: 'record_evidence',
+                args: { claim: `the boundary of ${task}`, file: 'engine.ts', lines: '1' },
+              });
+        },
+        'You are the orchestrator': (call: FakeCall) => {
+          orchTurn += 1;
+          if (orchTurn === 1) {
+            return fakeToolCalls({
+              name: 'parallel_agents',
+              args: {
+                tasks: [
+                  { agentType: 'researcher', prompt: 'inspect the module: engine' },
+                  { agentType: 'researcher', prompt: 'inspect the module: tools' },
+                ],
+              },
+            });
+          }
+          if (orchTurn === 2) {
+            return fakeToolCalls({ name: 'await_all', args: { handles: handlesIn(call.req) } });
+          }
+          return fakeToolCalls({ name: 'finish', args: { result: 'mapped' } });
+        },
+      },
+      { researcher: recipe.profile },
+    );
+    const outcome = await orchestrate(engine, goal, recipe.options, {
+      budgetUsd: 5,
+      runId: 'CB-FAN-OUT',
+    }).result;
+    expect(outcome.error?.message).toBeUndefined();
+    expect(outcome.status).toBe('ok');
+    const envelope = outcome.value as PartialEnvelope<string> & {
+      childLimitProfile?: { children: number; underToolBudget: number; capHit: number };
+    };
+    expect(envelope.completion).toBe('complete');
+    expect(envelope.result).toBe('mapped');
+    // Every specialist read the goal before its own task.
+    expect(seenPrompts).toHaveLength(2);
+    for (const prompt of seenPrompts) {
+      expect(prompt.startsWith(`${goal}\n\ninspect the module`)).toBe(true);
+    }
+    // The coordinator was told the brief is automatic, and the roster
+    // profile names what bound the children: nothing, this time.
+    const coordination = JSON.stringify(adapter.calls[0]?.req.messages[0]?.parts ?? []);
+    expect(coordination).toContain('receives the GOAL above as its brief');
+    expect(envelope.childLimitProfile).toEqual({
+      children: 2,
+      underToolBudget: 2,
+      capHit: 0,
+      windowEntered: 0,
+      starved: 0,
+      budgetUsedShareMedian: 0,
+    });
+    expect(recipe.evidence()).toHaveLength(2);
+  });
 });

@@ -10,6 +10,6 @@
 const IMPLEMENTATION_PROFILE_LIMITS: UsageLimits;
 ```
 
-Defined in: [packages/core/src/engine/profile-templates.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L58)
+Defined in: [packages/core/src/engine/profile-templates.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L60)
 
 The implementation template's stop conditions.
