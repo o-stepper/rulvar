@@ -10,7 +10,7 @@
 function admitRunUnit(config, unit): Promise<() => Promise<void>>;
 ```
 
-Defined in: [packages/core/src/admission/engine-bracket.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/engine-bracket.ts#L111)
+Defined in: [packages/core/src/admission/engine-bracket.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/admission/engine-bracket.ts#L142)
 
 Admits one run unit: resolves when the ticket is granted (or when
 the run signal aborts, after cancelling the ticket best effort),

@@ -3,7 +3,7 @@
 Status: IMPLEMENTED (plan 45, trains RV4507 to RV4510): the AdmissionScheduler SPI and
 the pure algorithms (hierarchical SFQ, sliding window, token bucket, JCS level keys) in
 @rulvar/core with the single-process reference scheduler; durable documents in
-@rulvar/store-sqlite and @rulvar/store-postgres; the twelve-row conformance matrix in
+@rulvar/store-sqlite and @rulvar/store-postgres; the thirteen row conformance matrix in
 @rulvar/store-conformance; and the engine run bracket (createEngine admission). Recorded
 deviations and first shapes: (1) the durable form is the WHOLE scheduler state as one
 atomically CASed document, the section 10 single-scheduler shape made literal (per-row
@@ -14,7 +14,14 @@ buckets proceed), which is the no-starvation rule stated operationally; (4) the 
 bracket's first-shape cover is the full reservation and its release actuals equal the
 reservation, both recorded in the bracket's doc; (5) a settled unit re-admits under the
 same identity while `denied` stays terminal; (6) `rebind` joined the SPI to carry
-section 4.2 item 4's atomic failover transfer, pinned by conformance row 11.
+section 4.2 item 4's atomic failover transfer, pinned by conformance row 11; (7) admission
+caps exactly two things, reserved wires per level and, on any level configured with
+`concurrency`, the number of active grants (RV4909, plan 49): tokens, dollars, and exposure
+ride the ticket for the holder's own accounting and are never limited by admission, money
+being the budget layer's bound; (8) an expired grant's concurrency slot parks under its
+possibly live holder and returns only through that holder's own settlement or an operator
+cancel by identity (RV4910, plan 49), and the engine bracket's `onLeaseLost` arm decides
+whether the run continues (the default) or is cancelled, pinned by conformance rows 5 and 13.
 Originally: accepted design (RV4302, plan 43), hardened by an adversarial review pass
 (5 blocker findings; every one incorporated). The declarative scope value normalization
 table shipped with the plan 43 train (section 5).
@@ -181,12 +188,15 @@ postgres) does not leak into the new seam: level keys are canonical bytes everyw
    head starving the queue behind it; a feasible oversized ticket waits with tags
    proportional to its cost, which is the bounded interval the no starvation claim
    (section 8) rests on.
-4. Per provider account concurrency: a semaphore per level 2 bucket, decremented at
-   grant and restored at release; at EXPIRY it is restored only when the holder's
-   further execution is fenced, else it parks for operator release (section 4.3,
-   item 4; a possibly live holder may still occupy the slot, and a semaphore that
-   auto restores under it admits one worker too many). Durable, so two scheduler
-   replicas agree.
+4. Per level concurrency (RV4909): a semaphore per bucket of ANY level configured with
+   `concurrency` (a tenant's active runs across its provider accounts, one provider
+   account, one full scope), decremented at grant and restored at release; at EXPIRY it
+   is never restored (RV4910): the cover fence of section 4.3 bounds what the holder can
+   still consume, not whether it is alive, so the slot parks under the possibly live
+   holder and returns only through that holder's own release, cancel, or fresh enqueue
+   under its identity, or an operator cancel by identity (section 4.3, item 4; a
+   semaphore that auto restored under a live holder admitted one worker too many).
+   Durable, so two scheduler replicas agree.
    Failover moves the semaphore BEFORE the target dispatches: the ticket rebind is
    an atomic transfer that acquires the target hierarchy's capacity first and
    releases the source hierarchy in the same transaction; a failed transfer leaves
@@ -199,7 +209,10 @@ postgres) does not leak into the new seam: level keys are canonical bytes everyw
 
 ### 4.3 Preflight reservation and refunds
 
-A ticket reserves, per level, up to four measures: wires, tokens, dollars, exposure.
+A ticket carries up to four reservation measures (wires, tokens, dollars, exposure), and
+admission CAPS exactly one of them, wires, beside the per level concurrency of section 4.2
+(RV4909): tokens, dollars, and exposure ride the ticket for the holder's own accounting and
+are never limited here, because money is the budget layer's bound.
 
 1. Reservation happens at grant, atomically across levels with the admission itself.
 2. Consumption covers, checkpoint THEN consume: the holder durably checkpoints a
@@ -227,7 +240,9 @@ A ticket reserves, per level, up to four measures: wires, tokens, dollars, expos
    parks in a quarantine lane for operator release or ages out on the bucket's own
    window, the limiter's age out precedent. Either way a late settlement arriving
    after expiry is accepted idempotently and lands as bucket debt rather than being
-   discarded as a duplicate.
+   discarded as a duplicate, and the concurrency slot never returns at expiry in either
+   tier (section 4.2, item 4): the late settlement, or the operator's cancel by
+   identity, is what returns it.
 5. Race arbitration: of release, expiry, and cancel, exactly one transition wins per
    ticket (section 4, item 4), so the double refund hazard is closed by arbitration
    plus idempotence, not by hoping the orders never interleave.
@@ -255,11 +270,17 @@ A ticket reserves, per level, up to four measures: wires, tokens, dollars, expos
    fallback cadence, and it ends with the RUN: the run's cancel signal (host abort and
    the deadline both ride it) stops the wait, cancels the ticket best effort, and hands
    the run to its own cancellation machinery, where before a cancelled run polled the
-   queue forever. Renew failures are announced, never fatal: the first failure warns,
-   a verify `recover` that no longer answers `granted` emits `admission:lease-lost`
-   once (the scheduler expired the grant and may re-admit the capacity while the
-   holder is alive), and the run continues, because item 1 already gates every wire
-   and the settle release is idempotent. On the store side, the postgres scheduler
+   queue forever. Renew failures are announced (RV4804): the first failure warns, a
+   verify `recover` that no longer answers `granted` emits `admission:lease-lost` once
+   (the scheduler expired the grant; its provably unused wires may be granted again
+   while the holder is alive, and its concurrency slot stays parked under the holder
+   per section 4.2, item 4), and by default the run continues, because item 1 already
+   gates every wire and the settle release is idempotent and returns the parked slot.
+   Under the opt in `onLeaseLost: 'cancel'` (RV4910) the run is cancelled through its
+   own cancellation machinery instead, and every renew tick verifies by `recover`, so a
+   lease that expired without a thrown renew is noticed within one renew cadence; a
+   hard cap deployment therefore never runs work past a grant the scheduler no longer
+   holds for it. On the store side, the postgres scheduler
    takes its schema-scoped advisory lock under a `lock_timeout` bound
    (`lockTimeoutMs`, default 10 seconds): a holder that hangs mid-transaction used to
    block every lifecycle call of the whole fleet forever, and past the bound the call
@@ -319,6 +340,11 @@ A ticket reserves, per level, up to four measures: wires, tokens, dollars, expos
 12. `admission.tenant.resolution-parity`: the effective tenant on the admission
     request equals the limiter request's under both `tenantFrom` postures, and a
     conflicting pair of identities refuses typed outside `tenantFrom: 'scope'`.
+13. `admission.concurrency.any-level-semaphore`: a `concurrency` on the tenant level
+    caps a tenant's active runs across its provider accounts while another tenant
+    holds its own slot; the holder's expired slot stays parked across a scheduler
+    reopen (the waiter keeps waiting), and an operator cancel by identity returns it
+    (RV4909, RV4910).
 
 ## 8. P1.4 acceptance criteria, answered
 

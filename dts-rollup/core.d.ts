@@ -2836,13 +2836,16 @@ type AdaptiveEvents = {
 } | {
   /**
   * The durable admission lease of this run expired under a live
-  * holder (RV4804): a renew failed and the scheduler's own answer
-  * no longer says `granted`, so the reserved capacity may be
-  * re-granted to another run while this one is alive. Announced
-  * once per run, never fatal: the wire-level quota still gates
-  * every dispatch and the settle release stays idempotent.
-  * Environmental telemetry, exactly like the rest of admission:
-  * nothing of it is journaled.
+  * holder (RV4804): a renew failed (or, under `onLeaseLost:
+  * 'cancel'`, the per tick verify) and the scheduler's own answer
+  * no longer says `granted`, so the provably unused wires may be
+  * granted to another run while this one is alive; the
+  * concurrency slot stays parked under it until settle (RV4910).
+  * Announced once per run; by default never fatal (the wire-level
+  * quota still gates every dispatch and the settle release stays
+  * idempotent), and under `onLeaseLost: 'cancel'` followed by the
+  * run's cancellation. Environmental telemetry, exactly like the
+  * rest of admission: nothing of it is journaled.
   */
   type: "admission:lease-lost";
   unitId: string;
@@ -8620,9 +8623,16 @@ declare class AdmissionController {
 *   rate-limit-class refusal the limiter uses; `retryAfterMs` on a
 *   queued verdict is honored verbatim by the caller's backoff.
 */
-/** The four reservation measures (RFC section 4.3). */
+/**
+* The reservation measures (RFC section 4.3). `wires` is the one
+* measure admission CAPS (and the SFQ cost unit); `inputTokens`,
+* `usd`, and `exposureUsd` ride the ticket for the holder's own
+* accounting and are never limited here (RV4909): money is the
+* budget layer's bound, and active work per level is bounded by the
+* level's `concurrency` semaphore.
+*/
 interface AdmissionReservation {
-  /** The one scheduler COST unit; everything else gates feasibility. */
+  /** The one scheduler COST unit and the one capped measure. */
   wires: number;
   inputTokens?: number;
   usd?: number;
@@ -8736,10 +8746,16 @@ interface AdmissionScheduler {
   * Release with actuals: the unused remainder refunds to each level,
   * over-consumption beyond the reservation lands as bucket debt (it
   * never denies retroactively), and a late settlement after expiry is
-  * accepted idempotently as debt rather than discarded.
+  * accepted idempotently as debt rather than discarded, returning the
+  * concurrency slot that expiry parked (RV4910).
   */
   release(unitId: string, generation: string, actuals: AdmissionReservation, opId: string): Promise<void>;
-  /** Cancels a queued ticket (nothing to refund); granted ones release. */
+  /**
+  * Cancels a queued ticket (nothing to refund); granted ones release;
+  * an EXPIRED one returns the concurrency slot expiry parked under it
+  * (RV4910), which is the operator's release by identity once the
+  * holder is known dead.
+  */
   cancel(unitId: string, generation: string, opId: string): Promise<void>;
   /**
   * The failover transfer (RFC section 4.2, item 4): atomically
@@ -8754,8 +8770,10 @@ interface AdmissionScheduler {
   }, opId: string): Promise<AdmissionTicketDecision>;
   /**
   * Advances the scheduler: expires stale leases (conservative
-  * settlement), then grants queued tickets in SFQ order while every
-  * matched level admits. Returns the newly granted tickets.
+  * settlement: the provably unused wires refund, the concurrency
+  * slot parks under the possibly live holder, RV4910), then grants
+  * queued tickets in SFQ order while every matched level admits.
+  * Returns the newly granted tickets.
   */
   pump(opId: string): Promise<AdmissionTicket[]>;
 }
@@ -8778,6 +8796,18 @@ interface EngineAdmissionConfig {
   tenant?: string;
   /** Mirrors quota.tenantFrom for limiter-less deployments. */
   tenantFrom?: "scope";
+  /**
+  * What the bracket does when the lease is LOST (RV4910): the
+  * scheduler expired the grant under this live run and parked its
+  * concurrency slot. `'continue'` (default) announces it once and
+  * lets the run go on (the wire quota still gates every dispatch;
+  * the settle release returns the slot). `'cancel'` cancels the run
+  * through its own cancellation machinery, so a hard cap deployment
+  * never runs work whose grant it cannot prove; under it every renew
+  * tick verifies by recover, so a lease that expired without a
+  * thrown renew is noticed within one renew cadence.
+  */
+  onLeaseLost?: "continue" | "cancel";
 }
 declare function validateEngineAdmissionConfig(config: EngineAdmissionConfig | undefined): void;
 interface AdmitRunUnitInput {
@@ -8802,6 +8832,13 @@ interface AdmitRunUnitInput {
       type: string;
     } & Record<string, unknown>): void;
   };
+  /**
+  * The run's cancel request (RV4910): under `onLeaseLost: 'cancel'`
+  * a lost lease calls it with the reason, and the caller's own
+  * cancellation machinery settles the run; absent, the cancel arm
+  * announces and cannot abort.
+  */
+  requestCancel?: (reason: string) => void;
 }
 /**
 * Admits one run unit: resolves when the ticket is granted (or when
@@ -16426,7 +16463,15 @@ interface AdmissionLevelConfig {
   slots?: number;
   /** Token bucket refill (wires per second); burst = capWires. */
   refillWiresPerSecond?: number;
-  /** Level-2 only: the per provider account concurrency semaphore. */
+  /**
+  * The level's active grant semaphore (RV4909): at most this many
+  * granted tickets hold one bucket of the level at once, on ANY
+  * level (a per tenant cap of active runs, a per provider account
+  * cap, a per scope cap). Taken at grant, restored at release; an
+  * EXPIRED grant's slot parks under its possibly live holder
+  * (RV4910) and returns only through that holder's own release,
+  * cancel, or fresh enqueue, or an operator cancel by identity.
+  */
   concurrency?: number;
   /** Fraction of capWires only emergency work may take (section 4.2). */
   emergencyReserveFraction?: number;
@@ -16464,7 +16509,8 @@ interface AdmissionState {
     keys: Partial<Record<"tenant" | "providerAccount" | "scope", string>>;
     accountStartTag: number;
     accountFinishTag: number;
-    appliedOps: string[];
+    appliedOps: string[]; /** Present and true when the ticket's slots are parked (RV4910). */
+    slotParked?: boolean;
   }>;
   buckets: Record<string, {
     window?: SlidingWindowState;
@@ -16473,7 +16519,8 @@ interface AdmissionState {
       wires: number;
       atMs: number;
     }>;
-    held: number;
+    held: number; /** Absent in documents persisted before RV4910: zero. */
+    parked?: number;
   }>;
   tenantQueue: FairQueueState;
   accountQueues: Record<string, FairQueueState>;
@@ -16501,6 +16548,22 @@ declare class MemoryAdmissionScheduler implements AdmissionScheduler {
   private levelAdmits;
   private consumeLevels;
   private refundLevels;
+  /**
+  * Expiry parks the ticket's concurrency slots (RV4910): expiry
+  * proves nothing about the holder's liveness, and a semaphore that
+  * restored under a live holder admitted one worker too many (RFC
+  * section 4.2, item 4). `held` keeps counting the slot; `parked`
+  * names it for operators.
+  */
+  private parkSlots;
+  /**
+  * A parked slot returns through one transition and never twice: the
+  * holder's own settlement (release, cancel, or a fresh enqueue under
+  * its identity) or an operator cancel by identity, because the one
+  * party that can prove the holder is done is the holder, or the
+  * operator who checked.
+  */
+  private unparkSlots;
   private recordDebt;
   private applied;
   enqueue(request: AdmissionRequest, opId: string): Promise<AdmissionTicketDecision>;

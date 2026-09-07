@@ -6962,8 +6962,8 @@ export const MUTATIONS = [
     doctrine:
       'a lease that expired under a live holder is announced (RV4804): with the verify condition dead, the scheduler re-grants the reserved capacity to another run while this one is alive and nobody ever learns, the exact silence the ninth experiment charged the old swallowed renew catch with',
     file: 'packages/core/src/admission/engine-bracket.ts',
-    find: "        if (!settled && state.state !== 'granted' && !leaseLostAnnounced) {",
-    replace: '        if (false as boolean) {',
+    find: "      if (!settled && state.state !== 'granted' && !leaseLostAnnounced) {",
+    replace: '      if (false as boolean) {',
     test: 'packages/core/src/engine/engine-admission.test.ts',
   },
   {
@@ -7165,6 +7165,34 @@ export const MUTATIONS = [
     find: '        ...(meta?.clampTurnToExposure === true ? { clampTurnToExposure: true as const } : {}),',
     replace: '        ...(false ? { clampTurnToExposure: true as const } : {}),',
     test: 'packages/core/src/engine/in-flight-exposure.test.ts',
+  },
+  {
+    id: 'admission-semaphore-on-any-level',
+    doctrine:
+      'the concurrency semaphore binds on ANY level configured with it (RV4909): narrowed back to the provider account level, a tenant level concurrency admits every run the tenant sends, and the cap of active runs the durability guide promises is a comment',
+    file: 'packages/core/src/admission/memory.ts',
+    find: '    if (config.concurrency !== undefined && state.held >= config.concurrency) {',
+    replace:
+      "    if (level === 'providerAccount' && config.concurrency !== undefined && state.held >= config.concurrency) {",
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
+  {
+    id: 'admission-expiry-parks-the-slot',
+    doctrine:
+      'an expired grant never returns its concurrency slot by itself (RV4910): restored at expiry, the slot is handed out under a possibly live holder one lease ttl after its last renew, and the semaphore admits one worker too many',
+    file: 'packages/core/src/admission/memory.ts',
+    find: '        this.refundLevels(internal, refund.wires, false);',
+    replace: '        this.refundLevels(internal, refund.wires, true);',
+    test: 'packages/core/src/admission/admission.test.ts',
+  },
+  {
+    id: 'admission-lease-lost-cancels-the-run',
+    doctrine:
+      "under onLeaseLost 'cancel' a lost lease cancels the run (RV4910): with the arm severed the run keeps working past a grant the scheduler no longer holds for it, exactly the default the hard cap deployment opted out of",
+    file: 'packages/core/src/admission/engine-bracket.ts',
+    find: "    if (onLeaseLost === 'cancel') {",
+    replace: "    if (onLeaseLost === 'continue') {",
+    test: 'packages/core/src/engine/engine-admission.test.ts',
   },
 ];
 

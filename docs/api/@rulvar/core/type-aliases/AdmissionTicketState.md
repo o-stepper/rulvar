@@ -10,4 +10,4 @@
 type AdmissionTicketState = "queued" | "granted" | "released" | "refunded" | "expired" | "denied";
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L84)
+Defined in: [packages/core/src/l0/spi/admission.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L91)

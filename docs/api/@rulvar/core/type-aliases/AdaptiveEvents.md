@@ -385,9 +385,9 @@ facts of the ONE journaled acceptance decision.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `generation` | `string` | - | [packages/core/src/l0/events.ts:758](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L758) |
-| `type` | `"admission:lease-lost"` | The durable admission lease of this run expired under a live holder (RV4804): a renew failed and the scheduler's own answer no longer says `granted`, so the reserved capacity may be re-granted to another run while this one is alive. Announced once per run, never fatal: the wire-level quota still gates every dispatch and the settle release stays idempotent. Environmental telemetry, exactly like the rest of admission: nothing of it is journaled. | [packages/core/src/l0/events.ts:756](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L756) |
-| `unitId` | `string` | - | [packages/core/src/l0/events.ts:757](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L757) |
+| `generation` | `string` | - | [packages/core/src/l0/events.ts:761](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L761) |
+| `type` | `"admission:lease-lost"` | The durable admission lease of this run expired under a live holder (RV4804): a renew failed (or, under `onLeaseLost: 'cancel'`, the per tick verify) and the scheduler's own answer no longer says `granted`, so the provably unused wires may be granted to another run while this one is alive; the concurrency slot stays parked under it until settle (RV4910). Announced once per run; by default never fatal (the wire-level quota still gates every dispatch and the settle release stays idempotent), and under `onLeaseLost: 'cancel'` followed by the run's cancellation. Environmental telemetry, exactly like the rest of admission: nothing of it is journaled. | [packages/core/src/l0/events.ts:759](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L759) |
+| `unitId` | `string` | - | [packages/core/src/l0/events.ts:760](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L760) |
 
 ***
 
@@ -526,7 +526,7 @@ facts of the ONE journaled acceptance decision.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `code` | `"HASH_VERSION_TOO_OLD"` \| `"HASH_VERSION_TOO_NEW"` | - | [packages/core/src/l0/events.ts:793](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L793) |
-| `found` | `number` | - | [packages/core/src/l0/events.ts:794](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L794) |
-| `type` | `"journal:compat"` | Declared for hosts; not emitted today. The compatibility scan runs strictly before a run's event stream exists, so the refusal travels only as the typed JournalCompatibilityError (which carries the same fields). | [packages/core/src/l0/events.ts:792](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L792) |
-| `window` | \[`number`, `number`\] | - | [packages/core/src/l0/events.ts:795](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L795) |
+| `code` | `"HASH_VERSION_TOO_OLD"` \| `"HASH_VERSION_TOO_NEW"` | - | [packages/core/src/l0/events.ts:796](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L796) |
+| `found` | `number` | - | [packages/core/src/l0/events.ts:797](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L797) |
+| `type` | `"journal:compat"` | Declared for hosts; not emitted today. The compatibility scan runs strictly before a run's event stream exists, so the refusal travels only as the typed JournalCompatibilityError (which carries the same fields). | [packages/core/src/l0/events.ts:795](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L795) |
+| `window` | \[`number`, `number`\] | - | [packages/core/src/l0/events.ts:798](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L798) |

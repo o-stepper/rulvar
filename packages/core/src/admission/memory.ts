@@ -7,9 +7,15 @@
  * unit identity, hierarchical SFQ grant order, all-levels-or-nothing
  * consumption, the emergency reserve, lease expiry with the
  * conservative two-tier settlement (covers here are always fenced,
- * because the fence is in-process), release refunds with bucket debt
+ * because the fence is in-process; the wires provably unused refund,
+ * while the concurrency slot PARKS under the possibly live holder
+ * until its own settlement, RV4910), release refunds with bucket debt
  * that never denies retroactively, and one winner among racing
- * release, expiry, and cancel.
+ * release, expiry, and cancel. The concurrency semaphore lives on ANY
+ * level configured with `concurrency` (RV4909): admission caps wires
+ * and active grants per level, and nothing else; the other
+ * reservation measures ride the ticket for the holder's accounting,
+ * money being the budget layer's bound.
  */
 import { ConfigError } from '../l0/errors.js';
 import type {
@@ -52,7 +58,15 @@ export interface AdmissionLevelConfig {
   slots?: number;
   /** Token bucket refill (wires per second); burst = capWires. */
   refillWiresPerSecond?: number;
-  /** Level-2 only: the per provider account concurrency semaphore. */
+  /**
+   * The level's active grant semaphore (RV4909): at most this many
+   * granted tickets hold one bucket of the level at once, on ANY
+   * level (a per tenant cap of active runs, a per provider account
+   * cap, a per scope cap). Taken at grant, restored at release; an
+   * EXPIRED grant's slot parks under its possibly live holder
+   * (RV4910) and returns only through that holder's own release,
+   * cancel, or fresh enqueue, or an operator cancel by identity.
+   */
   concurrency?: number;
   /** Fraction of capWires only emergency work may take (section 4.2). */
   emergencyReserveFraction?: number;
@@ -83,8 +97,15 @@ interface BucketState {
   bucket?: TokenBucketState;
   /** Debt entries: consumption beyond reservation, aged out over time. */
   debts: Array<{ wires: number; atMs: number }>;
-  /** Level-2 semaphore holders. */
+  /** Grants counted against the level's `concurrency` (RV4909). */
   held: number;
+  /**
+   * The subset of `held` whose grants EXPIRED under a possibly live
+   * holder (RV4910): still counted against `concurrency`, returned
+   * only by that holder's own settlement or an operator cancel by
+   * identity. Named for operators; the admit check reads `held`.
+   */
+  parked: number;
 }
 
 interface InternalTicket {
@@ -95,6 +116,8 @@ interface InternalTicket {
   accountStartTag: number;
   accountFinishTag: number;
   appliedOps: Set<string>;
+  /** The ticket's concurrency slots are parked (it expired under them). */
+  slotParked: boolean;
 }
 
 const key = (unitId: string, generation: string): string => `${unitId}#${generation}`;
@@ -119,6 +142,8 @@ export interface AdmissionState {
       accountStartTag: number;
       accountFinishTag: number;
       appliedOps: string[];
+      /** Present and true when the ticket's slots are parked (RV4910). */
+      slotParked?: boolean;
     }
   >;
   buckets: Record<
@@ -128,6 +153,8 @@ export interface AdmissionState {
       bucket?: TokenBucketState;
       debts: Array<{ wires: number; atMs: number }>;
       held: number;
+      /** Absent in documents persisted before RV4910: zero. */
+      parked?: number;
     }
   >;
   tenantQueue: FairQueueState;
@@ -165,6 +192,7 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
         accountStartTag: row.accountStartTag,
         accountFinishTag: row.accountFinishTag,
         appliedOps: new Set(row.appliedOps),
+        slotParked: row.slotParked === true,
       });
     }
     for (const [id, bucket] of Object.entries(state.buckets)) {
@@ -173,6 +201,9 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
         ...(bucket.bucket === undefined ? {} : { bucket: bucket.bucket }),
         debts: [...bucket.debts],
         held: bucket.held,
+        // A document persisted before RV4910 parked nothing: every
+        // expiry of its era restored the slot.
+        parked: bucket.parked ?? 0,
       });
     }
     this.tenantQueue = state.tenantQueue;
@@ -193,6 +224,7 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
         accountStartTag: internal.accountStartTag,
         accountFinishTag: internal.accountFinishTag,
         appliedOps: [...internal.appliedOps],
+        ...(internal.slotParked ? { slotParked: true } : {}),
       };
     }
     const buckets: AdmissionState['buckets'] = {};
@@ -202,6 +234,7 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
         ...(bucket.bucket === undefined ? {} : { bucket: bucket.bucket }),
         debts: bucket.debts,
         held: bucket.held,
+        parked: bucket.parked,
       };
     }
     const accountQueues: Record<string, FairQueueState> = {};
@@ -228,7 +261,7 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
     const id = `${level}:${bucketKey}`;
     let state = this.buckets.get(id);
     if (state === undefined) {
-      state = { debts: [], held: 0 };
+      state = { debts: [], held: 0, parked: 0 };
       if (config?.algorithm === 'sliding-window') {
         state.window = emptySlidingWindow(config.slots ?? 6);
       } else if (config?.algorithm === 'token-bucket') {
@@ -309,10 +342,12 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
         return false;
       }
     }
-    if (level === 'providerAccount' && config.concurrency !== undefined) {
-      if (state.held >= config.concurrency) {
-        return false;
-      }
+    // The semaphore of ANY level with `concurrency` (RV4909): a tenant
+    // level caps a tenant's active runs across its provider accounts,
+    // the provider account level caps one account, the scope level
+    // caps one full scope. A parked slot (RV4910) still counts here.
+    if (config.concurrency !== undefined && state.held >= config.concurrency) {
+      return false;
     }
     return true;
   }
@@ -335,7 +370,7 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
       if (config.algorithm === 'token-bucket' && state.bucket !== undefined) {
         state.bucket = bucketConsume(state.bucket, wires);
       }
-      if (level === 'providerAccount' && config.concurrency !== undefined) {
+      if (config.concurrency !== undefined) {
         state.held += 1;
       }
     }
@@ -357,9 +392,54 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
           state.bucket = bucketRefund(state.bucket, wires, config.capWires);
         }
       }
-      if (level === 'providerAccount' && config.concurrency !== undefined && restoreSlot) {
+      if (config.concurrency !== undefined && restoreSlot) {
         state.held = Math.max(0, state.held - 1);
       }
+    }
+  }
+
+  /**
+   * Expiry parks the ticket's concurrency slots (RV4910): expiry
+   * proves nothing about the holder's liveness, and a semaphore that
+   * restored under a live holder admitted one worker too many (RFC
+   * section 4.2, item 4). `held` keeps counting the slot; `parked`
+   * names it for operators.
+   */
+  private parkSlots(internal: InternalTicket): void {
+    let parked = false;
+    for (const level of LEVELS) {
+      const bucketKey = internal.keys[level];
+      const config = this.levelConfig(level);
+      if (bucketKey === undefined || config?.concurrency === undefined) {
+        continue;
+      }
+      this.bucketFor(level, bucketKey).parked += 1;
+      parked = true;
+    }
+    internal.slotParked = parked;
+  }
+
+  /**
+   * A parked slot returns through one transition and never twice: the
+   * holder's own settlement (release, cancel, or a fresh enqueue under
+   * its identity) or an operator cancel by identity, because the one
+   * party that can prove the holder is done is the holder, or the
+   * operator who checked.
+   */
+  private unparkSlots(internal: InternalTicket): void {
+    if (!internal.slotParked) {
+      return;
+    }
+    internal.slotParked = false;
+    for (const level of LEVELS) {
+      const bucketKey = internal.keys[level];
+      const config = this.levelConfig(level);
+      if (bucketKey === undefined || config?.concurrency === undefined) {
+        continue;
+      }
+      const state = this.bucketFor(level, bucketKey);
+      state.held = Math.max(0, state.held - 1);
+      state.parked = Math.max(0, state.parked - 1);
     }
   }
 
@@ -394,7 +474,11 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
         // The unit settled and came back for more work (a resume after
         // release): its history's arithmetic already settled, so the
         // SAME identity re-admits as a fresh ticket. 'denied' stays
-        // terminal: infeasibility does not wash out with time.
+        // terminal: infeasibility does not wash out with time. An
+        // expired incarnation's parked slot returns HERE (RV4910): the
+        // holder coming back under its own identity is the holder's
+        // own act, and its new ticket competes for the slot like any.
+        this.unparkSlots(existing);
         this.tickets.delete(key(request.unitId, request.generation));
       } else {
         return this.decisionOf(existing);
@@ -505,6 +589,7 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
       accountStartTag: accountTags.startTag,
       accountFinishTag: accountTags.finishTag,
       appliedOps: new Set(),
+      slotParked: false,
     };
     this.tickets.set(key(request.unitId, request.generation), internal);
     return internal;
@@ -611,9 +696,11 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
     }
     if (state === 'expired') {
       // The late settlement: accepted idempotently, landing as debt
-      // beyond what the conservative expiry already refunded.
+      // beyond what the conservative expiry already refunded, and the
+      // holder's own word that it is done: the parked slot returns.
       const covered = internal.ticket.cover?.wires ?? 0;
       this.recordDebt(internal, Math.max(0, actuals.wires - covered), nowMs);
+      this.unparkSlots(internal);
       return;
     }
     // released, refunded, denied, queued: the arbitration already
@@ -630,7 +717,10 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
       internal.ticket.state = 'refunded';
       return;
     }
-    if (internal.ticket.state === 'granted') {
+    // A granted ticket releases at its cover; an EXPIRED one settles
+    // the same way, which returns its parked slot (RV4910): the
+    // holder's own cancel, or the operator's by identity.
+    if (internal.ticket.state === 'granted' || internal.ticket.state === 'expired') {
       await this.release(
         unitId,
         generation,
@@ -698,14 +788,18 @@ export class MemoryAdmissionScheduler implements AdmissionScheduler {
     // Expire stale leases first: the conservative settlement. Covers
     // here are always fenced (the fence is in-process), so expiry
     // refunds reservation minus the covered high water, provably
-    // unused by construction, and the semaphore restores because the
-    // holder's further consumption is fenced off.
+    // unused by construction. The concurrency slot does NOT restore
+    // (RV4910): the fence bounds what the holder can still consume,
+    // not whether it is alive, and a slot handed out under a live
+    // holder admits one worker too many; it parks until the holder's
+    // own settlement or an operator cancel by identity.
     for (const internal of this.tickets.values()) {
       const ticket = internal.ticket;
       if (ticket.state === 'granted' && (ticket.leaseExpiresAtMs ?? Infinity) <= nowMs) {
         const covered = ticket.cover ?? { wires: 0 };
         const refund = reservationMinus(ticket.reservation, covered);
-        this.refundLevels(internal, refund.wires, true);
+        this.refundLevels(internal, refund.wires, false);
+        this.parkSlots(internal);
         ticket.state = 'expired';
       }
     }

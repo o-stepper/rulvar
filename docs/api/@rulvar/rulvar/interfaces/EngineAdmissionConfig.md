@@ -14,6 +14,7 @@ The `createEngine` admission configuration.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-onleaselost"></a> `onLeaseLost?` | `"cancel"` \| `"continue"` | What the bracket does when the lease is LOST (RV4910): the scheduler expired the grant under this live run and parked its concurrency slot. `'continue'` (default) announces it once and lets the run go on (the wire quota still gates every dispatch; the settle release returns the slot). `'cancel'` cancels the run through its own cancellation machinery, so a hard cap deployment never runs work whose grant it cannot prove; under it every renew tick verifies by recover, so a lease that expired without a thrown renew is noticed within one renew cadence. | `packages/core/dist/index.d.ts` |
 | <a id="property-pollms"></a> `pollMs?` | `number` | Queued-wait poll interval when the scheduler names no retryAfterMs. | `packages/core/dist/index.d.ts` |
 | <a id="property-renewms"></a> `renewMs?` | `number` | Lease renew cadence; default four polls. | `packages/core/dist/index.d.ts` |
 | <a id="property-reservation"></a> `reservation?` | [`AdmissionReservation`](/api/@rulvar/rulvar/interfaces/AdmissionReservation.md) | The per-run reservation; default one wire. | `packages/core/dist/index.d.ts` |

@@ -16,9 +16,14 @@
  * are ANNOUNCED, never fatal (RV4804): the first failure warns, a
  * verify recover that no longer answers `granted` emits
  * `admission:lease-lost` once (the scheduler expired the lease and may
- * re-grant the capacity while this run is alive), and the run
- * continues, because the wire-level QuotaLimiter still gates every
- * dispatch and the settle release is idempotent. First-shape actuals
+ * grant its provably unused wires again while this run is alive; the
+ * concurrency slot stays parked under it, RV4910), and by default the
+ * run continues, because the wire-level QuotaLimiter still gates every
+ * dispatch and the settle release is idempotent. Under the opt in
+ * `onLeaseLost: 'cancel'` (RV4910) the lost lease cancels the run
+ * through the caller's own cancellation machinery instead, and every
+ * renew tick verifies by recover, so a lease that expired without a
+ * thrown renew is noticed within one cadence. First-shape actuals
  * equal the reservation (no refund on the happy path; the deployment's
  * reservation is its estimate), also recorded here as the deliberate
  * first shape. Admission is an environmental fact: NOTHING here is
@@ -51,6 +56,18 @@ export interface EngineAdmissionConfig {
   tenant?: string;
   /** Mirrors quota.tenantFrom for limiter-less deployments. */
   tenantFrom?: 'scope';
+  /**
+   * What the bracket does when the lease is LOST (RV4910): the
+   * scheduler expired the grant under this live run and parked its
+   * concurrency slot. `'continue'` (default) announces it once and
+   * lets the run go on (the wire quota still gates every dispatch;
+   * the settle release returns the slot). `'cancel'` cancels the run
+   * through its own cancellation machinery, so a hard cap deployment
+   * never runs work whose grant it cannot prove; under it every renew
+   * tick verifies by recover, so a lease that expired without a
+   * thrown renew is noticed within one renew cadence.
+   */
+  onLeaseLost?: 'continue' | 'cancel';
 }
 
 export function validateEngineAdmissionConfig(config: EngineAdmissionConfig | undefined): void {
@@ -67,6 +84,13 @@ export function validateEngineAdmissionConfig(config: EngineAdmissionConfig | un
   }
   if (config.pollMs !== undefined && !(config.pollMs > 0)) {
     throw new ConfigError('createEngine admission.pollMs must be positive');
+  }
+  if (
+    config.onLeaseLost !== undefined &&
+    config.onLeaseLost !== 'continue' &&
+    config.onLeaseLost !== 'cancel'
+  ) {
+    throw new ConfigError("createEngine admission.onLeaseLost must be 'continue' or 'cancel'");
   }
 }
 
@@ -88,6 +112,13 @@ export interface AdmitRunUnitInput {
    * silent exactly as before.
    */
   telemetry?: { emit(body: { type: string } & Record<string, unknown>): void };
+  /**
+   * The run's cancel request (RV4910): under `onLeaseLost: 'cancel'`
+   * a lost lease calls it with the reason, and the caller's own
+   * cancellation machinery settles the run; absent, the cancel arm
+   * announces and cannot abort.
+   */
+  requestCancel?: (reason: string) => void;
 }
 
 const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
@@ -214,6 +245,57 @@ export async function admitRunUnit(
   let renewFailed = false;
   let leaseLostAnnounced = false;
   let renewSeq = 0;
+  const onLeaseLost = config.onLeaseLost ?? 'continue';
+  // Under the cancel arm the truth is checked EVERY tick: a scheduler
+  // whose renew is a silent no-op on an expired ticket (the reference
+  // and the durable documents over it) never throws, and a hard cap
+  // deployment cannot wait for a throw to learn its grant is gone.
+  const verifyEveryTick = onLeaseLost === 'cancel';
+  const announceLeaseLost = (): void => {
+    leaseLostAnnounced = true;
+    emit({
+      type: 'admission:lease-lost',
+      unitId: unit.unitId,
+      generation: unit.generation,
+    });
+    if (onLeaseLost === 'cancel') {
+      // The cancel arm (RV4910): the run must not outlive its grant.
+      // The scheduler parked the slot under this run; the cancel
+      // settles the run through the caller's machinery, and the
+      // settle release returns the slot.
+      emit({
+        type: 'log',
+        level: 'warn',
+        msg:
+          `durable admission lease lost for run '${unit.unitId}': the scheduler expired ` +
+          "the grant and parked its slot; onLeaseLost is 'cancel', so the run is cancelled " +
+          'instead of running past its grant',
+      });
+      unit.requestCancel?.(`durable admission lease lost for run '${unit.unitId}'`);
+      return;
+    }
+    emit({
+      type: 'log',
+      level: 'warn',
+      msg:
+        `durable admission lease lost for run '${unit.unitId}': the scheduler expired ` +
+        'the grant and may re-admit the capacity while this run is alive; the wire ' +
+        'quota still gates every dispatch',
+    });
+  };
+  const verifyLease = async (opId: string): Promise<void> => {
+    // The truth is the scheduler's: verify by recover, and a ticket no
+    // longer granted is the lost lease the header promises to
+    // announce (once).
+    try {
+      const state = await scheduler.recover(unit.unitId, unit.generation, `${opId}:verify`);
+      if (!settled && state.state !== 'granted' && !leaseLostAnnounced) {
+        announceLeaseLost();
+      }
+    } catch {
+      // The verify itself failed; the next tick retries.
+    }
+  };
   const renewTick = async (): Promise<void> => {
     if (renewBusy || settled) {
       return;
@@ -231,6 +313,9 @@ export async function admitRunUnit(
           msg: `durable admission lease renew recovered for run '${unit.unitId}'`,
         });
       }
+      if (verifyEveryTick) {
+        await verifyLease(opId);
+      }
     } catch (thrown) {
       // Announced, never fatal (RV4804): the silent catch used to hide
       // an expiring lease from the very holder it expired under. The
@@ -247,30 +332,8 @@ export async function admitRunUnit(
             'expire the lease and re-grant the capacity',
         });
       }
-      // After a failed renew the truth is the scheduler's: verify by
-      // recover, and a ticket no longer granted is the lost lease the
-      // header promises to announce.
-      try {
-        const state = await scheduler.recover(unit.unitId, unit.generation, `${opId}:verify`);
-        if (!settled && state.state !== 'granted' && !leaseLostAnnounced) {
-          leaseLostAnnounced = true;
-          emit({
-            type: 'admission:lease-lost',
-            unitId: unit.unitId,
-            generation: unit.generation,
-          });
-          emit({
-            type: 'log',
-            level: 'warn',
-            msg:
-              `durable admission lease lost for run '${unit.unitId}': the scheduler expired ` +
-              'the grant and may re-admit the capacity while this run is alive; the wire ' +
-              'quota still gates every dispatch',
-          });
-        }
-      } catch {
-        // The verify itself failed; the next tick retries.
-      }
+      // After a failed renew the truth is the scheduler's (RV4804).
+      await verifyLease(opId);
     } finally {
       renewBusy = false;
     }

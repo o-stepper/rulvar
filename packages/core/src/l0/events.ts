@@ -745,13 +745,16 @@ export type AdaptiveEvents =
   | {
       /**
        * The durable admission lease of this run expired under a live
-       * holder (RV4804): a renew failed and the scheduler's own answer
-       * no longer says `granted`, so the reserved capacity may be
-       * re-granted to another run while this one is alive. Announced
-       * once per run, never fatal: the wire-level quota still gates
-       * every dispatch and the settle release stays idempotent.
-       * Environmental telemetry, exactly like the rest of admission:
-       * nothing of it is journaled.
+       * holder (RV4804): a renew failed (or, under `onLeaseLost:
+       * 'cancel'`, the per tick verify) and the scheduler's own answer
+       * no longer says `granted`, so the provably unused wires may be
+       * granted to another run while this one is alive; the
+       * concurrency slot stays parked under it until settle (RV4910).
+       * Announced once per run; by default never fatal (the wire-level
+       * quota still gates every dispatch and the settle release stays
+       * idempotent), and under `onLeaseLost: 'cancel'` followed by the
+       * run's cancellation. Environmental telemetry, exactly like the
+       * rest of admission: nothing of it is journaled.
        */
       type: 'admission:lease-lost';
       unitId: string;

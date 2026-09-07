@@ -34,9 +34,16 @@
  *   queued verdict is honored verbatim by the caller's backoff.
  */
 
-/** The four reservation measures (RFC section 4.3). */
+/**
+ * The reservation measures (RFC section 4.3). `wires` is the one
+ * measure admission CAPS (and the SFQ cost unit); `inputTokens`,
+ * `usd`, and `exposureUsd` ride the ticket for the holder's own
+ * accounting and are never limited here (RV4909): money is the
+ * budget layer's bound, and active work per level is bounded by the
+ * level's `concurrency` semaphore.
+ */
 export interface AdmissionReservation {
-  /** The one scheduler COST unit; everything else gates feasibility. */
+  /** The one scheduler COST unit and the one capped measure. */
   wires: number;
   inputTokens?: number;
   usd?: number;
@@ -149,7 +156,8 @@ export interface AdmissionScheduler {
    * Release with actuals: the unused remainder refunds to each level,
    * over-consumption beyond the reservation lands as bucket debt (it
    * never denies retroactively), and a late settlement after expiry is
-   * accepted idempotently as debt rather than discarded.
+   * accepted idempotently as debt rather than discarded, returning the
+   * concurrency slot that expiry parked (RV4910).
    */
   release(
     unitId: string,
@@ -157,7 +165,12 @@ export interface AdmissionScheduler {
     actuals: AdmissionReservation,
     opId: string,
   ): Promise<void>;
-  /** Cancels a queued ticket (nothing to refund); granted ones release. */
+  /**
+   * Cancels a queued ticket (nothing to refund); granted ones release;
+   * an EXPIRED one returns the concurrency slot expiry parked under it
+   * (RV4910), which is the operator's release by identity once the
+   * holder is known dead.
+   */
   cancel(unitId: string, generation: string, opId: string): Promise<void>;
   /**
    * The failover transfer (RFC section 4.2, item 4): atomically
@@ -175,8 +188,10 @@ export interface AdmissionScheduler {
   ): Promise<AdmissionTicketDecision>;
   /**
    * Advances the scheduler: expires stale leases (conservative
-   * settlement), then grants queued tickets in SFQ order while every
-   * matched level admits. Returns the newly granted tickets.
+   * settlement: the provably unused wires refund, the concurrency
+   * slot parks under the possibly live holder, RV4910), then grants
+   * queued tickets in SFQ order while every matched level admits.
+   * Returns the newly granted tickets.
    */
   pump(opId: string): Promise<AdmissionTicket[]>;
 }

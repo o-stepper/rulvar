@@ -6,7 +6,7 @@
 
 # Interface: AdmissionScheduler
 
-Defined in: [packages/core/src/l0/spi/admission.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L121)
+Defined in: [packages/core/src/l0/spi/admission.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L128)
 
 ## Methods
 
@@ -19,9 +19,12 @@ cancel(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L161)
+Defined in: [packages/core/src/l0/spi/admission.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L174)
 
-Cancels a queued ticket (nothing to refund); granted ones release.
+Cancels a queued ticket (nothing to refund); granted ones release;
+an EXPIRED one returns the concurrency slot expiry parked under it
+(RV4910), which is the operator's release by identity once the
+holder is known dead.
 
 #### Parameters
 
@@ -47,7 +50,7 @@ checkpointCover(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L142)
+Defined in: [packages/core/src/l0/spi/admission.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L149)
 
 Durably checkpoints a consumption cover BEFORE the covered batch
 (the intent-before-effect doctrine applied to capacity): monotone
@@ -76,7 +79,7 @@ conservative expiry refund provable rather than optimistic.
 enqueue(request, opId): Promise<AdmissionTicketDecision>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L126)
+Defined in: [packages/core/src/l0/spi/admission.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L133)
 
 Conditional create by `(unitId, generation)` plus immediate grant
 when every matched level admits; `opId` makes retries idempotent.
@@ -100,11 +103,13 @@ when every matched level admits; `opId` makes retries idempotent.
 pump(opId): Promise<AdmissionTicket[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L181)
+Defined in: [packages/core/src/l0/spi/admission.ts:196](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L196)
 
 Advances the scheduler: expires stale leases (conservative
-settlement), then grants queued tickets in SFQ order while every
-matched level admits. Returns the newly granted tickets.
+settlement: the provably unused wires refund, the concurrency
+slot parks under the possibly live holder, RV4910), then grants
+queued tickets in SFQ order while every matched level admits.
+Returns the newly granted tickets.
 
 #### Parameters
 
@@ -128,7 +133,7 @@ rebind(
 opId): Promise<AdmissionTicketDecision>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L170)
+Defined in: [packages/core/src/l0/spi/admission.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L183)
 
 The failover transfer (RFC section 4.2, item 4): atomically
 acquires the TARGET hierarchy's capacity and level-2 slot and
@@ -162,7 +167,7 @@ recover(
 opId): Promise<AdmissionRecovery>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L132)
+Defined in: [packages/core/src/l0/spi/admission.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L139)
 
 The resumed unit's recovery: `granted` renews the lease, a queued
 ticket reports its surviving position, and `unknown` means
@@ -192,12 +197,13 @@ release(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L154)
+Defined in: [packages/core/src/l0/spi/admission.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L162)
 
 Release with actuals: the unused remainder refunds to each level,
 over-consumption beyond the reservation lands as bucket debt (it
 never denies retroactively), and a late settlement after expiry is
-accepted idempotently as debt rather than discarded.
+accepted idempotently as debt rather than discarded, returning the
+concurrency slot that expiry parked (RV4910).
 
 #### Parameters
 
@@ -223,7 +229,7 @@ renew(
 opId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L134)
+Defined in: [packages/core/src/l0/spi/admission.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L141)
 
 Renews a granted ticket's lease; unknown tickets are no-ops.
 

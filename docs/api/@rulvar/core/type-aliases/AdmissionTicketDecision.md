@@ -24,4 +24,4 @@ type AdmissionTicketDecision =
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L110)
+Defined in: [packages/core/src/l0/spi/admission.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L117)
