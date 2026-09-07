@@ -9,19 +9,26 @@
  * of its agent span under a synthetic FIFO pair key (RV802: tool events
  * ride the agent's spanId and carry no per-call id), so the agent span
  * lives to agent:end and keeps its closing usage, cost, and exploration
- * attributes. Events without an own span (log, budget:update) attach as
- * span events on their enclosing span. An opener for an already-open
- * span never duplicates it (replayed re-emissions mark the original; a
+ * attributes. Events without an own span (log, budget:update, the
+ * admission and adaptive families) attach as span events on their
+ * enclosing span, carrying the payload fields their type's allowlist
+ * names (RV4917; before it, every such event exported its type and
+ * sequence number and nothing else, so the tenth comparison
+ * experiment's trace showed seventy budget updates without a dollar
+ * on any of them). An opener for an already-open span never
+ * duplicates it (replayed re-emissions mark the original; a
  * pre-RV-207 stream's extra per-phase agent:start cannot leak the agent
  * span unended).
  *
  * `@opentelemetry/api` ^1.9 is an OPTIONAL peer: the CLI has no OTel
  * dependency, and the exporter is typed against a minimal structural
  * `TracerLike` so an absent peer never breaks the CLI. Attribute content
- * policy: prompts, completions, and tool payloads are NEVER exported;
- * only identifiers, statuses, usage counters, and cost figures ride
- * `rulvar.*` and `gen_ai.*` attributes. Replayed events do not create
- * duplicate spans; the single span is marked `rulvar.replayed = true`.
+ * policy: prompts, completions, tool payloads, and stream deltas are
+ * NEVER exported; identifiers, statuses, usage counters, cost figures,
+ * and the library authored messages of the payload events (bounded and
+ * masked) ride `rulvar.*` and `gen_ai.*` attributes. Replayed events do
+ * not create duplicate spans; the single span is marked
+ * `rulvar.replayed = true`.
  */
 import {
   compileSecretMasker,
@@ -169,6 +176,363 @@ function openAttributes(
     }
   }
   return attrs;
+}
+
+/** The OTel attribute value shapes the payload projection carries. */
+type AttributeValue = string | number | boolean;
+
+/**
+ * One event type's payload allowlist (RV4917). A field maps to the
+ * attribute key it exports under, a nested object to its own
+ * allowlist, and a record whose keys the emitter does not fix (a
+ * status roster, host log data) to a `'*'` prefix that exports every
+ * primitive entry as `<prefix>.<key>`. Anything the allowlist does not
+ * name is withheld and counted, never exported.
+ */
+type PayloadAllowlist = { readonly [field: string]: string | PayloadAllowlist };
+
+/** Exported strings are cut here, after masking, with a marker. */
+const MAX_STRING_CHARS = 256;
+/** A record key longer than this (host log data) is withheld. */
+const MAX_KEY_CHARS = 64;
+/** The counter of payload fields that did not reach the span event verbatim. */
+const ATTRS_DROPPED = 'rulvar.attrs_dropped';
+/** Envelope fields; never payload, never counted. */
+const ENVELOPE_FIELDS: ReadonlySet<string> = new Set([
+  'runId',
+  'seq',
+  'ts',
+  'spanId',
+  'parentSpanId',
+  'replayed',
+  'type',
+]);
+
+const AGENT_IDENTITY: PayloadAllowlist = {
+  agentType: 'rulvar.agent_type',
+  label: 'rulvar.agent_label',
+};
+
+/**
+ * The per-type allowlist of the payload-only events: identifiers,
+ * statuses, counters, cost figures, and library authored messages. The
+ * catalog is closed for v1 (events.ts), so every payload-only type is
+ * listed; a type absent here (a future event) keeps the historical
+ * export of type plus sequence number, so nothing leaves the process
+ * that nobody reviewed. The content bearing fields stay off the list
+ * by design: `agent:stream.delta` is model output, `external:waiting.
+ * prompt` is a free text ask, `agent:error.error.data` is arbitrary,
+ * and every `tool:*` payload rides the explicit tool span cases.
+ */
+const PAYLOAD_ALLOWLIST: Readonly<Record<string, PayloadAllowlist>> = {
+  log: { level: 'rulvar.log.level', msg: 'rulvar.log.msg', data: { '*': 'rulvar.log.data' } },
+  'budget:update': {
+    spentUsd: 'rulvar.budget.spent_usd',
+    remainingUsd: 'rulvar.budget.remaining_usd',
+    committedReserveUsd: 'rulvar.budget.committed_reserve_usd',
+  },
+  'external:waiting': {
+    key: 'rulvar.external.key',
+    entryRef: 'rulvar.external.entry_ref',
+    deadlineAt: 'rulvar.external.deadline_at',
+  },
+  'approval:pending': {
+    toolName: 'rulvar.tool_name',
+    entryRef: 'rulvar.approval.entry_ref',
+    deadlineAt: 'rulvar.approval.deadline_at',
+  },
+  'agent:queued': AGENT_IDENTITY,
+  'agent:error': {
+    ...AGENT_IDENTITY,
+    error: {
+      code: 'rulvar.error.code',
+      message: 'rulvar.error.message',
+      retryable: 'rulvar.error.retryable',
+    },
+    willRetry: 'rulvar.error.will_retry',
+  },
+  'quota:denied': {
+    ...AGENT_IDENTITY,
+    model: 'gen_ai.request.model',
+    reason: 'rulvar.quota.reason',
+    retryAfterMs: 'rulvar.quota.retry_after_ms',
+    willRetry: 'rulvar.quota.will_retry',
+  },
+  'budget:exposure-wait': {
+    ...AGENT_IDENTITY,
+    scope: 'rulvar.exposure.scope',
+    model: 'gen_ai.request.model',
+    capUsd: 'rulvar.exposure.cap_usd',
+    spentUsd: 'rulvar.exposure.spent_usd',
+    inFlightUsd: 'rulvar.exposure.in_flight_usd',
+    estimateUsd: 'rulvar.exposure.estimate_usd',
+    willWait: 'rulvar.exposure.will_wait',
+  },
+  'agent:schema-retry': {
+    agentType: 'rulvar.agent_type',
+    attempt: 'rulvar.schema_retry.attempt',
+    maxAttempts: 'rulvar.schema_retry.max_attempts',
+  },
+  'control:wire': {
+    controlKind: 'rulvar.control.kind',
+    model: 'gen_ai.request.model',
+    outcome: 'rulvar.control.outcome',
+    inputTokens: 'rulvar.control.input_tokens',
+  },
+  'agent:stream': {},
+  'plan:revised': {
+    entryRef: 'rulvar.plan.entry_ref',
+    planHash: 'rulvar.plan.hash',
+    applied: 'rulvar.plan.applied',
+    dropped: 'rulvar.plan.dropped',
+    revisionUnitsRemaining: 'rulvar.plan.revision_units_remaining',
+  },
+  'node:parked': { nodeId: 'rulvar.node.id', logicalTaskId: 'rulvar.node.logical_task_id' },
+  'node:cancelled': { nodeId: 'rulvar.node.id', logicalTaskId: 'rulvar.node.logical_task_id' },
+  'node:linked': {
+    nodeId: 'rulvar.node.id',
+    logicalTaskId: 'rulvar.node.logical_task_id',
+    donorRef: 'rulvar.node.donor_ref',
+    reclaimedUsd: 'rulvar.node.reclaimed_usd',
+  },
+  'orchestrator:woke': {
+    digestSeq: 'rulvar.orchestrator.digest_seq',
+    planHash: 'rulvar.plan.hash',
+    coversToOrdinal: 'rulvar.orchestrator.covers_to_ordinal',
+    renderSize: 'rulvar.orchestrator.render_size',
+  },
+  'orchestrator:budget': {
+    atCap: 'rulvar.orchestrator.at_cap',
+    spentUsd: 'rulvar.orchestrator.spent_usd',
+    capUsd: 'rulvar.orchestrator.cap_usd',
+    finalizeReserveUsd: 'rulvar.orchestrator.finalize_reserve_usd',
+    runSpentUsd: 'rulvar.orchestrator.run_spent_usd',
+    runCeilingUsd: 'rulvar.orchestrator.run_ceiling_usd',
+    orchestratorSpentUsd: 'rulvar.orchestrator.orchestrator_spent_usd',
+    orchestratorCapUsd: 'rulvar.orchestrator.orchestrator_cap_usd',
+    orchestratorShare: 'rulvar.orchestrator.share',
+    softWarning: 'rulvar.orchestrator.soft_warning',
+  },
+  'orchestrator:acceptance': {
+    verdict: 'rulvar.acceptance.verdict',
+    completion: 'rulvar.acceptance.completion',
+    childStatusCounts: { '*': 'rulvar.acceptance.child_status_counts' },
+    minSpawnedChildren: 'rulvar.acceptance.min_spawned_children',
+    spawnedChildren: 'rulvar.acceptance.spawned_children',
+  },
+  'escalation:raised': {
+    entryRef: 'rulvar.escalation.entry_ref',
+    kind: 'rulvar.escalation.kind',
+    logicalTaskId: 'rulvar.escalation.logical_task_id',
+    costToDateUsd: 'rulvar.escalation.cost_to_date_usd',
+  },
+  'escalation:decided': {
+    entryRef: 'rulvar.escalation.entry_ref',
+    decision: 'rulvar.escalation.decision',
+    by: 'rulvar.escalation.by',
+    countsAgainstLimit: 'rulvar.escalation.counts_against_limit',
+  },
+  'spawn:admitted': {
+    entryRef: 'rulvar.spawn.entry_ref',
+    verdict: 'rulvar.spawn.verdict',
+    agentType: 'rulvar.agent_type',
+    logicalTaskId: 'rulvar.spawn.logical_task_id',
+    spawnUnitsAfter: 'rulvar.spawn.units_after',
+    reserveUsd: 'rulvar.spawn.reserve_usd',
+  },
+  'spawn:rejected': {
+    entryRef: 'rulvar.spawn.entry_ref',
+    code: 'rulvar.spawn.code',
+    agentType: 'rulvar.agent_type',
+    logicalTaskId: 'rulvar.spawn.logical_task_id',
+  },
+  'admission:lease-lost': {
+    unitId: 'rulvar.admission.unit_id',
+    generation: 'rulvar.admission.generation',
+  },
+  'verify:failed': {
+    entryRef: 'rulvar.verify.entry_ref',
+    logicalTaskId: 'rulvar.verify.logical_task_id',
+    rung: 'rulvar.verify.rung',
+    gate: 'rulvar.verify.gate',
+  },
+  'ledger:op': { entryRef: 'rulvar.ledger.entry_ref', op: 'rulvar.ledger.op' },
+  'stall:detected': {
+    logicalTaskId: 'rulvar.stall.logical_task_id',
+    stallStreak: 'rulvar.stall.streak',
+  },
+  'guard:oscillation': {
+    spawnKeyHash: 'rulvar.guard.spawn_key_hash',
+    oscillationCount: 'rulvar.guard.oscillation_count',
+    limit: 'rulvar.guard.limit',
+  },
+  'resolution:applied': {
+    targetRef: 'rulvar.resolution.target_ref',
+    entryRef: 'rulvar.resolution.entry_ref',
+    by: 'rulvar.resolution.by',
+  },
+  'resolution:superseded': {
+    targetRef: 'rulvar.resolution.target_ref',
+    entryRef: 'rulvar.resolution.entry_ref',
+    supersededBy: 'rulvar.resolution.superseded_by',
+    reason: 'rulvar.resolution.reason',
+  },
+  'termination:debit': {
+    entryRef: 'rulvar.termination.entry_ref',
+    counter: 'rulvar.termination.counter',
+    remaining: 'rulvar.termination.remaining',
+    phi: 'rulvar.termination.phi',
+  },
+  'termination:denied': {
+    entryRef: 'rulvar.termination.entry_ref',
+    counter: 'rulvar.termination.counter',
+    code: 'rulvar.termination.code',
+  },
+  'termination:config-drift': {
+    field: 'rulvar.termination.field',
+    frozenValue: 'rulvar.termination.frozen_value',
+    liveValue: 'rulvar.termination.live_value',
+  },
+  'journal:compat': { code: 'rulvar.journal.code', found: 'rulvar.journal.found' },
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Masks, then bounds, one exported string: masking first, so a cut can
+ * never split a credential into an unrecognized prefix. Reports whether
+ * the exported text differs from the event's.
+ */
+function boundedString(
+  text: string,
+  maskText: (text: string) => string,
+): { text: string; altered: boolean } {
+  const masked = maskText(text);
+  if (masked.length <= MAX_STRING_CHARS) {
+    return { text: masked, altered: masked !== text };
+  }
+  let head = masked.slice(0, MAX_STRING_CHARS);
+  const last = head.charCodeAt(head.length - 1);
+  if (last >= 0xd800 && last <= 0xdbff) {
+    head = head.slice(0, -1);
+  }
+  return {
+    text: `${head} [truncated ${String(masked.length - head.length)} chars]`,
+    altered: true,
+  };
+}
+
+interface PayloadProjection {
+  attrs: Record<string, AttributeValue>;
+  /** Payload fields withheld or altered on the way to the span event. */
+  dropped: number;
+}
+
+/**
+ * Exports one leaf under one key. Returns false when the value has no
+ * shape the projection carries (an object, an array, a non-finite
+ * number); the caller counts the drop.
+ */
+function projectLeaf(
+  projection: PayloadProjection,
+  key: string,
+  value: unknown,
+  maskText: (text: string) => string,
+): boolean {
+  if (typeof value === 'string') {
+    const bounded = boundedString(value, maskText);
+    projection.attrs[key] = bounded.text;
+    if (bounded.altered) {
+      projection.dropped += 1;
+    }
+    return true;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return false;
+    }
+    projection.attrs[key] = value;
+    return true;
+  }
+  if (typeof value === 'boolean') {
+    projection.attrs[key] = value;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Walks one object level against its allowlist. Absent and null fields
+ * become no attribute and no count (an uncapped run's `remainingUsd`
+ * is null on every budget update); every other field either exports
+ * under its listed key or counts as dropped.
+ */
+function projectFields(
+  projection: PayloadProjection,
+  source: Record<string, unknown>,
+  allow: PayloadAllowlist,
+  maskText: (text: string) => string,
+  skip?: ReadonlySet<string>,
+): void {
+  const wildcard = Object.hasOwn(allow, '*') ? allow['*'] : undefined;
+  for (const [field, value] of Object.entries(source)) {
+    if (skip?.has(field) === true || value === undefined || value === null) {
+      continue;
+    }
+    let spec = Object.hasOwn(allow, field) ? allow[field] : undefined;
+    if (spec === undefined && typeof wildcard === 'string' && field.length <= MAX_KEY_CHARS) {
+      spec = `${wildcard}.${field}`;
+    }
+    if (spec === undefined) {
+      // Outside the allowlist: withheld and counted, never exported.
+      projection.dropped += 1;
+      continue;
+    }
+    if (typeof spec === 'string') {
+      if (!projectLeaf(projection, spec, value, maskText)) {
+        projection.dropped += 1;
+      }
+      continue;
+    }
+    if (isPlainObject(value)) {
+      projectFields(projection, value, spec, maskText);
+      continue;
+    }
+    // A record allowlist over a primitive (a host logging a bare
+    // value as its data) exports under the prefix itself.
+    const prefix = Object.hasOwn(spec, '*') ? spec['*'] : undefined;
+    if (typeof prefix === 'string' && projectLeaf(projection, prefix, value, maskText)) {
+      continue;
+    }
+    projection.dropped += 1;
+  }
+}
+
+/**
+ * The span event attributes of a payload-only event (RV4917): the
+ * sequence number, the fields its type's allowlist names, and the
+ * count of payload fields that did not reach the span event verbatim
+ * (withheld, masked, or truncated), present when nonzero. A type
+ * without an allowlist keeps the historical export byte for byte.
+ */
+function payloadAttributes(
+  event: WorkflowEvent,
+  maskText: (text: string) => string,
+): Record<string, AttributeValue> {
+  const allow = Object.hasOwn(PAYLOAD_ALLOWLIST, event.type)
+    ? PAYLOAD_ALLOWLIST[event.type]
+    : undefined;
+  if (allow === undefined) {
+    return { 'rulvar.entry_seq': event.seq };
+  }
+  const projection: PayloadProjection = { attrs: { 'rulvar.entry_seq': event.seq }, dropped: 0 };
+  projectFields(projection, event, allow, maskText, ENVELOPE_FIELDS);
+  if (projection.dropped > 0) {
+    projection.attrs[ATTRS_DROPPED] = projection.dropped;
+  }
+  return projection.attrs;
 }
 
 /**
@@ -487,9 +851,10 @@ export async function toOtel(
       }
       default: {
         // Payload-only event: attach to its own span if it has one,
-        // else to the innermost open span.
+        // else to the innermost open span, carrying the allowlisted
+        // payload (RV4917).
         const host = openBySpanId.get(event.spanId) ?? stack[stack.length - 1];
-        host?.span.addEvent(event.type, { 'rulvar.entry_seq': event.seq });
+        host?.span.addEvent(event.type, payloadAttributes(event, maskText));
       }
     }
   }

@@ -7048,6 +7048,33 @@ export const MUTATIONS = [
     replace: '    deficit = Math.max(deficit, 0);\n    met = met && true;',
     test: 'packages/core/src/engine/ctx-evidence-floor.test.ts',
   },
+  {
+    id: 'otel-payload-allowlist-holds',
+    doctrine:
+      "a payload field outside its event type's allowlist never reaches a span event (RV4917): with the withheld branch exporting instead, the ask of an external:waiting and a stream delta ride the trace verbatim and the counter says nothing was dropped",
+    file: 'packages/cli/src/otel.ts',
+    find: '      // Outside the allowlist: withheld and counted, never exported.\n      projection.dropped += 1;\n      continue;',
+    replace: '      projection.attrs[`rulvar.${field}`] = String(value);\n      continue;',
+    test: 'packages/cli/src/otel.test.ts',
+  },
+  {
+    id: 'otel-payload-mask-holds',
+    doctrine:
+      'every exported payload string passes the secret masker before it is bounded (RV4917): with the mask bypassed, a key shaped value in host log data leaves the process verbatim',
+    file: 'packages/cli/src/otel.ts',
+    find: '  const masked = maskText(text);',
+    replace: '  const masked = text;',
+    test: 'packages/cli/src/otel.test.ts',
+  },
+  {
+    id: 'otel-payload-bound-holds',
+    doctrine:
+      'an exported payload string is cut at the bound with a marker (RV4917): with the bound lifted, a 600 character log message rides the span event whole and the counter misses it',
+    file: 'packages/cli/src/otel.ts',
+    find: '  if (masked.length <= MAX_STRING_CHARS) {',
+    replace: '  if (masked.length <= Number.MAX_SAFE_INTEGER) {',
+    test: 'packages/cli/src/otel.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
