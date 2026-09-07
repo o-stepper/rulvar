@@ -6,7 +6,7 @@
 
 # Interface: SpanLike
 
-Defined in: [packages/cli/src/otel.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L35)
+Defined in: [packages/cli/src/otel.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L42)
 
 The tiny subset of the OTel Tracer/Span API the exporter uses.
 
@@ -18,7 +18,7 @@ The tiny subset of the OTel Tracer/Span API the exporter uses.
 addEvent(name, attributes?): void;
 ```
 
-Defined in: [packages/cli/src/otel.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L37)
+Defined in: [packages/cli/src/otel.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L44)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ Defined in: [packages/cli/src/otel.ts:37](https://github.com/o-stepper/rulvar/bl
 end(endTime?): void;
 ```
 
-Defined in: [packages/cli/src/otel.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L39)
+Defined in: [packages/cli/src/otel.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L46)
 
 #### Parameters
 
@@ -59,7 +59,7 @@ Defined in: [packages/cli/src/otel.ts:39](https://github.com/o-stepper/rulvar/bl
 setAttribute(key, value): void;
 ```
 
-Defined in: [packages/cli/src/otel.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L36)
+Defined in: [packages/cli/src/otel.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L43)
 
 #### Parameters
 
@@ -80,7 +80,7 @@ Defined in: [packages/cli/src/otel.ts:36](https://github.com/o-stepper/rulvar/bl
 setStatus(status): void;
 ```
 
-Defined in: [packages/cli/src/otel.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L38)
+Defined in: [packages/cli/src/otel.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L45)
 
 #### Parameters
 

@@ -443,7 +443,7 @@ Rulvar ships metric definitions and their inputs, not a metrics backend. Each me
 
 ## Exporting traces to OpenTelemetry
 
-The OTel exporter ships in `@rulvar/cli`, not in the core: `@rulvar/core` has zero OpenTelemetry dependency, and `@opentelemetry/api` (^1.9) is an optional peer of the CLI package. `toOtel(run, tracer)` consumes a run's event stream in `seq` order and maps the span tree one to one onto OTel spans: span openers start spans, the matching closers end them with the closing status, and payload-only events (`log`, `budget:update`, the adaptive events) attach as OTel span events on their enclosing span. It resolves with the number of spans created.
+The OTel exporter ships in `@rulvar/cli`, not in the core: `@rulvar/core` has zero OpenTelemetry dependency, and `@opentelemetry/api` (^1.9) is an optional peer of the CLI package. `toOtel(run, tracer)` consumes a run's event stream in `seq` order and maps the span tree one to one onto OTel spans: span openers start spans, the matching closers end them with the closing status, and payload only events (`log`, `budget:update`, the admission and adaptive families) attach as OTel span events on their enclosing span, carrying the payload fields their type's allowlist names (the second table below). It resolves with the number of spans created.
 
 ```bash
 pnpm add @rulvar/cli @opentelemetry/api
@@ -483,10 +483,28 @@ Attributes use two namespaces:
 | `gen_ai.operation.name` | agent spans (the invocation role) |
 | `rulvar.determinism.category`, `rulvar.determinism.provenance`, `code.filepath`, `code.lineno` | the `determinism:warning` span event, attached to its enclosing span with the localized code location, so a backend can alert on workflow-provenance warnings without parsing frames |
 
+Payload only events carry their payload since RV4917. Before it, every event without an explicit case (`budget:update`, `spawn:admitted`, `quota:denied`, `admission:lease-lost`, `orchestrator:acceptance`, `log`, and the rest of the adaptive family) attached as a span event with the type and `rulvar.entry_seq` and nothing else, so the tenth comparison experiment's trace showed seventy budget updates without a dollar on any of them. The projection is an allowlist per event type: only the listed fields become span event attributes, flat and typed as string, number, or boolean, and a field the event does not carry, or carries as `null` (an uncapped run's `remainingUsd`), becomes no attribute. Every exported string passes the secret masking policy (the default set plus the `patterns` option) and is then cut at 256 characters with a `[truncated N chars]` marker; nested objects and arrays outside the listed shapes are withheld. `rulvar.attrs_dropped`, present when nonzero, counts the payload fields that did not reach the span event verbatim: withheld (outside the allowlist, or of a shape the projection does not carry) or altered (masked, truncated). An event type without an allowlist keeps the type plus `rulvar.entry_seq` and no counter, so a future event never exports a field nobody reviewed. The content bearing fields stay off every list: `agent:stream` exports nothing but its counter, `external:waiting` withholds its `prompt`, `agent:error` withholds `error.data`, and the `tool:*` payloads ride the tool spans above, never a span event.
+
+| Span event | Attributes |
+|---|---|
+| `log` | `rulvar.log.level`, `rulvar.log.msg`, and each primitive top level entry of `data` as `rulvar.log.data.<key>` (a bare primitive `data` as `rulvar.log.data`); host authored through `ctx.log`, so a workflow that logs model content exports it, bounded and masked |
+| `budget:update` | `rulvar.budget.spent_usd`, `rulvar.budget.remaining_usd` (absent when uncapped), `rulvar.budget.committed_reserve_usd` |
+| `external:waiting`, `approval:pending` | `rulvar.external.key`, `rulvar.external.entry_ref`, `rulvar.external.deadline_at`; `rulvar.tool_name`, `rulvar.approval.entry_ref`, `rulvar.approval.deadline_at` |
+| `agent:queued`, `agent:error`, `agent:schema-retry` | `rulvar.agent_type`, `rulvar.agent_label`; the error's `rulvar.error.code`, `rulvar.error.message`, `rulvar.error.retryable`, and `rulvar.error.will_retry`; `rulvar.schema_retry.attempt`, `rulvar.schema_retry.max_attempts` |
+| `quota:denied` | `rulvar.agent_type`, `rulvar.agent_label`, `gen_ai.request.model`, `rulvar.quota.reason`, `rulvar.quota.retry_after_ms`, `rulvar.quota.will_retry` |
+| `budget:exposure-wait` | `rulvar.agent_type`, `rulvar.agent_label`, `rulvar.exposure.scope`, `gen_ai.request.model`, `rulvar.exposure.cap_usd`, `rulvar.exposure.spent_usd`, `rulvar.exposure.in_flight_usd`, `rulvar.exposure.estimate_usd`, `rulvar.exposure.will_wait` |
+| `control:wire` | `rulvar.control.kind`, `gen_ai.request.model`, `rulvar.control.outcome`, `rulvar.control.input_tokens` |
+| `agent:stream` | nothing but `rulvar.attrs_dropped: 1`; the delta is model output |
+| `spawn:admitted`, `spawn:rejected` | `rulvar.spawn.entry_ref`, `rulvar.spawn.verdict` or `rulvar.spawn.code`, `rulvar.agent_type`, `rulvar.spawn.logical_task_id`, `rulvar.spawn.units_after`, `rulvar.spawn.reserve_usd` |
+| `admission:lease-lost` | `rulvar.admission.unit_id`, `rulvar.admission.generation` |
+| `orchestrator:acceptance` | `rulvar.acceptance.verdict`, `rulvar.acceptance.completion`, `rulvar.acceptance.child_status_counts.<status>`, `rulvar.acceptance.min_spawned_children`, `rulvar.acceptance.spawned_children` |
+| `orchestrator:woke`, `orchestrator:budget` | `rulvar.orchestrator.digest_seq`, `rulvar.plan.hash`, `rulvar.orchestrator.covers_to_ordinal`, `rulvar.orchestrator.render_size`; `rulvar.orchestrator.at_cap` and the budget figures as `rulvar.orchestrator.spent_usd`, `cap_usd`, `finalize_reserve_usd`, `run_spent_usd`, `run_ceiling_usd`, `orchestrator_spent_usd`, `orchestrator_cap_usd`, `share`, `soft_warning` |
+| `plan:revised`, `node:*`, `escalation:*`, `verify:failed`, `ledger:op`, `stall:detected`, `guard:oscillation`, `resolution:*`, `termination:*`, `journal:compat` | every declared field, snake cased under its family prefix (`rulvar.plan.*`, `rulvar.node.*`, `rulvar.escalation.*`, `rulvar.verify.*`, `rulvar.ledger.*`, `rulvar.stall.*`, `rulvar.guard.*`, `rulvar.resolution.*`, `rulvar.termination.*`, `rulvar.journal.*`); the `termination:config-drift` values ride only when primitive, and `journal:compat.window` is withheld |
+
 The `gen_ai.*` semantic conventions are flagged unstable upstream, so the exact mapping is documented per release and may change in minor releases; OTel attribute names are outside Rulvar's compatibility surface (see [Versioning](/reference/versioning)).
 
 ::: info Content never rides spans
-Prompts, completions, tool inputs, tool outputs, and provider-raw blocks are never exported as span attributes or span events. Only identifiers, statuses, usage counters, and cost figures leave the process, and every string attribute additionally passes the secret-masking policy below.
+Prompts, completions, tool inputs, tool outputs, stream deltas, and provider-raw blocks are never exported as span attributes or span events. Only identifiers, statuses, usage counters, cost figures, and the bounded messages of the payload events leave the process, and every string attribute additionally passes the secret-masking policy below. Host log messages and data are the one host authored surface among them: keep model content out of `ctx.log`, or extend `patterns`.
 :::
 
 `@rulvar/cli` also exports the terminal renderer behind `rulvar run`: `renderEventLine(event)` formats one event (or returns `undefined` for silent types) and `attachProgress(handle, io)` wires it to a handle's stream.

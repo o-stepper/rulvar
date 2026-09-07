@@ -5,7 +5,7 @@
  * exercised with an in-memory tracer, with no @opentelemetry/* package
  * present).
  */
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -1231,5 +1231,326 @@ describe('OTel host redaction patterns (RV-217)', () => {
         { patterns: ['('] },
       ),
     ).rejects.toThrow(/not a valid regular expression/);
+  });
+});
+
+describe('toOtel payload projection (RV4917)', () => {
+  interface RecordedSpanEvent {
+    name: string;
+    attributes: Record<string, string | number | boolean>;
+  }
+  interface SpanWithEvents {
+    name: string;
+    attributes: Record<string, string | number | boolean>;
+    events: RecordedSpanEvent[];
+  }
+  /** A tracer that keeps span event attributes, which inMemoryTracer drops. */
+  function eventTracer(): { tracer: TracerLike; spans: SpanWithEvents[] } {
+    const spans: SpanWithEvents[] = [];
+    const tracer: TracerLike = {
+      startSpan(name, options) {
+        const record: SpanWithEvents = { name, attributes: { ...options?.attributes }, events: [] };
+        spans.push(record);
+        return {
+          setAttribute: (key, value) => {
+            record.attributes[key] = value;
+          },
+          addEvent: (eventName, attributes) => {
+            record.events.push({ name: eventName, attributes: { ...attributes } });
+          },
+          setStatus: () => undefined,
+          end: () => undefined,
+        };
+      },
+    };
+    return { tracer, spans };
+  }
+  const okResult = Promise.resolve({
+    status: 'ok',
+    dropped: [],
+    pending: [],
+    usage: { inputTokens: 0, outputTokens: 0 },
+    cost: { totalUsd: 0, byModel: {}, byPhase: {}, byAgentType: {}, byRole: {}, unpriced: [] },
+  } as unknown as import('@rulvar/core').RunOutcome<unknown>);
+  const at = (ms: number): string => new Date(1_700_000_000_000 + ms).toISOString();
+  const toStream = (events: WorkflowEvent[]): AsyncIterable<WorkflowEvent> =>
+    (async function* () {
+      for (const event of events) {
+        yield await Promise.resolve(event);
+      }
+    })();
+  const allEvents = (spans: SpanWithEvents[]): RecordedSpanEvent[] =>
+    spans.flatMap((span) => span.events);
+  const named = (spans: SpanWithEvents[], name: string): RecordedSpanEvent[] =>
+    allEvents(spans).filter((event) => event.name === name);
+
+  // Fifteen events of the tenth comparison experiment's journal (414
+  // lines, 2026-09-01): the run spine, two budget updates, two
+  // admissions, the security specialist's window log, tool pair, and
+  // limit terminal, the rejected acceptance, the data log, and the
+  // terminal, with the error data and the acceptance roster trimmed.
+  const FIXTURE = new URL('./fixtures/rv4917-tenth-experiment-events.jsonl', import.meta.url);
+  const RUN_ID = 'rulvar-benchmark-v1252-2026-09-01T10-56-04-591Z';
+  const fixtureEvents = (): WorkflowEvent[] =>
+    readFileSync(FIXTURE, 'utf8')
+      .split('\n')
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as WorkflowEvent);
+
+  it('the tenth experiment journal: budget, admission, log, and acceptance payloads ride their span events', async () => {
+    // Before RV4917 every one of these span events carried the type and
+    // rulvar.entry_seq and nothing else: seventy budget updates without
+    // a dollar, four admissions without an agent type.
+    const { tracer, spans } = eventTracer();
+    await toOtel({ runId: RUN_ID, events: toStream(fixtureEvents()), result: okResult }, tracer);
+
+    const budget = named(spans, 'budget:update');
+    expect(budget).toHaveLength(2);
+    expect(budget[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 1,
+      'rulvar.budget.spent_usd': 0,
+      'rulvar.budget.remaining_usd': 7,
+      'rulvar.budget.committed_reserve_usd': 0,
+    });
+    expect(budget[1]?.attributes['rulvar.budget.committed_reserve_usd']).toBe(1.55);
+
+    const admitted = named(spans, 'spawn:admitted');
+    expect(admitted).toHaveLength(2);
+    expect(admitted[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 7,
+      'rulvar.spawn.entry_ref': 2,
+      'rulvar.spawn.verdict': 'admit',
+      'rulvar.agent_type': 'integration-architecture',
+      'rulvar.spawn.logical_task_id': '01M1E9SFKMXYECCJ04CB8DBGJ7',
+      'rulvar.spawn.units_after': 499,
+    });
+
+    expect(named(spans, 'orchestrator:acceptance')[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 411,
+      'rulvar.acceptance.verdict': 'rejected',
+      'rulvar.acceptance.completion': 'rejected',
+      'rulvar.acceptance.child_status_counts.ok': 3,
+      'rulvar.acceptance.child_status_counts.limit': 1,
+      'rulvar.acceptance.min_spawned_children': 4,
+      'rulvar.acceptance.spawned_children': 4,
+    });
+
+    // The window log attaches to the specialist's agent span, the data
+    // log to the run span, each with its message and flattened data.
+    const agentSpan = spans.find((span) => span.name === 'agent security-operations loop');
+    expect(agentSpan?.events.find((event) => event.name === 'log')?.attributes).toEqual({
+      'rulvar.entry_seq': 307,
+      'rulvar.log.level': 'info',
+      'rulvar.log.msg': 'finalization window entered: 7 of the reserved final 7 tool calls remain',
+    });
+    const runSpan = spans.find((span) => span.name === 'run rulvar-orchestrate');
+    expect(runSpan?.events.find((event) => event.name === 'log')?.attributes).toEqual({
+      'rulvar.entry_seq': 412,
+      'rulvar.log.level': 'info',
+      'rulvar.log.msg': 'orchestrator synthesis skipped',
+      'rulvar.log.data.reason': 'synthesis_skipped_by_acceptance',
+    });
+
+    // Nothing on this journal was withheld or altered, so no counter
+    // appears; every exported value is a flat OTel attribute type.
+    for (const event of allEvents(spans)) {
+      expect(event.attributes['rulvar.attrs_dropped']).toBeUndefined();
+      for (const value of Object.values(event.attributes)) {
+        expect(['string', 'number', 'boolean']).toContain(typeof value);
+      }
+    }
+
+    // The explicit cases stayed byte identical around the projection:
+    // the spans, their closing attributes, and the envelope mirror.
+    expect(spans.map((span) => span.name)).toEqual([
+      'run rulvar-orchestrate',
+      'agent security-operations loop',
+      'invocation loop',
+      'tool list_files',
+    ]);
+    expect(agentSpan?.attributes['rulvar.status']).toBe('limit');
+    expect(agentSpan?.attributes['rulvar.cost_usd']).toBe(0.1874777);
+    expect(agentSpan?.attributes['rulvar.exploration.tool_calls_used']).toBe(36);
+    expect(runSpan?.attributes['rulvar.run.total_usd']).toBe(1.5500739);
+    expect(runSpan?.attributes['rulvar.run.completion']).toBe('rejected');
+  });
+
+  it('withholds content bearing fields with a count, masks key shaped strings, and bounds long ones', async () => {
+    const SECRET = 'sk-abc123def456ghi789jkl012';
+    const PROMPT = 'Please approve the wire to the vendor';
+    const DELTA = 'the model said this';
+    const BODY = 'raw provider body';
+    const base = { runId: 'rp', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        seq: 1,
+        ts: at(1),
+        spanId: 's0',
+        type: 'log',
+        level: 'warn',
+        msg: 'x'.repeat(600),
+        data: { token: SECRET, count: 3, flag: true, nested: { a: 1 }, list: [1, 2] },
+      },
+      {
+        ...base,
+        seq: 2,
+        ts: at(2),
+        spanId: 's0',
+        type: 'external:waiting',
+        key: 'k1',
+        entryRef: 5,
+        prompt: PROMPT,
+      },
+      { ...base, seq: 3, ts: at(3), spanId: 's0', type: 'agent:stream', delta: DELTA },
+      {
+        ...base,
+        seq: 4,
+        ts: at(4),
+        spanId: 's0',
+        type: 'agent:error',
+        agentType: 'reviewer',
+        error: { code: 'transport', message: 'boom', retryable: true, data: { body: BODY } },
+        willRetry: true,
+      },
+      {
+        ...base,
+        seq: 5,
+        ts: at(5),
+        spanId: 's0',
+        type: 'quota:denied',
+        agentType: 'reviewer',
+        model: 'fake:model',
+        reason: 'tokensPerMinute 1800000 exhausted',
+        retryAfterMs: 1200,
+        willRetry: true,
+      },
+      {
+        ...base,
+        seq: 6,
+        ts: at(6),
+        spanId: 's0',
+        type: 'admission:lease-lost',
+        unitId: 'u1',
+        generation: 'g7',
+      },
+      {
+        ...base,
+        seq: 7,
+        ts: at(7),
+        spanId: 's0',
+        type: 'budget:update',
+        spentUsd: 0.5,
+        remainingUsd: null,
+        committedReserveUsd: 0,
+      },
+      { ...base, seq: 8, ts: at(8), spanId: 's0', type: 'future:event', payload: 'unreviewed' },
+      { ...base, seq: 9, ts: at(9), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.5 },
+    ] as unknown as WorkflowEvent[];
+    const { tracer, spans } = eventTracer();
+    await toOtel({ runId: 'rp', events: toStream(events), result: okResult }, tracer);
+
+    // The log: the message cut at 256 characters with the marker, the
+    // key shaped value masked, the primitives flat, the nested object
+    // and the array withheld; four fields did not arrive verbatim.
+    expect(named(spans, 'log')[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 1,
+      'rulvar.log.level': 'warn',
+      'rulvar.log.msg': `${'x'.repeat(256)} [truncated 344 chars]`,
+      'rulvar.log.data.token': '[masked-secret]',
+      'rulvar.log.data.count': 3,
+      'rulvar.log.data.flag': true,
+      'rulvar.attrs_dropped': 4,
+    });
+
+    // The ask to a human never rides; the identifiers do, and the
+    // counter says one field was withheld.
+    expect(named(spans, 'external:waiting')[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 2,
+      'rulvar.external.key': 'k1',
+      'rulvar.external.entry_ref': 5,
+      'rulvar.attrs_dropped': 1,
+    });
+
+    // A stream delta is model output: nothing but the count.
+    expect(named(spans, 'agent:stream')[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 3,
+      'rulvar.attrs_dropped': 1,
+    });
+
+    // The typed error rides by code, message, and retryability; its
+    // arbitrary data is withheld.
+    expect(named(spans, 'agent:error')[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 4,
+      'rulvar.agent_type': 'reviewer',
+      'rulvar.error.code': 'transport',
+      'rulvar.error.message': 'boom',
+      'rulvar.error.retryable': true,
+      'rulvar.error.will_retry': true,
+      'rulvar.attrs_dropped': 1,
+    });
+
+    expect(named(spans, 'quota:denied')[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 5,
+      'rulvar.agent_type': 'reviewer',
+      'gen_ai.request.model': 'fake:model',
+      'rulvar.quota.reason': 'tokensPerMinute 1800000 exhausted',
+      'rulvar.quota.retry_after_ms': 1200,
+      'rulvar.quota.will_retry': true,
+    });
+    expect(named(spans, 'admission:lease-lost')[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 6,
+      'rulvar.admission.unit_id': 'u1',
+      'rulvar.admission.generation': 'g7',
+    });
+
+    // An uncapped run's null remaining budget is no attribute and no
+    // count: absence is not a drop.
+    expect(named(spans, 'budget:update')[0]?.attributes).toEqual({
+      'rulvar.entry_seq': 7,
+      'rulvar.budget.spent_usd': 0.5,
+      'rulvar.budget.committed_reserve_usd': 0,
+    });
+
+    // A type without an allowlist keeps the historical export byte for
+    // byte: the type and the sequence number, no counter, no field.
+    expect(named(spans, 'future:event')[0]?.attributes).toEqual({ 'rulvar.entry_seq': 8 });
+
+    // None of the content reached the tracer in any form.
+    const flat = JSON.stringify(spans);
+    expect(flat).not.toContain(SECRET);
+    expect(flat).not.toContain(PROMPT);
+    expect(flat).not.toContain(DELTA);
+    expect(flat).not.toContain(BODY);
+    expect(flat).not.toContain('unreviewed');
+  });
+
+  it('host redaction patterns mask log messages on top of the default set', async () => {
+    const PII = 'ivan.petrov+medical@example.com';
+    const base = { runId: 'rh', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        seq: 1,
+        ts: at(1),
+        spanId: 's0',
+        type: 'log',
+        level: 'info',
+        msg: `contacted ${PII}`,
+        data: { to: PII },
+      },
+      { ...base, seq: 2, ts: at(2), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0 },
+    ] as unknown as WorkflowEvent[];
+    const { tracer, spans } = eventTracer();
+    await toOtel({ runId: 'rh', events: toStream(events), result: okResult }, tracer, {
+      patterns: ['[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}'],
+    });
+    const log = named(spans, 'log')[0]?.attributes;
+    expect(log?.['rulvar.log.msg']).toBe('contacted [masked-secret]');
+    expect(log?.['rulvar.log.data.to']).toBe('[masked-secret]');
+    expect(log?.['rulvar.attrs_dropped']).toBe(2);
+    expect(JSON.stringify(spans)).not.toContain(PII);
   });
 });
