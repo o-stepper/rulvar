@@ -1,5 +1,24 @@
 # @rulvar/executor
 
+## 1.253.0
+
+### Minor Changes
+
+- 8e4bff4: The worktree cwd reaches the executors, and the regulated container descriptor is complete and judged strictly (RV4914, RV4915). The isolated patch posture composed worktree isolation with the isolated executor on paper only: the `IsolatedExecRequest` carried no directory, and both reference executors ran every call in an ephemeral directory removed after the call, so a worktree spawn dispatching through them drafted its change where the patch collector never looked and the patch came back empty, silently. The request now carries the acquired tree as `cwd` exactly under worktree isolation; the subprocess child starts there with `RULVAR_SCRATCH` naming its ephemeral directory, the container executor bind mounts the tree as the work mount (`/work`) and the ephemeral directory beside it at `/scratch` (the new `scratchMount` option), and both ledger phases name the tree (`cwd`, plus `workMount` for a container), a shape the JSONL scan validates when present. The regulated posture of a container executor read only the network mode and the root posture and required neither, never hashed the image, the capabilities, the limits or `extraDockerArgs`, and the executor appended the extra flags after its hardening flags, so a `--network host` among them ran with the host network beneath a fingerprint that attested none. The descriptor now carries `image`, `capDrop`, `memory`, `cpus`, `pidsLimit`, `workMount`, `scratchMount` and `extraDockerArgs` verbatim, and `compileRegulatedProfile` refuses a container executor by field name unless `network` is `'none'`, the root is read only, `capDrop` lists `ALL`, the image is pinned by digest (`name@sha256:<64 hex>`) and `extraDockerArgs` is empty, the strict rule chosen over a denylist because list valued flags such as `--cap-add` accumulate whatever the argv order; the argv places `extraDockerArgs` BEFORE the hardening flags so a repeated single valued flag resolves to the fixed value and a conflicting `--network` fails the dispatch at the daemon, the fix of a confirmed defect nobody could rely on; and a tool whose `executorSpec` names a digest pinned `image` runs in it (a tag refuses typed), honoring what the tools guide has promised since RV1802. A request without a worktree, a ledger row without one, and a container argv without extra flags stay byte identical. Seven probes hold the field on the request, the child cwd, the work mount, the argv order, and the three refusals.
+
+### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ## 1.252.0
 
 ### Patch Changes

@@ -1,5 +1,25 @@
 # @rulvar/store-conformance
 
+## 1.253.0
+
+### Minor Changes
+
+- beaf2b9: The concurrency semaphore binds on any admission level, and an expired grant parks its slot instead of handing it out under a live holder (RV4909, RV4910). The admission RFC promised four capped reservation measures and a per provider account semaphore that never restores under a possibly live holder; on 973add91 the scheduler capped wires alone, the `held` semaphore existed only for the `providerAccount` level, and the expiry sweep restored the slot together with the wires, so one `leaseTtlMs` after the last renew a hard cap of active runs admitted one worker too many while the engine bracket warned and kept working. Now every level configured with `concurrency` (tenant, provider account, scope) carries the active grant semaphore, so a tenant can cap its active runs across its provider accounts; the reservation's tokens, dollars, and exposure are documented as carried and never limited, money being the budget layer's bound, and the RFC and the durability guide now say exactly what admission caps. Expiry refunds the wires the fenced cover proves unused and parks the slot in the bucket's `parked` counter (additive in `AdmissionState`; a document persisted before it hydrates as nothing parked); the slot returns only through the holder's own release, cancel, or fresh enqueue under its identity, or an operator `cancel` by identity, never by expiry alone. The opt in `admission.onLeaseLost: 'cancel'` verifies the grant on every renew tick and cancels the run through its own machinery when the scheduler no longer answers `granted`; the default `'continue'` keeps every byte, the single announcement and its warning included. Conformance row 5 now runs with the semaphore and pins the parked slot through the late settlement, and the new row 13 pins the tenant level semaphore and the operator return. Three probes hold the any level admit check, the parked slot at expiry, and the cancel arm.
+- 99434a3: The stock queue worker becomes fit for production (RV4913). A code review of the tenth comparison experiment confirmed five defects in `createWorker` on 973add91: the worker never read `handle.events`, and the engine subscribes that stream at handle creation and buffers it without bound until a consumer arrives, so every driven run held its whole event history in memory until settle, multiplied by `concurrency`; a failed renew freed the slot the moment it failed and `stop()` snapshotted an active set that no longer held the evicted run, so a stop resolved over a run that was still live; the poll timer swallowed every sweep rejection, so a worker over a dead store idled silently; the resume was blind (`{ lease, args }` only), so a changed body warned past, a recorded fingerprint and scope went unchecked, and a run holding open wire intents refused typed and poisoned for this worker with nothing able to lift it; and `clampTurnToExposure` lived only in the run options, so a resumed segment refused the very dispatch genesis had clamped. The worker now drains every driven run's event stream (the opt in `onEvent` observes it, every event lands before the slot frees), marks a run whose renew failed as evicted and keeps it in its slot until the cancel settles (`active()` lists it, `stop()` waits for it, the slot frees a single time), reports failed timer sweeps through `onSweepError` and raises the `lastSweepError()` readiness flag until a later sweep completes (a direct `sweep()` still rejects to its caller), and forwards the host's `resumeOptions` (a value or a function of the run's meta: everything `ResumeOptions` offers except `lease` and `args`) to `engine.resume`. In `@rulvar/core` the armed clamp is recorded in `RunMeta` beside `strictPricing` and restored on every resume; only `true` is recorded, absence means off, no journal entry changes, so every existing run replays and resumes byte identical, and the store conformance kit now requires the field to round trip. Every default keeps its bytes except the confirmed defects (the drain, the eviction ordering, the sweep report) whose old behavior nobody could rely on. Held by the worker suite (a rejecting `renew`, a rejecting `listRuns`, a run emitting 100k events never more than one burst behind its drain, the open wire intent acknowledgment and `bodyHash: 'refuse'` through `resumeOptions`, a throwing posture callback), the exposure suite (the clamp surviving a bare resume, a meta without the field resuming with the historical refusal), and seven probes: the sweep error reaching the host and raising readiness, the evicted run holding its slot and being cancelled, the posture forwarded, the stream drained, and the resume restoring the clamp.
+
+### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ## 1.252.0
 
 ### Patch Changes

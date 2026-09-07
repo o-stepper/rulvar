@@ -18,6 +18,22 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.253.0
+
+#### Patch Changes
+
+- 1cf2fef: The Anthropic rates stamp and its prose catch up with the page (RV4918). `RATES_VERIFIED_AT` read `2026-07-31` and the comments around the Claude Sonnet 5 row said its $2 / $10 introductory pricing ends on 2026-08-31 with the standard 3/15 row to follow; the provider's pricing page, revised 2026-08-10 and re read on 2026-09-07 with the rates audit's own extractor over every seeded row, made the $2 / $10 rate the standard price and cancelled the scheduled increase. No number moved, so `pricingVersion` stays `anthropic-2026-07-31` and every rate is byte identical; `ratesVerifiedAt` on every priced row becomes `2026-09-07`, and the comments, the providers guide, and the model routing example say the rate is permanent with no scheduled change. The scheduled rates audit (`scripts/rates-audit.mjs`, the weekly live contract run) now also judges the age of every audited row's stamp and fails past sixty days even when the numbers match, because a matching table with a stamp nobody renews is exactly what a `strictPricing.maxRatesAgeDays` host discards on the calendar; a pull request job never reads the clock. The same re read found the audit matching `Claude Fable 5` against the page's newer `Claude Fable 5.1` row (a prefix, listed first, with a 0.025x cache read), a drift the seed does not have; a display name followed by a digit or a dot is now a different model. One probe holds the age bound.
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ### 1.252.0
 
 #### Patch Changes
@@ -2367,6 +2383,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ### 1.252.0
 
 #### Patch Changes
@@ -4511,6 +4542,28 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.253.0
+
+#### Minor Changes
+
+- 11b9974: The acceptance policy is forecast at every child settle, and the decision names what bound the children (RV4903, RV4906). In the tenth comparison experiment a specialist settled limit under an all ok policy with no salvage arm, the finish could never be accepted from that second on, and the engine said nothing while the coordinator spent four more minutes and a third of the run's money composing and repairing a document the acceptance then rejected; the same run's four specialists all expired at maxToolCalls with 18 to 30 percent of their declared money spent, and no surface said so. `acceptance.onUnreachable` declares the posture: the default `'continue'` computes nothing and keeps every byte; `'notify'` journals one `orchestrator_acceptance_forecast` decision when the forecast first turns, emits a log warning, stamps `acceptanceForecast` on every later await digest, and tells the coordinator to finish at once; `'fail-fast'` does the same and settles the run typed at the settle, stragglers cancelled and the coordination loop broken before its next paid turn, every child's paid output preserved in the journal; `'degrade'` accepts the unmet policy at the finish as a partial completion with the shortfall named and `acceptedByDegrade: true`, so a configured synthesis still composes over the settled children. The forecast applies the same per child arms as the acceptance fold, so the two never disagree about a child. The journaled acceptance decision, the envelope, and a rejection's error data now carry `childLimitProfile` (children, under a tool budget, cap hit, finalization window entered, starved, median budget share) whenever at least one child ran under a tool budget, a starved roster logs an info line naming the extension and the cap, and `rulvar cost-audit` prints the same figures from the journal. Two probes hold the forecast fold and the profile.
+- 99434a3: The stock queue worker becomes fit for production (RV4913). A code review of the tenth comparison experiment confirmed five defects in `createWorker` on 973add91: the worker never read `handle.events`, and the engine subscribes that stream at handle creation and buffers it without bound until a consumer arrives, so every driven run held its whole event history in memory until settle, multiplied by `concurrency`; a failed renew freed the slot the moment it failed and `stop()` snapshotted an active set that no longer held the evicted run, so a stop resolved over a run that was still live; the poll timer swallowed every sweep rejection, so a worker over a dead store idled silently; the resume was blind (`{ lease, args }` only), so a changed body warned past, a recorded fingerprint and scope went unchecked, and a run holding open wire intents refused typed and poisoned for this worker with nothing able to lift it; and `clampTurnToExposure` lived only in the run options, so a resumed segment refused the very dispatch genesis had clamped. The worker now drains every driven run's event stream (the opt in `onEvent` observes it, every event lands before the slot frees), marks a run whose renew failed as evicted and keeps it in its slot until the cancel settles (`active()` lists it, `stop()` waits for it, the slot frees a single time), reports failed timer sweeps through `onSweepError` and raises the `lastSweepError()` readiness flag until a later sweep completes (a direct `sweep()` still rejects to its caller), and forwards the host's `resumeOptions` (a value or a function of the run's meta: everything `ResumeOptions` offers except `lease` and `args`) to `engine.resume`. In `@rulvar/core` the armed clamp is recorded in `RunMeta` beside `strictPricing` and restored on every resume; only `true` is recorded, absence means off, no journal entry changes, so every existing run replays and resumes byte identical, and the store conformance kit now requires the field to round trip. Every default keeps its bytes except the confirmed defects (the drain, the eviction ordering, the sweep report) whose old behavior nobody could rely on. Held by the worker suite (a rejecting `renew`, a rejecting `listRuns`, a run emitting 100k events never more than one burst behind its drain, the open wire intent acknowledgment and `bodyHash: 'refuse'` through `resumeOptions`, a throwing posture callback), the exposure suite (the clamp surviving a bare resume, a meta without the field resuming with the historical refusal), and seven probes: the sweep error reaching the host and raising readiness, the evicted run holding its slot and being cancelled, the posture forwarded, the stream drained, and the resume restoring the clamp.
+- fe18ac5: The stock OTel projection exports the payload of every payload only event (RV4917). Everything without an explicit case in `toOtel` (`budget:update`, `spawn:admitted`, `quota:denied`, `admission:lease-lost`, `orchestrator:acceptance`, `log`, and the rest of the closed catalog) attached as a span event carrying the type and `rulvar.entry_seq` and nothing else, so the tenth comparison experiment's trace showed seventy budget updates without a dollar on any of them and four admissions without an agent type, and an incident responder read sequence numbers and opened the journal. Each payload only type now has an allowlist of fields projected as flat span event attributes (`rulvar.budget.spent_usd`, `rulvar.spawn.verdict`, `rulvar.quota.reason`, `rulvar.log.msg` with the primitive entries of `data` as `rulvar.log.data.<key>`, `rulvar.acceptance.child_status_counts.<status>`, and their siblings, documented per type in the observability guide); every exported string passes the secret masker, the default set plus `patterns`, and is then cut at 256 characters with a marker; nested objects, arrays, and every field outside the allowlist are withheld; and `rulvar.attrs_dropped`, present when nonzero, counts the fields that did not reach the span event verbatim. Prompts, tool arguments, results, stream deltas, and the arbitrary `error.data` never ride: `agent:stream` exports nothing but its counter and `external:waiting` withholds its `prompt`. A type without an allowlist keeps the historical export byte for byte, so a future event never leaves the process unreviewed, and the span cases (`run:end`, the agent, invocation, and tool spans, `determinism:warning`, the orphan `tool:end` span event) are byte identical. Held by the projection test over fifteen events of the tenth experiment's journal and three probes: a field leaking past the allowlist, the mask bypassed, the bound lifted.
+
+#### Patch Changes
+
+- 957c633: The stock worker says what it does not check (plan 49 wave B, the RV4913 remainder). `createWorker` is a queue shell over the public engine API and not a regulated worker, and until now nothing on its API page said where its checks end: it asserts no resume posture of its own (the host's `resumeOptions` is forwarded verbatim and the engine defaults decide otherwise), compiles no regulated profile and attests nothing, trusts `argsFor` because the engine records the args binding and does not enforce it (the refusal is the host's, as `rulvar resume` performs it), bounds no money and no admission beyond one process's `concurrency`, selects no run by identity, reads the meta row and never the journal for candidacy, poisons per process and retries without bound, authenticates nobody and isolates nothing, leaves retention to the host's predicate, adds no fencing to the store's lease protocol, persists no event, and restores no posture the engine does not restore from `RunMeta` itself. The list now lives in the TSDoc of `CreateWorkerOptions` and `createWorker`, so the generated API page carries it beside the options it qualifies, and in the CLI guide's queue worker section. Documentation only: no behavior changes and every default keeps its bytes.
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
 
 ### 1.252.0
 
@@ -7270,6 +7323,23 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.253.0
+
+#### Minor Changes
+
+- 11b9974: The acceptance policy is forecast at every child settle, and the decision names what bound the children (RV4903, RV4906). In the tenth comparison experiment a specialist settled limit under an all ok policy with no salvage arm, the finish could never be accepted from that second on, and the engine said nothing while the coordinator spent four more minutes and a third of the run's money composing and repairing a document the acceptance then rejected; the same run's four specialists all expired at maxToolCalls with 18 to 30 percent of their declared money spent, and no surface said so. `acceptance.onUnreachable` declares the posture: the default `'continue'` computes nothing and keeps every byte; `'notify'` journals one `orchestrator_acceptance_forecast` decision when the forecast first turns, emits a log warning, stamps `acceptanceForecast` on every later await digest, and tells the coordinator to finish at once; `'fail-fast'` does the same and settles the run typed at the settle, stragglers cancelled and the coordination loop broken before its next paid turn, every child's paid output preserved in the journal; `'degrade'` accepts the unmet policy at the finish as a partial completion with the shortfall named and `acceptedByDegrade: true`, so a configured synthesis still composes over the settled children. The forecast applies the same per child arms as the acceptance fold, so the two never disagree about a child. The journaled acceptance decision, the envelope, and a rejection's error data now carry `childLimitProfile` (children, under a tool budget, cap hit, finalization window entered, starved, median budget share) whenever at least one child ran under a tool budget, a starved roster logs an info line naming the extension and the cap, and `rulvar cost-audit` prints the same figures from the journal. Two probes hold the forecast fold and the profile.
+- 9fe8d5d: A truncated terminal call is named as the cut it is, and an allowlisted overrun inside the finalization window can land softly (RV4904, RV4902). The tenth comparison experiment's coordinator composed its finish under a 15000 token allowance of which 10061 went to reasoning; the arguments were cut before the JSON closed, the loop said only "failed validation", and the repair re paid the whole document under the same cut. When a turn ends at its output allowance with a tool call's arguments unparsed, the error result now carries a `truncation` sentence with the arithmetic (characters arrived, output tokens produced, reasoning share, the declared allowance), the `tool:end` event carries `errorCode: 'truncated-arguments'`, a log warning repeats it, and the full result counts terminal cuts in `truncatedTerminalExchanges`; the opt in `limits.repairTurnMaxOutputTokens` gives the granted repair turn its own output allowance, and the dynamic orchestrator tells the coordinator both allowances in its prompt when its own limits declare the field. The same run's security specialist died at 36 of 36 on one surplus `record_evidence` call with nine entries over a floor of four and a finished report in hand; under the opt in `finalizationWindow.onSurplus: 'answer'` an expiry inside the window on allowlisted calls with the floor met answers the tail typed and grants exactly one answer turn, told by a plain notice, in which only the terminal tool completes, once per invocation and counted from the message window so a resumed segment grants the same single turn. Both defaults keep every byte. Two probes hold the floor gate of the surplus turn and the naming of the cut.
+- 2c75107: The fan out ships assembled, every child receives the brief, and the evidence contract can demand a spread of sources (RV4905, RV4907, RV4908). The tenth comparison experiment assembled its fan out by hand and paid for every seam: the coordinator copied the harness role strings into every spawn prompt and no specialist ever read the frozen task; the call cap sat a quarter below the template with no extension to convert the unspent money; the acceptance had no salvage arm; and the task's demand for citations across implementation, tests, docs, and examples could not be declared, so the specialists cited documentation alone. `researchFanOut({ root, budgetUsd, children?, evidenceContract? })` returns the research profile with `RESEARCH_FAN_OUT_LIMITS` (the finalization window with the surplus turn, the reserve summary, the money to calls extension) and the acceptance that pairs with it (all ok with both salvage arms, the forecast on notify, the binding evidence floor and the roster floor when declared); preflight adds `tool-cap-binds-before-budget` (info) for a positive call cap beside declared money with no extension. `orchestrate childBrief: 'goal' | string` joins the brief to every spawn prompt before admission, so the journaled spec, the identity, and the dispatch carry one prompt, and the coordination prompt says so; without it an under briefed spawn is named at warn. `evidenceContract.distribution` declares the required count per source category, `classifyEvidenceFile` reads the recorded file's path (a contract may replace it), the effective floor becomes the larger of `minEntries` and the categories' sum, and every surface that read the floor reads the spread: the window's deficit and widened reserve, the proactive grant, the surplus gate, the terminal verdict (`evidence.byCategory`), the refusal, the window notice, and preflight's evidence call floor. The cookbook gains the fan out recipe. Two probes hold the brief join and the category verdict.
+- beaf2b9: The concurrency semaphore binds on any admission level, and an expired grant parks its slot instead of handing it out under a live holder (RV4909, RV4910). The admission RFC promised four capped reservation measures and a per provider account semaphore that never restores under a possibly live holder; on 973add91 the scheduler capped wires alone, the `held` semaphore existed only for the `providerAccount` level, and the expiry sweep restored the slot together with the wires, so one `leaseTtlMs` after the last renew a hard cap of active runs admitted one worker too many while the engine bracket warned and kept working. Now every level configured with `concurrency` (tenant, provider account, scope) carries the active grant semaphore, so a tenant can cap its active runs across its provider accounts; the reservation's tokens, dollars, and exposure are documented as carried and never limited, money being the budget layer's bound, and the RFC and the durability guide now say exactly what admission caps. Expiry refunds the wires the fenced cover proves unused and parks the slot in the bucket's `parked` counter (additive in `AdmissionState`; a document persisted before it hydrates as nothing parked); the slot returns only through the holder's own release, cancel, or fresh enqueue under its identity, or an operator `cancel` by identity, never by expiry alone. The opt in `admission.onLeaseLost: 'cancel'` verifies the grant on every renew tick and cancels the run through its own machinery when the scheduler no longer answers `granted`; the default `'continue'` keeps every byte, the single announcement and its warning included. Conformance row 5 now runs with the semaphore and pins the parked slot through the late settlement, and the new row 13 pins the tenant level semaphore and the operator return. Three probes hold the any level admit check, the parked slot at expiry, and the cancel arm.
+- 2166e53: Deny rules beat an allow from a hook, and `inheritPermissions` is wired (RV4911, RV4912). The permission chain's documented order let a hook's `'allow'` decide before the deny tables for every tool without `needsApproval`, so one engine level allow hook silently retired a profile deny rule, the deny rule that readonly isolation compiles, and the pilot profile's denial; no test covered the composition, and `compileRegulatedProfile` neither read the hooks nor hashed them, so a config with that hook carried the same fingerprint as one without it. The opt in `permissions.hookAllow: 'advisory'` holds a hook's allow while the deny rules read the hook modified input; a match denies, and only then does the held allow decide; the hook layer still stops at the allow, `deny` and `ask` verdicts keep their power, `strictApprovals` keeps its precedence, the mode merges monotonically across the engine, inherited and profile layers, and a value outside `'decisive'` and `'advisory'` refuses at compile. The regulated floor forces `'advisory'`, refuses an explicit `'decisive'` by field name at either level, and its posture map, now `regulated:5:<hash>`, hashes the mode and every permission layer the options reach: hook counts and `canUseTool` presence (closures are counted, never read), the deny and ask tables verbatim, the preset and the inheritance opt in, for the engine defaults and every profile that declares permissions. `inheritPermissions: true`, documented as an opt in and read nowhere, now works: the spawning agent's chain above the engine layer (its hooks, rules, `canUseTool`, modes, and the deny rule its readonly isolation compiled) rides the scope state its loop runs under and is prefixed between the engine layer and the child's own layers, so a parent deny reaches a child spawned from the parent's tools, and the regulated compile accepts the flag because the layers a child can inherit are exactly the hashed ones. The default `'decisive'`, the undeclared and the `false` opt in keep every byte; a non boolean `inheritPermissions` now refuses at compile instead of being ignored, which nothing could have relied on. Three probes hold the held allow, the regulated refusal, and the inheritance prefix.
+- 99434a3: The stock queue worker becomes fit for production (RV4913). A code review of the tenth comparison experiment confirmed five defects in `createWorker` on 973add91: the worker never read `handle.events`, and the engine subscribes that stream at handle creation and buffers it without bound until a consumer arrives, so every driven run held its whole event history in memory until settle, multiplied by `concurrency`; a failed renew freed the slot the moment it failed and `stop()` snapshotted an active set that no longer held the evicted run, so a stop resolved over a run that was still live; the poll timer swallowed every sweep rejection, so a worker over a dead store idled silently; the resume was blind (`{ lease, args }` only), so a changed body warned past, a recorded fingerprint and scope went unchecked, and a run holding open wire intents refused typed and poisoned for this worker with nothing able to lift it; and `clampTurnToExposure` lived only in the run options, so a resumed segment refused the very dispatch genesis had clamped. The worker now drains every driven run's event stream (the opt in `onEvent` observes it, every event lands before the slot frees), marks a run whose renew failed as evicted and keeps it in its slot until the cancel settles (`active()` lists it, `stop()` waits for it, the slot frees a single time), reports failed timer sweeps through `onSweepError` and raises the `lastSweepError()` readiness flag until a later sweep completes (a direct `sweep()` still rejects to its caller), and forwards the host's `resumeOptions` (a value or a function of the run's meta: everything `ResumeOptions` offers except `lease` and `args`) to `engine.resume`. In `@rulvar/core` the armed clamp is recorded in `RunMeta` beside `strictPricing` and restored on every resume; only `true` is recorded, absence means off, no journal entry changes, so every existing run replays and resumes byte identical, and the store conformance kit now requires the field to round trip. Every default keeps its bytes except the confirmed defects (the drain, the eviction ordering, the sweep report) whose old behavior nobody could rely on. Held by the worker suite (a rejecting `renew`, a rejecting `listRuns`, a run emitting 100k events never more than one burst behind its drain, the open wire intent acknowledgment and `bodyHash: 'refuse'` through `resumeOptions`, a throwing posture callback), the exposure suite (the clamp surviving a bare resume, a meta without the field resuming with the historical refusal), and seven probes: the sweep error reaching the host and raising readiness, the evicted run holding its slot and being cancelled, the posture forwarded, the stream drained, and the resume restoring the clamp.
+- 8e4bff4: The worktree cwd reaches the executors, and the regulated container descriptor is complete and judged strictly (RV4914, RV4915). The isolated patch posture composed worktree isolation with the isolated executor on paper only: the `IsolatedExecRequest` carried no directory, and both reference executors ran every call in an ephemeral directory removed after the call, so a worktree spawn dispatching through them drafted its change where the patch collector never looked and the patch came back empty, silently. The request now carries the acquired tree as `cwd` exactly under worktree isolation; the subprocess child starts there with `RULVAR_SCRATCH` naming its ephemeral directory, the container executor bind mounts the tree as the work mount (`/work`) and the ephemeral directory beside it at `/scratch` (the new `scratchMount` option), and both ledger phases name the tree (`cwd`, plus `workMount` for a container), a shape the JSONL scan validates when present. The regulated posture of a container executor read only the network mode and the root posture and required neither, never hashed the image, the capabilities, the limits or `extraDockerArgs`, and the executor appended the extra flags after its hardening flags, so a `--network host` among them ran with the host network beneath a fingerprint that attested none. The descriptor now carries `image`, `capDrop`, `memory`, `cpus`, `pidsLimit`, `workMount`, `scratchMount` and `extraDockerArgs` verbatim, and `compileRegulatedProfile` refuses a container executor by field name unless `network` is `'none'`, the root is read only, `capDrop` lists `ALL`, the image is pinned by digest (`name@sha256:<64 hex>`) and `extraDockerArgs` is empty, the strict rule chosen over a denylist because list valued flags such as `--cap-add` accumulate whatever the argv order; the argv places `extraDockerArgs` BEFORE the hardening flags so a repeated single valued flag resolves to the fixed value and a conflicting `--network` fails the dispatch at the daemon, the fix of a confirmed defect nobody could rely on; and a tool whose `executorSpec` names a digest pinned `image` runs in it (a tag refuses typed), honoring what the tools guide has promised since RV1802. A request without a worktree, a ledger row without one, and a container argv without extra flags stay byte identical. Seven probes hold the field on the request, the child cwd, the work mount, the argv order, and the three refusals.
+
+#### Patch Changes
+
+- ac94246: The finalization window notice is rendered when it is delivered, not when the entry fires (RV4901). The entry is detected call by call inside a tool batch, but a user message cannot interleave a batch, so the notice waited for the boundary while its text was composed at the entry: a remaining count the rest of the batch then spent, and a deficit counted over the history alone, blind to the batch's own record_evidence results. The tenth comparison experiment's security specialist entered the window on the third call of a six call record_evidence batch and read, after the batch, "7 of the reserved final 7 tool calls remain, record 4 more evidence entries first" with 3 calls left and all six entries recorded; it obeyed, the fourth extra call died at the cap, and a child with 9 entries over a floor of 4 and a finished report settled limit. The notice now names the binding dimension's live remaining, its live reserve, and the deficit over the history the batch just joined, so it agrees with the tool budget notice flushed after it and prints no deficit line for a floor the batch closed. An entry at a batch boundary whose batch recorded no evidence keeps its exact bytes, and a window a boundary grant reopened before the flush keeps the entry snapshot as before. One probe holds the live rendering.
+- 1cf2fef: The research tools read through a descriptor bound to the checked inode (RV4916). `repositoryResearchToolset` confined every path by realpath and a stat and then read by path, so between the containment check and the open a rename could swap a symlink or another file into the checked name and the tool returned bytes the check never saw; the Codex review of 973add91 named that race (no `O_NOFOLLOW`, no fstat), hard links, and bind mounts as the residual risks of the realpath guard. The containment check now records the device and inode of the regular file it admitted (by lstat, so a symlink swapped in since realpath classifies as the swap, not its target), the read opens the name with `O_NOFOLLOW` (a symlink swapped into the final component fails the open on macOS and Linux), fstats the descriptor, reads only when the descriptor is a regular file of exactly the recorded identity within `maxFileBytes`, and closes it on every path; a walked search hit anchors on the lstat taken just before its own open. Honest reads return byte identical pages and the existing error messages; a swap surfaces as a typed error value asking for a retry, a file that vanished between the check and the read as the existing `no such file` value instead of a thrown ENOENT, and an unreadable file as a typed value naming the code. Hard links and bind mounts name the same inode and stay outside this guard by design. Two probes hold the identity comparison and the `O_NOFOLLOW` flag.
 
 ### 1.252.0
 
@@ -10327,6 +10397,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/effects
 
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+  - @rulvar/store-conformance@1.253.0
+
 ### 1.252.0
 
 #### Patch Changes
@@ -10381,6 +10467,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/store-conformance@1.250.0
 
 ## eslint-plugin-rulvar
+
+### 1.253.0
 
 ### 1.252.0
 
@@ -10990,6 +11078,27 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+- Updated dependencies [1cf2fef]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+  - @rulvar/anthropic@1.253.0
+  - @rulvar/openai@1.253.0
+  - @rulvar/plan@1.253.0
+  - @rulvar/testing@1.253.0
 
 ### 1.252.0
 
@@ -14006,6 +14115,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.253.0
+
+#### Minor Changes
+
+- 8e4bff4: The worktree cwd reaches the executors, and the regulated container descriptor is complete and judged strictly (RV4914, RV4915). The isolated patch posture composed worktree isolation with the isolated executor on paper only: the `IsolatedExecRequest` carried no directory, and both reference executors ran every call in an ephemeral directory removed after the call, so a worktree spawn dispatching through them drafted its change where the patch collector never looked and the patch came back empty, silently. The request now carries the acquired tree as `cwd` exactly under worktree isolation; the subprocess child starts there with `RULVAR_SCRATCH` naming its ephemeral directory, the container executor bind mounts the tree as the work mount (`/work`) and the ephemeral directory beside it at `/scratch` (the new `scratchMount` option), and both ledger phases name the tree (`cwd`, plus `workMount` for a container), a shape the JSONL scan validates when present. The regulated posture of a container executor read only the network mode and the root posture and required neither, never hashed the image, the capabilities, the limits or `extraDockerArgs`, and the executor appended the extra flags after its hardening flags, so a `--network host` among them ran with the host network beneath a fingerprint that attested none. The descriptor now carries `image`, `capDrop`, `memory`, `cpus`, `pidsLimit`, `workMount`, `scratchMount` and `extraDockerArgs` verbatim, and `compileRegulatedProfile` refuses a container executor by field name unless `network` is `'none'`, the root is read only, `capDrop` lists `ALL`, the image is pinned by digest (`name@sha256:<64 hex>`) and `extraDockerArgs` is empty, the strict rule chosen over a denylist because list valued flags such as `--cap-add` accumulate whatever the argv order; the argv places `extraDockerArgs` BEFORE the hardening flags so a repeated single valued flag resolves to the fixed value and a conflicting `--network` fails the dispatch at the daemon, the fix of a confirmed defect nobody could rely on; and a tool whose `executorSpec` names a digest pinned `image` runs in it (a tag refuses typed), honoring what the tools guide has promised since RV1802. A request without a worktree, a ledger row without one, and a container argv without extra flags stay byte identical. Seven probes hold the field on the request, the child cwd, the work mount, the argv order, and the three refusals.
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ### 1.252.0
 
 #### Patch Changes
@@ -15561,6 +15689,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.253.0
+
+#### Patch Changes
+
+- 1cf2fef: The GPT-5.6 rates stamps are renewed with the rule that would have expired them (RV4918). The scheduled rates audit now fails any audited row whose `ratesVerifiedAt` is older than sixty days, and Terra and Luna still carried the `2026-07-31` docs verification of the provider's price cut while Sol carried `2026-08-23`, so the new rule would have paged the weekly run on 2026-09-29 for stamps nobody had renewed. Every GPT-5.6 row was re read on 2026-09-07 against its documented model page with the audit's own extractor and comparator, in both directions: input, output, cached input, the 1.25x cache write premium and the 272K long context tier all match the seed, so `ratesVerifiedAt` on Sol, its `gpt-5.6` alias, Terra and Luna becomes `2026-09-07` and nothing else moves; `pricingVersion` stays `openai-2026-08-23` because no rate changed, and the pre-5.6 rows keep their `2026-07-18` docs verification since they cite no page the audit can read. Sol's previous rates remain billing confirmed by the 2026-07-30 statement reconciliation; the current family rates are docs verified only, and their billing truth still waits for the next reconciliation over a saved export.
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
 
 ### 1.252.0
 
@@ -17916,6 +18060,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ### 1.252.0
 
 #### Patch Changes
@@ -20175,6 +20334,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+  - eslint-plugin-rulvar@1.253.0
 
 ### 1.252.0
 
@@ -22644,6 +22819,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+- Updated dependencies [1cf2fef]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+  - @rulvar/anthropic@1.253.0
+  - @rulvar/openai@1.253.0
 
 ### 1.252.0
 
@@ -25452,6 +25646,26 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.253.0
+
+#### Minor Changes
+
+- beaf2b9: The concurrency semaphore binds on any admission level, and an expired grant parks its slot instead of handing it out under a live holder (RV4909, RV4910). The admission RFC promised four capped reservation measures and a per provider account semaphore that never restores under a possibly live holder; on 973add91 the scheduler capped wires alone, the `held` semaphore existed only for the `providerAccount` level, and the expiry sweep restored the slot together with the wires, so one `leaseTtlMs` after the last renew a hard cap of active runs admitted one worker too many while the engine bracket warned and kept working. Now every level configured with `concurrency` (tenant, provider account, scope) carries the active grant semaphore, so a tenant can cap its active runs across its provider accounts; the reservation's tokens, dollars, and exposure are documented as carried and never limited, money being the budget layer's bound, and the RFC and the durability guide now say exactly what admission caps. Expiry refunds the wires the fenced cover proves unused and parks the slot in the bucket's `parked` counter (additive in `AdmissionState`; a document persisted before it hydrates as nothing parked); the slot returns only through the holder's own release, cancel, or fresh enqueue under its identity, or an operator `cancel` by identity, never by expiry alone. The opt in `admission.onLeaseLost: 'cancel'` verifies the grant on every renew tick and cancels the run through its own machinery when the scheduler no longer answers `granted`; the default `'continue'` keeps every byte, the single announcement and its warning included. Conformance row 5 now runs with the semaphore and pins the parked slot through the late settlement, and the new row 13 pins the tenant level semaphore and the operator return. Three probes hold the any level admit check, the parked slot at expiry, and the cancel arm.
+- 99434a3: The stock queue worker becomes fit for production (RV4913). A code review of the tenth comparison experiment confirmed five defects in `createWorker` on 973add91: the worker never read `handle.events`, and the engine subscribes that stream at handle creation and buffers it without bound until a consumer arrives, so every driven run held its whole event history in memory until settle, multiplied by `concurrency`; a failed renew freed the slot the moment it failed and `stop()` snapshotted an active set that no longer held the evicted run, so a stop resolved over a run that was still live; the poll timer swallowed every sweep rejection, so a worker over a dead store idled silently; the resume was blind (`{ lease, args }` only), so a changed body warned past, a recorded fingerprint and scope went unchecked, and a run holding open wire intents refused typed and poisoned for this worker with nothing able to lift it; and `clampTurnToExposure` lived only in the run options, so a resumed segment refused the very dispatch genesis had clamped. The worker now drains every driven run's event stream (the opt in `onEvent` observes it, every event lands before the slot frees), marks a run whose renew failed as evicted and keeps it in its slot until the cancel settles (`active()` lists it, `stop()` waits for it, the slot frees a single time), reports failed timer sweeps through `onSweepError` and raises the `lastSweepError()` readiness flag until a later sweep completes (a direct `sweep()` still rejects to its caller), and forwards the host's `resumeOptions` (a value or a function of the run's meta: everything `ResumeOptions` offers except `lease` and `args`) to `engine.resume`. In `@rulvar/core` the armed clamp is recorded in `RunMeta` beside `strictPricing` and restored on every resume; only `true` is recorded, absence means off, no journal entry changes, so every existing run replays and resumes byte identical, and the store conformance kit now requires the field to round trip. Every default keeps its bytes except the confirmed defects (the drain, the eviction ordering, the sweep report) whose old behavior nobody could rely on. Held by the worker suite (a rejecting `renew`, a rejecting `listRuns`, a run emitting 100k events never more than one burst behind its drain, the open wire intent acknowledgment and `bodyHash: 'refuse'` through `resumeOptions`, a throwing posture callback), the exposure suite (the clamp surviving a bare resume, a meta without the field resuming with the historical refusal), and seven probes: the sweep error reaching the host and raising readiness, the evicted run holding its slot and being cancelled, the posture forwarded, the stream drained, and the resume restoring the clamp.
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ### 1.252.0
 
 #### Patch Changes
@@ -27732,6 +27946,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ### 1.252.0
 
 #### Minor Changes
@@ -29324,6 +29553,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
 
 ### 1.252.0
 
@@ -31529,6 +31773,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.253.0
+
+#### Patch Changes
+
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
 
 ### 1.252.0
 
