@@ -45,7 +45,10 @@ opId): Promise<void>;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Cancels a queued ticket (nothing to refund); granted ones release.
+Cancels a queued ticket (nothing to refund); granted ones release;
+an EXPIRED one returns the concurrency slot expiry parked under it
+(RV4910), which is the operator's release by identity once the
+holder is known dead.
 
 #### Parameters
 
@@ -139,8 +142,10 @@ pump(_opId): Promise<AdmissionTicket[]>;
 Defined in: `packages/core/dist/index.d.ts`
 
 Advances the scheduler: expires stale leases (conservative
-settlement), then grants queued tickets in SFQ order while every
-matched level admits. Returns the newly granted tickets.
+settlement: the provably unused wires refund, the concurrency
+slot parks under the possibly live holder, RV4910), then grants
+queued tickets in SFQ order while every matched level admits.
+Returns the newly granted tickets.
 
 #### Parameters
 
@@ -245,7 +250,8 @@ Defined in: `packages/core/dist/index.d.ts`
 Release with actuals: the unused remainder refunds to each level,
 over-consumption beyond the reservation lands as bucket debt (it
 never denies retroactively), and a late settlement after expiry is
-accepted idempotently as debt rather than discarded.
+accepted idempotently as debt rather than discarded, returning the
+concurrency slot that expiry parked (RV4910).
 
 #### Parameters
 

@@ -8,8 +8,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { AdmissionRejectedError } from '../l0/errors.js';
-import { admitRunUnit } from '../admission/engine-bracket.js';
+import { AdmissionRejectedError, ConfigError } from '../l0/errors.js';
+import type { AdmissionRecovery } from '../l0/spi/admission.js';
+import { admitRunUnit, validateEngineAdmissionConfig } from '../admission/engine-bracket.js';
 import { MemoryAdmissionScheduler } from '../admission/memory.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from './engine.js';
@@ -293,5 +294,165 @@ describe('the hardened admission bracket (RV4804)', () => {
       (row) => row.ticket.unitId === 'ADMIT-CANCEL',
     );
     expect(ticket?.ticket.state).not.toBe('queued');
+  });
+
+  it("onLeaseLost 'cancel' verifies every tick and cancels the run once the grant is gone (RV4910)", async () => {
+    const events: Array<{ type: string } & Record<string, unknown>> = [];
+    const cancels: string[] = [];
+    let expired = false;
+    let renews = 0;
+    let verifies = 0;
+    const sched = fakeScheduler({
+      // The renew stays SILENT, the reference scheduler's no-op on an
+      // expired ticket: only the verify can tell the grant is gone.
+      renew: () => {
+        renews += 1;
+        return Promise.resolve();
+      },
+      recover: (_unit, _generation, opId) => {
+        if (!opId.endsWith(':verify')) {
+          return Promise.resolve({ state: 'unknown' });
+        }
+        verifies += 1;
+        const answer: AdmissionRecovery = expired
+          ? { state: 'unknown' }
+          : { state: 'granted', ticket: ticketOf('r') };
+        return Promise.resolve(answer);
+      },
+    });
+    const teardown = await admitRunUnit(
+      { scheduler: sched, pollMs: 10, renewMs: 12, onLeaseLost: 'cancel' },
+      {
+        unitId: 'r',
+        generation: 'g1',
+        telemetry: { emit: (body) => events.push(body) },
+        requestCancel: (reason) => cancels.push(reason),
+      },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(renews).toBeGreaterThanOrEqual(2);
+    expect(verifies).toBeGreaterThanOrEqual(2);
+    expect(cancels).toHaveLength(0);
+    expired = true;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(cancels).toHaveLength(1);
+    expect(cancels[0]).toContain("lease lost for run 'r'");
+    // Announced once, cancelled once, whatever the number of ticks.
+    expect(events.filter((event) => event.type === 'admission:lease-lost')).toHaveLength(1);
+    const warns = events.filter((event) => event.type === 'log' && event.level === 'warn');
+    expect(warns).toHaveLength(1);
+    expect(String(warns[0]?.msg)).toContain("onLeaseLost is 'cancel'");
+    await teardown();
+  });
+
+  it('the default arm keeps its bytes: a silent renew is never verified, a thrown one announces and never cancels', async () => {
+    const events: Array<{ type: string } & Record<string, unknown>> = [];
+    const cancels: string[] = [];
+    let verifies = 0;
+    const countVerifies = (
+      _unit: string,
+      _generation: string,
+      opId: string,
+    ): Promise<AdmissionRecovery> => {
+      if (opId.endsWith(':verify')) {
+        verifies += 1;
+      }
+      return Promise.resolve({ state: 'unknown' });
+    };
+    // A silent renew: no verify, nothing announced, nothing cancelled,
+    // exactly as before RV4910 (the default arm adds no scheduler call).
+    const quiet = fakeScheduler({ recover: countVerifies });
+    const teardownQuiet = await admitRunUnit(
+      { scheduler: quiet, pollMs: 10, renewMs: 12 },
+      {
+        unitId: 'q',
+        generation: 'g1',
+        telemetry: { emit: (body) => events.push(body) },
+        requestCancel: (reason) => cancels.push(reason),
+      },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    await teardownQuiet();
+    expect(verifies).toBe(0);
+    expect(events).toHaveLength(0);
+    // A thrown renew: the RV4804 announcement, and still no cancel.
+    const thrown = fakeScheduler({
+      renew: () => Promise.reject(new Error('lease is gone')),
+      recover: countVerifies,
+    });
+    const teardown = await admitRunUnit(
+      { scheduler: thrown, pollMs: 10, renewMs: 12 },
+      {
+        unitId: 'r',
+        generation: 'g1',
+        telemetry: { emit: (body) => events.push(body) },
+        requestCancel: (reason) => cancels.push(reason),
+      },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    await teardown();
+    expect(verifies).toBeGreaterThanOrEqual(1);
+    expect(cancels).toHaveLength(0);
+    expect(events.filter((event) => event.type === 'admission:lease-lost')).toHaveLength(1);
+    const warns = events.filter((event) => event.type === 'log' && event.level === 'warn');
+    expect(warns).toHaveLength(2);
+    expect(String(warns[1]?.msg)).toContain('may re-admit the capacity while this run is alive');
+  });
+
+  it('refuses an unknown onLeaseLost value typed', () => {
+    expect(() =>
+      validateEngineAdmissionConfig({
+        scheduler: fakeScheduler({}),
+        onLeaseLost: 'explode' as unknown as 'cancel',
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it("under onLeaseLost 'cancel' the engine settles the run cancelled and the settle release returns the parked slot", async () => {
+    const now = { ms: 0 };
+    const sched = new MemoryAdmissionScheduler({
+      levels: {
+        tenant: { algorithm: 'sliding-window', capWires: 100, windowMs: 3_600_000 },
+        providerAccount: { algorithm: 'sliding-window', capWires: 100, concurrency: 1 },
+      },
+      leaseTtlMs: 1_000,
+      now: () => now.ms,
+    });
+    // The adapter holds the turn open so the lease is lost under a
+    // LIVE run; the cancel arm must settle it before the hang ends.
+    const adapter = scriptedAdapter(() => ({ text: 'done', usage: USAGE, hangMs: 3_000 }));
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new InMemoryStore() },
+      defaults: { routing: { loop: 'fake:model' } },
+      admission: {
+        scheduler: sched,
+        tenant: 'acme',
+        pollMs: 5,
+        renewMs: 10,
+        onLeaseLost: 'cancel',
+      },
+    });
+    const handle = engine.run(wf, undefined, {
+      runId: 'ADMIT-LOST',
+      scope: { tenant: 'acme', providerAccount: 'ant-1' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    // Another party's pump (a worker sweep, in life) expires the lease
+    // behind the run's back: the wires refund, the slot parks.
+    now.ms = 5_000;
+    await sched.pump('op-expire');
+    const bucket = 'providerAccount:{"providerAccount":"ant-1","tenant":"acme"}';
+    expect(sched.snapshot().buckets[bucket]?.parked).toBe(1);
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('cancelled');
+    // The settle release is the holder's own word: the slot returns.
+    const after = sched.snapshot().buckets[bucket];
+    expect(after?.held).toBe(0);
+    expect(after?.parked).toBe(0);
+    const row = Object.values(sched.snapshot().tickets).find(
+      (candidate) => candidate.ticket.unitId === 'ADMIT-LOST',
+    );
+    expect(row?.ticket.state).toBe('expired');
   });
 });

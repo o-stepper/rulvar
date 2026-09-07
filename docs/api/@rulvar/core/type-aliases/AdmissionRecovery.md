@@ -22,6 +22,6 @@ type AdmissionRecovery =
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/admission.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L116)
+Defined in: [packages/core/src/l0/spi/admission.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/admission.ts#L123)
 
 The recovery answer for a resumed unit (RFC section 4, item 5).

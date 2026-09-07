@@ -2604,6 +2604,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
           telemetry: {
             emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId),
           },
+          // The cancel arm of a lost lease (RV4910, `onLeaseLost:
+          // 'cancel'`) rides the same requestCancel as the host abort
+          // and the deadline: the run settles cancelled through its
+          // own machinery, and the settle release returns the slot
+          // the scheduler parked.
+          requestCancel,
           ...(executionScope === undefined ? {} : { scope: executionScope }),
           ...((quotaRuntime?.tenantFrom ?? admissionRuntime.tenantFrom) === 'scope'
             ? {

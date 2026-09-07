@@ -1,6 +1,6 @@
 /**
  * The durable admission conformance matrix (plan 45, rfcs/admission.md
- * section 7): all twelve rows as named executable checks over a
+ * section 7): all thirteen rows as named executable checks over a
  * scheduler factory, so a deployment proves ITS durable admission
  * behaves like the reference. The fairness rows measure GRANTED RAW
  * SERVICE, which is what the algorithm actually guarantees; wait times
@@ -322,7 +322,8 @@ export function admissionConformance(options: AdmissionConformanceOptions): Conf
     },
     {
       id: 'admission.crash.granted-lease-expiry-settles-conservatively',
-      title: 'expiry refunds reservation minus the fenced cover; a late settlement lands as debt',
+      title:
+        'expiry refunds reservation minus the fenced cover and parks the slot; a late settlement lands as debt and returns it',
       async run() {
         const now = { ms: 0 };
         const fixture = await options.make(
@@ -333,13 +334,21 @@ export function admissionConformance(options: AdmissionConformanceOptions): Conf
                 capWires: 4,
                 windowMs: 3_600_000,
               },
+              providerAccount: {
+                algorithm: 'sliding-window',
+                capWires: 100,
+                concurrency: 1,
+              },
             },
             leaseTtlMs: 30_000,
           },
           () => now.ms,
         );
         await fixture.scheduler.enqueue(
-          request('holder', { reservation: { wires: 4 }, scope: { tenant: 'acme' } }),
+          request('holder', {
+            reservation: { wires: 4 },
+            scope: { tenant: 'acme', providerAccount: 'acct-h' },
+          }),
           'op-h',
         );
         await fixture.scheduler.checkpointCover('holder', 'g1', { wires: 2 }, 'op-c');
@@ -354,15 +363,37 @@ export function admissionConformance(options: AdmissionConformanceOptions): Conf
           fenced = true;
         }
         ensure(fenced, 'admission.crash.5', 'the expired lease cover write is fenced off');
+        // The semaphore never restores under a possibly live holder
+        // (RV4910): two wires are free, and a waiter on the holder's
+        // own account still queues on the parked slot.
+        const slotWaiter = await fixture.scheduler.enqueue(
+          request('slot-waiter', {
+            reservation: { wires: 1 },
+            scope: { tenant: 'acme', providerAccount: 'acct-h' },
+          }),
+          'op-slot',
+        );
+        ensure(
+          slotWaiter.state === 'queued',
+          'admission.crash.5',
+          'the expired slot is parked, never handed out under the holder',
+        );
         // reservation 4 minus cover 2: exactly two wires provably unused
-        // came back. A 2-wire follower fits; ONE more wire does not.
+        // came back. A 2-wire follower on its own account fits; ONE
+        // more wire, on yet another account, does not.
         const two = await fixture.scheduler.enqueue(
-          request('two', { reservation: { wires: 2 }, scope: { tenant: 'acme' } }),
+          request('two', {
+            reservation: { wires: 2 },
+            scope: { tenant: 'acme', providerAccount: 'acct-f1' },
+          }),
           'op-2',
         );
         ensure(two.state === 'granted', 'admission.crash.5', 'the provable refund admits');
         const probe = await fixture.scheduler.enqueue(
-          request('probe', { reservation: { wires: 1 }, scope: { tenant: 'acme' } }),
+          request('probe', {
+            reservation: { wires: 1 },
+            scope: { tenant: 'acme', providerAccount: 'acct-f2' },
+          }),
           'op-probe',
         );
         ensure(
@@ -371,9 +402,21 @@ export function admissionConformance(options: AdmissionConformanceOptions): Conf
           'the refund was exactly the uncovered half, never a blind full refund',
         );
         // The late settlement lands as debt, idempotently, never a
-        // discard and never a retroactive denial.
+        // discard and never a retroactive denial; it is also the
+        // holder's own word that it is done, so the parked slot returns.
         await fixture.scheduler.release('holder', 'g1', { wires: 3 }, 'op-late');
         await fixture.scheduler.release('holder', 'g1', { wires: 3 }, 'op-late');
+        // With one wire free again (the finished follower refunds its
+        // two, the debt eats one) SFQ seats the earlier arrival, the
+        // account waiter, which only the returned slot could admit; a
+        // still parked slot would have seated the wire waiter instead.
+        await fixture.scheduler.release('two', 'g1', { wires: 0 }, 'op-two-done');
+        const seated = await fixture.scheduler.pump('op-seat');
+        ensure(
+          seated.length === 1 && seated[0]?.unitId === 'slot-waiter',
+          'admission.crash.5',
+          'the parked slot returned through the holder late settlement',
+        );
         await fixture.close?.();
       },
     },
@@ -695,6 +738,74 @@ export function admissionConformance(options: AdmissionConformanceOptions): Conf
           second.state === 'queued',
           'admission.tenant.12',
           'the SAME identity debits the SAME bucket, whatever the project',
+        );
+        await fixture.close?.();
+      },
+    },
+    {
+      id: 'admission.concurrency.any-level-semaphore',
+      title:
+        'a tenant level concurrency caps active runs across provider accounts; an expired slot parks until its holder settles or an operator cancels',
+      async run() {
+        const now = { ms: 0 };
+        const fixture = await options.make(
+          {
+            levels: {
+              tenant: { algorithm: 'sliding-window', capWires: 100, concurrency: 1 },
+            },
+            leaseTtlMs: 30_000,
+          },
+          () => now.ms,
+        );
+        const a = await fixture.scheduler.enqueue(
+          request('a', { scope: { tenant: 'acme', providerAccount: 'acct-1' } }),
+          'op-a',
+        );
+        ensure(a.state === 'granted', 'admission.concurrency.13', 'a holds the tenant slot');
+        const b = await fixture.scheduler.enqueue(
+          request('b', { scope: { tenant: 'acme', providerAccount: 'acct-2' } }),
+          'op-b',
+        );
+        ensure(
+          b.state === 'queued',
+          'admission.concurrency.13',
+          'b queues on the TENANT semaphore: wires are plentiful and the account differs',
+        );
+        const other = await fixture.scheduler.enqueue(
+          request('c', {
+            resolvedTenant: 'globex',
+            scope: { tenant: 'globex', providerAccount: 'acct-1' },
+          }),
+          'op-c',
+        );
+        ensure(
+          other.state === 'granted',
+          'admission.concurrency.13',
+          'another tenant holds its own slot',
+        );
+        // The holder's lease expires under it (a stalled process) and a
+        // fresh scheduler holder sweeps: the slot parks, b keeps waiting.
+        now.ms = 31_000;
+        const successor = await fixture.reopen();
+        await successor.pump('op-expire');
+        ensure(
+          (await successor.recover('a', 'g1', 'op-ra')).state === 'unknown',
+          'admission.concurrency.13',
+          'the holder expired',
+        );
+        ensure(
+          (await successor.pump('op-p1')).length === 0,
+          'admission.concurrency.13',
+          'the expired slot is parked, never handed out under a possibly live holder',
+        );
+        // The operator, having checked the holder is dead, cancels by
+        // identity: the slot returns and the waiter grants.
+        await successor.cancel('a', 'g1', 'op-operator');
+        const freed = await successor.pump('op-p2');
+        ensure(
+          freed.some((ticket) => ticket.unitId === 'b'),
+          'admission.concurrency.13',
+          'the operator cancel by identity returns the parked slot',
         );
         await fixture.close?.();
       },

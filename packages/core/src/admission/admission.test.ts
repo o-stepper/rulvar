@@ -21,7 +21,7 @@ import {
   windowConsume,
   emptySlidingWindow,
 } from './algorithms.js';
-import { MemoryAdmissionScheduler } from './memory.js';
+import { MemoryAdmissionScheduler, type AdmissionState } from './memory.js';
 import type { AdmissionRequest } from '../l0/spi/admission.js';
 
 const request = (unitId: string, overrides: Partial<AdmissionRequest> = {}): AdmissionRequest => ({
@@ -383,5 +383,157 @@ describe('MemoryAdmissionScheduler lifecycle', () => {
     await s.pump('op-pump');
     const recovered = await s.recover('b', 'g1', 'op-r');
     expect(recovered.state).toBe('granted');
+  });
+});
+
+describe('the level semaphore and the parked slot (RV4909, RV4910)', () => {
+  const ACCOUNT_BUCKET = 'providerAccount:{"providerAccount":"ant-1","tenant":"acme"}';
+  const accountScheduler = (
+    now: { ms: number },
+    state?: AdmissionState,
+  ): MemoryAdmissionScheduler =>
+    new MemoryAdmissionScheduler({
+      levels: {
+        tenant: { algorithm: 'sliding-window', capWires: 100 },
+        providerAccount: { algorithm: 'sliding-window', capWires: 100, concurrency: 1 },
+      },
+      leaseTtlMs: 30_000,
+      now: () => now.ms,
+      ...(state === undefined ? {} : { state }),
+    });
+
+  it('a tenant level concurrency caps active runs across provider accounts (RV4909)', async () => {
+    const now = { ms: 0 };
+    const s = new MemoryAdmissionScheduler({
+      levels: { tenant: { algorithm: 'sliding-window', capWires: 100, concurrency: 1 } },
+      leaseTtlMs: 30_000,
+      now: () => now.ms,
+    });
+    const first = await s.enqueue(
+      request('a', { scope: { tenant: 'acme', providerAccount: 'ant-1' } }),
+      'op-a',
+    );
+    expect(first.state).toBe('granted');
+    // Wires are plentiful and the account differs: only the tenant's
+    // active run cap can refuse b, and it does.
+    const second = await s.enqueue(
+      request('b', { scope: { tenant: 'acme', providerAccount: 'ant-2' } }),
+      'op-b',
+    );
+    expect(second.state).toBe('queued');
+    // Another tenant's bucket is its own semaphore.
+    const other = await s.enqueue(
+      request('c', { resolvedTenant: 'globex', scope: { tenant: 'globex' } }),
+      'op-c',
+    );
+    expect(other.state).toBe('granted');
+    expect(s.snapshot().buckets['tenant:{"tenant":"acme"}']?.held).toBe(1);
+    await s.release('a', 'g1', { wires: 1 }, 'op-release');
+    await s.pump('op-pump');
+    expect((await s.recover('b', 'g1', 'op-r')).state).toBe('granted');
+  });
+
+  it('a scope level concurrency caps one full scope (RV4909)', async () => {
+    const now = { ms: 0 };
+    const s = new MemoryAdmissionScheduler({
+      levels: { scope: { algorithm: 'sliding-window', capWires: 100, concurrency: 1 } },
+      leaseTtlMs: 30_000,
+      now: () => now.ms,
+    });
+    const first = await s.enqueue(
+      request('a', { scope: { tenant: 'acme', region: 'eu' } }),
+      'op-a',
+    );
+    expect(first.state).toBe('granted');
+    const same = await s.enqueue(request('b', { scope: { tenant: 'acme', region: 'eu' } }), 'op-b');
+    expect(same.state).toBe('queued');
+    const other = await s.enqueue(
+      request('c', { scope: { tenant: 'acme', region: 'us' } }),
+      'op-c',
+    );
+    expect(other.state).toBe('granted');
+  });
+
+  it('expiry parks the slot under the possibly live holder; the holder settle returns it (RV4910)', async () => {
+    const now = { ms: 0 };
+    const s = accountScheduler(now);
+    expect((await s.enqueue(request('a'), 'op-a')).state).toBe('granted');
+    await s.checkpointCover('a', 'g1', { wires: 1 }, 'op-cover');
+    now.ms = 31_000;
+    expect(await s.pump('op-expire')).toHaveLength(0);
+    expect((await s.recover('a', 'g1', 'op-r')).state).toBe('unknown');
+    // Wires are plentiful: only the slot can refuse b, and it stays
+    // parked under a, whose liveness expiry proved nothing about.
+    const b = await s.enqueue(request('b'), 'op-b');
+    expect(b.state).toBe('queued');
+    expect(await s.pump('op-pump-1')).toHaveLength(0);
+    const parked = s.snapshot().buckets[ACCOUNT_BUCKET];
+    expect(parked?.held).toBe(1);
+    expect(parked?.parked).toBe(1);
+    // The holder's late settlement is its own word that it is done:
+    // the slot returns and b grants.
+    await s.release('a', 'g1', { wires: 1 }, 'op-late');
+    expect((await s.pump('op-pump-2')).map((t) => t.unitId)).toEqual(['b']);
+    const after = s.snapshot().buckets[ACCOUNT_BUCKET];
+    expect(after?.held).toBe(1);
+    expect(after?.parked).toBe(0);
+  });
+
+  it('cancel by identity returns an expired ticket slot once and never twice (the operator release)', async () => {
+    const now = { ms: 0 };
+    const s = accountScheduler(now);
+    await s.enqueue(request('a'), 'op-a');
+    now.ms = 31_000;
+    await s.pump('op-expire');
+    expect((await s.enqueue(request('b'), 'op-b')).state).toBe('queued');
+    await s.cancel('a', 'g1', 'op-operator');
+    expect((await s.pump('op-pump')).map((t) => t.unitId)).toEqual(['b']);
+    // A second cancel of the same expired ticket is a durable no-op:
+    // b's slot is not stolen from under it.
+    await s.cancel('a', 'g1', 'op-operator-again');
+    expect((await s.enqueue(request('c'), 'op-c')).state).toBe('queued');
+    expect(s.snapshot().buckets[ACCOUNT_BUCKET]?.held).toBe(1);
+  });
+
+  it('the holder coming back under its own identity returns its parked slot to the queue', async () => {
+    const now = { ms: 0 };
+    const s = accountScheduler(now);
+    await s.enqueue(request('a'), 'op-a');
+    now.ms = 31_000;
+    await s.pump('op-expire');
+    expect((await s.enqueue(request('b'), 'op-b')).state).toBe('queued');
+    // The resumed unit enqueues again (the bracket's requeue): the
+    // slot is the holder's own to return, and SFQ then seats the
+    // earlier arrival, b.
+    const again = await s.enqueue(request('a'), 'op-a-again');
+    expect(again.state).toBe('queued');
+    expect((await s.recover('b', 'g1', 'op-rb')).state).toBe('granted');
+    expect(s.snapshot().buckets[ACCOUNT_BUCKET]?.parked).toBe(0);
+  });
+
+  it('the parked slot survives a snapshot round trip; a document from before the counter hydrates as nothing parked', async () => {
+    const now = { ms: 0 };
+    const first = accountScheduler(now);
+    await first.enqueue(request('a'), 'op-a');
+    const beforeExpiry = first.snapshot();
+    now.ms = 31_000;
+    await first.pump('op-expire');
+    const second = accountScheduler(now, first.snapshot());
+    expect((await second.enqueue(request('b'), 'op-b')).state).toBe('queued');
+    await second.release('a', 'g1', { wires: 1 }, 'op-late');
+    expect((await second.pump('op-pump')).map((t) => t.unitId)).toEqual(['b']);
+    // A document persisted before RV4910 carries neither field: it
+    // hydrates as nothing parked, and the NEXT expiry parks.
+    for (const bucket of Object.values(beforeExpiry.buckets)) {
+      delete bucket.parked;
+    }
+    for (const row of Object.values(beforeExpiry.tickets)) {
+      delete row.slotParked;
+    }
+    const third = accountScheduler(now, beforeExpiry);
+    expect(third.snapshot().buckets[ACCOUNT_BUCKET]?.parked).toBe(0);
+    await third.pump('op-expire-3');
+    expect((await third.enqueue(request('b'), 'op-b3')).state).toBe('queued');
+    expect(third.snapshot().buckets[ACCOUNT_BUCKET]?.parked).toBe(1);
   });
 });
