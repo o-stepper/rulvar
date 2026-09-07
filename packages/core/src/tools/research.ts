@@ -20,7 +20,9 @@
  *   locale collation.
  * - The root confines everything: relative paths only, `..` escapes and
  *   symlink escapes are typed error results, symlinked directories are
- *   never walked.
+ *   never walked, and every read goes through a descriptor bound to
+ *   the inode the check admitted (RV4916), so a rename between the
+ *   check and the read is a typed error, never the swap's bytes.
  * - User-level failures (bad path, binary file, oversized file, invalid
  *   cursor, an unverifiable citation) are RETURNED `{ error }` values,
  *   deterministic and visible to the model; only host misconfiguration
@@ -31,12 +33,13 @@
  * Public docs: https://docs.rulvar.com/guide/tools
  */
 import { realpathSync, statSync } from 'node:fs';
-import { readdir, readFile, realpath, stat } from 'node:fs/promises';
+import { lstat, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 import { ConfigError } from '../l0/errors.js';
 import type { ToolDef } from '../l0/spi/toolsource.js';
 import type { SchemaSpec } from '../l0/schema.js';
+import { readIdentifiedFile, type FileIdentity } from './descriptor.js';
 import { tool } from './tool.js';
 
 export interface RepositoryResearchToolsetOptions {
@@ -203,12 +206,14 @@ export function repositoryResearchToolset(
    * Resolves a root-relative POSIX path and confines it: absolute paths,
    * `..` escapes, and symlink escapes are error strings, never throws.
    * `mustExist` additionally resolves symlinks and re-checks containment
-   * of the REAL path (the FileTranscriptStore traversal lesson).
+   * of the REAL path (the FileTranscriptStore traversal lesson). An
+   * admitted file also returns its `identity` (device and inode,
+   * RV4916), the anchor of the descriptor read.
    */
   const resolveWithin = async (
     rel: string,
     kind: 'file' | 'dir',
-  ): Promise<{ abs: string; rel: string } | { error: string }> => {
+  ): Promise<{ abs: string; rel: string; identity?: FileIdentity } | { error: string }> => {
     const normalizedInput = rel.replaceAll('\\', '/');
     if (path.posix.isAbsolute(normalizedInput) || path.isAbsolute(rel)) {
       return { error: `path must be relative to the research root; got '${rel}'` };
@@ -233,20 +238,32 @@ export function repositoryResearchToolset(
     if (real !== realRoot && !real.startsWith(realRoot + path.sep)) {
       return { error: `path escapes the research root: '${rel}'` };
     }
+    // lstat, never stat (RV4916): `real` carried no symlink at the
+    // instant realpath produced it, so a symlink here is one a rename
+    // swapped in since, and following it would classify the target
+    // instead of the swap. The device and inode of an admitted file are
+    // recorded here, at the containment check, and the read binds its
+    // descriptor to exactly that identity.
+    let identity: FileIdentity | undefined;
     try {
-      const info = await stat(real);
+      const info = await lstat(real, { bigint: true });
       if (kind === 'file' && !info.isFile()) {
         return { error: `not a regular file: '${cleaned}'` };
       }
       if (kind === 'dir' && !info.isDirectory()) {
         return { error: `not a directory: '${cleaned === '' ? '.' : cleaned}'` };
       }
+      if (kind === 'file') {
+        identity = { dev: info.dev, ino: info.ino };
+      }
     } catch {
       return {
         error: `no such ${kind} under the research root: '${cleaned === '' ? '.' : cleaned}'`,
       };
     }
-    return { abs: real, rel: cleaned };
+    return identity === undefined
+      ? { abs: real, rel: cleaned }
+      : { abs: real, rel: cleaned, identity };
   };
 
   /**
@@ -306,28 +323,56 @@ export function repositoryResearchToolset(
     return { files };
   };
 
+  /**
+   * Loads a text file through a descriptor bound to the identity the
+   * check recorded (RV4916): the containment check's for read_file and
+   * record_evidence, the lstat taken here for a walked search hit. The
+   * honest case keeps its bytes and its messages; a rename between the
+   * check and the read is a typed error value, never the swap's bytes.
+   */
   const loadTextFile = async (
     abs: string,
     rel: string,
+    checked?: FileIdentity,
   ): Promise<{ text: string } | { error: string }> => {
     let info;
     try {
-      info = await stat(abs);
+      info = await lstat(abs, { bigint: true });
     } catch {
       return { error: `no such file under the research root: '${rel}'` };
     }
-    if (info.size > maxFileBytes) {
-      return {
-        error:
-          `file '${rel}' is ${String(info.size)} bytes, over the maxFileBytes limit ` +
-          `(${String(maxFileBytes)})`,
-      };
+    if (!info.isFile()) {
+      return { error: `not a regular file: '${rel}'` };
     }
-    const buffer = await readFile(abs);
-    if (isBinary(buffer)) {
+    const oversized = (size: bigint): { error: string } => ({
+      error:
+        `file '${rel}' is ${String(size)} bytes, over the maxFileBytes limit ` +
+        `(${String(maxFileBytes)})`,
+    });
+    if (info.size > BigInt(maxFileBytes)) {
+      return oversized(info.size);
+    }
+    const read = await readIdentifiedFile(
+      abs,
+      checked ?? { dev: info.dev, ino: info.ino },
+      maxFileBytes,
+    );
+    if ('failure' in read) {
+      if (read.failure === 'missing') {
+        return { error: `no such file under the research root: '${rel}'` };
+      }
+      if (read.failure === 'oversized') {
+        return oversized(read.size);
+      }
+      if (read.failure === 'unreadable') {
+        return { error: `file '${rel}' is not readable (${read.code})` };
+      }
+      return { error: `file '${rel}' changed between the check and the read; retry` };
+    }
+    if (isBinary(read.buffer)) {
       return { error: `file '${rel}' is binary` };
     }
-    return { text: buffer.toString('utf8') };
+    return { text: read.buffer.toString('utf8') };
   };
 
   const listFiles = tool({
@@ -522,7 +567,7 @@ export function repositoryResearchToolset(
       if ('error' in resolved) {
         return resolved;
       }
-      const loaded = await loadTextFile(resolved.abs, resolved.rel);
+      const loaded = await loadTextFile(resolved.abs, resolved.rel, resolved.identity);
       if ('error' in loaded) {
         return loaded;
       }
@@ -578,7 +623,7 @@ export function repositoryResearchToolset(
       if ('error' in resolved) {
         return resolved;
       }
-      const loaded = await loadTextFile(resolved.abs, resolved.rel);
+      const loaded = await loadTextFile(resolved.abs, resolved.rel, resolved.identity);
       if ('error' in loaded) {
         return loaded;
       }

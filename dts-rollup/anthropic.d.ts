@@ -33,8 +33,10 @@ declare const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo>;
 * the caps fallback by rule, and a later table revision surfaces as
 * explicit configuration drift on resume rather than a silent
 * reinterpretation. Extend or override rows by spreading `models` into
-* your own table with a new version string (the documented path for the
-* Sonnet 5 promotion ending on 2026-08-31).
+* your own table with a new version string (the documented path when
+* the provider revises a rate; the Sonnet 5 introductory rate this
+* comment once expected to end on 2026-08-31 became permanent instead,
+* RV4918, and no row here has a scheduled change).
 */
 declare const ANTHROPIC_PRICING: PriceTable;
 declare function anthropicModelInfo(model: string): AnthropicModelInfo;

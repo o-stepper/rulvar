@@ -62,17 +62,19 @@ const GPT_56_TIERS = [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMul
  * GPT-5.6 Sol, Terra, and Luna are three sibling models, not snapshots
  * of one model (developers.openai.com/api/docs/models/gpt-5.6-sol,
  * .../gpt-5.6-terra, .../gpt-5.6-luna; the weekly rates audit
- * re-verifies the three pages). The family rows carry ratesVerifiedAt
- * '2026-07-31' (RV814): on that date every row was re-verified against
- * its documented model page, picking up the provider's 2026-07-30
- * price cut on Terra (0.8x across input, cached input, cache write,
- * and output) and Luna (0.2x across the same four) that the
- * thirteenth-experiment live audit caught as drift (RV911). Sol's
- * row was re-verified '2026-08-23': the fresh-classification dispatch
- * of the plan-44 release caught the provider's Sol price cut on the
- * documented page (input 5 to 4, output 30 to 20, cache read 0.5 to
- * 0.4, cache write 6.25 to 5), and the correction ships as this
- * release's own changeset per the audit's doctrine. Sol's PREVIOUS
+ * re-verifies the three pages and, since RV4918, the age of the
+ * stamps). The family rows carry ratesVerifiedAt '2026-09-07' (RV814,
+ * RV4918): on that date every row was re read against its documented
+ * model page with the audit's own extractor and comparator, and no
+ * number moved. The 2026-07-31 verification had picked up the
+ * provider's 2026-07-30 price cut on Terra (0.8x across input, cached
+ * input, cache write, and output) and Luna (0.2x across the same four)
+ * that the thirteenth-experiment live audit caught as drift (RV911).
+ * Sol's row was re-verified '2026-08-23': the fresh-classification
+ * dispatch of the plan-44 release caught the provider's Sol price cut
+ * on the documented page (input 5 to 4, output 30 to 20, cache read
+ * 0.5 to 0.4, cache write 6.25 to 5), and the correction shipped as
+ * that release's own changeset per the audit's doctrine. Sol's PREVIOUS
  * rates additionally remain billing-CONFIRMED by the
  * 2026-07-30 twelfth-experiment statement reconciliation, which
  * matched all eight per-model per-component dashboard categories to
@@ -98,7 +100,7 @@ const GPT_56_SOL: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.4,
     cacheWriteUsdPerMTok: 5,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-08-23',
+    ratesVerifiedAt: '2026-09-07',
   },
   { wireMaxEffort: true },
 );
@@ -112,7 +114,7 @@ const GPT_56_TERRA: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.2,
     cacheWriteUsdPerMTok: 2.5,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
   { wireMaxEffort: true },
 );
@@ -126,7 +128,7 @@ const GPT_56_LUNA: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.02,
     cacheWriteUsdPerMTok: 0.25,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
   { wireMaxEffort: true },
 );

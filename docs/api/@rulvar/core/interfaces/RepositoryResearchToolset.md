@@ -6,13 +6,13 @@
 
 # Interface: RepositoryResearchToolset
 
-Defined in: [packages/core/src/tools/research.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L73)
+Defined in: [packages/core/src/tools/research.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L76)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-tools"></a> `tools` | [`ToolDef`](/api/@rulvar/core/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/core/type-aliases/SchemaSpec.md)\&gt;[] | list_files, search_files, read_file, record_evidence, list_evidence. | [packages/core/src/tools/research.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L75) |
+| <a id="property-tools"></a> `tools` | [`ToolDef`](/api/@rulvar/core/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/core/type-aliases/SchemaSpec.md)\&gt;[] | list_files, search_files, read_file, record_evidence, list_evidence. | [packages/core/src/tools/research.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L78) |
 
 ## Methods
 
@@ -22,7 +22,7 @@ Defined in: [packages/core/src/tools/research.ts:73](https://github.com/o-steppe
 evidence(): ResearchEvidenceEntry[];
 ```
 
-Defined in: [packages/core/src/tools/research.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L77)
+Defined in: [packages/core/src/tools/research.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L80)
 
 Snapshot copy of the evidence collected so far, in record order.
 
