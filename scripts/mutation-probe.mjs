@@ -7102,6 +7102,70 @@ export const MUTATIONS = [
     replace: '  if (false) {',
     test: 'scripts/rates-audit.test.mjs',
   },
+  {
+    id: 'worker-sweep-error-reaches-the-host',
+    doctrine:
+      'a sweep the worker cannot complete against its store is reported to the host (RV4913): with the report severed, a worker over a dead store polls forever and nothing in the process says so, the silent idle the tenth comparison experiment review named',
+    file: 'packages/cli/src/worker.ts',
+    find: '      options.onSweepError?.(error);',
+    replace: '      void error;',
+    test: 'packages/cli/src/worker.test.ts',
+  },
+  {
+    id: 'worker-sweep-error-raises-readiness',
+    doctrine:
+      'a failed sweep raises the lastSweepError readiness flag until a later sweep completes (RV4913): with the flag never raised, a health probe reads a worker that cannot read its store as ready',
+    file: 'packages/cli/src/worker.ts',
+    find: '      lastSweepError = thrown;\n      throw thrown;',
+    replace: '      lastSweepError = undefined;\n      throw thrown;',
+    test: 'packages/cli/src/worker.test.ts',
+  },
+  {
+    id: 'worker-evicted-run-holds-its-slot',
+    doctrine:
+      'an evicted run (a failed renew) keeps its slot until its cancel settles (RV4913): with the slot freed at eviction, stop() snapshots an active set that no longer contains the run and resolves over a run that is still live, and the freed slot leases a second run beside it',
+    file: 'packages/cli/src/worker.ts',
+    find: '        if (record !== undefined) {\n          record.evicted = true;\n        }',
+    replace:
+      '        if (record !== undefined) {\n          record.evicted = true;\n        }\n        active.delete(runId);',
+    test: 'packages/cli/src/worker.test.ts',
+  },
+  {
+    id: 'worker-evicted-run-is-cancelled',
+    doctrine:
+      'a run whose lease renew failed is cancelled (RV4913): with the cancel dropped, the segment keeps paying for live calls whose every append the fencing epoch rejects',
+    file: 'packages/cli/src/worker.ts',
+    find: "        void handle.cancel('lease lost: fencing epoch superseded').catch(() => undefined);",
+    replace: '        void handle;',
+    test: 'packages/cli/src/worker.test.ts',
+  },
+  {
+    id: 'worker-forwards-the-resume-posture',
+    doctrine:
+      "the host's resumeOptions reach engine.resume (RV4913): with the posture dropped, bodyHash 'refuse' and the open wire intent acknowledgment never arrive, and a run that died mid wire under the intent posture stays poisoned for every worker forever",
+    file: 'packages/cli/src/worker.ts',
+    find: '      resumeOptions = {\n        ...posture,',
+    replace: '      resumeOptions = {\n        ...{},',
+    test: 'packages/cli/src/worker.test.ts',
+  },
+  {
+    id: 'worker-drains-the-event-stream',
+    doctrine:
+      "the worker drains every driven run's event stream (RV4913): with the drain severed, the engine buffers every event from handle creation until settle with no consumer, and memory grows per run for the life of the run, multiplied by concurrency",
+    file: 'packages/cli/src/worker.ts',
+    find: '      for await (const event of handle.events) {',
+    replace: '      for await (const event of [] as WorkflowEvent[]) {',
+    test: 'packages/cli/src/worker.test.ts',
+  },
+  {
+    id: 'resume-restores-the-exposure-clamp',
+    doctrine:
+      'a bare resume restores the RunMeta recorded lone dispatch clamp (RV4913): with the restore severed, the resumed segment refuses the very dispatch genesis clamped, and a queue worker can never re arm the posture',
+    file: 'packages/core/src/engine/engine.ts',
+    find: '        ...(meta?.clampTurnToExposure === true ? { clampTurnToExposure: true as const } : {}),',
+    replace: '        ...(false ? { clampTurnToExposure: true as const } : {}),',
+    test: 'packages/core/src/engine/in-flight-exposure.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

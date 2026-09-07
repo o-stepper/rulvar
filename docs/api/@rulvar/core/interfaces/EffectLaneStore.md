@@ -6,7 +6,7 @@
 
 # Interface: EffectLaneStore
 
-Defined in: [packages/core/src/l0/spi/store.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L274)
+Defined in: [packages/core/src/l0/spi/store.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L288)
 
 Effect lane capability (plan 45, rfcs/effects.md section 4.5, item
 3): a store carrying a restoration generation OUTSIDE the journal
@@ -33,9 +33,9 @@ half is exactly the shipped `fencedWrites` contract.
 
 | Property | Modifier | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-effectlane"></a> `effectLane` | `readonly` | `true` | - | - | [packages/core/src/l0/spi/store.ts:275](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L275) |
-| <a id="property-fencedwrites"></a> `fencedWrites?` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), optional exactly like `getMeta` and `leaseTtlMs`: a store declaring `fencedWrites: true` PROMISES that every mutation carrying a lease (`append`, `putMeta`, `delete`) verifies it is the CURRENT holder for the run the mutation targets, atomically with the mutation itself, and rejects with the typed LeaseHeldError leaving nothing mutated when it is not (stale epoch, foreign owner, expired, or a lease whose runId is not the mutation's run). The engine threads the segment's lease into every one of these writes on a leased resume, so over a declaring store a superseded worker cannot overwrite run meta or delete run state, exactly as it already cannot append. A mutation carrying NO lease keeps the single-writer semantics unchanged. Stores written before this capability are unaffected: without the marker the extra argument is ignored and hosts know the surface is advisory. | [`LeasableStore`](/api/@rulvar/core/interfaces/LeasableStore.md).[`fencedWrites`](/api/@rulvar/core/interfaces/LeasableStore.md#property-fencedwrites) | [packages/core/src/l0/spi/store.ts:228](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L228) |
-| <a id="property-leasettlms"></a> `leaseTtlMs?` | `readonly` | `number` | Optional TTL introspection (v1.35.0 review P2-4): the configured lease ttl in milliseconds. A store exposing it lets createWorker VERIFY at construction that the worker's renew cadence matches the store's expiry instead of trusting two config sources to agree; stores without it are accepted with the worker's own ttl. | [`LeasableStore`](/api/@rulvar/core/interfaces/LeasableStore.md).[`leaseTtlMs`](/api/@rulvar/core/interfaces/LeasableStore.md#property-leasettlms) | [packages/core/src/l0/spi/store.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L291) |
+| <a id="property-effectlane"></a> `effectLane` | `readonly` | `true` | - | - | [packages/core/src/l0/spi/store.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L289) |
+| <a id="property-fencedwrites"></a> `fencedWrites?` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), optional exactly like `getMeta` and `leaseTtlMs`: a store declaring `fencedWrites: true` PROMISES that every mutation carrying a lease (`append`, `putMeta`, `delete`) verifies it is the CURRENT holder for the run the mutation targets, atomically with the mutation itself, and rejects with the typed LeaseHeldError leaving nothing mutated when it is not (stale epoch, foreign owner, expired, or a lease whose runId is not the mutation's run). The engine threads the segment's lease into every one of these writes on a leased resume, so over a declaring store a superseded worker cannot overwrite run meta or delete run state, exactly as it already cannot append. A mutation carrying NO lease keeps the single-writer semantics unchanged. Stores written before this capability are unaffected: without the marker the extra argument is ignored and hosts know the surface is advisory. | [`LeasableStore`](/api/@rulvar/core/interfaces/LeasableStore.md).[`fencedWrites`](/api/@rulvar/core/interfaces/LeasableStore.md#property-fencedwrites) | [packages/core/src/l0/spi/store.ts:242](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L242) |
+| <a id="property-leasettlms"></a> `leaseTtlMs?` | `readonly` | `number` | Optional TTL introspection (v1.35.0 review P2-4): the configured lease ttl in milliseconds. A store exposing it lets createWorker VERIFY at construction that the worker's renew cadence matches the store's expiry instead of trusting two config sources to agree; stores without it are accepted with the worker's own ttl. | [`LeasableStore`](/api/@rulvar/core/interfaces/LeasableStore.md).[`leaseTtlMs`](/api/@rulvar/core/interfaces/LeasableStore.md#property-leasettlms) | [packages/core/src/l0/spi/store.ts:305](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L305) |
 
 ## Methods
 
@@ -45,7 +45,7 @@ half is exactly the shipped `fencedWrites` contract.
 acquire(runId, owner): Promise<Lease>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:281](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L281)
+Defined in: [packages/core/src/l0/spi/store.ts:295](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L295)
 
 #### Parameters
 
@@ -73,7 +73,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:206](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L206)
+Defined in: [packages/core/src/l0/spi/store.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L220)
 
 #### Parameters
 
@@ -99,7 +99,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:206](https://github.com/o-stepper
 delete(runId, lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L210)
+Defined in: [packages/core/src/l0/spi/store.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L224)
 
 #### Parameters
 
@@ -124,7 +124,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:210](https://github.com/o-stepper
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:209](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L209)
+Defined in: [packages/core/src/l0/spi/store.ts:223](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L223)
 
 #### Parameters
 
@@ -148,7 +148,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:209](https://github.com/o-stepper
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L207)
+Defined in: [packages/core/src/l0/spi/store.ts:221](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L221)
 
 #### Parameters
 
@@ -172,7 +172,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:207](https://github.com/o-stepper
 putMeta(m, lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L208)
+Defined in: [packages/core/src/l0/spi/store.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L222)
 
 #### Parameters
 
@@ -197,7 +197,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:208](https://github.com/o-stepper
 release(l): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:283](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L283)
+Defined in: [packages/core/src/l0/spi/store.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L297)
 
 #### Parameters
 
@@ -221,7 +221,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:283](https://github.com/o-stepper
 renew(l): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:282](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L282)
+Defined in: [packages/core/src/l0/spi/store.ts:296](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L296)
 
 #### Parameters
 
@@ -245,7 +245,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:282](https://github.com/o-stepper
 restorationGeneration(): Promise<number>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:277](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L277)
+Defined in: [packages/core/src/l0/spi/store.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L291)
 
 The current restoration generation; 0 until a restore ever ran.
 

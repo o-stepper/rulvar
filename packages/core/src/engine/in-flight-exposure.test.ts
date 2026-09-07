@@ -342,3 +342,99 @@ describe('a lone dispatch is clamped, not refused (RV2503)', () => {
     ).toThrow(ConfigError);
   });
 });
+
+/**
+ * The clamp survives a resume (RV4913). It was a per segment posture
+ * carried only by RunOptions, so a bare resume (the queue worker's
+ * shape) silently dropped it and the resumed lone dispatch was refused
+ * exactly where genesis had clamped it. Recorded in RunMeta at genesis
+ * beside strictPricing, restored verbatim; absence means off, so runs
+ * recorded before the field resume byte identical.
+ */
+describe('the clamp survives a resume (RV4913)', () => {
+  const LIMITS = { maxOutputTokensPerTurn: 1000 };
+
+  function phased(crash: { now: boolean }) {
+    return defineWorkflow({ name: 'clamp-phased' }, async (ctx) => {
+      const first = await ctx.agent('probe', { result: 'full' });
+      if (crash.now) {
+        throw new Error('host crash between the phases');
+      }
+      const second = await ctx.agent('probe', { result: 'full' });
+      return { first: first.status, second: second.status };
+    });
+  }
+
+  function storedEngine() {
+    const store = new InMemoryStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const make = () => {
+      const adapter = scriptedAdapter(() => ({ text: 'ok' }));
+      return {
+        adapter,
+        engine: createEngine({
+          adapters: [adapter],
+          stores: { journal: store, transcripts },
+          // The plan size rides the engine defaults: a bare resume
+          // re supplies no run limits.
+          defaults: { routing: { loop: 'fake:model' }, limits: LIMITS },
+        }),
+      };
+    };
+    return { store, make };
+  }
+
+  it('records the armed clamp at genesis and a bare resume clamps the lone dispatch it used to refuse', async () => {
+    const { store, make } = storedEngine();
+    const crash = { now: true };
+    const wf = phased(crash);
+    const first = await make().engine.run(wf, undefined, {
+      runId: 'CLAMPED',
+      maxInFlightExposureUsd: 0.004,
+      clampTurnToExposure: true,
+    }).result;
+    expect(first.status).toBe('error');
+    const meta = (await store.listRuns()).find((candidate) => candidate.runId === 'CLAMPED');
+    expect(meta?.clampTurnToExposure).toBe(true);
+
+    crash.now = false;
+    const { adapter, engine } = make();
+    const resumed = await engine.resume('CLAMPED', wf).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toEqual({ first: 'ok', second: 'ok' });
+    // The first agent replayed; the second dispatched live, and it
+    // dispatched SHORTER than the full plan: the restored clamp priced
+    // the room, nothing re supplied it on resume.
+    expect(adapter.calls).toHaveLength(1);
+    const planned = adapter.calls[0]?.maxOutputTokens;
+    expect(planned).toBeGreaterThan(0);
+    expect(planned).toBeLessThan(LIMITS.maxOutputTokensPerTurn);
+    // The resume segment's meta write carried the posture forward.
+    const after = (await store.listRuns()).find((candidate) => candidate.runId === 'CLAMPED');
+    expect(after?.clampTurnToExposure).toBe(true);
+  });
+
+  it('a meta without the field resumes with the clamp off: the historical refusal, byte for byte', async () => {
+    const { store, make } = storedEngine();
+    const crash = { now: true };
+    const wf = phased(crash);
+    const first = await make().engine.run(wf, undefined, {
+      runId: 'LEGACY-CLAMP',
+      maxInFlightExposureUsd: 0.004,
+      clampTurnToExposure: true,
+    }).result;
+    expect(first.status).toBe('error');
+    // A store written before the field (or one that drops it): the
+    // recorded posture is absent, which means off.
+    const meta = (await store.listRuns()).find((candidate) => candidate.runId === 'LEGACY-CLAMP');
+    const { clampTurnToExposure: _dropped, ...legacy } = meta as NonNullable<typeof meta>;
+    await store.putMeta(legacy);
+
+    crash.now = false;
+    const { adapter, engine } = make();
+    const resumed = await engine.resume('LEGACY-CLAMP', wf).result;
+    expect(resumed.status).toBe('exhausted');
+    expect(resumed.error?.message ?? '').toContain('in flight exposure cap reached');
+    expect(adapter.calls).toHaveLength(0);
+  });
+});

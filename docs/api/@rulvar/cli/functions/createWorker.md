@@ -10,7 +10,7 @@
 function createWorker(engine, options): Worker;
 ```
 
-Defined in: [packages/cli/src/worker.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L136)
+Defined in: [packages/cli/src/worker.ts:209](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L209)
 
 ## Parameters
 

@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ConfigError,
   createEngine,
+  CURRENT_HASH_VERSION,
   defineWorkflow,
   InMemoryStore,
   JournalCompatibilityError,
@@ -26,6 +27,7 @@ import {
   type Engine,
   type JournalEntry,
   type Lease,
+  type RunMeta,
   type Workflow,
   type WorkflowRegistry,
 } from '@rulvar/core';
@@ -759,5 +761,370 @@ describe('createWorker stop discipline (cycle 79)', () => {
     expect(worker.active()).toEqual([]);
     const probe = await store.acquire(first.runId, 'probe');
     await store.release(probe);
+  });
+});
+
+/**
+ * Production fitness (RV4913): the defects a code review of the tenth
+ * comparison experiment confirmed on the stock worker. The event
+ * stream was never read (the engine buffers it unbounded from handle
+ * creation), a failed renew freed the slot before the cancel landed
+ * and stop() never saw the evicted run, the timer path swallowed every
+ * sweep failure (a store outage was a silent idle), and the resume was
+ * blind (`{ lease, args }` only), so a run holding open wire intents
+ * poisoned forever and no host check could ride in.
+ */
+describe('production fitness (RV4913)', () => {
+  async function untilIdle(worker: { active(): string[] }): Promise<void> {
+    for (let attempt = 0; attempt < 500 && worker.active().length > 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  async function until(predicate: () => boolean, what: string): Promise<void> {
+    for (let attempt = 0; attempt < 500; attempt += 1) {
+      if (predicate()) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(`timed out waiting for ${what}`);
+  }
+
+  /** A suspended gated run whose resolution already landed: the next segment goes live. */
+  async function resolvedCandidate(
+    path: string,
+    item: number,
+  ): Promise<{ runId: string; gated: Workflow<never, unknown> }> {
+    const hostStore = new SqliteStore({ path, now: wallClock });
+    const gated = gatedWorkflow();
+    const hostEngine = makeEngine(hostStore, { gated });
+    const first = hostEngine.run(gated as unknown as Workflow<unknown, unknown>, { item });
+    expect((await first.result).status).toBe('suspended');
+    await offlineResolve(hostStore, first.runId, { approved: true });
+    return { runId: first.runId, gated };
+  }
+
+  it('a failed renew evicts the run: cancelled, still active until the cancel settles, awaited by stop()', async () => {
+    const path = dbPath();
+    const { runId, gated } = await resolvedCandidate(path, 7);
+    class RejectingRenew extends SqliteStore {
+      override renew(): Promise<void> {
+        return Promise.reject(new Error('renew: connection reset by peer'));
+      }
+    }
+    // A 30 ms ttl makes the worker renew every 10 ms; the store clock
+    // is frozen so the lease itself never expires and every fenced
+    // write of the unwinding segment still lands (the eviction is the
+    // worker's decision, not the store's).
+    const store = new RejectingRenew({ path, ttlMs: 30, now: () => 1_000_000 });
+    const engine = createEngine({
+      adapters: [
+        new FakeAdapter({
+          agents: {
+            // The live tail hangs until cancelled (abort aware).
+            post: () => new Promise(() => undefined),
+            '*': 'queued analysis',
+          },
+        }),
+      ],
+      stores: { journal: store },
+      defaults: {
+        routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF },
+        workflows: { gated },
+      },
+    });
+    // The cancel is gated so the window between "cancel issued" and
+    // "cancel settled" is observable: the old worker freed the slot
+    // inside that window.
+    let openCancel: () => void = () => undefined;
+    const cancelGate = new Promise<void>((resolve) => {
+      openCancel = resolve;
+    });
+    const cancels: string[] = [];
+    const spy: Engine = {
+      ...engine,
+      resume: (id, wf, opts) => {
+        const handle = engine.resume(id, wf, opts);
+        return {
+          ...handle,
+          cancel: async (reason?: string) => {
+            cancels.push(reason ?? '');
+            await cancelGate;
+            await handle.cancel(reason);
+          },
+        };
+      },
+    };
+    const errors: unknown[] = [];
+    const worker = createWorker(spy, {
+      store,
+      argsFor: () => ({ item: 7 }),
+      onError: (_runId, error) => {
+        errors.push(error);
+      },
+    });
+    expect(await worker.sweep()).toBe(1);
+    await until(() => cancels.length > 0, 'the lease lost cancel');
+    expect(cancels).toEqual(['lease lost: fencing epoch superseded']);
+    expect(String(errors[0])).toContain('connection reset');
+    // Evicted, not forgotten: the slot is still occupied while the
+    // cancel is in flight.
+    expect(worker.active()).toEqual([runId]);
+    // stop() waits for the evicted run instead of resolving over a
+    // run that is still live.
+    const stopP = worker.stop();
+    const raced = await Promise.race([
+      stopP.then(() => 'stopped'),
+      new Promise<string>((resolve) => setTimeout(() => resolve('pending'), 50)),
+    ]);
+    expect(raced).toBe('pending');
+    expect(cancels).toHaveLength(1);
+    openCancel();
+    await stopP;
+    expect(worker.active()).toEqual([]);
+    // The settle chain freed the slot a single time and handed the
+    // lease back: an immediate acquire succeeds.
+    const probe = await store.acquire(runId, 'probe');
+    await store.release(probe);
+  });
+
+  it('a store the sweep cannot read is a loud fact: onSweepError, lastSweepError, cleared by the next completed sweep', async () => {
+    let outage = true;
+    class FlakyStore extends SqliteStore {
+      override listRuns(
+        ...args: Parameters<SqliteStore['listRuns']>
+      ): ReturnType<SqliteStore['listRuns']> {
+        if (outage) {
+          return Promise.reject(new Error('listRuns: database is locked'));
+        }
+        return super.listRuns(...args);
+      }
+    }
+    const store = new FlakyStore({ path: dbPath(), now: wallClock });
+    const engine = makeEngine(store, {});
+    const sweepErrors: unknown[] = [];
+    const worker = createWorker(engine, {
+      store,
+      pollMs: 5,
+      onSweepError: (error) => {
+        sweepErrors.push(error);
+      },
+    });
+    expect(worker.lastSweepError()).toBeUndefined();
+    // A direct sweep rejects to its caller and raises the flag.
+    await expect(worker.sweep()).rejects.toThrowError(/database is locked/);
+    expect(String(worker.lastSweepError())).toContain('database is locked');
+    expect(sweepErrors).toHaveLength(0);
+    // The timer path reports every failed sweep instead of idling
+    // silently over the dead store.
+    worker.start();
+    await until(() => sweepErrors.length >= 2, 'two reported sweep failures');
+    expect(String(sweepErrors[0])).toContain('database is locked');
+    expect(String(worker.lastSweepError())).toContain('database is locked');
+    // The store heals: the next completed sweep clears the flag.
+    outage = false;
+    await until(() => worker.lastSweepError() === undefined, 'the flag to clear');
+    await worker.stop();
+    const reported = sweepErrors.length;
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(sweepErrors).toHaveLength(reported);
+  });
+
+  it('a run emitting 100k events under the worker is drained as it goes: never more than one burst buffered', async () => {
+    const path = dbPath();
+    const BURST = 1000;
+    const BURSTS = 100;
+    let deliveredLogs = 0;
+    const lag: number[] = [];
+    const chatty = defineWorkflow({ name: 'chatty' }, async (ctx) => {
+      await ctx.agent('analyze');
+      await ctx.awaitExternal<{ approved: boolean }>('editor-approval', { prompt: 'ship it?' });
+      let emitted = 0;
+      for (let burst = 0; burst < BURSTS; burst += 1) {
+        for (let i = 0; i < BURST; i += 1) {
+          ctx.log('info', `event ${String(emitted)}`);
+          emitted += 1;
+        }
+        // A macrotask boundary between bursts: a consumer that keeps up
+        // drains the whole burst here, a consumer that never arrives
+        // leaves every burst buffered (the old worker never arrived).
+        await new Promise((resolve) => setImmediate(resolve));
+        lag.push(emitted - deliveredLogs);
+      }
+      const post = await ctx.agent('post');
+      return { emitted, post };
+    }) as unknown as Workflow<never, unknown>;
+    const hostStore = new SqliteStore({ path, now: wallClock });
+    const hostEngine = makeEngine(hostStore, { chatty });
+    const first = hostEngine.run(chatty as unknown as Workflow<unknown, unknown>, undefined);
+    expect((await first.result).status).toBe('suspended');
+    await offlineResolve(hostStore, first.runId, { approved: true });
+
+    const workerStore = new SqliteStore({ path, now: wallClock });
+    const worker = createWorker(makeEngine(workerStore, { chatty }), {
+      store: workerStore,
+      onEvent: (event) => {
+        if (event.type === 'log') {
+          deliveredLogs += 1;
+        }
+      },
+    });
+    expect(await worker.sweep()).toBe(1);
+    await untilMeta(workerStore, first.runId, 'ok');
+    await worker.stop();
+    expect(lag).toHaveLength(BURSTS);
+    // The buffer never held more than the burst in flight: the drain
+    // kept pace with emission across all 100k events.
+    expect(Math.max(...lag)).toBeLessThanOrEqual(BURST);
+    expect(deliveredLogs).toBeGreaterThanOrEqual(BURST * BURSTS);
+  });
+
+  it('a run holding open wire intents resumes through resumeOptions; without the acknowledgment the worker poisons it', async () => {
+    const path = dbPath();
+    const { runId, gated } = await resolvedCandidate(path, 6);
+    // The crash window, reconstructed (RV4006): an intent journaled
+    // before a dispatch that never came back, no receipt, no terminal.
+    const hostStore = new SqliteStore({ path, now: wallClock });
+    const entries = await hostStore.load(runId);
+    const maxSeq = Math.max(...entries.map((entry) => entry.seq));
+    const orphan = {
+      hashVersion: CURRENT_HASH_VERSION,
+      seq: maxSeq + 1,
+      kind: 'decision',
+      scope: '',
+      key: 'pi:99999:1:1',
+      status: 'ok',
+      spanId: 'crash-window',
+      site: 'provider-intent',
+      value: {
+        decisionType: 'provider-intent',
+        agentRef: 99999,
+        ordinal: 1,
+        attempt: 1,
+        servedBy: FAKE_MODEL_REF,
+        requestFingerprint: 'f'.repeat(64),
+      },
+    };
+    await hostStore.append(runId, orphan as unknown as JournalEntry);
+
+    // The blind worker (the historical shape): the typed refusal
+    // poisons the run for this worker, and nothing could ever lift it.
+    const blindStore = new SqliteStore({ path, now: wallClock });
+    const errors: unknown[] = [];
+    const blind = createWorker(makeEngine(blindStore, { gated }), {
+      store: blindStore,
+      argsFor: () => ({ item: 6 }),
+      onError: (_runId, error) => {
+        errors.push(error);
+      },
+    });
+    expect(await blind.sweep()).toBe(1);
+    await untilIdle(blind);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toBeInstanceOf(ConfigError);
+    expect(String(errors[0])).toContain('acknowledgeOpenWireIntents');
+    expect(await blind.sweep()).toBe(0);
+    expect(await metaStatus(blindStore, runId)).toBe('suspended');
+    await blind.stop();
+
+    // The acknowledging worker: the posture is computed per run from
+    // the meta and reaches engine.resume, which journals the
+    // acknowledgment and completes the run.
+    const ackStore = new SqliteStore({ path, now: wallClock });
+    const seen: RunMeta[] = [];
+    const acknowledging = createWorker(makeEngine(ackStore, { gated }), {
+      store: ackStore,
+      argsFor: () => ({ item: 6 }),
+      resumeOptions: (meta) => {
+        seen.push(meta);
+        return { acknowledgeOpenWireIntents: true };
+      },
+    });
+    expect(await acknowledging.sweep()).toBe(1);
+    await untilMeta(ackStore, runId, 'ok');
+    await acknowledging.stop();
+    expect(seen.map((meta) => meta.runId)).toEqual([runId]);
+    const after = (await ackStore.load(runId)).map((raw) => normalizeEntry(raw));
+    const ack = after.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'open_wire_intents_acknowledged',
+    );
+    expect(ack).toBeDefined();
+    expect((ack?.value as { count?: number } | undefined)?.count).toBe(1);
+  });
+
+  it("resumeOptions.bodyHash 'refuse' reaches the engine: an edited body is refused and poisoned, not warned past", async () => {
+    const path = dbPath();
+    const { runId } = await resolvedCandidate(path, 8);
+    // The same name over an edited body: the historical worker resumed
+    // it under the loud warning; the pinned posture refuses typed.
+    const edited = defineWorkflow({ name: 'gated' }, async (ctx, args: { item: number }) => {
+      const analysis = await ctx.agent(`analyze ${String(args.item)}`);
+      const approval = await ctx.awaitExternal<{ approved: boolean }>('editor-approval', {
+        prompt: 'ship it?',
+      });
+      const post = await ctx.agent(`post ${String(approval.approved)}`);
+      return { edited: true, analysis, post };
+    }) as unknown as Workflow<never, unknown>;
+    const store = new SqliteStore({ path, now: wallClock });
+    const errors: unknown[] = [];
+    const worker = createWorker(makeEngine(store, { gated: edited }), {
+      store,
+      argsFor: () => ({ item: 8 }),
+      resumeOptions: { bodyHash: 'refuse' },
+      onError: (_runId, error) => {
+        errors.push(error);
+      },
+    });
+    expect(await worker.sweep()).toBe(1);
+    await untilIdle(worker);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toBeInstanceOf(ConfigError);
+    expect(String(errors[0])).toContain("bodyHash is 'refuse'");
+    expect(await worker.sweep()).toBe(0);
+    expect(await metaStatus(store, runId)).toBe('suspended');
+    await worker.stop();
+  });
+
+  it('a throwing resumeOptions callback is reported and the lease handed back; a ConfigError poisons', async () => {
+    const path = dbPath();
+    const { runId, gated } = await resolvedCandidate(path, 9);
+    const store = new SqliteStore({ path, now: wallClock });
+    const errors: unknown[] = [];
+    let refuse = false;
+    const worker = createWorker(makeEngine(store, { gated }), {
+      store,
+      argsFor: () => ({ item: 9 }),
+      resumeOptions: () => {
+        if (refuse) {
+          throw new ConfigError('the host refuses this run');
+        }
+        throw new Error('config service unreachable');
+      },
+      onError: (_runId, error) => {
+        errors.push(error);
+      },
+    });
+    // A plain failure: reported, the lease released, retried next sweep.
+    expect(await worker.sweep()).toBe(1);
+    await untilIdle(worker);
+    expect(String(errors[0])).toContain('config service unreachable');
+    const probe = await store.acquire(runId, 'probe');
+    await store.release(probe);
+    expect(await worker.sweep()).toBe(1);
+    await untilIdle(worker);
+    expect(errors).toHaveLength(2);
+    // A ConfigError: the binding rule, poisoned for this worker.
+    refuse = true;
+    expect(await worker.sweep()).toBe(1);
+    await untilIdle(worker);
+    expect(errors).toHaveLength(3);
+    expect(errors[2]).toBeInstanceOf(ConfigError);
+    expect(await worker.sweep()).toBe(0);
+    expect(await metaStatus(store, runId)).toBe('suspended');
+    await worker.stop();
   });
 });

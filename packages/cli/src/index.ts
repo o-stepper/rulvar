@@ -43,6 +43,7 @@ export {
   DEFAULT_WORKER_TTL_MS,
   type CreateWorkerOptions,
   type Worker,
+  type WorkerResumeOptions,
 } from './worker.js';
 export { attachProgress, renderEventLine } from './tui.js';
 export { processIo, type CliIo } from './io.js';

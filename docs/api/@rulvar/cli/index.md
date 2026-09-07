@@ -58,6 +58,7 @@ pnpm exec rulvar --help
 | Type Alias | Description |
 | ------ | ------ |
 | [PreflightDeclaration](/api/@rulvar/cli/type-aliases/PreflightDeclaration.md) | The preflight declaration a config or workflow module may export (the experiment-review P2.2): the declared spawn wave, the orchestrator spec, and the quota rule set behind the configured limiter, exactly the PreflightInput slices the estimator cannot derive from engineOptions alone. `rulvar preflight` merges the workflow module's declaration over the config file's, and --spawns overrides the spawn wave from the command line. |
+| [WorkerResumeOptions](/api/@rulvar/cli/type-aliases/WorkerResumeOptions.md) | The resume posture a worker may forward (RV4913): `ResumeOptions` without the two fields the worker owns, `lease` and `args`. |
 
 ## Variables
 

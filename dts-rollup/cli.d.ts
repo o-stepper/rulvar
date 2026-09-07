@@ -1,4 +1,4 @@
-import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, PreflightInput, Pricing, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@rulvar/core";
+import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, PreflightInput, Pricing, ResumeOptions, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@rulvar/core";
 
 //#region src/io.d.ts
 interface CliIo {
@@ -439,20 +439,80 @@ interface CreateWorkerOptions {
   * everything persists indefinitely.
   */
   retention?: (meta: RunMeta) => boolean;
+  /**
+  * Observer of every event of every run this worker drives (RV4913),
+  * in emission order, called from the worker's own drain of the
+  * handle's event stream. The engine subscribes that stream at handle
+  * creation and buffers it without bound until a consumer arrives,
+  * and the stock worker never arrived, so a long run held its whole
+  * event history in memory until settle, multiplied by `concurrency`.
+  * The drain now runs whether or not this hook is set (compaction
+  * keeps the queue bounded behind it); the hook is where a host
+  * renders or exports per run. A throw is swallowed: observability
+  * never breaks the loop.
+  */
+  onEvent?: (event: WorkflowEvent) => void;
+  /**
+  * Observability hook for sweep failures (RV4913): a `listRuns` or
+  * `acquire` that rejects (a store outage) used to be swallowed by the
+  * poll timer, so a worker over a dead store idled silently. The timer
+  * path now reports each failed sweep here and raises
+  * `Worker.lastSweepError()` until the next sweep completes; a direct
+  * `sweep()` call still rejects to its caller. Never throws into the
+  * loop.
+  */
+  onSweepError?: (error: unknown) => void;
+  /**
+  * The resume posture forwarded to `engine.resume` for every driven
+  * run (RV4913), as one value or computed per run from the run's
+  * meta: everything `ResumeOptions` offers except `lease` (the
+  * worker's own) and `args` (`argsFor`), so `bodyHash: 'refuse'`, the
+  * `configFingerprint` and `scope` assertions, `run` overrides, and the
+  * RV4006 `acknowledgeOpenWireIntents` acknowledgment reach the
+  * engine. Without it the worker resumes under the engine defaults: a
+  * changed body warns and proceeds, a recorded fingerprint or scope
+  * goes unchecked, and a run holding open wire intents refuses typed
+  * and poisons for this worker (before this option nothing could lift
+  * that refusal: a run that died mid wire under the intent posture
+  * was never resumed by a worker again). A throw from the function
+  * form is reported through `onError` and the lease is handed back
+  * (a ConfigError poisons the run for this worker, the binding rule).
+  */
+  resumeOptions?: WorkerResumeOptions | ((meta: RunMeta) => WorkerResumeOptions);
 }
+/**
+* The resume posture a worker may forward (RV4913): `ResumeOptions`
+* without the two fields the worker owns, `lease` and `args`.
+*/
+type WorkerResumeOptions = Omit<ResumeOptions, "lease" | "args">;
 interface Worker {
   /** Begins sweeping on the poll cadence. Idempotent. */
   start(): void;
   /**
   * One sweep: lease and resume eligible runs up to the concurrency
   * cap. Returns the number of runs picked up. Exposed so hosts and
-  * tests can drive the worker deterministically without timers.
+  * tests can drive the worker deterministically without timers. A
+  * store failure rejects here and raises `lastSweepError()`.
   */
   sweep(): Promise<number>;
-  /** Stops sweeping, cancels in-flight runs, releases held leases. */
+  /**
+  * Stops sweeping, cancels in flight runs (evicted runs included) and
+  * waits for their settle, releases held leases.
+  */
   stop(): Promise<void>;
-  /** runIds currently held by this worker. */
+  /**
+  * runIds occupying a slot: runs held under a lease, plus evicted runs
+  * (a failed renew) still unwinding their cancel. A slot frees only
+  * when its run settles, never before the cancel lands (RV4913).
+  */
   active(): string[];
+  /**
+  * Readiness (RV4913): the error of the most recent sweep that failed
+  * against the store, or undefined once a later sweep completed. A
+  * store outage used to be a silent idle; with this flag a health
+  * probe can report a worker that polls a store it cannot read.
+  */
+  lastSweepError(): unknown;
 }
 declare function createWorker(engine: Engine, options: CreateWorkerOptions): Worker;
 //#endregion
@@ -517,4 +577,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type PreflightDeclaration, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, costAuditCommand, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, preflightCommand, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_BUFFERED_EVENTS_PER_RUN, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type PreflightDeclaration, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, type WorkerResumeOptions, assembleEngine, attachProgress, costAuditCommand, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, preflightCommand, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };

@@ -510,9 +510,12 @@ export interface RunOptions {
    * dispatch refuses through the usual typed `in-flight-exposure`
    * path, so the drained-refusal terminals (RV1902, RV2002, RV2003)
    * keep their shapes. Absent, every byte of dispatch behavior is
-   * historical. Like `strictPricing`, this is a per-segment posture: it
-   * is not recorded in RunMeta and a resumed segment carries only what
-   * its own options declare.
+   * historical. Like `strictPricing`, the armed posture is recorded in
+   * RunMeta at genesis and restored on every resume (RV4913): a
+   * resumed segment used to carry only what its own options declared,
+   * and a bare resume (the queue worker's) silently dropped the clamp.
+   * Only `true` is recorded; a run recorded before the field resumes
+   * exactly as it always did.
    */
   clampTurnToExposure?: boolean;
   /**
@@ -1919,6 +1922,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
      */
     strictPricing?: { maxRatesAgeDays?: number; allowUnpriced?: string[] };
     /**
+     * The RunMeta recorded lone dispatch exposure clamp (RV2503),
+     * restored verbatim (RV4913): only the recorded literal `true`
+     * travels, and absence stays absent, so a run recorded before the
+     * field resumes with the clamp off exactly as it always did.
+     */
+    clampTurnToExposure?: true;
+    /**
      * The RunMeta-recorded ceiling-override posture (RV3902), restored
      * verbatim; absence means 'segment'. The refusal of a
      * ResumeOptions.run override under 'immutable-lifetime' already
@@ -2156,6 +2166,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
                   ? {}
                   : { allowUnpriced: [...opts.strictPricing.allowUnpriced] }),
               };
+    // The lone dispatch exposure clamp follows the same recording rule
+    // (RV4913): a fresh run arms it from RunOptions, a resumed run
+    // restores the RunMeta recorded literal, and absence stays absent,
+    // so a run recorded before the field keeps the historical refusal.
+    const clampTurnToExposure =
+      opts?.clampTurnToExposure === true || resumeCtx?.clampTurnToExposure === true;
     // The config fingerprint follows the recording rule (RV3210): a
     // fresh run records the declared RunOptions value, a resumed run
     // writes back the RECORDED one verbatim (the compare against a
@@ -2187,7 +2203,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       new RunBudget({
         ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
         ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
-        ...(opts?.clampTurnToExposure === true ? { clampTurnToExposure: true as const } : {}),
+        ...(clampTurnToExposure ? { clampTurnToExposure: true as const } : {}),
         ...(strictPricing === undefined ? {} : { strictPricing, now: realNow }),
         lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
         events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
@@ -2515,6 +2531,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
               ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
               ...(exposureCapUsd === undefined ? {} : { maxInFlightExposureUsd: exposureCapUsd }),
               ...(strictPricing === undefined ? {} : { strictPricing }),
+              // Only the armed clamp is recorded (RV4913): absence
+              // means off, so every run recorded before the field
+              // resumes byte identical.
+              ...(clampTurnToExposure ? { clampTurnToExposure: true as const } : {}),
               // Only the non-default posture is recorded (RV3902):
               // absence means 'segment', and a store that drops the
               // field degrades to the override door working again,
@@ -3821,6 +3841,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(typeof meta?.strictPricing === 'object' && meta.strictPricing !== null
           ? { strictPricing: meta.strictPricing }
           : {}),
+        // The recorded lone dispatch clamp travels back in (RV4913);
+        // only the exact literal counts, so a store that mangles the
+        // field degrades to the historical refusal, never to an
+        // invented clamp.
+        ...(meta?.clampTurnToExposure === true ? { clampTurnToExposure: true as const } : {}),
         // The recorded execution scope travels back in verbatim
         // (RV4007); absence stays absent.
         ...(typeof meta?.scope === 'object' && meta.scope !== null ? { scope: meta.scope } : {}),

@@ -10,6 +10,6 @@
 const DEFAULT_WORKER_TTL_MS: 60000 = 60_000;
 ```
 
-Defined in: [packages/cli/src/worker.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L57)
+Defined in: [packages/cli/src/worker.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L69)
 
 Appendix A: the committed reference lease ttl.

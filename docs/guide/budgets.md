@@ -358,8 +358,12 @@ turn RV711 promised. When the room cannot fund even the serving model's
 output floor the clamp stands aside, so a real exposure exhaustion still
 refuses through the typed `in-flight-exposure` path and every drained
 terminal above keeps its shape. Absent, dispatch behavior is byte identical.
-Like `strictPricing`, it is a per-segment posture: it is not recorded in
-RunMeta, and a resumed segment carries only what its own options declare.
+Like `strictPricing`, the armed clamp is recorded in `RunMeta` at genesis and
+restored on every resume (RV4913): it used to be a per segment posture carried
+only by the run options, so a bare resume (the queue worker's shape) silently
+dropped it and refused the very dispatch genesis had clamped. Only `true` is
+recorded, absence means off, and a run recorded before the field resumes exactly
+as it always did; stores must round trip the field (the conformance kit checks).
 
 The wait can never end the process silently (RV2003). The third parity
 rerun's terminal shape was exactly that: the root parked with nothing on

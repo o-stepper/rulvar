@@ -37,6 +37,16 @@
  * PostgresQuotaLimiter (@rulvar/store-postgres) coordinates HOSTS over
  * one database and schema. Dividing quota per worker and fronting an
  * external gateway remain valid simpler deployments.
+ *
+ * Production fitness (RV4913, the tenth comparison experiment's code
+ * review): the worker drains every driven run's event stream (the
+ * engine buffers it from handle creation, unbounded, until a consumer
+ * arrives), keeps an evicted run (a failed renew) in its slot until
+ * the cancel settles so stop() waits for it too, surfaces sweep
+ * failures through onSweepError and the lastSweepError readiness flag
+ * instead of idling silently over a dead store, and forwards the
+ * host's resume posture (bodyHash, configFingerprint, scope, the open
+ * wire intent acknowledgment) to engine.resume through resumeOptions.
  */
 import {
   ConfigError,
@@ -50,7 +60,9 @@ import {
   type KeyDeriver,
   type LeasableStore,
   type Lease,
+  type ResumeOptions,
   type RunMeta,
+  type WorkflowEvent,
 } from '@rulvar/core';
 
 /** Appendix A: the committed reference lease ttl. */
@@ -104,7 +116,53 @@ export interface CreateWorkerOptions {
    * everything persists indefinitely.
    */
   retention?: (meta: RunMeta) => boolean;
+  /**
+   * Observer of every event of every run this worker drives (RV4913),
+   * in emission order, called from the worker's own drain of the
+   * handle's event stream. The engine subscribes that stream at handle
+   * creation and buffers it without bound until a consumer arrives,
+   * and the stock worker never arrived, so a long run held its whole
+   * event history in memory until settle, multiplied by `concurrency`.
+   * The drain now runs whether or not this hook is set (compaction
+   * keeps the queue bounded behind it); the hook is where a host
+   * renders or exports per run. A throw is swallowed: observability
+   * never breaks the loop.
+   */
+  onEvent?: (event: WorkflowEvent) => void;
+  /**
+   * Observability hook for sweep failures (RV4913): a `listRuns` or
+   * `acquire` that rejects (a store outage) used to be swallowed by the
+   * poll timer, so a worker over a dead store idled silently. The timer
+   * path now reports each failed sweep here and raises
+   * `Worker.lastSweepError()` until the next sweep completes; a direct
+   * `sweep()` call still rejects to its caller. Never throws into the
+   * loop.
+   */
+  onSweepError?: (error: unknown) => void;
+  /**
+   * The resume posture forwarded to `engine.resume` for every driven
+   * run (RV4913), as one value or computed per run from the run's
+   * meta: everything `ResumeOptions` offers except `lease` (the
+   * worker's own) and `args` (`argsFor`), so `bodyHash: 'refuse'`, the
+   * `configFingerprint` and `scope` assertions, `run` overrides, and the
+   * RV4006 `acknowledgeOpenWireIntents` acknowledgment reach the
+   * engine. Without it the worker resumes under the engine defaults: a
+   * changed body warns and proceeds, a recorded fingerprint or scope
+   * goes unchecked, and a run holding open wire intents refuses typed
+   * and poisons for this worker (before this option nothing could lift
+   * that refusal: a run that died mid wire under the intent posture
+   * was never resumed by a worker again). A throw from the function
+   * form is reported through `onError` and the lease is handed back
+   * (a ConfigError poisons the run for this worker, the binding rule).
+   */
+  resumeOptions?: WorkerResumeOptions | ((meta: RunMeta) => WorkerResumeOptions);
 }
+
+/**
+ * The resume posture a worker may forward (RV4913): `ResumeOptions`
+ * without the two fields the worker owns, `lease` and `args`.
+ */
+export type WorkerResumeOptions = Omit<ResumeOptions, 'lease' | 'args'>;
 
 export interface Worker {
   /** Begins sweeping on the poll cadence. Idempotent. */
@@ -112,13 +170,28 @@ export interface Worker {
   /**
    * One sweep: lease and resume eligible runs up to the concurrency
    * cap. Returns the number of runs picked up. Exposed so hosts and
-   * tests can drive the worker deterministically without timers.
+   * tests can drive the worker deterministically without timers. A
+   * store failure rejects here and raises `lastSweepError()`.
    */
   sweep(): Promise<number>;
-  /** Stops sweeping, cancels in-flight runs, releases held leases. */
+  /**
+   * Stops sweeping, cancels in flight runs (evicted runs included) and
+   * waits for their settle, releases held leases.
+   */
   stop(): Promise<void>;
-  /** runIds currently held by this worker. */
+  /**
+   * runIds occupying a slot: runs held under a lease, plus evicted runs
+   * (a failed renew) still unwinding their cancel. A slot frees only
+   * when its run settles, never before the cancel lands (RV4913).
+   */
   active(): string[];
+  /**
+   * Readiness (RV4913): the error of the most recent sweep that failed
+   * against the store, or undefined once a later sweep completed. A
+   * store outage used to be a silent idle; with this flag a health
+   * probe can report a worker that polls a store it cannot read.
+   */
+  lastSweepError(): unknown;
 }
 
 const CANDIDATE_STATUSES = new Set(['running', 'suspended']);
@@ -201,6 +274,12 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     renewTimer: ReturnType<typeof setInterval>;
     cancel: (reason: string) => Promise<void>;
     settled: Promise<void>;
+    /**
+     * A failed renew evicted this run (RV4913): its lease is lost, its
+     * cancel is in flight, and the slot stays occupied until the
+     * settle chain frees it, so stop() waits for it like any other.
+     */
+    evicted: boolean;
   }
 
   const active = new Map<string, ActiveRun>();
@@ -236,6 +315,14 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     }
   }
 
+  function reportSweepError(error: unknown): void {
+    try {
+      options.onSweepError?.(error);
+    } catch {
+      // Observability must never break the loop.
+    }
+  }
+
   async function releaseQuietly(lease: Lease): Promise<void> {
     try {
       await store.release(lease);
@@ -247,22 +334,72 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
 
   /** Drives one leased run to its next settle. */
   async function drive(runId: string, meta: RunMeta, lease: Lease): Promise<void> {
-    const handle = engine.resume(runId, undefined, {
-      lease,
-      ...(options.argsFor === undefined ? {} : { args: options.argsFor(meta) }),
-    });
+    // The host's resume posture rides in (RV4913): bodyHash 'refuse',
+    // the configFingerprint and scope assertions, and the open wire
+    // intent acknowledgment all reach engine.resume, so the worker
+    // checks what the engine can check instead of resuming blind with
+    // the lease and the args alone. The lease lands LAST: the worker's
+    // own ownership token is never overridden by host input. A
+    // throwing host callback is the host's defect, classified exactly
+    // like a settle failure (a ConfigError poisons, anything else is
+    // reported and retried next sweep), never an unhandled rejection
+    // out of the sweep.
+    let resumeOptions: ResumeOptions;
+    try {
+      const posture =
+        typeof options.resumeOptions === 'function'
+          ? options.resumeOptions(meta)
+          : (options.resumeOptions ?? {});
+      resumeOptions = {
+        ...posture,
+        ...(options.argsFor === undefined ? {} : { args: options.argsFor(meta) }),
+        lease,
+      };
+    } catch (thrown) {
+      if (thrown instanceof ConfigError) {
+        poisoned.set(runId, meta.genesis);
+      }
+      reportError(runId, thrown);
+      await releaseQuietly(lease);
+      return;
+    }
+    const handle = engine.resume(runId, undefined, resumeOptions);
+    // The drain (RV4913): the engine subscribes handle.events at handle
+    // creation and buffers every event until a consumer arrives, and
+    // the stock worker never arrived, so a long run held its whole
+    // event history in memory until settle, multiplied by concurrency.
+    // Consuming keeps the queue compacted behind the reader, and the
+    // host's onEvent sees every event of the leased run in order. A
+    // refused resume closes the stream with the typed refusal that
+    // handle.result reports below; the drain itself never throws.
+    const drained = (async () => {
+      for await (const event of handle.events) {
+        try {
+          options.onEvent?.(event);
+        } catch {
+          // Observability must never break the loop.
+        }
+      }
+    })().catch(() => undefined);
     const renewTimer = setInterval(() => {
       store.renew(lease).catch((thrown: unknown) => {
         // The lease is lost (paused process, reclaim after ttl): every
         // further append already rejects by fencing; cancel to unwind
-        // the loop promptly instead of burning live calls. A stale run
-        // whose landings all reject may never settle, so the slot is
-        // freed HERE: fencing keeps the journal safe either way, and
-        // the settled chain stays harmless if it ever completes.
-        reportError(runId, thrown);
-        void handle.cancel('lease lost: fencing epoch superseded');
+        // the loop promptly instead of burning live calls. The slot is
+        // NOT freed here (RV4913): the record is marked evicted and
+        // stays active until the cancel settles, so the settle chain
+        // below frees the slot a single time, after the run is really
+        // gone, and a stop() taken meanwhile still waits for it instead
+        // of resolving over a run that is still live (the old code
+        // dropped the record at once, and stop()'s snapshot never saw
+        // the evicted run). Fencing keeps the journal safe either way.
         clearInterval(renewTimer);
-        active.delete(runId);
+        const record = active.get(runId);
+        if (record !== undefined) {
+          record.evicted = true;
+        }
+        reportError(runId, thrown);
+        void handle.cancel('lease lost: fencing epoch superseded').catch(() => undefined);
       });
     }, renewMs);
     const settled = handle.result
@@ -290,6 +427,9 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       })
       .finally(async () => {
         clearInterval(renewTimer);
+        // Every event reached onEvent before the slot frees: the stream
+        // ends at settle, so this wait is bounded by the backlog.
+        await drained;
         await releaseQuietly(lease);
         active.delete(runId);
       });
@@ -300,6 +440,7 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
         await handle.cancel(reason);
       },
       settled: settled.then(() => undefined),
+      evicted: false,
     });
     await settled;
   }
@@ -335,6 +476,11 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
 
   /** The sweep in flight, so stop() can wait it out before snapshotting. */
   let sweepInFlight: Promise<void> | undefined;
+  /**
+   * The readiness flag (RV4913): the error of the last sweep that
+   * failed against the store, cleared by the next completed sweep.
+   */
+  let lastSweepError: unknown;
 
   async function sweepBody(): Promise<number> {
     let picked = 0;
@@ -463,7 +609,17 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       () => undefined,
     );
     try {
-      return await work;
+      const picked = await work;
+      // A completed scan clears the flag: readiness reads the LAST sweep.
+      lastSweepError = undefined;
+      return picked;
+    } catch (thrown) {
+      // A store the worker cannot read is a loud fact (RV4913): the
+      // flag stays raised until a later sweep completes, and the
+      // caller (the timer path's onSweepError, or a host driving
+      // sweep() itself) receives the rejection.
+      lastSweepError = thrown;
+      throw thrown;
     } finally {
       sweeping = false;
       sweepInFlight = undefined;
@@ -475,10 +631,17 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       if (pollTimer !== undefined || stopping) {
         return;
       }
+      // The timer path used to swallow every rejection, so a store
+      // outage was a silent idle: the worker polled a store it could
+      // not read and nothing in the process said so (RV4913).
       pollTimer = setInterval(() => {
-        sweep().catch(() => undefined);
+        sweep().catch((thrown: unknown) => {
+          reportSweepError(thrown);
+        });
       }, pollMs);
-      void sweep().catch(() => undefined);
+      void sweep().catch((thrown: unknown) => {
+        reportSweepError(thrown);
+      });
     },
     sweep,
     stop: async () => {
@@ -494,14 +657,20 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       if (inFlight !== undefined) {
         await inFlight;
       }
+      // Evicted runs are still in the map (RV4913): their lease lost
+      // cancel is already in flight and their slot frees at settle, so
+      // stop() waits for them exactly like the runs it cancels itself.
       const held = [...active.values()];
       await Promise.all(
         held.map(async (run) => {
-          await run.cancel('worker stopping');
+          if (!run.evicted) {
+            await run.cancel('worker stopping');
+          }
           await run.settled;
         }),
       );
     },
     active: () => [...active.keys()],
+    lastSweepError: () => lastSweepError,
   };
 }

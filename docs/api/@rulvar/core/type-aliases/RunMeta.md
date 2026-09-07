@@ -12,6 +12,7 @@ type RunMeta = {
   argsProvided?: boolean;
   budgetPolicy?: "immutable-lifetime";
   budgetUsd?: number;
+  clampTurnToExposure?: true;
   configFingerprint?: string;
   execKeyDerivation?: number;
   genesis?: string;
@@ -57,7 +58,7 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L157)
+Defined in: [packages/core/src/l0/spi/store.ts:171](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L171)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
@@ -84,7 +85,7 @@ checks).
 optional argsProvided?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L138)
+Defined in: [packages/core/src/l0/spi/store.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L152)
 
 Whether the run started with defined args. Engine-recorded at
 genesis and preserved verbatim by every later segment (a resume
@@ -135,13 +136,35 @@ drops it degrades a resumed run to uncapped.
 
 ***
 
+### clampTurnToExposure?
+
+```ts
+optional clampTurnToExposure?: true;
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L119)
+
+The opt in lone dispatch exposure clamp
+(RunOptions.clampTurnToExposure, RV2503), recorded at genesis only
+when armed so resume restores the posture (RV4913): the option
+used to be per segment and unrecorded, so a resumed segment ran
+WITHOUT the clamp and a queue worker could never re arm it. Only
+the exact literal `true` is recorded and honored; absence means
+off, which keeps every run recorded before the field byte
+identical on resume. Stores must round trip the field (the
+conformance kit checks); a store that drops it degrades a resumed
+run to the historical refusal of an overshooting lone dispatch,
+never to an invented clamp.
+
+***
+
 ### configFingerprint?
 
 ```ts
 optional configFingerprint?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L114)
+Defined in: [packages/core/src/l0/spi/store.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L128)
 
 The host-declared config identity (RunOptions.configFingerprint,
 RV3210): an opaque pin over what the workflow body closes over,
@@ -158,7 +181,7 @@ or a false refusal (absence means NOT RECORDED).
 optional execKeyDerivation?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L187)
+Defined in: [packages/core/src/l0/spi/store.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L201)
 
 Which isolated-executor idempotency key derivation this run uses
 (RV403), for its WHOLE life: stamped at the fresh start by the
@@ -184,7 +207,7 @@ at-least-once fold of a redispatched call for a version 2 run.
 optional genesis?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L169)
+Defined in: [packages/core/src/l0/spi/store.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L183)
 
 Unique token minted at the run's fresh start (genesis) and preserved
 verbatim by every later segment, so two runs that reuse the same
@@ -337,7 +360,7 @@ version: number;
 optional segments?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L126)
+Defined in: [packages/core/src/l0/spi/store.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L140)
 
 Count of execution segments this run has STARTED (a fresh start
 writes 1; every resume writes prior + 1, durably, BEFORE the
