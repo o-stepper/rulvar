@@ -10,7 +10,7 @@
 function repositoryResearchToolset(options): RepositoryResearchToolset;
 ```
 
-Defined in: [packages/core/src/tools/research.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L167)
+Defined in: [packages/core/src/tools/research.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L170)
 
 ## Parameters
 

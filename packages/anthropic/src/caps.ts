@@ -14,12 +14,12 @@
  * RV901). The 1h premium bills through the canonical Usage TTL split
  * the wire fills (RV810); when a usage carries no split, the whole
  * write count folds at the conservative 5m rate exactly as before.
- * Every row was re-verified against that page on 2026-07-31
- * (RATES_VERIFIED_AT below, RV814), and the weekly rates audit
- * (scripts/rates-audit.mjs) re-checks the same page so the next
- * verification is a schedule, not a hand note. A price revision
- * is a new release with a new pricingVersion, never a wall-clock switch
- * inside a run.
+ * Every row was re verified against that page on 2026-09-07
+ * (RATES_VERIFIED_AT below, RV814, RV4918), and the weekly rates audit
+ * (scripts/rates-audit.mjs) re checks the same page and the age of
+ * that stamp, so the next verification is a schedule, not a hand
+ * note. A price revision is a new release with a new pricingVersion,
+ * never a wall clock switch inside a run.
  *
  * Window/output rows mirror the official models table and the live
  * GET /v1/models figures as of 2026-07-17 (the v1.16.1 review caught
@@ -37,9 +37,16 @@ const ALL_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
  * The date every seed row was last verified against the documented
  * pricing table (RV814): one constant because the whole table mirrors
  * one page snapshot. A later re-verification bumps it table-wide; a
- * rate CHANGE is a new release with a new pricingVersion.
+ * rate CHANGE is a new release with a new pricingVersion. The
+ * 2026-09-07 renewal (RV4918) re read every row with the audit's own
+ * extractor and moved no number: the Sonnet 5 rate the previous stamp
+ * called introductory had become permanent on the page's 2026-08-10
+ * revision while this stamp still said 2026-07-31, and a strictPricing
+ * host with maxRatesAgeDays would have discarded a correct table on the
+ * calendar. The scheduled rates audit now fails a stamp older than
+ * sixty days, so the next renewal is paged for, never remembered.
  */
-const RATES_VERIFIED_AT = '2026-07-31';
+const RATES_VERIFIED_AT = '2026-09-07';
 
 export interface AnthropicModelInfo {
   caps: ModelCaps;
@@ -112,8 +119,11 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
     { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25, cacheWrite1h: 10 },
     4_096,
   ),
-  // Introductory pricing in effect through 2026-08-31; the standard
-  // 3/15/0.3/3.75/6 row ships in a release after the promotion ends.
+  // The 2/10/0.2/2.5/4 row launched as introductory pricing through
+  // 2026-08-31; the page's 2026-08-10 revision made it the standard
+  // price and cancelled the scheduled increase to 3/15/0.3/3.75/6
+  // (RV4918, re read 2026-09-07). No scheduled change: a future
+  // revision ships as a new pricingVersion like any other.
   'claude-sonnet-5': current(
     1_000_000,
     128_000,
@@ -178,8 +188,10 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
  * the caps fallback by rule, and a later table revision surfaces as
  * explicit configuration drift on resume rather than a silent
  * reinterpretation. Extend or override rows by spreading `models` into
- * your own table with a new version string (the documented path for the
- * Sonnet 5 promotion ending on 2026-08-31).
+ * your own table with a new version string (the documented path when
+ * the provider revises a rate; the Sonnet 5 introductory rate this
+ * comment once expected to end on 2026-08-31 became permanent instead,
+ * RV4918, and no row here has a scheduled change).
  */
 export const ANTHROPIC_PRICING: PriceTable = {
   // The 2026-07-31 revision seeds the fifth published column, the 1h
@@ -205,10 +217,12 @@ export const ANTHROPIC_PRICING: PriceTable = {
  * v1.17.0 review P1-1): the general prefix matcher let ANY suffix of a
  * known name inherit the full row, so a preview or sibling variant the
  * table has never seen, `claude-sonnet-5-preview` say, silently took
- * the known model's caps AND its promotional pricing, which is exactly
- * the fabricated row the unknown model contract above forbids. The
+ * the known model's caps AND its pricing, which is exactly the
+ * fabricated row the unknown model contract above forbids. The
  * 2026-08-12 comparison run named this counterexample: a suffix
- * inheriting a promotion that ends on 2026-08-31. An unknown suffix
+ * inheriting what was then a promotional rate with a scheduled end
+ * (the rate later became permanent, RV4918; the hazard is the
+ * inheritance, not the promotion). An unknown suffix
  * now falls through to the conservative unpriced caps, and a dated
  * snapshot resolves only through its EXACT base name, which also keeps
  * the old guarantee that a snapshot of a longer name never lands on a

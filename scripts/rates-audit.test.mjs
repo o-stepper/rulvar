@@ -9,7 +9,8 @@
 // seeds so this module stays loadable by the dependency-free CI script
 // tests; `packages/core/src/model/pricing.test.ts` owns its unit tests
 // (both directions, RV902) and the fault-injection kit drives it as a
-// permanent gate.
+// permanent gate. The stamp age judgement (RV4918) is tested under a
+// fixed clock: the calendar lives in the scheduled run, never here.
 //
 // Run with: pnpm test:scripts (node --test "scripts/**/*.test.mjs").
 import assert from 'node:assert/strict';
@@ -19,6 +20,8 @@ import {
   decodeHtmlText,
   extractAnthropicModelRates,
   extractOpenAiModelRates,
+  judgeStampAge,
+  MAX_STAMP_AGE_DAYS,
 } from './rates-audit.mjs';
 
 test('decodeHtmlText strips markup and script bodies and decodes entities', () => {
@@ -82,8 +85,14 @@ const ANTHROPIC_PAGE = decodeHtmlText(
     '<h2>Model pricing</h2><table>',
     '<tr><th>Model</th><th>Base Input Tokens</th><th>5m Cache Writes</th>',
     '<th>1h Cache Writes</th><th>Cache Hits &amp; Refreshes</th><th>Output Tokens</th></tr>',
+    // The newer sibling is listed FIRST and carries the longer name
+    // (RV4918): a prefix match of 'Claude Fable 5' lands on this row.
+    '<tr><td>Claude Fable 5.1</td><td>$10 / MTok</td><td>$12.50 / MTok</td>',
+    '<td>$20 / MTok</td><td>$0.25 / MTok</td><td>$50 / MTok</td></tr>',
     '<tr><td>Claude Fable 5</td><td>$10 / MTok</td><td>$12.50 / MTok</td>',
     '<td>$20 / MTok</td><td>$1 / MTok</td><td>$50 / MTok</td></tr>',
+    // The two row shape the page carried while the Sonnet 5 rate had a
+    // scheduled end; the first row rule it pins outlives the promotion.
     '<tr><td>Claude Sonnet 5 <a href="#note">through August 31, 2026</a></td><td>$2 / MTok</td>',
     '<td>$2.50 / MTok</td><td>$4 / MTok</td><td>$0.20 / MTok</td><td>$10 / MTok</td></tr>',
     '<tr><td>Claude Sonnet 5 starting September 1, 2026</td><td>$3 / MTok</td>',
@@ -122,4 +131,47 @@ test('extractAnthropicModelRates fails closed when the model is not on the page'
   const extracted = extractAnthropicModelRates(ANTHROPIC_PAGE, 'Claude Mist 9');
   assert.equal(extracted.ok, false);
   assert.match(extracted.reason, /not found/);
+});
+
+test('extractAnthropicModelRates matches a display name as a whole name: Fable 5 is not the Fable 5.1 row (RV4918)', () => {
+  const older = extractAnthropicModelRates(ANTHROPIC_PAGE, 'Claude Fable 5');
+  assert.equal(older.ok, true);
+  assert.equal(older.rates.cacheReadUsdPerMTok, 1);
+  const newer = extractAnthropicModelRates(ANTHROPIC_PAGE, 'Claude Fable 5.1');
+  assert.equal(newer.ok, true);
+  assert.equal(newer.rates.cacheReadUsdPerMTok, 0.25);
+  // A name the page shows only as a prefix of another is not found.
+  const prefixOnly = extractAnthropicModelRates(
+    decodeHtmlText('<td>Claude Fable 5.1</td><td>$10 / MTok</td>'),
+    'Claude Fable 5',
+  );
+  assert.equal(prefixOnly.ok, false);
+  assert.match(prefixOnly.reason, /not found/);
+});
+
+// A fixed clock (RV4918): the calendar is judged by the scheduled
+// audit, and these tests never read Date.now().
+const NOW = Date.parse('2026-09-07T12:00:00Z');
+
+test('judgeStampAge passes a stamp within the bound and fails one past it (RV4918)', () => {
+  assert.equal(MAX_STAMP_AGE_DAYS, 60);
+  assert.equal(judgeStampAge({ ratesVerifiedAt: '2026-09-07' }, NOW), undefined);
+  // Exactly sixty days is within the bound; the sixty first day is past it.
+  assert.equal(judgeStampAge({ ratesVerifiedAt: '2026-07-09' }, NOW), undefined);
+  const stale = judgeStampAge({ ratesVerifiedAt: '2026-07-08' }, NOW);
+  assert.match(stale, /2026-07-08 is 61 days old/);
+  assert.match(stale, /60 day re verification bound/);
+  assert.match(stale, /keeps pricingVersion/);
+  // The bound is a parameter: the same stamp is fresh under a wider one.
+  assert.equal(judgeStampAge({ ratesVerifiedAt: '2026-07-08' }, NOW, 90), undefined);
+});
+
+test('judgeStampAge fails closed on a missing, unparsable, or future stamp (RV4918)', () => {
+  assert.match(judgeStampAge({}, NOW), /no ratesVerifiedAt/);
+  assert.match(judgeStampAge(undefined, NOW), /no ratesVerifiedAt/);
+  assert.match(judgeStampAge({ ratesVerifiedAt: 'soon' }, NOW), /not a date/);
+  // A date only stamp of today authored ahead of UTC reads hours in
+  // the future and is fresh; a typo'd year reads months out.
+  assert.equal(judgeStampAge({ ratesVerifiedAt: '2026-09-08' }, NOW), undefined);
+  assert.match(judgeStampAge({ ratesVerifiedAt: '2027-09-07' }, NOW), /in the future/);
 });

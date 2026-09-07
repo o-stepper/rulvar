@@ -31,7 +31,9 @@ import { ANTHROPIC_MODELS, ANTHROPIC_PRICING, anthropicModelInfo } from './caps.
  * The official table (platform.claude.com pricing page as published
  * 2026-07-16; every row re-verified against the page 2026-07-31 across
  * all five published columns, the 1h cache-write premium included:
- * RV901, the thirteenth experiment's underpricing probe).
+ * RV901, the thirteenth experiment's underpricing probe; and again on
+ * 2026-09-07 with the rates audit's own extractor, RV4918, when no
+ * number had moved and only the stamp and the Sonnet 5 prose had).
  */
 const OFFICIAL: Record<string, Pricing> = {
   'claude-fable-5': {
@@ -40,7 +42,7 @@ const OFFICIAL: Record<string, Pricing> = {
     cacheReadUsdPerMTok: 1,
     cacheWriteUsdPerMTok: 12.5,
     cacheWrite1hUsdPerMTok: 20,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
   'claude-opus-4-8': {
     inputUsdPerMTok: 5,
@@ -48,7 +50,7 @@ const OFFICIAL: Record<string, Pricing> = {
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
     cacheWrite1hUsdPerMTok: 10,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
   'claude-opus-4-7': {
     inputUsdPerMTok: 5,
@@ -56,7 +58,7 @@ const OFFICIAL: Record<string, Pricing> = {
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
     cacheWrite1hUsdPerMTok: 10,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
   'claude-opus-4-6': {
     inputUsdPerMTok: 5,
@@ -64,17 +66,19 @@ const OFFICIAL: Record<string, Pricing> = {
     cacheReadUsdPerMTok: 0.5,
     cacheWriteUsdPerMTok: 6.25,
     cacheWrite1hUsdPerMTok: 10,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
-  // Introductory price through 2026-08-31; the standard 3/15 row ships
-  // in a release after the promotion ends, never by wall clock.
+  // Launched as an introductory price through 2026-08-31 and made the
+  // standard price by the page's 2026-08-10 revision (RV4918): no
+  // scheduled change, and any revision ships in a release, never by
+  // wall clock.
   'claude-sonnet-5': {
     inputUsdPerMTok: 2,
     outputUsdPerMTok: 10,
     cacheReadUsdPerMTok: 0.2,
     cacheWriteUsdPerMTok: 2.5,
     cacheWrite1hUsdPerMTok: 4,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
   'claude-sonnet-4-6': {
     inputUsdPerMTok: 3,
@@ -82,7 +86,7 @@ const OFFICIAL: Record<string, Pricing> = {
     cacheReadUsdPerMTok: 0.3,
     cacheWriteUsdPerMTok: 3.75,
     cacheWrite1hUsdPerMTok: 6,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
   'claude-haiku-4-5': {
     inputUsdPerMTok: 1,
@@ -90,7 +94,7 @@ const OFFICIAL: Record<string, Pricing> = {
     cacheReadUsdPerMTok: 0.1,
     cacheWriteUsdPerMTok: 1.25,
     cacheWrite1hUsdPerMTok: 2,
-    ratesVerifiedAt: '2026-07-31',
+    ratesVerifiedAt: '2026-09-07',
   },
 };
 
@@ -105,12 +109,13 @@ describe('Anthropic fallback pricing matches the official table', () => {
 
   it('records the rates verification date on every priced seed row (RV814)', () => {
     // Verified against the documented model pricing table on
-    // 2026-07-31 (every seeded rate matched the page, all five columns
-    // including the 1h write premium); the weekly rates audit
-    // re-verifies the same page and pages on drift.
+    // 2026-09-07 (every seeded rate matched the page, all five columns
+    // including the 1h write premium; RV4918 renewed the 2026-07-31
+    // stamp); the weekly rates audit re verifies the same page, pages
+    // on drift, and pages once this stamp is over sixty days old.
     for (const [model, info] of Object.entries(ANTHROPIC_MODELS)) {
       if (info.caps.pricing !== undefined) {
-        expect(info.caps.pricing.ratesVerifiedAt, model).toBe('2026-07-31');
+        expect(info.caps.pricing.ratesVerifiedAt, model).toBe('2026-09-07');
       }
     }
   });

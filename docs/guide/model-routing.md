@@ -241,11 +241,12 @@ import { anthropic, ANTHROPIC_PRICING } from '@rulvar/anthropic';
 import { openai, OPENAI_PRICING } from '@rulvar/openai';
 
 // Start from the shipped tables and override rows as prices change,
-// always under a NEW version string. Example: the Claude Sonnet 5
-// introductory price ends on 2026-08-31, and the host moves to the
-// standard row on its own schedule instead of waiting for a library
-// release (prices are never fetched live and never switch by wall
-// clock inside a run).
+// always under a NEW version string. Example: the provider announces
+// that a model's rate moves to a standard row on a date (the Claude
+// Sonnet 5 launch pricing was scheduled that way before the provider
+// made it permanent), and the host moves to the new row on its own
+// schedule instead of waiting for a library release (prices are never
+// fetched live and never switch by wall clock inside a run).
 const pricing: PriceTable = {
   pricingVersion: 'my-app-2026-09-01',
   models: {

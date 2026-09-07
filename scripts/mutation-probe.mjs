@@ -7075,6 +7075,33 @@ export const MUTATIONS = [
     replace: '  if (masked.length <= Number.MAX_SAFE_INTEGER) {',
     test: 'packages/cli/src/otel.test.ts',
   },
+  {
+    id: 'the-research-read-binds-to-the-checked-inode',
+    doctrine:
+      'the research tools read through a descriptor whose device and inode equal the identity the containment check recorded (RV4916): disarmed, a rename between the check and the open hands the read whatever file the swap named, and the realpath containment of the checked name vouches for bytes it never saw',
+    file: 'packages/core/src/tools/descriptor.ts',
+    find: '    if (opened.dev !== expected.dev || opened.ino !== expected.ino) {',
+    replace: '    if (false) {',
+    test: 'packages/core/src/tools/research.test.ts',
+  },
+  {
+    id: 'the-research-open-never-follows-the-final-link',
+    doctrine:
+      'the research read opens its name with O_NOFOLLOW (RV4916): disarmed, a symlink swapped into the checked name after the containment check is followed to its target, and a descriptor whose identity matches a stat that followed the same link reads outside the root',
+    file: 'packages/core/src/tools/descriptor.ts',
+    find: 'constants.O_RDONLY | constants.O_NOFOLLOW',
+    replace: 'constants.O_RDONLY',
+    test: 'packages/core/src/tools/research.test.ts',
+  },
+  {
+    id: 'the-rates-audit-judges-the-stamp-age',
+    doctrine:
+      'the scheduled rates audit fails a seed row whose ratesVerifiedAt is older than the re verification bound (RV4918): disarmed, a table whose numbers still match the page carries a stamp nobody renews, and every strictPricing.maxRatesAgeDays host discards a correct table on the calendar while the audit reads green',
+    file: 'scripts/rates-audit.mjs',
+    find: '  if (ageDays > maxAgeDays) {',
+    replace: '  if (false) {',
+    test: 'scripts/rates-audit.test.mjs',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm

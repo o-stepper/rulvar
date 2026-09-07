@@ -8,15 +8,18 @@
  * unrelated entries appear), canonical byte-identical pages (the
  * exploration-guard composition), root confinement including symlink
  * escapes, verified evidence collection, and typed error VALUES for
- * every user-level failure.
+ * every user-level failure. The descriptor read (RV4916) is driven
+ * directly: a symlink in the final component, a descriptor of another
+ * inode, and the honest bytes through the same seam.
  */
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
 import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
+import { readIdentifiedFile } from './descriptor.js';
 import { repositoryResearchToolset } from './research.js';
 
 let root: string;
@@ -171,6 +174,35 @@ describe('repositoryResearchToolset (RV-210 remainder)', () => {
     expect(listed.files).not.toContain('sneaky.txt');
   });
 
+  it('follows a symlinked directory that stays inside the root and refuses one that leaves it (RV4916)', async () => {
+    symlinkSync(path.join(root, 'src'), path.join(root, 'linked-src'));
+    symlinkSync(outside, path.join(root, 'linked-out'));
+    const kit = repositoryResearchToolset({ root });
+    const read = toolByName(kit.tools, 'read_file');
+    const direct = await call(read, { path: 'src/a.ts' });
+    const viaLink = await call(read, { path: 'linked-src/a.ts' });
+    // The honest bytes are identical however the directory is named.
+    expect(direct.content).toBe('1: const a = 1;\n2: // needle in a\n3: ');
+    expect(viaLink.content).toBe(direct.content);
+    expect(viaLink.totalLines).toBe(direct.totalLines);
+    expect((await call(read, { path: 'linked-out/secret.txt' })).error).toMatch(/escapes/);
+    const record = toolByName(kit.tools, 'record_evidence');
+    expect(
+      await call(record, {
+        claim: 'via the link',
+        file: 'linked-src/a.ts',
+        lines: '2',
+        quote: 'needle in a',
+      }),
+    ).toEqual({ recorded: true, duplicate: false, totalEvidence: 1 });
+    expect((await call(record, { claim: 'c', file: 'linked-out/secret.txt' })).error).toMatch(
+      /escapes/,
+    );
+    // Neither link is walked.
+    const listed = await call(toolByName(kit.tools, 'list_files'), {});
+    expect(listed.files).toEqual(['alpha.md', 'beta.txt', 'src/a.ts', 'src/b.ts']);
+  });
+
   it('verifies evidence at record time: existence, line range, and verbatim quote', async () => {
     const kit = repositoryResearchToolset({ root });
     const record = toolByName(kit.tools, 'record_evidence');
@@ -264,5 +296,68 @@ describe('repositoryResearchToolset (RV-210 remainder)', () => {
     const kit = repositoryResearchToolset({ root, maxScannedFiles: 2 });
     const out = await call(toolByName(kit.tools, 'list_files'), {});
     expect(out.error).toMatch(/maxScannedFiles/);
+  });
+});
+
+describe('the descriptor read (RV4916)', () => {
+  const big = 1_000_000;
+  const identityOf = (file: string): { dev: bigint; ino: bigint } => {
+    const info = lstatSync(path.join(root, file), { bigint: true });
+    return { dev: info.dev, ino: info.ino };
+  };
+
+  it('reads the honest file byte for byte through its descriptor', async () => {
+    expect(
+      await readIdentifiedFile(path.join(root, 'alpha.md'), identityOf('alpha.md'), big),
+    ).toEqual({ buffer: Buffer.from('alpha one\nalpha two\nneedle here\n') });
+  });
+
+  it('refuses a symlink in the final component even when the checked identity is the target', async () => {
+    // A stat that FOLLOWED the link reports the target's identity: a
+    // descriptor opened without O_NOFOLLOW would match it and read the
+    // target, which is exactly the rename race (the symlink swapped in
+    // after the containment check admitted a regular file).
+    symlinkSync(path.join(outside, 'secret.txt'), path.join(root, 'swapped.md'));
+    const target = lstatSync(path.join(outside, 'secret.txt'), { bigint: true });
+    expect(
+      await readIdentifiedFile(
+        path.join(root, 'swapped.md'),
+        { dev: target.dev, ino: target.ino },
+        big,
+      ),
+    ).toEqual({ failure: 'symlink' });
+  });
+
+  it('refuses a descriptor whose device or inode is not the checked one', async () => {
+    // The checked identity is beta's; the name now opens alpha: the
+    // rename race staged deterministically.
+    expect(
+      await readIdentifiedFile(path.join(root, 'alpha.md'), identityOf('beta.txt'), big),
+    ).toEqual({ failure: 'identity' });
+    const alpha = identityOf('alpha.md');
+    expect(
+      await readIdentifiedFile(
+        path.join(root, 'alpha.md'),
+        { dev: alpha.dev + 1n, ino: alpha.ino },
+        big,
+      ),
+    ).toEqual({ failure: 'identity' });
+  });
+
+  it('names a vanished file, a directory, and an oversized descriptor by kind', async () => {
+    const alpha = identityOf('alpha.md');
+    expect(await readIdentifiedFile(path.join(root, 'missing.md'), alpha, big)).toEqual({
+      failure: 'missing',
+    });
+    expect(await readIdentifiedFile(path.join(root, 'alpha.md', 'x'), alpha, big)).toEqual({
+      failure: 'missing',
+    });
+    expect(await readIdentifiedFile(path.join(root, 'src'), alpha, big)).toEqual({
+      failure: 'identity',
+    });
+    expect(await readIdentifiedFile(path.join(root, 'alpha.md'), alpha, 4)).toEqual({
+      failure: 'oversized',
+      size: lstatSync(path.join(root, 'alpha.md'), { bigint: true }).size,
+    });
   });
 });

@@ -25,20 +25,20 @@ describe('OPENAI_PRICING', () => {
   it('records the rates verification date on every priced seed row (RV814)', () => {
     // The 5.6 family rows were re-verified against the documented model
     // pages on 2026-07-31 (RV911): Terra and Luna carry the provider's
-    // 2026-07-30 price cut, while Sol's unchanged rates additionally
+    // 2026-07-30 price cut, while Sol's rates of that day additionally
     // remain billing-confirmed by the 2026-07-30 statement
     // reconciliation. The pre-5.6 rows keep their last docs
     // verification date. A date is a recorded verification event,
     // never a guess: correcting a rate is a separate release with a
     // changeset, and this test pins that the stamp exists at all.
     // Sol and its alias were re-verified 2026-08-23 (the plan-44
-    // fresh-classification dispatch caught the provider's Sol cut);
-    // Terra and Luna keep their 2026-07-31 verification.
-    for (const name of ['gpt-5.6-sol', 'gpt-5.6']) {
-      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-08-23');
-    }
-    for (const name of ['gpt-5.6-terra', 'gpt-5.6-luna']) {
-      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-07-31');
+    // fresh-classification dispatch caught the provider's Sol cut), and
+    // every 5.6 row was re read on 2026-09-07 with the audit's own
+    // extractor (RV4918): no number moved, only the stamp, so the sixty
+    // day age rule the same change added to the audit does not expire
+    // rows whose page still matches.
+    for (const name of ['gpt-5.6-sol', 'gpt-5.6', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-09-07');
     }
     for (const name of ['gpt-5.5', 'gpt-5.5-pro', 'gpt-5.4', 'gpt-5.4-mini']) {
       expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-07-18');

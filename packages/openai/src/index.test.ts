@@ -1352,7 +1352,9 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
   // Terra and Luna carry the provider's 2026-07-30 price cut (Terra at
   // 0.8x across the board, Luna at 0.2x), re-verified 2026-07-31
   // (RV911); Sol carries the provider's later cut the plan-44
-  // fresh-classification dispatch caught, re-verified 2026-08-23.
+  // fresh-classification dispatch caught, re-verified 2026-08-23; every
+  // row was re read on 2026-09-07 with the audit's own extractor and
+  // no number moved (RV4918).
   const GPT_56_EXPECTED = {
     'gpt-5.6-sol': { input: 4, output: 20, cacheRead: 0.4, cacheWrite: 5, wireMax: true },
     'gpt-5.6-terra': { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5, wireMax: true },
@@ -1374,10 +1376,8 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
         cacheReadUsdPerMTok: expected.cacheRead,
         cacheWriteUsdPerMTok: expected.cacheWrite,
         tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
-        // Terra and Luna were docs re-verified 2026-07-31 (RV911);
-        // Sol's row re-verified 2026-08-23 with the provider's later
-        // cut (the plan-44 fresh-classification dispatch).
-        ratesVerifiedAt: model === 'gpt-5.6-sol' ? '2026-08-23' : '2026-07-31',
+        // The whole family re read 2026-09-07 (RV4918), rates unmoved.
+        ratesVerifiedAt: '2026-09-07',
       });
     }
   });
