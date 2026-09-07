@@ -1,5 +1,21 @@
 # @rulvar/anthropic
 
+## 1.253.0
+
+### Patch Changes
+
+- 1cf2fef: The Anthropic rates stamp and its prose catch up with the page (RV4918). `RATES_VERIFIED_AT` read `2026-07-31` and the comments around the Claude Sonnet 5 row said its $2 / $10 introductory pricing ends on 2026-08-31 with the standard 3/15 row to follow; the provider's pricing page, revised 2026-08-10 and re read on 2026-09-07 with the rates audit's own extractor over every seeded row, made the $2 / $10 rate the standard price and cancelled the scheduled increase. No number moved, so `pricingVersion` stays `anthropic-2026-07-31` and every rate is byte identical; `ratesVerifiedAt` on every priced row becomes `2026-09-07`, and the comments, the providers guide, and the model routing example say the rate is permanent with no scheduled change. The scheduled rates audit (`scripts/rates-audit.mjs`, the weekly live contract run) now also judges the age of every audited row's stamp and fails past sixty days even when the numbers match, because a matching table with a stamp nobody renews is exactly what a `strictPricing.maxRatesAgeDays` host discards on the calendar; a pull request job never reads the clock. The same re read found the audit matching `Claude Fable 5` against the page's newer `Claude Fable 5.1` row (a prefix, listed first, with a 0.025x cache read), a drift the seed does not have; a display name followed by a digit or a dot is now a different model. One probe holds the age bound.
+- Updated dependencies [ac94246]
+- Updated dependencies [11b9974]
+- Updated dependencies [9fe8d5d]
+- Updated dependencies [2c75107]
+- Updated dependencies [beaf2b9]
+- Updated dependencies [2166e53]
+- Updated dependencies [99434a3]
+- Updated dependencies [8e4bff4]
+- Updated dependencies [1cf2fef]
+  - @rulvar/core@1.253.0
+
 ## 1.252.0
 
 ### Patch Changes
