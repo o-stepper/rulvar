@@ -3014,8 +3014,8 @@ export const MUTATIONS = [
     doctrine:
       "the await_any digest names the settled subset (RV1807): without settledHandles the model discovers settlement by probing get_child_result and collects not-settled errors as control flow, exactly the nineteenth benchmark's eight speculative failures",
     file: 'packages/core/src/orchestrator/orchestrate.ts',
-    find: '        return { ...digest, settledHandles };',
-    replace: '        return digest;',
+    find: '        return { ...digest, settledHandles, ...forecastDigestFields() };',
+    replace: '        return { ...digest, ...forecastDigestFields() };',
     test: 'packages/core/src/orchestrator/progressive-drafting.test.ts',
   },
   {
@@ -6993,6 +6993,24 @@ export const MUTATIONS = [
     replace:
       '      const live = undefined as ReturnType<typeof windowActive>;\n      const deficit = evidenceDeficit();\n      const text =',
     test: 'packages/core/src/runtime/finalization-window.test.ts',
+  },
+  {
+    id: 'acceptance-forecast-is-final-under-all-ok',
+    doctrine:
+      "the acceptance forecast declares an all ok policy unreachable the moment one settled child is unaccepted (RV4903): with the clause severed, the forecast stays reachable over a dead roster, no decision journals, no digest is stamped, and the tenth comparison experiment's coordinator spends four minutes composing toward the rejection nobody announced",
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: "  if (acceptance.childPolicy === 'all-ok') {\n    if (unaccepted > 0) {",
+    replace: "  if (acceptance.childPolicy === 'all-ok') {\n    if (false as boolean) {",
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
+  {
+    id: 'child-limit-profile-counts-the-cap',
+    doctrine:
+      'the child limit profile counts a child whose executed calls reached its effective cap (RV4906): with the comparison severed, four specialists that all expired at maxToolCalls with a fifth of their money spent profile as an unbound roster, and the starvation line the tenth comparison experiment was missing never prints',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '    const hit = budget.cap !== undefined && budget.used >= budget.cap;',
+    replace: '    const hit = false as boolean;',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
 ];
 

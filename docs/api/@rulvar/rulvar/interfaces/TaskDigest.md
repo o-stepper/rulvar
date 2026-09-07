@@ -14,6 +14,9 @@ The per-child digest handed to the orchestrator.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-acceptanceforecast"></a> `acceptanceForecast?` | \{ `reasons`: `string`[]; `verdict`: `"rejected"`; \} | The acceptance forecast (RV4903), present on await digests under `acceptance.onUnreachable: 'notify' | 'degrade'` once the declared policy can no longer be met: the reasons name the settled children the policy will not count and the spawn capacity that cannot replace them. Absent under the default posture and while the policy is still reachable, so every other digest keeps its bytes. | `packages/core/dist/index.d.ts` |
+| `acceptanceForecast.reasons` | `string`[] | - | `packages/core/dist/index.d.ts` |
+| `acceptanceForecast.verdict` | `"rejected"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-artifactsindex"></a> `artifactsIndex` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-costusd"></a> `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-facts"></a> `facts?` | [`ChildExecutionFacts`](/api/@rulvar/rulvar/interfaces/ChildExecutionFacts.md) | The child's replay-stable execution facts (RV1503), present only under the `executionFacts` opt-in: what the run itself observed, so the composing root can grade `live-observed` honestly instead of erasing its own run. See [executionFactsOf](/api/@rulvar/rulvar/functions/executionFactsOf.md). | `packages/core/dist/index.d.ts` |

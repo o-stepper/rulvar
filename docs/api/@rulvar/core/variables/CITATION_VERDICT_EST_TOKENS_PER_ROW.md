@@ -10,7 +10,7 @@
 const CITATION_VERDICT_EST_TOKENS_PER_ROW: 70 = 70;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:454](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L454)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:519](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L519)
 
 The verdict bijection's output floor per judged row (RV4706): one
 { row, verdict, reason } object with a one-sentence reason. The

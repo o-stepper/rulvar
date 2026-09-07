@@ -3085,3 +3085,71 @@ describe('rulvar effects (RV4506, plan 45)', () => {
     expect(io.errLines.join('\n')).toContain('usage: rulvar effects <ls | show | sweep>');
   });
 });
+
+describe('cost-audit prints the binding constraint profile (RV4906)', () => {
+  it('reads childLimitProfile from the journaled acceptance decision, text and JSON alike', async () => {
+    // The tenth comparison experiment's four specialists all expired
+    // at maxToolCalls with 18 to 30 percent of their money spent and
+    // no surface said so. The profile rides the journaled acceptance
+    // decision; the audit prints it from the journal alone.
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    await runCli(['run', 'echo', '--args', '{"value":"x"}', '--store', '.rulvar'], { cwd, io });
+    const runId = runIdOf(io);
+    const before = scriptedIo();
+    expect(await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: before })).toBe(0);
+    expect(before.outLines.join('\n')).not.toContain('children at the tool cap');
+
+    const journalPath = join(cwd, '.rulvar', `${runId}.jsonl`);
+    const lines = readFileSync(journalPath, 'utf8').trim().split('\n');
+    const parsedLines = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    const template = parsedLines.find((entry) => entry.kind === 'agent' && entry.status === 'ok');
+    expect(template).toBeDefined();
+    const maxSeq = Math.max(...parsedLines.map((entry) => entry.seq as number));
+    const decision = {
+      ...template,
+      seq: maxSeq + 1,
+      kind: 'decision',
+      status: 'ok',
+      key: 'acceptance',
+      site: 'orchestrator-acceptance',
+      value: {
+        decisionType: 'orchestrator_acceptance',
+        verdict: 'rejected',
+        completion: 'rejected',
+        childPolicy: 'all-ok',
+        childStatusCounts: { ok: 3, limit: 1 },
+        degradedReasons: [],
+        childLimitProfile: {
+          children: 4,
+          underToolBudget: 4,
+          capHit: 4,
+          windowEntered: 4,
+          starved: 4,
+          budgetUsedShareMedian: 0.237,
+        },
+      },
+    };
+    writeFileSync(journalPath, `${[...lines, JSON.stringify(decision)].join('\n')}\n`);
+
+    const text = scriptedIo();
+    await runCli(['cost-audit', runId, '--store', '.rulvar'], { cwd, io: text });
+    expect(text.outLines.join('\n')).toContain(
+      'children at the tool cap: 4 of 4 under a tool budget (4 in the roster) | ' +
+        'finalization window entered 4 | starved 4 | median budget share 0.237',
+    );
+    const jsonIo = scriptedIo();
+    await runCli(['cost-audit', runId, '--store', '.rulvar', '--json'], { cwd, io: jsonIo });
+    const parsed = JSON.parse(jsonIo.outLines.join('\n')) as {
+      childLimitProfile?: Record<string, number>;
+    };
+    expect(parsed.childLimitProfile).toEqual({
+      children: 4,
+      underToolBudget: 4,
+      capHit: 4,
+      windowEntered: 4,
+      starved: 4,
+      budgetUsedShareMedian: 0.237,
+    });
+  });
+});

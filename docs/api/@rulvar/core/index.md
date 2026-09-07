@@ -115,6 +115,7 @@ exactly the pieces you need, for example
 | ------ | ------ |
 | [AbandonedSpendView](/api/@rulvar/core/interfaces/AbandonedSpendView.md) | The abandoned-spend ledger fold. |
 | [AbandonFold](/api/@rulvar/core/interfaces/AbandonFold.md) | - |
+| [AcceptanceChildLimitProfile](/api/@rulvar/core/interfaces/AcceptanceChildLimitProfile.md) | The binding constraint profile of an acceptance roster (RV4906): what ended the children, so an outcome can say "the tool cap bound, not the money". The tenth comparison experiment's four specialists all expired at maxToolCalls with 18 to 30 percent of their declared budgets spent and no surface named it. Present on the journaled acceptance decision, the result envelope, and a rejection's error data exactly when at least one child ran under a tool budget; `rulvar cost-audit` prints the same figures from the journal. |
 | [AcceptanceChildSummary](/api/@rulvar/core/interfaces/AcceptanceChildSummary.md) | - |
 | [AcceptanceTailSpec](/api/@rulvar/core/interfaces/AcceptanceTailSpec.md) | The declared inputs of the acceptance tail (RV4001); undeclared estimates are zero. |
 | [AcceptanceTailTerms](/api/@rulvar/core/interfaces/AcceptanceTailTerms.md) | The resolved terms behind [acceptanceTailRequiredUsd](/api/@rulvar/core/functions/acceptanceTailRequiredUsd.md); journal-ready numbers. |

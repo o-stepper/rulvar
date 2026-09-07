@@ -7676,3 +7676,365 @@ describe('the digest carries the tool budget pressure (RV4807)', () => {
     expect(digestPart).toContain('"capHit":true');
   });
 });
+
+describe('the acceptance forecast (RV4903) and the child limit profile (RV4906)', () => {
+  // The tenth comparison experiment: a specialist settled 'limit' under
+  // 'all-ok' with no salvage arm, the finish could never be accepted
+  // from that second on, and the coordinator spent four more minutes
+  // and a third of the run's money composing and repairing a document
+  // the acceptance then rejected. Here one worker settles ok and one
+  // digger dies at its one call cap; the coordinator awaits both and
+  // finishes, and the posture decides what the engine does about it.
+  const probe = tool({
+    name: 'probe_tool',
+    description: 'answers one probe',
+    parameters: { type: 'object' },
+    execute: () => Promise.resolve('probed'),
+  });
+  const FORECAST_PROFILES: Record<string, AgentProfile> = {
+    worker: { description: 'does one task' },
+    digger: {
+      description: 'digs with one tool call',
+      tools: [probe],
+      limits: { maxTurns: 8, maxToolCalls: 1 },
+    },
+  };
+  const ROUTING = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+  function forecastAdapter(diggerArgs?: Record<string, unknown>, synthesized?: string) {
+    let orchTurn = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      const type = agentTypeOf(req);
+      if (type === 'worker') {
+        return { text: 'did it' };
+      }
+      if (type === 'digger') {
+        return { toolCall: { name: 'probe_tool', args: {} } };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task A' } },
+            {
+              name: 'spawn_agent',
+              args: { agentType: 'digger', prompt: 'task B', ...(diggerArgs ?? {}) },
+            },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      if (orchTurn === 3 || synthesized === undefined) {
+        return { toolCall: { name: 'finish', args: { result: { answer: 42 } } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: synthesized } } };
+    });
+  }
+  const coordinationCalls = (adapter: { calls: ChatRequest[] }): ChatRequest[] =>
+    adapter.calls.filter((req) => agentTypeOf(req) === '');
+  const forecastDecisions = async (store: InMemoryStore): Promise<JournalEntry[]> =>
+    (await store.load('test-run')).filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string }).decisionType ===
+          'orchestrator_acceptance_forecast',
+    );
+  const acceptanceDecision = async (store: InMemoryStore): Promise<Record<string, unknown>> =>
+    (await store.load('test-run')).find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    )?.value as Record<string, unknown>;
+  const settle = async (run: Promise<unknown>): Promise<unknown> => {
+    try {
+      return await run;
+    } catch (error) {
+      return error;
+    }
+  };
+
+  it('under the default posture nothing is forecast and the finish rejects as before', async () => {
+    const adapter = forecastAdapter();
+    const { internals, store, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('measure', {
+      maxSpawns: 2,
+      acceptance: { childPolicy: 'all-ok' },
+    });
+    const thrown = await settle(executeWorkflow(internals, wf, undefined));
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect((thrown as FailRunError).data).toMatchObject({ source: 'orchestrator_acceptance' });
+    expect(await forecastDecisions(store)).toHaveLength(0);
+    // Three coordination turns as always: spawn, await, finish; and no
+    // forecast reached the model or the stream.
+    expect(coordinationCalls(adapter)).toHaveLength(3);
+    expect(JSON.stringify(coordinationCalls(adapter).at(-1)?.messages)).not.toContain(
+      'acceptanceForecast',
+    );
+    expect(
+      events.all.filter(
+        (event) => event.type === 'log' && String(event.msg).includes('acceptance forecast'),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("'notify' journals the forecast once, warns, stamps the digests, and still rejects the finish", async () => {
+    const adapter = forecastAdapter();
+    const { internals, store, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('measure', {
+      maxSpawns: 2,
+      acceptance: { childPolicy: 'all-ok', onUnreachable: 'notify' },
+    });
+    const thrown = await settle(executeWorkflow(internals, wf, undefined));
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect((thrown as FailRunError).data).toMatchObject({ source: 'orchestrator_acceptance' });
+    const decisions = await forecastDecisions(store);
+    expect(decisions).toHaveLength(1);
+    const forecast = decisions[0]?.value as {
+      verdict: string;
+      mode: string;
+      reasons: string[];
+      childStatusCounts: Record<string, number>;
+    };
+    expect(forecast.verdict).toBe('rejected');
+    expect(forecast.mode).toBe('notify');
+    expect(forecast.reasons.join(' | ')).toContain(
+      "settled 'limit' with nothing the policy salvages",
+    );
+    expect(forecast.reasons.join(' | ')).toContain('requires every spawned child ok');
+    expect(forecast.childStatusCounts.limit).toBe(1);
+    // The digest the coordinator read carries the stamp.
+    const finishRequest = coordinationCalls(adapter).at(-1);
+    const digestPart = JSON.stringify(finishRequest?.messages.at(-1)?.parts);
+    expect(digestPart).toContain('"acceptanceForecast"');
+    expect(digestPart).toContain('"verdict":"rejected"');
+    // The prompt taught the vocabulary, and the stream warned once.
+    const system = JSON.stringify(finishRequest?.messages[0]?.parts);
+    expect(system).toContain('acceptanceForecast');
+    expect(
+      events.all.filter(
+        (event) => event.type === 'log' && String(event.msg).includes('acceptance forecast'),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("'fail-fast' settles the run typed at the settle, with no further paid coordination turn", async () => {
+    const adapter = forecastAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('measure', {
+      maxSpawns: 2,
+      acceptance: { childPolicy: 'all-ok', onUnreachable: 'fail-fast' },
+    });
+    const thrown = await settle(executeWorkflow(internals, wf, undefined));
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as {
+      source?: string;
+      completion?: string;
+      childStatusCounts?: Record<string, number>;
+      degradedReasons?: string[];
+    };
+    expect(data.source).toBe('orchestrator_acceptance_forecast');
+    expect(data.completion).toBe('rejected');
+    expect(data.childStatusCounts?.limit).toBe(1);
+    expect(data.degradedReasons?.join(' | ')).toContain('requires every spawned child ok');
+    // Spawn and await: the finish turn was never paid for.
+    expect(coordinationCalls(adapter)).toHaveLength(2);
+    expect(await forecastDecisions(store)).toHaveLength(1);
+    expect(
+      (await store.load('test-run')).filter(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("'degrade' accepts the unmet policy as a partial completion and the synthesis still composes", async () => {
+    const adapter = forecastAdapter(undefined, 'SYNTHESIZED');
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('measure', {
+      maxSpawns: 2,
+      acceptance: { childPolicy: 'all-ok', onUnreachable: 'degrade' },
+      synthesis: { limits: { maxTurns: 3 } },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      result: unknown;
+      completion: string;
+      degradedReasons: string[];
+      acceptedByDegrade?: true;
+      childStatusCounts: Record<string, number>;
+    };
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.acceptedByDegrade).toBe(true);
+    expect(outcome.childStatusCounts).toEqual({ ok: 1, limit: 1 });
+    expect(outcome.degradedReasons.join(' | ')).toContain(
+      "acceptance.onUnreachable is 'degrade': the finish is accepted as a partial completion",
+    );
+    // The synthesis ran over the settled children and composed the result.
+    expect(outcome.result).toBe('SYNTHESIZED');
+    expect(await forecastDecisions(store)).toHaveLength(1);
+    const decision = await acceptanceDecision(store);
+    expect(decision.verdict).toBe('accepted');
+    expect(decision.acceptedByDegrade).toBe(true);
+  });
+
+  it('a reachable { minSuccessful } policy forecasts nothing', async () => {
+    const adapter = forecastAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('measure', {
+      maxSpawns: 2,
+      acceptance: { childPolicy: { minSuccessful: 1 }, onUnreachable: 'notify' },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as { completion: string };
+    expect(outcome.completion).toBe('partial');
+    expect(await forecastDecisions(store)).toHaveLength(0);
+    // The prompt teaches the vocabulary under 'notify'; the digest
+    // itself carries no stamp while the policy is still reachable.
+    expect(JSON.stringify(coordinationCalls(adapter).at(-1)?.messages.at(-1)?.parts)).not.toContain(
+      'acceptanceForecast',
+    );
+  });
+
+  it('an unreachable { minSuccessful } names the capacity that cannot replace the child', async () => {
+    const adapter = forecastAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('measure', {
+      maxSpawns: 2,
+      acceptance: { childPolicy: { minSuccessful: 2 }, onUnreachable: 'notify' },
+    });
+    const thrown = await settle(executeWorkflow(internals, wf, undefined));
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const decisions = await forecastDecisions(store);
+    expect(decisions).toHaveLength(1);
+    const reasons = (decisions[0]?.value as { reasons: string[] }).reasons.join(' | ');
+    expect(reasons).toContain('0 more can be admitted under maxSpawns');
+    expect(reasons).toContain('short of the 2 successes the policy requires');
+  });
+
+  it('the acceptance decision profiles what bound the children (RV4906)', async () => {
+    // The digger declares one dollar and spends none of it (the fake
+    // adapter is unpriced) before its cap trips: a starved child.
+    const adapter = forecastAdapter({ budgetUsd: 1 });
+    const { internals, store, events } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('measure', {
+      maxSpawns: 2,
+      acceptance: { childPolicy: 'all-ok' },
+    });
+    const thrown = await settle(executeWorkflow(internals, wf, undefined));
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const expected = {
+      children: 2,
+      underToolBudget: 1,
+      capHit: 1,
+      windowEntered: 0,
+      starved: 1,
+      budgetUsedShareMedian: 0,
+    };
+    expect((thrown as FailRunError).data).toMatchObject({ childLimitProfile: expected });
+    expect((await acceptanceDecision(store)).childLimitProfile).toEqual(expected);
+    const starvedLine = events.all.find(
+      (event) => event.type === 'log' && String(event.msg).includes('ended at the tool cap'),
+    );
+    expect(String(starvedLine?.msg)).toBe(
+      '1 of 2 children ended at the tool cap with under half of their declared budget spent; ' +
+        'consider toolBudgetExtension or a larger maxToolCalls',
+    );
+  });
+
+  it('the accepted envelope carries the profile, and a tool budget free roster carries none', async () => {
+    const adapter = forecastAdapter({ budgetUsd: 1 });
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('measure', {
+      maxSpawns: 2,
+      acceptance: { childPolicy: { minSuccessful: 1 } },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      childLimitProfile?: Record<string, number>;
+    };
+    expect(outcome.childLimitProfile).toEqual({
+      children: 2,
+      underToolBudget: 1,
+      capHit: 1,
+      windowEntered: 0,
+      starved: 1,
+      budgetUsedShareMedian: 0,
+    });
+    // Two plain workers: no child ran under a tool budget, so the
+    // envelope keeps its pre RV4906 bytes.
+    let orchTurn = 0;
+    const plain = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'did it' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: { answer: 42 } } } };
+    });
+    const bare = makeInternals({
+      adapters: [plain],
+      routing: ROUTING,
+      profiles: FORECAST_PROFILES,
+    });
+    const bareOutcome = (await executeWorkflow(
+      bare.internals,
+      makeOrchestratorWorkflow('measure', { acceptance: { childPolicy: 'all-ok' } }),
+      undefined,
+    )) as Record<string, unknown>;
+    expect(bareOutcome.completion).toBe('complete');
+    expect(bareOutcome).not.toHaveProperty('childLimitProfile');
+  });
+
+  it('rejects a malformed onUnreachable synchronously at construction', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        acceptance: { childPolicy: 'all-ok', onUnreachable: 'sometimes' as unknown as 'notify' },
+      }),
+    ).toThrow(/onUnreachable/);
+  });
+});

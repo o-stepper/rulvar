@@ -10,6 +10,6 @@
 const CITATION_VERDICT_EST_BASE_TOKENS: 500 = 500;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:457](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L457)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:522](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L522)
 
 The bijection's fixed frame beside the rows (RV4706): array, envelope, preamble.
