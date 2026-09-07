@@ -483,7 +483,37 @@ Attributes use two namespaces:
 | `gen_ai.operation.name` | agent spans (the invocation role) |
 | `rulvar.determinism.category`, `rulvar.determinism.provenance`, `code.filepath`, `code.lineno` | the `determinism:warning` span event, attached to its enclosing span with the localized code location, so a backend can alert on workflow-provenance warnings without parsing frames |
 
-Payload only events carry their payload since RV4917. Before it, every event without an explicit case (`budget:update`, `spawn:admitted`, `quota:denied`, `admission:lease-lost`, `orchestrator:acceptance`, `log`, and the rest of the adaptive family) attached as a span event with the type and `rulvar.entry_seq` and nothing else, so the tenth comparison experiment's trace showed seventy budget updates without a dollar on any of them. The projection is an allowlist per event type: only the listed fields become span event attributes, flat and typed as string, number, or boolean, and a field the event does not carry, or carries as `null` (an uncapped run's `remainingUsd`), becomes no attribute. Every exported string passes the secret masking policy (the default set plus the `patterns` option) and is then cut at 256 characters with a `[truncated N chars]` marker; nested objects and arrays outside the listed shapes are withheld. `rulvar.attrs_dropped`, present when nonzero, counts the payload fields that did not reach the span event verbatim: withheld (outside the allowlist, or of a shape the projection does not carry) or altered (masked, truncated). An event type without an allowlist keeps the type plus `rulvar.entry_seq` and no counter, so a future event never exports a field nobody reviewed. The content bearing fields stay off every list: `agent:stream` exports nothing but its counter, `external:waiting` withholds its `prompt`, `agent:error` withholds `error.data`, and the `tool:*` payloads ride the tool spans above, never a span event.
+**What the projection exported before, and exports now.** Before 1.253.0 the exporter had explicit cases for the span openers and closers, `determinism:warning` and the orphan `tool:end`, and every other event fell to a default branch that attached a span event carrying the type and `rulvar.entry_seq` and nothing else, so `budget:update`, `spawn:admitted`, `spawn:rejected`, `quota:denied`, `admission:lease-lost`, `orchestrator:acceptance`, `log` and the whole adaptive family exported no payload at all and the tenth comparison experiment's trace showed seventy budget updates without a dollar on any of them, four admissions without an agent type, and a rejected acceptance without its roster counts (the Codex review of 973add91 that the owner confirmed found it); 1.253.0 closes it with the projection below (RV4917).
+
+The projection is an allowlist per event type over the closed event catalog: only the listed fields become span event attributes, flat and typed as string, number or boolean, under family scoped snake case keys (`rulvar.budget.spent_usd`, `rulvar.spawn.verdict`, `rulvar.acceptance.child_status_counts.<status>`), with `rulvar.agent_type` and `gen_ai.request.model` reused where the span attributes already use them. A field the event does not carry, or carries as `null` (an uncapped run's `remainingUsd`), becomes no attribute and no count. Every exported string passes the secret masking policy (the default set plus the `patterns` option) and is then cut at 256 characters with a `[truncated N chars]` marker, masking first so a cut can never split a credential into an unrecognized prefix. Nested objects, arrays, non finite numbers and every field outside the allowlist are withheld; a record whose keys the emitter does not fix (`log.data`, `childStatusCounts`) exports each primitive entry under its prefix, a key over 64 characters withheld. `rulvar.attrs_dropped`, present when nonzero, counts the payload fields that did not reach the span event verbatim: withheld, masked, or truncated. An event type without an allowlist (a future event) keeps the historical export of type plus `rulvar.entry_seq`, with no counter, so nothing leaves the process unreviewed. The content bearing fields stay off every list by design: `agent:stream` exports nothing but its counter, `external:waiting` withholds its `prompt`, `agent:error` withholds `error.data`, and the `tool:*` payloads ride the tool spans above, never a span event. No explicit case moved: `run:end`, the agent, invocation and tool spans, `determinism:warning` and the orphan `tool:end` are untouched, and the exported `SpanLike`, `TracerLike` and `ToOtelOptions` types are unchanged.
+
+One real event: the tenth comparison experiment's rejected acceptance as the fixture `packages/cli/src/fixtures/rv4917-tenth-experiment-events.jsonl` carries it (envelope fields other than `seq` and `type` omitted here), and the attributes of the span event it becomes:
+
+```json
+{
+  "seq": 411,
+  "type": "orchestrator:acceptance",
+  "verdict": "rejected",
+  "completion": "rejected",
+  "childStatusCounts": { "ok": 3, "limit": 1 },
+  "minSpawnedChildren": 4,
+  "spawnedChildren": 4
+}
+```
+
+```json
+{
+  "rulvar.entry_seq": 411,
+  "rulvar.acceptance.verdict": "rejected",
+  "rulvar.acceptance.completion": "rejected",
+  "rulvar.acceptance.child_status_counts.ok": 3,
+  "rulvar.acceptance.child_status_counts.limit": 1,
+  "rulvar.acceptance.min_spawned_children": 4,
+  "rulvar.acceptance.spawned_children": 4
+}
+```
+
+No `rulvar.attrs_dropped` rides it: every payload field is listed and none was masked or cut. The same fixture's `spawn:admitted` exports `rulvar.spawn.entry_ref`, `rulvar.spawn.verdict`, `rulvar.agent_type`, `rulvar.spawn.logical_task_id` and `rulvar.spawn.units_after`, its `budget:update` the three dollar figures (`rulvar.budget.remaining_usd` read `7` on this capped run), and its `log` events `rulvar.log.level`, `rulvar.log.msg` and `rulvar.log.data.reason` (`synthesis_skipped_by_acceptance`). The per type allowlist:
 
 | Span event | Attributes |
 |---|---|
