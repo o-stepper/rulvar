@@ -4,7 +4,7 @@
  * exists for, a hostile tool dispatched by the model cannot read the
  * host's ambient credentials.
  */
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineWorkflow } from '@rulvar/core';
@@ -204,6 +204,59 @@ describe('subprocessTool + engine end-to-end (RV-216)', () => {
     expect(result.sandboxed).toBe(true);
     // The wrapper received the real tool command as its first argv.
     expect(result.wrapped).toBe(process.execPath);
+  });
+});
+
+// Reports where the child started and where it was told its scratch space is.
+const WHERE = script(
+  'where.cjs',
+  `done({ cwd: process.cwd(), scratch: process.env.RULVAR_SCRATCH ?? null });`,
+);
+
+describe('the worktree cwd reaches the subprocess child (RV4914)', () => {
+  const whereRequest = (cwd?: string) => ({
+    executor: 'subprocess' as const,
+    tool: 'where',
+    args: {},
+    spec: { command: process.execPath, args: [WHERE] },
+    ...(cwd === undefined ? {} : { cwd }),
+    ctx: {
+      runId: 'r-where',
+      spanId: 's-where',
+      agentType: 'a',
+      idempotencyKey: 'k-where',
+      signal: new AbortController().signal,
+      log: () => undefined,
+    },
+  });
+
+  it('the child starts in the request cwd, RULVAR_SCRATCH names the ephemeral dir, and the ledger names the tree', async () => {
+    const worktree = mkdtempSync(join(tmpdir(), 'rulvar-swt-'));
+    const workdirBase = mkdtempSync(join(tmpdir(), 'rulvar-swt-scratch-'));
+    const ledger = memoryEffectLedger();
+    const executor = subprocessExecutor({ workdirBase, ledger });
+    const result = (await executor.run(whereRequest(worktree))) as {
+      cwd: string;
+      scratch: string | null;
+    };
+    expect(result.cwd).toBe(realpathSync(worktree));
+    expect(result.scratch).toMatch(new RegExp(`^${workdirBase}/rulvar-exec-where-`));
+    expect(ledger.intents()[0]?.cwd).toBe(worktree);
+    expect(ledger.entries()[0]?.cwd).toBe(worktree);
+    // The ephemeral directory is still minted and still removed.
+    expect(ledger.entries()[0]?.workdir).toMatch(new RegExp(`^${workdirBase}/rulvar-exec-where-`));
+    expect(readdirSync(workdirBase)).toHaveLength(0);
+  });
+
+  it('a request without a cwd starts in the ephemeral dir with no scratch variable and no ledger field', async () => {
+    const workdirBase = mkdtempSync(join(tmpdir(), 'rulvar-swt-plain-'));
+    const ledger = memoryEffectLedger();
+    const executor = subprocessExecutor({ workdirBase, ledger });
+    const result = (await executor.run(whereRequest())) as { cwd: string; scratch: string | null };
+    expect(result.cwd).toContain('rulvar-exec-where-');
+    expect(result.scratch).toBeNull();
+    expect(Object.hasOwn(ledger.intents()[0] ?? {}, 'cwd')).toBe(false);
+    expect(Object.hasOwn(ledger.entries()[0] ?? {}, 'cwd')).toBe(false);
   });
 });
 

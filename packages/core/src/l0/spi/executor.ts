@@ -66,6 +66,18 @@ export interface IsolatedExecRequest {
    * Never identity; the engine passes it through verbatim.
    */
   spec: Json;
+  /**
+   * The acquired worktree's host directory (RV4914), present EXACTLY
+   * when the dispatching agent runs under worktree isolation and
+   * absent under 'none' and 'readonly', so a request without one is
+   * byte identical to what it was. The reference executors run the
+   * tool inside it: the subprocess child starts there, and the
+   * container executor bind mounts it as the work mount beside the
+   * ephemeral scratch mount, so the tool's writes land in the tree the
+   * patch is collected from instead of a directory removed after the
+   * call.
+   */
+  cwd?: string;
   ctx: IsolatedExecContext;
 }
 

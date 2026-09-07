@@ -404,6 +404,23 @@ describe('fail-closed parse (RV607)', () => {
     expect(scan.corrupt).toHaveLength(1);
   });
 
+  it('a row naming the worktree loads with it, and a mistyped one is corruption (RV4914)', async () => {
+    const path = freshPath();
+    const named = JSON.stringify({
+      phase: 'intent',
+      ...intentOf('k-wt', 2, 'a-wt'),
+      cwd: '/srv/worktrees/wt-1',
+      workMount: '/work',
+    });
+    writeFileSync(path, `${validLine()}${named}\n`, 'utf8');
+    const scan = await loadEffectLedger(path);
+    expect(scan.intents.map((entry) => entry.cwd)).toEqual([undefined, '/srv/worktrees/wt-1']);
+    expect(scan.intents[1]?.workMount).toBe('/work');
+    const mistyped = JSON.stringify({ phase: 'intent', ...intentOf('k-bad', 3, 'a-bad'), cwd: 42 });
+    writeFileSync(path, `${validLine()}${mistyped}\n`, 'utf8');
+    await expect(loadEffectLedger(path)).rejects.toBeInstanceOf(LedgerCorruptionError);
+  });
+
   it('an unknown phase is corruption, never silence', async () => {
     // One flipped character in the phase used to erase the whole row,
     // orphan and all. Forward compatibility with future phases is

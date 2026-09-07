@@ -35,6 +35,16 @@ interface ToolEffectIntent {
   executor: IsolatedExecutorTag;
   /** The ephemeral working directory the dispatch runs in. */
   workdir: string;
+  /**
+  * The acquired worktree the tool ran in (RV4914), present exactly
+  * when the request carried one: the child's working directory under
+  * the subprocess executor, the host directory bind mounted at
+  * `workMount` under the container executor. Absent otherwise, so rows
+  * written without one keep their historical shape.
+  */
+  cwd?: string;
+  /** Under the container executor with a `cwd`: the container path it is mounted at (RV4914). */
+  workMount?: string;
   startedAt: number;
   /**
   * Unique id of this dispatch ATTEMPT (RV501): the reference executors
@@ -184,7 +194,11 @@ declare function subprocessTool<S extends SchemaSpec>(init: SubprocessToolInit<S
 //#endregion
 //#region src/container.d.ts
 interface ContainerExecutorOptions {
-  /** The image the tool runs in (required). */
+  /**
+  * The image the tool runs in (required). A tool whose `executorSpec`
+  * names an `image` pinned by digest runs in that image instead
+  * (RV4915); the regulated floor requires this one to be pinned too.
+  */
   image: string;
   /** The docker-compatible CLI. Default 'docker'. */
   docker?: string;
@@ -200,9 +214,27 @@ interface ContainerExecutorOptions {
   readOnly?: boolean;
   /** Capabilities to drop. Default ['ALL']. */
   capDrop?: readonly string[];
-  /** Where the ephemeral workdir is mounted inside the container. Default '/work'. */
+  /**
+  * Where the work directory is mounted inside the container: the
+  * ephemeral workdir, or the acquired worktree when the request carries
+  * a `cwd` (RV4914). Default '/work'.
+  */
   workMount?: string;
-  /** Extra raw `docker run` flags, appended before the image. */
+  /**
+  * Where the ephemeral workdir is mounted when the work mount is a
+  * worktree (RV4914); the tool program reads the path from
+  * `RULVAR_SCRATCH`. Default '/scratch'.
+  */
+  scratchMount?: string;
+  /**
+  * Extra raw `docker run` flags, placed BEFORE the hardening flags
+  * (RV4915) so a repeated single valued flag (`--memory`,
+  * `--pids-limit`, `--read-only`) resolves to the fixed value and a
+  * conflicting `--network` fails the dispatch at the daemon instead of
+  * running with it. List valued flags such as `--cap-add` accumulate
+  * whatever the order, which is why the regulated floor refuses any
+  * extra flag rather than denylisting some.
+  */
   extraDockerArgs?: readonly string[];
   /** Host env names forwarded INTO the container (not the daemon env). Default none. */
   forwardEnv?: readonly string[];

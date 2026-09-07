@@ -122,11 +122,38 @@ export interface ToolExecutorRegulatedPosture {
   /**
    * The isolation seam, per flavor: a subprocess names whether a
    * sandbox launcher wraps the command; a container names its network
-   * mode and root-filesystem posture.
+   * mode and root-filesystem posture and, since RV4915, everything
+   * else that decides what the container can do: the image, the
+   * dropped capabilities, the resource limits, the mount paths, and
+   * the raw extra `docker run` flags verbatim. The regulated floor
+   * judges each by name (network 'none', a read only root, `ALL` among
+   * the dropped capabilities, an image pinned by digest, no extra
+   * flags) and hashes the rest, so a moved image or a loosened cap
+   * moves the fingerprint instead of hiding beneath it.
    */
   isolation:
     | { flavor: 'subprocess'; sandboxed: boolean }
-    | { flavor: 'container'; network: string; readOnlyRoot: boolean };
+    | {
+        flavor: 'container';
+        network: string;
+        readOnlyRoot: boolean;
+        /** The image reference; the regulated floor requires a `@sha256:` digest. */
+        image: string;
+        /** The `--cap-drop` list; the regulated floor requires `ALL` among them. */
+        capDrop: readonly string[];
+        /** The `--memory` value. */
+        memory: string;
+        /** The `--cpus` value. */
+        cpus: string;
+        /** The `--pids-limit` value. */
+        pidsLimit: number;
+        /** Where the work directory is mounted inside the container. */
+        workMount: string;
+        /** Where the ephemeral scratch directory is mounted beside a worktree (RV4914). */
+        scratchMount: string;
+        /** The raw extra `docker run` flags, verbatim; the regulated floor refuses any. */
+        extraDockerArgs: readonly string[];
+      };
 }
 
 /** What `describeRegulatedPosture()` returns: one of the known shapes. */

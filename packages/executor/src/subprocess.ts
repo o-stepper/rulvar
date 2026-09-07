@@ -4,6 +4,10 @@
  * a fresh ephemeral working directory per call, a hard timeout that kills
  * the child, a bounded output capture, and per-call short-lived
  * credentials. It records every dispatch to the side-effect ledger.
+ * Under worktree isolation the request carries the acquired tree as
+ * `cwd` (RV4914): the child starts there, so its writes land in the tree
+ * the patch is collected from, and `RULVAR_SCRATCH` names the ephemeral
+ * directory it would otherwise have started in.
  *
  * What it does and does not isolate is stated plainly in the guide:
  * scrubbing the environment removes the host's ambient credentials (the
@@ -147,6 +151,10 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
 
     async run(request) {
       const { command, args } = resolveCommand(request, options);
+      // The acquired worktree (RV4914): present exactly when the
+      // dispatching agent runs under worktree isolation; the child runs
+      // there and the ledger rows name it.
+      const worktree = request.cwd;
       const workdir = await mkdtemp(join(workdirBase, `rulvar-exec-${request.tool}-`));
       const startedAt = now();
       const argsHash = hashArgs(request.args);
@@ -171,6 +179,7 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
             argsHash,
             executor: request.executor,
             workdir,
+            ...(worktree === undefined ? {} : { cwd: worktree }),
             startedAt,
             attemptId,
           });
@@ -204,6 +213,12 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
         env.RULVAR_TOOL = request.tool;
         env.RULVAR_RUN_ID = request.ctx.runId;
         env.RULVAR_IDEMPOTENCY_KEY = request.ctx.idempotencyKey;
+        if (worktree !== undefined) {
+          // The ephemeral directory the child would otherwise have
+          // started in, so a tool program whose cwd is the worktree can
+          // still find its scratch space.
+          env.RULVAR_SCRATCH = workdir;
+        }
 
         const wrapper =
           options.sandbox === undefined ? [] : [...options.sandbox({ workdir, request })];
@@ -216,7 +231,9 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
             command: spawnCommand,
             args: spawnArgs,
             env,
-            cwd: workdir,
+            // The worktree when the request carries one (RV4914), the
+            // ephemeral workdir otherwise, byte for byte as before.
+            cwd: worktree ?? workdir,
             stdinData: JSON.stringify({
               tool: request.tool,
               args: request.args,
@@ -285,6 +302,7 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
             argsHash,
             executor: request.executor,
             workdir,
+            ...(worktree === undefined ? {} : { cwd: worktree }),
             startedAt,
             attemptId,
             durationMs,

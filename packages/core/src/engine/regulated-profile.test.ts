@@ -916,6 +916,148 @@ describe('the first-party construction descriptors (RV4204)', () => {
     ).rejects.toThrow(/posture moved between compile time and run\(\)/);
   });
 
+  describe('the container descriptor is complete and judged strictly (RV4915)', () => {
+    const DIGEST = `ghcr.io/acme/tool-sandbox@sha256:${'a'.repeat(64)}`;
+    type ContainerSeam = Extract<
+      Extract<RegulatedPostureDescriptor, { kind: 'tool-executor' }>['isolation'],
+      { flavor: 'container' }
+    >;
+    const container = (seam?: Partial<Record<keyof ContainerSeam, unknown>>) => ({
+      run: () => Promise.resolve(null),
+      describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+        regulatedPosture: 1,
+        kind: 'tool-executor',
+        name: 'container',
+        ledger: true,
+        allowEnv: [],
+        bounds: { timeoutMs: 30_000, maxOutputBytes: 1_048_576 },
+        isolation: {
+          flavor: 'container',
+          network: 'none',
+          readOnlyRoot: true,
+          image: DIGEST,
+          capDrop: ['ALL'],
+          memory: '256m',
+          cpus: '1.0',
+          pidsLimit: 128,
+          workMount: '/work',
+          scratchMount: '/scratch',
+          extraDockerArgs: [],
+          ...(seam as Partial<ContainerSeam>),
+        },
+      }),
+    });
+    const compile = (seam?: Partial<Record<keyof ContainerSeam, unknown>>) =>
+      compileRegulatedProfile({
+        ...BASE(),
+        engine: { ...BASE().engine, executors: { container: container(seam) } },
+      });
+
+    it('accepts the hardened descriptor and folds the whole seam into the hash', () => {
+      const compiled = compile();
+      expect(compiled.profileHash).toMatch(/^[0-9a-f]{64}$/);
+      // The seam enters verbatim: a moved image, a kept capability, a
+      // different limit each move the fingerprint.
+      const image = compile({ image: `ghcr.io/acme/tool-sandbox@sha256:${'b'.repeat(64)}` });
+      const caps = compile({ capDrop: ['ALL', 'NET_RAW'] });
+      const memory = compile({ memory: '512m' });
+      const mount = compile({ workMount: '/src' });
+      const hashes = new Set([
+        compiled.profileHash,
+        image.profileHash,
+        caps.profileHash,
+        memory.profileHash,
+        mount.profileHash,
+      ]);
+      expect(hashes.size).toBe(5);
+      // And the same seam twice is the same hash.
+      expect(compile().profileHash).toBe(compiled.profileHash);
+    });
+
+    it('refuses each loosening by field name', () => {
+      const cases: Array<[Partial<Record<keyof ContainerSeam, unknown>>, RegExp]> = [
+        [{ network: 'host' }, /construction\['container'\]\.isolation\.network must be 'none'/],
+        [{ network: 'bridge' }, /isolation\.network must be 'none'/],
+        [
+          { readOnlyRoot: false },
+          /construction\['container'\]\.isolation\.readOnlyRoot must be true/,
+        ],
+        [
+          { capDrop: ['NET_RAW'] },
+          /construction\['container'\]\.isolation\.capDrop must list 'ALL'/,
+        ],
+        [{ capDrop: [] }, /isolation\.capDrop must list 'ALL'/],
+        [{ capDrop: undefined }, /isolation\.capDrop must list 'ALL'/],
+        [
+          { image: 'ghcr.io/acme/tool-sandbox:v3' },
+          /construction\['container'\]\.isolation\.image must be pinned by digest/,
+        ],
+        [{ image: `ghcr.io/acme/tool-sandbox@sha256:${'a'.repeat(63)}` }, /isolation\.image/],
+        [{ image: undefined }, /isolation\.image must be pinned by digest/],
+        [
+          { extraDockerArgs: ['--network', 'host'] },
+          /construction\['container'\]\.isolation\.extraDockerArgs must be empty/,
+        ],
+        [{ extraDockerArgs: ['--label', 'team=acme'] }, /isolation\.extraDockerArgs must be empty/],
+        [{ extraDockerArgs: undefined }, /isolation\.extraDockerArgs must be attested verbatim/],
+        [{ memory: undefined }, /construction\['container'\]\.isolation\.memory must carry/],
+        [{ cpus: '' }, /isolation\.cpus must carry/],
+        [{ workMount: undefined }, /isolation\.workMount must carry/],
+        [{ scratchMount: undefined }, /isolation\.scratchMount must carry/],
+        [{ pidsLimit: Number.NaN }, /isolation\.pidsLimit must carry the resolved finite/],
+        [{ pidsLimit: '128' }, /isolation\.pidsLimit/],
+      ];
+      for (const [seam, pattern] of cases) {
+        expect(() => compile(seam), JSON.stringify(seam)).toThrow(pattern);
+        expect(() => compile(seam), JSON.stringify(seam)).toThrow(ConfigError);
+      }
+    });
+
+    it('the refusal names the extra flags it refuses, so the auditor sees what was declared', () => {
+      expect(() => compile({ extraDockerArgs: ['--cap-add', 'ALL'] })).toThrow(
+        /\["--cap-add","ALL"\]/,
+      );
+    });
+
+    it('the compiled container re-judges its seam at run(): a network loosened after compile refuses', async () => {
+      let network = 'none';
+      const shifty = {
+        run: () => Promise.resolve(null),
+        describeRegulatedPosture: (): RegulatedPostureDescriptor => ({
+          regulatedPosture: 1,
+          kind: 'tool-executor',
+          name: 'container',
+          ledger: true,
+          allowEnv: [],
+          bounds: { timeoutMs: 30_000, maxOutputBytes: 1_048_576 },
+          isolation: {
+            flavor: 'container',
+            network,
+            readOnlyRoot: true,
+            image: DIGEST,
+            capDrop: ['ALL'],
+            memory: '256m',
+            cpus: '1.0',
+            pidsLimit: 128,
+            workMount: '/work',
+            scratchMount: '/scratch',
+            extraDockerArgs: [],
+          },
+        }),
+      };
+      const compiled = compileRegulatedProfile({
+        ...BASE(),
+        engine: { ...BASE().engine, executors: { container: shifty } },
+      });
+      network = 'host';
+      await expect(
+        Promise.resolve().then(() =>
+          compiled.engine.executors?.container?.run({ tool: 't', args: {} } as never),
+        ),
+      ).rejects.toThrow(/isolation\.network must be 'none'/);
+    });
+  });
+
   it("'require-recognized' refuses a blind construction by name, and enters the hash", () => {
     expect(() =>
       compileRegulatedProfile({ ...BASE(), construction: 'require-recognized' }),

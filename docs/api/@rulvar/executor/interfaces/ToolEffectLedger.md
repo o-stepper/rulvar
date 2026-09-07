@@ -6,7 +6,7 @@
 
 # Interface: ToolEffectLedger
 
-Defined in: [packages/executor/src/spi.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L102)
+Defined in: [packages/executor/src/spi.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L112)
 
 The side-effect ledger seam. An executor calls `record` once per
 dispatch (success or failure). Binding an approval to its effect is
@@ -22,7 +22,7 @@ rerun of the same call.
 optional intent(entry): void | Promise<void>;
 ```
 
-Defined in: [packages/executor/src/spi.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L116)
+Defined in: [packages/executor/src/spi.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L126)
 
 The two-phase capability (RV404): when the method is present, the
 reference executors durably record the intent BEFORE the external
@@ -53,7 +53,7 @@ single-record contract and executor behavior is byte-identical.
 record(entry): void | Promise<void>;
 ```
 
-Defined in: [packages/executor/src/spi.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L103)
+Defined in: [packages/executor/src/spi.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L113)
 
 #### Parameters
 

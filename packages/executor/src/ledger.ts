@@ -324,7 +324,9 @@ const hasIntentShape = (value: Record<string, unknown>): boolean =>
   typeof value.executor === 'string' &&
   typeof value.workdir === 'string' &&
   typeof value.startedAt === 'number' &&
-  (value.attemptId === undefined || typeof value.attemptId === 'string');
+  (value.attemptId === undefined || typeof value.attemptId === 'string') &&
+  (value.cwd === undefined || typeof value.cwd === 'string') &&
+  (value.workMount === undefined || typeof value.workMount === 'string');
 
 const OUTCOME_CLASSES = new Set<unknown>(['ok', 'error', 'timeout']);
 

@@ -70,6 +70,16 @@ export interface ToolEffectIntent {
   executor: IsolatedExecutorTag;
   /** The ephemeral working directory the dispatch runs in. */
   workdir: string;
+  /**
+   * The acquired worktree the tool ran in (RV4914), present exactly
+   * when the request carried one: the child's working directory under
+   * the subprocess executor, the host directory bind mounted at
+   * `workMount` under the container executor. Absent otherwise, so rows
+   * written without one keep their historical shape.
+   */
+  cwd?: string;
+  /** Under the container executor with a `cwd`: the container path it is mounted at (RV4914). */
+  workMount?: string;
   startedAt: number;
   /**
    * Unique id of this dispatch ATTEMPT (RV501): the reference executors

@@ -2601,11 +2601,20 @@ export function createCtx(
               );
             }
             const toolSpanId = internals.spans.mint(spanId);
+            // The acquired worktree rides the request (RV4914): present
+            // exactly under worktree isolation, so the executor runs the
+            // tool in the tree the patch is collected from, and a request
+            // without one keeps its exact shape. Before this the request
+            // carried no directory at all, and a worktree spawn dispatched
+            // through the container executor drafted its patch in an
+            // ephemeral directory the executor removed after the call.
+            const worktreeCwd = acquired?.cwd;
             return provider.run({
               executor: tag,
               tool: def.name,
               args,
               spec: def.executorSpec ?? null,
+              ...(worktreeCwd === undefined ? {} : { cwd: worktreeCwd }),
               ctx: {
                 runId: internals.runId,
                 spanId: toolSpanId,

@@ -275,11 +275,7 @@ function judgeDescriptor(raw: unknown): RegulatedPostureDescriptor {
       isolation:
         isolation.flavor === 'subprocess'
           ? { flavor: 'subprocess', sandboxed: isolation.sandboxed === true }
-          : {
-              flavor: 'container',
-              network: String(isolation.network),
-              readOnlyRoot: isolation.readOnlyRoot === true,
-            },
+          : judgeContainerIsolation(descriptor.name, isolation),
     };
   }
   refuse(
@@ -288,6 +284,104 @@ function judgeDescriptor(raw: unknown): RegulatedPostureDescriptor {
       "this floor can judge 'mcp-source', 'ai-sdk-bridge', 'model-adapter' and " +
       "'tool-executor'",
   );
+}
+
+type ContainerIsolation = Extract<
+  ToolExecutorRegulatedPosture['isolation'],
+  { flavor: 'container' }
+>;
+
+/** The digest pinned image reference form docker accepts: name[:tag]@sha256:<64 hex>. */
+const IMAGE_DIGEST = /^[^@\s]+@sha256:[0-9a-f]{64}$/;
+
+/**
+ * Judges a container executor's isolation seam (RV4915). Before it,
+ * the floor read only the network mode and the root posture and
+ * REQUIRED neither: a descriptor attesting `network: 'host'` compiled;
+ * the image, the dropped capabilities and the limits never entered the
+ * hash; and `extraDockerArgs` were invisible to the floor while the
+ * executor appended them AFTER its hardening flags, so a host passing
+ * `['--network', 'host']` ran with the host network beneath a
+ * fingerprint that attested `none`. The floor now refuses each
+ * loosening by name and hashes everything else verbatim. The extra
+ * flags are refused outright rather than denylisted: the stricter rule
+ * and the only one an auditor can verify by reading the descriptor,
+ * because docker resolves a repeated single valued flag to its last
+ * occurrence but list valued flags accumulate (`--cap-add ALL` beside
+ * `--cap-drop ALL` yields every capability), so neither argv order nor
+ * a finite denylist can make an arbitrary flag list safe.
+ */
+function judgeContainerIsolation(name: string, isolation: ContainerIsolation): ContainerIsolation {
+  const field = (leaf: string): string => `construction['${name}'].isolation.${leaf}`;
+  if (isolation.network !== 'none') {
+    refuse(
+      field('network'),
+      `must be 'none' (RV4915): the container attests '${String(isolation.network)}', and a ` +
+        'regulated tool container has no network at all',
+    );
+  }
+  if (isolation.readOnlyRoot !== true) {
+    refuse(
+      field('readOnlyRoot'),
+      'must be true (RV4915): a writable root filesystem is scratch space the ledger never sees',
+    );
+  }
+  const capDrop = Array.isArray(isolation.capDrop)
+    ? isolation.capDrop.filter((entry): entry is string => typeof entry === 'string')
+    : undefined;
+  if (capDrop === undefined || !capDrop.includes('ALL')) {
+    refuse(
+      field('capDrop'),
+      "must list 'ALL' (RV4915): a container keeping any Linux capability is a loosened seam " +
+        'the hash would otherwise attest as dropped',
+    );
+  }
+  if (typeof isolation.image !== 'string' || !IMAGE_DIGEST.test(isolation.image)) {
+    refuse(
+      field('image'),
+      'must be pinned by digest, name@sha256:<64 hex> (RV4915): a tag resolves to whatever ' +
+        'the registry serves at pull time, beneath a fingerprint that cannot see it move',
+    );
+  }
+  for (const leaf of ['memory', 'cpus', 'workMount', 'scratchMount'] as const) {
+    if (typeof isolation[leaf] !== 'string' || isolation[leaf] === '') {
+      refuse(
+        field(leaf),
+        'must carry the resolved value (RV4915): a limit or mount the descriptor omits is one ' +
+          'the hash cannot pin',
+      );
+    }
+  }
+  if (typeof isolation.pidsLimit !== 'number' || !Number.isFinite(isolation.pidsLimit)) {
+    refuse(field('pidsLimit'), 'must carry the resolved finite process ceiling (RV4915)');
+  }
+  const extraDockerArgs = Array.isArray(isolation.extraDockerArgs)
+    ? isolation.extraDockerArgs.filter((entry): entry is string => typeof entry === 'string')
+    : undefined;
+  if (extraDockerArgs === undefined) {
+    refuse(field('extraDockerArgs'), 'must be attested verbatim as an array (RV4915)');
+  }
+  if (extraDockerArgs.length > 0) {
+    refuse(
+      field('extraDockerArgs'),
+      `must be empty (RV4915): the executor declares ${JSON.stringify(extraDockerArgs)}, and a ` +
+        'raw docker flag list cannot be judged, only forbidden; list valued flags such as ' +
+        '--cap-add accumulate whatever the argv order',
+    );
+  }
+  return {
+    flavor: 'container',
+    network: 'none',
+    readOnlyRoot: true,
+    image: isolation.image,
+    capDrop: [...capDrop],
+    memory: isolation.memory,
+    cpus: isolation.cpus,
+    pidsLimit: isolation.pidsLimit,
+    workMount: isolation.workMount,
+    scratchMount: isolation.scratchMount,
+    extraDockerArgs: [],
+  };
 }
 
 /**

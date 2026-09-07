@@ -7194,6 +7194,70 @@ export const MUTATIONS = [
     replace: "    if (onLeaseLost === 'continue') {",
     test: 'packages/core/src/engine/engine-admission.test.ts',
   },
+  {
+    id: 'worktree-cwd-rides-the-exec-request',
+    doctrine:
+      'the isolated exec request carries the acquired worktree exactly under worktree isolation (RV4914): with the field dropped, an agent under worktree isolation dispatching through the container executor drafts its patch in an ephemeral directory the executor removes after the call, and the isolated patch posture comes back empty, silently',
+    file: 'packages/core/src/engine/ctx.ts',
+    find: '              ...(worktreeCwd === undefined ? {} : { cwd: worktreeCwd }),',
+    replace: '              ...(worktreeCwd === undefined ? {} : {}),',
+    test: 'packages/core/src/engine/ctx-executor-cwd.test.ts',
+  },
+  {
+    id: 'subprocess-child-starts-in-the-worktree',
+    doctrine:
+      "the subprocess child starts in the request's worktree when one rides the request (RV4914): with the cwd collapsed to the ephemeral workdir, the tool's writes land in a directory removed after the call, and the patch collected from the worktree is empty",
+    file: 'packages/executor/src/subprocess.ts',
+    find: '            cwd: worktree ?? workdir,',
+    replace: '            cwd: workdir,',
+    test: 'packages/executor/src/subprocess.test.ts',
+  },
+  {
+    id: 'container-mounts-the-worktree-as-work',
+    doctrine:
+      "the container executor bind mounts the request's worktree as the work mount (RV4914): with the mount collapsed to the ephemeral workdir, the tool writes into a directory removed after the call, and the worktree the patch is collected from never sees the change",
+    file: 'packages/executor/src/container.ts',
+    find: "          dockerArgs.push('-v', `${worktree}:${workMount}`, '-w', workMount);",
+    replace: "          dockerArgs.push('-v', `${workdir}:${workMount}`, '-w', workMount);",
+    test: 'packages/executor/src/container.test.ts',
+  },
+  {
+    id: 'container-extra-flags-precede-the-hardening',
+    doctrine:
+      "the host's extra docker flags precede the hardening flags so the fixed flags win (RV4915): with the order restored to extras last, a --network host in the extras runs with the host network and --read-only=false reopens the root, beneath a regulated fingerprint that attests none and read only",
+    file: 'packages/executor/src/container.ts',
+    find: "        dockerArgs.push(...(options.extraDockerArgs ?? []));\n        dockerArgs.push('--network', network);",
+    replace:
+      "        dockerArgs.push('--network', network);\n        dockerArgs.push(...(options.extraDockerArgs ?? []));",
+    test: 'packages/executor/src/container.test.ts',
+  },
+  {
+    id: 'regulated-container-drops-the-network',
+    doctrine:
+      "the regulated floor refuses a container executor with any network (RV4915): with the refusal collapsed, a descriptor attesting network 'host' compiles into the posture map and the tool container reaches the network beneath a fingerprint that reads as judged",
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: "  if (isolation.network !== 'none') {",
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-container-pins-the-image',
+    doctrine:
+      'the regulated floor requires the container image pinned by digest (RV4915): with the refusal collapsed, a tag compiles into the hash and the registry decides at pull time what the regulated tool runs, beneath a fingerprint that cannot see it move',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: "  if (typeof isolation.image !== 'string' || !IMAGE_DIGEST.test(isolation.image)) {",
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
+  {
+    id: 'regulated-container-refuses-extra-flags',
+    doctrine:
+      'the regulated floor refuses a container executor declaring any extra docker flag (RV4915): with the refusal collapsed, a --cap-add ALL in the extras compiles beneath a fingerprint attesting every capability dropped, and no argv order saves it because list valued flags accumulate',
+    file: 'packages/core/src/engine/regulated-profile.ts',
+    find: '  if (extraDockerArgs.length > 0) {',
+    replace: '  if (false) {',
+    test: 'packages/core/src/engine/regulated-profile.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
