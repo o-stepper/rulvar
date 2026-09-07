@@ -6984,6 +6984,16 @@ export const MUTATIONS = [
     replace: '  const budget = undefined as typeof result.toolBudget;',
     test: 'packages/core/src/orchestrator/handles.test.ts',
   },
+  {
+    id: 'window-notice-renders-at-delivery',
+    doctrine:
+      "the finalization window notice is rendered at the flush from the live regime (RV4901): with the live rendering severed, the entry snapshot composed mid batch is delivered stale, the model obeys a deficit the batch already closed, and the tenth comparison experiment's security specialist dies at the cap with nine entries over a floor of four",
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '      const live = windowActive();\n      const deficit = evidenceDeficit();\n      const text =',
+    replace:
+      '      const live = undefined as ReturnType<typeof windowActive>;\n      const deficit = evidenceDeficit();\n      const text =',
+    test: 'packages/core/src/runtime/finalization-window.test.ts',
+  },
 ];
 
 // Importing this module must not run the manifest (RV2603). Every arm
