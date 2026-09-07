@@ -5,25 +5,28 @@
  * doubles as the runnable reference for
  * https://docs.rulvar.com/guide/cookbook.
  */
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+  classifyEvidenceFile,
   createEngine,
+  FINAL_COMPOSITION_LABEL,
   InMemoryStore,
   JsonlFileStore,
   orchestrate,
+  RESEARCH_FAN_OUT_LIMITS,
   type ChatRequest,
   type JournalEntry,
 } from '@rulvar/core';
 import { FakeAdapter, fakeToolCalls, FAKE_MODEL_REF, type FakeCall } from '@rulvar/testing';
 
 import { evidenceResearchOptions } from './cookbook-evidence-research.js';
-import { fanOutResearch } from './cookbook-fan-out.js';
+import { assembleFanOut } from './cookbook-fan-out.js';
 import { explainStrictFailure, strictSuccessOptions } from './cookbook-strict-success.js';
 import {
   isPartial,
@@ -608,82 +611,275 @@ describe('isolated tool execution (cookbook)', () => {
 });
 
 describe('research fan out (cookbook)', () => {
-  it('every specialist reads the goal, records its evidence, and the accepted envelope profiles the roster', async () => {
+  // The tenth comparison experiment's shape in miniature: a frozen
+  // question, four specialists on one model class, and a repository
+  // whose sources span the four evidence categories the task demands.
+  const QUESTION =
+    '# Frozen question\n\nMap the error boundary of this repository. Cite the implementation, ' +
+    'its tests, the documentation, and an example.\n';
+  const ROLES = {
+    'integration-architecture': 'Own the target architecture and the API mapping.',
+    'reliability-economics': 'Own replay identity, budgets, and pricing.',
+    'security-operations': 'Own trust boundaries, permissions, and operations.',
+    'verification-migration': 'Own determinism, evals, and the migration plan.',
+  };
+  const SOURCES = {
+    'src/engine.ts': 'export const boundary = 1;\n',
+    'src/engine.test.ts': "it('holds the boundary', () => {});\n",
+    'docs/guide.md': '# Guide\n\nThe boundary is one.\n',
+    'examples/demo.ts': 'export const demo = 1;\n',
+  };
+  const DISTRIBUTION = { implementation: 1, tests: 1, docs: 1, examples: 1 };
+  const INSTRUCTIONS = 'Return one self contained Markdown RFC and preserve every citation.';
+  const RFC =
+    'RFC: the boundary is one (src/engine.ts:1, src/engine.test.ts:1, docs/guide.md:1, ' +
+    'examples/demo.ts:1).';
+
+  function repository(): string {
     const root = mkdtempSync(join(tmpdir(), 'rulvar-fan-out-'));
-    writeFileSync(join(root, 'engine.ts'), 'export const boundary = 1;\n');
-    const goal = 'Map the error handling of this repository, citing the implementation.';
-    const recipe = fanOutResearch({ root, budgetUsd: 1, children: 2, minEntries: 1 });
-    let orchTurn = 0;
-    const seenPrompts: string[] = [];
-    const { adapter, engine } = engineWith(
-      {
-        'inspect the module': (call: FakeCall) => {
-          const first = call.req.messages[0]?.parts.find((part) => part.type === 'text') as
-            { text: string } | undefined;
-          const recorded = JSON.stringify(call.req.messages).includes('"recorded":true');
-          if (!recorded) {
-            seenPrompts.push(first?.text ?? '');
-          }
-          // One kit backs the profile, so the two specialists pool their
-          // evidence: a distinct claim per task keeps the second record
-          // from landing as a duplicate.
-          const task = call.prompt.split(': ').at(-1) ?? 'module';
-          return recorded
-            ? 'the boundary lives in engine.ts'
-            : fakeToolCalls({
-                name: 'record_evidence',
-                args: { claim: `the boundary of ${task}`, file: 'engine.ts', lines: '1' },
-              });
+    for (const [rel, text] of Object.entries({ 'benchmark-question.md': QUESTION, ...SOURCES })) {
+      mkdirSync(dirname(join(root, rel)), { recursive: true });
+      writeFileSync(join(root, rel), text, 'utf8');
+    }
+    return root;
+  }
+
+  it('refuses a question file the research tools could never list', () => {
+    const root = repository();
+    mkdirSync(join(root, 'experiments'));
+    writeFileSync(join(root, 'experiments', 'benchmark-question.md'), QUESTION, 'utf8');
+    // The harness's exact seam: the file under a directory the profile ignores.
+    expect(() =>
+      assembleFanOut({
+        root,
+        questionFile: 'experiments/benchmark-question.md',
+        ignore: ['experiments'],
+        roles: ROLES,
+        budgetUsd: 1,
+        evidence: { minEntries: 4 },
+      }),
+    ).toThrow(/invisible to the research tools/);
+    // A missing file fails at assembly, not in four specialists.
+    expect(() =>
+      assembleFanOut({
+        root,
+        questionFile: 'missing.md',
+        roles: ROLES,
+        budgetUsd: 1,
+        evidence: { minEntries: 4 },
+      }),
+    ).toThrow(/ENOENT/);
+  });
+
+  it('four briefed specialists read the frozen question, spread their evidence, and the synthesis settles complete', async () => {
+    const root = repository();
+    const recipe = assembleFanOut({
+      root,
+      questionFile: 'benchmark-question.md',
+      roles: ROLES,
+      budgetUsd: 1,
+      evidence: { minEntries: 4, distribution: DISTRIBUTION },
+      synthesisInstructions: INSTRUCTIONS,
+    });
+
+    // The option shape, before any run: the goal carries the question
+    // and the roster, the coordinator gets one spare seat, every child
+    // gets the goal as its brief, the acceptance is the preset's with
+    // the forecast raised to 'degrade', and the synthesis composes over
+    // full child outputs.
+    expect(recipe.goal.startsWith(QUESTION.trimEnd())).toBe(true);
+    expect(recipe.goal).toContain('agentType=security-operations: Own trust boundaries');
+    expect(recipe.options).toEqual({
+      profiles: Object.keys(ROLES),
+      maxSpawns: 5,
+      childBrief: 'goal',
+      acceptance: {
+        childPolicy: 'all-ok',
+        acceptPartialChildren: true,
+        acceptValidatedTerminalOutputOnLimit: true,
+        onUnreachable: 'degrade',
+        requireEvidenceFloor: true,
+        minSpawnedChildren: 4,
+      },
+      exposeChildResultTools: true,
+      synthesis: { mode: 'single', context: 'full', policyFacts: true, instructions: INSTRUCTIONS },
+    });
+    // Every specialist profile carries the template's limits (the
+    // window with the surplus turn, the reserve summary, the extension
+    // with a tenth of the declared money as its headroom floor), the
+    // declared money as estCost, and the contract with its spread.
+    expect(Object.keys(recipe.profiles)).toEqual(Object.keys(ROLES));
+    for (const [name, role] of Object.entries(ROLES)) {
+      const profile = recipe.profiles[name];
+      expect(profile?.description).toBe(role);
+      expect(profile?.estCost).toBe(1);
+      expect(profile?.evidenceContract).toEqual({ minEntries: 4, distribution: DISTRIBUTION });
+      expect(profile?.limits).toEqual({
+        ...RESEARCH_FAN_OUT_LIMITS,
+        finalizationReserve: { maxOutputTokens: 8000 },
+        toolBudgetExtension: {
+          increment: 12,
+          maxExtensions: 3,
+          coverEvidenceDeficit: true,
+          minHeadroomUsd: 0.1,
         },
+      });
+    }
+
+    let orchTurn = 0;
+    const firstPrompts = new Map<string, string>();
+    const synthesisPrompts: string[] = [];
+    const specialist = (name: string, call: FakeCall) => {
+      const history = JSON.stringify(call.req.messages);
+      if (!history.includes('"path":"benchmark-question.md"')) {
+        // Turn one: the brief already carries the question, and the
+        // file is readable through the research tools too.
+        const opening = call.req.messages[0]?.parts.find((part) => part.type === 'text') as
+          { text: string } | undefined;
+        firstPrompts.set(name, opening?.text ?? '');
+        return fakeToolCalls({ name: 'read_file', args: { path: 'benchmark-question.md' } });
+      }
+      if (!history.includes('"recorded":true')) {
+        // Turn two: one verified citation per category the spread demands.
+        return fakeToolCalls(
+          ...Object.keys(SOURCES).map((file) => ({
+            name: 'record_evidence',
+            args: { claim: `${name}: the boundary as ${file} states it`, file, lines: '1' },
+          })),
+        );
+      }
+      return `${name} report: the boundary is one; see ${Object.keys(SOURCES).join(', ')}.`;
+    };
+    const adapter = new FakeAdapter({
+      agents: {
         'You are the orchestrator': (call: FakeCall) => {
           orchTurn += 1;
           if (orchTurn === 1) {
             return fakeToolCalls({
               name: 'parallel_agents',
               args: {
-                tasks: [
-                  { agentType: 'researcher', prompt: 'inspect the module: engine' },
-                  { agentType: 'researcher', prompt: 'inspect the module: tools' },
-                ],
+                tasks: Object.keys(ROLES).map((name) => ({
+                  agentType: name,
+                  prompt: `Cover your area for the RFC: ${name}`,
+                  budgetUsd: 1,
+                })),
               },
             });
           }
           if (orchTurn === 2) {
             return fakeToolCalls({ name: 'await_all', args: { handles: handlesIn(call.req) } });
           }
-          return fakeToolCalls({ name: 'finish', args: { result: 'mapped' } });
+          return fakeToolCalls({
+            name: 'finish',
+            args: { result: 'DRAFT: four specialist reports in hand' },
+          });
+        },
+        // The goal names every role, so the specialists and the
+        // synthesis are told apart by identity, never by a prompt regex.
+        '*': (call: FakeCall) => {
+          if (call.label === FINAL_COMPOSITION_LABEL) {
+            synthesisPrompts.push(call.prompt);
+            return fakeToolCalls({ name: 'finish', args: { result: RFC } });
+          }
+          if (call.agentType !== undefined && call.agentType in ROLES) {
+            return specialist(call.agentType, call);
+          }
+          throw new Error(
+            `unexpected dispatch: agentType='${call.agentType ?? ''}' label='${call.label ?? ''}'`,
+          );
         },
       },
-      { researcher: recipe.profile },
-    );
-    const outcome = await orchestrate(engine, goal, recipe.options, {
-      budgetUsd: 5,
+    });
+    const store = new InMemoryStore({ quiet: true });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        // The synthesis runs under its own routing key.
+        routing: { ...ROUTING, synthesize: FAKE_MODEL_REF },
+        profiles: recipe.profiles,
+      },
+    });
+    const outcome = await orchestrate(engine, recipe.goal, recipe.options, {
+      budgetUsd: 12,
       runId: 'CB-FAN-OUT',
     }).result;
     expect(outcome.error?.message).toBeUndefined();
     expect(outcome.status).toBe('ok');
     const envelope = outcome.value as PartialEnvelope<string> & {
-      childLimitProfile?: { children: number; underToolBudget: number; capHit: number };
+      childLimitProfile?: Record<string, number>;
+      semanticPasses?: { synthesis?: { ran: boolean } };
     };
+    // The completion observed: 'complete', four ok specialists, and the
+    // settled value is the SYNTHESIS composed over their full reports,
+    // never the coordinator's draft.
     expect(envelope.completion).toBe('complete');
-    expect(envelope.result).toBe('mapped');
-    // Every specialist read the goal before its own task.
-    expect(seenPrompts).toHaveLength(2);
-    for (const prompt of seenPrompts) {
-      expect(prompt.startsWith(`${goal}\n\ninspect the module`)).toBe(true);
+    expect(envelope.childStatusCounts).toEqual({ ok: 4 });
+    expect(envelope.result).toBe(RFC);
+    expect(envelope.semanticPasses?.synthesis).toEqual({ ran: true });
+    expect(synthesisPrompts).toHaveLength(1);
+    for (const name of Object.keys(ROLES)) {
+      expect(synthesisPrompts[0]).toContain(`${name} report:`);
     }
-    // The coordinator was told the brief is automatic, and the roster
-    // profile names what bound the children: nothing, this time.
+    // Every specialist read the goal (the question first) before its
+    // own task, and read the frozen question through the tools too.
+    expect([...firstPrompts.keys()].sort()).toEqual(Object.keys(ROLES).sort());
+    for (const [name, prompt] of firstPrompts) {
+      expect(prompt.startsWith(`${recipe.goal}\n\nCover your area for the RFC: ${name}`)).toBe(
+        true,
+      );
+    }
+    const specialistCalls = adapter.calls.filter(
+      (call) => call.agentType !== undefined && call.agentType in ROLES,
+    );
+    expect(specialistCalls).toHaveLength(12);
+    const readers = specialistCalls.filter((call) =>
+      JSON.stringify(call.req.messages).includes('1: # Frozen question'),
+    );
+    expect(new Set(readers.map((call) => call.agentType)).size).toBe(4);
+    // The coordinator was told the brief is automatic.
     const coordination = JSON.stringify(adapter.calls[0]?.req.messages[0]?.parts ?? []);
     expect(coordination).toContain('receives the GOAL above as its brief');
+    // The acceptance judged the spread per specialist, and the roster
+    // profile names what bound the children: nothing, this time.
+    const [acceptance] = decisionsOf(await store.load('CB-FAN-OUT'), 'orchestrator_acceptance');
+    const rows =
+      (
+        acceptance?.value as {
+          children?: Array<{
+            status: string;
+            evidence?: { met: boolean; byCategory?: Record<string, unknown> };
+          }>;
+        }
+      ).children ?? [];
+    expect(rows).toHaveLength(4);
+    for (const row of rows) {
+      expect(row.status).toBe('ok');
+      expect(row.evidence?.met).toBe(true);
+      expect(row.evidence?.byCategory).toEqual({
+        implementation: { recorded: 1, required: 1 },
+        tests: { recorded: 1, required: 1 },
+        docs: { recorded: 1, required: 1 },
+        examples: { recorded: 1, required: 1 },
+      });
+    }
     expect(envelope.childLimitProfile).toEqual({
-      children: 2,
-      underToolBudget: 2,
+      children: 4,
+      underToolBudget: 4,
       capHit: 0,
       windowEntered: 0,
       starved: 0,
       budgetUsedShareMedian: 0,
     });
-    expect(recipe.evidence()).toHaveLength(2);
+    // Host side, every specialist owns four verified entries over the
+    // four categories.
+    const evidence = recipe.evidence();
+    expect(Object.keys(evidence).sort()).toEqual(Object.keys(ROLES).sort());
+    for (const entries of Object.values(evidence)) {
+      expect(entries).toHaveLength(4);
+      expect(new Set(entries.map((entry) => classifyEvidenceFile(entry.file)))).toEqual(
+        new Set(['implementation', 'tests', 'docs', 'examples']),
+      );
+    }
   });
 });

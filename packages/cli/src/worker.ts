@@ -68,6 +68,101 @@ import {
 /** Appendix A: the committed reference lease ttl. */
 export const DEFAULT_WORKER_TTL_MS = 60_000;
 
+/**
+ * The options of {@link createWorker}, the queue shell over the public
+ * engine API.
+ *
+ * What the stock worker does NOT check (plan 49 wave B, the RV4913
+ * remainder). The worker is not a regulated worker: the production
+ * host guide's RACI applies to a worker deployment unchanged, and the
+ * list below is what stays the host's to assert, enforce, or supply.
+ * Before RV4913 the resume was blind (`{ lease, args }` only), so none
+ * of the assertions could reach the engine from a worker at all;
+ * 1.253.0 forwards them, and the rest is read from the code.
+ *
+ * 1. It asserts no resume posture of its own. What reaches
+ *    `engine.resume` is `{ ...resumeOptions, args, lease }`, so without
+ *    a host supplied `resumeOptions` the engine defaults decide: a
+ *    changed workflow body warns and proceeds (`bodyHash` defaults to
+ *    `'warn'`), a recorded `configFingerprint` goes unchecked (the
+ *    engine warns `RULVAR_RESUME_FINGERPRINT_UNCHECKED`), a recorded
+ *    `scope` resumes verbatim without an assertion, and a run holding
+ *    open wire intents refuses typed and is poisoned for this worker.
+ *    The worker computes none of those values: it has no config
+ *    module, no fingerprint of the engine it was built from, and no
+ *    scope of its own. The function form receives the run's `RunMeta`
+ *    (its recorded `configFingerprint`, `scope`, `budgetUsd`,
+ *    `workflowName`), so the host re asserts what genesis recorded or
+ *    throws a `ConfigError` to refuse.
+ * 2. It compiles no regulated profile and attests nothing.
+ *    `compileRegulatedProfile` is a host call at engine assembly; the
+ *    worker never reads a `profileHash` and never compares the engine
+ *    it runs to the posture a run was started under. The only bridge
+ *    is `resumeOptions.configFingerprint`, and it is the ENGINE that
+ *    compares it against the genesis record before ownership; a worker
+ *    built over a loosened engine drives a regulated run like any other
+ *    unless the host supplies that fingerprint.
+ * 3. It trusts `argsFor`. Run arguments are not journaled; the engine
+ *    records `argsProvided` and a canonical `argsHash` at genesis,
+ *    carries them through every resume, and does not enforce them. The
+ *    worker passes whatever `argsFor(meta)` returns and compares
+ *    nothing against `meta.argsHash`, so the refusal belongs to the
+ *    host (`hashRunArgs(args)` against the recorded hash before the
+ *    resume), which is what `rulvar resume` does and what its
+ *    `--allow-args-change` overrides.
+ * 4. It bounds no money and no admission. `concurrency` caps leased
+ *    runs in one process and nothing else: a run's ceiling is what its
+ *    own `RunMeta` recorded (or what a host `resumeOptions.run`
+ *    override asks, journaled by the engine as a `run_budget_override`
+ *    decision), spawn admission and quotas are the engine's, and two
+ *    workers with `concurrency: 1` over one store drive two runs,
+ *    because no fleet wide cap on active runs lives here.
+ * 5. It selects nothing by identity. Every meta the store lists as
+ *    `running` or `suspended` is a candidate whatever its tenant,
+ *    region, or account (`listRuns({ statuses })` carries no scope
+ *    filter), so a fleet that must not drive another fleet's runs
+ *    separates stores, or refuses per run from the `resumeOptions`
+ *    function (a thrown `ConfigError` poisons the run for this worker;
+ *    a `scope` it asserts that differs from the recorded one is refused
+ *    by the engine).
+ * 6. It reads the meta row, never the journal, to decide candidacy. A
+ *    row behind a journaled settle, or a terminal row stranded over
+ *    live journal work, is invisible to a sweep; `rulvar runs audit`
+ *    names those divergences and its `--repair` rewrites them.
+ * 7. Poison is process local and retry is unbounded. A run the worker
+ *    poisons (a `ConfigError`, a `JournalCompatibilityError`, an
+ *    unregistered workflow) is skipped by THIS worker until a restart
+ *    or a new generation of the runId; nothing is written to the store,
+ *    so another worker retries it. A run whose resume rejects without
+ *    settling (a withheld settlement, a failed store write) stays a
+ *    candidate and is re leased on every sweep with no attempt counter
+ *    and no backoff, so a deterministic failure is a paid loop until a
+ *    human reads `onError`.
+ * 8. It authenticates nobody and isolates nothing. The worker has no
+ *    network surface (the HTTP server's authentication is host
+ *    middleware, and the worker sits behind none of it); tools run
+ *    wherever the engine's executors and profiles put them, and the
+ *    worker configures no executor, permission layer, worktree, or
+ *    container.
+ * 9. Retention is the host's predicate: `retention(meta)` alone decides
+ *    deletion, applied under a brief lease; absent, everything
+ *    persists, and no age or size policy exists in the worker.
+ * 10. The lease protocol is the store's. The ttl match is verified only
+ *    over a store that exposes `leaseTtlMs`; a store without the
+ *    capability is trusted with the worker's ttl, and a stale writer's
+ *    meta and blob writes are rejected only over a store declaring
+ *    `fencedWrites` (the journal is fenced always). The worker adds no
+ *    fencing of its own.
+ * 11. It observes events and persists none. `onEvent` sees the stream
+ *    in order and the drain keeps memory bounded; nothing is exported
+ *    (`toOtel` is the host's call) and the journal stays the record.
+ * 12. The recorded postures are the engine's to restore.
+ *    `strictPricing`, `clampTurnToExposure` (since RV4913),
+ *    `budgetPolicy`, the scope with its normalization table, and the
+ *    fingerprint come back from `RunMeta` on every resume without the
+ *    worker's help; the worker neither re arms nor checks them, and
+ *    `resumeOptions.run` is the one door that changes a ceiling.
+ */
 export interface CreateWorkerOptions {
   /**
    * The LeasableStore to lease runs from; MUST be the same journal the
@@ -206,6 +301,60 @@ function workerIdentity(): string {
   return `rulvar-worker:${process.pid}:${workerOrdinal}`;
 }
 
+/**
+ * The queue shell over the public engine API (M8, FR-703): leases
+ * resumable and suspended runs from a `LeasableStore` under the
+ * fencing epoch and drives each through `engine.resume`.
+ *
+ * It is not a regulated worker. What it does NOT check (plan 49 wave
+ * B, the RV4913 remainder; the same list as {@link CreateWorkerOptions}):
+ *
+ * 1. It asserts no resume posture of its own: `engine.resume` receives
+ *    `{ ...resumeOptions, args, lease }`, and without a host supplied
+ *    `resumeOptions` the engine defaults decide (`bodyHash` `'warn'`, a
+ *    recorded `configFingerprint` unchecked, a recorded `scope` restored
+ *    without an assertion, open wire intents refused and poisoned). The
+ *    worker computes none of those values; the function form sees the
+ *    run's `RunMeta` so the host re asserts what genesis recorded or
+ *    throws a `ConfigError` to refuse.
+ * 2. It compiles no regulated profile and attests nothing; the only
+ *    bridge is `resumeOptions.configFingerprint`, which the ENGINE
+ *    compares against the genesis record before ownership.
+ * 3. It trusts `argsFor`: arguments are not journaled, the engine
+ *    records `argsProvided` and `argsHash` at genesis and does not
+ *    enforce them, and the worker compares nothing; the refusal is the
+ *    host's (`hashRunArgs(args)` against `meta.argsHash`), which is
+ *    what `rulvar resume` does and `--allow-args-change` overrides.
+ * 4. It bounds no money and no admission: `concurrency` caps leased
+ *    runs in one process only; a run's ceiling is its recorded one (or
+ *    the host's `resumeOptions.run` override, journaled by the engine),
+ *    and no fleet wide cap on active runs lives here.
+ * 5. It selects nothing by identity: every `running` or `suspended`
+ *    meta in the store is a candidate whatever its tenant, region, or
+ *    account; separate stores, or refuse per run from the
+ *    `resumeOptions` function.
+ * 6. It reads the meta row, never the journal, for candidacy; the
+ *    divergences `rulvar runs audit` names are invisible to a sweep.
+ * 7. Poison is process local and retry is unbounded: a poisoned run is
+ *    skipped by THIS worker until a restart or a new generation and
+ *    nothing is written to the store, and a resume that rejects without
+ *    settling is re leased on every sweep with no attempt counter and
+ *    no backoff.
+ * 8. It authenticates nobody and isolates nothing: no network surface,
+ *    no executor, permission layer, worktree, or container of its own.
+ * 9. Retention is the host's predicate; absent, everything persists.
+ * 10. The lease protocol is the store's: the ttl match is verified only
+ *    over a store exposing `leaseTtlMs`, stale meta and blob writes are
+ *    rejected only over a store declaring `fencedWrites` (the journal is
+ *    fenced always), and the worker adds no fencing of its own.
+ * 11. It observes events and persists none: `onEvent` sees the stream,
+ *    nothing is exported, the journal stays the record.
+ * 12. The recorded postures (`strictPricing`, `clampTurnToExposure`,
+ *    `budgetPolicy`, the scope with its normalization table, the
+ *    fingerprint) are restored from `RunMeta` by the engine; the worker
+ *    neither re arms nor checks them, and `resumeOptions.run` is the
+ *    one door that changes a ceiling.
+ */
 export function createWorker(engine: Engine, options: CreateWorkerOptions): Worker {
   const store = options.store;
   const isLeasable =
