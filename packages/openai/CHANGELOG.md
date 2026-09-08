@@ -1,5 +1,17 @@
 # @rulvar/openai
 
+## 1.254.0
+
+### Minor Changes
+
+- 4ffcc0e: The pre-5.6 rows follow their documented pages, and every OpenAI stamp is renewed on 2026-09-08 (plan 49, wave C). The stamp renewal read the four pre-5.6 model pages (gpt-5.5, gpt-5.5-pro, gpt-5.4, gpt-5.4-mini) with the rates audit's own extractor for the first time and caught a real drift: the gpt-5.5 and gpt-5.4 pages document the same long context tier as the GPT-5.6 family (prompts strictly above 272K input tokens price the full request at 2x input and 1.5x output) while the seeds carried none, so a run that sent such a prompt to either model priced it at the base rate, understating spend, never over. Per the audit's own doctrine (a confirmed rate change ships as its own changeset, never an automatic rewrite), the two rows gain the tier and the derived `OPENAI_PRICING` table moves to the distinct `pricingVersion: 'openai-2026-09-08'`, so a resumed run that priced under the old rows surfaces the revision instead of silently reinterpreting past spend; every other rate is byte identical. The same read moved every pre-5.6 window and output cap to the figure its page states (1,050,000 tokens of context for gpt-5.5, gpt-5.5-pro and gpt-5.4, 400,000 for gpt-5.4-mini, 128,000 max output on all four; the unknown model fallback keeps its conservative 272K / 100K), and `ratesVerifiedAt` on every priced row, the GPT-5.6 siblings and the alias included, becomes `2026-09-08` (the 5.6 pages were re read on both 2026-09-07 and 2026-09-08 and no 5.6 number moved). The scheduled rates audit (`scripts/rates-audit.mjs`) now audits the four pre-5.6 pages weekly beside the three GPT-5.6 sibling pages and the Anthropic table, so the sixty day age rule pages for their renewal too. Sol's previous rates remain billing confirmed by the 2026-07-30 statement reconciliation; every current rate is docs verified only, and its billing truth waits for the next reconciliation over a saved export.
+
+### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+
 ## 1.253.0
 
 ### Patch Changes

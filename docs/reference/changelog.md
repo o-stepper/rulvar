@@ -18,6 +18,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.254.0
+
+#### Patch Changes
+
+- 4ffcc0e: The Anthropic rates stamp is renewed on 2026-09-08 (plan 49, wave C). Every seeded row was re read against the documented model pricing table with the rates audit's own extractor, all five published columns including the 1h cache write premium, and no number moved: `pricingVersion` stays `anthropic-2026-07-31`, every rate is byte identical, and `RATES_VERIFIED_AT`, written into every priced row's `ratesVerifiedAt`, becomes `2026-09-08` so the sixty day age rule of the scheduled audit counts from this renewal. The stamp moves beside the OpenAI table's revision of the same day so both providers renew together, as the renewal ritual in the providers guide describes.
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+
 ### 1.253.0
 
 #### Patch Changes
@@ -2383,6 +2392,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+
 ### 1.253.0
 
 #### Patch Changes
@@ -4542,6 +4559,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
 
 ### 1.253.0
 
@@ -7323,6 +7348,13 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.254.0
+
+#### Patch Changes
+
+- 44de74d: The tenth comparison experiment's journal roster becomes a fixture, and its acceptance is re judged over it three times (plan 49, wave C1 item 1). The run `rulvar-benchmark-v1252-2026-09-01T10-56-04-591Z` fanned four research specialists out under `all-ok` with the binding evidence floor and the roster floor and no salvage arm: three settled ok with five verified entries each, one settled limit with nine entries over a floor of four, a report from its finalization reserve turn and two progress reports, on one surplus `record_evidence` call at 36 of 36 inside the finalization window; the acceptance rejected the finish, the configured synthesis was skipped, and the run settled error at 22 percent of its budget. The new test drives the same fan out on the scripted adapter under the harness's own profiles, contract, limits, coordinator options and single synthesis with `context: 'full'`, so the four children settle with the roster's statuses, entry counts, executed call counts, the one skipped call and the byte identical terminal error, and it holds the three decisions. The harness acceptance rejects the roster with the journal's own message (the child id substituted), completion rejected, three ok and one limit, `synthesis_skipped_by_acceptance`, the synthesis pass reporting `run-rejected`, and a limit profile naming one cap hit, four window entries and one starved child. The plan's flags `acceptValidatedTerminalOutputOnLimit` and `acceptPartialChildren` over the same roster accept it as a named partial, the limit child listed in `salvagedTerminalOutputChildren` because the output arm wins over the partial arm, and the synthesis composed over all four full reports is the accepted value. The `researchFanOut` preset's acceptance, spread with `onUnreachable: 'degrade'` the way the cookbook does, accepts it on the salvage arm's merits with no degrade and no forecast decision journaled. No runtime behavior changes.
+- 88c6564: The tenth comparison experiment's security specialist transcript becomes a runtime test at the experiment's own scale (plan 49 wave C1 item 2, RV4901). The specialist of t2.bin ran the research profile under the harness's limits (a cap of 36, a reserve of 7 widened for the evidence deficit, a floor of 4 under enforce refuse), spent 27 calls over seven turns, recorded its first six entries in one batch that entered the window on its third call, and read after the batch the notice composed at the entry, "7 of the reserved final 7 tool calls remain, record 4 more evidence entries first", beside a budget notice that said 3 remained; it obeyed, the fourth extra call died at the cap, and the child settled limit with nine entries and a finished report. The test replays the transcript's calls turn by turn on the real research toolset over a temp root, the same tool names and counts per turn, with a literal model that records N more entries when the notice it reads asks for N and finishes otherwise. Fed the notice main delivers, the model settles ok with six entries and only six: the delivered window notice names the counts that bind after the batch ("3 of the reserved final 7 tool calls remain", no deficit sentence) and agrees with the budget notice flushed beside it, while the journaled entry stays the experiment's seq 48 field for field; fed the journal's stale text, the same model settles limit with the experiment's telemetry byte for byte ("tool budget exhausted: maxToolCalls (36/36); skipped tool calls: 1", nine entries over the floor, the reserve summary turn used). The journal's stale text is pinned as the text that renders nowhere in the delivered messages. No runtime behavior changes.
 
 ### 1.253.0
 
@@ -10397,6 +10429,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/effects
 
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+  - @rulvar/store-conformance@1.254.0
+
 ### 1.253.0
 
 #### Patch Changes
@@ -10467,6 +10508,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/store-conformance@1.250.0
 
 ## eslint-plugin-rulvar
+
+### 1.254.0
 
 ### 1.253.0
 
@@ -11078,6 +11121,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [4ffcc0e]
+- Updated dependencies [4ffcc0e]
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/anthropic@1.254.0
+  - @rulvar/openai@1.254.0
+  - @rulvar/core@1.254.0
+  - @rulvar/plan@1.254.0
+  - @rulvar/testing@1.254.0
 
 ### 1.253.0
 
@@ -14115,6 +14172,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+
 ### 1.253.0
 
 #### Minor Changes
@@ -15689,6 +15754,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.254.0
+
+#### Minor Changes
+
+- 4ffcc0e: The pre-5.6 rows follow their documented pages, and every OpenAI stamp is renewed on 2026-09-08 (plan 49, wave C). The stamp renewal read the four pre-5.6 model pages (gpt-5.5, gpt-5.5-pro, gpt-5.4, gpt-5.4-mini) with the rates audit's own extractor for the first time and caught a real drift: the gpt-5.5 and gpt-5.4 pages document the same long context tier as the GPT-5.6 family (prompts strictly above 272K input tokens price the full request at 2x input and 1.5x output) while the seeds carried none, so a run that sent such a prompt to either model priced it at the base rate, understating spend, never over. Per the audit's own doctrine (a confirmed rate change ships as its own changeset, never an automatic rewrite), the two rows gain the tier and the derived `OPENAI_PRICING` table moves to the distinct `pricingVersion: 'openai-2026-09-08'`, so a resumed run that priced under the old rows surfaces the revision instead of silently reinterpreting past spend; every other rate is byte identical. The same read moved every pre-5.6 window and output cap to the figure its page states (1,050,000 tokens of context for gpt-5.5, gpt-5.5-pro and gpt-5.4, 400,000 for gpt-5.4-mini, 128,000 max output on all four; the unknown model fallback keeps its conservative 272K / 100K), and `ratesVerifiedAt` on every priced row, the GPT-5.6 siblings and the alias included, becomes `2026-09-08` (the 5.6 pages were re read on both 2026-09-07 and 2026-09-08 and no 5.6 number moved). The scheduled rates audit (`scripts/rates-audit.mjs`) now audits the four pre-5.6 pages weekly beside the three GPT-5.6 sibling pages and the Anthropic table, so the sixty day age rule pages for their renewal too. Sol's previous rates remain billing confirmed by the 2026-07-30 statement reconciliation; every current rate is docs verified only, and its billing truth waits for the next reconciliation over a saved export.
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
 
 ### 1.253.0
 
@@ -18060,6 +18137,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+
 ### 1.253.0
 
 #### Patch Changes
@@ -20334,6 +20419,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+  - eslint-plugin-rulvar@1.254.0
 
 ### 1.253.0
 
@@ -22819,6 +22913,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [4ffcc0e]
+- Updated dependencies [4ffcc0e]
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/anthropic@1.254.0
+  - @rulvar/openai@1.254.0
+  - @rulvar/core@1.254.0
 
 ### 1.253.0
 
@@ -25646,6 +25752,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+
 ### 1.253.0
 
 #### Minor Changes
@@ -27946,6 +28060,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+
 ### 1.253.0
 
 #### Patch Changes
@@ -29553,6 +29675,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
 
 ### 1.253.0
 
@@ -31773,6 +31903,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.254.0
+
+#### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
 
 ### 1.253.0
 
