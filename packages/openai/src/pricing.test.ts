@@ -10,7 +10,7 @@ import { OPENAI_MODELS, OPENAI_PRICING } from './index.js';
 
 describe('OPENAI_PRICING', () => {
   it('exports exactly the priced seed rows under a dated version', () => {
-    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-08-23');
+    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-09-08');
     const priced = Object.entries(OPENAI_MODELS).filter(
       ([, info]) => info.caps.pricing !== undefined,
     );
@@ -36,12 +36,22 @@ describe('OPENAI_PRICING', () => {
     // every 5.6 row was re read on 2026-09-07 with the audit's own
     // extractor (RV4918): no number moved, only the stamp, so the sixty
     // day age rule the same change added to the audit does not expire
-    // rows whose page still matches.
-    for (const name of ['gpt-5.6-sol', 'gpt-5.6', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
-      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-09-07');
-    }
-    for (const name of ['gpt-5.5', 'gpt-5.5-pro', 'gpt-5.4', 'gpt-5.4-mini']) {
-      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-07-18');
+    // rows whose page still matches. The 2026-09-08 renewal (plan 49,
+    // wave C) re read every 5.6 page again and, for the first time, the
+    // four pre-5.6 model pages: no 5.6 number moved, the pre-5.6 rows
+    // gained the documented 272K tier on gpt-5.5 and gpt-5.4, and every
+    // priced row now carries the same stamp.
+    for (const name of [
+      'gpt-5.6-sol',
+      'gpt-5.6',
+      'gpt-5.6-terra',
+      'gpt-5.6-luna',
+      'gpt-5.5',
+      'gpt-5.5-pro',
+      'gpt-5.4',
+      'gpt-5.4-mini',
+    ]) {
+      expect(OPENAI_MODELS[name]?.caps.pricing?.ratesVerifiedAt, name).toBe('2026-09-08');
     }
     for (const [ref, row] of Object.entries(OPENAI_PRICING.models)) {
       expect(row.ratesVerifiedAt, ref).toBeDefined();
@@ -58,6 +68,21 @@ describe('OPENAI_PRICING', () => {
       expect(OPENAI_PRICING.models[ref]?.tiers).toEqual([
         { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
       ]);
+    }
+  });
+
+  it('carries the documented tier on gpt-5.5 and gpt-5.4 and none on the rows whose pages show none', () => {
+    // The 2026-09-08 read of the pre-5.6 model pages: gpt-5.5 and
+    // gpt-5.4 document the family's 272K tier, gpt-5.5-pro and
+    // gpt-5.4-mini document no tier, and a tier the seed never claimed
+    // is the silent underpricing channel the audit compares both ways.
+    for (const ref of ['openai:gpt-5.5', 'openai:gpt-5.4'] as const) {
+      expect(OPENAI_PRICING.models[ref]?.tiers, ref).toEqual([
+        { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
+      ]);
+    }
+    for (const ref of ['openai:gpt-5.5-pro', 'openai:gpt-5.4-mini'] as const) {
+      expect(OPENAI_PRICING.models[ref]?.tiers, ref).toBeUndefined();
     }
   });
 });

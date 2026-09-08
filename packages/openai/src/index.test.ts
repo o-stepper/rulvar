@@ -1353,8 +1353,8 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
   // 0.8x across the board, Luna at 0.2x), re-verified 2026-07-31
   // (RV911); Sol carries the provider's later cut the plan-44
   // fresh-classification dispatch caught, re-verified 2026-08-23; every
-  // row was re read on 2026-09-07 with the audit's own extractor and
-  // no number moved (RV4918).
+  // row was re read on 2026-09-07 and 2026-09-08 with the audit's own
+  // extractor and no number moved (RV4918).
   const GPT_56_EXPECTED = {
     'gpt-5.6-sol': { input: 4, output: 20, cacheRead: 0.4, cacheWrite: 5, wireMax: true },
     'gpt-5.6-terra': { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5, wireMax: true },
@@ -1376,8 +1376,9 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
         cacheReadUsdPerMTok: expected.cacheRead,
         cacheWriteUsdPerMTok: expected.cacheWrite,
         tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
-        // The whole family re read 2026-09-07 (RV4918), rates unmoved.
-        ratesVerifiedAt: '2026-09-07',
+        // The whole family re read 2026-09-07 and 2026-09-08 (RV4918),
+        // rates unmoved.
+        ratesVerifiedAt: '2026-09-08',
       });
     }
   });
@@ -1387,7 +1388,7 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
   });
 
   it('every gpt-5.6 family member has its own versioned OPENAI_PRICING row', () => {
-    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-08-23');
+    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-09-08');
     for (const [model, expected] of Object.entries(GPT_56_EXPECTED)) {
       expect(OPENAI_PRICING.models[`openai:${model}`]?.inputUsdPerMTok, model).toBe(expected.input);
       expect(OPENAI_PRICING.models[`openai:${model}`]?.outputUsdPerMTok, model).toBe(
@@ -1418,35 +1419,58 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
     }
   });
 
-  it('carries the official pre-5.6 rows re-verified 2026-07-18, with no write premium', () => {
+  it('carries the official pre-5.6 rows re read 2026-09-08, with the documented tier and no write premium', () => {
     // The provider dropped the pre-5.6 prices when the 5.6 family
-    // shipped (v1.18.0 review P1-6); these are the official rates. None
-    // of these families reports cache_write_tokens or bills a write
-    // premium, and gpt-5.5-pro lists NO cached-input rate at all, so its
-    // row omits the field rather than fabricating a discount or a zero.
+    // shipped (v1.18.0 review P1-6); these are the official rates, re
+    // read on 2026-09-08 with the rates audit's own extractor, which
+    // found the 272K long context tier the gpt-5.5 and gpt-5.4 pages
+    // document and the 2026-07-18 rows never declared. None of these
+    // families reports cache_write_tokens or bills a write premium, and
+    // gpt-5.5-pro lists NO cached-input rate at all, so its row omits
+    // the field rather than fabricating a discount or a zero.
+    const tier = [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }];
     expect(OPENAI_MODELS['gpt-5.5']?.caps.pricing).toEqual({
       inputUsdPerMTok: 5,
       outputUsdPerMTok: 30,
       cacheReadUsdPerMTok: 0.5,
-      ratesVerifiedAt: '2026-07-18',
+      tiers: tier,
+      ratesVerifiedAt: '2026-09-08',
     });
     expect(OPENAI_MODELS['gpt-5.5-pro']?.caps.pricing).toEqual({
       inputUsdPerMTok: 30,
       outputUsdPerMTok: 180,
-      ratesVerifiedAt: '2026-07-18',
+      ratesVerifiedAt: '2026-09-08',
     });
     expect(OPENAI_MODELS['gpt-5.4']?.caps.pricing).toEqual({
       inputUsdPerMTok: 2.5,
       outputUsdPerMTok: 15,
       cacheReadUsdPerMTok: 0.25,
-      ratesVerifiedAt: '2026-07-18',
+      tiers: tier,
+      ratesVerifiedAt: '2026-09-08',
     });
     expect(OPENAI_MODELS['gpt-5.4-mini']?.caps.pricing).toEqual({
       inputUsdPerMTok: 0.75,
       outputUsdPerMTok: 4.5,
       cacheReadUsdPerMTok: 0.075,
-      ratesVerifiedAt: '2026-07-18',
+      ratesVerifiedAt: '2026-09-08',
     });
+  });
+
+  it('seeds the pre-5.6 windows and output caps their model pages state (read 2026-09-08)', () => {
+    // The same read moved every pre-5.6 window to the page's figure:
+    // 1,050,000 for gpt-5.5, gpt-5.5-pro and gpt-5.4, 400,000 for
+    // gpt-5.4-mini, 128,000 max output on all four. The unknown model
+    // fallback below stays at its conservative 272K / 100K.
+    for (const [model, window] of [
+      ['gpt-5.5', 1_050_000],
+      ['gpt-5.5-pro', 1_050_000],
+      ['gpt-5.4', 1_050_000],
+      ['gpt-5.4-mini', 400_000],
+    ] as const) {
+      const info = openAiModelInfo(model);
+      expect(info.caps.contextWindow, model).toBe(window);
+      expect(info.caps.maxOutputTokens, model).toBe(128_000);
+    }
   });
 
   it('prices the long-context tier strictly above 272000 input tokens', () => {
