@@ -1,5 +1,14 @@
 # @rulvar/effects
 
+## 1.254.0
+
+### Patch Changes
+
+- Updated dependencies [44de74d]
+- Updated dependencies [88c6564]
+  - @rulvar/core@1.254.0
+  - @rulvar/store-conformance@1.254.0
+
 ## 1.253.0
 
 ### Patch Changes
