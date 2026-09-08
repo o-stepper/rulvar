@@ -18,10 +18,11 @@
 //
 // Extraction is fail-closed: a page that stops matching the expected
 // shape is a finding demanding a human, never a silent pass. The
-// audited pages are exactly the ones the caps comments cite: the three
-// GPT-5.6 sibling model pages and the Anthropic model pricing table.
-// The pre-5.6 OpenAI rows cite no page and are deliberately not
-// audited here.
+// audited pages are exactly the ones the caps comments cite: the seven
+// OpenAI model pages (the three GPT-5.6 siblings and, since the
+// 2026-09-08 stamp renewal, gpt-5.5, gpt-5.5-pro, gpt-5.4 and
+// gpt-5.4-mini, whose first read with this extractor found the long
+// context tier the seeds lacked) and the Anthropic model pricing table.
 //
 // Since RV4918 the audit also judges the AGE of every audited row's
 // ratesVerifiedAt stamp against MAX_STAMP_AGE_DAYS: a table whose
@@ -279,6 +280,10 @@ async function main() {
     openAiRow('gpt-5.6-sol'),
     openAiRow('gpt-5.6-terra'),
     openAiRow('gpt-5.6-luna'),
+    openAiRow('gpt-5.5'),
+    openAiRow('gpt-5.5-pro'),
+    openAiRow('gpt-5.4'),
+    openAiRow('gpt-5.4-mini'),
     anthropicRow('claude-fable-5', 'Claude Fable 5'),
     anthropicRow('claude-opus-4-8', 'Claude Opus 4.8'),
     anthropicRow('claude-opus-4-7', 'Claude Opus 4.7'),

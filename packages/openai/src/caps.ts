@@ -63,10 +63,10 @@ const GPT_56_TIERS = [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMul
  * of one model (developers.openai.com/api/docs/models/gpt-5.6-sol,
  * .../gpt-5.6-terra, .../gpt-5.6-luna; the weekly rates audit
  * re-verifies the three pages and, since RV4918, the age of the
- * stamps). The family rows carry ratesVerifiedAt '2026-09-07' (RV814,
- * RV4918): on that date every row was re read against its documented
- * model page with the audit's own extractor and comparator, and no
- * number moved. The 2026-07-31 verification had picked up the
+ * stamps). The family rows carry ratesVerifiedAt '2026-09-08' (RV814,
+ * RV4918): on 2026-09-07 and again on 2026-09-08 every row was re read
+ * against its documented model page with the audit's own extractor
+ * and comparator, and no number moved. The 2026-07-31 verification had picked up the
  * provider's 2026-07-30 price cut on Terra (0.8x across input, cached
  * input, cache write, and output) and Luna (0.2x across the same four)
  * that the thirteenth-experiment live audit caught as drift (RV911).
@@ -100,7 +100,7 @@ const GPT_56_SOL: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.4,
     cacheWriteUsdPerMTok: 5,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-09-07',
+    ratesVerifiedAt: '2026-09-08',
   },
   { wireMaxEffort: true },
 );
@@ -114,7 +114,7 @@ const GPT_56_TERRA: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.2,
     cacheWriteUsdPerMTok: 2.5,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-09-07',
+    ratesVerifiedAt: '2026-09-08',
   },
   { wireMaxEffort: true },
 );
@@ -128,7 +128,7 @@ const GPT_56_LUNA: OpenAiModelInfo = responses(
     cacheReadUsdPerMTok: 0.02,
     cacheWriteUsdPerMTok: 0.25,
     tiers: GPT_56_TIERS,
-    ratesVerifiedAt: '2026-09-07',
+    ratesVerifiedAt: '2026-09-08',
   },
   { wireMaxEffort: true },
 );
@@ -142,36 +142,50 @@ export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
   // never a snapshot prefix, so a sibling like 'gpt-5.6-luna' can only
   // ever match its own row (v1.17.0 review P1-1).
   'gpt-5.6': GPT_56_SOL,
-  // Pre-5.6 rows per the official table (rates re-verified 2026-07-18,
-  // v1.18.0 review P1-6: the provider dropped these prices when the 5.6
-  // family shipped). These families report no cache_write_tokens and
-  // bill no write premium, so the rows deliberately carry no
+  // Pre-5.6 rows per each model's documented page
+  // (developers.openai.com/api/docs/models/<model>): first verified
+  // 2026-07-18 (v1.18.0 review P1-6: the provider dropped these prices
+  // when the 5.6 family shipped), re read 2026-09-08 with the rates
+  // audit's own extractor, which since that renewal audits these four
+  // pages weekly like the 5.6 siblings. The first read with the
+  // extractor caught what the 2026-07-18 rows lacked: the gpt-5.5 and
+  // gpt-5.4 pages document the same long context tier as the 5.6
+  // family ("prompts with >272K input tokens are priced at 2x input
+  // and 1.5x output for the full session"; the gpt-5.4 page scopes it
+  // to "models with a 1.05M context window"), and every page states a
+  // larger window than the seeds carried: 1.05M for gpt-5.5,
+  // gpt-5.5-pro and gpt-5.4, 400K for gpt-5.4-mini, all with 128K max
+  // output. These families report no cache_write_tokens and bill no
+  // write premium, so the rows deliberately carry no
   // cacheWriteUsdPerMTok. gpt-5.5-pro lists NO cached-input rate at all:
   // the row omits it, and a cached read, should the API ever report one
   // there, bills at the full input rate (conservative), never a
-  // fabricated discount.
-  'gpt-5.5': responses(400_000, 128_000, {
+  // fabricated discount. gpt-5.5-pro and gpt-5.4-mini document no long
+  // context tier and carry none.
+  'gpt-5.5': responses(1_050_000, 128_000, {
     inputUsdPerMTok: 5,
     outputUsdPerMTok: 30,
     cacheReadUsdPerMTok: 0.5,
-    ratesVerifiedAt: '2026-07-18',
+    tiers: GPT_56_TIERS,
+    ratesVerifiedAt: '2026-09-08',
   }),
-  'gpt-5.5-pro': responses(400_000, 128_000, {
+  'gpt-5.5-pro': responses(1_050_000, 128_000, {
     inputUsdPerMTok: 30,
     outputUsdPerMTok: 180,
-    ratesVerifiedAt: '2026-07-18',
+    ratesVerifiedAt: '2026-09-08',
   }),
-  'gpt-5.4': responses(272_000, 100_000, {
+  'gpt-5.4': responses(1_050_000, 128_000, {
     inputUsdPerMTok: 2.5,
     outputUsdPerMTok: 15,
     cacheReadUsdPerMTok: 0.25,
-    ratesVerifiedAt: '2026-07-18',
+    tiers: GPT_56_TIERS,
+    ratesVerifiedAt: '2026-09-08',
   }),
-  'gpt-5.4-mini': responses(272_000, 100_000, {
+  'gpt-5.4-mini': responses(400_000, 128_000, {
     inputUsdPerMTok: 0.75,
     outputUsdPerMTok: 4.5,
     cacheReadUsdPerMTok: 0.075,
-    ratesVerifiedAt: '2026-07-18',
+    ratesVerifiedAt: '2026-09-08',
   }),
 };
 
@@ -209,7 +223,18 @@ export const OPENAI_PRICING: PriceTable = {
   // recorded before this release overstated Sol spend relative to
   // the cut, never under; the distinct version string surfaces the
   // drift on resume instead of silently reinterpreting past spend.
-  pricingVersion: 'openai-2026-08-23',
+  // The 2026-09-08 revision carries the long context tier the gpt-5.5
+  // and gpt-5.4 model pages document (prompts strictly above 272K
+  // input tokens price the full request at 2x input and 1.5x output,
+  // the tier the 5.6 family already carried) that the pre-5.6 rows
+  // never declared, caught when the plan-49 stamp renewal read those
+  // four pages with the audit's extractor for the first time. Runs
+  // recorded before this release priced such prompts on those two
+  // models at the base rate, understating spend, never over; the
+  // distinct version string surfaces the revision on resume instead of
+  // silently reinterpreting past spend. Every other rate is byte
+  // identical, and every row's stamp is renewed to the same day.
+  pricingVersion: 'openai-2026-09-08',
   models: ((): Record<ModelRef, Pricing> => {
     const models: Record<ModelRef, Pricing> = {};
     for (const [name, info] of Object.entries(OPENAI_MODELS)) {

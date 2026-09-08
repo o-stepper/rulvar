@@ -14,7 +14,7 @@
  * RV901). The 1h premium bills through the canonical Usage TTL split
  * the wire fills (RV810); when a usage carries no split, the whole
  * write count folds at the conservative 5m rate exactly as before.
- * Every row was re verified against that page on 2026-09-07
+ * Every row was re verified against that page on 2026-09-08
  * (RATES_VERIFIED_AT below, RV814, RV4918), and the weekly rates audit
  * (scripts/rates-audit.mjs) re checks the same page and the age of
  * that stamp, so the next verification is a schedule, not a hand
@@ -45,8 +45,11 @@ const ALL_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
  * host with maxRatesAgeDays would have discarded a correct table on the
  * calendar. The scheduled rates audit now fails a stamp older than
  * sixty days, so the next renewal is paged for, never remembered.
+ * The 2026-09-08 renewal (plan 49, wave C) re read every row again
+ * with the audit and moved no number; it ships beside the OpenAI
+ * table's revision of the same day so both stamps renew together.
  */
-const RATES_VERIFIED_AT = '2026-09-07';
+const RATES_VERIFIED_AT = '2026-09-08';
 
 export interface AnthropicModelInfo {
   caps: ModelCaps;
@@ -122,7 +125,7 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
   // The 2/10/0.2/2.5/4 row launched as introductory pricing through
   // 2026-08-31; the page's 2026-08-10 revision made it the standard
   // price and cancelled the scheduled increase to 3/15/0.3/3.75/6
-  // (RV4918, re read 2026-09-07). No scheduled change: a future
+  // (RV4918, re read 2026-09-07 and 2026-09-08). No scheduled change: a future
   // revision ships as a new pricingVersion like any other.
   'claude-sonnet-5': current(
     1_000_000,
