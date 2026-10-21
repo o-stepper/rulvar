@@ -25,8 +25,8 @@ catalogs:
       specifier: ^9.39.5
       version: 9.39.5
     '@modelcontextprotocol/sdk':
-      specifier: ^1.29.0
-      version: 1.29.0
+      specifier: ^1.32.0
+      version: 1.32.1
     '@types/estree':
       specifier: ^1.0.9
       version: 1.0.9
@@ -303,7 +303,7 @@ importers:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
-        version: 1.29.0(zod@4.4.3)
+        version: 1.32.1(zod@4.4.3)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1149,6 +1149,16 @@ packages:
 
   '@modelcontextprotocol/sdk@1.29.0':
     resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@cfworker/json-schema': ^4.1.1
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@cfworker/json-schema':
+        optional: true
+
+  '@modelcontextprotocol/sdk@1.32.1':
+    resolution: {integrity: sha512-2DdE+SJDtzLEEWzY1ZjY7Q+VcPhcV1KisD3zI4u0XZyktsjHum1mwbMI+JaulUBi2OZk+KJAi2uPXzxichPkdw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
@@ -4813,6 +4823,28 @@ snapshots:
       '@chevrotain/types': 11.1.2
 
   '@modelcontextprotocol/sdk@1.29.0(zod@4.4.3)':
+    dependencies:
+      '@hono/node-server': 2.0.12(hono@4.12.34)
+      ajv: 8.20.0
+      ajv-formats: 3.0.1(ajv@8.20.0)
+      content-type: 1.0.5
+      cors: 2.8.6
+      cross-spawn: 7.0.6
+      eventsource: 3.0.7
+      eventsource-parser: 3.1.0
+      express: 5.2.1
+      express-rate-limit: 8.6.0(express@5.2.1)
+      hono: 4.12.34
+      jose: 6.2.4
+      json-schema-typed: 8.0.2
+      pkce-challenge: 5.0.1
+      raw-body: 3.0.2
+      zod: 4.4.3
+      zod-to-json-schema: 3.25.2(zod@4.4.3)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@modelcontextprotocol/sdk@1.32.1(zod@4.4.3)':
     dependencies:
       '@hono/node-server': 2.0.12(hono@4.12.34)
       ajv: 8.20.0
