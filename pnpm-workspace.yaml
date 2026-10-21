@@ -16,7 +16,7 @@ catalog:
   '@ai-sdk/google': ^4.0.24
   '@ai-sdk/provider': ^4.0.3
   '@anthropic-ai/sdk': ^0.115.0
-  '@modelcontextprotocol/sdk': ^1.29.0
+  '@modelcontextprotocol/sdk': ^1.32.0
   '@arethetypeswrong/cli': ^0.18.5
   '@changesets/cli': ^2.31.1
   '@eslint/js': ^9.39.5
